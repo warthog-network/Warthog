@@ -1,0 +1,11 @@
+package "wart-miner"
+purpose "The reference implementation miner of the Warthog Network.
+
+
+By Pumbaa, Timon & Rafiki"
+
+# Options
+option "address" a "Specify address that is mined to" string typestr="WALLETADDRESS" required 
+option "threads" t "Number of worker threads, use -1 for number of cores" int default="-1" 
+option "host" h "Host (RPC-Node)" string default="localhost" optional
+option "port" p "Port (RPC-Node)" int default="3000" optional

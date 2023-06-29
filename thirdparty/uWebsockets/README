@@ -1,0 +1,2 @@
+This is a modified version of uWebsockets where the stupid per thread singleton design `Loop::get()` is replaced.
+The reason is that Loop::get() returns a thread local variable which is needed for inter-thread communication such that the spawning thread needs to wait until the newly spawned thread has constructed its thread local loop. Otherwise an immediate shutdown where the spawning thread needs to communicate to the newly spawned thread will lead to a crash because a copy of the loop variable is not yet initialized.

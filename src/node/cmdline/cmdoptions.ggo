@@ -1,0 +1,28 @@
+package "wart-node"
+purpose "The reference implementation node of the Warthog Network.
+
+
+By Pumbaa, Timon & Rafiki"
+
+# Options
+
+section "Node options"
+option "bind" b "Port name to listen on" optional string typestr="IP:PORT" default="0.0.0.0:9186" 
+option "connect" C "Specify peer list" details="This option overrides the peers list, specify comma separated entries of format 'IP:PORT'" optional string typestr="IP:PORT,..."
+
+section "Data file options"
+option "chain-db" - "Chain data file" optional string default="chain.db3"
+option "peers-db" - "Chain data file" optional string default="peers.db3"
+
+
+
+section "Logging options"
+option "debug" d "Enable debug messages" optional
+
+section "JSON RPC endpoint options"
+option "rpc" r "JSON RPC endpoint" optional string typestr="IP:PORT" default="127.0.0.1:3000" 
+
+section "Configuration file options"
+option "config" c  "Configuration file" optional string typestr="FILENAME" default="config.toml"
+option "test" t "test the configuration file (check for correct syntax)" optional
+option "dump-config" - "dump the current configuration to stdout" details="This option can be useful to generate a configuration file template" optional

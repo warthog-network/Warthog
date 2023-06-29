@@ -1,0 +1,1 @@
+This is a snapshot of https://github.com/gabime/spdlog/commit/4cfdc8c5c84f696774cb9acde2f95c9e87c11a5e patched to behave as compiled with '-DSPDLOG_COMPILED_LIB' to use of the compiled version of spdlog (not the header-only version) in this project.
