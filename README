@@ -25,6 +25,15 @@ WHAT IS IN THE BOX
 * Command line wallet software
 * CPU Miner
 
+SYSTEM REQUIREMENTS
+===================
+
+* gcc11 or newer
+* meson
+* ninja
+
+Note: Ubuntu 20.04 does not meet these requirements.
+
 USAGE
 =====
 
