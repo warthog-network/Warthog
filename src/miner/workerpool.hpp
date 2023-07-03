@@ -1,8 +1,8 @@
 #pragma once
 
-#include "general/hex.hpp"
 #include "api_call.hpp"
 #include "crypto/address.hpp"
+#include "general/hex.hpp"
 #include "spdlog/fmt//fmt.h"
 #include "spdlog/spdlog.h"
 #include "worker.hpp"
@@ -102,25 +102,34 @@ private:
     }
 
 public:
+    void report_hashrate()
+    {
+        auto rawhr { update_hashrate() };
+        auto [hr, unit] = format_hashrate(rawhr);
+        std::string durationstr;
+        if (currentMiningTask) {
+            uint32_t seconds(currentMiningTask->b.header.target().difficulty() / rawhr);
+            durationstr = spdlog::fmt_lib::format("(~{} per block)", format_duration(seconds));
+        }
+        spdlog::info("Hashrate: {} {}/s {}", hr, unit, durationstr);
+    }
     void run()
     {
         using namespace std::chrono;
+        constexpr seconds report_interval{5};
+
         bool updateMining = true;
         time_point<steady_clock> until;
+        time_point<steady_clock> report_time { steady_clock::now()  + report_interval};
         while (true) {
-            bool expired { steady_clock::now() > until };
-            if (expired) {
-                until = steady_clock::now() + seconds(5);
-                auto rawhr { update_hashrate() };
-                auto [hr, unit] = format_hashrate(rawhr);
-                std::string durationstr;
-                if (currentMiningTask) {
-                    uint32_t seconds(currentMiningTask->b.header.target().difficulty() / rawhr);
-                    durationstr = spdlog::fmt_lib::format("(~{} per block)", format_duration(seconds));
-                }
-                spdlog::info("Hashrate: {} {}/s {}", hr, unit, durationstr);
+            if (steady_clock::now() > report_time) { // report hashrate
+                report_time = steady_clock::now() + report_interval;
+                report_hashrate();
             }
+
+            bool expired { steady_clock::now() > until };
             if (updateMining || expired) {
+                until = steady_clock::now() + milliseconds(700);
                 updateMining = false;
                 currentMiningTask = Workertask { api.get_mining(Address(addrstr)) };
                 for (auto& w : workers) {
