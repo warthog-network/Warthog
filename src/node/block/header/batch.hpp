@@ -4,16 +4,18 @@
 #include <span>
 
 class Worksum;
+class Headerchain;
 class Headervec {
 public:
     Headervec() { }
+    Headervec(const std::vector<HeaderView>& v);
     Headervec(std::span<const uint8_t> s)
     {
         if (s.size() % HeaderView::bytesize)
             throw Error(EMALFORMED);
         if (s.size() > HeaderView::bytesize * HEADERBATCHSIZE)
             throw Error(EBATCHSIZE);
-        bytes.assign(s.begin(),s.end());
+        bytes.assign(s.begin(), s.end());
     };
     Headervec(std::vector<uint8_t>&& b)
         : bytes(std::move(b))
@@ -125,7 +127,7 @@ public:
 class Grid : public Headervec {
 public:
     Grid(std::span<const uint8_t> s);
-    Grid() {};
+    Grid(const Headerchain&, Batchslot begin);
     using Headervec::operator[];
     HeaderView operator[](Batchslot s) const { return Headervec::operator[](s.index()); }
     Batchslot slot_begin() const

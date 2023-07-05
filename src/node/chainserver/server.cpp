@@ -1,8 +1,8 @@
 #include "server.hpp"
-#include "general/hex.hpp"
 #include "api/types/all.hpp"
-#include "eventloop/eventloop.hpp"
 #include "block/header/header_impl.hpp"
+#include "eventloop/eventloop.hpp"
+#include "general/hex.hpp"
 #include "global/globals.hpp"
 #include "spdlog/spdlog.h"
 
@@ -46,9 +46,10 @@ void ChainServer::api_mining_append(Block&& block, ResultCb callback)
     defer_maybe_busy(MiningAppend { std::move(block), std::move(callback) });
 };
 
-void ChainServer::async_set_synced(bool synced){
+void ChainServer::async_set_synced(bool synced)
+{
     spdlog::debug("Set synced {}", synced);
-    defer(SetSynced{synced});
+    defer(SetSynced { synced });
 };
 
 void ChainServer::async_put_mempool(std::vector<TransferTxExchangeMessage> txs)
@@ -65,6 +66,11 @@ void ChainServer::api_put_mempool(std::vector<uint8_t> data,
 void ChainServer::api_get_balance(const Address& a, BalanceCb callback)
 {
     defer_maybe_busy(GetBalance { a, std::move(callback) });
+};
+
+void ChainServer::api_get_grid(GridCb callback)
+{
+    defer_maybe_busy(GetGrid { std::move(callback) });
 };
 
 void ChainServer::api_get_mempool(MempoolCb callback)
@@ -193,6 +199,11 @@ void ChainServer::handle_event(MiningAppend&& e)
     }
 };
 
+void ChainServer::handle_event(GetGrid&& e)
+{
+    e.callback(state.get_headers().grid());
+};
+
 void ChainServer::handle_event(GetBalance&& e)
 {
     e.callback(state.api_get_address(e.address));
@@ -278,7 +289,7 @@ void ChainServer::handle_event(stage_operation::StageSetOperation&& r)
 
 void ChainServer::handle_event(stage_operation::StageAddOperation&& r)
 {
-    auto [stageAddResult, delta] { state.add_stage(r.blocks,r.headers) };
+    auto [stageAddResult, delta] { state.add_stage(r.blocks, r.headers) };
     if (delta)
         global().pel->async_state_update(std::move(*delta));
     global().pel->async_stage_action(std::move(stageAddResult));

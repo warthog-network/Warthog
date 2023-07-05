@@ -20,6 +20,7 @@ public:
         return *headerchain;
     }
     Headerchain::pin_t get_pin() const;
+    Grid grid() const{ return headerchain->grid();};
 
     const SignedSnapshot::Priority get_signed_snapshot_priority() const;
     const auto& get_signed_snapshot() const { return signedSnapshot; }

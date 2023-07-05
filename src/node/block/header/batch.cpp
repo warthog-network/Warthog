@@ -1,14 +1,36 @@
 #include "batch.hpp"
+#include "block/chain/header_chain.hpp"
 #include "block/header/header_impl.hpp"
 #include "general/now.hpp"
 #include "timestamprule.hpp"
+
+namespace {
+auto last_element_vector(const Headerchain& hc, Batchslot begin)
+{
+    std::vector<HeaderView> v;
+    v.reserve(hc.complete_batches().size());
+    for (size_t i=begin.index(); i < hc.complete_batches().size(); ++i){
+        auto &sb{hc.complete_batches()[i]};
+        v.push_back(sb.getBatch().last());
+    }
+    return v;
+}
+}
+
+Headervec::Headervec(const std::vector<HeaderView>& v)
+{
+    bytes.resize(80 * v.size());
+    for (size_t i = 0; i < v.size(); ++i) {
+        memcpy(bytes.data() + 80 * i, v[i].data(), v[i].size());
+    }
+};
 
 Worksum Batch::worksum(const Height offset, uint32_t maxElements) const
 { // OK
     const uint32_t s = std::min((uint32_t)size(), maxElements);
     if (s == 0)
         return {};
-    uint32_t rel_upper{s - 1};
+    uint32_t rel_upper { s - 1 };
     Worksum sum;
     bool complete = false;
     while (!complete) {
@@ -37,7 +59,6 @@ Worksum Batch::worksum(const Height offset, uint32_t maxElements) const
     return sum;
 }
 
-
 bool Batch::valid_inner_links()
 {
     if (size() <= 1)
@@ -51,13 +72,15 @@ bool Batch::valid_inner_links()
     return true;
 };
 
-
 Grid::Grid(std::span<const uint8_t> s)
 {
     if (s.size() % 80 != 0)
         throw Error(EMALFORMED);
     assign(s.begin().base(), s.end().base());
 };
+
+Grid::Grid(const Headerchain& hc, Batchslot begin)
+    : Headervec(last_element_vector(hc,begin)) {};
 
 bool Grid::valid_checkpoint() const
 {

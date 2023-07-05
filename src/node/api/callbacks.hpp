@@ -10,6 +10,7 @@
 // forward declarations
 class TransferTxExchangeMessage;
 class Hash;
+class Grid;
 struct MiningTask;
 namespace HeaderDownload {
 class Downloader;
@@ -33,6 +34,7 @@ using HeadCb = std::function<void(const tl::expected<API::Head, int32_t>&)>;
 using HeaderdownloadCb = std::function<void(const HeaderDownload::Downloader&)>;
 using HeaderCb = std::function<void(const tl::expected<Header, int32_t>&)>;
 using HashCb = std::function<void(const tl::expected<Hash, int32_t>&)>;
+using GridCb = std::function<void(const tl::expected<Grid, int32_t>&)>;
 using TxCb = std::function<void(const tl::expected<API::Transaction, int32_t>&)>;
 using BlockCb = std::function<void(const tl::expected<API::Block, int32_t>&)>;
 using HistoryCb = std::function<void(const tl::expected<API::History, int32_t>&)>;

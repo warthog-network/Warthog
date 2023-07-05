@@ -95,12 +95,8 @@ Sndbuffer InitMsg::serialize_chainstate(const ConsensusSlave& cs)
        << sp.height
        << cs.headers().length()
        << cs.total_work()
-       << (uint32_t)(cs.headers().complete_batches().size() * 80);
-    for (auto& sb : cs.headers().complete_batches()) {
-        const Batch& b = sb.getBatch();
-        const auto& last = b.last();
-        mw << Range(last.data(), last.size());
-    }
+       << (uint32_t)(cs.headers().complete_batches().size() * 80)
+       << Range(cs.grid().raw());
     return mw;
 };
 

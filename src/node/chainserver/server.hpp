@@ -42,6 +42,9 @@ public:
         std::vector<uint8_t> data;
         ResultCb callback;
     };
+    struct GetGrid {
+        GridCb callback;
+    };
     struct GetBalance {
         Address address;
         BalanceCb callback;
@@ -103,6 +106,7 @@ public:
     using Event = std::variant<
         MiningAppend,
         PutMempool,
+        GetGrid,
         GetBalance,
         GetMempool,
         LookupTxids,
@@ -159,6 +163,7 @@ public:
     void api_mining_append(Block&&, ResultCb);
     void api_put_mempool(std::vector<uint8_t> data, ResultCb cb);
     void api_get_balance(const Address& a, BalanceCb callback);
+    void api_get_grid(GridCb);
     void api_get_mempool(MempoolCb callback);
     void api_lookup_tx(const HashView hash, TxCb callback);
     void api_get_history(const Address& address, uint64_t beforeId, HistoryCb callback);
@@ -183,6 +188,7 @@ private:
 private:
     void handle_event(MiningAppend&&);
     void handle_event(PutMempool&&);
+    void handle_event(GetGrid&&);
     void handle_event(GetBalance&&);
     void handle_event(GetMempool&&);
     void handle_event(LookupTxids&&);

@@ -73,6 +73,7 @@ void nav(uWS::HttpResponse<false>* res, uWS::HttpRequest*)
         <h2>Chain endpoints</h2>
         <ul>
             <li>GET <a href=/chain/head>/chain/head</a></li>
+            <li>GET <a href=/chain/grid>/chain/grid</a></li>
             <li>GET <a href=/chain/block/:id/hash>/chain/block/:id/hash</a></li>
             <li>GET <a href=/chain/signed_snapshot>/chain/signed_snapshot</a></li>
             <li>GET <a href=/chain/block/:id/header>/chain/block/:id/header</a></li>
@@ -118,6 +119,7 @@ void HTTPEndpoint::work()
 
     // Chain endpoints
     get("/chain/head", get_block_head, jsonmsg::serialize<API::Head>);
+    get("/chain/grid", get_chain_grid);
     get_1("/chain/block/:id/hash", get_chain_hash);
     get_1("/chain/block/:id/header", get_chain_header);
     get_1("/chain/block/:id", get_chain_block);

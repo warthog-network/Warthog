@@ -39,7 +39,7 @@ protected:
 };
 
 class Headerchain;
-[[nodiscard]] ForkHeight fork_height(const Headerchain& h1, const Headerchain& h2, NonzeroHeight startHeight = {1});
+[[nodiscard]] ForkHeight fork_height(const Headerchain& h1, const Headerchain& h2, NonzeroHeight startHeight = { 1 });
 class Headerchain : public HeaderchainSkeleton {
     struct HeaderViewNoHash : public HeaderView {
         HeaderViewNoHash(const HeaderView& hv)
@@ -98,6 +98,7 @@ public:
     Headerchain& operator=(const Headerchain&) = default;
     Headerchain& operator=(Headerchain&&) = default;
     const HeaderViewNoHash operator[](NonzeroHeight) const;
+    Grid grid(Batchslot begin = Batchslot(0)) const;
     const Batch* operator[](Batchslot bs) const
     {
         size_t index = bs.index();
@@ -134,7 +135,6 @@ public:
 protected: // methods
     const HeaderView header_view(uint32_t height) const;
     void initialize_worksum();
-    Grid grid(size_t batchOffset);
     Worksum sumWork(const Height begin, const Height end) const;
 
 protected: // variables

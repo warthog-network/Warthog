@@ -61,6 +61,10 @@ void get_chain_hash(Height height, HashCb f)
 {
     global().pcs->api_get_hash(height, f);
 };
+
+void get_chain_grid(GridCb f){
+    global().pcs->api_get_grid(f);
+};
 void get_chain_block(Height height, BlockCb cb)
 {
     global().pcs->api_get_block(height, cb);

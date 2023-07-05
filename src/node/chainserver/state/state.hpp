@@ -57,6 +57,7 @@ public:
 
     // general getters
     auto get_header(Height h) const -> std::optional<Header>;
+    auto get_headers() const { return chainstate.headers(); }
     auto get_hash(Height h) const -> std::optional<Hash>;
     auto get_blocks(DescriptedBlockRange) -> std::vector<BodyContainer>;
     auto get_mempool_tx(TransactionId) const -> std::optional<TransferTxExchangeMessage>;

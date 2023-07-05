@@ -387,6 +387,14 @@ json to_json(const API::Balance& b)
     return j;
 }
 
+json to_json(const Grid&g){
+    json j(json::array());
+    for (const auto& h : g) {
+        j.push_back(serialize_hex(h));
+    }
+    return j;
+};
+
 json to_json(const std::optional<SignedSnapshot>& sp)
 {
     if (sp) {

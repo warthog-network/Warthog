@@ -37,7 +37,7 @@ std::pair<Height, AppendMsg> Headerchain::apply_append(HeaderchainAppend&& updat
     Worksum prevWorksum = worksum;
     Height h(length());
     assert(update.completeBatches.size() > 0 || update.incompleteBatch.size() > 0);
-    const size_t batchOffset = completeBatches.size();
+    const Batchslot batchOffset { uint32_t(completeBatches.size()) };
     completeBatches.insert(completeBatches.end(),
         update.completeBatches.begin(),
         update.completeBatches.end());
@@ -72,7 +72,7 @@ ForkMsg Headerchain::apply_fork(HeaderchainFork&& update)
     completeBatches.erase(completeBatches.begin() + nComplete, completeBatches.end());
 
     assert(completeBatches.size() == nComplete);
-    const size_t batchOffset = completeBatches.size();
+    const Batchslot batchOffset { uint32_t(completeBatches.size()) };
     completeBatches.insert(completeBatches.end(),
         update.completeBatches.begin(),
         update.completeBatches.end());
@@ -110,18 +110,6 @@ void Headerchain::shrink(Height shrinkLength)
     }
     initialize_worksum();
     assert(worksum < prevWorksum);
-};
-
-Grid Headerchain::grid(size_t batchOffset)
-{
-    const size_t N = completeBatches.size();
-    Grid out;
-    for (size_t i = batchOffset; i < N; ++i) {
-        const Batch& b = completeBatches[i].getBatch();
-        assert(b.size() == HEADERBATCHSIZE);
-        out.append(b.last());
-    }
-    return out;
 };
 
 Batch Headerchain::get_headers(NonzeroHeight begin, NonzeroHeight end) const
@@ -221,6 +209,11 @@ const Headerchain::HeaderViewNoHash Headerchain::operator[](NonzeroHeight h) con
     } else {
         return incompleteBatch[rem];
     }
+};
+
+Grid Headerchain::grid(Batchslot begin) const
+{
+    return { *this, begin };
 };
 
 void Headerchain::initialize_worksum()

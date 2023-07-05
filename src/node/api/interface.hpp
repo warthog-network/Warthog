@@ -31,6 +31,7 @@ void get_block_head(HeadCb cb);
 void get_chain_mine(const Address& a, MiningCb cb);
 void get_chain_header(Height height, HeaderCb cb);
 void get_chain_hash(Height height, HashCb cb);
+void get_chain_grid(GridCb cb);
 void get_chain_block(Height height, BlockCb cb);
 void get_txcache(TxcacheCb&& cb);
 void put_chain_append(MiningTask&& mt, ResultCb cb);
