@@ -25,7 +25,7 @@
 
 #include "cmdline.h"
 
-const char *gengetopt_args_info_purpose = "The reference implementation wallet of the Warthog Network.\n\n\nBy Pumbaa";
+const char *gengetopt_args_info_purpose = "The reference implementation wallet of the Warthog Network.\n\n\nBy Pumbaa, Timon & Rafiki";
 
 const char *gengetopt_args_info_usage = "Usage: wart-wallet [OPTION]...";
 
@@ -34,7 +34,7 @@ const char *gengetopt_args_info_versiontext = "";
 const char *gengetopt_args_info_description = "";
 
 const char *gengetopt_args_info_help[] = {
-  "  -h, --help                Print help and exit",
+  "      --help                Print help and exit",
   "  -V, --version             Print version and exit",
   "  -c, --create              Create new wallet",
   "  -r, --restore=PRIVATEKEY  Restore wallet from private key",
@@ -47,11 +47,14 @@ const char *gengetopt_args_info_help[] = {
   "      --amount=STRING       Specify transaction amount",
   "      --fee=STRING          Specify transaction fee",
   "      --nonce=LONGLONG      Specify transaction nonce",
+  "  -h, --host=STRING         Host (RPC-Node)  (default=`localhost')",
+  "  -p, --port=INT            Port (RPC-Node)  (default=`3000')",
     0
 };
 
 typedef enum {ARG_NO
   , ARG_STRING
+  , ARG_INT
   , ARG_LONGLONG
 } cmdline_parser_arg_type;
 
@@ -84,6 +87,8 @@ void clear_given (struct gengetopt_args_info *args_info)
   args_info->amount_given = 0 ;
   args_info->fee_given = 0 ;
   args_info->nonce_given = 0 ;
+  args_info->host_given = 0 ;
+  args_info->port_given = 0 ;
 }
 
 static
@@ -101,6 +106,10 @@ void clear_args (struct gengetopt_args_info *args_info)
   args_info->fee_arg = NULL;
   args_info->fee_orig = NULL;
   args_info->nonce_orig = NULL;
+  args_info->host_arg = gengetopt_strdup ("localhost");
+  args_info->host_orig = NULL;
+  args_info->port_arg = 3000;
+  args_info->port_orig = NULL;
   
 }
 
@@ -122,6 +131,8 @@ void init_args_info(struct gengetopt_args_info *args_info)
   args_info->amount_help = gengetopt_args_info_help[10] ;
   args_info->fee_help = gengetopt_args_info_help[11] ;
   args_info->nonce_help = gengetopt_args_info_help[12] ;
+  args_info->host_help = gengetopt_args_info_help[13] ;
+  args_info->port_help = gengetopt_args_info_help[14] ;
   
 }
 
@@ -222,6 +233,9 @@ cmdline_parser_release (struct gengetopt_args_info *args_info)
   free_string_field (&(args_info->fee_arg));
   free_string_field (&(args_info->fee_orig));
   free_string_field (&(args_info->nonce_orig));
+  free_string_field (&(args_info->host_arg));
+  free_string_field (&(args_info->host_orig));
+  free_string_field (&(args_info->port_orig));
   
   
 
@@ -278,6 +292,10 @@ cmdline_parser_dump(FILE *outfile, struct gengetopt_args_info *args_info)
     write_into_file(outfile, "fee", args_info->fee_orig, 0);
   if (args_info->nonce_given)
     write_into_file(outfile, "nonce", args_info->nonce_orig, 0);
+  if (args_info->host_given)
+    write_into_file(outfile, "host", args_info->host_orig, 0);
+  if (args_info->port_given)
+    write_into_file(outfile, "port", args_info->port_orig, 0);
   
 
   i = EXIT_SUCCESS;
@@ -444,6 +462,9 @@ int update_arg(void *field, char **orig_field,
     val = possible_values[found];
 
   switch(arg_type) {
+  case ARG_INT:
+    if (val) *((int *)field) = strtol (val, &stop_char, 0);
+    break;
   case ARG_LONGLONG:
 #if defined(HAVE_LONG_LONG) || defined(HAVE_LONG_LONG_INT)
     if (val) *((long long int*)field) = (long long int) strtoll (val, &stop_char, 0);
@@ -465,6 +486,7 @@ int update_arg(void *field, char **orig_field,
 
   /* check numeric conversion */
   switch(arg_type) {
+  case ARG_INT:
   case ARG_LONGLONG:
     if (val && !(stop_char && *stop_char == '\0')) {
       fprintf(stderr, "%s: invalid numeric value: %s\n", package_name, val);
@@ -512,12 +534,14 @@ cmdline_parser_internal (
   
   package_name = argv[0];
   
+  /* TODO: Why is this here? It is not used anywhere. */
   override = params->override;
   FIX_UNUSED(override);
 
   initialize = params->initialize;
   check_required = params->check_required;
 
+  /* TODO: Why is this here? It is not used anywhere. */
   check_ambiguity = params->check_ambiguity;
   FIX_UNUSED(check_ambiguity);
 
@@ -536,7 +560,7 @@ cmdline_parser_internal (
       int option_index = 0;
 
       static struct option long_options[] = {
-        { "help",	0, NULL, 'h' },
+        { "help",	0, NULL, 0 },
         { "version",	0, NULL, 'V' },
         { "create",	0, NULL, 'c' },
         { "restore",	1, NULL, 'r' },
@@ -549,20 +573,17 @@ cmdline_parser_internal (
         { "amount",	1, NULL, 0 },
         { "fee",	1, NULL, 0 },
         { "nonce",	1, NULL, 0 },
+        { "host",	1, NULL, 'h' },
+        { "port",	1, NULL, 'p' },
         { 0,  0, 0, 0 }
       };
 
-      c = getopt_long (argc, argv, "hVcr:f:abs", long_options, &option_index);
+      c = getopt_long (argc, argv, "Vcr:f:absh:p:", long_options, &option_index);
 
       if (c == -1) break;	/* Exit from `while (1)' loop.  */
 
       switch (c)
         {
-        case 'h':	/* Print help and exit.  */
-          cmdline_parser_print_help ();
-          cmdline_parser_free (&local_args_info);
-          exit (EXIT_SUCCESS);
-
         case 'V':	/* Print version and exit.  */
           cmdline_parser_print_version ();
           cmdline_parser_free (&local_args_info);
@@ -640,8 +661,38 @@ cmdline_parser_internal (
             goto failure;
         
           break;
+        case 'h':	/* Host (RPC-Node).  */
+        
+        
+          if (update_arg( (void *)&(args_info->host_arg), 
+               &(args_info->host_orig), &(args_info->host_given),
+              &(local_args_info.host_given), optarg, 0, "localhost", ARG_STRING,
+              check_ambiguity, override, 0, 0,
+              "host", 'h',
+              additional_error))
+            goto failure;
+        
+          break;
+        case 'p':	/* Port (RPC-Node).  */
+        
+        
+          if (update_arg( (void *)&(args_info->port_arg), 
+               &(args_info->port_orig), &(args_info->port_given),
+              &(local_args_info.port_given), optarg, 0, "3000", ARG_INT,
+              check_ambiguity, override, 0, 0,
+              "port", 'p',
+              additional_error))
+            goto failure;
+        
+          break;
 
         case 0:	/* Long option with no short option */
+          if (strcmp (long_options[option_index].name, "help") == 0) {
+            cmdline_parser_print_help ();
+            cmdline_parser_free (&local_args_info);
+            exit (EXIT_SUCCESS);
+          }
+
           /* Do not save generated/restored wallet to disk but print result instead.  */
           if (strcmp (long_options[option_index].name, "print-only") == 0)
           {

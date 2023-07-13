@@ -132,6 +132,7 @@ int process(gengetopt_args_info& ai)
             return -1;
         }
     }
+    Endpoint endpoint(ai.host_arg, ai.port_arg);
     try {
         filesystem::path walletpath(ai.file_arg);
         if (ai.create_given) {
@@ -166,7 +167,7 @@ int process(gengetopt_args_info& ai)
             return 0;
         }
         if (ai.balance_given) {
-            cout << get_balance(w.address.to_string()).to_string() << endl;
+            cout << endpoint.get_balance(w.address.to_string()).to_string() << endl;
             return 0;
         }
         if (ai.send_given) {
@@ -177,7 +178,7 @@ int process(gengetopt_args_info& ai)
             }
             Address to(ai.to_arg);
             cout << "Get pin" << endl;
-            auto pin = get_pin();
+            auto pin = endpoint.get_pin();
             cout << "Got pin" << endl;
             auto fee { Funds::parse(ai.fee_arg) };
             auto amount { Funds::parse(ai.amount_arg) };
@@ -193,7 +194,7 @@ int process(gengetopt_args_info& ai)
             cout << "pinHeight: " << pin.first.value() << endl;
             cout << "pinHash: " << serialize_hex(pin.second) << endl;
             std::string msg;
-            int code = send_transaction(m, &msg);
+            int code = endpoint.send_transaction(m, &msg);
             if (code) {
                 cout << "Transaction rejected (code " << code << "): " << msg;
                 return -1;

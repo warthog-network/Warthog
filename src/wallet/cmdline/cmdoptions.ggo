@@ -17,3 +17,5 @@ option "to" - "Specify transaction receipent address" string optional
 option "amount" - "Specify transaction amount" string optional  
 option "fee" - "Specify transaction fee" string optional 
 option "nonce" - "Specify transaction nonce" longlong optional 
+option "host" h "Host (RPC-Node)" string default="localhost" optional
+option "port" p "Port (RPC-Node)" int default="3000" optional

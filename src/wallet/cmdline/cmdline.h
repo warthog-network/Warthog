@@ -66,6 +66,12 @@ struct gengetopt_args_info
   #endif
   char * nonce_orig;	/**< @brief Specify transaction nonce original value given at command line.  */
   const char *nonce_help; /**< @brief Specify transaction nonce help description.  */
+  char * host_arg;	/**< @brief Host (RPC-Node) (default='localhost').  */
+  char * host_orig;	/**< @brief Host (RPC-Node) original value given at command line.  */
+  const char *host_help; /**< @brief Host (RPC-Node) help description.  */
+  int port_arg;	/**< @brief Port (RPC-Node) (default='3000').  */
+  char * port_orig;	/**< @brief Port (RPC-Node) original value given at command line.  */
+  const char *port_help; /**< @brief Port (RPC-Node) help description.  */
   
   unsigned int help_given ;	/**< @brief Whether help was given.  */
   unsigned int version_given ;	/**< @brief Whether version was given.  */
@@ -80,6 +86,8 @@ struct gengetopt_args_info
   unsigned int amount_given ;	/**< @brief Whether amount was given.  */
   unsigned int fee_given ;	/**< @brief Whether fee was given.  */
   unsigned int nonce_given ;	/**< @brief Whether nonce was given.  */
+  unsigned int host_given ;	/**< @brief Whether host was given.  */
+  unsigned int port_given ;	/**< @brief Whether port was given.  */
 
 } ;
 

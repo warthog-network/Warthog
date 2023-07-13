@@ -13,9 +13,9 @@ size_t writeFunction(void* ptr, size_t size, size_t nmemb, std::string* data)
     return size * nmemb;
 }
 
-bool http_get(const std::string& get, std::string& out)
+bool Endpoint::http_get(const std::string& get, std::string& out)
 {
-    httplib::Client cli("localhost", 3000);
+    httplib::Client cli(host, port);
     if (auto res = cli.Get(get)) {
         out = std::move(res->body);
         return true;
@@ -23,9 +23,9 @@ bool http_get(const std::string& get, std::string& out)
     return false;
 }
 
-int http_post(const std::string& path, const std::vector<uint8_t>& postdata, std::string& out)
+int Endpoint::http_post(const std::string& path, const std::vector<uint8_t>& postdata, std::string& out)
 {
-    httplib::Client cli("localhost", 3000);
+    httplib::Client cli(host, port);
     if (auto res = cli.Post(path, (const char*)postdata.data(), postdata.size(), ""s)) {
         out = std::move(res->body);
         return true;
@@ -33,12 +33,12 @@ int http_post(const std::string& path, const std::vector<uint8_t>& postdata, std
     return false;
 }
 
-std::pair<PinHeight, Hash> get_pin()
+std::pair<PinHeight, Hash> Endpoint::get_pin()
 {
     std::string out;
     std::string url = "/chain/head";
     if (!http_get(url, out)) {
-        throw std::runtime_error("API request failed. Are you running the node with RPC endpoint enabled?");
+        throw failed_msg();
     }
     try {
         json parsed = json::parse(out);
@@ -52,12 +52,12 @@ std::pair<PinHeight, Hash> get_pin()
     throw std::runtime_error("API request failed, response is malformed. Is the node version compatible with this wallet?");
 }
 
-Funds get_balance(const std::string& account)
+Funds Endpoint::get_balance(const std::string& account)
 {
     std::string out;
     std::string url = "/account/" + account + "/balance";
     if (!http_get(url, out)) {
-        throw std::runtime_error("API request failed. Are you running the node with RPC endpoint enabled?");
+        throw failed_msg();
     }
     json parsed = json::parse(out);
     auto r { Funds::parse(parsed["data"]["balance"].get<string>()) };
@@ -67,12 +67,12 @@ Funds get_balance(const std::string& account)
     throw std::runtime_error("API request failed, response is malformed. Is the node version compatible with this wallet?");
 }
 
-int32_t send_transaction(const std::vector<uint8_t>& txdata, std::string* error)
+int32_t Endpoint::send_transaction(const std::vector<uint8_t>& txdata, std::string* error)
 {
     std::string out;
     std::string url = "/transaction/add";
     if (!http_post(url, txdata, out)) {
-        throw std::runtime_error("API request failed. Are you running the node with RPC endpoint enabled?");
+        throw failed_msg();
     }
     try {
         json parsed = json::parse(out);
@@ -87,3 +87,6 @@ int32_t send_transaction(const std::vector<uint8_t>& txdata, std::string* error)
         throw std::runtime_error("API request failed, response is malformed. Is the node version compatible with this wallet?");
     }
 }
+std::runtime_error Endpoint::failed_msg(){
+        return std::runtime_error{"API request to host "+host+" at port "+std::to_string(port)+" failed. Are you running the node with RPC endpoint enabled?"};
+};
