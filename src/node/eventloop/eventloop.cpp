@@ -103,6 +103,10 @@ void Eventloop::api_inspect(InspectorCb&& cb)
 {
     defer(std::move(cb));
 };
+void Eventloop::api_get_hashrate(HashrateCb&& cb)
+{
+    defer(std::move(cb));
+}
 
 void Eventloop::async_forward_blockrep(uint64_t conId, std::vector<BodyContainer>&& blocks)
 {
@@ -346,6 +350,13 @@ void Eventloop::handle_event(InspectorCb&& cb)
 {
     cb(*this);
 };
+
+void Eventloop::handle_event(HashrateCb&& cb)
+{
+    cb(API::HashrateInfo {
+        .by100Blocks = consensus().headers().hashrate(100) });
+};
+
 void Eventloop::handle_event(OnPinAddress&& e)
 {
     connections.pin(e.a);

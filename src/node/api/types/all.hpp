@@ -97,6 +97,9 @@ struct OffenseHistory {
     std::vector<Hash> hashes;
     std::vector<TransferTxExchangeMessage> entries;
 };
+struct HashrateInfo {
+    uint64_t by100Blocks;
+};
 struct Peerinfo {
     IPv4 ip;
     bool initialized;

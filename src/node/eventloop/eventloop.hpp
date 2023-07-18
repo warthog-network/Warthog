@@ -1,5 +1,6 @@
 #pragma once
 #include "address_manager/address_manager.hpp"
+#include "api/callbacks.hpp"
 #include "api/types/forward_declarations.hpp"
 #include "block/chain/signed_snapshot.hpp"
 #include "chain_cache.hpp"
@@ -50,7 +51,6 @@ public:
     ~Eventloop();
 
     // API callbacks
-    using PeersCb = std::function<void(std::vector<API::Peerinfo>&)>;
     using SignedSnapshotCb = std::function<void(const tl::expected<SignedSnapshot, int32_t>&)>;
     using InspectorCb = std::function<void(const Eventloop&)>;
 
@@ -67,6 +67,7 @@ public:
     void async_stage_action(stage_operation::Result);
 
     void api_get_peers(PeersCb&& cb);
+    void api_get_hashrate(HashrateCb&& cb);
     void api_inspect(InspectorCb&&);
 
     void start_async_loop();
@@ -194,7 +195,7 @@ private:
     // event queue
     using Event = std::variant<OnRelease, OnProcessConnection,
         StateUpdate, SignedSnapshotCb, PeersCb, stage_operation::Result,
-        OnForwardBlockrep, OnFailedAddressEvent, InspectorCb,
+        OnForwardBlockrep, OnFailedAddressEvent, InspectorCb, HashrateCb,
         OnPinAddress, OnUnpinAddress, mempool::Log>;
 
 public:
@@ -211,6 +212,7 @@ private:
     void handle_event(OnForwardBlockrep&&);
     void handle_event(OnFailedAddressEvent&&);
     void handle_event(InspectorCb&&);
+    void handle_event(HashrateCb&&);
     void handle_event(OnPinAddress&&);
     void handle_event(OnUnpinAddress&&);
     void handle_event(mempool::Log&&);

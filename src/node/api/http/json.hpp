@@ -16,6 +16,7 @@ nlohmann::json to_json(const API::MempoolEntries&);
 nlohmann::json to_json(const API::Transaction&);
 nlohmann::json to_json(const API::Block&);
 nlohmann::json to_json(const API::History&);
+nlohmann::json to_json(const API::HashrateInfo&);
 nlohmann::json to_json(const OffenseEntry& e);
 nlohmann::json to_json(const std::optional<SignedSnapshot>&);
 nlohmann::json to_json(const chainserver::TransactionIds&);

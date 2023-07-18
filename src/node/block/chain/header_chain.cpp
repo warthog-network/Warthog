@@ -112,6 +112,22 @@ void Headerchain::shrink(Height shrinkLength)
     assert(worksum < prevWorksum);
 };
 
+uint64_t Headerchain::hashrate(uint32_t nblocks) const
+{
+    if (length() < Height(2))
+        return 0;
+    NonzeroHeight lower { length().value() > nblocks ? (length() - nblocks).nonzero_assert() : NonzeroHeight { 1 } };
+    NonzeroHeight upper { length().nonzero_assert() };
+    auto ltime { operator[](lower).timestamp() };
+    auto utime { operator[](upper).timestamp() };
+    if (ltime >= utime)
+        return std::numeric_limits<uint64_t>::max();
+    auto seconds { utime - ltime };
+    auto nBlocks { upper - lower };
+    assert(nBlocks > 0);
+    return sum_work(lower+1,upper+1).getdouble()/seconds;
+};
+
 Batch Headerchain::get_headers(NonzeroHeight begin, NonzeroHeight end) const
 {
     assert(end - begin <= HEADERBATCHSIZE);
@@ -223,11 +239,11 @@ void Headerchain::initialize_worksum()
     if (completeBatches.size() > 0) {
         worksum += completeBatches.back().total_work();
     }
-    auto ws2 = sumWork(Height(1), length() + 1);
+    auto ws2 = sum_work(Height(1), length() + 1);
     assert(worksum == ws2);
 };
 
-Worksum Headerchain::sumWork(const Height beginHeight,
+Worksum Headerchain::sum_work(const Height beginHeight,
     const Height endHeight) const
 {
     assert(beginHeight != 0);
@@ -266,7 +282,7 @@ Worksum Headerchain::sumWork(const Height beginHeight,
     auto& incomplete { s.index() == completeBatches.size() ? incompleteBatch : completeBatches[s.index()].getBatch() };
     assert(s.offset() == prev.upper_height());
     Worksum w(prev.total_work() + incomplete.worksum(s.offset(), h - s.offset()));
-    assert(w == sumWork(Height(1), h + 1));
+    assert(w == sum_work(Height(1), h + 1));
     return w;
 };
 

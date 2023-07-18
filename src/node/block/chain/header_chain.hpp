@@ -81,6 +81,7 @@ public:
     [[nodiscard]] ForkMsg apply_fork(HeaderchainFork&& fork);
 
     void shrink(Height shrinkLength);
+    uint64_t hashrate(uint32_t nblocks) const;
 
     size_t nonempty_batch_size() const { return completeBatches.size() + (incompleteBatch.size() > 0 ? 1 : 0); }
     Batch get_headers(NonzeroHeight begin, NonzeroHeight end) const;
@@ -135,7 +136,7 @@ public:
 protected: // methods
     const HeaderView header_view(uint32_t height) const;
     void initialize_worksum();
-    Worksum sumWork(const Height begin, const Height end) const;
+    [[nodiscard]] Worksum sum_work(const Height begin, const Height end) const;
 
 protected: // variables
     std::vector<SharedBatchView> completeBatches;

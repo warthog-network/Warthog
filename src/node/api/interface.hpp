@@ -34,11 +34,9 @@ void get_chain_hash(Height height, HashCb cb);
 void get_chain_grid(GridCb cb);
 void get_chain_block(Height height, BlockCb cb);
 void get_txcache(TxcacheCb&& cb);
+void get_hashrate(HashrateCb&& cb);
 void put_chain_append(MiningTask&& mt, ResultCb cb);
-inline void get_signed_snapshot(Eventloop::SignedSnapshotCb&& cb)
-{
-    global().pel->defer(std::move(cb));
-}
+void get_signed_snapshot(Eventloop::SignedSnapshotCb&& cb);
 
 // sync functions
 void get_headerdownload(HeaderdownloadCb f);

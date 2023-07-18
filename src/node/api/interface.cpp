@@ -1,4 +1,5 @@
 #include "interface.hpp"
+#include "api/types/all.hpp"
 #include "asyncio/conman.hpp"
 #include "chainserver/server.hpp"
 #include "eventloop/eventloop.hpp"
@@ -62,7 +63,8 @@ void get_chain_hash(Height height, HashCb f)
     global().pcs->api_get_hash(height, f);
 };
 
-void get_chain_grid(GridCb f){
+void get_chain_grid(GridCb f)
+{
     global().pcs->api_get_grid(f);
 };
 void get_chain_block(Height height, BlockCb cb)
@@ -75,10 +77,19 @@ void get_txcache(TxcacheCb&& cb)
     global().pcs->api_get_txcache(std::move(cb));
 };
 
+void get_hashrate(HashrateCb&& cb)
+{
+    global().pel->api_get_hashrate(std::move(cb));
+};
+
 void put_chain_append(MiningTask&& mt, ResultCb f)
 {
     global().pcs->api_mining_append(std::move(mt.block), f);
 };
+void get_signed_snapshot(Eventloop::SignedSnapshotCb&& cb)
+{
+    global().pel->defer(std::move(cb));
+}
 
 // account functions
 void get_account_balance(const Address& address, BalanceCb f)

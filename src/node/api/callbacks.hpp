@@ -29,6 +29,7 @@ using MempoolCb = std::function<void(const tl::expected<API::MempoolEntries, int
 using MempoolTxsCb = std::function<void(std::vector<std::optional<TransferTxExchangeMessage>>&)>;
 using MiningCb = std::function<void(const tl::expected<MiningTask, int32_t>&)>;
 using TxcacheCb = std::function<void(const tl::expected<chainserver::TransactionIds, int32_t>&)>;
+using HashrateCb = std::function<void(const tl::expected<API::HashrateInfo, int32_t>&)>;
 
 using HeadCb = std::function<void(const tl::expected<API::Head, int32_t>&)>;
 using HeaderdownloadCb = std::function<void(const HeaderDownload::Downloader&)>;

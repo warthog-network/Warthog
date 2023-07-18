@@ -1,8 +1,8 @@
 #include "json.hpp"
 #include "api/types/all.hpp"
-#include "block/header/view.hpp"
 #include "block/header/difficulty.hpp"
 #include "block/header/header_impl.hpp"
+#include "block/header/view.hpp"
 #include "chainserver/transaction_ids.hpp"
 #include "communication/mining_task.hpp"
 #include "crypto/crypto.hpp"
@@ -14,13 +14,13 @@
 
 using namespace std::chrono;
 using namespace nlohmann;
-namespace{
+namespace {
 std::string format_utc(long timestamp)
 {
     auto utc_f = *std::gmtime(&timestamp);
     std::string out;
     out.resize(30);
-    auto len{std::strftime(&out[0], out.size(), "%F %T UTC", &utc_f)};
+    auto len { std::strftime(&out[0], out.size(), "%F %T UTC", &utc_f) };
     out.resize(len);
     return out;
 }
@@ -333,6 +333,12 @@ json to_json(const API::History& h)
     j["balanceE8"] = h.balance.E8();
     return j;
 }
+json to_json(const API::HashrateInfo& hi)
+{
+    return json {
+        { "last100BlocksEstimate", hi.by100Blocks }
+    };
+};
 
 json to_json(const OffenseEntry& e)
 {
@@ -387,7 +393,8 @@ json to_json(const API::Balance& b)
     return j;
 }
 
-json to_json(const Grid&g){
+json to_json(const Grid& g)
+{
     json j(json::array());
     for (const auto& h : g) {
         j.push_back(serialize_hex(h));
