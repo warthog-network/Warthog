@@ -2,6 +2,7 @@
 #include "crypto/crypto.hpp"
 #include "general/hex.hpp"
 #include "nlohmann/json.hpp"
+#include "spdlog/spdlog.h"
 #include <iostream>
 using namespace std;
 using namespace nlohmann;
@@ -40,31 +41,49 @@ std::pair<std::string, int> API::submit_block(const Block& mt)
     j["height"] = mt.height.value();
 
     std::string b = j.dump();
-    std::string result = http_post(path, b);
-    json parsed = json::parse(result);
-    out.second = parsed["code"].get<int32_t>();
-    if (out.second != 0) {
-        out.first = parsed["error"].get<std::string>();
+    while (true) {
+        try {
+            std::string result = http_post(path, b);
+            json parsed = json::parse(result);
+            out.second = parsed["code"].get<int32_t>();
+            if (out.second != 0) {
+                out.first = parsed["error"].get<std::string>();
+            }
+            return out;
+        } catch (std::runtime_error& e) {
+            spdlog::error(e.what());
+            spdlog::warn("Could not supply block, retrying in 100 milliseconds...");
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
     }
-    return out;
 }
 
 Block API::get_mining(const Address& a)
 {
     std::string url = "/chain/mine/" + a.to_string();
-    std::string out = http_get(url);
-    try {
-        json parsed = json::parse(out);
-        int32_t code = parsed["code"].get<int32_t>();
-        if (code != 0) {
-            throw std::runtime_error("API request failed: " + parsed["error"].get<std::string>());
+    while (true) {
+        try {
+            std::string out = http_get(url);
+
+            json parsed;
+            try {
+                parsed = json::parse(out);
+            } catch (...) {
+                throw std::runtime_error("API request failed, response is malformed. Is the node version compatible with this wallet?");
+            }
+            int32_t code = parsed["code"].get<int32_t>();
+            if (code != 0) {
+                throw std::runtime_error("API request failed: " + parsed["error"].get<std::string>());
+            }
+            return Block {
+                .height = Height(parsed["data"]["height"].get<uint32_t>()).nonzero_throw(EZEROHEIGHT),
+                .header = hex_to_arr<80>(parsed["data"]["header"].get<std::string>()),
+                .body = hex_to_vec(parsed["data"]["body"].get<std::string>()),
+            };
+        } catch (std::runtime_error& e) {
+            spdlog::error(e.what());
+            spdlog::warn("Could not get mining information, retrying in 100 milliseconds...");
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
-        return Block {
-            .height = Height(parsed["data"]["height"].get<uint32_t>()).nonzero_throw(EZEROHEIGHT),
-            .header = hex_to_arr<80>(parsed["data"]["header"].get<std::string>()),
-            .body = hex_to_vec(parsed["data"]["body"].get<std::string>()),
-        };
-    } catch (...) {
-        throw std::runtime_error("API request failed, response is malformed. Is the node version compatible with this wallet?");
     }
 }
