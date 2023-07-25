@@ -4,6 +4,9 @@ namespace mempool {
 
 std::vector<TransferTxExchangeMessage> Mempool::get_payments(size_t n, std::vector<Hash>* hashes) const
 {
+    if (n==0) {
+        return {};
+    }
     std::vector<TransferTxExchangeMessage> res;
     res.reserve(n);
     size_t i = 0;
