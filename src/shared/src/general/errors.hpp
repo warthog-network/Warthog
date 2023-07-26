@@ -50,7 +50,7 @@
     XX(29, EBLOCKSIZE, "block too large")                               \
     XX(30, EPINHEIGHT, "invalid transaction pin")                       \
     XX(31, ECLOCKTOLERANCE, "clock tolerance exceeded")                 \
-    XX(32, EINVDSC, "invalid descripted state")                             \
+    XX(32, EINVDSC, "invalid descripted state")                         \
     XX(33, EAPPEND, "invalid chain append")                             \
     XX(34, EFORK, "invalid chain fork")                                 \
     XX(57, ENOTFOUND, "not found")                                      \
@@ -70,7 +70,7 @@
     XX(71, EBADPRIVKEY, "invalid private key")                          \
     XX(72, EBADADDRESS, "invalid address")                              \
     XX(73, EBADHEIGHT, "invalid height")                                \
-    XX(74, EZEROHEIGHT, "invalid zero height")                                \
+    XX(74, EZEROHEIGHT, "invalid zero height")                          \
     XX(75, EBADROLLBACK, "rollback forbidden")                          \
     XX(76, EBADROLLBACKLEN, "bad rollback length")                      \
     XX(77, EMINEDDEPRECATED, "submitted deprecated block")              \
@@ -78,7 +78,8 @@
     XX(79, EFORKHEIGHT, "invalid fork height")                          \
     XX(80, EPROBEHEIGHT, "invalid probe height")                        \
     XX(81, EBATCHHEIGHT, "invalid batch height")                        \
-    XX(82, EGRIDMISMATCH, "grid mismatch")                        \
+    XX(82, EGRIDMISMATCH, "grid mismatch")                              \
+    XX(83, ESELFSEND, "self send transaction not allowed")             \
     XX(1000, ESIGTERM, "received SIGTERM")                              \
     XX(1001, ESIGHUP, "received SIGHUP")                                \
     XX(1002, ESIGINT, "received SIGINT")                                \

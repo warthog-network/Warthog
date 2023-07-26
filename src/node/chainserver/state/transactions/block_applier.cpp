@@ -65,7 +65,8 @@ public:
         Funds fee { compactFee.uncompact() };
         AccountId to = tv.toAccountId();
         AccountId from = tv.fromAccountId();
-
+        if (from == to)
+            throw Error(ESELFSEND);
         if (amount.overflow() || fee.overflow())
             throw Error(EBALANCE);
         if (!validAccountId(from))
@@ -175,7 +176,9 @@ struct HistoryEntries {
     {
         insertHistory.emplace_back(r, nextHistoryId);
         insertAccountHistry.emplace_back(r.ti.toAccountId, nextHistoryId);
-        insertAccountHistry.emplace_back(r.ti.fromAccountId, nextHistoryId);
+        if (r.ti.toAccountId != r.ti.fromAccountId) {
+            insertAccountHistry.emplace_back(r.ti.fromAccountId, nextHistoryId);
+        }
         ++nextHistoryId;
     }
     void write(ChainDB& db)

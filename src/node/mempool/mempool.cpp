@@ -82,17 +82,6 @@ void Mempool::erase(decltype(txs)::iterator iter)
         log.push_back(Erase { id });
 };
 
-void Mempool::remove_all(const chainserver::TransactionIds& txids)
-{
-    for (auto iter { txs.begin() }; iter != txs.end();) {
-        auto txid { iter->first };
-        if (txids.contains(txid))
-            erase(iter++);
-        else
-            ++iter;
-    }
-};
-
 void Mempool::erase_from_height(Height h)
 {
     auto iter = byPin.lower_bound(h);

@@ -3,7 +3,7 @@
 #include <cstdint>
 #define VERSION_MAJOR 0
 #define VERSION_MINOR 0
-#define VERSION_PATCH 6
+#define VERSION_PATCH 7
 
 constexpr uint32_t version = (uint32_t(VERSION_MAJOR) << 16) | (uint32_t(VERSION_MINOR) << 8) | (uint32_t(VERSION_PATCH));
 

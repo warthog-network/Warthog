@@ -39,7 +39,6 @@ public:
     int32_t insert_tx(const TransferTxExchangeMessage& pm, TransactionHeight txh, const TxHash& hash, const AddressFunds& e);
     void erase(TransactionId id);
     void erase_from_height(Height);
-    void remove_all(const chainserver::TransactionIds&);
 
     // getters
     [[nodiscard]] auto get_payments(size_t n, std::vector<Hash>* hashes = nullptr) const

@@ -143,6 +143,9 @@ BodyContainer BlockGenerator::gen_block(Height height,
     PaymentSection pms(payments.size());
     for (auto& pmsg : payments) {
         AccountId toId = nas.getId(pmsg.toAddr);
+        // don't create blocks with self send
+        if (toId == pmsg.from_id()) 
+            continue;
 
         auto ph = pmsg.pin_height();
         auto pn = PinNonce::make_pin_nonce(pmsg.nonce_id(), height, ph);
