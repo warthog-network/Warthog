@@ -90,6 +90,14 @@ void Mempool::erase_from_height(Height h)
     }
 };
 
+void Mempool::erase_before_height(Height h)
+{
+    auto end = byPin.lower_bound(h);
+    for (auto iter = byPin.begin(); iter != end;){
+        erase(*(iter++));
+    }
+};
+
 void Mempool::erase(TransactionId id)
 {
     if (auto iter = txs.find(id); iter != txs.end())

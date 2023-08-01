@@ -148,6 +148,10 @@ auto Chainstate::append(AppendMulti ad) -> HeaderchainAppend
 
 
     // remove from mempool
+    // remove outdated transactions
+    auto nextBlockPinBegin{(ad.patchedChain.length()+1).pin_bgin()};
+    _mempool.erase_before_height(nextBlockPinBegin);
+    // remove used transactions
     for (auto& tid : ad.appendResult.newTxIds)
         _mempool.erase(tid);
 
@@ -172,6 +176,10 @@ auto Chainstate::append(AppendSingle d) -> HeaderchainAppend
     assert_equal_length();
 
     // remove from mempool
+    // remove outdated transactions
+    auto nextBlockPinBegin{(l+1).pin_bgin()};
+    _mempool.erase_before_height(nextBlockPinBegin);
+    // remove used transactions
     for (auto& tid : d.newTxIds)
         _mempool.erase(tid);
 
@@ -187,6 +195,8 @@ auto Chainstate::append(AppendSingle d) -> HeaderchainAppend
 
 int32_t Chainstate::insert_tx(const TransferTxExchangeMessage& pm)
 {
+    if (pm.pin_height()<length().pin_bgin())
+        return EPINHEIGHT;
     if (txids().contains(pm.txid))
         return ENONCE;
     auto h = headers().get_hash(pm.pin_height());
