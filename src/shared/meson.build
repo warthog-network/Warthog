@@ -24,8 +24,20 @@ src_wh=[
   './src/general/with_uint64.cpp',
   ]
   )]
-  vcs_dep=vcs_tag(command : 
-    ['git', 'rev-parse', '--short', 'HEAD'],
-    input:'./src/version.hpp.in',
-    output:'version.hpp',
-    replace_string:'@GIT_COMMIT_INFO@')
+
+
+versions = meson.project_version().split('.')
+conf_version = configuration_data()
+conf_version.set('VERSION_MAJOR', versions.get(0))
+conf_version.set('VERSION_MINOR', versions.get(1))
+conf_version.set('VERSION_PATCH', versions.get(2))
+configure_file(input : './src/version.hpp.in',
+               output : 'version.hpp',
+               configuration : conf_version)
+
+
+vcs_dep=vcs_tag(command : 
+  ['git', 'rev-parse', '--short', 'HEAD'],
+  input:'./src/commit_info.hpp.in',
+  output:'commit_info.hpp',
+  replace_string:'@GIT_COMMIT_INFO@')
