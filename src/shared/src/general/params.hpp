@@ -15,7 +15,7 @@ constexpr uint32_t MAXBUFFER = 3 * 1000 * 1000; // 3 MB send buffer size bound (
 /////////////
 // Genesis Block
 /////////////
-constexpr const char GENESISSEED[] = "The New York Times International Edition 29/06/2023: 'Water troubles: A preview'"; // use SHA256(GENESISSEED) to seed genensis block prev hash 
+constexpr const char GENESISSEED[] = "The New York Times International Edition 29/06/2023: 'Water troubles: A preview'"; // use SHA256(GENESISSEED) to seed genensis block prev hash
 constexpr uint8_t GENESISDIFFICULTYEXPONENT = (DEBUG_PARAMS ? 18 : 32); // 2^(<this number>) is the expected number of tries to mine the first block
 constexpr uint64_t GENESISBLOCKREWARD = 3 * COINUNIT; // total reward mined in every block before halving occurs
 
@@ -50,10 +50,10 @@ constexpr uint64_t MAXSUPPLY = GENESISBLOCKREWARD * HALVINTINTERVAL * 2;
 inline constexpr uint32_t retarget_floor(uint32_t height)
 {
     constexpr uint32_t fourhours = 4 * 60 * 60 / BLOCKTIME;
-    constexpr uint32_t eightweeks = 8 * 7 * 24 * 60 * 60 / BLOCKTIME;
-    static_assert(eightweeks % HEADERBATCHSIZE == 0);
+    constexpr uint32_t fivemonths = 5 * 30 * 24 * 60 * 60 / BLOCKTIME;
+    static_assert(fivemonths % HEADERBATCHSIZE == 0);
     static_assert(60 % BLOCKTIME == 0);
-    if (height < eightweeks) {
+    if (height < fivemonths) {
         const uint32_t val = (height / fourhours) * fourhours;
         if (val == 0)
             return 1;

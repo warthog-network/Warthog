@@ -313,7 +313,6 @@ void ChainServer::handle_event(PutMempoolBatch&& mb)
 
 void ChainServer::handle_event(SetSignedPin&& e)
 {
-    spdlog::info("SetSignedPin");
     auto res { state.apply_signed_snapshot(std::move(e.ss)) };
     if (res) {
         global().pel->defer(std::move(*res));
