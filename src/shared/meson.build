@@ -6,7 +6,7 @@ src_wh=[
   [
     './platformassert.cpp',
   './src/block/body/container.cpp',
-  './src/block/body/fee.cpp',
+  './src/general/compact_uint.cpp',
   './src/block/body/nonce.cpp',
   './src/block/body/transaction_id.cpp',
   './src/block/body/view.cpp',

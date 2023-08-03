@@ -1,5 +1,5 @@
 #pragma once
-#include "block/body/fee.hpp"
+#include "general/compact_uint.hpp"
 #include "block/body/primitives.hpp"
 #include "block/body/transaction_id.hpp"
 #include "block/chain/pin.hpp"

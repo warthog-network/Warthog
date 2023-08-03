@@ -1,6 +1,6 @@
 #pragma once
 
-#include "block/body/fee.hpp"
+#include "general/compact_uint.hpp"
 #include "block/body/nonce.hpp"
 #include "block/chain/height.hpp"
 #include "crypto/crypto.hpp"
