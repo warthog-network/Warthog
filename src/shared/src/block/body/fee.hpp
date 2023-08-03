@@ -2,14 +2,14 @@
 #include "general/funds.hpp"
 #include <cstdint>
 class Writer;
-Writer& operator<<(Writer&, CompactFee);
-class CompactFee {
+Writer& operator<<(Writer&, CompactUInt);
+class CompactUInt {
 public:
-    CompactFee(uint16_t val)
+    CompactUInt(uint16_t val)
         : val(val)
     {
     }
-    static CompactFee compact(Funds);
+    static CompactUInt compact(Funds);
     operator Funds() const
     {
         return uncompact();
@@ -27,7 +27,7 @@ public:
     uint16_t value() const { return val; }
 
     // default comparison is correct even without uncompacting.
-    auto operator<=>(const CompactFee&) const = default;
+    auto operator<=>(const CompactUInt&) const = default;
 
 private:
     uint16_t val;

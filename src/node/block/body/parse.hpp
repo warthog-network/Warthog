@@ -18,7 +18,7 @@ struct TransferView : public View<BodyView::TransferSize> {
     {
         return pin_nonce().pin_height(pinFloor);
     }
-    CompactFee compact_fee() const
+    CompactUInt compact_fee() const
     {
         return readuint16(pos + 16);
     }
@@ -58,7 +58,7 @@ struct Transfer {
     // 99: end
     AccountId fromId;
     PinNonce pinNonce;
-    CompactFee compactFee;
+    CompactUInt compactFee;
     AccountId toId;
     Funds amount;
     RecoverableSignature signature;

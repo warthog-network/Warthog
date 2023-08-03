@@ -187,7 +187,7 @@ int process(gengetopt_args_info& ai)
                 return -1;
             }
             NonceId nid { ai.nonce_given ? NonceId(ai.nonce_arg) : NonceId::random() };
-            PaymentCreateMessage m(pin.first, pin.second, w.privKey, CompactFee::compact(*fee), to, *amount, nid);
+            PaymentCreateMessage m(pin.first, pin.second, w.privKey, CompactUInt::compact(*fee), to, *amount, nid);
             assert(m.valid_signature(pin.second, w.address));
             cout << "NonceId: " << m.nonceId.value() << endl;
             cout << "pinHeight: " << m.pinHeight.value() << endl;

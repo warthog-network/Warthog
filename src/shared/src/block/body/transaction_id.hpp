@@ -28,5 +28,5 @@ struct TransactionId {
 
 struct TxidWithFee {
     TransactionId txid;
-    CompactFee fee;
+    CompactUInt fee;
 };

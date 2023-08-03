@@ -1,9 +1,9 @@
 #include "fee.hpp"
 #include "general/writer.hpp"
-Writer& operator<<(Writer& w, CompactFee cf){
+Writer& operator<<(Writer& w, CompactUInt cf){
     return w<<cf.value();
 };
-CompactFee CompactFee::compact(Funds f){
+CompactUInt CompactUInt::compact(Funds f){
     if (f.is_zero())
         return uint16_t(0x0000u);
     uint16_t e = 10;

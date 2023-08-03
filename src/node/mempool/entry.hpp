@@ -12,7 +12,7 @@ namespace mempool {
 struct EntryValue;
 using Entry = std::pair<TransactionId,EntryValue>;
 struct EntryValue {
-    EntryValue(NonceReserved noncep2, CompactFee fee, Address toAddr, Funds amount, RecoverableSignature signature, Hash hash, Height transactionHeight)
+    EntryValue(NonceReserved noncep2, CompactUInt fee, Address toAddr, Funds amount, RecoverableSignature signature, Hash hash, Height transactionHeight)
         : noncep2(noncep2)
         , fee(fee)
         , toAddr(toAddr)
@@ -23,7 +23,7 @@ struct EntryValue {
     {
     }
     NonceReserved noncep2;
-    CompactFee fee;
+    CompactUInt fee;
     Address toAddr;
     Funds amount;
     RecoverableSignature signature;

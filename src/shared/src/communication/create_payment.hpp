@@ -20,7 +20,7 @@ public:
     // 106 [total size]
     PaymentCreateMessage(ReaderCheck<bytesize> r);
     bool valid_signature(HashView pinHash, AddressView fromAddress);
-    PaymentCreateMessage(PinHeight pinHeight, const Hash& pinHash, const PrivKey&, CompactFee feeCompactHost, const Address& toAddress, Funds amount, NonceId);
+    PaymentCreateMessage(PinHeight pinHeight, const Hash& pinHash, const PrivKey&, CompactUInt feeCompactHost, const Address& toAddress, Funds amount, NonceId);
     Address from_address(HashView txHash) const;
     TxHash tx_hash(HashView pinHash) const;
     friend Writer& operator<<(Writer&, const PaymentCreateMessage&);
@@ -30,7 +30,7 @@ public:
     PinHeight pinHeight;
     NonceId nonceId;
     NonceReserved reserved;
-    CompactFee compactFee;
+    CompactUInt compactFee;
     Address toAddr;
     Funds amount;
     RecoverableSignature signature;

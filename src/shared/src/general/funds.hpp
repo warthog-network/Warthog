@@ -4,7 +4,7 @@
 #include <optional>
 
 class Writer;
-class CompactFee;
+class CompactUInt;
 class Funds : public IsUint64 {
 public:
     using IsUint64::IsUint64;

@@ -26,12 +26,12 @@ struct TransferInternal {
     AccountId toAccountId;
     Funds amount;
     PinNonce pinNonce;
-    CompactFee compactFee;
+    CompactUInt compactFee;
     AddressView fromAddress { nullptr };
     AddressView toAddress { nullptr };
     RecoverableSignature signature;
     VerifiedTransfer verify(const Headerchain&, NonzeroHeight) const;
-    TransferInternal(AccountId from, CompactFee compactFee, AccountId to,
+    TransferInternal(AccountId from, CompactUInt compactFee, AccountId to,
         Funds amount, PinNonce pinNonce, View<65> signdata)
         : fromAccountId(from)
         , toAccountId(to)
@@ -64,7 +64,7 @@ struct TransferData {
     constexpr static uint8_t indicator = 1;
     constexpr static uint8_t bytesize = 8 + 2 + 8 + 8 + 8; // without indicator
     AccountId fromAccountId;
-    CompactFee compactFee;
+    CompactUInt compactFee;
     AccountId toAccountId;
     Funds amount;
     PinNonce pinNonce;

@@ -4,7 +4,7 @@
 
 PaymentCreateMessage::PaymentCreateMessage(
     PinHeight pinHeight, const Hash& pinHash,
-    const PrivKey& privateKey, CompactFee fee,
+    const PrivKey& privateKey, CompactUInt fee,
     const Address& toAddress, Funds amount, NonceId nonceId)
     : pinHeight(pinHeight)
     , nonceId(nonceId)

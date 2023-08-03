@@ -45,7 +45,7 @@ public:
 
     TransactionId txid;
     NonceReserved reserved;
-    CompactFee compactFee;
+    CompactUInt compactFee;
     Address toAddr;
     Funds amount;
     RecoverableSignature signature;
