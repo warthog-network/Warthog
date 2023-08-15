@@ -6,6 +6,7 @@ By Pumbaa, Timon & Rafiki"
 
 # Options
 option "address" a "Specify address that is mined to" string typestr="WALLETADDRESS" required 
-option "threads" t "Number of worker threads, use -1 for number of cores" int default="-1" 
+option "gpu" - "Use GPU for mining, if not specified CPU is used" optional
+option "threads" t "Number of worker threads, use 0 for number of cores" int default="0" optional
 option "host" h "Host (RPC-Node)" string default="localhost" optional
 option "port" p "Port (RPC-Node)" int default="3000" optional

@@ -1,17 +1,57 @@
+
+
+if get_option('enable-gpu-miner') == true
+  kernel_files = files(
+  './gpu/third_party/hashcat/inc_vendor.h',
+  './gpu/third_party/hashcat/inc_types.h',
+  './gpu/third_party/hashcat/inc_platform.h',
+  './gpu/third_party/hashcat/inc_common.h',
+  './gpu/third_party/hashcat/inc_hash_sha256.h',
+  './gpu/third_party/hashcat/inc_platform.cl',
+  './gpu/third_party/hashcat/inc_common.cl',
+  './gpu/third_party/hashcat/inc_hash_sha256.cl',
+  './gpu/kernel.cl',
+  )
+  kernelcat = run_command( ['sh', files('./gpu/generate_kernel.sh'), kernel_files], check: true).stdout().strip()
+  conf_data = configuration_data()
+  conf_data.set('KERNEL_SRC', kernelcat)
+  configure_file(input : 'gpu/kernel.hpp.in',
+                 output : 'kernel.hpp',
+                 configuration : conf_data)
+  gpusrc = [
+    './gpu/start_gpu_miner.cpp',
+    './gpu/worker.cpp'
+    ]
+  opencl_dep = dependency('OpenCL')
+  dep = [ 
+    libuv_dep,
+    opencl_dep]
+else
+  gpusrc = [
+    './gpu/disabled.cpp',
+    ]
+  dep = [ 
+    libuv_dep]
+endif
+cpusrc = [
+    './cpu/third_party/cpuminer-opt/sph_sha2.c',
+    './cpu/third_party/cpuminer-opt/sha256-hash-opt.c',
+    './cpu/worker.cpp', 
+    './cpu/mine.cpp', 
+    ]
+
 executable('wart-miner', vcs_dep, 
   [
     './api_call.cpp', 
     './cmdline/cmdline.cpp', 
-    './third_party/cpuminer-opt/sph_sha2.c',
-    './third_party/cpuminer-opt/sha256-hash-opt.c',
     './main.cpp', 
-    './worker.cpp', 
-    './mine.cpp', 
+    gpusrc,
+    cpusrc,
     src_wh, 
     src_spdlog
     ],
   c_args: ['-march=native'],
   include_directories : [include_spdlog, include_secp256k1, include_wh,include_json, include_httplib],
   link_with: libsecp256k1, 
-  dependencies: [libuv_dep],
+  dependencies: dep,
   install : true)

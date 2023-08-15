@@ -1,0 +1,4 @@
+#pragma once
+constexpr const char kernel [] = {
+  @KERNEL_SRC@
+};

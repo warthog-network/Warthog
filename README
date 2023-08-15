@@ -24,6 +24,7 @@ WHAT IS IN THE BOX
 * Reference node implementation of the Warthog Network
 * Command line wallet software
 * CPU Miner
+* GPU Miner
 
 SYSTEM REQUIREMENTS
 ===================
@@ -32,7 +33,22 @@ SYSTEM REQUIREMENTS
 * meson
 * ninja
 
+Optional:
+* opencl (for GPU miner)
+
 Note: Ubuntu 20.04 does not meet these requirements.
+
+BUILD INSTRUCTIONS
+==================
+
+* Install gcc, meson, ninja: apt install meson ninja-build build-essential
+* Clone the repo: git clone https://github.com/ByPumbaa/Warthog
+* cd into the repo: cd Warthog
+* Create build directory: meson build . (meson build . --buildtype=release for better performance)
+* cd into build directory: cd build
+* [Optional] enable GPU support in miner: meson configure -Denable-gpu-miner=true
+* Compile using ninja: ninja
+
 
 USAGE
 =====

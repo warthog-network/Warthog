@@ -7,8 +7,8 @@
 class Address;
 struct API {
     API(std::string host, uint16_t port);
-    std::pair<std::string, int> submit_block(const Block& mt);
-    Block get_mining(const Address& a);
+    [[nodiscard]] std::pair<std::string, int> submit_block(const Block& mt);
+    [[nodiscard]] Block get_mining(const Address& a);
 
 private:
     std::string http_get(const std::string& path);

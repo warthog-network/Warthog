@@ -42,9 +42,10 @@ struct gengetopt_args_info
   char * address_arg;	/**< @brief Specify address that is mined to.  */
   char * address_orig;	/**< @brief Specify address that is mined to original value given at command line.  */
   const char *address_help; /**< @brief Specify address that is mined to help description.  */
-  int threads_arg;	/**< @brief Number of worker threads, use -1 for number of cores (default='-1').  */
-  char * threads_orig;	/**< @brief Number of worker threads, use -1 for number of cores original value given at command line.  */
-  const char *threads_help; /**< @brief Number of worker threads, use -1 for number of cores help description.  */
+  const char *gpu_help; /**< @brief Use GPU for mining, if not specified CPU is used help description.  */
+  int threads_arg;	/**< @brief Number of worker threads, use 0 for number of cores (default='0').  */
+  char * threads_orig;	/**< @brief Number of worker threads, use 0 for number of cores original value given at command line.  */
+  const char *threads_help; /**< @brief Number of worker threads, use 0 for number of cores help description.  */
   char * host_arg;	/**< @brief Host (RPC-Node) (default='localhost').  */
   char * host_orig;	/**< @brief Host (RPC-Node) original value given at command line.  */
   const char *host_help; /**< @brief Host (RPC-Node) help description.  */
@@ -55,6 +56,7 @@ struct gengetopt_args_info
   unsigned int help_given ;	/**< @brief Whether help was given.  */
   unsigned int version_given ;	/**< @brief Whether version was given.  */
   unsigned int address_given ;	/**< @brief Whether address was given.  */
+  unsigned int gpu_given ;	/**< @brief Whether gpu was given.  */
   unsigned int threads_given ;	/**< @brief Whether threads was given.  */
   unsigned int host_given ;	/**< @brief Whether host was given.  */
   unsigned int port_given ;	/**< @brief Whether port was given.  */

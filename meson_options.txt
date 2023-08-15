@@ -1,0 +1,1 @@
+option('enable-gpu-miner', type : 'boolean', value : false)
