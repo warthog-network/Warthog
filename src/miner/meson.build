@@ -1,5 +1,6 @@
 
 
+cpp_args = []
 if get_option('enable-gpu-miner') == true
   kernel_files = files(
   './gpu/third_party/hashcat/inc_vendor.h',
@@ -12,6 +13,9 @@ if get_option('enable-gpu-miner') == true
   './gpu/third_party/hashcat/inc_hash_sha256.cl',
   './gpu/kernel.cl',
   )
+  if get_option('opencl-legacy') == true
+    cpp_args = [cpp_args,'-DOPENCL_LEGACY']
+  endif
   kernelcat = run_command( ['sh', files('./gpu/generate_kernel.sh'), kernel_files], check: true).stdout().strip()
   conf_data = configuration_data()
   conf_data.set('KERNEL_SRC', kernelcat)
@@ -51,6 +55,7 @@ executable('wart-miner', vcs_dep,
     src_spdlog
     ],
   c_args: ['-march=native'],
+  cpp_args: cpp_args,
   include_directories : [include_spdlog, include_secp256k1, include_wh,include_json, include_httplib],
   link_with: libsecp256k1, 
   dependencies: dep,

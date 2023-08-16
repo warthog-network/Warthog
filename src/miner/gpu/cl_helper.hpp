@@ -1,7 +1,11 @@
 #pragma once
 #define CL_HPP_ENABLE_EXCEPTIONS
 #define CL_HPP_TARGET_OPENCL_VERSION 200
+#ifdef OPENCL_LEGACY
+#include <CL/cl2.hpp>
+#else
 #include <CL/opencl.hpp>
+#endif
 #include <cassert>
 namespace CL {
 template <typename T> using vector = std::vector<T>;

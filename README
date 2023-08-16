@@ -46,7 +46,9 @@ BUILD INSTRUCTIONS
 * cd into the repo: cd Warthog
 * Create build directory: meson build . (meson build . --buildtype=release for better performance)
 * cd into build directory: cd build
-* [Optional] enable GPU support in miner: meson configure -Denable-gpu-miner=true
+* [Optional] GPU miner support 
+  - enable GPU support in miner: meson configure -Denable-gpu-miner=true
+  - for old OpenCL headers (like on Ubuntu 20.04): meson configure -Dopencl-legacy=true
 * Compile using ninja: ninja
 
 

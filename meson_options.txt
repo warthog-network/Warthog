@@ -1,1 +1,2 @@
 option('enable-gpu-miner', type : 'boolean', value : false)
+option('opencl-legacy', type : 'boolean', value : false)
