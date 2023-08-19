@@ -10,6 +10,7 @@
 // global variables
 volatile __global u32 g_counter = 0;
 volatile __global u32 target;
+volatile __global sha256_ctx_t prepared_ctx;
 
 
 
@@ -64,19 +65,22 @@ void kernel reset_counter(global u32 *C) {
 
 void kernel set_target(u32 t) { target = hc_swap32(t); }
 
-int synced_counter() { return atomic_inc(&g_counter); }
-void kernel mine(const global u32 *data76, global u32 *args, global u32 *hashes) {
-  const u32 gid = get_global_id(0);
-  const u32 lid = get_local_id(0);
-
+void kernel set_block_header(const global u32 *data76) {
   u32 buf[32] = {0};
   for (int i1 = 0, i4 = 0; i4 < 76; ++i1, i4 += 4)
     buf[i1] = hc_swap32(data76[i1]);
-  buf[76/4]= gid;
+  sha256_init(&prepared_ctx);
+  sha256_update(&prepared_ctx, buf, 76);
+}
 
-  sha256_ctx_t ctx;
-  sha256_init(&ctx);
-  sha256_update(&ctx, buf, 80);
+int synced_counter() { return atomic_inc(&g_counter); }
+void kernel mine(global u32 *args, global u32 *hashes) {
+  const u32 gid = get_global_id(0);
+  const u32 lid = get_local_id(0);
+
+  sha256_ctx_t ctx = prepared_ctx;
+  ctx.len += 4;
+  ctx.w0[3] = gid;
   sha256_final(&ctx);
   sha256_ctx_t ctx2;
   sha256_init(&ctx2);

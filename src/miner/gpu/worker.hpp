@@ -41,10 +41,12 @@ public:
         , queue(context, device)
         , reset_counter_fun(program, "reset_counter")
         , set_target_fun(program, "set_target")
+        , set_block_header_fun(program, "set_block_header")
         , mine_fun(program, "mine") {};
     void set_block_header(std::span<uint8_t, 76> h)
     {
-        memcpy(blockHeader.data(),h.data(),h.size());
+        cl::EnqueueArgs nd1(queue, cl::NDRange(1));
+        set_block_header_fun.run(queue, nd1, h);
     }
     void set_target(uint32_t v)
     {
@@ -57,7 +59,7 @@ public:
         cl::EnqueueArgs eargs(queue,
             offset == 0 ? cl::NullRange : cl::NDRange(offset),
             cl::NDRange(nHashes), cl::NullRange);
-        return mine_fun.run(queue, eargs,blockHeader);
+        return mine_fun.run(queue, eargs);
     }
     auto reset_counter()
     {
@@ -68,13 +70,11 @@ public:
 private:
     cl::Context context;
     cl::Program program;
-
-    std::array<uint8_t, 76> blockHeader;
     CL::CommandQueue queue;
     CLFunction<>::Returning<uint32_t> reset_counter_fun;
     CLFunction<uint32_t>::Returning<> set_target_fun;
-    // CLFunction<std::array<uint8_t, 76>>::Returning<> set_block_header_fun;
-    CLFunction<std::array<uint8_t, 76>>::Returning<std::array<uint32_t, numSlots>,
+    CLFunction<std::array<uint8_t, 76>>::Returning<> set_block_header_fun;
+    CLFunction<>::Returning<std::array<uint32_t, numSlots>,
         std::array<std::array<uint8_t, 32>, numSlots>>
         mine_fun;
 };
