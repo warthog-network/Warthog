@@ -49,10 +49,12 @@ int start_gpu_miner(const Address& address, std::string host, uint16_t port)
         std::cerr << "No GPUs detected. Check OpenCL installation!\n";
         return -1;
     }
-    auto& gpu = gpu_devices.front();
-    cout << "Using the following GPU:\n";
-    cout << gpu.name() << endl;
+    cout << "OpenCL installations for the following GPUs were detected:\n";
+    for (size_t i = 0; i < gpu_devices.size(); ++i) {
+        auto& d { gpu_devices[i] };
+        cout << "[" << i << "]: " << d.name() << endl;
+    }
     std::vector<CL::Device> dv { gpu_devices.back() };
-    DevicePool(address, gpu_devices.front(), host, port).run();
+    DevicePool(address, gpu_devices, host,port).run();
     return 0;
 }

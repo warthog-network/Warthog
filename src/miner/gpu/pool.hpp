@@ -12,11 +12,15 @@ class DevicePool {
     friend class DeviceWorker;
 
 public:
-    DevicePool(const Address& address, CL::Device& device, std::string host, uint16_t port)
-        : worker(device,*this),
-         address(address)
+    DevicePool(const Address& address, const std::vector<CL::Device>& devices, std::string host, uint16_t port)
+        : address(address)
         , api(host, port)
-    {}
+    {
+        for (auto& d : devices) {
+            workers.push_back(std::make_unique<DeviceWorker>(d, *this));
+        }
+    }
+    bool empty() const { return workers.empty(); }
 
     void notify_mined(const Block& b)
     {
@@ -36,7 +40,8 @@ public:
             return;
         blockSeed = randuint32() % 2000;
         task = b;
-        worker.set_block(b);
+        for (auto& w : workers)
+            w->set_block(b);
     }
 
     void run()
@@ -99,15 +104,26 @@ public:
 private:
     void print_hashrate()
     {
-        auto hashrate = worker.get_hashrate();
+        std::vector<std::pair<std::string, uint64_t>> hashrates;
+        uint64_t sum { 0 };
+        for (auto& dt : workers) {
+            auto hashrate = dt->get_hashrate();
+            sum += hashrate;
+            hashrates.push_back({ dt->deviceName, hashrate });
+        }
 
         std::string durationstr;
         if (task.has_value()) {
-            uint32_t seconds(task->header.target().difficulty() / hashrate);
+            uint32_t seconds(task->header.target().difficulty() / sum);
             durationstr = spdlog::fmt_lib::format("(~{} per block)", format_duration(seconds));
         }
-        auto [val, unit] = format_hashrate(hashrate);
-        spdlog::info("{} hashrate: {} {}/s {}", worker.deviceName, val, unit, durationstr);
+        auto [val, unit] = format_hashrate(sum);
+        spdlog::info("Total hashrate: {} {}/s {}", val, unit, durationstr);
+
+        for (auto& [name, hr] : hashrates) {
+            auto [val, unit] = format_hashrate(hr);
+            spdlog::info("   {}: {} {}/s", name, val, unit);
+        }
     }
     void wakeup_nolock()
     {
@@ -123,7 +139,7 @@ private:
     std::atomic_int64_t blockSeed { 0 };
     uint64_t minedcount { 0 };
     std::optional<Block> task;
-    DeviceWorker worker;
+    std::vector<std::unique_ptr<DeviceWorker>> workers;
     Address address;
     API api;
 };
