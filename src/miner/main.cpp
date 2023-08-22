@@ -22,7 +22,7 @@
 #include <sstream>
 using namespace std;
 
-int start_gpu_miner(const Address& address, std::string host, uint16_t port);
+int start_gpu_miner(const Address& address, std::string host, uint16_t port, std::string gpus);
 int process(gengetopt_args_info& ai)
 {
     try {
@@ -37,9 +37,16 @@ int process(gengetopt_args_info& ai)
             if (ai.threads_given) {
                 spdlog::warn("Ignoring --threads as this argument is for CPU mining.");
             }
-            start_gpu_miner(address,host,port);
+            std::string gpus;
+            if (ai.gpus_given) {
+                gpus.assign(ai.gpus_arg);
+            }
+            start_gpu_miner(address,host,port,gpus);
         } else { // CPU mining
             spdlog::info("CPU is used for mining.");
+            if (ai.gpus_given) {
+                spdlog::warn("Ignoring --gpus as this argument is for GPU mining.");
+            }
             size_t threads = ai.threads_arg;
             if (threads == 0)
                 threads = std::thread::hardware_concurrency();

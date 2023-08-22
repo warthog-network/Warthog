@@ -37,8 +37,9 @@ const char *gengetopt_args_info_help[] = {
   "      --help                   Print help and exit",
   "  -V, --version                Print version and exit",
   "  -a, --address=WALLETADDRESS  Specify address that is mined to",
-  "      --gpu                    Use GPU for mining, if not specified CPU is used",
-  "  -t, --threads=INT            Number of worker threads, use 0 for number of\n                                 cores  (default=`0')",
+  "      --gpu                    Use GPUs for mining. Select specific GPUs with\n                                 the \"--gpus=\" option. By default CPU is used",
+  "      --gpus=STRING            Specify GPUs as comma separated list like\n                                 \"0,2,3\". Only applicable for GPU mining. By\n                                 default all GPUs are used.",
+  "  -t, --threads=INT            Number of CPU worker threads, use 0 for number\n                                 of cores. Only applicable for CPU mining.\n                                 (default=`0')",
   "  -h, --host=STRING            Host (RPC-Node)  (default=`localhost')",
   "  -p, --port=INT               Port (RPC-Node)  (default=`3000')",
     0
@@ -71,6 +72,7 @@ void clear_given (struct gengetopt_args_info *args_info)
   args_info->version_given = 0 ;
   args_info->address_given = 0 ;
   args_info->gpu_given = 0 ;
+  args_info->gpus_given = 0 ;
   args_info->threads_given = 0 ;
   args_info->host_given = 0 ;
   args_info->port_given = 0 ;
@@ -82,6 +84,8 @@ void clear_args (struct gengetopt_args_info *args_info)
   FIX_UNUSED (args_info);
   args_info->address_arg = NULL;
   args_info->address_orig = NULL;
+  args_info->gpus_arg = NULL;
+  args_info->gpus_orig = NULL;
   args_info->threads_arg = 0;
   args_info->threads_orig = NULL;
   args_info->host_arg = gengetopt_strdup ("localhost");
@@ -100,9 +104,10 @@ void init_args_info(struct gengetopt_args_info *args_info)
   args_info->version_help = gengetopt_args_info_help[1] ;
   args_info->address_help = gengetopt_args_info_help[2] ;
   args_info->gpu_help = gengetopt_args_info_help[3] ;
-  args_info->threads_help = gengetopt_args_info_help[4] ;
-  args_info->host_help = gengetopt_args_info_help[5] ;
-  args_info->port_help = gengetopt_args_info_help[6] ;
+  args_info->gpus_help = gengetopt_args_info_help[4] ;
+  args_info->threads_help = gengetopt_args_info_help[5] ;
+  args_info->host_help = gengetopt_args_info_help[6] ;
+  args_info->port_help = gengetopt_args_info_help[7] ;
   
 }
 
@@ -194,6 +199,8 @@ cmdline_parser_release (struct gengetopt_args_info *args_info)
 
   free_string_field (&(args_info->address_arg));
   free_string_field (&(args_info->address_orig));
+  free_string_field (&(args_info->gpus_arg));
+  free_string_field (&(args_info->gpus_orig));
   free_string_field (&(args_info->threads_orig));
   free_string_field (&(args_info->host_arg));
   free_string_field (&(args_info->host_orig));
@@ -236,6 +243,8 @@ cmdline_parser_dump(FILE *outfile, struct gengetopt_args_info *args_info)
     write_into_file(outfile, "address", args_info->address_orig, 0);
   if (args_info->gpu_given)
     write_into_file(outfile, "gpu", 0, 0 );
+  if (args_info->gpus_given)
+    write_into_file(outfile, "gpus", args_info->gpus_orig, 0);
   if (args_info->threads_given)
     write_into_file(outfile, "threads", args_info->threads_orig, 0);
   if (args_info->host_given)
@@ -500,12 +509,14 @@ cmdline_parser_internal (
   
   package_name = argv[0];
   
+  /* TODO: Why is this here? It is not used anywhere. */
   override = params->override;
   FIX_UNUSED(override);
 
   initialize = params->initialize;
   check_required = params->check_required;
 
+  /* TODO: Why is this here? It is not used anywhere. */
   check_ambiguity = params->check_ambiguity;
   FIX_UNUSED(check_ambiguity);
 
@@ -528,6 +539,7 @@ cmdline_parser_internal (
         { "version",	0, NULL, 'V' },
         { "address",	1, NULL, 'a' },
         { "gpu",	0, NULL, 0 },
+        { "gpus",	1, NULL, 0 },
         { "threads",	1, NULL, 't' },
         { "host",	1, NULL, 'h' },
         { "port",	1, NULL, 'p' },
@@ -557,7 +569,7 @@ cmdline_parser_internal (
             goto failure;
         
           break;
-        case 't':	/* Number of worker threads, use 0 for number of cores.  */
+        case 't':	/* Number of CPU worker threads, use 0 for number of cores. Only applicable for CPU mining..  */
         
         
           if (update_arg( (void *)&(args_info->threads_arg), 
@@ -601,7 +613,7 @@ cmdline_parser_internal (
             exit (EXIT_SUCCESS);
           }
 
-          /* Use GPU for mining, if not specified CPU is used.  */
+          /* Use GPUs for mining. Select specific GPUs with the \"--gpus=\" option. By default CPU is used.  */
           if (strcmp (long_options[option_index].name, "gpu") == 0)
           {
           
@@ -611,6 +623,20 @@ cmdline_parser_internal (
                 &(local_args_info.gpu_given), optarg, 0, 0, ARG_NO,
                 check_ambiguity, override, 0, 0,
                 "gpu", '-',
+                additional_error))
+              goto failure;
+          
+          }
+          /* Specify GPUs as comma separated list like \"0,2,3\". Only applicable for GPU mining. By default all GPUs are used..  */
+          else if (strcmp (long_options[option_index].name, "gpus") == 0)
+          {
+          
+          
+            if (update_arg( (void *)&(args_info->gpus_arg), 
+                 &(args_info->gpus_orig), &(args_info->gpus_given),
+                &(local_args_info.gpus_given), optarg, 0, 0, ARG_STRING,
+                check_ambiguity, override, 0, 0,
+                "gpus", '-',
                 additional_error))
               goto failure;
           
