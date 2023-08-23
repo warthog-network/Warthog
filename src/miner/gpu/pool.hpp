@@ -38,7 +38,7 @@ public:
     {
         if (task.has_value() && b.header == task->header)
             return;
-        blockSeed = randuint32() % 2000;
+        blockSeed = randuint32() % 20000;
         task = b;
         for (auto& w : workers)
             w->set_block(b);
