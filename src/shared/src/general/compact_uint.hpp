@@ -9,6 +9,7 @@ public:
         : val(val)
     {
     }
+    auto to_string()const {return Funds(*this).to_string();}
     static CompactUInt compact(Funds);
     operator Funds() const
     {

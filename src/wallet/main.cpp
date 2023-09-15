@@ -15,15 +15,37 @@ using namespace std;
 using namespace nlohmann;
 
 struct Wallet {
-    json parsed;
     PrivKey privKey;
     PubKey pubKey;
     Address address;
-    Wallet(const std::string& s)
-        : parsed(json::parse(s))
-        , privKey(parsed["privateKey"].get<std::string>())
-        , pubKey(privKey.pubkey())
-        , address(pubKey.address())
+    std::string to_string() const
+    {
+        json j;
+        j["privateKey"] = privKey.to_string();
+        j["publicKey"] = pubKey.to_string();
+        j["address"] = address.to_string();
+        return j.dump();
+    }
+    void save(const filesystem::path& path) const
+    {
+        if (std::filesystem::exists(path)) {
+            throw std::runtime_error("Cannot create wallet, file '" + path.string() + "' already exists. You can specify a filename using the '-f' option.");
+        }
+        ofstream os(path);
+        if (os.good()) {
+            os << to_string();
+            if (os.good())
+                cout << "Wallet file created." << endl;
+            else
+                throw std::runtime_error("Could not write wallet file, file is now corrupted :)");
+        } else {
+            throw std::runtime_error("Cannot create wallet file.");
+        }
+    }
+
+private:
+    Wallet(json parsed)
+        : Wallet(PrivKey(parsed["privateKey"].get<std::string>()))
     {
         std::string pubKeyString = parsed["publicKey"].get<std::string>();
         std::string addressString = parsed["address"].get<std::string>();
@@ -31,41 +53,19 @@ struct Wallet {
             throw std::runtime_error("Inconsistent data.");
         }
     }
-};
 
-int gen_wallet(const filesystem::path& path, bool printOnly, PrivKey k = PrivKey())
-{
-    if (!printOnly && std::filesystem::exists(path)) {
-        cerr << "Cannot create wallet, file '" + path.string() + "' already exists. You can specify a filename using the '-f' "
-                                                                 "option.\n";
-        return -1;
-    }
+public:
+    Wallet(PrivKey k = PrivKey())
+        : privKey(k)
+        , pubKey(privKey.pubkey())
+        , address(pubKey.address())
     {
-        json j;
-        j["privateKey"] = k.to_string();
-        auto p { k.pubkey() };
-        j["publicKey"] = p.to_string();
-        j["address"] = p.address().to_string();
-
-        if (printOnly) {
-            cout << j.dump(2);
-        } else {
-            ofstream os(path);
-            if (os.good()) {
-                os << j.dump();
-                if (os.good())
-                    cout << "Wallet created." << endl;
-                else
-                    cerr << "Could not create wallet, file is now corrupted :)\n"
-                         << endl;
-            } else {
-                cerr << "Cannot create wallet" << endl;
-                return -1;
-            }
-        }
     }
-    return 0;
-}
+    Wallet(const std::string& jsonstr)
+        : Wallet(json::parse(jsonstr))
+    {
+    }
+};
 
 Wallet open_wallet(const filesystem::path& path)
 {
@@ -93,102 +93,113 @@ Wallet open_wallet(const filesystem::path& path)
         }
     }
 }
-int print_address(const filesystem::path& path)
+Funds parse_amount(std::string amount)
 {
-    ifstream file(path);
-    ostringstream ss;
-    if (file.is_open()) {
-        ss << file.rdbuf();
-        try {
-            Wallet w(ss.str());
-            cout << w.address.to_string() << endl;
-        } catch (std::runtime_error& e) {
-            cerr << "Wallet file corrupted: " << e.what()
-                 << " You might want to restore using a private key." << endl;
-        } catch (nlohmann::detail::parse_error& e) {
-            cerr << "Wallet file corrupted: File has incorrect JSON structure. You "
-                    "might want to restore using a private key."
-                 << endl;
-        }
-    } else {
-        if (std::filesystem::exists(path)) {
-            cerr << "Cannot read file '" + path.string() + "'.";
-        } else {
-            cerr << "Wallet file '" + path.string() + "' does not exist yet. Create a new wallet file using the "
-                                                      "'-c' flag.";
-        }
-        return -1;
+    auto parsed { Funds::parse(amount) };
+    if (!parsed) {
+        throw std::runtime_error("Cannot parse amount \"" + amount + "\"");
     }
-    return 0;
+    return *parsed;
+}
+std::string read_with_msg(std::string msg)
+{
+    cout << msg;
+    std::string input;
+    cin >> input;
+    return input;
+}
+
+Funds read_fee(std::string msg)
+{
+    return parse_amount(read_with_msg(msg));
+}
+
+Funds read_amount(auto balance_lambda, CompactUInt fee)
+{
+    auto input { read_with_msg("Amount (type \"max\" for total balance): ") };
+    if (input == "max") {
+        Funds balance { balance_lambda() };
+        if (balance <= fee)
+            throw std::runtime_error("Insufficient funds");
+        return balance - fee;
+    }
+    return parse_amount(input);
+}
+
+Address read_address(std::string msg)
+{
+    return Address(read_with_msg(msg));
 }
 
 int process(gengetopt_args_info& ai)
 {
     bool action = false;
-    bool po_action = ai.print_only_given != 0;
-    if (ai.print_only_given) {
-        if ((!ai.restore_given && !ai.create_given) || ai.address_given || ai.balance_given || ai.send_given) {
-            cerr << "option --print-only is only compatible with --create or --restore";
-            return -1;
-        }
+    size_t sum_actions = ai.address_given + ai.balance_given + ai.send_given;
+    if (sum_actions > 1) {
+        cerr << "Invalid combination of --address, --balance and --send.";
+        return -1;
     }
+
     Endpoint endpoint(ai.host_arg, ai.port_arg);
     try {
-        filesystem::path walletpath(ai.file_arg);
+        std::optional<Wallet> w;
         if (ai.create_given) {
             if (ai.restore_given) {
                 cerr << "Invalid option combination (--create and --restore)." << endl;
                 return -1;
             }
-            if (int i = gen_wallet(walletpath, po_action))
-                return i;
-            action = true;
-            po_action = false;
+            w = Wallet {};
         }
-        if (ai.restore_given) {
-            try {
-                PrivKey pk(ai.restore_arg);
-                if (int i = gen_wallet(walletpath, po_action, pk))
-                    return i;
-                action = true;
-                po_action = false;
-            } catch (std::runtime_error& e) {
-                cerr << "Cannot restore wallet: " << e.what() << endl;
-                return -1;
-            }
-        }
-        if (ai.print_only_given)
-            return 0;
+        if (ai.restore_given)
+            w = Wallet { PrivKey(ai.restore_arg) };
 
-        Wallet w { open_wallet(walletpath) };
+        filesystem::path walletpath(ai.file_arg);
+        if (w) {
+            action = true;
+            if (!ai.print_only_given)
+                w->save(walletpath);
+        } else // load from file
+            w = open_wallet(walletpath);
+
+        if (sum_actions == 0) {
+            cout << w->to_string() << endl;
+            return 0;
+        }
 
         if (ai.address_given) {
-            cout << w.address.to_string() << endl;
+            cout << w->address.to_string() << endl;
             return 0;
         }
+        auto balance_lambda = [&]() {
+            return endpoint.get_balance(w->address.to_string());
+        };
         if (ai.balance_given) {
-            cout << endpoint.get_balance(w.address.to_string()).to_string() << endl;
+            cout << balance_lambda().to_string() << endl;
             return 0;
         }
         if (ai.send_given) {
-            if (!ai.amount_given || !ai.to_given || !ai.fee_given) {
-                cerr << "Please specify the options '--to','--amount' and '--fee'."
-                     << endl;
-                return -1;
+            bool interactive { ai.to_given || !ai.fee_given || !ai.amount_given || !ai.nonce_given };
+            Address to(ai.to_given ? Address(ai.to_arg) : read_address("To: "));
+            CompactUInt fee { CompactUInt::compact({ ai.fee_given ? parse_amount(ai.fee_arg) : read_fee("Fee: ") }) };
+            Funds amount { ai.amount_given ? parse_amount(ai.amount_arg) : read_amount(balance_lambda, fee) };
+            NonceId nid { ai.nonce_given ? NonceId(ai.nonce_arg) : NonceId::random() };
+            if (interactive) {
+                cout << "Summary:"
+                     << "\n  To:     " << to.to_string()
+                     << "\n  Fee:    " << Funds(fee).to_string()
+                     << "\n  Amount: " << amount.to_string()
+                     << "\n  Nonce: " << nid.value()
+                     << "\nConfirm with \"y\": ";
+                std::string input;
+                cin >> input;
+                if (input != "y" && input != "Y")
+                    throw std::runtime_error("Not confirmed.");
             }
-            Address to(ai.to_arg);
             cout << "Get pin" << endl;
             auto pin = endpoint.get_pin();
             cout << "Got pin" << endl;
-            auto fee { Funds::parse(ai.fee_arg) };
-            auto amount { Funds::parse(ai.amount_arg) };
-            if (!fee || !amount) {
-                cerr << "Bad fee/amount" << endl;
-                return -1;
-            }
-            NonceId nid { ai.nonce_given ? NonceId(ai.nonce_arg) : NonceId::random() };
-            PaymentCreateMessage m(pin.first, pin.second, w.privKey, CompactUInt::compact(*fee), to, *amount, nid);
-            assert(m.valid_signature(pin.second, w.address));
+            PaymentCreateMessage m(pin.first, pin.second, w->privKey, CompactUInt::compact(fee), to, amount, nid);
+            assert(m.valid_signature(pin.second, w->address));
             cout << "NonceId: " << m.nonceId.value() << endl;
             cout << "pinHeight: " << m.pinHeight.value() << endl;
             cout << "pinHeight: " << pin.first.value() << endl;
@@ -205,7 +216,6 @@ int process(gengetopt_args_info& ai)
         }
     } catch (std::runtime_error& e) {
         cerr << e.what() << endl;
-        ;
         return -1;
     }
     if (!action) {
