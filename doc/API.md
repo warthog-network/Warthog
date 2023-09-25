@@ -53,7 +53,7 @@ METHOD| PATH | DESCRIPTION
 
 ### `GET /transaction/mempool`
  Show content of mempool. Example output:
- ```
+ ```json
 {
  "code": 0,
  "data": {
@@ -64,7 +64,7 @@ METHOD| PATH | DESCRIPTION
 
 ### `GET /transaction/lookup/:txid`
  Transaction lookup by transaction id. Example output of `http://localhost:3000/transaction/lookup/4b3bc48295742b71ff7c3b98ede5b652fafd16c67f0d2db6226e936a1cdbf0a5`:
- ```
+ ```json
 {
  "code": 0,
  "data": {
@@ -85,7 +85,7 @@ METHOD| PATH | DESCRIPTION
  
 ### `GET /chain/head`
  Show info on chain head. Example output:
- ```
+ ```json
 {
  "code": 0,
  "data": {
@@ -101,7 +101,7 @@ METHOD| PATH | DESCRIPTION
  ```
 ### `GET /chain/grid`
  Show hexadecimal header grid. This grid is used for chain sync to allow nodes spot points where chains diverge. Example output (truncated):
- ```
+ ```json
 {
  "code": 0,
  "data": [
@@ -122,7 +122,7 @@ METHOD| PATH | DESCRIPTION
  
 ### `GET /chain/signed_snapshot`
  Show chain snapshot. Example output
- ```
+ ```json
 {
  "code": 0,
  "data": {
@@ -144,7 +144,7 @@ METHOD| PATH | DESCRIPTION
 
 ### `GET /chain/block/:id/hash`
  Show hash of specific block. Example output of `http://localhost:3000/chain/block/366700/hash`
- ```
+ ```json
 {
  "code": 0,
  "data": {
@@ -157,7 +157,7 @@ METHOD| PATH | DESCRIPTION
  Show header of specific block. 
 
  Example output of `http://localhost:3000/chain/block/366700/header`
- ```
+ ```json
  {
  "code": 0,
  "data": {
@@ -181,7 +181,7 @@ METHOD| PATH | DESCRIPTION
 ### `GET/chain/block/:id`
  Show header and body of specific block. 
  Example output of `http://localhost:3000/chain/block/366700`
- ```
+ ```json
  {
  "code": 0,
  "data": {
@@ -229,7 +229,7 @@ METHOD| PATH | DESCRIPTION
 ```
 ### `GET /chain/mine/:address`
  Generate data required for mining. Example output of `http://localhost:3000/chain/mine/e4145cfe3e34f206956487c2a16b65a47f05fc347ef6e287`
-```
+```json
 {
  "code": 0,
  "data": {
@@ -243,7 +243,7 @@ METHOD| PATH | DESCRIPTION
 
 ### `GET /chain/txcache`
  Show transaction cache. Example output: 
- ```
+ ```json
 {
  "code": 0,
  "data": []
@@ -252,7 +252,7 @@ METHOD| PATH | DESCRIPTION
  
 ### `GET /chain/hashrate`
  Show current hashrate
- ```
+ ```json
 {
  "code": 0,
  "data": {
@@ -266,7 +266,7 @@ METHOD| PATH | DESCRIPTION
  TODO: Detailed description
 ### `GET /account/:account/balance`
  Show balance of specific account. Example output:
- ```
+ ```json
  {
  "code": 0,
  "data": {
@@ -279,7 +279,7 @@ METHOD| PATH | DESCRIPTION
 ### `GET /account/:account/history/:beforeTxIndex`
  Show transaction history of specific account 
  Example output:
- ```
+ ```json
 {
  "code": 0,
  "data": {
