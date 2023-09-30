@@ -4,7 +4,7 @@ Copyright (c) 2023 Pumbaa, Timon & Rafiki
   <img src="doc/img/warthog_logo.png" style="width:300px;"/>
 </p>
 
-# 🐗Warthog Reference Implementation
+# 🐗 Warthog Reference Implementation
 
 Welcome to Warthog!
 
@@ -14,25 +14,25 @@ our hobby experiment. This project is not a dumb fork of something else. It was 
 
 
 
-## 💵Tokenomics
+## 💵 Tokenomics
 We are a cryptocurrency for the community where everyone can revive again the good old days when crypto was fun. Therefore we have decided to be free of 💩bullshit:
-- 👍No Premine
-- 🤟No Team/Dev fund
-- 😊100% of supply is publicly mineable
+- 👍 No Premine
+- 🤟 No Team/Dev fund
+- 😊 100% of supply is publicly mineable
 <p align="center">
   <img src="doc/img/tokenomics.png" />
 </p>
 
 The block chain has the following characteristics:
-- 1️⃣ Coin unit: 1 WART
-- ⏲ Block time: 20s
+- 1️⃣  Coin unit: 1 WART
+- ⏲  Block time: 20s
 - 💰 Initial block reward: 3 WART
 - 🧮 Precision: 0.00000001 WART (8 digits)
 - 🔪 Halving: ~ every 2 years
 - 🔒 Supply hard cap : 18921599.68464 (~19m) WART
 
 
-## 💣A word of caution
+## 💣 A word of caution
 But beware of bugs: Here be dragons. Almost everything was 
 implemented from scratch. We are no experts so don't expect this
 software to be rock solid, and don't even expect things to work 
@@ -41,7 +41,7 @@ certainly are serious bugs! You have been warned.
 
 Have fun with it. Like we had implementing it.
 
-## 📢Socials
+## 📢 Socials
 
 <p align="center">
 <a href="https://discord.gg/QMDV8bGTdQ"><img src="doc/img/discord.png" alt="drawing" style="width:16px;"/> 
@@ -60,7 +60,7 @@ Not listed yet. At the moment only p2p on Discord.
 * CPU Miner
 * GPU Miner
 
-## 💻System Requirements
+## 💻 System Requirements
 
 * Linux
 * gcc11 or newer
@@ -72,7 +72,7 @@ Optional:
 
 Note: Ubuntu 20.04 does not meet these requirements.
 
-## 😵‍💫BUILD INSTRUCTIONS
+## 😵‍💫 BUILD INSTRUCTIONS
 
 
 * Install gcc, meson, ninja: apt install meson ninja-build build-essential
@@ -86,7 +86,7 @@ Note: Ubuntu 20.04 does not meet these requirements.
 * Compile using ninja: `ninja`
 
 
-## ▶️USAGE
+## ▶️ USAGE
 
 * Linux only at the moment
 * Compile with meson/ninja
