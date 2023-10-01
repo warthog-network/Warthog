@@ -333,6 +333,20 @@ json to_json(const API::History& h)
     j["balanceE8"] = h.balance.E8();
     return j;
 }
+
+json to_json(const API::Richlist& l)
+{
+    json a = json::array();
+    for (auto& [address,balance] : l.entries) {
+        json elem;
+        elem["address"] = address.to_string();
+        elem["balance"] = balance.to_string();
+        elem["balanceE8"] = balance.E8();
+        a.push_back(elem);
+        
+    }
+    return a;
+}
 json to_json(const API::HashrateInfo& hi)
 {
     return json {

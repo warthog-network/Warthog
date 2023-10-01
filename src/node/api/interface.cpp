@@ -103,6 +103,11 @@ void get_account_history(const Address& address, uint64_t beforeId,
     global().pcs->api_get_history(address, beforeId, f);
 };
 
+void get_account_richlist(RichlistCb f)
+{
+    global().pcs->api_get_richlist(f);
+};
+
 void inspect_conman(std::function<void(const Conman& e)>&& cb)
 {
     global().pcm->async_inspect(std::move(cb));

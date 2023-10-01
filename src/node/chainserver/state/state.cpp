@@ -363,17 +363,15 @@ auto State::apply_stage(ChainDBTransaction&& t) -> std::pair<ChainError, std::op
     }
     db.set_consensus_work(stage.total_work());
     auto update { tr.commit(*this) };
-    
-    
 
-    spdlog::info("New chain length {}",chainlength().value());
+    spdlog::info("New chain length {}", chainlength().value());
     return { error, update };
 };
 
 auto State::apply_signed_snapshot(SignedSnapshot&& ssnew) -> std::optional<StateUpdate>
 {
     if (signedSnapshot >= ssnew) {
-        spdlog::info("SetSignedPin {} OLD ",ssnew.height().value());
+        spdlog::info("SetSignedPin {} OLD ", ssnew.height().value());
         return {};
     }
     spdlog::info("SetSignedPin {} new", ssnew.height().value());
@@ -557,7 +555,6 @@ auto State::api_get_history(Address a, uint64_t beforeId) -> std::optional<API::
     uint64_t nextHistoryOffset = 0;
     chainserver::AccountCache cache(db);
 
-
     uint64_t prevHistoryId = 0;
     for (auto& [historyId, txid, data] : std::ranges::reverse_view { entries_desc }) {
         if (firstHistoryId == 0)
@@ -584,6 +581,11 @@ auto State::api_get_history(Address a, uint64_t beforeId) -> std::optional<API::
         .fromId = firstHistoryId,
         .blocks_reversed = blocks_reversed
     };
+};
+
+auto State::api_get_richlist(size_t N) -> API::Richlist
+{
+    return db.lookup_richlist(N);
 };
 
 auto State::get_blocks(DescriptedBlockRange range) -> std::vector<BodyContainer>

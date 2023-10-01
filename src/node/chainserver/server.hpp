@@ -69,6 +69,9 @@ public:
         uint64_t beforeId;
         HistoryCb callback;
     };
+    struct GetRichlist {
+        RichlistCb callback;
+    };
     struct GetHead {
         HeadCb callback;
     };
@@ -113,6 +116,7 @@ public:
         LookupTxHash,
         SetSynced,
         GetHistory,
+        GetRichlist,
         GetHead,
         GetHeader,
         GetHash,
@@ -167,6 +171,7 @@ public:
     void api_get_mempool(MempoolCb callback);
     void api_lookup_tx(const HashView hash, TxCb callback);
     void api_get_history(const Address& address, uint64_t beforeId, HistoryCb callback);
+    void api_get_richlist(RichlistCb callback);
     void api_get_header(Height height, HeaderCb callback);
     void api_get_hash(Height height, HashCb callback);
     void api_get_block(Height height, BlockCb callback);
@@ -195,6 +200,7 @@ private:
     void handle_event(LookupTxHash&&);
     void handle_event(SetSynced&& e);
     void handle_event(GetHistory&&);
+    void handle_event(GetRichlist&&);
     void handle_event(GetHead&&);
     void handle_event(GetHeader&&);
     void handle_event(GetHash&&);

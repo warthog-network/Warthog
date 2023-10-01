@@ -87,6 +87,9 @@ struct History {
     uint64_t fromId;
     std::vector<API::Block> blocks_reversed;
 };
+struct Richlist{
+    std::vector<std::pair<Address,Funds>> entries;
+};
 struct MempoolEntry : public TransferTxExchangeMessage {
     Hash txHash;
 };

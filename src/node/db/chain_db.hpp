@@ -8,6 +8,7 @@
 #include "chainserver/transaction_ids.hpp"
 #include "general/address_funds.hpp"
 #include "general/filelock/filelock.hpp"
+#include "api/types/forward_declarations.hpp"
 class ChainDBTransaction;
 class Batch;
 struct SignedSnapshot;
@@ -277,8 +278,9 @@ public:
     /////////////////////
     // Account functions
     // get
-    std::optional<AddressFunds> lookup_account(AccountId id) const;
-    AddressFunds fetch_account(AccountId id) const;
+    [[nodiscard]] std::optional<AddressFunds> lookup_account(AccountId id) const;
+    [[nodiscard]] API::Richlist lookup_richlist(size_t N) const;
+    [[nodiscard]] AddressFunds fetch_account(AccountId id) const;
 
     ///////////////
     // Deleteschedule functions
@@ -399,6 +401,7 @@ private:
     Statement2 stmtBadblockInsert;
     mutable Statement2 stmtBadblockGet;
     mutable Statement2 stmtAccountLookup;
+    mutable Statement2 stmtRichlistLookup;
     Statement2 stmtHistoryInsert;
     Statement2 stmtHistoryDeleteFrom;
     mutable Statement2 stmtHistoryLookup;

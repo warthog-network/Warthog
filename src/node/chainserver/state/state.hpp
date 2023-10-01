@@ -66,6 +66,7 @@ public:
     auto api_get_address(AddressView) -> API::Balance;
     auto api_get_head() const -> API::Head;
     auto api_get_history(Address a, uint64_t beforeId) -> std::optional<API::History>;
+    auto api_get_richlist(size_t N) -> API::Richlist;
     auto api_get_mempool(size_t) -> API::MempoolEntries;
     auto api_get_tx(HashView hash) const -> std::optional<API::Transaction>;
     auto api_get_block(Height h) const -> std::optional<API::Block>;

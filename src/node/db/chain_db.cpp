@@ -1,4 +1,5 @@
 #include "chain_db.hpp"
+#include "api/types/all.hpp"
 #include "block/body/parse.hpp"
 #include "block/chain/header_chain.hpp"
 #include "block/header/header_impl.hpp"
@@ -84,6 +85,8 @@ ChainDB::ChainDB(const std::string& path)
     , stmtBadblockGet(db, "SELECT `height`, `header` FROM `Badblocks`")
     , stmtAccountLookup(
           db, "SELECT `Address`, `Balance` FROM `State` WHERE ROWID=?")
+    , stmtRichlistLookup(
+          db, "SELECT Address, Balance FROM `State` ORDER BY `Balance` DESC LIMIT ?")
     , stmtHistoryInsert(db, "INSERT INTO `History` (`id`,`hash`, `data`"
                             ") VALUES (?,?,?)")
     , stmtHistoryDeleteFrom(db, "DELETE FROM `History` WHERE `id`>=?")
@@ -271,7 +274,7 @@ std::pair<BlockId, bool> ChainDB::insert_protect(const Block& b)
         assert(schedule_exists(*blockId) || consensus_exists(b.height, *blockId));
         return { blockId.value(), false };
     } else {
-        stmtBlockInsert.run(b.height,b.header,b.body.data(),hash);
+        stmtBlockInsert.run(b.height, b.header, b.body.data(), hash);
         auto lastId { db.getLastInsertRowid() };
         stmtScheduleInsert.run(lastId, 0);
         return { BlockId(lastId), true };
@@ -440,6 +443,17 @@ std::optional<AddressFunds> ChainDB::lookup_account(AccountId id) const
         .funds = o.get<Funds>(1)
     };
 }
+
+API::Richlist ChainDB::lookup_richlist(size_t N) const
+{
+    API::Richlist out;
+    stmtRichlistLookup.for_each([&](Statement2::Row& r) {
+        out.entries.push_back(
+            { Address{r.get_array<20>(0)},
+                r.get<Funds>(1) });
+    },N);
+    return out;
+};
 
 std::optional<BlockId> ChainDB::lookup_block_id(const HashView hash) const
 {

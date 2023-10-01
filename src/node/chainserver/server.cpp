@@ -94,6 +94,11 @@ void ChainServer::api_get_history(const Address& address, uint64_t beforeId,
 {
     defer_maybe_busy(GetHistory { address, beforeId, std::move(callback) });
 };
+
+void ChainServer::api_get_richlist(RichlistCb callback)
+{
+    defer_maybe_busy(GetRichlist { std::move(callback) });
+};
 void ChainServer::api_get_mining(const Address& address, MiningCb callback)
 {
     defer_maybe_busy(GetMining { address, std::move(callback) });
@@ -244,6 +249,12 @@ void ChainServer::handle_event(GetHistory&& e)
 {
     auto history { state.api_get_history(e.address, e.beforeId) };
     e.callback(noval_to_err(std::move(history)));
+};
+
+void ChainServer::handle_event(GetRichlist&& e)
+{
+    auto richlist { state.api_get_richlist(100) };
+    e.callback(std::move(richlist));
 };
 
 void ChainServer::handle_event(GetHead&& e)

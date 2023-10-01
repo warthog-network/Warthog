@@ -87,6 +87,7 @@ void nav(uWS::HttpResponse<false>* res, uWS::HttpRequest*)
         <ul>
             <li>GET <a href=/account/:account/balance>/account/:account/balance</a></li>
             <li>GET <a href=/account/:account/history/:beforeTxIndex>/account/:account/history/:beforeTxIndex</a></li>
+            <li>GET <a href=/account/richlist>/account/richlist</a></li>
         </ul>
         <h2>Peers endpoints</h2>
         <ul>
@@ -133,6 +134,7 @@ void HTTPEndpoint::work()
     // Account endpoints
     get_1("/account/:account/balance", get_account_balance);
     get_2("/account/:account/history/:beforeTxIndex", get_account_history);
+    get("/account/richlist", get_account_richlist);
 
     // peers endpoints
     get("/peers/ip_count", inspect_conman, jsonmsg::ip_counter);
