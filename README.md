@@ -44,9 +44,11 @@ Have fun with it. Like we had implementing it.
 ## 📢 Socials
 
 <p align="center">
-<a href="https://discord.gg/QMDV8bGTdQ"><img src="doc/img/discord.png" alt="drawing" style="width:16px;"/> 
- Discord </a>| 
+<a href="https://discord.gg/QMDV8bGTdQ"><img src="doc/img/discord.png" alt="drawing" style="width:16px;"/> Discord </a>
+| 
  <a href="https://bitcointalk.org/index.php?topic=5458046.0"> <img src="doc/img/bitcointalk.png" alt="drawing" style="width:16px;"/> Bitcointalk</a>
+ |
+ <a href="http://warthog.network">🌐 Website</a>
 </p>
 
 ## 💱 Where to buy?
