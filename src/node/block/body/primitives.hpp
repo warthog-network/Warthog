@@ -39,9 +39,9 @@ public:
     [[nodiscard]] TxHash txhash(HashView pinHash) const;
     [[nodiscard]] Address from_address(HashView txHash) const;
     Funds fee() const { return compactFee.uncompact(); }
-    AccountId from_id() const { return txid.accountId; };
-    PinHeight pin_height() const { return txid.pinHeight; };
-    NonceId nonce_id() const { return txid.nonceId; };
+    AccountId from_id() const { return txid.accountId; }
+    PinHeight pin_height() const { return txid.pinHeight; }
+    NonceId nonce_id() const { return txid.nonceId; }
 
     TransactionId txid;
     NonceReserved reserved;

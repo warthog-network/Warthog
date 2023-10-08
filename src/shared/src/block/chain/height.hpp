@@ -175,21 +175,21 @@ public:
 
 inline NonzeroHeight Height::nonzero_assert() const{
     return {NonzeroHeight(value())};
-};
+}
 
 inline NonzeroHeight Height::nonzero_throw(int error) const{
     if (val==0) {
         throw Error(error);
     }
     return nonzero_assert();
-};
+}
 
 inline NonzeroHeight Height::one_if_zero() const{
     if (val == 0) {
         return NonzeroHeight(1);
     }
     return NonzeroHeight(value());
-};
+}
 
 class PinHeight : public Height {
 public:
@@ -210,7 +210,7 @@ struct PinFloor : public Height {
     using Height::Height;
     explicit PinFloor(Height h)
         : Height((h.value() >> 5) << 5) //& 0xFFFFFFE0u;
-        {};
+        {}
 };
 
 inline bool Height::is_pin_height() const

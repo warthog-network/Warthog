@@ -16,12 +16,12 @@ public:
         if (s.size() > HeaderView::bytesize * HEADERBATCHSIZE)
             throw Error(EBATCHSIZE);
         bytes.assign(s.begin(), s.end());
-    };
+    }
     Headervec(std::vector<uint8_t>&& b)
         : bytes(std::move(b))
     {
         assert(bytes.size() % 80 == 0);
-    };
+    }
     Headervec(const uint8_t* begin, const uint8_t* end)
         : bytes(begin, end)
     {
@@ -37,7 +37,7 @@ public:
     class const_iterator {
     public:
         const_iterator(const const_iterator&) = default;
-        HeaderView operator*() { return HeaderView(pos); };
+        HeaderView operator*() { return HeaderView(pos); }
         const_iterator& operator++()
         {
             pos += HeaderView::size();
@@ -53,7 +53,7 @@ public:
     private:
         friend class Headervec;
         const_iterator(const uint8_t* pos)
-            : pos(pos) {};
+            : pos(pos) {}
         struct Helper {
             HeaderView* operator->() { return &hv; }
             HeaderView hv;
@@ -73,8 +73,8 @@ public:
         assert(newsize <= bytes.size());
         bytes.resize(newsize);
     }
-    const std::vector<uint8_t>& raw() const { return bytes; };
-    const uint8_t* data() const { return bytes.data(); };
+    const std::vector<uint8_t>& raw() const { return bytes; }
+    const uint8_t* data() const { return bytes.data(); }
     size_t size() const { return bytes.size() / 80; }
     inline HeaderView operator[](size_t i) const
     {

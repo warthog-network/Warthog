@@ -16,7 +16,7 @@ SharedBatch::SharedBatch(const SharedBatch& other)
     Nodedata& nd = data.iter->second;
     std::unique_lock l(nd.registry.m);
     nd.refcount += 1;
-};
+}
 
 SharedBatch::SharedBatch(const SharedBatchView& v) noexcept
     : data({ .iter = static_cast<iter_type>(v.data.iter) })
@@ -26,23 +26,23 @@ SharedBatch::SharedBatch(const SharedBatchView& v) noexcept
     Nodedata& nd = data.iter->second;
     std::unique_lock l(nd.registry.m);
     nd.refcount += 1;
-};
+}
 
 SharedBatch::SharedBatch(SharedBatch&& other) noexcept
     : data({ .iter = other.data.iter })
 {
     other.data.raw = 0;
-};
+}
 
 SharedBatch& SharedBatch::operator=(const SharedBatch& other)
 {
     return (*this = SharedBatch(other));
-};
+}
 
 SharedBatch& SharedBatch::operator=(const SharedBatchView& other)
 {
     return (*this = SharedBatch(other));
-};
+}
 
 SharedBatch& SharedBatch::operator=(SharedBatch&& other)
 {
@@ -53,7 +53,7 @@ SharedBatch& SharedBatch::operator=(SharedBatch&& other)
     data.iter = other.data.iter;
     other.data.raw = 0;
     return *this;
-};
+}
 
 SharedBatch::SharedBatch(iter_type iter) noexcept
     : data({ .iter = iter })
@@ -68,14 +68,14 @@ SharedBatch::SharedBatch(iter_type iter) noexcept
 HeaderVerifier SharedBatch::verifier() const
 {
     return *this;
-};
+}
 
 SharedBatch BatchRegistry::share(Batch&& headerbatch, const SharedBatch& prev)
 {
     assert(headerbatch.complete());
     Worksum totalWork = prev.total_work() + headerbatch.worksum(prev.upper_height());
     return share(std::move(headerbatch), prev, totalWork);
-};
+}
 
 SharedBatch BatchRegistry::share(Batch&& headerbatch, const SharedBatch& prev, Worksum totalWork)
 {
@@ -119,7 +119,7 @@ SharedBatchView BatchRegistry::find_last_template(const T& t)
         }
         c = a + (b - a) / 2;
     }
-};
+}
 
 std::optional<SharedBatch> BatchRegistry::find_last(const Grid g, const std::optional<SignedSnapshot>& ss)
 {
@@ -129,7 +129,7 @@ std::optional<SharedBatch> BatchRegistry::find_last(const Grid g, const std::opt
         return {};
     }
     return static_cast<SharedBatch>(res);
-};
+}
 
 void BatchRegistry::dec_ref(SharedBatch::iter_type iter)
 {
@@ -158,7 +158,7 @@ bool BatchRegistry::verify(SharedBatchView v, const SignedSnapshot& ss)
     if (!hash)
         return true;
     return *hash == ss.hash;
-};
+}
 
 Nodedata::~Nodedata()
 {
@@ -185,4 +185,4 @@ std::optional<Hash> Nodedata::hash_at(NonzeroHeight h)
         uh = pnode->upper_height() + 1;
         assert(uh == lh);
     }
-};
+}

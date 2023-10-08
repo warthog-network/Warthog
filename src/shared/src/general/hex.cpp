@@ -2,7 +2,7 @@
 
 void serialize_hex(uint32_t number, char* out)
 {
-    uint32_t tmp = htobe32(number);
+    uint32_t tmp = hton32(number);
     serialize_hex((const uint8_t*)&tmp, 4, out);
 };
 

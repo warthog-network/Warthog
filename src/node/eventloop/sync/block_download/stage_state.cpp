@@ -12,13 +12,13 @@ void PendingStageOperation::set_stage_add(const ForkIter& begin, const ForkIter&
         banMemory.push_back(BanEntry(iter->first, iter->second.id()));
     }
     var = StageAddType { std::move(banMemory) };
-};
+}
 
 void PendingStageOperation::set_stage_set(Height length)
 {
     assert(!busy());
     var = StageSetType { length };
-};
+}
 
 void StageState::clear()
 {
@@ -27,18 +27,18 @@ void StageState::clear()
     } else {
         clear_non_pending();
     }
-};
+}
 void StageState::clear_non_pending()
 {
     assert(!pendingOperation.busy());
     *this = {};
-};
+}
 void StageState::set_stale_from(Height from)
 {
     if (!staleFrom.has_value() || from < *staleFrom) {
         staleFrom = from;
     }
-};
+}
 
 std::vector<ChainOffender> StageState::on_result(const stage_operation::StageAddResult& r)
 {
@@ -72,4 +72,4 @@ std::optional<Height> StageState::on_result(const stage_operation::StageSetResul
         stageSetPhase = false;
     return firstMissHeight;
 }
-};
+}

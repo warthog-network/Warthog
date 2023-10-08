@@ -17,7 +17,7 @@ void PeerChain::initialize(const InitMsg& msg, const StageAndConsensus& sac)
     consensusForkRange = ForkRange { sac.consensus_state().headers(), d.grid() };
     stageForkRange = ForkRange { sac.stage_headers(), desc->grid() };
     priority = msg.sp;
-};
+}
 
 void PeerChain::on_peer_append(const AppendMsg& msg, const StageAndConsensus& sac)
 {
@@ -26,7 +26,7 @@ void PeerChain::on_peer_append(const AppendMsg& msg, const StageAndConsensus& sa
     d.append_throw(msg);
     consensusForkRange.on_append(*desc, sac.consensus_state().headers());
     stageForkRange.on_append(*desc, sac.stage_headers());
-};
+}
 
 void PeerChain::on_peer_fork(const ForkMsg& msg, const StageAndConsensus& sac)
 {
@@ -48,7 +48,7 @@ void PeerChain::on_peer_fork(const ForkMsg& msg, const StageAndConsensus& sac)
 
     consensusForkRange.on_fork(msg.forkHeight, *desc, sac.consensus_state().headers());
     stageForkRange.on_fork(msg.forkHeight, *desc, sac.stage_headers());
-};
+}
 
 void PeerChain::on_peer_shrink(const SignedPinRollbackMsg& msg, const StageAndConsensus& sac)
 {
@@ -69,9 +69,8 @@ void PeerChain::on_peer_shrink(const SignedPinRollbackMsg& msg, const StageAndCo
 
     consensusForkRange.on_shrink(*desc, sac.consensus_state().headers());
     stageForkRange.on_shrink(*desc, sac.stage_headers());
-};
+}
 
-;
 void PeerChain::on_consensus_fork(NonzeroHeight forkHeight, const StageAndConsensus& sac)
 {
     consensusForkRange.on_fork(forkHeight, *desc, sac.consensus_state().headers());
@@ -89,22 +88,22 @@ void PeerChain::on_consensus_append(const StageAndConsensus& sac)
     consensusForkRange.on_append(*desc, sac.consensus_state().headers());
     auto matchHeight { std::min(sac.fork_height().val(), stageForkRange.lower()) - 1 };
     consensusForkRange.on_match(matchHeight);
-};
+}
 
 void PeerChain::on_stage_append_or_shrink(const Headerchain& blockdownloadHeaders)
 {
     stageForkRange.on_append_or_shrink(*desc, blockdownloadHeaders);
-};
+}
 
 void PeerChain::on_consensus_shrink(const StageAndConsensus& sac)
 {
     consensusForkRange.on_shrink(*desc, sac.consensus_state().headers());
-};
+}
 
 void PeerChain::on_stage_set(Height length)
 {
     stageForkRange = ForkRange((length + 1).nonzero_assert());
-};
+}
 
 PeerchainMatch PeerChain::on_proberep(const ProbereqMsg& req, const ProberepMsg& msg, const StageAndConsensus& sac) // OK
 {

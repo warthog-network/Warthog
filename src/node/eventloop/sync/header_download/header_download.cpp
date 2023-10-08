@@ -33,7 +33,7 @@ void Downloader::clear_connection_probe(Conref cr, bool eraseFromContainer = tru
         }
         data(cr).probeData.reset();
     }
-};
+}
 
 void Downloader::set_connection_probe(Conref cr, ProbeData&& d, std::shared_ptr<Descripted> desc, Queued_iter iter)
 {
@@ -41,7 +41,7 @@ void Downloader::set_connection_probe(Conref cr, ProbeData&& d, std::shared_ptr<
     assert(!data(cr).probeData);
     data(cr).probeData = { std::move(d), std::move(desc), iter };
     connectionsWithProbeJob.push_back(cr);
-};
+}
 
 Batchslot LeaderNode::next_slot()
 {
@@ -55,12 +55,12 @@ Worksum LeaderNode::verified_total_work()
     if (verifier)
         return (*verifier)->second.sb.total_work();
     return {};
-};
+}
 
 Worksum LeaderNode::final_batch_work()
 {
     return finalBatch.batch.worksum(final_slot().offset());
-};
+}
 
 NonzeroSnapshot::NonzeroSnapshot(std::shared_ptr<Descripted> d)
     : descripted(std::move(d))
@@ -69,14 +69,14 @@ NonzeroSnapshot::NonzeroSnapshot(std::shared_ptr<Descripted> d)
 {
     assert(!worksum.is_zero());
     spdlog::debug("Constructing snapshot with length {} and work {}", length.value(), worksum.getdouble());
-};
+}
 VerifierNode::VerifierNode(SharedBatch&& b)
     : verifier(b.verifier())
-    , sb(std::move(b)) {};
+    , sb(std::move(b)) {}
 
 VerifierNode::VerifierNode(SharedBatch&& b, HeaderVerifier&& hv)
     : verifier(std::move(hv))
-    , sb(b) {};
+    , sb(b) {}
 
 Ver_iter Downloader::acquire_verifier(SharedBatch&& pin)
 {
@@ -84,7 +84,7 @@ Ver_iter Downloader::acquire_verifier(SharedBatch&& pin)
     auto vi = verifierMap.try_emplace(hv, std::move(pin)).first;
     vi->second.refcount += 1;
     return vi;
-};
+}
 void Downloader::release_verifier(Ver_iter vi)
 {
     auto& refcount = vi->second.refcount;
@@ -92,7 +92,7 @@ void Downloader::release_verifier(Ver_iter vi)
     if (--refcount == 0) {
         verifierMap.erase(vi);
     }
-};
+}
 
 void Downloader::acquire_queued_batch(std::optional<Header> prev, HeaderView hv, Lead_iter li)
 {
@@ -101,7 +101,7 @@ void Downloader::acquire_queued_batch(std::optional<Header> prev, HeaderView hv,
     assert(iter->second.leaderRefs.insert(li).second);
     li->queuedIters.push_back({ prev, iter });
     assert(li->queuedIters.size() <= pendingDepth);
-};
+}
 
 void Downloader::release_first_queued_batch(Lead_iter li)
 {
@@ -124,7 +124,7 @@ void Downloader::release_first_queued_batch(Lead_iter li)
         }
         queuedBatches.erase(iter);
     }
-};
+}
 
 bool Downloader::can_insert_leader(Conref cr)
 {
@@ -141,7 +141,7 @@ bool Downloader::can_insert_leader(Conref cr)
         assert(d->chain_length() != 0);
     }
     return res;
-};
+}
 
 bool Downloader::valid_shared_batch(const SharedBatch& sb)
 {
@@ -157,7 +157,7 @@ bool Downloader::valid_shared_batch(const SharedBatch& sb)
         }
     }
     return true;
-};
+}
 
 bool Downloader::consider_insert_leader(Conref cr)
 {
@@ -205,7 +205,7 @@ void Downloader::erase_leader(const Lead_iter li)
 
     data(li->cr).leaderIter = leaderList.end();
     leaderList.erase(li);
-};
+}
 
 void Downloader::queue_requests(Lead_iter li)
 {
@@ -218,7 +218,7 @@ void Downloader::queue_requests(Lead_iter li)
         else
             acquire_queued_batch(d.grid()[s - 1], d.grid()[s], li);
     }
-};
+}
 
 Conref Downloader::try_send(ConnectionFinder& f, const ReqData& rd)
 { // OK
@@ -271,7 +271,7 @@ Conref Downloader::try_send(ConnectionFinder& f, const ReqData& rd)
         bound = f.conIndex;
     }
     return {};
-};
+}
 
 bool Downloader::try_final_request(Lead_iter li, RequestSender& sender)
 {
@@ -306,7 +306,7 @@ bool Downloader::try_final_request(Lead_iter li, RequestSender& sender)
         }
     }
     return false;
-};
+}
 
 void Downloader::do_probe_requests(RequestSender s)
 {
@@ -339,7 +339,7 @@ void Downloader::do_probe_requests(RequestSender s)
         if (pr)
             s.send(cr, *pr);
     }
-};
+}
 
 void Downloader::do_requests(RequestSender s)
 {
@@ -373,7 +373,7 @@ void Downloader::do_requests(RequestSender s)
             }
         }
     }
-};
+}
 
 void Downloader::on_request_expire(Conref cr, const Batchrequest&)
 {
@@ -381,7 +381,7 @@ void Downloader::on_request_expire(Conref cr, const Batchrequest&)
         data(cr).jobPtr->cr.clear();
         data(cr).jobPtr = nullptr;
     }
-};
+}
 
 void Downloader::on_proberep(Conref c, const Proberequest& req, const ProberepMsg& rep)
 {
@@ -402,11 +402,11 @@ void Downloader::on_proberep(Conref c, const Proberequest& req, const ProberepMs
         if (li->snapshot.descripted->descriptor == req.descriptor)
             li->probeData.match(req.height, *rep.requested);
     }
-};
+}
 
 void Downloader::on_probe_request_expire(Conref /*cr*/) {
     // do nothing
-};
+}
 
 void Downloader::process_final(Lead_iter li, std::vector<Offender>& out)
 {
@@ -448,7 +448,7 @@ void Downloader::process_final(Lead_iter li, std::vector<Offender>& out)
         auto sb = (fromGenesis ? SharedBatch {} : (*li->verifier)->second.sb);
         maximizer = { { li->cr, li->snapshot.descripted }, HeaderchainSkeleton(std::move(sb), b), worksum };
     }
-};
+}
 
 bool Downloader::advance_verifier(const Ver_iter* vi, const Lead_set& leaders, const Batch& b,
     std::vector<Offender>& out)
@@ -514,7 +514,7 @@ std::vector<ChainOffender> Downloader::filter_leadermismatch_offenders(std::vect
         }
     }
     return res;
-};
+}
 
 void Downloader::verify_queued(Queued_iter qi, const Lead_set& leaders, std::vector<Offender>& offenders)
 {
@@ -614,7 +614,7 @@ auto Downloader::on_response(Conref cr, Batchrequest&& req, Batch&& res) -> std:
     }
     select_leaders();
     return ret;
-};
+}
 
 [[nodiscard]] std::optional<std::tuple<LeaderInfo, Headerchain>> Downloader::pop_data()
 {
@@ -650,7 +650,7 @@ void Downloader::erase(Conref cr)
         data(cr).jobPtr->cr.clear();
         data(cr).jobPtr = nullptr;
     }
-};
+}
 
 void Downloader::select_leaders()
 {
@@ -661,13 +661,13 @@ void Downloader::select_leaders()
             && leaderList.size() >= maxLeaders)
             return;
     }
-};
+}
 
 void Downloader::insert(Conref cr)
 {
     connections.push_back(cr);
     consider_insert_leader(cr);
-};
+}
 
 void Downloader::set_min_worksum(const Worksum& ws)
 {
@@ -677,7 +677,7 @@ void Downloader::set_min_worksum(const Worksum& ws)
         prune_leaders();
         select_leaders();
     }
-};
+}
 
 void Downloader::prune_leaders()
 {
@@ -696,17 +696,17 @@ void Downloader::prune_leaders()
             ++li;
         }
     }
-};
+}
 
 void Downloader::on_append(Conref cr)
 {
     consider_insert_leader(cr);
-};
+}
 
 void Downloader::on_fork(Conref cr)
 {
     consider_insert_leader(cr);
-};
+}
 
 void Downloader::on_rollback(Conref c)
 {
@@ -714,7 +714,7 @@ void Downloader::on_rollback(Conref c)
         erase_leader(data(c).leaderIter);
 
     consider_insert_leader(c);
-};
+}
 
 void Downloader::on_signed_snapshot_update()
 {
@@ -727,6 +727,6 @@ void Downloader::on_signed_snapshot_update()
     }
     prune_leaders();
     select_leaders();
-};
+}
 
 }

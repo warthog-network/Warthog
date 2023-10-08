@@ -1,6 +1,6 @@
 #pragma once
-#include "endian.h"
 #include "errors.hpp"
+#include "general/byte_order.hpp"
 #include "view.hpp"
 #include <array>
 #include <string>
@@ -29,7 +29,7 @@ std::string serialize_hex(View<N> v)
 }
 inline std::string serialize_hex(uint32_t v)
 {
-    uint32_t network = htobe32(v);
+    uint32_t network = hton32(v);
     return serialize_hex((const uint8_t*)&network, 4);
 }
 

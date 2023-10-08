@@ -6,10 +6,10 @@
 #include <cstring>
 
 IPv4::IPv4(Reader& r)
-    : data(r.uint32()) {};
+    : data(r.uint32()) {}
 
 IPv4::IPv4(const sockaddr_in& sin)
-    : IPv4(ntoh32(reinterpret_cast<uint32_t>(sin.sin_addr.s_addr))) {};
+    : IPv4(ntoh32(reinterpret_cast<uint32_t>(sin.sin_addr.s_addr))) {}
 
 bool IPv4::is_valid(bool allowLocalhost) const{
     uint32_t ndata = hton32(data);
@@ -18,7 +18,7 @@ bool IPv4::is_valid(bool allowLocalhost) const{
         && (allowLocalhost || pdata[0] != 127)
         && pdata[0] != 192 // ignore 192.xxx.xxx.xxx
         && !(pdata[0] == 169 && pdata[1] == 254); // ignore 192.xxx.xxx.xxx
-};
+}
 
 std::optional<uint16_t> parse_port(const std::string_view& s)
 {
@@ -91,7 +91,7 @@ std::string IPv4::to_string() const
 
 EndpointAddress::EndpointAddress(Reader& r)
     : ipv4(r)
-    , port(r.uint16()) {};
+    , port(r.uint16()) {}
 
 std::optional<EndpointAddress> EndpointAddress::parse(const std::string_view& s)
 {
@@ -111,12 +111,12 @@ std::optional<EndpointAddress> EndpointAddress::parse(const std::string_view& s)
     } else {
         return EndpointAddress { ip.value() };
     }
-};
+}
 
 std::string EndpointAddress::to_string() const
 {
     return ipv4.to_string() + ":" + std::to_string(port);
-};
+}
 
 sockaddr_in EndpointAddress::sock_addr() const
 {
@@ -132,4 +132,4 @@ sockaddr_in EndpointAddress::sock_addr() const
     static_assert(sizeof(struct in_addr) == 4);
     memcpy(&out.sin_addr.s_addr, &ntmp, 4);
     return out;
-};
+}

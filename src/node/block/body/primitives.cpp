@@ -5,7 +5,7 @@
 
 Payout::Payout(const Address& address, Funds amount)
     : to(address)
-    , amount(amount) {};
+    , amount(amount) {}
 
 Writer& operator<<(Writer& w, TransferTxExchangeMessage m)
 {
@@ -15,12 +15,12 @@ Writer& operator<<(Writer& w, TransferTxExchangeMessage m)
              << m.toAddr
              << m.amount
              << m.signature;
-};
+}
 
 Address TransferTxExchangeMessage::from_address(HashView txHash) const
 {
     return signature.recover_pubkey(txHash.data()).address();
-};
+}
 
 TxHash TransferTxExchangeMessage::txhash(HashView pinHash) const
 {
@@ -33,7 +33,7 @@ TxHash TransferTxExchangeMessage::txhash(HashView pinHash) const
         << compactFee
         << toAddr
         << amount);
-};
+}
 
 TransferTxExchangeMessage::TransferTxExchangeMessage(TransferView t, PinHeight ph, AddressView toAddr)
     : txid(t.txid(ph))
@@ -41,7 +41,7 @@ TransferTxExchangeMessage::TransferTxExchangeMessage(TransferView t, PinHeight p
     , compactFee(t.compact_fee())
     , toAddr(toAddr)
     , amount(t.amount())
-    , signature(t.signature()) {};
+    , signature(t.signature()) {}
 
 TransferTxExchangeMessage::TransferTxExchangeMessage(AccountId fromId, const PaymentCreateMessage& pcm)
     : txid(fromId, pcm.pinHeight, pcm.nonceId)
@@ -49,7 +49,7 @@ TransferTxExchangeMessage::TransferTxExchangeMessage(AccountId fromId, const Pay
     , compactFee(pcm.compactFee)
     , toAddr(pcm.toAddr)
     , amount(pcm.amount)
-    , signature(pcm.signature) {};
+    , signature(pcm.signature) {}
 
 TransferTxExchangeMessage::TransferTxExchangeMessage(const TransactionId& txid, const mempool::EntryValue& v)
     : txid(txid)

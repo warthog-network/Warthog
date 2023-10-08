@@ -16,7 +16,7 @@ bool can_download(Height forkLower, Height forkUpper, Height bound)
 std::optional<Proberequest> ProbeBalanced::probe_request(const ProbeData& pd, const std::shared_ptr<Descripted>& desc, Height maxLength)
 {
     return ProbeBalanced { pd, maxLength }.probe_request(desc);
-};
+}
 
 [[nodiscard]] std::optional<Batchrequest> ProbeBalanced::slot_batch_request(const ProbeData& pd, const std::shared_ptr<Descripted>& desc, Batchslot slot, Header h)
 {
@@ -29,7 +29,7 @@ std::optional<Proberequest> ProbeBalanced::probe_request(const ProbeData& pd, co
         return Batchrequest(desc, pd.headers, slot.lower(), maxLength, h);
     }
     return {};
-};
+}
 
 [[nodiscard]] std::optional<Batchrequest> ProbeBalanced::final_partial_batch_request(const ProbeData& pd, const std::shared_ptr<Descripted>& desc, NonzeroHeight maxLength, Worksum minWork)
 {
@@ -48,21 +48,21 @@ std::optional<Proberequest> ProbeBalanced::probe_request(const ProbeData& pd, co
         }
     }
     return {};
-};
+}
 
 NonzeroHeight ProbeBalanced::upper()
 {
     return upper(probeData, maxLength);
-};
+}
 NonzeroHeight ProbeBalanced::lower()
 {
     return lower(probeData);
-};
+}
 
 NonzeroHeight ProbeBalanced::lower(const ProbeData& probeData)
 {
     return probeData.forkRange.lower();
-};
+}
 
 NonzeroHeight ProbeBalanced::upper(const ProbeData& probeData, Height maxLength)
 {
@@ -72,7 +72,7 @@ NonzeroHeight ProbeBalanced::upper(const ProbeData& probeData, Height maxLength)
     if (auto& fr = probeData.forkRange; fr.forked() && fr.upper() < u)
         u = fr.upper();
     return u;
-};
+}
 
 std::optional<Proberequest> ProbeBalanced::probe_request(const std::shared_ptr<Descripted>& desc)
 {

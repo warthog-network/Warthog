@@ -42,7 +42,7 @@ HeaderVerifier::HeaderVerifier(const SharedBatch& b)
     for (size_t i = 0; i < MEDIAN_N; ++i) {
         timeValidator.append(b.size() - MEDIAN_N + i);
     }
-};
+}
 
 tl::expected<HeaderVerifier, ChainError> HeaderVerifier::copy_apply(const std::optional<SignedSnapshot>& sp, const Batch& b, Height heightOffset) const
 {
@@ -67,7 +67,7 @@ void HeaderVerifier::clear()
     nextTarget = Target::genesis();
     timeValidator.clear();
     finalHash = Hash::genesis();
-};
+}
 
 void HeaderVerifier::append(NonzeroHeight newlength, const PreparedAppend& p)
 {
@@ -136,7 +136,7 @@ auto HeaderVerifier::prepare_append(const std::optional<SignedSnapshot>& sp, Hea
     if (t > now_timestamp() + TOLERANCEMINUTES * 60)
         return tl::make_unexpected(ECLOCKTOLERANCE);
     return PreparedAppend { hv, hash };
-};
+}
 
 void HeaderVerifier::initialize(const ExtendableHeaderchain& hc,
     Height length)
@@ -218,12 +218,12 @@ void ExtendableHeaderchain::shrink(Height newlength)
             finalPin = SharedBatch();
     }
     initialize();
-};
+}
 
 ExtendableHeaderchain::ExtendableHeaderchain()
 {
     initialize();
-};
+}
 
 ExtendableHeaderchain::ExtendableHeaderchain(
     std::vector<Batch>&& init,
@@ -245,26 +245,26 @@ ExtendableHeaderchain::ExtendableHeaderchain(
     totalWork += incompleteBatch.worksum(incompleteHeightOffset);
     initialize();
     assert(totalWork == total_work());
-};
+}
 
 ExtendableHeaderchain::ExtendableHeaderchain(const Headerchain& eh,
     Height height)
     : Headerchain(eh, height)
 {
     initialize();
-};
+}
 ExtendableHeaderchain::ExtendableHeaderchain(Headerchain&& hc)
     : Headerchain(std::move(hc))
 {
     initialize();
-};
+}
 
 ExtendableHeaderchain& ExtendableHeaderchain::operator=(Headerchain&& hc)
 {
     Headerchain::operator=(std::move(hc));
     initialize();
     return *this;
-};
+}
 
 void ExtendableHeaderchain::append(const HeaderVerifier::PreparedAppend& p,
     BatchRegistry& br)
@@ -277,7 +277,7 @@ void ExtendableHeaderchain::append(const HeaderVerifier::PreparedAppend& p,
         incompleteBatch.clear();
     }
     checker.append(length().nonzero_assert(), p);
-};
+}
 
 auto ExtendableHeaderchain::prepare_append(const std::optional<SignedSnapshot>& sp, HeaderView hv) const -> tl::expected<HeaderVerifier::PreparedAppend, int32_t>
 {

@@ -16,7 +16,7 @@ private:
         {
             buf.len = size;
             buf.base = data.release();
-        };
+        }
         ~Writebuffer() { delete[] buf.base; }
     };
     struct Handshakedata {
@@ -37,7 +37,7 @@ private:
                 return 0;
             uint32_t tmp;
             memcpy(&tmp, recvbuf.data() + 14, 4);
-            return htonl(tmp);
+            return hton32(tmp);
         }
         uint16_t port(bool inbound)
         {
@@ -78,8 +78,8 @@ public:
     void eventloop_unref(const char* tag);
     void asyncsend(Sndbuffer&& msg);
     void async_close(int errcode);
-    [[nodiscard]] EndpointAddress peer_address() { return peerAddress; };
-    [[nodiscard]] EndpointAddress peer_endpoint() { return EndpointAddress { peerAddress.ipv4, peerEndpointPort }; };
+    [[nodiscard]] EndpointAddress peer_address() { return peerAddress; }
+    [[nodiscard]] EndpointAddress peer_endpoint() { return EndpointAddress { peerAddress.ipv4, peerEndpointPort }; }
 
 private:
     void unref(const char* tag);

@@ -23,23 +23,23 @@ void Conman::close_caller(uv_handle_t* handle)
     Conman& cm = (*reinterpret_cast<Conman*>(handle->data));
     handle->data = nullptr;
     cm.unref("closed");
-};
+}
 void Conman::reconnect_caller(uv_timer_t* handle)
 {
     ReconnectTimer& timer = (*reinterpret_cast<ReconnectTimer*>(handle->data));
     timer.conman->on_reconnect_wakeup(timer);
-};
+}
 void Conman::reconnect_closed_cb(uv_handle_t* handle)
 {
     ReconnectTimer& timer = (*reinterpret_cast<ReconnectTimer*>(handle->data));
     timer.conman->on_reconnect_closed(timer);
-};
+}
 
 // ip counting
 bool Conman::count(IPv4 ip)
 {
     return perIpCounter.insert(ip, max_conn_per_ip);
-};
+}
 void Conman::count_force(IPv4 ip)
 {
     perIpCounter.insert(ip);
@@ -47,7 +47,7 @@ void Conman::count_force(IPv4 ip)
 void Conman::uncount(IPv4 ip)
 {
     perIpCounter.erase(ip);
-};
+}
 
 // reference counting
 void Conman::unlink(Connection* const pcon)
@@ -99,7 +99,7 @@ void Conman::async_validate(Connection* c, bool accept, int64_t rowid)
     c->addref("validate");
     events.push(Validation { c, accept, rowid });
     uv_async_send(&wakeup);
-};
+}
 
 Conman::Conman(uv_loop_t* l, PeerServer& peerServer, const Config& config,
     int backlog)
@@ -129,7 +129,7 @@ Conman::Conman(uv_loop_t* l, PeerServer& peerServer, const Config& config,
 error:
     throw std::runtime_error(
         "Cannot start connection manager (memory will leak): " + std::string(errors::err_name(i)));
-};
+}
 void Conman::on_connect(int status)
 {
     if (status != 0) {
@@ -168,7 +168,7 @@ void Conman::on_reconnect_closed(ReconnectTimer& t)
     }
     reconnectTimers.erase(t.iter);
     unref("reconnect closed");
-};
+}
 
 void Conman::handle_event(Delete&& e)
 {
@@ -195,15 +195,15 @@ void Conman::handle_event(Delete&& e)
         uv_timer_start(&timer.uv_timer, &Conman::reconnect_caller, milliseconds, 0);
     }
     delete e.c;
-};
+}
 void Conman::handle_event(Close&& e)
 {
     e.c->close(e.reason);
-};
+}
 void Conman::handle_event(Send&& e)
 {
     e.c->send_buffers();
-};
+}
 
 void Conman::handle_event(Validation&& e)
 {
@@ -215,7 +215,7 @@ void Conman::handle_event(Validation&& e)
     } else {
         c->close(EREFUSED);
     }
-};
+}
 
 void Conman::handle_event(GetPeers&& e)
 {
@@ -227,19 +227,19 @@ void Conman::handle_event(GetPeers&& e)
         data.push_back(item);
     }
     e.cb(std::move(data));
-};
+}
 
 void Conman::handle_event(Connect&& c)
 {
     if (!closing) {
         connect(c.a, c.reconnectSleep);
     }
-};
+}
 
 void Conman::handle_event(Inspect&& e)
 {
     e.callback(*this);
-};
+}
 
 void Conman::close(int32_t reason)
 {

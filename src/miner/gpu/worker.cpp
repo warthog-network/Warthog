@@ -1,5 +1,5 @@
 #include "worker.hpp"
-#include <arpa/inet.h>
+// #include <arpa/inet.h>
 #include "block/header/difficulty.hpp"
 #include "block/header/header_impl.hpp"
 #include "helpers.hpp"

@@ -17,7 +17,7 @@ Conref AddressManager::find(uint64_t id)
     if (iter == conndatamap.end())
         return {};
     return ConrefIter { iter };
-};
+}
 
 std::pair<int32_t, Conref> AddressManager::insert(Connection* c, HeaderDownload::Downloader& h, BlockDownload::Downloader& b, Timer& t)
 {
@@ -58,7 +58,7 @@ std::pair<int32_t, Conref> AddressManager::insert(Connection* c, HeaderDownload:
     assert(byEndpoint.try_emplace(a, p.first).second);
 
     return { 0, cr };
-};
+}
 bool AddressManager::erase(Conndatamap::iterator iter)
 {
     bool outbound = !iter->second.c->inbound;
@@ -87,7 +87,7 @@ bool AddressManager::erase(Conndatamap::iterator iter)
         return true;
     }
     return false;
-};
+}
 
 void AddressManager::garbage_collect()
 {
@@ -95,7 +95,7 @@ void AddressManager::garbage_collect()
         conndatamap.erase(iter);
     }
     delayedDelete.clear();
-};
+}
 
 void AddressManager::remove_timer(decltype(pinned)::iterator iter)
 {
@@ -104,14 +104,14 @@ void AddressManager::remove_timer(decltype(pinned)::iterator iter)
         return;
     timer.erase(timer_iter);
     timer_iter = timer.end();
-};
+}
 
 std::optional<std::chrono::steady_clock::time_point> AddressManager::wakeup_time()
 {
     if (timer.empty())
         return {};
     return timer.begin()->first;
-};
+}
 
 std::vector<EndpointAddress> AddressManager::sample_verified(size_t N)
 {
@@ -129,7 +129,7 @@ std::vector<EndpointAddress> AddressManager::sample_verified(size_t N)
     std::ranges::sample(verifiedCache, std::back_inserter(out),
         N, std::mt19937 { std::random_device {}() });
     return out;
-};
+}
 
 bool AddressManager::pin(EndpointAddress a)
 {
@@ -152,7 +152,7 @@ bool AddressManager::unpin(EndpointAddress a)
     }
     pinned.erase(iter);
     return true;
-};
+}
 
 void AddressManager::pin(const std::vector<EndpointAddress>& as)
 {
@@ -202,7 +202,7 @@ AddressManager::AddressManager(PeerServer& peerServer, const std::vector<Endpoin
 
     // pin
     pin(as);
-};
+}
 
 bool AddressManager::on_failed_outbound(EndpointAddress a)
 {
@@ -230,7 +230,7 @@ bool AddressManager::on_failed_outbound(EndpointAddress a)
         return true;
     }
     return false;
-};
+}
 
 std::vector<EndpointAddress> AddressManager::pop_connect()
 {
@@ -286,12 +286,12 @@ void AddressManager::insert_unverified(EndpointAddress a)
         return;
 
     unverifiedAddresses.insert(a);
-};
+}
 
 void AddressManager::queue_verification(EndpointAddress a)
 {
     insert_unverified(a);
-};
+}
 
 void AddressManager::queue_verification(const std::vector<EndpointAddress>& as)
 {
@@ -299,7 +299,7 @@ void AddressManager::queue_verification(const std::vector<EndpointAddress>& as)
     for (auto& a : as) {
         insert_unverified(a);
     }
-};
+}
 
 void AddressManager::just_verified(EndpointAddress a, bool setTimer)
 {
@@ -316,7 +316,7 @@ void AddressManager::just_verified(EndpointAddress a, bool setTimer)
     p.first->second.lastVerified = now;
     if (p.second)
         check_prune_verified();
-};
+}
 
 void AddressManager::check_prune_verified()
 {
@@ -338,7 +338,7 @@ void AddressManager::check_prune_verified()
             verified.erase(v[i]);
         }
     }
-};
+}
 
 void AddressManager::remove_timer(decltype(verified)::iterator iter)
 {
@@ -347,12 +347,12 @@ void AddressManager::remove_timer(decltype(verified)::iterator iter)
         return;
     timer.erase(timer_iter);
     timer_iter = timer.end();
-};
+}
 
 void AddressManager::set_timer(sc::time_point expires, decltype(verified)::iterator iter)
 {
     remove_timer(iter);
     auto timer_iter = timer.emplace(expires, iter);
     iter->second.timer_iter = timer_iter;
-};
+}
 }

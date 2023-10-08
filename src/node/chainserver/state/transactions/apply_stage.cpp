@@ -11,7 +11,7 @@ ApplyStageTransaction::ApplyStageTransaction(const State& s, ChainDBTransaction&
     , transaction(std::move(transaction))
     , chainlength(s.chainlength()) {
 
-    };
+    }
 
 [[nodiscard]] ChainError ApplyStageTransaction::apply_stage_blocks()
 {
@@ -74,5 +74,5 @@ auto ApplyStageTransaction::commit(State& cs) -> StateUpdate
                      : cs.commit_append(std::move(*applyResult)) };
     transaction.commit();
     return result;
-};
+}
 }

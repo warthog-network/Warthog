@@ -36,12 +36,12 @@ public:
 auto Focus::begin() -> Iterator
 {
     return { *this, downloader.headers() };
-};
+}
 
 const Headerchain& Focus::headers()
 {
     return downloader.headers();
-};
+}
 
 Blockrequest Focus::FocusSlot::link_request(Conref cr)
 {
@@ -65,7 +65,7 @@ bool Focus::has_data()
         return node.covers_next(downloadLength);
     }
     return false;
-};
+}
 
 std::vector<Block> Focus::pop_data()
 {
@@ -109,7 +109,7 @@ void Focus::map_erase(FocusMap::iterator iter)
         focusIter = map.end();
     }
     map.erase(iter);
-};
+}
 
 void Focus::fork(NonzeroHeight fh)
 {
@@ -132,7 +132,7 @@ void Focus::fork(NonzeroHeight fh)
         while (iter != map.end())
             map_erase(iter++);
     }
-};
+}
 
 void Focus::clear()
 {
@@ -154,7 +154,7 @@ void Focus::erase(Conref cr)
         // unlink from connection data
         focusIter = map.end();
     }
-};
+}
 
 void Focus::advance(Height newOffset)
 {
@@ -233,5 +233,5 @@ void Focus::set_blocks(BlockSlot slot, Height reqBegin, std::vector<BodyContaine
         }
         assert(blockBodies.size() <= BLOCKBATCHSIZE);
     }
-};
+}
 }

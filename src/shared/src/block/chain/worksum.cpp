@@ -88,7 +88,7 @@ std::array<uint8_t, 32> Worksum::to_bytes() const
 {
     std::array<uint8_t, 32> res;
     for (size_t i = 0; i < fragments.size(); ++i) {
-        uint32_t f = htobe32(fragments[i]);
+        uint32_t f = hton32(fragments[i]);
         memcpy(res.data() + 4 * i, &f, sizeof(f));
     }
     return res;

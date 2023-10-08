@@ -35,7 +35,7 @@ struct RequestNode {
 
     // methods
     bool filled() const { return batch.size() > 0; }
-    bool pending() const { return cr.valid(); };
+    bool pending() const { return cr.valid(); }
 };
 
 struct LeaderNode;
@@ -47,7 +47,7 @@ inline bool operator<(const Lead_iter& l1, const Lead_iter& l2)
 {
     static_assert(sizeof(uint64_t) == sizeof(l1));
     return *reinterpret_cast<const uint64_t*>(&l1) < *reinterpret_cast<const uint64_t*>(&l2);
-};
+}
 struct NonzeroSnapshot {
     NonzeroSnapshot(std::shared_ptr<Descripted>);
     std::shared_ptr<Descripted> descripted;
@@ -66,7 +66,7 @@ inline bool operator<(const Ver_iter& l1, const Ver_iter& l2)
 {
     static_assert(sizeof(uint64_t) == sizeof(l1));
     return *reinterpret_cast<const uint64_t*>(&l1) < *reinterpret_cast<const uint64_t*>(&l2);
-};
+}
 struct QueueBatchNode {
     Conref cr;
     uint64_t originId;
@@ -80,7 +80,7 @@ inline bool operator<(const Queued_iter& l1, const Queued_iter& l2)
 {
     static_assert(sizeof(uint64_t) == sizeof(l1));
     return *reinterpret_cast<const uint64_t*>(&l1) < *reinterpret_cast<const uint64_t*>(&l2);
-};
+}
 
 struct QueueEntry {
     std::optional<Header> prevHeader;
@@ -112,7 +112,7 @@ public:
     Batchslot final_slot()
     {
         return Batchslot(snapshot.length);
-    };
+    }
 
     std::deque<QueueEntry> queuedIters; // OK
     std::optional<Ver_iter> verifier; // without value if from genesis
@@ -202,12 +202,12 @@ private:
     bool is_leader(Conref cr) const
     {
         return data(cr).leaderIter != leaderList.end();
-    };
+    }
 
     struct ConnectionFinder {
         ConnectionFinder(RequestSender& s, std::vector<Conref>& v)
             : s(s)
-            , connections(v) {};
+            , connections(v) {}
         RequestSender& s;
         const std::vector<Conref>& connections;
         size_t conIndex = 0;
@@ -224,7 +224,7 @@ public:
     }
     Downloader(const StageAndConsensus& cache, Worksum minWork)
         : chains(cache)
-        , minWork(minWork) {};
+        , minWork(minWork) {}
     void set_min_worksum(const Worksum& ws);
 
     // peer message callbacks
@@ -236,7 +236,7 @@ public:
     void insert(Conref cr);
     void erase(Conref cr);
 
-    auto leaders_end() { return leaderList.end(); };
+    auto leaders_end() { return leaderList.end(); }
 
     void do_requests(RequestSender);
     void do_probe_requests(RequestSender);

@@ -12,8 +12,8 @@
 
 ChainDB::Cache ChainDB::Cache::init(SQLite::Database& db)
 {
-    auto maxStateId = AccountId(db.execAndGet("SELECT coalesce(max(ROWID),0) FROM `State`")
-                                    .getInt64());
+    auto maxStateId = AccountId(int64_t(db.execAndGet("SELECT coalesce(max(ROWID),0) FROM `State`")
+                                    .getInt64()));
 
     int64_t hid = db.execAndGet("SELECT coalesce(max(id)+1,1) FROM History")
                       .getInt64();
@@ -24,7 +24,7 @@ ChainDB::Cache ChainDB::Cache::init(SQLite::Database& db)
         .nextHistoryId = uint64_t(hid),
         .deletionKey { 2 }
     };
-};
+}
 
 ChainDBTransaction ChainDB::transaction()
 {
@@ -136,7 +136,7 @@ void ChainDB::delete_state_from(AccountId fromAccountId)
         cache.maxStateId = fromAccountId - 1;
         stmtStateDeleteFrom.run(fromAccountId);
     }
-};
+}
 
 Worksum ChainDB::get_consensus_work() const
 {
@@ -145,11 +145,11 @@ Worksum ChainDB::get_consensus_work() const
         throw std::runtime_error("Database corrupted. No worksum entry");
     }
     return o.get<std::array<uint8_t, 32>>(0);
-};
+}
 void ChainDB::set_consensus_work(const Worksum& ws)
 {
     stmtConsensusSetProperty.run(WORKSUMID, ws);
-};
+}
 
 std::optional<SignedSnapshot> ChainDB::get_signed_snapshot() const
 {
@@ -164,7 +164,7 @@ std::optional<SignedSnapshot> ChainDB::get_signed_snapshot() const
     } catch (Error e) {
         throw std::runtime_error(fmt::format("Database corrupted. Signed snapshot invalid: {}", e.strerror()));
     }
-};
+}
 
 void ChainDB::set_signed_snapshot(const SignedSnapshot& ss)
 {
@@ -172,7 +172,7 @@ void ChainDB::set_signed_snapshot(const SignedSnapshot& ss)
     Writer w(v);
     w << ss;
     stmtConsensusSetProperty.run(SIGNEDPINID, v);
-};
+}
 
 std::vector<BlockId> ChainDB::consensus_block_ids(Height begin,
     Height end) const
@@ -184,13 +184,13 @@ std::vector<BlockId> ChainDB::consensus_block_ids(Height begin,
     },
         begin, end);
     return out;
-};
+}
 
 void ChainDB::garbage_collect_blocks(DeletionKey dk)
 {
     stmtDeleteGCBlocks.run(dk.value());
     stmtDeleteGCRefs.run(dk.value());
-};
+}
 
 DeletionKey ChainDB::schedule_protected_all()
 {
@@ -206,7 +206,7 @@ bool ChainDB::schedule_exists(BlockId id)
 bool ChainDB::consensus_exists(Height h, BlockId dk)
 {
     return stmtConsensusSelect.one(h).get<uint64_t>(0) == dk.value();
-};
+}
 
 DeletionKey ChainDB::schedule_protected_part(Headerchain hc, NonzeroHeight fromHeight)
 {
@@ -223,7 +223,7 @@ void ChainDB::protect_stage_assert_scheduled(BlockId id)
 {
     assert(schedule_exists(id));
     assert(stmtScheduleBlock.run(0, id.value()) == 1);
-};
+}
 
 DeletionKey ChainDB::delete_consensus_from(NonzeroHeight height)
 {
@@ -231,7 +231,7 @@ DeletionKey ChainDB::delete_consensus_from(NonzeroHeight height)
     stmtScheduleConsensus.run(dk.value(), height);
     stmtConsensusDeleteFrom.run(height);
     return dk;
-};
+}
 
 std::optional<Block> ChainDB::get_block(BlockId id) const
 {
@@ -247,7 +247,7 @@ std::optional<Block> ChainDB::get_block(BlockId id) const
         .header = o.get_array<80>(1),
         .body = o.get_vector(2)
     };
-};
+}
 
 std::optional<std::pair<BlockId, Block>> ChainDB::get_block(HashView hash) const
 {
@@ -265,7 +265,7 @@ std::optional<std::pair<BlockId, Block>> ChainDB::get_block(HashView hash) const
             .header = o.get_array<80>(2),
             .body = o.get_vector(3) }
     };
-};
+}
 
 std::pair<BlockId, bool> ChainDB::insert_protect(const Block& b)
 {
@@ -294,18 +294,18 @@ ChainDB::get_block_undo(BlockId id) const
         { a.get_vector(1) },
         { a.get_vector(2) }
     };
-};
+}
 
 void ChainDB::set_block_undo(BlockId id, const std::vector<uint8_t>& undo)
 {
     stmtUndoSet.run(undo, id);
-};
+}
 
 void ChainDB::insert_consensus(NonzeroHeight height, BlockId blockId, int64_t historyCursor, AccountId accountCursor)
 {
     stmtConsensusInsert.run(height, blockId, historyCursor, accountCursor);
     stmtScheduleDelete2.run(blockId);
-};
+}
 
 std::tuple<std::vector<Batch>, HistoryHeights, AccountHeights> ChainDB::getConsensusHeaders() const
 {
@@ -334,13 +334,13 @@ std::tuple<std::vector<Batch>, HistoryHeights, AccountHeights> ChainDB::getConse
         batches.push_back(std::move(b));
     }
     return { std::move(batches), std::move(historyHeights), std::move(accountHeights) };
-};
+}
 
 void ChainDB::insert_bad_block(NonzeroHeight height,
     const HeaderView header)
 {
     stmtBadblockInsert.run(height, header);
-};
+}
 
 std::vector<std::pair<Height, Header>>
 ChainDB::getBadblocks() const
@@ -351,14 +351,14 @@ ChainDB::getBadblocks() const
             r.get_array<80>(1) });
     });
     return res;
-};
+}
 
 uint64_t ChainDB::insertHistory(const HashView hash,
     const std::vector<uint8_t>& data)
 {
     stmtHistoryInsert.run((int64_t)cache.nextHistoryId, hash, data);
     return cache.nextHistoryId++;
-};
+}
 
 void ChainDB::delete_history_from(NonzeroHeight h)
 {
@@ -367,7 +367,7 @@ void ChainDB::delete_history_from(NonzeroHeight h)
     stmtHistoryDeleteFrom.run(nextHistoryId);
     stmtAccountHistoryDeleteFrom.run(h);
     cache.nextHistoryId = nextHistoryId;
-};
+}
 
 std::optional<std::pair<std::vector<uint8_t>, uint64_t>> ChainDB::lookup_history(const HashView hash)
 {
@@ -380,7 +380,7 @@ std::optional<std::pair<std::vector<uint8_t>, uint64_t>> ChainDB::lookup_history
         o.get_vector(1),
         index
     };
-};
+}
 
 std::vector<std::pair<Hash, std::vector<uint8_t>>> ChainDB::lookupHistoryRange(int64_t lower, int64_t upper)
 {
@@ -394,12 +394,12 @@ std::vector<std::pair<Hash, std::vector<uint8_t>>> ChainDB::lookupHistoryRange(i
     },
         l, u);
     return out;
-};
+}
 
 void ChainDB::insertAccountHistory(AccountId accountId, int64_t historyId)
 {
     stmtAccountHistoryInsert.run(accountId, historyId);
-};
+}
 
 std::optional<std::tuple<AccountId, Funds>> ChainDB::lookup_address(const AddressView address) const
 {
@@ -424,7 +424,7 @@ std::vector<std::tuple<uint64_t, Hash, std::vector<uint8_t>>> ChainDB::lookup_hi
         },
         accountId, beforeId);
     return out;
-};
+}
 
 AddressFunds ChainDB::fetch_account(AccountId id) const
 {
@@ -433,7 +433,7 @@ AddressFunds ChainDB::fetch_account(AccountId id) const
         throw std::runtime_error("Database corrupted (fetch_account(" + std::to_string(id.value()) + ")");
     }
     return *p;
-};
+}
 
 std::optional<AddressFunds> ChainDB::lookup_account(AccountId id) const
 {
@@ -456,12 +456,12 @@ API::Richlist ChainDB::lookup_richlist(size_t N) const
     },
         N);
     return out;
-};
+}
 
 std::optional<BlockId> ChainDB::lookup_block_id(const HashView hash) const
 {
     return stmtBlockIdSelect.one(hash);
-};
+}
 
 std::optional<NonzeroHeight> ChainDB::lookup_block_height(const HashView hash) const
 {
@@ -473,7 +473,7 @@ std::optional<NonzeroHeight> ChainDB::lookup_block_height(const HashView hash) c
         throw std::runtime_error("Database corrupted, block " +serialize_hex(hash) + " has invalid height 0.");
     }
     return h.nonzero_assert();
-};
+}
 
 void ChainDB::delete_bad_block(HashView blockhash)
 {
@@ -486,7 +486,7 @@ void ChainDB::delete_bad_block(HashView blockhash)
     BlockId id { o.get<BlockId>(0) };
     stmtBlockDelete.run(id);
     stmtScheduleDelete2.run(id);
-};
+}
 
 namespace {
 std::vector<TransactionId> read_tx_ids(const BodyContainer& body,
@@ -532,4 +532,4 @@ chainserver::TransactionIds ChainDB::fetch_tx_ids(Height height) const
         }
     }
     return out;
-};
+}

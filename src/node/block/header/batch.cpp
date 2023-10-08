@@ -23,7 +23,7 @@ Headervec::Headervec(const std::vector<HeaderView>& v)
     for (size_t i = 0; i < v.size(); ++i) {
         memcpy(bytes.data() + 80 * i, v[i].data(), v[i].size());
     }
-};
+}
 
 Worksum Batch::worksum(const Height offset, uint32_t maxElements) const
 { // OK
@@ -70,21 +70,21 @@ bool Batch::valid_inner_links()
             return false;
     }
     return true;
-};
+}
 
 Grid::Grid(std::span<const uint8_t> s)
 {
     if (s.size() % 80 != 0)
         throw Error(EMALFORMED);
     assign(s.begin().base(), s.end().base());
-};
+}
 
 Grid::Grid(const Headerchain& hc, Batchslot begin)
-    : Headervec(last_element_vector(hc,begin)) {};
+    : Headervec(last_element_vector(hc,begin)) {}
 
 bool Grid::valid_checkpoint() const
 {
     auto cp = GridPin::checkpoint();
     return (!cp)
         || (cp->slot < slot_end() && cp->finalHeader == operator[](cp->slot));
-};
+}

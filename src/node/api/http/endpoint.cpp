@@ -171,7 +171,7 @@ void HTTPEndpoint::get(std::string pattern, auto asyncfun, auto serializer)
             pendingRequests.insert(res);
             res->onAborted([this, res]() { on_aborted(res); });
         });
-};
+}
 
 void HTTPEndpoint::get(std::string pattern, auto asyncfun)
 {
@@ -185,7 +185,7 @@ void HTTPEndpoint::get(std::string pattern, auto asyncfun)
             pendingRequests.insert(res);
             res->onAborted([this, res]() { on_aborted(res); });
         });
-};
+}
 
 void HTTPEndpoint::get_1(std::string pattern, auto asyncfun)
 {
@@ -204,7 +204,7 @@ void HTTPEndpoint::get_1(std::string pattern, auto asyncfun)
                 send_json(res, jsonmsg::serialize(tl::make_unexpected(e.e)));
             }
         });
-};
+}
 void HTTPEndpoint::get_2(std::string pattern, auto asyncfun)
 {
     app.get(pattern,
@@ -223,7 +223,7 @@ void HTTPEndpoint::get_2(std::string pattern, auto asyncfun)
                 send_json(res, jsonmsg::serialize(tl::make_unexpected(e.e)));
             }
         });
-};
+}
 
 void HTTPEndpoint::post(std::string pattern, auto parser, auto asyncfun)
 {

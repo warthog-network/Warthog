@@ -13,7 +13,7 @@ ForkRange::ForkRange(const Headerchain& hc, const Grid& g, Batchslot begin)
     } else {
         *this = { s.lower() };
     }
-};
+}
 
 void ForkRange::on_fork(NonzeroHeight forkHeight)
 { //OK
@@ -48,25 +48,25 @@ bool ForkRange::detect_shrink(const Descripted& theirs, const Headerchain& ours)
     }
 
     return false;
-};
+}
 void ForkRange::on_append_or_shrink(const Descripted& theirs, const Headerchain& ours)
 { //OK
     if (detect_shrink(theirs, ours))
         return;
     on_append(theirs, ours);
-};
+}
 
 void ForkRange::on_shrink(const Descripted& theirs, const Headerchain& ours)
 { //OK
     detect_shrink(theirs, ours);
-};
+}
 
 void ForkRange::on_append(const Descripted& theirs, const Headerchain& ours)
 { // OK
     if (forked())
         return;
     grid_match(Batchslot(l), theirs.grid(), ours);
-};
+}
 
 void ForkRange::grid_match(Batchslot begin, const Grid& theirGrid, const Headerchain& ours)
 { // OK
@@ -83,7 +83,7 @@ void ForkRange::grid_match(Batchslot begin, const Grid& theirGrid, const Headerc
     if (r.forked()) {
         on_mismatch(r.upper());
     }
-};
+}
 
 ForkRange::Change ForkRange::on_match(Height matchHeight)
 { // OK
@@ -96,7 +96,7 @@ ForkRange::Change ForkRange::on_match(Height matchHeight)
         throw ChainError { EBADMATCH, matchHeight.nonzero_assert() }; 
     }
     return Change::none();
-};
+}
 
 ForkRange::Change ForkRange::match(const Headerchain& hc, NonzeroHeight h, HeaderView hv)
 { // OK
@@ -107,7 +107,7 @@ ForkRange::Change ForkRange::match(const Headerchain& hc, NonzeroHeight h, Heade
     } else {
         return on_mismatch(h);
     }
-};
+}
 
 ForkRange::Change ForkRange::on_mismatch(NonzeroHeight mismatchHeight)
 { //OK
@@ -119,4 +119,4 @@ ForkRange::Change ForkRange::on_mismatch(NonzeroHeight mismatchHeight)
     } else {
     }
     return Change::none();
-};
+}

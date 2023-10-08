@@ -14,14 +14,14 @@ ForkRange& ChaincacheMatch::fork_range(Conref cr) const
         return cr.chain().stage_fork_range();
     }
     assert(false);
-};
+}
 
 StageAndConsensus::StageAndConsensus(const ConsensusSlave& s)
     : consensus(s)
     , scForkHeight(1, false)
 {
     stageHeaders = std::make_shared<Headerchain>();
-};
+}
 
 ForkHeight StageAndConsensus::update_stage(Headerchain&& newheaders)
 { // OK
@@ -37,7 +37,7 @@ void StageAndConsensus::stage_clear()
 {
     (*stageHeaders) = Headerchain();
     scForkHeight = { 1, false };
-};
+}
 
 AppendMsg StageAndConsensus::update_consensus(Append&& append)
 { // OK
@@ -47,7 +47,7 @@ AppendMsg StageAndConsensus::update_consensus(Append&& append)
         scForkHeight = ::fork_height(consensus.headers(), *stageHeaders, startHeight);
     }
     return msg;
-};
+}
 
 ForkMsg StageAndConsensus::update_consensus(Fork&& fork)
 {
@@ -70,7 +70,7 @@ auto StageAndConsensus::update_consensus(const RollbackData& rd) -> std::optiona
         }
     }
     return msg;
-};
+}
 
 std::optional<ChaincacheMatch> StageAndConsensus::lookup(std::optional<ChainPin> p) const
 {
@@ -96,4 +96,4 @@ std::optional<ChaincacheMatch> StageAndConsensus::lookup(std::optional<ChainPin>
             return ChaincacheMatch { T::CONSENSUS, consensus_pin() };
     }
     return {};
-};
+}

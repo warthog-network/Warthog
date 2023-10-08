@@ -154,17 +154,17 @@ private:
 struct InsertHistoryEntry {
     InsertHistoryEntry(const RewardInternal& p, uint64_t historyId)
         : he(p)
-        , historyId(historyId) {};
+        , historyId(historyId) {}
     InsertHistoryEntry(const VerifiedTransfer& t, uint64_t historyId)
         : he(t)
-        , historyId(historyId) {};
+        , historyId(historyId) {}
     history::Entry he;
     uint64_t historyId;
 };
 
 struct HistoryEntries {
     HistoryEntries(uint64_t nextHistoryId)
-        : nextHistoryId(nextHistoryId) {};
+        : nextHistoryId(nextHistoryId) {}
     uint64_t nextHistoryId;
     void push_reward(const RewardInternal& r)
     {
@@ -313,7 +313,7 @@ Preparation BlockApplier::Preparer::prepare(const BodyView& bv, const NonzeroHei
         res.historyEntries.push_transfer(verified);
     }
     return res;
-};
+}
 
 void BlockApplier::apply_block(const BodyView& bv, NonzeroHeight height, BlockId blockId)
 {

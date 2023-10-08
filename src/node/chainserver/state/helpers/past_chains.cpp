@@ -11,7 +11,7 @@ void BlockCache::schedule(std::variant<DiscardedStageSchedule, ChainSchedule> v,
             DeleteScheduleEntry {
                         .data { std::move(v) },
                         .deletionKey { dk } }).second);
-};
+}
 
 std::shared_ptr<Headerchain> BlockCache::add_old_chain(const Chainstate& consensus, DeletionKey dk)
 {
@@ -46,12 +46,12 @@ std::optional<HeaderView> BlockCache::get_header(Descriptor descriptor, Height h
 
 void BlockCache::handle(DiscardedStageSchedule) {
 
-};
+}
 
 void BlockCache::handle(ChainSchedule cs)
 {
     chains.erase(cs.iter);
-};
+}
 
 void BlockCache::garbage_collect(ChainDB& db)
 {

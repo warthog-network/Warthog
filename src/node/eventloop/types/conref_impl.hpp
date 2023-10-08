@@ -6,4 +6,4 @@
 inline std::string Conref::str() const
 {
     return static_cast<const Connection*>(*this)->to_string();
-};
+}

@@ -3,6 +3,7 @@
 #include "block/chain/worksum.hpp"
 #include "general/errors.hpp"
 #include "view.hpp"
+#include "general/byte_order.hpp"
 #include <span>
 
 // inline funcitons for access
@@ -10,19 +11,19 @@ inline uint64_t readuint64(const uint8_t* pos)
 {
     uint64_t val;
     memcpy(&val, pos, 8);
-    return be64toh(val);
+    return ntoh64(val);
 }
 inline uint32_t readuint32(const uint8_t* pos)
 {
     uint32_t res;
     memcpy(&res, pos, 4);
-    return be32toh(res);
+    return ntoh32(res);
 }
 inline uint16_t readuint16(const uint8_t* pos)
 {
     uint16_t res;
     memcpy(&res, pos, 2);
-    return be16toh(res);
+    return ntoh16(res);
 }
 inline uint8_t readuint8(const uint8_t* pos) { return *(pos); }
 
@@ -60,17 +61,17 @@ public:
     uint64_t uint64()
     {
         static_assert(sizeof(uint64_t) == 8);
-        return be64toh(read<uint64_t>());
+        return ntoh64(read<uint64_t>());
     }
     uint32_t uint32()
     {
         static_assert(sizeof(uint32_t) == 4);
-        return be32toh(read<uint32_t>());
+        return ntoh32(read<uint32_t>());
     }
     uint16_t uint16()
     {
         static_assert(sizeof(uint16_t) == 2);
-        return be16toh(read<uint16_t>());
+        return ntoh16(read<uint16_t>());
     }
     operator uint16_t()
     {

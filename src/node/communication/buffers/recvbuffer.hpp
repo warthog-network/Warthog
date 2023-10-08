@@ -3,7 +3,6 @@
 #include "communication/messages.hpp"
 #include "general/errors.hpp"
 #include "general/reader.hpp"
-#include <arpa/inet.h>
 #include <cstdint>
 #include <cstring>
 

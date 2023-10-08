@@ -19,7 +19,7 @@ std::optional<HeaderView> HeaderchainSkeleton::inefficient_get_header(NonzeroHei
     }
     assert(h >= bStart);
     return b->get_header(h - bStart);
-};
+}
 
 HeaderchainAppend Headerchain::get_append(Height prevLength) const
 {
@@ -30,7 +30,7 @@ HeaderchainAppend Headerchain::get_append(Height prevLength) const
         .finalPin { finalPin },
         .incompleteBatch { incompleteBatch }
     };
-};
+}
 
 std::pair<Height, AppendMsg> Headerchain::apply_append(HeaderchainAppend&& update)
 {
@@ -46,7 +46,7 @@ std::pair<Height, AppendMsg> Headerchain::apply_append(HeaderchainAppend&& updat
     initialize_worksum();
     assert(worksum > prevWorksum);
     return { h, { length().nonzero_assert(), worksum, grid(batchOffset) } };
-};
+}
 
 HeaderchainFork Headerchain::get_fork(NonzeroHeight forkHeight, Descriptor descriptor) const
 {
@@ -61,7 +61,7 @@ HeaderchainFork Headerchain::get_fork(NonzeroHeight forkHeight, Descriptor descr
         .shrinkLength = shrinkLength,
         .descriptor = descriptor
     };
-};
+}
 
 ForkMsg Headerchain::apply_fork(HeaderchainFork&& update)
 {
@@ -110,7 +110,7 @@ void Headerchain::shrink(Height shrinkLength)
     }
     initialize_worksum();
     assert(worksum < prevWorksum);
-};
+}
 
 uint64_t Headerchain::hashrate(uint32_t nblocks) const
 {
@@ -126,7 +126,7 @@ uint64_t Headerchain::hashrate(uint32_t nblocks) const
     auto nBlocks { upper - lower };
     assert(nBlocks > 0);
     return sum_work(lower+1,upper+1).getdouble()/seconds;
-};
+}
 
 Batch Headerchain::get_headers(NonzeroHeight begin, NonzeroHeight end) const
 {
@@ -160,7 +160,7 @@ Batch Headerchain::get_headers(NonzeroHeight begin, NonzeroHeight end) const
         std::copy(cpy_begin, cpy_end, std::back_inserter(tmp));
     }
     return Batch(std::move(tmp));
-};
+}
 
 std::optional<HeaderView> Headerchain::get_header(Height h) const
 {
@@ -174,7 +174,7 @@ std::optional<HeaderView> Headerchain::get_header(Height h) const
     } else {
         return incompleteBatch.get_header(rem);
     }
-};
+}
 
 ForkHeight fork_height(const Headerchain& h1, const Headerchain& h2, NonzeroHeight startHeight)
 {
@@ -184,7 +184,7 @@ ForkHeight fork_height(const Headerchain& h1, const Headerchain& h2, NonzeroHeig
     const Batch& b2 = (f < h2.completeBatches.size() ? h2.completeBatches[f].getBatch() : h2.incompleteBatch);
     auto [forkIndex, forked] = binary_forksearch(b1, b2);
     return { NonzeroHeight(f * HEADERBATCHSIZE + forkIndex + 1), forked };
-};
+}
 
 Headerchain::Headerchain(HeaderchainSkeleton skeleton)
     : HeaderchainSkeleton(std::move(skeleton))
@@ -196,7 +196,7 @@ Headerchain::Headerchain(HeaderchainSkeleton skeleton)
     }
     std::ranges::reverse(completeBatches);
     initialize_worksum();
-};
+}
 Headerchain::Headerchain(const Headerchain& from, Height subheight)
 {
     if (subheight > from.length())
@@ -210,7 +210,7 @@ Headerchain::Headerchain(const Headerchain& from, Height subheight)
     incompleteBatch = b;
     incompleteBatch.shrink(subheight - bs.lower());
     initialize_worksum();
-};
+}
 
 const Headerchain::HeaderViewNoHash Headerchain::operator[](NonzeroHeight h) const
 {
@@ -225,12 +225,12 @@ const Headerchain::HeaderViewNoHash Headerchain::operator[](NonzeroHeight h) con
     } else {
         return incompleteBatch[rem];
     }
-};
+}
 
 Grid Headerchain::grid(Batchslot begin) const
 {
     return { *this, begin };
-};
+}
 
 void Headerchain::initialize_worksum()
 {
@@ -241,7 +241,7 @@ void Headerchain::initialize_worksum()
     }
     auto ws2 = sum_work(Height(1), length() + 1);
     assert(worksum == ws2);
-};
+}
 
 Worksum Headerchain::sum_work(const Height beginHeight,
     const Height endHeight) const
@@ -270,7 +270,7 @@ Worksum Headerchain::sum_work(const Height beginHeight,
         upperHeight = lower;
     }
     return sum;
-};
+}
 
 [[nodiscard]] Worksum Headerchain::total_work_at(Height h) const
 {
@@ -284,11 +284,11 @@ Worksum Headerchain::sum_work(const Height beginHeight,
     Worksum w(prev.total_work() + incomplete.worksum(s.offset(), h - s.offset()));
     assert(w == sum_work(Height(1), h + 1));
     return w;
-};
+}
 
 void Headerchain::clear()
 {
     completeBatches.clear();
     incompleteBatch.clear();
     worksum.setzero();
-};
+}

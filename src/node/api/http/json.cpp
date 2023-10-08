@@ -15,9 +15,11 @@
 using namespace std::chrono;
 using namespace nlohmann;
 namespace {
-std::string format_utc(long timestamp)
+std::string format_utc(uint32_t timestamp)
 {
-    auto utc_f = *std::gmtime(&timestamp);
+    std::chrono::system_clock::time_point tp{std::chrono::seconds(timestamp)};
+    auto tt{std::chrono::system_clock::to_time_t(tp)};
+    auto utc_f = *std::gmtime(&tt);
     std::string out;
     out.resize(30);
     auto len { std::strftime(&out[0], out.size(), "%F %T UTC", &utc_f) };
@@ -219,7 +221,7 @@ auto to_json_visit(const API::TransferTransaction& tx)
     jtx["nonceId"] = tx.nonceId;
     j["transaction"] = jtx;
     return j;
-};
+}
 auto to_json_visit(const API::RewardTransaction& tx)
 {
     json j;
@@ -235,7 +237,7 @@ auto to_json_visit(const API::RewardTransaction& tx)
     jtx["type"] = "Reward";
     j["transaction"] = jtx;
     return j;
-};
+}
 
 json to_json(const Hash& h)
 {
@@ -291,7 +293,7 @@ json to_json(const API::MempoolEntries& entries)
     }
     j["data"] = a;
     return j;
-};
+}
 
 json to_json(const API::Transaction& tx)
 {
@@ -299,7 +301,7 @@ json to_json(const API::Transaction& tx)
         return to_json_visit(e);
     },
         tx);
-};
+}
 
 json to_json(const API::Block& block)
 {
@@ -352,7 +354,7 @@ json to_json(const API::HashrateInfo& hi)
     return json {
         { "last100BlocksEstimate", hi.by100Blocks }
     };
-};
+}
 
 json to_json(const OffenseEntry& e)
 {
@@ -414,7 +416,7 @@ json to_json(const Grid& g)
         j.push_back(serialize_hex(h));
     }
     return j;
-};
+}
 
 json to_json(const std::optional<SignedSnapshot>& sp)
 {
@@ -425,7 +427,7 @@ json to_json(const std::optional<SignedSnapshot>& sp)
             { "hash", serialize_hex(s.hash) },
             { "signature", s.signature.to_string() },
         };
-    };
+    }
     return nullptr;
 }
 
@@ -440,7 +442,7 @@ nlohmann::json to_json(const chainserver::TransactionIds& txids)
         });
     }
     return j;
-};
+}
 std::string endpoints(const Eventloop& e)
 {
     auto [verified, failed, unverified, pending] = Inspector::endoints(e);
@@ -451,16 +453,16 @@ std::string endpoints(const Eventloop& e)
     auto a = *pending;
     j["pending"] = pending_json(*pending);
     return j.dump(1);
-};
+}
 
 std::string connect_timers(const Eventloop& e)
 {
     return Inspector::endpoint_timers(e);
-};
+}
 std::string header_download(const Eventloop& e)
 {
     return Inspector::header_download(e);
-};
+}
 
 std::string ip_counter(const Conman& e)
 {
@@ -470,7 +472,7 @@ std::string ip_counter(const Conman& e)
         j[ip.to_string()] = count;
     }
     return j.dump(1);
-};
+}
 
 MiningTask parse_mining_task(const std::vector<uint8_t>& s)
 {
@@ -489,5 +491,5 @@ MiningTask parse_mining_task(const std::vector<uint8_t>& s)
     } catch (const json::exception& e) {
         throw Error(EMALFORMED);
     }
-};
+}
 } // namespace jsonmsg

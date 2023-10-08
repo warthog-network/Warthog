@@ -59,15 +59,15 @@ public:
     void async_get_peers(PeersCB cb)
     {
         async_add_event(GetPeers { std::move(cb) });
-    };
+    }
     void async_connect(EndpointAddress a, std::optional<uint32_t> reconnectSleep = {})
     {
         async_add_event(Connect { a, reconnectSleep });
-    };
+    }
     void async_inspect(std::function<void(const Conman&)>&& cb)
     {
         async_add_event(Inspect { std::move(cb) });
-    };
+    }
     uv_loop_t* loop() { return server.loop; }
 
     Conman(uv_loop_t* l, PeerServer& peerdb, const Config&,

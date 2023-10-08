@@ -57,7 +57,7 @@ public:
     bool operator==(const SharedBatch& p2) const;
     size_t size() const { return view().size(); }
     Height upper_height() const { return view().upper_height(); }
-    std::optional<Batchslot> slot() const { return view().slot(); };
+    std::optional<Batchslot> slot() const { return view().slot(); }
     Height lower_height() const { return view().lower_height(); }
     std::optional<HeaderView> getHeader(size_t id) const { return view().getHeader(id); }
     [[nodiscard]] HeaderView operator[](Height h) const { return getHeader(h - lower_height()).value(); }
@@ -131,7 +131,7 @@ inline std::optional<Batchslot> SharedBatchView::slot() const
         return data.iter->second.slot;
     }
     return {};
-};
+}
 
 inline const Batch& SharedBatchView::getBatch() const
 {
@@ -148,19 +148,19 @@ inline Height SharedBatchView::upper_height() const
         return data.iter->second.upper_height();
     else
         return Height { 0 };
-};
+}
 inline Height SharedBatchView::lower_height() const
 {
     if (valid())
         return data.iter->second.slot.lower();
     else
         return Height { 0 };
-};
+}
 inline const SharedBatch& SharedBatch::prev() const
 {
     assert(valid());
     return data.iter->second.prev;
-};
+}
 
 class BatchRegistry {
     friend class SharedBatch;

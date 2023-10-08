@@ -38,7 +38,7 @@ struct Inspector;
 class ChainServer;
 namespace BlockDownload {
 class Attorney;
-};
+}
 
 class Eventloop {
     using StateUpdate = chainserver::state_update::StateUpdate;

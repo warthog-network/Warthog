@@ -1,8 +1,8 @@
 #pragma once
 #include <cstdint>
 #include <cstdlib>
-#include <byteswap.h>
 #include <cstring>
+#include "general/byte_order.hpp"
 
 extern "C" {
 void sha256_transform_le(uint32_t *state_out, const void *input,
@@ -64,12 +64,12 @@ inline void sha256_final(sha256_context *ctx, void *hash) {
   } else
     memset(ctx->buf + ptr, 0, 56 - ptr);
 
-  *(uint64_t *)(&ctx->buf[56]) = bswap_64(ctx->count << 3);
+  *(uint64_t *)(&ctx->buf[56]) = byte_swap64(ctx->count << 3);
 
   sha256_transform_be(ctx->state, (uint32_t *)ctx->buf, ctx->state);
 
   for (int i = 0; i < 8; i++)
-    ((uint32_t *)hash)[i] = bswap_32(ctx->state[i]);
+    ((uint32_t *)hash)[i] = byte_swap32(ctx->state[i]);
 }
 
 inline void sha256_full(void *hash, const uint8_t *data, size_t len) {

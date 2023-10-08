@@ -37,13 +37,13 @@ void Connection::timeout_caller(uv_timer_t* handle)
 {
     Connection& con = (*reinterpret_cast<Connection*>(handle->data));
     con.close(ETIMEOUT);
-};
+}
 void Connection::close_caller(uv_handle_t* handle)
 {
     Connection& con = (*reinterpret_cast<Connection*>(handle->data));
     handle->data = nullptr;
     con.unref("close");
-};
+}
 
 //////////////////////////////
 // members callbacks used for libuv
@@ -204,19 +204,19 @@ Connection::Connection(Conman& conman, bool inbound, std::optional<uint32_t> rec
         idcounter = 1; // id shall never be 0
     tcp.data = nullptr;
     timer.data = nullptr;
-};
+}
 Connection::~Connection()
 {
     // check if all handles are already closed.
     if (timer.data != nullptr || tcp.data != nullptr)
         spdlog::error("Memory leak: connection data!=nullptr");
-};
+}
 
 void Connection::send_handshake()
 {
     char* data = new char[24];
     memcpy(data, (inbound ? Handshakedata::accept_grunt : Handshakedata::connect_grunt), 14);
-    uint32_t nver = htonl(version);
+    uint32_t nver = hton32(version);
     memcpy(data + 14, &nver, 4);
     memset(data + 18, 0, 4);
     if (!inbound) {
@@ -380,12 +380,12 @@ std::vector<Rcvbuffer> Connection::extractMessages()
     std::vector<Rcvbuffer> tmp;
     tmp.swap(readbuffers);
     return tmp;
-};
+}
 
 std::string Connection::to_string() const
 {
     return "(" + std::to_string(id) + ")" + (inbound ? "← " : "→ ") + peerAddress.to_string();
-};
+}
 
 // POTENTIALLY CALLED BY OTHER THREAD
 void Connection::eventloop_unref(const char* tag)

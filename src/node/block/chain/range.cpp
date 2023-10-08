@@ -10,7 +10,7 @@ bool BlockRange::valid()
 Writer& operator<<(Writer& w, BlockRange br)
 {
     return w << br.lower << br.upper;
-};
+}
 
 BlockRange::BlockRange(Reader& r)
     : lower(r)
@@ -22,9 +22,9 @@ BlockRange::BlockRange(Reader& r)
 
 DescriptedBlockRange::DescriptedBlockRange(Reader& r)
     : BlockRange(r)
-    , descriptor(r) {};
+    , descriptor(r) {}
 
 Writer& operator<<(Writer& w, DescriptedBlockRange dbr)
 {
     return w << *static_cast<BlockRange*>(&dbr) << dbr.descriptor;
-};
+}

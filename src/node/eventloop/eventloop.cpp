@@ -37,7 +37,7 @@ Eventloop::Eventloop(PeerServer& ps, ChainServer& cs, const Config& config)
     }
 
     update_wakeup();
-};
+}
 
 Eventloop::~Eventloop()
 {
@@ -61,7 +61,7 @@ bool Eventloop::defer(Event e)
     events.push(std::move(e));
     cv.notify_one();
     return true;
-};
+}
 bool Eventloop::async_process(Connection* c)
 {
     return defer(OnProcessConnection { c });
@@ -77,7 +77,7 @@ void Eventloop::async_shutdown(int32_t reason)
 void Eventloop::async_report_failed_outbound(EndpointAddress a)
 {
     defer(OnFailedAddressEvent { a });
-};
+}
 
 void Eventloop::async_erase(Connection* c)
 {
@@ -88,21 +88,21 @@ void Eventloop::async_erase(Connection* c)
 void Eventloop::async_state_update(StateUpdate&& s)
 {
     defer(std::move(s));
-};
+}
 
 void Eventloop::async_mempool_update(mempool::Log&& s)
 {
     defer(std::move(s));
-};
+}
 
 void Eventloop::api_get_peers(PeersCb&& cb)
 {
     defer(std::move(cb));
-};
+}
 void Eventloop::api_inspect(InspectorCb&& cb)
 {
     defer(std::move(cb));
-};
+}
 void Eventloop::api_get_hashrate(HashrateCb&& cb)
 {
     defer(std::move(cb));
@@ -111,13 +111,13 @@ void Eventloop::api_get_hashrate(HashrateCb&& cb)
 void Eventloop::async_forward_blockrep(uint64_t conId, std::vector<BodyContainer>&& blocks)
 {
     defer(OnForwardBlockrep { conId, std::move(blocks) });
-};
+}
 
 bool Eventloop::has_work()
 {
     auto now = std::chrono::steady_clock::now();
     return haswork || (now > timer.next());
-};
+}
 
 void Eventloop::loop()
 {
@@ -196,11 +196,11 @@ void Eventloop::handle_event(OnRelease&& m)
     if ((!erased) && registered)
         erase(m.c->dataiter);
     unref(m.c);
-};
+}
 void Eventloop::handle_event(OnProcessConnection&& m)
 {
     process_connection(m.c);
-};
+}
 
 void Eventloop::handle_event(StateUpdate&& e)
 {
@@ -231,7 +231,7 @@ void Eventloop::update_chain(Append&& m)
 
     coordinate_sync();
     do_requests();
-};
+}
 
 void Eventloop::update_chain(Fork&& fork)
 {
@@ -247,7 +247,7 @@ void Eventloop::update_chain(Fork&& fork)
 
     coordinate_sync();
     do_requests();
-};
+}
 
 void Eventloop::update_chain(RollbackData&& rd)
 {
@@ -274,7 +274,7 @@ void Eventloop::update_chain(RollbackData&& rd)
     spdlog::info("init blockdownload update_chain");
     initialize_block_download();
     do_requests();
-};
+}
 
 void Eventloop::coordinate_sync()
 {
@@ -283,7 +283,7 @@ void Eventloop::coordinate_sync()
     auto max { std::max(cons, blk) };
     headerDownload.set_min_worksum(max);
     blockDownload.set_min_worksum(cons);
-};
+}
 
 void Eventloop::initialize_block_download()
 {
@@ -294,7 +294,7 @@ void Eventloop::initialize_block_download()
         };
         process_blockdownload_stage();
     }
-};
+}
 
 void Eventloop::handle_event(PeersCb&& cb)
 {
@@ -311,7 +311,7 @@ void Eventloop::handle_event(PeersCb&& cb)
         });
     }
     cb(out);
-};
+}
 
 void Eventloop::handle_event(SignedSnapshotCb&& cb)
 {
@@ -320,7 +320,7 @@ void Eventloop::handle_event(SignedSnapshotCb&& cb)
     } else {
         cb(tl::make_unexpected(ENOTFOUND));
     }
-};
+}
 
 void Eventloop::handle_event(stage_operation::Result&& r)
 {
@@ -329,7 +329,7 @@ void Eventloop::handle_event(stage_operation::Result&& r)
         close(o);
     process_blockdownload_stage();
     do_requests();
-};
+}
 
 void Eventloop::handle_event(OnForwardBlockrep&& m)
 {
@@ -337,36 +337,36 @@ void Eventloop::handle_event(OnForwardBlockrep&& m)
         BlockrepMsg msg(cr->lastNonce, std::move(m.blocks));
         cr.send(msg);
     }
-};
+}
 
 void Eventloop::handle_event(OnFailedAddressEvent&& e)
 {
     if (connections.on_failed_outbound(e.a))
         update_wakeup();
     connect_scheduled();
-};
+}
 
 void Eventloop::handle_event(InspectorCb&& cb)
 {
     cb(*this);
-};
+}
 
 void Eventloop::handle_event(HashrateCb&& cb)
 {
     cb(API::HashrateInfo {
         .by100Blocks = consensus().headers().hashrate(100) });
-};
+}
 
 void Eventloop::handle_event(OnPinAddress&& e)
 {
     connections.pin(e.a);
     update_wakeup();
-};
+}
 void Eventloop::handle_event(OnUnpinAddress&& e)
 {
     connections.unpin(e.a);
     update_wakeup();
-};
+}
 void Eventloop::handle_event(mempool::Log&& log)
 {
     mempool.apply_log(log);
@@ -410,7 +410,7 @@ void Eventloop::handle_event(mempool::Log&& log)
             cr.send(TxnotifyMsg::direct_send(entries.begin(), end));
         }
     }
-};
+}
 
 void Eventloop::erase(Conref c)
 {
@@ -448,7 +448,7 @@ bool Eventloop::insert(Conref c, const InitMsg& data)
     send_ping_await_pong(c);
     // LATER: return whether doRequests is necessary;
     return doRequests;
-};
+}
 
 void Eventloop::close(Conref cr, uint32_t reason)
 {
@@ -464,7 +464,7 @@ void Eventloop::close_by_id(uint64_t conId, int32_t reason)
     if (auto cr { connections.find(conId) }; cr)
         close(cr, reason);
     // LATER: report offense to peerserver
-};
+}
 
 void Eventloop::close(const ChainOffender& o)
 {
@@ -474,12 +474,12 @@ void Eventloop::close(const ChainOffender& o)
     } else {
         report(o);
     }
-};
+}
 void Eventloop::close(Conref cr, ChainError e)
 {
     assert(e);
     close(cr, e.e);
-};
+}
 
 void Eventloop::process_connection(Connection* c)
 {
@@ -551,7 +551,7 @@ void Eventloop::update_wakeup()
     if (!wakeupTime)
         return;
     wakeupTimer = timer.insert(*wakeupTime, Timer::Connect {});
-};
+}
 
 void Eventloop::send_requests(Conref cr, const std::vector<Request>& requests)
 {
@@ -561,7 +561,7 @@ void Eventloop::send_requests(Conref cr, const std::vector<Request>& requests)
         },
             r);
     }
-};
+}
 
 void Eventloop::do_requests()
 {
@@ -569,7 +569,7 @@ void Eventloop::do_requests()
     blockDownload.do_peer_requests(sender());
     headerDownload.do_probe_requests(sender());
     blockDownload.do_probe_requests(sender());
-};
+}
 
 template <typename T>
 void Eventloop::send_request(Conref c, const T& req)
@@ -582,7 +582,7 @@ void Eventloop::send_request(Conref c, const T& req)
         activeRequests += 1;
     }
     c.send(req);
-};
+}
 
 void Eventloop::send_init(Conref cr)
 {
@@ -597,23 +597,23 @@ void Eventloop::handle_timeout(T&& t)
     if (cr) {
         handle_connection_timeout(cr, std::move(t));
     }
-};
+}
 void Eventloop::handle_connection_timeout(Conref cr, Timer::CloseNoReply&&)
 {
     cr.job().reset_expired(timer);
     close(cr, ETIMEOUT);
-};
+}
 void Eventloop::handle_connection_timeout(Conref cr, Timer::CloseNoPong&&)
 {
     cr.ping().reset_expired(timer);
     close(cr, ETIMEOUT);
-};
+}
 
 void Eventloop::handle_connection_timeout(Conref cr, Timer::SendPing&&)
 {
     cr.ping().timer_expired(timer);
     return send_ping_await_pong(cr);
-};
+}
 void Eventloop::handle_connection_timeout(Conref cr, Timer::Expire&&)
 {
     cr.job().restart_expired(timer.insert(
@@ -631,26 +631,26 @@ void Eventloop::handle_connection_timeout(Conref cr, Timer::Expire&&)
         },
         cr.job().data_v);
     assert(!cr.job().data_v.valueless_by_exception());
-};
+}
 
 void Eventloop::on_request_expired(Conref cr, const Proberequest&)
 {
     headerDownload.on_probe_request_expire(cr);
     blockDownload.on_probe_expire(cr);
     do_requests();
-};
+}
 
 void Eventloop::on_request_expired(Conref cr, const Batchrequest& req)
 {
     headerDownload.on_request_expire(cr, req);
     do_requests();
-};
+}
 
 void Eventloop::on_request_expired(Conref cr, const Blockrequest&)
 {
     blockDownload.on_blockreq_expire(cr);
     do_requests();
-};
+}
 
 void Eventloop::handle_timeout(Timer::Connect&&)
 {
@@ -660,7 +660,7 @@ void Eventloop::handle_timeout(Timer::Connect&&)
         global().pcm->async_connect(a);
     }
     update_wakeup();
-};
+}
 
 void Eventloop::dispatch_message(Conref cr, Rcvbuffer& msg)
 {
@@ -677,7 +677,7 @@ void Eventloop::dispatch_message(Conref cr, Rcvbuffer& msg)
         handle_msg(cr, std::move(e));
     },
         m);
-};
+}
 
 void Eventloop::handle_msg(Conref cr, InitMsg&& m)
 {
@@ -686,7 +686,7 @@ void Eventloop::handle_msg(Conref cr, InitMsg&& m)
     cr.job().reset_notexpired<AwaitInit>(timer);
     if (insert(cr, m))
         do_requests();
-};
+}
 
 void Eventloop::handle_msg(Conref cr, AppendMsg&& m)
 {
@@ -696,7 +696,7 @@ void Eventloop::handle_msg(Conref cr, AppendMsg&& m)
     headerDownload.on_append(cr);
     blockDownload.on_append(cr);
     do_requests();
-};
+}
 
 void Eventloop::handle_msg(Conref c, SignedPinRollbackMsg&& m)
 {
@@ -707,7 +707,7 @@ void Eventloop::handle_msg(Conref c, SignedPinRollbackMsg&& m)
     headerDownload.on_rollback(c);
     blockDownload.on_rollback(c);
     do_requests();
-};
+}
 
 void Eventloop::handle_msg(Conref c, ForkMsg&& m)
 {
@@ -717,7 +717,7 @@ void Eventloop::handle_msg(Conref c, ForkMsg&& m)
     headerDownload.on_fork(c);
     blockDownload.on_fork(c);
     do_requests();
-};
+}
 
 void Eventloop::handle_msg(Conref c, PingMsg&& m)
 {
@@ -911,7 +911,7 @@ void Eventloop::handle_msg(Conref cr, LeaderMsg&& msg)
     }
 
     stateServer.async_set_signed_checkpoint(msg.signedSnapshot);
-};
+}
 
 void Eventloop::consider_send_snapshot(Conref c)
 {
@@ -924,25 +924,25 @@ void Eventloop::consider_send_snapshot(Conref c)
             c->theirSnapshotPriority = signed_snapshot()->priority;
         }
     }
-};
+}
 
 void Eventloop::process_blockdownload_stage()
 {
     auto r { blockDownload.pop_stage() };
     if (r)
         stateServer.async_stage_request(*r);
-};
+}
 
 void Eventloop::async_stage_action(stage_operation::Result r)
 {
     defer(std::move(r));
-};
+}
 
 void Eventloop::cancel_timer(Timer::iterator& ref)
 {
     timer.cancel(ref);
     ref = timer.end();
-};
+}
 
 void Eventloop::connect_scheduled()
 {
@@ -950,7 +950,7 @@ void Eventloop::connect_scheduled()
     for (auto& a : as) {
         global().pcm->async_connect(a);
     }
-};
+}
 
 void Eventloop::verify_rollback(Conref cr, const SignedPinRollbackMsg& m)
 {
@@ -963,8 +963,8 @@ void Eventloop::verify_rollback(Conref cr, const SignedPinRollbackMsg& m)
     } else if (cr.chain().consensus_fork_range().lower() > ss.priority.height) {
         if (ss.compatible(chains.consensus_state().headers()))
             throw Error(EBADROLLBACK);
-    };
-};
+    }
+}
 
 void Eventloop::update_sync_state()
 {
@@ -974,4 +974,4 @@ void Eventloop::update_sync_state()
     if (auto c { syncState.detect_change() }; c) {
         global().pcs->async_set_synced(c.value());
     }
-};
+}

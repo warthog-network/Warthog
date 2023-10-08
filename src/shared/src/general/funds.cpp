@@ -109,11 +109,11 @@ std::optional<Funds> Funds::parse(std::string s)
         if (afterDotDigits > 8)
             return {};
         size_t addzeros = 8 - afterDotDigits;
-        return Funds(std::stoull(buf) * powers10[addzeros]); // static_assert coinunit==10000000
+        return Funds(uint64_t(std::stoull(buf)) * powers10[addzeros]); // static_assert coinunit==10000000
     } else {
         if (i > 8)
             return {};
-        return Funds { std::stoull(buf) * powers10[8] }; // static_assert coinunit==10000000
+        return Funds { uint64_t(std::stoull(buf) * powers10[8]) }; // static_assert coinunit==10000000
     }
     return {};
 }

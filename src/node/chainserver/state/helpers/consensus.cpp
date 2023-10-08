@@ -6,7 +6,7 @@
 namespace chainserver {
 
 Chainstate::Chainstate(const ChainDB& db, BatchRegistry& br)
-    : Chainstate(db.getConsensusHeaders(), db, br) {};
+    : Chainstate(db.getConsensusHeaders(), db, br) {}
 
 Chainstate::Chainstate(
     std::tuple<std::vector<Batch>, HistoryHeights, AccountHeights> init,
@@ -20,13 +20,13 @@ Chainstate::Chainstate(
 {
     assert(this->historyOffsets.size() == headerchain.length());
     spdlog::info("Cache has {} entries", chainTxIds.size());
-};
+}
 
 void Chainstate::assert_equal_length()
 {
     assert(historyOffsets.size() == headerchain.length());
     assert(accountOffsets.size() == headerchain.length());
-};
+}
 
 void Chainstate::fork(Chainstate::ForkData&& fd)
 {
@@ -79,7 +79,7 @@ void Chainstate::fork(Chainstate::ForkData&& fd)
 
     // prune transaction ids
     prune_txids();
-};
+}
 
 auto Chainstate::rollback(const RollbackResult& rb) -> HeaderchainRollback
 {
@@ -128,7 +128,7 @@ auto Chainstate::rollback(const RollbackResult& rb) -> HeaderchainRollback
         .shrinkLength { rb.shrinkLength },
         .descriptor = dsc
     };
-};
+}
 
 auto Chainstate::append(AppendMulti ad) -> HeaderchainAppend
 {
@@ -163,7 +163,7 @@ auto Chainstate::append(AppendMulti ad) -> HeaderchainAppend
 
     // return append message
     return headers().get_append(l);
-};
+}
 
 auto Chainstate::append(AppendSingle d) -> HeaderchainAppend
 {
@@ -191,7 +191,7 @@ auto Chainstate::append(AppendSingle d) -> HeaderchainAppend
 
     // return append message
     return headers().get_append(l);
-};
+}
 
 int32_t Chainstate::insert_tx(const TransferTxExchangeMessage& pm)
 {
@@ -209,7 +209,7 @@ int32_t Chainstate::insert_tx(const TransferTxExchangeMessage& pm)
         return ENOTFOUND;
     TransactionHeight th(pm.pin_height(), account_height(pm.from_id()));
     return _mempool.insert_tx(pm, th, txHash, *p);
-};
+}
 
 int32_t Chainstate::insert_tx(const PaymentCreateMessage& m)
 {
@@ -231,14 +231,14 @@ int32_t Chainstate::insert_tx(const PaymentCreateMessage& m)
         return ENONCE;
     TransactionHeight th(pinHeight, account_height(accountId));
     return _mempool.insert_tx(pm, th, txhash, af);
-};
+}
 
 void Chainstate::prune_txids()
 {
     chainTxIds.prune(length());
-};
+}
 mempool::Log Chainstate::pop_mempool_log()
 {
     return _mempool.pop_log();
-};
+}
 }

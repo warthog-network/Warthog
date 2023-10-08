@@ -25,7 +25,7 @@ const Headerchain& Downloader::headers() const
 auto Downloader::connections()
 {
     return attorney.connections();
-};
+}
 
 Downloader::Downloader(Attorney attorney, size_t windowLength)
     : attorney(attorney)
@@ -39,7 +39,7 @@ std::vector<ChainOffender> Downloader::handle_stage_result(stage_operation::Stag
     if (a.ce)
         reset();
     return offenders;
-};
+}
 
 std::vector<ChainOffender> Downloader::handle_stage_result(stage_operation::StageSetResult&& r)
 {
@@ -49,7 +49,7 @@ std::vector<ChainOffender> Downloader::handle_stage_result(stage_operation::Stag
     else // error due to signedSnapshot
         reset();
     return {}; // no possible offenders for stage set
-};
+}
 
 ServerCall Downloader::next_stage_call() // OK
 {
@@ -63,7 +63,7 @@ ServerCall Downloader::next_stage_call() // OK
             return STAGE_ADD;
     }
     return FALSE;
-};
+}
 
 stage_operation::StageAddOperation Downloader::pop_stage_add() // OK
 {
@@ -73,7 +73,7 @@ stage_operation::StageAddOperation Downloader::pop_stage_add() // OK
         forks.lower_bound(focus.height_begin()),
         forks.end());
     return { headers(), focus.pop_data() };
-};
+}
 
 stage_operation::StageSetOperation Downloader::pop_stage_set() // OK
 {
@@ -81,7 +81,7 @@ stage_operation::StageSetOperation Downloader::pop_stage_set() // OK
     assert(stageState.is_stage_set_phase()); //
     stageState.pendingOperation.set_stage_set(headers().length());
     return { headers() };
-};
+}
 
 void Downloader::update_fork_iter(Conref c)
 {
@@ -90,7 +90,7 @@ void Downloader::update_fork_iter(Conref c)
         forks.erase(fd.forkIter);
     assert(fd.forkRange.lower() <= fd.descripted->chain_length() + 1);
     fd.forkIter = forks.emplace(fd.forkRange.lower(), c);
-};
+}
 
 void Downloader::link(Conref c)
 {
@@ -98,14 +98,14 @@ void Downloader::link(Conref c)
     fd.forkRange = c->chain.stage_fork_range();
     fd.descripted = c->chain.descripted();
     update_fork_iter(c);
-};
+}
 
 std::optional<Height> Downloader::reachable_length()
 {
     if (forks.size() == 0)
         return {};
     return forks.rbegin()->first - 1;
-};
+}
 
 void Downloader::check_upgrade_descripted(Conref c)
 {
@@ -118,25 +118,25 @@ void Downloader::check_upgrade_descripted(Conref c)
     if (l1 <= l2) {
         link(c);
     }
-};
+}
 
 void Downloader::on_fork(Conref c)
 {
     if (!initialized)
         return;
     check_upgrade_descripted(c);
-};
+}
 
 void Downloader::on_append(Conref c)
 {
     if (!initialized)
         return;
     check_upgrade_descripted(c);
-};
+}
 
 void Downloader::on_rollback(Conref) {
     // new chain must be shorter, no check_upgrade_descripted(c);
-};
+}
 
 void Downloader::on_probe_reply(Conref c, const ProbereqMsg& req, const ProberepMsg& rep)
 {
@@ -154,7 +154,7 @@ void Downloader::on_probe_reply(Conref c, const ProbereqMsg& req, const Proberep
     }
     if (fdata.forkRange.match(headers(), req.height, *rep.requested).changedLower)
         update_fork_iter(c);
-};
+}
 
 std::vector<ChainOffender> Downloader::init(std::tuple<HeaderDownload::LeaderInfo, Headerchain> thc) // OK?
 {
@@ -214,7 +214,7 @@ std::vector<ChainOffender> Downloader::init(std::tuple<HeaderDownload::LeaderInf
     focus.fork(fh);
     update_reachable(true);
     return out;
-};
+}
 
 void Downloader::insert(Conref c) // OK
 {
@@ -222,7 +222,7 @@ void Downloader::insert(Conref c) // OK
         return;
     link(c);
     update_reachable();
-};
+}
 
 void Downloader::do_probe_requests(RequestSender rs)
 {
@@ -244,14 +244,14 @@ void Downloader::do_probe_requests(RequestSender rs)
             }
         }
     }
-};
+}
 
 bool Downloader::can_do_requests()
 {
     return initialized
         && !stageState.is_stage_set_phase()
         && reachable_length() >= focus.height_begin();
-};
+}
 
 void Downloader::do_peer_requests(RequestSender s) // OK?
 {
@@ -289,7 +289,7 @@ void Downloader::do_peer_requests(RequestSender s) // OK?
             ++forkIter;
         }
     }
-};
+}
 
 std::optional<stage_operation::Operation> Downloader::pop_stage()
 {
@@ -302,7 +302,7 @@ std::optional<stage_operation::Operation> Downloader::pop_stage()
     default:
         return {};
     }
-};
+}
 
 void Downloader::on_blockreq_reply(Conref cr, BlockrepMsg&& rep, Blockrequest& req)
 { // OK
@@ -377,7 +377,7 @@ void Downloader::reset()
     // state helper variables
     initialized = false;
     stageState.clear();
-};
+}
 
 bool Downloader::erase(Conref cr)
 { // OK
@@ -386,16 +386,16 @@ bool Downloader::erase(Conref cr)
     }
     focus.erase(cr);
     return update_reachable();
-};
+}
 
 void Downloader::on_blockreq_expire(Conref cr)
 { // OK
     focus.erase(cr);
-};
+}
 
 void Downloader::on_probe_expire(Conref) {
     // do nothing
-};
+}
 
 std::vector<ChainOffender> Downloader::on_stage_result(stage_operation::Result&& r)
 {
@@ -403,7 +403,7 @@ std::vector<ChainOffender> Downloader::on_stage_result(stage_operation::Result&&
         return handle_stage_result(std::forward<T>(r));
     },
         std::move(r));
-};
+}
 
 bool Downloader::update_reachable(bool reset)
 { // OK
@@ -426,7 +426,7 @@ bool Downloader::update_reachable(bool reset)
         }
         return false;
     }
-};
+}
 
 void Downloader::set_min_worksum(const Worksum& ws)
 {
@@ -437,5 +437,5 @@ void Downloader::set_min_worksum(const Worksum& ws)
         initialized = false;
         stageState.clear();
     }
-};
+}
 }

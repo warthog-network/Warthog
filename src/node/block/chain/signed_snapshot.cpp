@@ -9,25 +9,25 @@
 #include <string_view>
 
 SignedSnapshot::Priority::Priority(Reader& r)
-    : Priority({r.uint16(), Height(r)}) {};
+    : Priority({r.uint16(), Height(r)}) {}
 uint16_t SignedSnapshot::get_importance()
 {
     return SnapshotSigner::get_importance(signature.recover_pubkey(hash));
-};
+}
 
 bool SignedSnapshot::compatible(const Headerchain& hc) const
 {
     return (hc.length() < priority.height) || hc.hash_at(priority.height) == hash;
-};
+}
 
 bool SignedSnapshot::compatible_inefficient(const HeaderchainSkeleton& hc) const
 {
     return (hc.length() < priority.height) || hc.inefficient_get_header(priority.height).value().hash() == hash;
-};
+}
 
 
 SignedSnapshot::SignedSnapshot(Reader& r)
-    : SignedSnapshot({ NonzeroHeight(r.uint32()), r.view<HashView>(), r.view<65>() }) {};
+    : SignedSnapshot({ NonzeroHeight(r.uint32()), r.view<HashView>(), r.view<65>() }) {}
 
 Writer& operator<<(Writer& w, const SignedSnapshot& sp)
 {
@@ -35,7 +35,7 @@ Writer& operator<<(Writer& w, const SignedSnapshot& sp)
         << sp.priority.height
         << sp.hash
         << sp.signature;
-};
+}
 
 uint16_t SnapshotSigner::get_importance(const PubKey& pk)
 {
@@ -56,7 +56,7 @@ uint16_t SnapshotSigner::get_importance(const PubKey& pk)
     if (pos == leaderPubkeys.end())
         throw Error(EBADLEADER);
     return pos - leaderPubkeys.begin();
-};
+}
 
 SignedSnapshot SnapshotSigner::sign(const chainserver::Chainstate& cs)
 {
@@ -69,4 +69,4 @@ SignedSnapshot SnapshotSigner::sign(const chainserver::Chainstate& cs)
 SignedSnapshot SnapshotSigner::sign(NonzeroHeight h, Hash hash)
 {
     return { SignedSnapshot::NonzeroPriority { importance, h }, hash, pk.sign(hash) };
-};
+}

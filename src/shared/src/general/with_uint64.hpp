@@ -10,8 +10,8 @@ public:
     explicit IsUint32(int64_t w);
     explicit IsUint32(int w)
         : IsUint32((int64_t)(w)) {};
-    explicit IsUint32(long long w)
-        : IsUint32((int64_t)(w)) {};
+    // explicit IsUint32(long long w)
+    //     : IsUint32((int64_t)(w)) {};
     explicit IsUint32(size_t w);
     constexpr explicit IsUint32(uint32_t val)
         : val(val) {};
@@ -42,12 +42,12 @@ public:
     IsUint64(Reader& r);
     explicit IsUint64(int w)
         : IsUint64((int64_t)(w)) {};
-    explicit IsUint64(long long w)
-        : IsUint64((int64_t)(w)) {};
+    // explicit IsUint64(long long w)
+    //     : IsUint64((int64_t)(w)) {};
     explicit IsUint64(uint64_t val)
         : val(val) {};
-    explicit IsUint64(unsigned long long val)
-        : val(val) {};
+    // explicit IsUint64(unsigned long long val)
+        // : val(val) {};
 
     bool operator==(const IsUint64&) const = default;
     auto operator<=>(const IsUint64&) const = default;

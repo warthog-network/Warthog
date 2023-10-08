@@ -17,7 +17,7 @@ private:
     struct Entry {
         std::shared_ptr<Headerchain> headers;
         Entry(std::shared_ptr<Headerchain> headers)
-            : headers(std::move(headers)){};
+            : headers(std::move(headers)){}
     };
     mutable std::mutex mutex;
     std::map<Descriptor, Entry> chains; // by chain id
@@ -40,4 +40,4 @@ private:
     using tp = std::chrono::system_clock::time_point;
     std::map<tp, DeleteScheduleEntry> gcSchedule;
 };
-};
+}

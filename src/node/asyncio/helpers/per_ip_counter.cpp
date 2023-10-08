@@ -8,7 +8,7 @@ bool PerIpCounter::insert(IPv4 ip, size_t max)
         return false;
     count += 1;
     return true;
-};
+}
 void PerIpCounter::erase(IPv4 ip)
 {
     auto iter = counts.find(ip);
@@ -21,7 +21,7 @@ void PerIpCounter::erase(IPv4 ip)
     if (count == 0) {
         counts.erase(iter);
     }
-};
+}
 
 size_t PerIpCounter::count(IPv4 ip)
 {
@@ -31,4 +31,4 @@ size_t PerIpCounter::count(IPv4 ip)
     size_t& count = iter->second;
     assert(count != 0);
     return count;
-};
+}

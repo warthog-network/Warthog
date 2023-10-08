@@ -36,7 +36,7 @@ public:
     }
     HasherSHA256&& operator<<(uint32_t val) &&
     {
-        uint32_t valBe = htobe32(val);
+        uint32_t valBe = hton32(val);
         return std::move(write(&valBe, 4));
     }
     HasherSHA256&& operator<<(IsUint64 val) &&
@@ -45,12 +45,12 @@ public:
     }
     HasherSHA256&& operator<<(uint64_t val) &&
     {
-        uint64_t valBe = htobe64(val);
+        uint64_t valBe = hton64(val);
         return std::move(write(&valBe, 8));
     }
     HasherSHA256&& operator<<(uint16_t val) &&
     {
-        uint16_t valBe = htobe16(val);
+        uint16_t valBe = hton16(val);
         return std::move(write(&valBe, 2));
     }
     operator Hash() &&

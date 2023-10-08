@@ -9,9 +9,9 @@ void Attorney::clear_blockdownload() {
     for (auto c : eventloop.connections.initialized()) {
         c->chain.on_stage_set(Height(0));
     }
-};
+}
 const Headerchain& Attorney::headers() const{
 
     return eventloop.chains.stage_headers();
-};
+}
 }

@@ -15,7 +15,7 @@ namespace {
 struct MessageWriter {
     MessageWriter(uint8_t msgtype, size_t msglen)
         : sb(msgtype, msglen)
-        , writer(sb.msgdata(), sb.msgdata() + sb.msgsize()) {};
+        , writer(sb.msgdata(), sb.msgdata() + sb.msgsize()) {}
     operator Sndbuffer()
     {
         assert(writer.remaining() == 0);
@@ -63,7 +63,7 @@ void throw_if_inconsistent(Height length, Worksum worksum)
 BatchSelector::BatchSelector(Reader& r)
     : descriptor(r.uint32())
     , startHeight(Height(r).nonzero_throw(EBATCHHEIGHT))
-    , length(r) {};
+    , length(r) {}
 template <uint8_t M>
 MessageWriter MsgCode<M>::gen_msg(size_t len)
 {
@@ -71,7 +71,7 @@ MessageWriter MsgCode<M>::gen_msg(size_t len)
 }
 
 RandNonce::RandNonce()
-    : WithNonce { uint32_t(rand()) } {};
+    : WithNonce { uint32_t(rand()) } {}
 InitMsg::InitMsg(Reader& r)
     : descriptor(r.uint32())
     , sp { r.uint16(), Height(r.uint32()) }
@@ -98,7 +98,7 @@ Sndbuffer InitMsg::serialize_chainstate(const ConsensusSlave& cs)
        << (uint32_t)(cs.headers().complete_batches().size() * 80)
        << Range(cs.grid().raw());
     return mw;
-};
+}
 
 ForkMsg::ForkMsg(Descriptor descriptor, NonzeroHeight chainLength, Worksum worksum, NonzeroHeight forkHeight, Grid grid)
     : descriptor(descriptor)
@@ -108,7 +108,7 @@ ForkMsg::ForkMsg(Descriptor descriptor, NonzeroHeight chainLength, Worksum works
     , grid(grid)
 {
     throw_if_inconsistent(chainLength, worksum);
-};
+}
 auto ForkMsg::from_reader(Reader& r) -> ForkMsg
 {
     return ForkMsg {
@@ -126,7 +126,7 @@ ForkMsg::operator Sndbuffer() const
     return gen_msg(4 + 4 + 32 + 4 + grid.raw().size())
         << descriptor << chainLength << worksum << forkHeight
         << grid.raw();
-};
+}
 
 AppendMsg::AppendMsg(NonzeroHeight newLength,
     Worksum worksum,
@@ -136,7 +136,7 @@ AppendMsg::AppendMsg(NonzeroHeight newLength,
     , grid(std::move(grid))
 {
     throw_if_inconsistent(newLength, worksum);
-};
+}
 auto AppendMsg::from_reader(Reader& r) -> AppendMsg
 {
     return {
@@ -144,7 +144,7 @@ auto AppendMsg::from_reader(Reader& r) -> AppendMsg
         r.worksum(),
         r.rest()
     };
-};
+}
 
 AppendMsg::operator Sndbuffer() const
 {
@@ -213,7 +213,7 @@ auto PongMsg::from_reader(Reader& r) -> PongMsg
     return {
         nonce, std::move(addresses), std::move(txids)
     };
-};
+}
 
 Error PongMsg::check(const PingMsg& m) const
 {
@@ -251,12 +251,12 @@ PongMsg::operator Sndbuffer() const
 std::string BatchreqMsg::log_str() const
 {
     return "batchreq [" + std::to_string(selector.startHeight) + "," + std::to_string(selector.startHeight + selector.length - 1) + "]";
-};
+}
 
 auto BatchreqMsg::from_reader(Reader& r) -> BatchreqMsg
 {
     return { r.uint32(), r };
-};
+}
 
 BatchreqMsg::operator Sndbuffer() const
 {
@@ -272,12 +272,12 @@ BatchreqMsg::operator Sndbuffer() const
 std::string ProbereqMsg::log_str() const
 {
     return "probereq " + std::to_string(descriptor.value()) + "/" + std::to_string(height);
-};
+}
 
 auto ProbereqMsg::from_reader(Reader& r) -> ProbereqMsg
 {
     return { r.uint32(), r.uint32(), Height(r).nonzero_throw(EPROBEHEIGHT) };
-};
+}
 
 ProbereqMsg::operator Sndbuffer() const
 {
@@ -301,7 +301,7 @@ auto ProberepMsg::from_reader(Reader& r) -> ProberepMsg
         current = r.view<HeaderView>();
     }
     return { nonce, currentDescriptor, requested, current };
-};
+}
 
 ProberepMsg::operator Sndbuffer() const
 {
@@ -341,7 +341,7 @@ BatchrepMsg::operator Sndbuffer() const
 std::string BlockreqMsg::log_str() const
 {
     return "blockreq [" + std::to_string(range.lower) + "," + std::to_string(range.upper) + "]";
-};
+}
 
 BlockreqMsg::operator Sndbuffer() const
 {
@@ -353,7 +353,7 @@ BlockreqMsg::operator Sndbuffer() const
 auto BlockreqMsg::from_reader(Reader& r) -> BlockreqMsg
 {
     return { r.uint32(), r };
-};
+}
 
 auto BlockrepMsg::from_reader(Reader& r) -> BlockrepMsg
 {
@@ -364,7 +364,7 @@ auto BlockrepMsg::from_reader(Reader& r) -> BlockrepMsg
         bodies.push_back({ r });
     }
     return { nonce, std::move(bodies) };
-};
+}
 
 BlockrepMsg::operator Sndbuffer() const
 {
@@ -385,12 +385,12 @@ auto TxsubscribeMsg::from_reader(Reader& r) -> TxsubscribeMsg
     return {
         r.uint32(), r
     };
-};
+}
 
 TxsubscribeMsg::operator Sndbuffer() const
 {
     return gen_msg(8) << nonce << upper;
-};
+}
 
 Sndbuffer TxnotifyMsg::direct_send(send_iter begin, send_iter end)
 {
@@ -400,7 +400,7 @@ Sndbuffer TxnotifyMsg::direct_send(send_iter begin, send_iter end)
         mw << iter->first;
     }
     return mw;
-};
+}
 
 auto TxnotifyMsg::from_reader(Reader& r) -> TxnotifyMsg
 {
@@ -414,7 +414,7 @@ auto TxnotifyMsg::from_reader(Reader& r) -> TxnotifyMsg
         txids.push_back(TxidWithFee { txid, fee });
     }
     return { nonce, txids };
-};
+}
 
 TxnotifyMsg::operator Sndbuffer() const
 {
@@ -429,7 +429,7 @@ TxnotifyMsg::operator Sndbuffer() const
            << t.fee;
     }
     return mw;
-};
+}
 
 auto TxreqMsg::from_reader(Reader& r) -> TxreqMsg
 {
@@ -441,7 +441,7 @@ auto TxreqMsg::from_reader(Reader& r) -> TxreqMsg
             throw Error(EMALFORMED);
     }
     return { nonce, std::move(txids) };
-};
+}
 
 TxreqMsg::operator Sndbuffer() const
 {
@@ -452,7 +452,7 @@ TxreqMsg::operator Sndbuffer() const
         mw << txid;
     }
     return mw;
-};
+}
 
 auto TxrepMsg::from_reader(Reader& r) -> TxrepMsg
 {
@@ -469,7 +469,7 @@ auto TxrepMsg::from_reader(Reader& r) -> TxrepMsg
             throw Error(EMALFORMED);
     }
     return { nonce, std::move(txs) };
-};
+}
 
 TxrepMsg::operator Sndbuffer() const
 {
@@ -497,7 +497,7 @@ TxrepMsg::operator Sndbuffer() const
         }
     }
     return m;
-};
+}
 auto LeaderMsg::from_reader(Reader& r) -> LeaderMsg
 {
     return { r };
@@ -555,5 +555,5 @@ namespace messages {
 size_t size_bound(uint8_t msgtype)
 {
     return TypeExtractor<messages::Msg>::size_bound(msgtype);
-};
+}
 }

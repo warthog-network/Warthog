@@ -13,4 +13,4 @@ uint32_t TimestampValidator::get_valid_timestamp() const
         v = tmax - TOLERANCEMINUTES * 60;
     }
     return v;
-};
+}

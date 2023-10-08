@@ -1,12 +1,12 @@
 #pragma once
 
-#include "general/view.hpp"
 #include <array>
 #include <cassert>
 #include <cstdint>
 #include <cstring>
-#include <endian.h>
 #include <vector>
+#include "general/view.hpp"
+#include "general/byte_order.hpp"
 
 struct Range {
     Range(const uint8_t* const pos, size_t len)
@@ -56,7 +56,7 @@ public:
     Writer& operator<<(uint16_t i)
     {
         assert(remaining() >= 2);
-        i = htobe16(i);
+        i = hton16(i);
         memcpy(pos, &i, 2);
         pos += 2;
         return *this;
@@ -65,7 +65,7 @@ public:
     Writer& operator<<(uint32_t i)
     {
         assert(remaining() >= 4);
-        i = htobe32(i);
+        i = hton32(i);
         memcpy(pos, &i, 4);
         pos += 4;
         return *this;
@@ -74,7 +74,7 @@ public:
     Writer& operator<<(uint64_t i)
     {
         assert(remaining() >= 8);
-        i = htobe64(i);
+        i = hton64(i);
         memcpy(pos, &i, 8);
         pos += 8;
         return *this;

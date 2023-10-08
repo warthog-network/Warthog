@@ -7,7 +7,7 @@ namespace BlockDownload {
 inline auto Attorney::connections() const
 {
     return eventloop.connections.initialized();
-};
+}
 
 inline auto Attorney::update_blockdownlad(Headerchain&& newheaders)
 {

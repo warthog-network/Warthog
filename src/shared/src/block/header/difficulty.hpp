@@ -2,7 +2,8 @@
 #include "crypto/hash.hpp"
 #include "difficulty_declaration.hpp"
 #include "general/params.hpp"
-#include <arpa/inet.h>
+#include "general/byte_order.hpp"
+// #include <arpa/inet.h>
 #include <array>
 #include <cassert>
 #include <cmath>
@@ -36,7 +37,7 @@ inline Target::Target(double difficulty)
     double coef = std::frexp(difficulty, &exp);
     double inv = 1 / coef; // will be in the interval (1,2]
     if (exp - 1 >= 256 - 24) {
-        data = htonl(HARDESTTARGET_HOST);
+        data = hton32(HARDESTTARGET_HOST);
         return;
     };
     at(0) = uint8_t(exp - 1);
@@ -61,7 +62,7 @@ inline Target::Target(double difficulty)
 inline uint32_t Target::bits() const
 { // returns values in [2^23,2^24)
   //(uint32_t)(at(1))<<16 |(uint32_t)(at(2))<<8 | (uint32_t)(at(3));
-    return 0x00FFFFFFul & ntohl(data);
+    return 0x00FFFFFFul & ntoh32(data);
 }
 
 inline bool Target::compatible(const Hash& hash) const
@@ -86,7 +87,7 @@ inline bool Target::compatible(const Hash& hash) const
     dst[1] = src[2];
     dst[2] = src[1];
     dst[3] = src[0];
-    candidate = ntohl(candidate);
+    candidate = ntoh32(candidate);
     if (candidate > threshold) {
         return false;
     }
@@ -133,11 +134,11 @@ inline void Target::scale(uint32_t easierfactor, uint32_t harderfactor)
     at(1) = bits64 & 0xffu;
 checks:
     if (zeros < GENESISDIFFICULTYEXPONENT) {
-        data = htonl(GENESISTARGET_HOST);
+        data = hton32(GENESISTARGET_HOST);
         return;
     }
     if (zeros > 232) { // 232=256-3*8
-        data = htonl(HARDESTTARGET_HOST);
+        data = hton32(HARDESTTARGET_HOST);
         return;
     }
     at(0) = zeros;
@@ -150,5 +151,5 @@ inline double Target::difficulty() const
 }
 inline Target Target::genesis()
 {
-    return htonl(GENESISTARGET_HOST);
+    return hton32(GENESISTARGET_HOST);
 }

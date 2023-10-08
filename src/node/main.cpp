@@ -68,8 +68,8 @@ void initialize_srand()
 }
 
 struct ECC {
-    ECC(){ECC_Start();};
-    ~ECC(){ECC_Stop();};
+    ECC(){ECC_Start();}
+    ~ECC(){ECC_Stop();}
 };
 
 int main(int argc, char** argv)

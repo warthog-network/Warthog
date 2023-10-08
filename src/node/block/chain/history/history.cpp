@@ -10,7 +10,7 @@ VerifiedTransfer TransferInternal::verify(const Headerchain& hc, NonzeroHeight h
     PinHeight pinHeight(pinNonce.pin_height(pinFloor));
     Hash pinHash { hc.hash_at(pinHeight) };
     return VerifiedTransfer(*this, pinHeight, pinHash);
-};
+}
 Hash RewardInternal::hash() const
 {
     return HasherSHA256()
@@ -18,7 +18,7 @@ Hash RewardInternal::hash() const
         << amount
         << height
         << offset;
-};
+}
 
 bool VerifiedTransfer::valid_signature() const
 {
@@ -26,7 +26,7 @@ bool VerifiedTransfer::valid_signature() const
     assert(!ti.toAddress.is_null());
     auto recovered = recover_address();
     return recovered == ti.fromAddress;
-};
+}
 VerifiedTransfer::VerifiedTransfer(const TransferInternal& ti, PinHeight pinHeight, HashView pinHash)
     : ti(ti)
     , id { ti.fromAccountId, pinHeight, ti.pinNonce.id }
@@ -41,7 +41,7 @@ VerifiedTransfer::VerifiedTransfer(const TransferInternal& ti, PinHeight pinHeig
 {
     if (!valid_signature())
         throw Error(ECORRUPTEDSIG);
-};
+}
 
 namespace history {
 Entry::Entry(const RewardInternal& p)
@@ -50,7 +50,7 @@ Entry::Entry(const RewardInternal& p)
         p.toAccountId,
         p.amount });
     hash = p.hash();
-};
+}
 
 Entry::Entry(const VerifiedTransfer& p)
 {
@@ -61,14 +61,14 @@ Entry::Entry(const VerifiedTransfer& p)
         p.ti.amount,
         p.ti.pinNonce });
     hash = p.hash;
-};
+}
 
 void TransferData::write(Writer& w) const
 {
     assert(w.remaining() == bytesize);
     w << fromAccountId << compactFee << toAccountId
       << amount << pinNonce;
-};
+}
 
 std::optional<TransferData> TransferData::parse(Reader& r)
 {
@@ -81,13 +81,13 @@ std::optional<TransferData> TransferData::parse(Reader& r)
         .amount { r },
         .pinNonce { r }
     };
-};
+}
 
 void RewardData::write(Writer& w) const
 {
     assert(w.remaining() == bytesize);
     w << toAccountId << miningReward;
-};
+}
 
 std::optional<RewardData> RewardData::parse(Reader& r)
 {
@@ -97,7 +97,7 @@ std::optional<RewardData> RewardData::parse(Reader& r)
         .toAccountId = AccountId(r.uint64()),
         .miningReward = Funds(r.uint64())
     };
-};
+}
 
 std::vector<uint8_t> serialize(const Data& entry)
 {
@@ -109,7 +109,7 @@ std::vector<uint8_t> serialize(const Data& entry)
         return data;
     },
         entry);
-};
+}
 
 // do metaprogramming dance
 //
@@ -150,7 +150,7 @@ auto parse_recursive(Reader& r)
     using ret_type = std::variant<Types...>;
     auto indicator { r.uint8() };
     return check_first<ret_type, Types...>(indicator, r);
-};
+}
 
 template <typename T>
 class TypeExtractor {
@@ -165,7 +165,7 @@ struct TypeExtractor<std::variant<Types...>> {
         if (!r.eof())
             throw Error(EMALFORMED);
         return res;
-    };
+    }
 };
 
 std::optional<Data> parse(std::vector<uint8_t> v)

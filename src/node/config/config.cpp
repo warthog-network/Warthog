@@ -36,7 +36,7 @@ int Config::init(int argc, char** argv)
     int res = process_gengetopt(ai);
     cmdline_parser_free(&ai);
     return res;
-};
+}
 namespace {
 void warning_config(const toml::key k)
 {
@@ -212,7 +212,7 @@ int Config::process_gengetopt(gengetopt_args_info& ai)
         return 0;
     }
     return 1;
-};
+}
 
 std::string Config::dump()
 {
@@ -233,4 +233,4 @@ std::string Config::dump()
     stringstream ss;
     ss << tbl;
     return ss.str();
-};
+}

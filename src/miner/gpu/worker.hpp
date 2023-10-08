@@ -179,7 +179,7 @@ private:
         auto [found] = miner.reset_counter();
         if (found > 0) {
             auto& h { currentTask->header };
-            h.set_nonce(htonl(args[0]));
+            h.set_nonce(hton32(args[0]));
             notify_mined(currentTask.value());
         }
 

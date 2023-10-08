@@ -9,9 +9,9 @@
 class Timerref {
 public:
     Timerref(Timer& t)
-        : timer_iter(t.end()) {};
+        : timer_iter(t.end()) {}
     Timerref(Timer::iterator iter)
-        : timer_iter(iter) {};
+        : timer_iter(iter) {}
     Timer::iterator& timer_ref() { return timer_iter; }
     void reset_expired(Timer& t)
     {
@@ -154,7 +154,7 @@ private:
 
 struct Ping : public Timerref {
     Ping(Timer& end)
-        : Timerref(end) {};
+        : Timerref(end) {}
     void await_pong(PingMsg msg, Timer::iterator iter)
     {
         assert(!data);
@@ -214,7 +214,7 @@ struct Usage {
 
 namespace BlockDownload {
 class Attorney;
-};
+}
 struct PeerState {
     PeerState(Connection* c, HeaderDownload::Downloader& h, BlockDownload::Downloader& b, Timer& t);
     Connection* c;
@@ -256,9 +256,9 @@ const PeerChain& Conref::chain() const { return data.iter->second.chain; }
 PeerChain& Conref::chain() { return data.iter->second.chain; }
 auto& Conref::job() { return data.iter->second.job; }
 auto& Conref::ping() { return data.iter->second.ping; }
-auto Conref::operator->() { return &(data.iter->second); };
-bool Conref::initialized() { return !data.iter->second.job.waiting_for_init(); };
+auto Conref::operator->() { return &(data.iter->second); }
+bool Conref::initialized() { return !data.iter->second.job.waiting_for_init(); }
 inline uint64_t Conref::id() const
 {
     return data.iter->first;
-};
+}

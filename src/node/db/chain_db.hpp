@@ -51,11 +51,11 @@ struct Column2 : public SQLite::Column {
     }
     operator AccountId()
     {
-        return AccountId(getInt64());
+        return AccountId(int64_t(getInt64()));
     }
     operator IsUint64()
     {
-        return IsUint64(getInt64());
+        return IsUint64(int64_t(getInt64()));
     }
     operator BlockId()
     {
@@ -63,7 +63,7 @@ struct Column2 : public SQLite::Column {
     }
     operator Funds()
     {
-        return Funds(getInt64());
+        return Funds(int64_t(getInt64()));
     }
     operator uint64_t()
     {

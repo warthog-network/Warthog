@@ -57,7 +57,7 @@ public:
             return { false, false };
         }
     };
-    ForkRange() {};
+    ForkRange() {}
     ForkRange(const Headerchain&, const Grid& g, Batchslot begin = Batchslot(0));
     ForkRange(NonzeroHeight lFork, NonzeroHeight uFork = upper_open)
         : l(lFork)

@@ -53,7 +53,7 @@ public:
         } else {
             signAfter = tp::max();
         }
-    };
+    }
 
     // general getters
     auto get_header(Height h) const -> std::optional<Header>;

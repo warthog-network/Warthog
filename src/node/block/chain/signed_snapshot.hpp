@@ -62,14 +62,14 @@ private:
     SignedSnapshot(NonzeroHeight height, HashView hash, RecoverableSignature signature)
         : hash(hash)
         , signature(signature)
-        , priority { get_importance(), height } {};
+        , priority { get_importance(), height } {}
     SignedSnapshot(NonzeroPriority p, HashView hash, RecoverableSignature signature)
         : hash(hash)
         , signature(signature)
         , priority { p }
     {
         assert(p.height != 0);
-    };
+    }
     uint16_t get_importance();
 };
 
@@ -77,11 +77,11 @@ class SnapshotSigner {
 public:
     static uint16_t get_importance(const PubKey&);
 
-    uint16_t get_importance() const { return importance; };
+    uint16_t get_importance() const { return importance; }
     SignedSnapshot sign(const chainserver::Chainstate&);
     SnapshotSigner(const PrivKey& pk)
         : pk(pk)
-        , importance(get_importance(pk.pubkey())) {};
+        , importance(get_importance(pk.pubkey())) {}
 
 private:
     SignedSnapshot sign(NonzeroHeight, Hash);

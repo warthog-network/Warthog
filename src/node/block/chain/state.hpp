@@ -17,8 +17,8 @@ struct Descripted {
 
     //getters
     [[nodiscard]] bool expired() const;
-    [[nodiscard]] Height chain_length() const{return _chainLength;};
-    [[nodiscard]] const Worksum& worksum() const {return _worksum;};
+    [[nodiscard]] Height chain_length() const{return _chainLength;}
+    [[nodiscard]] const Worksum& worksum() const {return _worksum;}
     [[nodiscard]] const Grid& grid() const {return _grid;}
 
 

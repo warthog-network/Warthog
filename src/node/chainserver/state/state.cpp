@@ -24,12 +24,12 @@ State::State(ChainDB& db, BatchRegistry& br, std::optional<SnapshotSigner> snaps
     , snapshotSigner(std::move(snapshotSigner))
     , signedSnapshot(db.get_signed_snapshot())
     , chainstate(db, br)
-    , nextGarbageCollect(std::chrono::steady_clock::now()) {};
+    , nextGarbageCollect(std::chrono::steady_clock::now()) {}
 
 std::optional<Header> State::get_header(Height h) const
 {
     return chainstate.headers().get_header(h);
-};
+}
 
 auto State::api_get_header(API::HeightOrHash& hh) const -> std::optional<Header>{
     if (std::holds_alternative<Height>(hh.data)) {
@@ -39,7 +39,7 @@ auto State::api_get_header(API::HeightOrHash& hh) const -> std::optional<Header>
     if (!h.has_value()) 
         return {};
     return get_header(*h);
-};
+}
 
 std::optional<NonzeroHeight> State::consensus_height(const Hash& hash) const{
     auto o{db.lookup_block_height(hash)};
@@ -50,12 +50,12 @@ std::optional<NonzeroHeight> State::consensus_height(const Hash& hash) const{
     if (!hash2.has_value() || *hash2 != hash) 
         return {};
     return h;
-};
+}
 
 std::optional<Hash> State::get_hash(Height h) const
 {
     return chainstate.headers().get_hash(h);
-};
+}
 
 std::optional<API::Block> State::api_get_block(const API::HeightOrHash& hh) const
 {
@@ -66,7 +66,7 @@ std::optional<API::Block> State::api_get_block(const API::HeightOrHash& hh) cons
     if (!h.has_value()) 
         return {};
     return api_get_block(*h);
-};
+}
 
 std::optional<API::Block> State::api_get_block(Height zh) const
 {
@@ -86,7 +86,7 @@ std::optional<API::Block> State::api_get_block(Height zh) const
             b.push_history(hash, data, cache, pinFloor);
         }
         return b;
-};
+}
 
 
 auto State::api_tx_cache() const -> const TransactionIds
@@ -148,7 +148,7 @@ std::optional<API::Transaction> State::api_get_tx(const HashView txHash) const
         }
     }
     return {};
-};
+}
 
 void State::garbage_collect()
 {
@@ -180,13 +180,13 @@ std::optional<HeaderView> State::get_header_concurrent(Descriptor descriptor, He
     } else {
         return blockCache.get_header(descriptor, height);
     }
-};
+}
 
 ConsensusSlave State::get_chainstate_concurrent()
 {
     std::unique_lock<std::mutex> l(chainstateMutex);
     return { signedSnapshot, chainstate.descriptor(), chainstate.headers() };
-};
+}
 
 MiningTask State::mining_task(const Address& a)
 {
@@ -304,7 +304,7 @@ auto State::add_stage(const std::vector<Block>& blocks, const Headerchain& hc) -
         transaction.commit();
         return { { err }, {} };
     }
-};
+}
 
 RollbackResult State::rollback(const Height newlength) const
 {
@@ -372,7 +372,7 @@ RollbackResult State::rollback(const Height newlength) const
         .chainTxIds { db.fetch_tx_ids(newlength) },
         .deletionKey { dk }
     };
-};
+}
 
 auto State::apply_stage(ChainDBTransaction&& t) -> std::pair<ChainError, std::optional<StateUpdate>>
 {
@@ -399,7 +399,7 @@ auto State::apply_stage(ChainDBTransaction&& t) -> std::pair<ChainError, std::op
 
     spdlog::info("New chain length {}", chainlength().value());
     return { error, update };
-};
+}
 
 auto State::apply_signed_snapshot(SignedSnapshot&& ssnew) -> std::optional<StateUpdate>
 {
@@ -494,7 +494,7 @@ auto State::append_mined_block(const Block& b) -> StateUpdate
             try_sign_chainstate() } },
         .mempoolUpdate { chainstate.pop_mempool_log() }
     };
-};
+}
 
 tl::expected<mempool::Log, Error> State::append_gentx(std::vector<uint8_t>&& data)
 {
@@ -511,7 +511,7 @@ tl::expected<mempool::Log, Error> State::append_gentx(std::vector<uint8_t>&& dat
     } catch (Error& e) {
         return tl::make_unexpected(e);
     }
-};
+}
 
 std::optional<Hash> State::get_pin_hash(PinHeight pinHeight)
 {
@@ -520,7 +520,7 @@ std::optional<Hash> State::get_pin_hash(PinHeight pinHeight)
     if (pinHeight < chainlength().pin_bgin())
         return {};
     return chainstate.headers().hash_at(pinHeight);
-};
+}
 
 API::Balance State::api_get_address(AddressView address)
 {
@@ -545,7 +545,7 @@ auto State::insert_txs(const TxVec& txs) -> std::pair<std::vector<int32_t>, memp
         res.push_back(chainstate.insert_tx(tx));
     }
     return { res, chainstate.pop_mempool_log() };
-};
+}
 
 API::Head State::api_get_head() const
 {
@@ -572,7 +572,7 @@ auto State::api_get_mempool(size_t) -> API::MempoolEntries
             entries[i], hashes[i] });
     }
     return out;
-};
+}
 
 auto State::api_get_history(Address a, uint64_t beforeId) -> std::optional<API::History>
 {
@@ -614,12 +614,12 @@ auto State::api_get_history(Address a, uint64_t beforeId) -> std::optional<API::
         .fromId = firstHistoryId,
         .blocks_reversed = blocks_reversed
     };
-};
+}
 
 auto State::api_get_richlist(size_t N) -> API::Richlist
 {
     return db.lookup_richlist(N);
-};
+}
 
 auto State::get_blocks(DescriptedBlockRange range) -> std::vector<BodyContainer>
 {
@@ -647,12 +647,12 @@ auto State::get_blocks(DescriptedBlockRange range) -> std::vector<BodyContainer>
         }
     }
     return res;
-};
+}
 
 auto State::get_mempool_tx(TransactionId txid) const -> std::optional<TransferTxExchangeMessage>
 {
     return chainstate.mempool()[txid];
-};
+}
 
 auto State::commit_fork(RollbackResult&& rr, AppendBlocksResult&& abr) -> StateUpdate
 {
@@ -706,5 +706,5 @@ std::optional<SignedSnapshot> State::try_sign_chainstate()
         return signedSnapshot;
     }
     return {};
-};
+}
 }

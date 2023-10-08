@@ -59,4 +59,4 @@ messages::Msg Rcvbuffer::parse()
     using namespace messages;
     Reader r(*this);
     return TypeExtractor<messages::Msg>::parse(type(),r);
-};
+}
