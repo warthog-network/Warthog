@@ -29,7 +29,7 @@ class MinerDevice {
             return program;
         } catch (...) {
             std::cerr << " Error building: "
-                      << program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(device) << "\n";
+                      << program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(device) << std::endl;
             throw std::runtime_error("Cannot build opencl program");
         }
     }
