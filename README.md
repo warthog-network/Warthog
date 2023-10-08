@@ -83,7 +83,7 @@ Note: Ubuntu 20.04 does not meet these requirements.
 * Create build directory: `meson build .` (`meson build . --buildtype=release` for better performance)
 * cd into build directory: `cd build`
 * [Optional] GPU miner support 
-  - enable GPU support in miner: `meson configure -Denable-gpu-miner=tru`e
+  - enable GPU support in miner: `meson configure -Denable-gpu-miner=true`
   - for old OpenCL headers (like on Ubuntu 20.04): `meson configure -Dopencl-legacy=true`
 * Compile using ninja: `ninja`
 
