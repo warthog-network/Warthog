@@ -17,18 +17,18 @@ struct ParameterParser {
     requires std::is_integral_v<T>
     operator T()
     {
-        T res{};
+        T res {};
         auto result = std::from_chars(sv.data(), sv.end(), res);
         if (result.ec == std::errc::invalid_argument || result.ptr != sv.end()) {
             throw Error(EMALFORMED);
         }
         return res;
     }
-    operator std::variant<Height, Hash>()
+    operator API::HeightOrHash()
     {
         if (sv.length() == 64)
-            return Hash { *this };
-        return Height { *this };
+            return { Hash { *this } };
+        return { Height { *this } };
     }
     operator Page()
     {

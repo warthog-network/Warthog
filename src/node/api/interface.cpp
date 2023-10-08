@@ -4,6 +4,7 @@
 #include "chainserver/server.hpp"
 #include "eventloop/eventloop.hpp"
 #include "global/globals.hpp"
+#include "api/types/all.hpp"
 
 // mempool functions
 void put_mempool(std::vector<uint8_t> data, ResultCb cb)
@@ -54,22 +55,22 @@ void get_chain_mine(const Address& a, MiningCb f)
     global().pcs->api_get_mining(a, f);
 };
 
-void get_chain_header(Height height, HeaderCb f)
+void get_chain_header(API::HeightOrHash hh, HeaderCb f)
 {
-    global().pcs->api_get_header(height, f);
+    global().pcs->api_get_header(hh, f);
 };
-void get_chain_hash(Height height, HashCb f)
+void get_chain_hash(Height hh, HashCb f)
 {
-    global().pcs->api_get_hash(height, f);
+    global().pcs->api_get_hash(hh, f);
 };
 
 void get_chain_grid(GridCb f)
 {
     global().pcs->api_get_grid(f);
 };
-void get_chain_block(Height height, BlockCb cb)
+void get_chain_block(API::HeightOrHash hh, BlockCb cb)
 {
-    global().pcs->api_get_block(height, cb);
+    global().pcs->api_get_block(hh, cb);
 };
 
 void get_txcache(TxcacheCb&& cb)

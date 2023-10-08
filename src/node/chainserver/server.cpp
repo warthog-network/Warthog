@@ -109,18 +109,18 @@ void ChainServer::api_get_txcache(TxcacheCb callback)
     defer_maybe_busy(GetTxcache { std::move(callback) });
 };
 
-void ChainServer::api_get_header(Height height, HeaderCb callback)
+void ChainServer::api_get_header(API::HeightOrHash hoh, HeaderCb callback)
 {
-    defer_maybe_busy(GetHeader { height, std::move(callback) });
+    defer_maybe_busy(GetHeader { hoh, std::move(callback) });
 };
 void ChainServer::api_get_hash(Height height, HashCb callback)
 {
     defer_maybe_busy(GetHash { height, std::move(callback) });
 };
 
-void ChainServer::api_get_block(Height height, BlockCb callback)
+void ChainServer::api_get_block(API::HeightOrHash hoh, BlockCb callback)
 {
-    defer_maybe_busy(GetBlock { height, std::move(callback) });
+    defer_maybe_busy(GetBlock { hoh, std::move(callback) });
 };
 
 void ChainServer::async_get_blocks(DescriptedBlockRange range, getBlocksCb&& callback)
@@ -264,7 +264,7 @@ void ChainServer::handle_event(GetHead&& e)
 
 void ChainServer::handle_event(GetHeader&& e)
 {
-    e.callback(noval_to_err(state.get_header(e.height)));
+    e.callback(noval_to_err(state.api_get_header(e.heightOrHash)));
 };
 
 void ChainServer::handle_event(GetHash&& e)
@@ -274,7 +274,7 @@ void ChainServer::handle_event(GetHash&& e)
 
 void ChainServer::handle_event(GetBlock&& e)
 {
-    e.callback(noval_to_err(state.api_get_block(e.height)));
+    e.callback(noval_to_err(state.api_get_block(e.heightOrHash)));
 };
 
 void ChainServer::handle_event(GetMining&& e)

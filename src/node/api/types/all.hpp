@@ -5,13 +5,14 @@
 #include "block/chain/worksum.hpp"
 #include "block/header/header.hpp"
 #include "block/header/difficulty_declaration.hpp"
-// #include 
 #include "crypto/address.hpp"
 #include "db/offense_entry.hpp"
 #include "eventloop/peer_chain.hpp"
 #include "general/funds.hpp"
 #include "general/tcp_util.hpp"
+#include "height_or_hash.hpp"
 #include <vector>
+#include <variant>
 namespace chainserver {
 class AccountCache;
 }
@@ -113,4 +114,5 @@ struct Peerinfo {
     uint16_t port;
 };
 using OffenseEntry = ::OffenseEntry;
+
 }

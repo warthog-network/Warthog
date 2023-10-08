@@ -2,6 +2,7 @@
 #include "api/callbacks.hpp"
 #include "communication/stage_operation/request.hpp"
 #include "state/state.hpp"
+#include "api/types/height_or_hash.hpp"
 #include <condition_variable>
 #include <queue>
 #include <thread>
@@ -76,7 +77,7 @@ public:
         HeadCb callback;
     };
     struct GetHeader {
-        Height height;
+        API::HeightOrHash heightOrHash;
         HeaderCb callback;
     };
     struct GetHash {
@@ -84,7 +85,7 @@ public:
         HashCb callback;
     };
     struct GetBlock {
-        Height height;
+        API::HeightOrHash heightOrHash;
         BlockCb callback;
     };
     struct GetMining {
@@ -172,9 +173,9 @@ public:
     void api_lookup_tx(const HashView hash, TxCb callback);
     void api_get_history(const Address& address, uint64_t beforeId, HistoryCb callback);
     void api_get_richlist(RichlistCb callback);
-    void api_get_header(Height height, HeaderCb callback);
+    void api_get_header(API::HeightOrHash, HeaderCb callback);
     void api_get_hash(Height height, HashCb callback);
-    void api_get_block(Height height, BlockCb callback);
+    void api_get_block(API::HeightOrHash, BlockCb callback);
     void api_get_mining(const Address& a, MiningCb callback);
     void api_get_txcache(TxcacheCb callback);
 

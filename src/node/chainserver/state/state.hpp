@@ -69,10 +69,15 @@ public:
     auto api_get_richlist(size_t N) -> API::Richlist;
     auto api_get_mempool(size_t) -> API::MempoolEntries;
     auto api_get_tx(HashView hash) const -> std::optional<API::Transaction>;
-    auto api_get_block(Height h) const -> std::optional<API::Block>;
+    auto api_get_header(API::HeightOrHash& h) const -> std::optional<Header>;
+    auto api_get_block(const API::HeightOrHash& h) const -> std::optional<API::Block>;
     auto api_tx_cache() const -> const TransactionIds;
 
 private:
+    // delegated getters 
+    auto api_get_block(Height h) const -> std::optional<API::Block>;
+    std::optional<NonzeroHeight> consensus_height(const Hash&) const;
+
     // transactions
     [[nodiscard]] auto apply_stage(ChainDBTransaction&& t) -> std::pair<ChainError, std::optional<StateUpdate>>;
 

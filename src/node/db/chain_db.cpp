@@ -98,8 +98,10 @@ ChainDB::ChainDB(const std::string& path)
                                    "(`account_id`,`history_id`) VALUES (?,?)")
     , stmtAccountHistoryDeleteFrom(
           db, "DELETE FROM `AccountHistory` WHERE `history_id`>=?")
-    , stmtBlockSelect(
+    , stmtBlockIdSelect(
           db, "SELECT `ROWID` FROM `Blocks` WHERE `hash`=?")
+    , stmtBlockHeightSelect(
+          db, "SELECT `height` FROM `Blocks` WHERE `hash`=?")
     , stmtBlockDelete(db, "DELETE FROM `Blocks` WHERE ROWID = ?")
 
     // BELOW STATEMENTS REQUIRED FOR INDEXING NODES
@@ -449,20 +451,33 @@ API::Richlist ChainDB::lookup_richlist(size_t N) const
     API::Richlist out;
     stmtRichlistLookup.for_each([&](Statement2::Row& r) {
         out.entries.push_back(
-            { Address{r.get_array<20>(0)},
+            { Address { r.get_array<20>(0) },
                 r.get<Funds>(1) });
-    },N);
+    },
+        N);
     return out;
 };
 
 std::optional<BlockId> ChainDB::lookup_block_id(const HashView hash) const
 {
-    return stmtBlockSelect.one(hash);
+    return stmtBlockIdSelect.one(hash);
+};
+
+std::optional<NonzeroHeight> ChainDB::lookup_block_height(const HashView hash) const
+{
+    auto o { stmtBlockHeightSelect.one(hash) };
+    if (!o.has_value())
+        return {};
+    auto h{o.get<Height>(0)};
+    if (h == 0) {
+        throw std::runtime_error("Database corrupted, block " +serialize_hex(hash) + " has invalid height 0.");
+    }
+    return h.nonzero_assert();
 };
 
 void ChainDB::delete_bad_block(HashView blockhash)
 {
-    auto o = stmtBlockSelect.one(blockhash);
+    auto o = stmtBlockIdSelect.one(blockhash);
     if (!o.has_value()) {
         spdlog::error("Database error: Cannot delete bad block with hash {}",
             serialize_hex(blockhash));

@@ -31,30 +31,63 @@ std::optional<Header> State::get_header(Height h) const
     return chainstate.headers().get_header(h);
 };
 
+auto State::api_get_header(API::HeightOrHash& hh) const -> std::optional<Header>{
+    if (std::holds_alternative<Height>(hh.data)) {
+        return get_header(std::get<Height>(hh.data));
+    }
+    auto h{ consensus_height(std::get<Hash>(hh.data))};
+    if (!h.has_value()) 
+        return {};
+    return get_header(*h);
+};
+
+std::optional<NonzeroHeight> State::consensus_height(const Hash& hash) const{
+    auto o{db.lookup_block_height(hash)};
+    if (!o.has_value()) 
+        return {};
+    auto &h{o.value()};
+    auto hash2{chainstate.headers().get_hash(h)};
+    if (!hash2.has_value() || *hash2 != hash) 
+        return {};
+    return h;
+};
+
 std::optional<Hash> State::get_hash(Height h) const
 {
     return chainstate.headers().get_hash(h);
 };
 
+std::optional<API::Block> State::api_get_block(const API::HeightOrHash& hh) const
+{
+    if (std::holds_alternative<Height>(hh.data)) {
+        return api_get_block(std::get<Height>(hh.data));
+    }
+    auto h{ consensus_height(std::get<Hash>(hh.data))};
+    if (!h.has_value()) 
+        return {};
+    return api_get_block(*h);
+};
+
 std::optional<API::Block> State::api_get_block(Height zh) const
 {
-    if (zh == 0 || zh > chainlength())
-        return {};
-    auto h { zh.nonzero_assert() };
-    PinFloor pinFloor { h - 1 };
-    size_t lower = chainstate.historyOffset(h);
-    size_t upper = (h == chainlength() ? 0
-                                       : chainstate.historyOffset(h + 1));
-    auto entries = db.lookupHistoryRange(lower, upper);
-    auto header = chainstate.headers()[h];
-    API::Block b(header, h, chainlength() - h + 1);
+        if (zh == 0 || zh > chainlength())
+            return {};
+        auto h { zh.nonzero_assert() };
+        PinFloor pinFloor { h - 1 };
+        size_t lower = chainstate.historyOffset(h);
+        size_t upper = (h == chainlength() ? 0
+                : chainstate.historyOffset(h + 1));
+        auto entries = db.lookupHistoryRange(lower, upper);
+        auto header = chainstate.headers()[h];
+        API::Block b(header, h, chainlength() - h + 1);
 
-    chainserver::AccountCache cache(db);
-    for (auto [hash, data] : entries) {
-        b.push_history(hash, data, cache, pinFloor);
-    }
-    return b;
+        chainserver::AccountCache cache(db);
+        for (auto [hash, data] : entries) {
+            b.push_history(hash, data, cache, pinFloor);
+        }
+        return b;
 };
+
 
 auto State::api_tx_cache() const -> const TransactionIds
 {

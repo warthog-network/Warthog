@@ -268,6 +268,7 @@ public:
     // Block functions
     // get
     [[nodiscard]] std::optional<BlockId> lookup_block_id(const HashView hash) const;
+    [[nodiscard]] std::optional<NonzeroHeight> lookup_block_height(const HashView hash) const;
     [[nodiscard]] std::optional<std::tuple<Header, RawBody, RawUndo>> get_block_undo(BlockId id) const;
     [[nodiscard]] std::optional<Block> get_block(BlockId id) const;
     [[nodiscard]] std::optional<std::pair<BlockId, Block>> get_block(HashView hash) const;
@@ -409,7 +410,8 @@ private:
     Statement2 stmtAccountHistoryInsert;
     Statement2 stmtAccountHistoryDeleteFrom;
 
-    mutable Statement2 stmtBlockSelect;
+    mutable Statement2 stmtBlockIdSelect;
+    mutable Statement2 stmtBlockHeightSelect;
     Statement2 stmtBlockDelete;
 
     mutable Statement2 stmtAddressLookup;
