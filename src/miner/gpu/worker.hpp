@@ -19,7 +19,7 @@ class MinerDevice {
         // auto code{read_file("kernel.cl")};
         return cl::Program::Sources { { code.data(), code.size() } };
     };
-    auto build_program(cl::Context context, cl::Device device)
+    auto build_program(cl::Context context)
     {
         cl::Program program(context, fetch_sources());
         try {
@@ -27,9 +27,13 @@ class MinerDevice {
                 "-cl-std=CL2.0 -DVECT_SIZE=2 -DDGST_R0=3 -DDGST_R1=7 -DDGST_R2=2 "
                 "-DDGST_R3=6 -DDGST_ELEM=8 -DKERNEL_STATIC");
             return program;
-        } catch (cl::Error e) {
-            std::cerr << " Error building (code " << e.err() << ")"
-                      << program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(device) << std::endl;
+        } catch (cl::BuildError& e) {
+            auto logs { e.getBuildLog() };
+            assert(logs.size() == 1);
+            auto& log = logs[0].second;
+            std::cerr << " Build error: " << log << std::endl
+                      << std::flush;
+
             throw e;
         }
     }
@@ -37,7 +41,7 @@ class MinerDevice {
 public:
     MinerDevice(cl::Device device)
         : context({ device })
-        , program(build_program(context, device))
+        , program(build_program(context))
         , queue(context, device)
         , reset_counter_fun(program, "reset_counter")
         , set_target_fun(program, "set_target")
