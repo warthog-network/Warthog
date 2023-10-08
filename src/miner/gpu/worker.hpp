@@ -6,9 +6,9 @@
 #include "kernel.hpp"
 #include "spdlog/spdlog.h"
 #include <arpa/inet.h>
-#include <optional>
 #include <condition_variable>
 #include <iostream>
+#include <optional>
 #include <span>
 #include <thread>
 class MinerDevice {
@@ -27,10 +27,10 @@ class MinerDevice {
                 "-cl-std=CL2.0 -DVECT_SIZE=2 -DDGST_R0=3 -DDGST_R1=7 -DDGST_R2=2 "
                 "-DDGST_R3=6 -DDGST_ELEM=8 -DKERNEL_STATIC");
             return program;
-        } catch (...) {
-            std::cerr << " Error building: "
+        } catch (cl::Error e) {
+            std::cerr << " Error building (code " << e.err() << ")"
                       << program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(device) << std::endl;
-            throw std::runtime_error("Cannot build opencl program");
+            throw e;
         }
     }
 
@@ -44,7 +44,7 @@ public:
         , mine_fun(program, "mine") {};
     void set_block_header(std::span<uint8_t, 76> h)
     {
-        memcpy(blockHeader.data(),h.data(),h.size());
+        memcpy(blockHeader.data(), h.data(), h.size());
     }
     void set_target(uint32_t v)
     {
@@ -57,7 +57,7 @@ public:
         cl::EnqueueArgs eargs(queue,
             offset == 0 ? cl::NullRange : cl::NDRange(offset),
             cl::NDRange(nHashes), cl::NullRange);
-        return mine_fun.run(queue, eargs,blockHeader);
+        return mine_fun.run(queue, eargs, blockHeader);
     }
     auto reset_counter()
     {
@@ -97,7 +97,7 @@ public:
 
     uint64_t get_hashrate()
     {
-        if (!lastHashrateCheckpoint.has_value()) 
+        if (!lastHashrateCheckpoint.has_value())
             return 0;
         using namespace std::chrono;
         auto hashes { hashCounter.exchange(0) };
@@ -149,12 +149,12 @@ private:
                 init_mining(miner);
             }
             if (currentTask) {
-                if (!lastHashrateCheckpoint.has_value()){
+                if (!lastHashrateCheckpoint.has_value()) {
                     lastHashrateCheckpoint = std::chrono::steady_clock::now();
                     spdlog::info("Now mining on {}.", deviceName);
                 }
                 mine(miner);
-            }else{
+            } else {
                 std::this_thread::sleep_for(100ms);
             }
         }
