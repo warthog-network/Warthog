@@ -33,7 +33,7 @@ public:
     void garbage_collect();
     auto mining_task(const Address& a) -> MiningTask;
 
-    auto append_gentx(std::vector<uint8_t>&&) -> tl::expected<mempool::Log, Error>;
+    auto append_gentx(const PaymentCreateMessage& ) -> tl::expected<mempool::Log, Error>;
     auto chainlength() const -> Height { return chainstate.headers().length(); }
     std::optional<Hash> get_pin_hash(PinHeight);
 

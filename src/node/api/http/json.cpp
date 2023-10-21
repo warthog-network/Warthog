@@ -474,22 +474,4 @@ std::string ip_counter(const Conman& e)
     return j.dump(1);
 }
 
-MiningTask parse_mining_task(const std::vector<uint8_t>& s)
-{
-    try {
-        json parsed = json::parse(s);
-        MiningTask mt {
-            .block {
-                .height { Height(parsed["height"].get<uint32_t>()).nonzero_throw(EBADHEIGHT) },
-                .header { hex_to_arr<80>(parsed["header"].get<std::string>()) },
-                .body { hex_to_vec(parsed["body"].get<std::string>()) },
-            }
-        };
-        if (mt.block.body.size() > MAXBLOCKSIZE)
-            throw Error(EBLOCKSIZE);
-        return mt;
-    } catch (const json::exception& e) {
-        throw Error(EMALFORMED);
-    }
-}
 } // namespace jsonmsg

@@ -79,7 +79,12 @@
     XX(80, EPROBEHEIGHT, "invalid probe height")                        \
     XX(81, EBATCHHEIGHT, "invalid batch height")                        \
     XX(82, EGRIDMISMATCH, "grid mismatch")                              \
-    XX(83, ESELFSEND, "self send transaction not allowed")             \
+    XX(83, ESELFSEND, "self send transaction not allowed")              \
+    XX(201, EBADNONCE, "cannot parse nonce")                            \
+    XX(202, EBADFEE, "invalid fee")                                     \
+    XX(203, ESTRICTFEE, "inexact fee not allowed in strict mode")       \
+    XX(204, EBADAMOUNT, "invalid amount")                               \
+    XX(205, EPARSESIG, "cannot parse signature")                        \
     XX(1000, ESIGTERM, "received SIGTERM")                              \
     XX(1001, ESIGHUP, "received SIGHUP")                                \
     XX(1002, ESIGINT, "received SIGINT")                                \

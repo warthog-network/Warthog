@@ -92,5 +92,4 @@ std::string connect_timers(const Eventloop&);
 std::string header_download(const Eventloop&);
 std::string ip_counter(const Conman&);
 
-MiningTask parse_mining_task(const std::vector<uint8_t>& s);
 }

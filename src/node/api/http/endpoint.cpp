@@ -3,6 +3,7 @@
 #include "chainserver/transaction_ids.hpp"
 #include "communication/mining_task.hpp"
 #include "general/hex.hpp"
+#include "api/http/parse.hpp"
 #include "json.hpp"
 #include "spdlog/spdlog.h"
 #include <charconv>
@@ -115,7 +116,7 @@ void HTTPEndpoint::work()
     app.get("/", &nav);
 
     // transaction endpoints
-    post("/transaction/add", std::identity(), put_mempool);
+    post("/transaction/add", parse_payment_create, put_mempool);
     get("/transaction/mempool", get_mempool);
     get_1("/transaction/lookup/:txid", lookup_tx);
 
@@ -129,7 +130,7 @@ void HTTPEndpoint::work()
     get("/chain/signed_snapshot", get_signed_snapshot);
     get("/chain/txcache", get_txcache);
     get("/chain/hashrate", get_hashrate);
-    post("/chain/append", jsonmsg::parse_mining_task, put_chain_append);
+    post("/chain/append", parse_mining_task, put_chain_append);
 
     // Account endpoints
     get_1("/account/:account/balance", get_account_balance);

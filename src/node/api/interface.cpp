@@ -7,9 +7,9 @@
 #include "api/types/all.hpp"
 
 // mempool functions
-void put_mempool(std::vector<uint8_t> data, ResultCb cb)
+void put_mempool(PaymentCreateMessage &&m, ResultCb cb)
 {
-    global().pcs->api_put_mempool(std::move(data), std::move(cb));
+    global().pcs->api_put_mempool(std::move(m), std::move(cb));
 }
 
 void get_mempool(MempoolCb cb)

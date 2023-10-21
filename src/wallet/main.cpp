@@ -205,7 +205,9 @@ int process(gengetopt_args_info& ai)
             cout << "pinHeight: " << pin.first.value() << endl;
             cout << "pinHash: " << serialize_hex(pin.second) << endl;
             std::string msg;
+
             int code = endpoint.send_transaction(m, &msg);
+
             if (code) {
                 cout << "Transaction rejected (code " << code << "): " << msg;
                 return -1;

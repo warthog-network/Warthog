@@ -1,5 +1,6 @@
 #pragma once
 #include "api/callbacks.hpp"
+#include "communication/create_payment.hpp"
 #include "communication/stage_operation/request.hpp"
 #include "state/state.hpp"
 #include "api/types/height_or_hash.hpp"
@@ -40,7 +41,7 @@ public:
         ResultCb callback;
     };
     struct PutMempool {
-        std::vector<uint8_t> data;
+        PaymentCreateMessage m;
         ResultCb callback;
     };
     struct GetGrid {
@@ -166,7 +167,7 @@ public:
 
     // API methods
     void api_mining_append(Block&&, ResultCb);
-    void api_put_mempool(std::vector<uint8_t> data, ResultCb cb);
+    void api_put_mempool(PaymentCreateMessage, ResultCb cb);
     void api_get_balance(const Address& a, BalanceCb callback);
     void api_get_grid(GridCb);
     void api_get_mempool(MempoolCb callback);
@@ -189,7 +190,7 @@ private:
     ChainError apply_stage(ChainDBTransaction&& t);
     void workerfun();
 
-    int32_t append_gentx(std::vector<uint8_t>&&);
+    int32_t append_gentx(const PaymentCreateMessage&);
 
 private:
     void handle_event(MiningAppend&&);

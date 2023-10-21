@@ -57,10 +57,10 @@ void ChainServer::async_put_mempool(std::vector<TransferTxExchangeMessage> txs)
     defer(PutMempoolBatch { std::move(txs) });
 }
 
-void ChainServer::api_put_mempool(std::vector<uint8_t> data,
+void ChainServer::api_put_mempool(PaymentCreateMessage m,
     ResultCb callback)
 {
-    defer_maybe_busy(PutMempool { std::move(data), std::move(callback) });
+    defer_maybe_busy(PutMempool { std::move(m), std::move(callback) });
 }
 
 void ChainServer::api_get_balance(const Address& a, BalanceCb callback)
@@ -181,9 +181,9 @@ void ChainServer::workerfun()
     }
 }
 
-int32_t ChainServer::append_gentx(std::vector<uint8_t>&& data)
+int32_t ChainServer::append_gentx(const PaymentCreateMessage &m)
 {
-    auto r = state.append_gentx(std::move(data));
+    auto r = state.append_gentx(m);
     if (!r.has_value())
         return r.error().e;
     global().pel->async_mempool_update(std::move(r.value()));
@@ -308,7 +308,7 @@ void ChainServer::handle_event(stage_operation::StageAddOperation&& r)
 
 void ChainServer::handle_event(PutMempool&& e)
 {
-    if (int err = append_gentx(std::move(e.data)); err != 0)
+    if (int err = append_gentx(std::move(e.m)); err != 0)
         e.callback(tl::make_unexpected(err));
     else
         e.callback({});

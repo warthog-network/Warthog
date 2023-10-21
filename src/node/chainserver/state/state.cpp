@@ -496,21 +496,15 @@ auto State::append_mined_block(const Block& b) -> StateUpdate
     };
 }
 
-tl::expected<mempool::Log, Error> State::append_gentx(std::vector<uint8_t>&& data)
+tl::expected<mempool::Log, Error> State::append_gentx(const PaymentCreateMessage& m)
 {
-    try {
-        Reader r(data);
-        PaymentCreateMessage m { r };
-        if (int32_t e = chainstate.insert_tx(m); e != 0) {
-            Error err(e);
-            spdlog::warn("Rejected new transaction: {}", err.strerror());
-            return tl::make_unexpected(err);
-        }
-        spdlog::info("Added new transaction to mempool");
-        return chainstate.pop_mempool_log();
-    } catch (Error& e) {
-        return tl::make_unexpected(e);
+    if (int32_t e = chainstate.insert_tx(m); e != 0) {
+        Error err(e);
+        spdlog::warn("Rejected new transaction: {}", err.strerror());
+        return tl::make_unexpected(err);
     }
+    spdlog::info("Added new transaction to mempool");
+    return chainstate.pop_mempool_log();
 }
 
 std::optional<Hash> State::get_pin_hash(PinHeight pinHeight)

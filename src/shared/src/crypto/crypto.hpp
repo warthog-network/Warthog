@@ -66,6 +66,7 @@ public:
   friend class PrivKey;
   friend class PubKey;
   RecoverableSignature(View<65>);
+  RecoverableSignature(std::string_view);
   static std::optional<RecoverableSignature> from_view(View<65>);
   std::string to_string() const;
   void serialize(uint8_t *out65) const;

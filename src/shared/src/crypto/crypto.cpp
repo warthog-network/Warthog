@@ -65,9 +65,9 @@ PubKey::PubKey(const RecoverableSignature& recsig, HashView hv)
         throw Error(ECORRUPTEDSIG);
 };
 
-    //////////////////////////////
-    // Key methods
-    //////////////////////////////
+//////////////////////////////
+// Key methods
+//////////////////////////////
 
 #include <algorithm>
 #include <chrono>
@@ -146,6 +146,21 @@ RecoverableSignature::RecoverableSignature(View<65> v)
         throw Error(ECORRUPTEDSIG);
 }
 
+namespace {
+std::array<uint8_t, 65> parse_sig(std::string_view sv)
+{
+    std::array<uint8_t, 65> out;
+    if (!parse_hex(sv, out))
+        throw Error(EPARSESIG);
+    return out;
+}
+}
+
+RecoverableSignature::RecoverableSignature(std::string_view sv)
+    : RecoverableSignature(parse_sig(sv))
+{
+}
+
 bool RecoverableSignature::check() // check for lower S
 {
     secp256k1_ecdsa_signature sig;
@@ -161,7 +176,7 @@ Writer& operator<<(Writer& w, const RecoverableSignature& rs)
     const auto s { RecoverableSignature::from_view(ser) };
     assert(s.has_value());
     return w << ser;
-};
+}
 
 void RecoverableSignature::serialize(uint8_t* out65) const
 {
@@ -188,4 +203,4 @@ RecoverableSignature::RecoverableSignature(const uint8_t* keydata, HashView hv)
         secp256k1_ctx, &recsig, hv.data(), keydata,
         secp256k1_nonce_function_rfc6979, nullptr);
     assert(ret);
-};
+}

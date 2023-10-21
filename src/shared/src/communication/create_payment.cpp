@@ -1,6 +1,7 @@
 #include "create_payment.hpp"
 #include "crypto/hasher_sha256.hpp"
 #include "general/reader.hpp"
+#include "nlohmann/json.hpp"
 
 PaymentCreateMessage::PaymentCreateMessage(
     PinHeight pinHeight, const Hash& pinHash,
@@ -8,15 +9,13 @@ PaymentCreateMessage::PaymentCreateMessage(
     const Address& toAddress, Funds amount, NonceId nonceId)
     : pinHeight(pinHeight)
     , nonceId(nonceId)
-    , reserved { NonceReserved::zero()}
+    , reserved { NonceReserved::zero() }
     , compactFee(fee)
     , toAddr(toAddress)
     , amount(amount)
-    , signature(privateKey.sign(tx_hash(pinHash))) {};
-
-bool PaymentCreateMessage::valid_signature(HashView pinHash, AddressView fromAddress){
-    return signature.recover_pubkey(tx_hash(pinHash)).address() == fromAddress;
-};
+    , signature(privateKey.sign(tx_hash(pinHash)))
+{
+}
 
 PaymentCreateMessage::PaymentCreateMessage(ReaderCheck<bytesize> r)
     : pinHeight(Height(r.r))
@@ -25,7 +24,9 @@ PaymentCreateMessage::PaymentCreateMessage(ReaderCheck<bytesize> r)
     , compactFee(r.r)
     , toAddr(r.r)
     , amount(r)
-    , signature(r.r) {};
+    , signature(r.r)
+{
+}
 
 Writer& operator<<(Writer& w, const PaymentCreateMessage& m)
 {
@@ -37,7 +38,8 @@ Writer& operator<<(Writer& w, const PaymentCreateMessage& m)
         << m.toAddr
         << m.amount
         << m.signature;
-};
+}
+
 TxHash PaymentCreateMessage::tx_hash(HashView pinHash) const
 {
     return TxHash(HasherSHA256()
@@ -48,7 +50,7 @@ TxHash PaymentCreateMessage::tx_hash(HashView pinHash) const
         << compactFee
         << toAddr
         << amount);
-};
+}
 
 PaymentCreateMessage::operator std::vector<uint8_t>()
 {
@@ -57,9 +59,28 @@ PaymentCreateMessage::operator std::vector<uint8_t>()
     w << *this;
     assert(w.remaining() == 0);
     return out;
-};
+}
+
+PaymentCreateMessage::operator std::string()
+{
+    return nlohmann::json{
+        {"pinHeight",pinHeight.value()},
+        {"nonceId",nonceId.value()},
+        {"toAddr",toAddr.to_string()},
+        {"amountE8",amount.to_string()},
+        {"feeE8",compactFee.to_string()},
+        {"signature65",signature.to_string()},
+        {"strictFee",true},
+    }.dump(1);
+}
+
+bool PaymentCreateMessage::valid_signature(HashView pinHash, AddressView fromAddress) const
+{
+    return signature.recover_pubkey(tx_hash(pinHash)).address() == fromAddress;
+}
+
 Address PaymentCreateMessage::from_address(
     HashView txHash) const
 {
     return signature.recover_pubkey(txHash.data()).address();
-};
+}

@@ -49,6 +49,39 @@ METHOD| PATH | DESCRIPTION
 ## Detailed Description
 
 ### `POST /transaction/add`
+ Send transactions in json. The format is as follows:
+ 
+ PARAMETER | TYPE | DETAILS
+ ----------|------|--------
+ pinHeight | unsigned 32 bit integer | Signature includes block hash at this height
+ nonceId   | unsigned 32 bit integer | To avoid double spend, there can only be one transaction with a specific (pinHeight,nonceId) pair. The same nonceId can be used for different pinHeight values
+ toAddr    | string of length 48| The address that coins shall be transferred to
+ amountE8  | unsinged 64 bit integer | Amount of coins to send multiplied by 10^8. For example to send one coin this value must be 100000000.
+ feeE8  | unsinged 64 bit integer | Amount of coins to spend on transaction fees multiplied by 10^8. For example to send one 0.00000001 coins this value must be 1. This value is rounded to a representable value in a 16 bit encoding.
+ signature65| string of length 130 | hex-encoded 65 byte recoverable ECDSA signature
+ strictFee | boolean | If set to `true` the node only accepts fee values that are exactly representable in the 16 bit floating point representation which is used to compact fee values. This field is optional, default is false.
+
+#### How to specify the sender?
+The sender's address is recovered from the recoverable ECDSA signature `signature65`. It is implicitly specified by creating a signature with the corresponding private key.
+
+#### Signature generation
+The following steps are required:
+1. Call the `/chain/head` endpoint and extract the  `pinHash` and `pinHeight` fields.
+
+2. TODO
+
+
+        std::string h = parsed["data"]["pinHash"].get<std::string>();
+        auto pinHeight = Height(parsed["data"]["pinHeight"].get<int32_t>()).pin_height();
+
+
+#### Details on fees
+Fees are not subtracted from the amount sent in the transaction. The transaction causes the sender to spend both, `amountE8` and `feeE8`, `toAddr` receives `amountE8` and the miner of the block including this transaction gets `feeE8` as transaction fee.
+
+For efficiency and compactness transaction fees are internally encoded as 2-byte floating-point numbers (16 bits), where the first 6 bits encode the exponent and the remaining 10 bits encode a 11 bit mantissa starting with an implicit 1. The conversion of the specified `feeE8` value to this representation happens automatically and involves - of course - a rounding procedure. We are actually very confident that this rounding procedure is correct in the sense that it should round to sane values which are close to the exact number but for users who want extra protection against bugs in this rounding procedure we have added the optional `strictFee` property. If set to `true` the node will round the fee value and check that the floating point representation corresponds to exactly the 64 bit integer specified. Of course this means that only those 64 bit numbers are accepted which are already rounded to values exactly representable in our 16 bit encoding.
+
+
+### `POST /transaction/add`
  Send transactions. At the moment only binary format is available. TODO: allow JSON format:
 
 ### `GET /transaction/mempool`
