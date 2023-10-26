@@ -20,7 +20,7 @@ struct ParameterParser {
     {
         T res {};
         auto result = std::from_chars(sv.data(), sv.end(), res);
-        if (result.ec == std::errc::invalid_argument || result.ptr != sv.end()) {
+        if (result.ec != std::errc{} || result.ptr != sv.end()) {
             throw Error(EMALFORMED);
         }
         return res;
@@ -30,6 +30,9 @@ struct ParameterParser {
         if (sv.length() == 64)
             return { Hash { *this } };
         return { Height { *this } };
+    }
+    operator Funds(){
+        return Funds::throw_parse(sv);
     }
     operator Page()
     {
@@ -100,6 +103,11 @@ void nav(uWS::HttpResponse<false>* res, uWS::HttpRequest*)
             <li>GET <a href=/peers/endpoints>/peers/endpoints</a></li>
             <li>GET <a href=/peers/connect_timers>/peers/connect_timers</a></li>
         </ul>
+        <h2>Tools endpoints</h2>
+        <ul>
+            <li>GET <a href=/tools/encode16bit/from_e8/:feeE8>/tools/encode16bit/from_e8/:feeE8</a></li>
+            <li>GET <a href=/tools/encode16bit/from_string/:feestring>/tools/encode16bit/from_string/:feestring</a></li>
+        </ul>
         <h2>Debug endpoints</h2>
         <ul>
             <li>GET <a href=/debug/header_download>/debug/header_download</a></li>
@@ -145,6 +153,10 @@ void HTTPEndpoint::work()
     get("/peers/connected", get_connected_peers2);
     get("/peers/endpoints", inspect_eventloop, jsonmsg::endpoints);
     get("/peers/connect_timers", inspect_eventloop, jsonmsg::connect_timers);
+
+    // tools endpoints
+    get_1("/tools/encode16bit/from_e8/:feeE8", get_round16bit_e8);
+    get_1("/tools/encode16bit/from_string/:string", get_round16bit_funds);
 
     // debug endpoints
     get("/debug/header_download", inspect_eventloop, jsonmsg::header_download);

@@ -70,7 +70,6 @@ PaymentCreateMessage::operator std::string()
         {"amountE8",amount.to_string()},
         {"feeE8",compactFee.to_string()},
         {"signature65",signature.to_string()},
-        {"strictFee",true},
     }.dump(1);
 }
 

@@ -43,24 +43,24 @@ NonceId extract_nonce_id(const nlohmann::json& json)
     }
     throw Error(EBADNONCE);
 }
-CompactUInt extract_fee(const nlohmann::json& json, bool strict)
+
+CompactUInt extract_fee(const nlohmann::json& json)
 {
     try {
         auto fee { Funds::parse(json["feeE8"].get<std::string>()) };
         if (!fee.has_value()) 
             goto error;
         auto compactFee { CompactUInt::compact(*fee) };
-        if (strict) {
-            bool exact = compactFee.uncompact() == *fee;
-            if (!exact)
-                throw Error(ESTRICTFEE);
-        }
+        bool exact = compactFee.uncompact() == *fee;
+        if (!exact)
+            throw Error(EINEXACTFEE);
         return compactFee;
-    } catch (...) {
+    } catch (json::exception& ) {
     }
 error:
     throw Error(EBADFEE);
 }
+
 Address extract_to_addr(const nlohmann::json& json)
 {
     try {
@@ -97,17 +97,16 @@ PaymentCreateMessage parse_payment_create(const std::vector<uint8_t>& s)
 {
     try {
         json parsed = json::parse(s);
-        bool strict = false;
-        ;
-        if (auto iter = parsed.find("strict"); iter != parsed.end()) {
-            auto& val { (*iter) };
-            if (!val.is_boolean())
-                throw Error(EMALFORMED);
-            strict = val.get<bool>();
-        }
         return PaymentCreateMessage(
-            extract_pin_height(parsed), extract_nonce_id(parsed), NonceReserved::zero(), extract_fee(parsed, strict), extract_to_addr(parsed), extract_funds(parsed), extract_signature(parsed));
+            extract_pin_height(parsed), extract_nonce_id(parsed), NonceReserved::zero(), extract_fee(parsed), extract_to_addr(parsed), extract_funds(parsed), extract_signature(parsed));
     } catch (const json::exception& e) {
         throw Error(EMALFORMED);
     }
 }
+
+Funds parse_funds(const std::vector<uint8_t>& s){
+    std::string str(s.begin(),s.end());
+    if (auto o{Funds::parse(str)}; o.has_value())
+        return *o;
+    throw Error(EMALFORMED);
+};

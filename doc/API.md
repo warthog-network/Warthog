@@ -45,21 +45,22 @@ METHOD| PATH | DESCRIPTION
 `GET`   |`/peers/connected`| Show info of connected peers
 `GET`   |`/peers/endpoints`| Show known peer endpoints
 `GET`   |`/peers/connect_timers`| Show timers used for reconnect
+`GET `  |`/tools/encode16bit/from_e8/:feeE8`| Round raw 64 integer to closest 16 bit representation (for fee specification)
+`GET`   |`/tools/encode16bit/from_string/:feestring`| Round coin amount string to closest 16 bit representation (for fee specification)
 
 ## Detailed Description
 
 ### `POST /transaction/add`
- Send transactions in json. The format is as follows:
+ Send transactions in JSON format:
  
  PARAMETER | TYPE | DETAILS
  ----------|------|--------
  pinHeight | unsigned 32 bit integer | Signature includes block hash at this height
  nonceId   | unsigned 32 bit integer | To avoid double spend, there can only be one transaction with a specific (pinHeight,nonceId) pair. The same nonceId can be used for different pinHeight values
  toAddr    | string of length 48| The address that coins shall be transferred to
- amountE8  | unsinged 64 bit integer | Amount of coins to send multiplied by 10^8. For example to send one coin this value must be 100000000.
- feeE8  | unsinged 64 bit integer | Amount of coins to spend on transaction fees multiplied by 10^8. For example to send one 0.00000001 coins this value must be 1. This value is rounded to a representable value in a 16 bit encoding.
- signature65| string of length 130 | hex-encoded 65 byte recoverable ECDSA signature
- strictFee | boolean | If set to `true` the node only accepts fee values that are exactly representable in the 16 bit floating point representation which is used to compact fee values. This field is optional, default is false.
+ amountE8  | unsigned 64 bit integer | Amount of coins to send multiplied by 10^8. For example to send one coin this value must be 100000000.
+ feeE8  | unsigned 64 bit integer | Amount of coins to spend on transaction fees multiplied by 10^8. For example to send one 0.00000001 coins this value must be 1. This value must be exactly representable value in a 16 bit encoding, see below.
+ signature65| string of length 130 | hex-encoded 65 byte compact recoverable ECDSA signature in custom format, see below
 
 #### How to specify the sender?
 The sender's address is recovered from the recoverable ECDSA signature `signature65`. It is implicitly specified by creating a signature with the corresponding private key.
@@ -68,17 +69,38 @@ The sender's address is recovered from the recoverable ECDSA signature `signatur
 The following steps are required:
 1. Call the `/chain/head` endpoint and extract the  `pinHash` and `pinHeight` fields.
 
-2. TODO
+2. Compute transaction hash. The transaction hash is the SHA256 hash of the following bytes:
 
+BYTES | DESCRIPTION
+------|------------
+1 -32 | `pinHash` (hash of block at height `pinHeight`)
+33-36 | `pinHeight` (`uint32_t` in network byte order)
+37-40 | `nonceId` (`uint32_t` in network byte order)
+41-43 | `reserved` (3 bytes containing 0)
+44-51 | `feeE8` (`uint64_t` in network byte order)
+52-71 | `toAddr` receiving address (20 bytes without the final 4 byte checksum)
+72-79 | `amountE8` (`uint64_t` in network byte order)
 
-        std::string h = parsed["data"]["pinHash"].get<std::string>();
-        auto pinHeight = Height(parsed["data"]["pinHeight"].get<int32_t>()).pin_height();
+3. Generate the secp256k1-ECDSA recoverable signature of the 32-byte transaction hash using the private key corresponding to the sender's address. The signature will have three properties:
+- `r`: 32 byte coordinate parameter
+- `s`: 32 byte coordinate parameter
+- `recid`: 1 byte recovery id, it should automatically have one of the four values 0,1,2,3.
+
+4. Concatenate the parameters to form the 65-byte compact recoverable signature with the following byte structure:
+
+BYTES | DESCRIPTION
+------|------------
+1 -32 | `r` 
+33-64 | `s` 
+65    | `recid` 
+
+Note that this is not the standard compact recoverable signature representation because in Warthog, the recoverable id is the last byte of the 65 byte signature and has no offset of 27.
 
 
 #### Details on fees
-Fees are not subtracted from the amount sent in the transaction. The transaction causes the sender to spend both, `amountE8` and `feeE8`, `toAddr` receives `amountE8` and the miner of the block including this transaction gets `feeE8` as transaction fee.
+Fees are not subtracted from the amount sent in the transaction. The sender spends both, `amountE8` and `feeE8`, `toAddr` receives `amountE8` and the miner of the block including this transaction gets `feeE8` as transaction fee.
 
-For efficiency and compactness transaction fees are internally encoded as 2-byte floating-point numbers (16 bits), where the first 6 bits encode the exponent and the remaining 10 bits encode a 11 bit mantissa starting with an implicit 1. The conversion of the specified `feeE8` value to this representation happens automatically and involves - of course - a rounding procedure. We are actually very confident that this rounding procedure is correct in the sense that it should round to sane values which are close to the exact number but for users who want extra protection against bugs in this rounding procedure we have added the optional `strictFee` property. If set to `true` the node will round the fee value and check that the floating point representation corresponds to exactly the 64 bit integer specified. Of course this means that only those 64 bit numbers are accepted which are already rounded to values exactly representable in our 16 bit encoding.
+For efficiency and compactness transaction fees are internally encoded as 2-byte floating-point numbers (16 bits), where the first 6 bits encode the exponent and the remaining 10 bits encode a 11 bit mantissa starting with an implicit 1. Of course not every 64 bit value can be encoded in 16 bits and only fee 64 bit values which are representable exactly in the 16 bits encoding are accepted. You can use the `/tools/encode16bit/from_e8/:feeE8` or `/tools/encode16bit/from_string/:feestring` endpoints to round an arbitrary 64-bit fee value to an accepted 64 bit value.
 
 
 ### `POST /transaction/add`
@@ -359,6 +381,37 @@ For efficiency and compactness transaction fees are internally encoded as 2-byte
    .
    .
   ]
+ }
+}
+```
+
+### `GET `  |`/tools/encode16bit/from_e8/:feeE8`| Round raw 64 integer to closest 16 bit representation (for fee specification)
+ Round raw fee integer representation (coin amount is this number divided by 10^8) to closest 16 bit representation. This is required for fee specification in the `/transaction/add` endpoint. Example output of `http://localhost:3000/tools/encode16bit/from_e8/5002`
+```json
+{
+ "code": 0,
+ "data": {
+  "16bit": 12514,
+  "originalAmount": "0.00005002",
+  "originalE8": 5002,
+  "roundedAmount": "0.00005000",
+  "roundedE8": 5000
+ }
+}
+```
+
+### `GET`   |`/tools/encode16bit/from_string/:feestring`
+ Round fee amount string to closest 16 bit representation. This is required for fee specification in the `/transaction/add` endpoint. Example output of `/tools/encode16bit/from_string/0.001`:
+
+```json
+{
+ "code": 0,
+ "data": {
+  "16bit": 16922,
+  "originalAmount": "0.00100000",
+  "originalE8": 100000,
+  "roundedAmount": "0.00099968",
+  "roundedE8": 99968
  }
 }
 ```

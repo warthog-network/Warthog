@@ -14,7 +14,7 @@ public:
         : host(host)
         , port(port) {};
     Funds get_balance(const std::string& account);
-    int32_t send_transaction(const std::string& txjson, std::string* error);
+    std::pair<int32_t,std::string> send_transaction(const std::string& txjson);
     std::pair<PinHeight, Hash> get_pin();
 private:
     bool http_get(const std::string& get, std::string& out);

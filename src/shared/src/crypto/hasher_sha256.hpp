@@ -5,6 +5,7 @@
 #include "sha2.hpp"
 #include <array>
 #include <cstdint>
+#include <iostream>
 #include <vector>
 class HasherSHA256 {
 private:

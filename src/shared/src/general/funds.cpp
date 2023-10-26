@@ -1,8 +1,15 @@
 #include "funds.hpp"
+#include "general/errors.hpp"
 #include "general/params.hpp"
 #include "general/writer.hpp"
 #include <cassert>
 #include <cstring>
+Funds Funds::throw_parse(std::string_view s){
+    if (auto o{Funds::parse(s)}; o.has_value()) {
+        return *o;
+    }
+    throw Error(EMALFORMED);
+}
 
 void Funds::assert_bounds() const
 {
@@ -68,13 +75,14 @@ std::string Funds::to_string() const
     }
 }
 
-std::optional<Funds> Funds::parse(std::string s)
+
+std::optional<Funds> Funds::parse(std::string_view s)
 {
     char buf[17]; // 16 digits max for WRT balances
     size_t dotindex = 0;
     bool dotfound = false;
     size_t i;
-    for (i = 0; s[i] != '\0'; ++i) {
+    for (i = 0; i<s.length(); ++i) {
         if (i >= 18 || (i == 17 && dotfound == false))
             return {}; // too many digits
         char c = s[i];

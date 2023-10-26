@@ -206,10 +206,10 @@ int process(gengetopt_args_info& ai)
             cout << "pinHash: " << serialize_hex(pin.second) << endl;
             std::string msg;
 
-            int code = endpoint.send_transaction(m, &msg);
+            auto [code,error] = endpoint.send_transaction(m);
 
             if (code) {
-                cout << "Transaction rejected (code " << code << "): " << msg;
+                cout << "Transaction rejected (code " << code << "): " << error;
                 return -1;
             } else {
                 cout << "Transaction accepted.";

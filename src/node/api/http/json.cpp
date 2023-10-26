@@ -443,6 +443,18 @@ nlohmann::json to_json(const chainserver::TransactionIds& txids)
     }
     return j;
 }
+
+nlohmann::json to_json(const API::Round16Bit& e){
+    auto c{CompactUInt::compact(e.original)};
+    return json{
+        {"originalE8", e.original.E8()},
+        {"originalAmount", e.original.to_string()},
+        {"roundedE8", c.uncompact().E8()},
+        {"roundedAmount", c.uncompact().to_string()},
+        {"16bit", c.value()}
+    };
+};
+
 std::string endpoints(const Eventloop& e)
 {
     auto [verified, failed, unverified, pending] = Inspector::endoints(e);
@@ -473,5 +485,6 @@ std::string ip_counter(const Conman& e)
     }
     return j.dump(1);
 }
+
 
 } // namespace jsonmsg

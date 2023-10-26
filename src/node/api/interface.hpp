@@ -26,6 +26,10 @@ void get_verified_addresses(PeerServer::BannedCB cb);
 
 void get_connected_peers2(PeersCb&& cb);
 
+// tools functions
+void get_round16bit_e8(uint64_t e8, RoundCb cb);
+void get_round16bit_funds(Funds e8, RoundCb cb);
+
 // chain functions
 void get_block_head(HeadCb cb);
 void get_chain_mine(const Address& a, MiningCb cb);

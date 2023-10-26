@@ -113,6 +113,11 @@ struct Peerinfo {
     uint32_t since;
     uint16_t port;
 };
+
+struct Round16Bit {
+    Funds original;
+};
+
 using OffenseEntry = ::OffenseEntry;
 
 }

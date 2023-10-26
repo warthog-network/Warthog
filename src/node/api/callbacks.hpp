@@ -32,6 +32,7 @@ using TxcacheCb = std::function<void(const tl::expected<chainserver::Transaction
 using HashrateCb = std::function<void(const tl::expected<API::HashrateInfo, int32_t>&)>;
 
 using HeadCb = std::function<void(const tl::expected<API::Head, int32_t>&)>;
+using RoundCb = std::function<void(const tl::expected<API::Round16Bit, int32_t>&)>;
 using HeaderdownloadCb = std::function<void(const HeaderDownload::Downloader&)>;
 using HeaderCb = std::function<void(const tl::expected<Header, int32_t>&)>;
 using HashCb = std::function<void(const tl::expected<Hash, int32_t>&)>;

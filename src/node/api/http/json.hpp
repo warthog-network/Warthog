@@ -21,6 +21,7 @@ nlohmann::json to_json(const API::HashrateInfo&);
 nlohmann::json to_json(const OffenseEntry& e);
 nlohmann::json to_json(const std::optional<SignedSnapshot>&);
 nlohmann::json to_json(const chainserver::TransactionIds&);
+nlohmann::json to_json(const API::Round16Bit&);
 template <typename T>
 inline nlohmann::json to_json(const std::vector<T>& e)
 {
@@ -91,5 +92,6 @@ std::string endpoints(const Eventloop&);
 std::string connect_timers(const Eventloop&);
 std::string header_download(const Eventloop&);
 std::string ip_counter(const Conman&);
+
 
 }

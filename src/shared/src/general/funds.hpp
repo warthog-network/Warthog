@@ -8,11 +8,13 @@ class CompactUInt;
 class Funds : public IsUint64 {
 public:
     using IsUint64::IsUint64;
-    static std::optional<Funds> parse(std::string);
+    static std::optional<Funds> parse(std::string_view);
+    static Funds throw_parse(std::string_view);
     bool overflow()
     {
         return val > MAXSUPPLY;
     }
+    Funds(std::string_view);
     bool is_zero() const { return val == 0; }
     void assert_bounds() const;
     std::string format() const;

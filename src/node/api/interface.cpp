@@ -45,6 +45,14 @@ void get_connected_peers2(PeersCb&& cb)
     global().pel->api_get_peers(std::move(cb));
 }
 
+void get_round16bit_e8(uint64_t e8, RoundCb cb){
+    cb(API::Round16Bit{Funds(e8)});
+};
+
+void get_round16bit_funds(Funds f, RoundCb cb){
+    cb(API::Round16Bit{f});
+};
+
 // chain functions
 void get_block_head(HeadCb f)
 {
