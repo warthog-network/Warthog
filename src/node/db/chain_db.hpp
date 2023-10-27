@@ -49,6 +49,10 @@ struct Column2 : public SQLite::Column {
     {
         return getInt64();
     }
+    operator HistoryId()
+    {
+        return HistoryId(int64_t(getInt64()));
+    }
     operator AccountId()
     {
         return AccountId(int64_t(getInt64()));
@@ -109,7 +113,7 @@ struct Statement2 : public SQLite::Statement {
         assert(id< std::numeric_limits<uint64_t>::max());
         SQLite::Statement::bind(index, (int64_t)id);
     };
-    void bind(const int index, AccountId id)
+    void bind(const int index, IsUint64 id)
     {
         SQLite::Statement::bind(index, (int64_t)id.value());
     };
@@ -244,7 +248,7 @@ public:
 
     void delete_state_from(AccountId fromAccountId);
     // void setStateBalance(AccountId accountId, Funds balance);
-    void insert_consensus(NonzeroHeight height, BlockId blockId, int64_t historyCursor, AccountId accountCursor);
+    void insert_consensus(NonzeroHeight height, BlockId blockId, HistoryId historyCursor, AccountId accountCursor);
     std::tuple<std::vector<Batch>, HistoryHeights, AccountHeights>
     getConsensusHeaders() const;
 
@@ -283,6 +287,10 @@ public:
     [[nodiscard]] API::Richlist lookup_richlist(size_t N) const;
     [[nodiscard]] AddressFunds fetch_account(AccountId id) const;
 
+    /////////////////////
+    // Transactions functions
+    [[nodiscard]] API::Richlist look(size_t N) const;
+
     ///////////////
     // Deleteschedule functions
 
@@ -303,20 +311,20 @@ public:
     void insert_bad_block(NonzeroHeight height, const HeaderView header);
 
     AccountId next_state_id() const { return AccountId(cache.maxStateId + 1); };
-    uint64_t insertHistory(const HashView hash,
+    HistoryId insertHistory(const HashView hash,
         const std::vector<uint8_t>& data);
     void delete_history_from(NonzeroHeight);
-    std::optional<std::pair<std::vector<uint8_t>, uint64_t>> lookup_history(const HashView hash);
+    std::optional<std::pair<std::vector<uint8_t>, HistoryId>> lookup_history(const HashView hash);
 
     std::vector<std::pair<Hash, std::vector<uint8_t>>>
-    lookupHistoryRange(int64_t lower, int64_t upper);
-    void insertAccountHistory(AccountId accountId, int64_t historyId);
-    uint64_t next_history_id() const { return cache.nextHistoryId; }
+    lookupHistoryRange(HistoryId lower, HistoryId upper);
+    void insertAccountHistory(AccountId accountId, HistoryId historyId);
+    HistoryId next_history_id() const { return cache.nextHistoryId; }
 
     //////////////////////////////
     // BELOW METHODS REQUIRED FOR INDEXING NODES
     std::optional<std::tuple<AccountId, Funds>> lookup_address(const AddressView address) const; // for indexing nodes
-    std::vector<std::tuple<uint64_t, Hash, std::vector<uint8_t>>> lookup_history_100_desc(AccountId account_id, int64_t beforeId);
+    std::vector<std::tuple<HistoryId, Hash, std::vector<uint8_t>>> lookup_history_100_desc(AccountId account_id, int64_t beforeId);
 
 
 
@@ -366,7 +374,7 @@ private:
     } createTables;
     struct Cache {
         AccountId maxStateId;
-        uint64_t nextHistoryId;
+        HistoryId nextHistoryId;
         DeletionKey deletionKey;
         static Cache init(SQLite::Database& db);
     } cache;

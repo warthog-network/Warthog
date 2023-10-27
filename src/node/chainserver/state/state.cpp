@@ -24,30 +24,34 @@ State::State(ChainDB& db, BatchRegistry& br, std::optional<SnapshotSigner> snaps
     , snapshotSigner(std::move(snapshotSigner))
     , signedSnapshot(db.get_signed_snapshot())
     , chainstate(db, br)
-    , nextGarbageCollect(std::chrono::steady_clock::now()) {}
+    , nextGarbageCollect(std::chrono::steady_clock::now())
+{
+}
 
 std::optional<Header> State::get_header(Height h) const
 {
     return chainstate.headers().get_header(h);
 }
 
-auto State::api_get_header(API::HeightOrHash& hh) const -> std::optional<Header>{
+auto State::api_get_header(API::HeightOrHash& hh) const -> std::optional<Header>
+{
     if (std::holds_alternative<Height>(hh.data)) {
         return get_header(std::get<Height>(hh.data));
     }
-    auto h{ consensus_height(std::get<Hash>(hh.data))};
-    if (!h.has_value()) 
+    auto h { consensus_height(std::get<Hash>(hh.data)) };
+    if (!h.has_value())
         return {};
     return get_header(*h);
 }
 
-std::optional<NonzeroHeight> State::consensus_height(const Hash& hash) const{
-    auto o{db.lookup_block_height(hash)};
-    if (!o.has_value()) 
+std::optional<NonzeroHeight> State::consensus_height(const Hash& hash) const
+{
+    auto o { db.lookup_block_height(hash) };
+    if (!o.has_value())
         return {};
-    auto &h{o.value()};
-    auto hash2{chainstate.headers().get_hash(h)};
-    if (!hash2.has_value() || *hash2 != hash) 
+    auto& h { o.value() };
+    auto hash2 { chainstate.headers().get_hash(h) };
+    if (!hash2.has_value() || *hash2 != hash)
         return {};
     return h;
 }
@@ -62,32 +66,31 @@ std::optional<API::Block> State::api_get_block(const API::HeightOrHash& hh) cons
     if (std::holds_alternative<Height>(hh.data)) {
         return api_get_block(std::get<Height>(hh.data));
     }
-    auto h{ consensus_height(std::get<Hash>(hh.data))};
-    if (!h.has_value()) 
+    auto h { consensus_height(std::get<Hash>(hh.data)) };
+    if (!h.has_value())
         return {};
     return api_get_block(*h);
 }
 
 std::optional<API::Block> State::api_get_block(Height zh) const
 {
-        if (zh == 0 || zh > chainlength())
-            return {};
-        auto h { zh.nonzero_assert() };
-        PinFloor pinFloor { h - 1 };
-        size_t lower = chainstate.historyOffset(h);
-        size_t upper = (h == chainlength() ? 0
-                : chainstate.historyOffset(h + 1));
-        auto entries = db.lookupHistoryRange(lower, upper);
-        auto header = chainstate.headers()[h];
-        API::Block b(header, h, chainlength() - h + 1);
+    if (zh == 0 || zh > chainlength())
+        return {};
+    auto h { zh.nonzero_assert() };
+    PinFloor pinFloor { h - 1 };
+    auto lower = chainstate.historyOffset(h);
+    auto upper = (h == chainlength() ? HistoryId { 0 }
+                                     : chainstate.historyOffset(h + 1));
+    auto entries = db.lookupHistoryRange(lower, upper);
+    auto header = chainstate.headers()[h];
+    API::Block b(header, h, chainlength() - h + 1);
 
-        chainserver::AccountCache cache(db);
-        for (auto [hash, data] : entries) {
-            b.push_history(hash, data, cache, pinFloor);
-        }
-        return b;
+    chainserver::AccountCache cache(db);
+    for (auto [hash, data] : entries) {
+        b.push_history(hash, data, cache, pinFloor);
+    }
+    return b;
 }
-
 
 auto State::api_tx_cache() const -> const TransactionIds
 {
@@ -148,6 +151,45 @@ std::optional<API::Transaction> State::api_get_tx(const HashView txHash) const
         }
     }
     return {};
+}
+
+auto State::api_get_latest_txs(size_t N) const -> API::TransactionsByBlocks
+{
+    HistoryId upper { db.next_history_id() };
+    // note: history ids start with 1
+    HistoryId lower { (upper.value() > N + 1) ? db.next_history_id() - N : HistoryId { 1 } };
+    API::TransactionsByBlocks res { .fromId { lower }, .blocks_reversed{}};
+    if (upper.value() == 0)
+        return res;
+    auto lookup { db.lookupHistoryRange(lower, upper) };
+    assert(lookup.size() == upper - lower);
+    assert(lookup.size() > 0);
+
+    chainserver::AccountCache cache(db);
+    auto update_tmp = [&](auto id) {
+        auto h { chainstate.history_height(id) };
+        PinFloor pinFloor { h - 1 };
+        auto header { chainstate.headers()[h] };
+        auto b { API::Block(header, h, chainlength() - h + 1) };
+        auto beginId { chainstate.historyOffset(h) };
+        return std::tuple { pinFloor, beginId, b };
+    };
+    auto tmp { update_tmp(upper - 1) };
+
+    for (size_t i = 0; i < lookup.size(); ++i) {
+        auto& [pinFloor, beginId, block] { tmp };
+        auto id { upper - 1 - i };
+        if (id < beginId) { // start new tmp block
+            res.blocks_reversed.push_back(block);
+            tmp = update_tmp(upper - 1);
+        }
+
+        auto& [hash, data] = lookup[lookup.size() - 1 - i];
+        block.push_history(hash, data, cache, pinFloor);
+    }
+    res.count = lookup.size();
+    res.blocks_reversed.push_back(std::get<2>(tmp));
+    return res;
 }
 
 void State::garbage_collect()
@@ -484,7 +526,7 @@ auto State::append_mined_block(const Block& b) -> StateUpdate
         .signedSnapshot { signedSnapshot },
         .prepared { prepared.value() },
         .newTxIds { e.move_new_txids() },
-        .newHistoryOffset = nextHistoryId,
+        .newHistoryOffset { nextHistoryId },
         .newAccountOffset { nextAccountId } });
     ul.unlock();
 
@@ -568,7 +610,7 @@ auto State::api_get_mempool(size_t) -> API::MempoolEntries
     return out;
 }
 
-auto State::api_get_history(Address a, uint64_t beforeId) -> std::optional<API::History>
+auto State::api_get_history(Address a, uint64_t beforeId) -> std::optional<API::AccountHistory>
 {
     auto p = db.lookup_address(a);
     if (!p)
@@ -578,13 +620,13 @@ auto State::api_get_history(Address a, uint64_t beforeId) -> std::optional<API::
     std::vector entries_desc = db.lookup_history_100_desc(accountId, beforeId);
     std::vector<API::Block> blocks_reversed;
     PinFloor pinFloor { 0 };
-    uint64_t firstHistoryId = 0;
-    uint64_t nextHistoryOffset = 0;
+    auto firstHistoryId = HistoryId { 0 };
+    auto nextHistoryOffset = HistoryId { 0 };
     chainserver::AccountCache cache(db);
 
-    uint64_t prevHistoryId = 0;
+    auto prevHistoryId = HistoryId { 0 };
     for (auto& [historyId, txid, data] : std::ranges::reverse_view { entries_desc }) {
-        if (firstHistoryId == 0)
+        if (firstHistoryId == HistoryId { 0 })
             firstHistoryId = historyId;
         assert(prevHistoryId < historyId);
         prevHistoryId = historyId;
@@ -594,7 +636,7 @@ auto State::api_get_history(Address a, uint64_t beforeId) -> std::optional<API::
             auto header = chainstate.headers()[height];
             bool b = height == chainlength();
             nextHistoryOffset = (b
-                    ? std::numeric_limits<uint64_t>::max()
+                    ? HistoryId { std::numeric_limits<uint64_t>::max() }
                     : chainstate.historyOffset(height + 1));
             blocks_reversed.push_back(
                 API::Block(header, height, 1 + (chainlength() - height)));
@@ -603,7 +645,7 @@ auto State::api_get_history(Address a, uint64_t beforeId) -> std::optional<API::
         b.push_history(txid, data, cache, pinFloor);
     }
 
-    return API::History {
+    return API::AccountHistory {
         .balance = balance,
         .fromId = firstHistoryId,
         .blocks_reversed = blocks_reversed

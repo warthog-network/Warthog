@@ -11,6 +11,7 @@
 #include "eventloop/sync/sync.hpp"
 #include "general/errors.hpp"
 #include "general/hex.hpp"
+#include <ranges>
 
 using namespace std::chrono;
 using namespace nlohmann;
@@ -49,7 +50,7 @@ struct Inspector {
             { "pendingDepth", d.pendingDepth }
         };
         {
-            json qb = json::array();
+            json qb;
             for (auto& [header, node] : d.queuedBatches) {
                 qb[serialize_hex(header)]
                     = json {
@@ -163,7 +164,7 @@ json header_json(const Header& header)
     return h;
 }
 
-json body_json(const API::Block& b)
+[[nodiscard]] json body_json(const API::Block& b)
 {
     json out;
     { // rewards
@@ -303,6 +304,20 @@ json to_json(const API::Transaction& tx)
         tx);
 }
 
+json to_json(const API::TransactionsByBlocks& txs){
+    json arr{json::array()};
+    for (auto &b : std::ranges::reverse_view(txs.blocks_reversed)) {
+        arr.push_back(body_json(b));
+    }
+    return json{
+        {"fromId",txs.fromId},
+        {"count",txs.count},
+        {"perBlock",arr}
+    };
+
+    return arr;
+}
+
 json to_json(const API::Block& block)
 {
     json j;
@@ -316,7 +331,7 @@ json to_json(const API::Block& block)
     return j;
 }
 
-json to_json(const API::History& h)
+json to_json(const API::AccountHistory& h)
 {
     json a = json::array();
     auto& reversed = h.blocks_reversed;

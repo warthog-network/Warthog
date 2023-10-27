@@ -73,6 +73,7 @@ void nav(uWS::HttpResponse<false>* res, uWS::HttpRequest*)
             <li>POST <a href=/transaction/add>/transaction/add</a> </li>
             <li>GET <a href=/transaction/mempool>/transaction/mempool</a></li>
             <li>GET <a href=/transaction/lookup/:txid>/transaction/lookup/:txid </a></li>
+            <li>GET <a href=/transaction/latest>/transaction/lookup/latest </a></li>
         </ul>
         <h2>Chain endpoints</h2>
         <ul>
@@ -127,6 +128,7 @@ void HTTPEndpoint::work()
     post("/transaction/add", parse_payment_create, put_mempool);
     get("/transaction/mempool", get_mempool);
     get_1("/transaction/lookup/:txid", lookup_tx);
+    get("/transaction/latest", get_latest_transactions);
 
     // Chain endpoints
     get("/chain/head", get_block_head, jsonmsg::serialize<API::Head>);

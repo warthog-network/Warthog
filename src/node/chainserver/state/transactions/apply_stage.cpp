@@ -21,7 +21,7 @@ ApplyStageTransaction::ApplyStageTransaction(const State& s, ChainDBTransaction&
     auto& baseTxIds { rb ? rb->chainTxIds : ccs.chainstate.txids() };
     chainserver::BlockApplier ba { ccs.db, ccs.stage, baseTxIds, true };
     for (NonzeroHeight h = (chainlength + 1).nonzero_assert(); h <= ccs.stage.length(); ++h) {
-        uint64_t historyId { ccs.db.next_history_id() };
+        auto historyId { ccs.db.next_history_id() };
         AccountId accountId { ccs.db.next_state_id() };
         auto hash { ccs.stage.hash_at(h) };
         auto p = ccs.db.get_block(hash);

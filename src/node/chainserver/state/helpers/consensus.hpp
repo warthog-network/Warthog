@@ -5,6 +5,7 @@
 #include "block/body/account_id.hpp"
 #include "block/chain/consensus_headers.hpp"
 #include "block/chain/offsts.hpp"
+#include "block/chain/history/index.hpp"
 #include "mempool/mempool.hpp"
 #include "db/chain/deletion_key.hpp"
 #include <cstdint>
@@ -18,7 +19,7 @@ struct RollbackResult {
     DeletionKey deletionKey;
 };
 struct AppendBlocksResult {
-    std::vector<uint64_t> newHistoryOffsets;
+    std::vector<HistoryId> newHistoryOffsets;
     std::vector<AccountId> newAccountOffsets;
     TransactionIds newTxIds;
 };
@@ -40,7 +41,7 @@ struct Chainstate {
         std::optional<SignedSnapshot>& signedSnapshot;
         HeaderVerifier::PreparedAppend prepared;
         TransactionIds&& newTxIds;
-        uint64_t newHistoryOffset;
+        HistoryId newHistoryOffset;
         AccountId newAccountOffset;
     };
     Chainstate(const ChainDB& db, BatchRegistry& br);
@@ -68,11 +69,11 @@ struct Chainstate {
     Descriptor descriptor() const { return dsc; }
     const auto& txids() const { return chainTxIds; }
     const auto& mempool() const { return _mempool; }
-    inline size_t historyOffset(NonzeroHeight height) const
+    inline auto historyOffset(NonzeroHeight height) const
     {
         return historyOffsets.at(height);
     };
-    NonzeroHeight history_height(uint64_t historyIndex) const
+    NonzeroHeight history_height(HistoryId historyIndex) const
     {
         return historyOffsets.height(historyIndex);
     }

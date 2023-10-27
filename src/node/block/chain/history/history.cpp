@@ -132,8 +132,8 @@ std::optional<V> check(uint8_t indicator, Reader& r)
     return check<V, T::indicator, S...>(indicator, r);
 }
 
-template <typename V, typename T, typename... S>
-std::optional<V> check_first(uint8_t indicator, Reader& r)
+template <typename Variant, typename T, typename... S>
+std::optional<Variant> check_first(uint8_t indicator, Reader& r)
 {
     if (T::indicator == indicator) {
         auto p = T::parse(r);
@@ -141,23 +141,23 @@ std::optional<V> check_first(uint8_t indicator, Reader& r)
             return p;
         return *p;
     }
-    return check<V, T::indicator, S...>(indicator, r);
+    return check<Variant, T::indicator, S...>(indicator, r);
 }
 
 template <typename... Types>
 auto parse_recursive(Reader& r)
 {
-    using ret_type = std::variant<Types...>;
+    using Variant = std::variant<Types...>;
     auto indicator { r.uint8() };
-    return check_first<ret_type, Types...>(indicator, r);
+    return check_first<Variant, Types...>(indicator, r);
 }
 
 template <typename T>
-class TypeExtractor {
+class VariantParser {
 };
 
 template <typename... Types>
-struct TypeExtractor<std::variant<Types...>> {
+struct VariantParser<std::variant<Types...>> {
     static auto parse(std::vector<uint8_t>& v)
     {
         Reader r(v);
@@ -170,6 +170,6 @@ struct TypeExtractor<std::variant<Types...>> {
 
 std::optional<Data> parse(std::vector<uint8_t> v)
 {
-    return TypeExtractor<Data>::parse(v);
+    return VariantParser<Data>::parse(v);
 }
 }

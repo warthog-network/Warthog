@@ -83,6 +83,10 @@ void ChainServer::api_lookup_tx(const HashView hash,
 {
     defer_maybe_busy(LookupTxHash { hash, std::move(callback) });
 }
+void ChainServer::api_lookup_latest_txs(LatestTxsCb callback)
+{
+    defer_maybe_busy(LookupLatestTxs { std::move(callback) });
+}
 
 void ChainServer::async_get_head(HeadCb callback)
 {
@@ -181,7 +185,7 @@ void ChainServer::workerfun()
     }
 }
 
-int32_t ChainServer::append_gentx(const PaymentCreateMessage &m)
+int32_t ChainServer::append_gentx(const PaymentCreateMessage& m)
 {
     auto r = state.append_gentx(m);
     if (!r.has_value())
@@ -239,6 +243,10 @@ void ChainServer::handle_event(LookupTxHash&& e)
 {
     e.callback(noval_to_err(state.api_get_tx(e.hash)));
 }
+
+void ChainServer::handle_event(LookupLatestTxs&& e){
+    e.callback(state.api_get_latest_txs());
+};
 
 void ChainServer::handle_event(SetSynced&& e)
 {

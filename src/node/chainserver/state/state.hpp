@@ -65,10 +65,11 @@ public:
     // api getters
     auto api_get_address(AddressView) -> API::Balance;
     auto api_get_head() const -> API::Head;
-    auto api_get_history(Address a, uint64_t beforeId) -> std::optional<API::History>;
+    auto api_get_history(Address a, uint64_t beforeId) -> std::optional<API::AccountHistory>;
     auto api_get_richlist(size_t N) -> API::Richlist;
     auto api_get_mempool(size_t) -> API::MempoolEntries;
     auto api_get_tx(HashView hash) const -> std::optional<API::Transaction>;
+    auto api_get_latest_txs(size_t N=100) const -> API::TransactionsByBlocks;
     auto api_get_header(API::HeightOrHash& h) const -> std::optional<Header>;
     auto api_get_block(const API::HeightOrHash& h) const -> std::optional<API::Block>;
     auto api_tx_cache() const -> const TransactionIds;

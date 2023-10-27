@@ -152,20 +152,26 @@ private:
 };
 
 struct InsertHistoryEntry {
-    InsertHistoryEntry(const RewardInternal& p, uint64_t historyId)
+    InsertHistoryEntry(const RewardInternal& p, HistoryId historyId)
         : he(p)
-        , historyId(historyId) {}
-    InsertHistoryEntry(const VerifiedTransfer& t, uint64_t historyId)
+        , historyId(historyId)
+    {
+    }
+    InsertHistoryEntry(const VerifiedTransfer& t, HistoryId historyId)
         : he(t)
-        , historyId(historyId) {}
+        , historyId(historyId)
+    {
+    }
     history::Entry he;
-    uint64_t historyId;
+    HistoryId historyId;
 };
 
 struct HistoryEntries {
-    HistoryEntries(uint64_t nextHistoryId)
-        : nextHistoryId(nextHistoryId) {}
-    uint64_t nextHistoryId;
+    HistoryEntries(HistoryId nextHistoryId)
+        : nextHistoryId(nextHistoryId)
+    {
+    }
+    HistoryId nextHistoryId;
     void push_reward(const RewardInternal& r)
     {
         insertHistory.emplace_back(r, nextHistoryId);
@@ -185,7 +191,7 @@ struct HistoryEntries {
     {
         // insert history for payouts and payments
         for (auto& p : insertHistory) {
-            uint64_t inserted = db.insertHistory(p.he.hash, p.he.data);
+            auto inserted { db.insertHistory(p.he.hash, p.he.data) };
             assert(p.historyId == inserted);
         }
         // insert account history
@@ -194,7 +200,7 @@ struct HistoryEntries {
         }
     }
     std::vector<InsertHistoryEntry> insertHistory;
-    std::vector<std::pair<AccountId, uint64_t>> insertAccountHistry;
+    std::vector<std::pair<AccountId, HistoryId>> insertAccountHistry;
 };
 
 } // namespace
@@ -206,7 +212,7 @@ struct Preparation {
     std::vector<std::tuple<AddressView, Funds, AccountId>> insertBalances;
     HistoryEntries historyEntries;
     RollbackGenerator rg;
-    Preparation(uint64_t nextHistoryId, AccountId beginNewAccountId)
+    Preparation(HistoryId nextHistoryId, AccountId beginNewAccountId)
         : historyEntries(nextHistoryId)
         , rg(beginNewAccountId)
     {
@@ -243,7 +249,7 @@ Preparation BlockApplier::Preparer::prepare(const BodyView& bv, const NonzeroHei
 
     // Read reward section
     Funds totalpayout { 0 };
-    for (auto r: bv.rewards()){
+    for (auto r : bv.rewards()) {
         Funds amount { r.amount() };
         balanceChecker.register_reward(r.account_id(), amount, r.offset);
         totalpayout += amount;
@@ -252,7 +258,7 @@ Preparation BlockApplier::Preparer::prepare(const BodyView& bv, const NonzeroHei
     }
 
     // Read transfer section
-    for (auto t : bv.transfers()) 
+    for (auto t : bv.transfers())
         balanceChecker.register_transfer(t);
 
     if (totalpayout > height.reward() + balanceChecker.getTotalFee())
@@ -264,7 +270,7 @@ Preparation BlockApplier::Preparer::prepare(const BodyView& bv, const NonzeroHei
     for (auto& [id, accountflow] : oldAccounts) {
         if (auto p = db.lookup_account(id); p) {
             // account lookup successful
-            
+
             auto& [address, balance] = *p;
             res.rg.register_balance(id, p->funds);
             balanceChecker.set_address(accountflow, address);

@@ -10,6 +10,8 @@ void put_mempool(PaymentCreateMessage&&, ResultCb);
 void get_mempool(MempoolCb cb);
 void lookup_tx(const Hash hash, TxCb f);
 
+void get_latest_transactions(LatestTxsCb f);
+
 // peer db functions
 void get_banned_peers(PeerServer::BannedCB&& cb);
 void unban_peers(ResultCb&& cb);

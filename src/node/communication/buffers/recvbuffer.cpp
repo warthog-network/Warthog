@@ -36,11 +36,11 @@ V check_first(uint8_t type, Reader& r)
 
 // do metaprogramming dance
 template <typename T>
-class TypeExtractor{
+class VariantParser{
 };
 
 template <typename... Types>
-class TypeExtractor<std::variant<Types...>>{
+class VariantParser<std::variant<Types...>>{
     public:
         static auto parse(uint8_t type, Reader& r){
             using ret_t = std::variant<Types...>;
@@ -49,7 +49,6 @@ class TypeExtractor<std::variant<Types...>>{
                 throw Error(EMALFORMED);
             return res;
         }
-    static constexpr int foo=1;
 };
 
 }
@@ -58,5 +57,5 @@ messages::Msg Rcvbuffer::parse()
 {
     using namespace messages;
     Reader r(*this);
-    return TypeExtractor<messages::Msg>::parse(type(),r);
+    return VariantParser<messages::Msg>::parse(type(),r);
 }

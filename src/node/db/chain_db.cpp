@@ -21,7 +21,7 @@ ChainDB::Cache ChainDB::Cache::init(SQLite::Database& db)
         throw std::runtime_error("Database corrupted, negative history id.");
     return {
         .maxStateId { maxStateId },
-        .nextHistoryId = uint64_t(hid),
+        .nextHistoryId = HistoryId{uint64_t(hid)},
         .deletionKey { 2 }
     };
 }
@@ -301,7 +301,7 @@ void ChainDB::set_block_undo(BlockId id, const std::vector<uint8_t>& undo)
     stmtUndoSet.run(undo, id);
 }
 
-void ChainDB::insert_consensus(NonzeroHeight height, BlockId blockId, int64_t historyCursor, AccountId accountCursor)
+void ChainDB::insert_consensus(NonzeroHeight height, BlockId blockId, HistoryId historyCursor, AccountId accountCursor)
 {
     stmtConsensusInsert.run(height, blockId, historyCursor, accountCursor);
     stmtScheduleDelete2.run(blockId);
@@ -319,7 +319,7 @@ std::tuple<std::vector<Batch>, HistoryHeights, AccountHeights> ChainDB::getConse
         if (h != r.get<Height>(0)) { // corrupted
             throw std::runtime_error("Database corrupted, block height not consecutive");
         }
-        historyHeights.append(r.get<uint64_t>(1));
+        historyHeights.append(r.get<HistoryId>(1));
         accountHeights.append(r.get<AccountId>(2));
         Header header { r.get_array<80>(3) };
         if (b.size() >= HEADERBATCHSIZE) {
@@ -353,10 +353,10 @@ ChainDB::getBadblocks() const
     return res;
 }
 
-uint64_t ChainDB::insertHistory(const HashView hash,
+HistoryId ChainDB::insertHistory(const HashView hash,
     const std::vector<uint8_t>& data)
 {
-    stmtHistoryInsert.run((int64_t)cache.nextHistoryId, hash, data);
+    stmtHistoryInsert.run((int64_t)cache.nextHistoryId.value(), hash, data);
     return cache.nextHistoryId++;
 }
 
@@ -366,27 +366,27 @@ void ChainDB::delete_history_from(NonzeroHeight h)
     assert(nextHistoryId >= 0);
     stmtHistoryDeleteFrom.run(nextHistoryId);
     stmtAccountHistoryDeleteFrom.run(h);
-    cache.nextHistoryId = nextHistoryId;
+    cache.nextHistoryId = HistoryId{nextHistoryId};
 }
 
-std::optional<std::pair<std::vector<uint8_t>, uint64_t>> ChainDB::lookup_history(const HashView hash)
+std::optional<std::pair<std::vector<uint8_t>, HistoryId>> ChainDB::lookup_history(const HashView hash)
 {
     auto o = stmtHistoryLookup.one(hash);
     if (!o.has_value())
         return {};
-    auto index { o.get<int64_t>(0) };
-    assert(index > 0);
+    auto index { HistoryId{o.get<int64_t>(0)} };
+    assert(index > HistoryId{0});
     return std::pair {
         o.get_vector(1),
         index
     };
 }
 
-std::vector<std::pair<Hash, std::vector<uint8_t>>> ChainDB::lookupHistoryRange(int64_t lower, int64_t upper)
+std::vector<std::pair<Hash, std::vector<uint8_t>>> ChainDB::lookupHistoryRange(HistoryId lower, HistoryId upper)
 {
     std::vector<std::pair<Hash, std::vector<uint8_t>>> out;
-    int64_t l = lower;
-    int64_t u = (upper == 0 ? std::numeric_limits<int64_t>::max() : upper);
+    int64_t l = lower.value();
+    int64_t u = (upper == HistoryId{0} ? std::numeric_limits<int64_t>::max() : upper.value());
     stmtHistoryLookupRange.for_each([&](Statement2::Row& r) {
         out.push_back(
             { r.get_array<32>(0),
@@ -396,7 +396,7 @@ std::vector<std::pair<Hash, std::vector<uint8_t>>> ChainDB::lookupHistoryRange(i
     return out;
 }
 
-void ChainDB::insertAccountHistory(AccountId accountId, int64_t historyId)
+void ChainDB::insertAccountHistory(AccountId accountId, HistoryId historyId)
 {
     stmtAccountHistoryInsert.run(accountId, historyId);
 }
@@ -412,13 +412,13 @@ std::optional<std::tuple<AccountId, Funds>> ChainDB::lookup_address(const Addres
     };
 }
 
-std::vector<std::tuple<uint64_t, Hash, std::vector<uint8_t>>> ChainDB::lookup_history_100_desc(
+std::vector<std::tuple<HistoryId, Hash, std::vector<uint8_t>>> ChainDB::lookup_history_100_desc(
     AccountId accountId, int64_t beforeId)
 {
-    std::vector<std::tuple<uint64_t, Hash, std::vector<uint8_t>>> out;
+    std::vector<std::tuple<HistoryId, Hash, std::vector<uint8_t>>> out;
     stmtHistoryById.for_each(
         [&](Statement2::Row& row) {
-            out.push_back({ row.get<uint64_t>(0),
+            out.push_back({ HistoryId{row.get<uint64_t>(0)},
                 row.get_array<32>(1),
                 row.get_vector(2) });
         },

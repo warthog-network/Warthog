@@ -1,6 +1,7 @@
 #pragma once
 
 #include "block/body/primitives.hpp"
+#include "block/chain/history/index.hpp"
 #include "block/chain/signed_snapshot.hpp"
 #include "block/chain/worksum.hpp"
 #include "block/header/header.hpp"
@@ -83,9 +84,14 @@ struct Block {
     {
     }
 };
-struct History {
+struct AccountHistory {
     Funds balance;
-    uint64_t fromId;
+    HistoryId fromId;
+    std::vector<API::Block> blocks_reversed;
+};
+struct TransactionsByBlocks {
+    size_t count {0};
+    HistoryId fromId;
     std::vector<API::Block> blocks_reversed;
 };
 struct Richlist{
