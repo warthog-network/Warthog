@@ -18,8 +18,8 @@ using namespace nlohmann;
 namespace {
 std::string format_utc(uint32_t timestamp)
 {
-    std::chrono::system_clock::time_point tp{std::chrono::seconds(timestamp)};
-    auto tt{std::chrono::system_clock::to_time_t(tp)};
+    std::chrono::system_clock::time_point tp { std::chrono::seconds(timestamp) };
+    auto tt { std::chrono::system_clock::to_time_t(tp) };
     auto utc_f = *std::gmtime(&tt);
     std::string out;
     out.resize(30);
@@ -304,15 +304,16 @@ json to_json(const API::Transaction& tx)
         tx);
 }
 
-json to_json(const API::TransactionsByBlocks& txs){
-    json arr{json::array()};
-    for (auto &b : std::ranges::reverse_view(txs.blocks_reversed)) {
+json to_json(const API::TransactionsByBlocks& txs)
+{
+    json arr { json::array() };
+    for (auto& b : std::ranges::reverse_view(txs.blocks_reversed)) {
         arr.push_back(body_json(b));
     }
-    return json{
-        {"fromId",txs.fromId},
-        {"count",txs.count},
-        {"perBlock",arr}
+    return json {
+        { "fromId", txs.fromId },
+        { "count", txs.count },
+        { "perBlock", arr }
     };
 
     return arr;
@@ -354,13 +355,12 @@ json to_json(const API::AccountHistory& h)
 json to_json(const API::Richlist& l)
 {
     json a = json::array();
-    for (auto& [address,balance] : l.entries) {
+    for (auto& [address, balance] : l.entries) {
         json elem;
         elem["address"] = address.to_string();
         elem["balance"] = balance.to_string();
         elem["balanceE8"] = balance.E8();
         a.push_back(elem);
-        
     }
     return a;
 }
@@ -368,6 +368,18 @@ json to_json(const API::HashrateInfo& hi)
 {
     return json {
         { "last100BlocksEstimate", hi.by100Blocks }
+    };
+}
+
+json to_json(const API::HashrateChart& c)
+{
+    json data(json::array());
+    for (const auto& v : c.chart) {
+        data.push_back(v);
+    }
+    return json {
+        { "range", json { { "min", c.range.begin }, { "max", c.range.end } } },
+        { "data", data }
     };
 }
 
@@ -459,14 +471,15 @@ nlohmann::json to_json(const chainserver::TransactionIds& txids)
     return j;
 }
 
-nlohmann::json to_json(const API::Round16Bit& e){
-    auto c{CompactUInt::compact(e.original)};
-    return json{
-        {"originalE8", e.original.E8()},
-        {"originalAmount", e.original.to_string()},
-        {"roundedE8", c.uncompact().E8()},
-        {"roundedAmount", c.uncompact().to_string()},
-        {"16bit", c.value()}
+nlohmann::json to_json(const API::Round16Bit& e)
+{
+    auto c { CompactUInt::compact(e.original) };
+    return json {
+        { "originalE8", e.original.E8() },
+        { "originalAmount", e.original.to_string() },
+        { "roundedE8", c.uncompact().E8() },
+        { "roundedAmount", c.uncompact().to_string() },
+        { "16bit", c.value() }
     };
 };
 
@@ -500,6 +513,5 @@ std::string ip_counter(const Conman& e)
     }
     return j.dump(1);
 }
-
 
 } // namespace jsonmsg

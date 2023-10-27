@@ -41,6 +41,7 @@ void get_chain_grid(GridCb cb);
 void get_chain_block(API::HeightOrHash, BlockCb cb);
 void get_txcache(TxcacheCb&& cb);
 void get_hashrate(HashrateCb&& cb);
+void get_hashrate_chart(NonzeroHeight from, NonzeroHeight to, HashrateChartCb&& cb);
 void put_chain_append(MiningTask&& mt, ResultCb cb);
 void get_signed_snapshot(Eventloop::SignedSnapshotCb&& cb);
 

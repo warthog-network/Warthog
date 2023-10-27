@@ -110,6 +110,17 @@ struct OffenseHistory {
 struct HashrateInfo {
     uint64_t by100Blocks;
 };
+
+struct HashrateChartRequest {
+    Height begin;
+    Height end;
+};
+
+struct HashrateChart {
+    HashrateChartRequest range;
+    std::vector<double> chart;
+};
+
 struct Peerinfo {
     IPv4 ip;
     bool initialized;

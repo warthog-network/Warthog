@@ -2,6 +2,7 @@
 #include "block/chain/fork_range.hpp"
 #include "block/header/view_inline.hpp"
 #include "communication/messages.hpp"
+#include "api/types/forward_declarations.hpp"
 
 struct HeaderchainAppend {
     std::vector<SharedBatchView> completeBatches;
@@ -82,6 +83,7 @@ public:
 
     void shrink(Height shrinkLength);
     uint64_t hashrate(uint32_t nblocks) const;
+    API::HashrateChart hashrate_chart(NonzeroHeight min, NonzeroHeight max, uint32_t nblocks) const;
 
     size_t nonempty_batch_size() const { return completeBatches.size() + (incompleteBatch.size() > 0 ? 1 : 0); }
     Batch get_headers(NonzeroHeight begin, NonzeroHeight end) const;

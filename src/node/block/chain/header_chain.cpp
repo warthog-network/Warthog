@@ -1,4 +1,5 @@
 #include "header_chain.hpp"
+#include "api/types/all.hpp"
 #include "block/chain/binary_forksearch.hpp"
 #include "block/header/view_inline.hpp"
 #include "crypto/hasher_sha256.hpp"
@@ -125,7 +126,52 @@ uint64_t Headerchain::hashrate(uint32_t nblocks) const
     auto seconds { utime - ltime };
     auto nBlocks { upper - lower };
     assert(nBlocks > 0);
-    return sum_work(lower+1,upper+1).getdouble()/seconds;
+    return sum_work(lower + 1, upper + 1).getdouble() / seconds;
+}
+
+API::HashrateChart Headerchain::hashrate_chart(NonzeroHeight reqmin, NonzeroHeight reqmax, const uint32_t nblocks) const
+{
+    const auto max { std::min(Height(reqmax), length()) };
+    const auto min { std::max(reqmin, NonzeroHeight(2)) };
+    if (max < min)
+        return { .range { .begin { min }, .end { max } }, .chart {} };
+
+    std::vector<double> chart;
+
+    NonzeroHeight lower { min.value() > nblocks ? (min - nblocks).nonzero_assert() : NonzeroHeight { 1 } };
+    NonzeroHeight upper { min };
+    auto worksum { sum_work(lower + 1, upper + 1) };
+    auto ltime { operator[](lower).timestamp() };
+    auto utime { operator[](upper).timestamp() };
+    auto compute_hashrate = [&ltime, &utime, &lower, &upper, &worksum]() {
+        if (ltime >= utime)
+            return double(std::numeric_limits<uint64_t>::max());
+        auto seconds { utime - ltime };
+        auto nBlocks { upper - lower };
+        assert(nBlocks > 0);
+        return worksum.getdouble() / seconds;
+    };
+    chart.push_back(compute_hashrate());
+    for (auto h { min + 1}; h <= max; ++h) {
+        NonzeroHeight l { h.value() > nblocks ? (h - nblocks).nonzero_assert() : NonzeroHeight { 1 } };
+        NonzeroHeight u { h };
+        ltime = operator[](l).timestamp();
+        utime = operator[](u).timestamp();
+        if (l!=lower) {
+            assert(l == lower+1);
+            worksum -= operator[](l).target();
+            lower=l;
+        }
+        if (u != upper) {
+            assert(u == upper+1);
+            worksum += operator[](upper).target();
+            upper=u;
+        }
+        chart.push_back(compute_hashrate());
+    }
+    assert(chart.size() == max-min+1);
+    assert(chart.size() != 0);
+    return {.range{.begin{min},.end{max}},.chart{std::move(chart)}};
 }
 
 Batch Headerchain::get_headers(NonzeroHeight begin, NonzeroHeight end) const

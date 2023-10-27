@@ -108,6 +108,11 @@ void Eventloop::api_get_hashrate(HashrateCb&& cb)
     defer(std::move(cb));
 }
 
+void Eventloop::api_get_hashrate_chart(NonzeroHeight from, NonzeroHeight to, HashrateChartCb&& cb)
+{
+    defer(GetHashrateChart { std::move(cb), from, to });
+}
+
 void Eventloop::async_forward_blockrep(uint64_t conId, std::vector<BodyContainer>&& blocks)
 {
     defer(OnForwardBlockrep { conId, std::move(blocks) });
@@ -355,6 +360,11 @@ void Eventloop::handle_event(HashrateCb&& cb)
 {
     cb(API::HashrateInfo {
         .by100Blocks = consensus().headers().hashrate(100) });
+}
+
+void Eventloop::handle_event(GetHashrateChart&& e)
+{
+    e.cb(consensus().headers().hashrate_chart(e.from,e.to,100));
 }
 
 void Eventloop::handle_event(OnPinAddress&& e)

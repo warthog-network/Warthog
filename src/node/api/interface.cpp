@@ -94,6 +94,10 @@ void get_hashrate(HashrateCb&& cb)
 {
     global().pel->api_get_hashrate(std::move(cb));
 }
+void get_hashrate_chart(NonzeroHeight from, NonzeroHeight to, HashrateChartCb&& cb)
+{
+    global().pel->api_get_hashrate_chart(from,to,std::move(cb));
+}
 
 void put_chain_append(MiningTask&& mt, ResultCb f)
 {

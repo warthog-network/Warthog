@@ -10,6 +10,8 @@ struct HashrateInfo;
 struct Block;
 struct AccountHistory;
 struct TransactionsByBlocks;
+struct HashrateChart;
+struct HashrateChartRequest;
 struct Richlist;
 struct Peerinfo;
 struct HeightOrHash;
