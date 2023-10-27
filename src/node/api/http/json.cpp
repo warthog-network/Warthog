@@ -306,9 +306,16 @@ json to_json(const API::Transaction& tx)
 
 json to_json(const API::TransactionsByBlocks& txs)
 {
-    json arr { json::array() };
-    for (auto& b : std::ranges::reverse_view(txs.blocks_reversed)) {
-        arr.push_back(body_json(b));
+    json arr = json::array();
+    for (auto& block : std::ranges::reverse_view(txs.blocks_reversed)) {
+        arr.push_back(
+            json {
+                { "header", header_json(block.header) },
+                { "body", body_json(block) },
+                { "timestamp", block.header.timestamp() },
+                { "utc", format_utc(block.header.timestamp()) },
+                { "confirmations", block.confirmations },
+                { "height", block.height } });
     }
     return json {
         { "fromId", txs.fromId },
