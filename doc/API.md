@@ -118,7 +118,7 @@ For efficiency and compactness transaction fees are internally encoded as 2-byte
 ```
 
 ### `GET /transaction/lookup/:txid`
- Transaction lookup by transaction id. Example output of `http://localhost:3000/transaction/lookup/4b3bc48295742b71ff7c3b98ede5b652fafd16c67f0d2db6226e936a1cdbf0a5`:
+ Transaction lookup by transaction id. Example output of `/transaction/lookup/4b3bc48295742b71ff7c3b98ede5b652fafd16c67f0d2db6226e936a1cdbf0a5`:
  ```json
 {
  "code": 0,
@@ -198,7 +198,7 @@ For efficiency and compactness transaction fees are internally encoded as 2-byte
  ```
 
 ### `GET /chain/block/:id/hash`
- Show hash of specific block. Example output of `http://localhost:3000/chain/block/366700/hash`
+ Show hash of specific block. Example output of `/chain/block/366700/hash`
  ```json
 {
  "code": 0,
@@ -211,7 +211,7 @@ For efficiency and compactness transaction fees are internally encoded as 2-byte
 ### `GET /chain/block/:id/header`
  Show header of specific block. 
 
- Example output of `http://localhost:3000/chain/block/366700/header`
+ Example output of `/chain/block/366700/header`
  ```json
  {
  "code": 0,
@@ -235,7 +235,7 @@ For efficiency and compactness transaction fees are internally encoded as 2-byte
 
 ### `GET/chain/block/:id`
  Show header and body of specific block. 
- Example output of `http://localhost:3000/chain/block/366700`
+ Example output of `/chain/block/366700`
  ```json
  {
  "code": 0,
@@ -283,7 +283,7 @@ For efficiency and compactness transaction fees are internally encoded as 2-byte
 }
 ```
 ### `GET /chain/mine/:address`
- Generate data required for mining. Example output of `http://localhost:3000/chain/mine/e4145cfe3e34f206956487c2a16b65a47f05fc347ef6e287`
+ Generate data required for mining. Example output of `/chain/mine/e4145cfe3e34f206956487c2a16b65a47f05fc347ef6e287`
 ```json
 {
  "code": 0,
@@ -385,8 +385,8 @@ For efficiency and compactness transaction fees are internally encoded as 2-byte
 }
 ```
 
-### `GET `  |`/tools/encode16bit/from_e8/:feeE8`| Round raw 64 integer to closest 16 bit representation (for fee specification)
- Round raw fee integer representation (coin amount is this number divided by 10^8) to closest 16 bit representation. This is required for fee specification in the `/transaction/add` endpoint. Example output of `http://localhost:3000/tools/encode16bit/from_e8/5002`
+### `GET /tools/encode16bit/from_e8/:feeE8`| Round raw 64 integer to closest 16 bit representation (for fee specification)
+ Round raw fee integer representation (coin amount is this number divided by 10^8) to closest 16 bit representation. This is required for fee specification in the `/transaction/add` endpoint. Example output of `/tools/encode16bit/from_e8/5002`
 ```json
 {
  "code": 0,
@@ -400,7 +400,7 @@ For efficiency and compactness transaction fees are internally encoded as 2-byte
 }
 ```
 
-### `GET`   |`/tools/encode16bit/from_string/:feestring`
+### `GET /tools/encode16bit/from_string/:feestring`
  Round fee amount string to closest 16 bit representation. This is required for fee specification in the `/transaction/add` endpoint. Example output of `/tools/encode16bit/from_string/0.001`:
 
 ```json

@@ -16,6 +16,7 @@ size_t writeFunction(void* ptr, size_t size, size_t nmemb, std::string* data)
 bool Endpoint::http_get(const std::string& get, std::string& out)
 {
     httplib::Client cli(host, port);
+    cli.set_read_timeout(10);
     if (auto res = cli.Get(get)) {
         out = std::move(res->body);
         return true;
@@ -26,6 +27,7 @@ bool Endpoint::http_get(const std::string& get, std::string& out)
 int Endpoint::http_post(const std::string& path, const std::vector<uint8_t>& postdata, std::string& out)
 {
     httplib::Client cli(host, port);
+    cli.set_read_timeout(10);
     if (auto res = cli.Post(path, (const char*)postdata.data(), postdata.size(), ""s)) {
         out = std::move(res->body);
         return true;
