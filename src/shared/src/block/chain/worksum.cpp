@@ -65,7 +65,7 @@ Worksum::Worksum(const TargetV1& t)
     uint32_t zeros = t.at(0);
     uint64_t invbits = (uint64_t(1) << (24 + 31)) / uint64_t(t.bits24());
     // 2^31<invbits<=2^32
-    if (invbits == uint64_t(8589934592ull)) { // 2^32
+    if (invbits == (uint64_t(1)<<32)) { // 2^32
         zeros += 1;
         size_t fragmentindex = zeros / 32;
         uint8_t shift = zeros & 0x1F; // zeros % 32
@@ -86,7 +86,7 @@ Worksum::Worksum(const TargetV2& t)
     uint32_t zeros = t.zeros10();
     uint64_t invbits = (uint64_t(1) << (22 + 31)) / uint64_t(t.bits22());
     // 2^31<invbits<=2^32
-    if (invbits == uint64_t(8589934592ull)) { // 2^32
+    if (invbits == (uint64_t(1)<<32)) { // 2^32
         zeros += 1;
         size_t fragmentindex = zeros / 32;
         uint8_t shift = zeros & 0x1F; // zeros % 32
