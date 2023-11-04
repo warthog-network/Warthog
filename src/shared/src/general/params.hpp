@@ -62,3 +62,9 @@ inline constexpr uint32_t retarget_floor(uint32_t height)
         return (height / HEADERBATCHSIZE) * HEADERBATCHSIZE;
     }
 }
+
+/////////////
+// Janushash Start
+/////////////
+constexpr bool JANUSENABLED = false;
+constexpr uint32_t JANUSRETARGETSTART = retarget_floor(720);

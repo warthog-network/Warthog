@@ -40,7 +40,7 @@ protected:
 };
 
 class Headerchain;
-[[nodiscard]] ForkHeight fork_height(const Headerchain& h1, const Headerchain& h2, NonzeroHeight startHeight = { 1 });
+[[nodiscard]] ForkHeight fork_height(const Headerchain& h1, const Headerchain& h2, NonzeroHeight startHeight = { 1u });
 class Headerchain : public HeaderchainSkeleton {
     struct HeaderViewNoHash : public HeaderView {
         HeaderViewNoHash(const HeaderView& hv)
@@ -138,7 +138,7 @@ public:
 protected: // methods
     const HeaderView header_view(uint32_t height) const;
     void initialize_worksum();
-    [[nodiscard]] Worksum sum_work(const Height begin, const Height end) const;
+    [[nodiscard]] Worksum sum_work(const NonzeroHeight begin, const NonzeroHeight end) const;
 
 protected: // variables
     std::vector<SharedBatchView> completeBatches;

@@ -6,12 +6,16 @@
 #include <cstring>
 class HeaderGenerator;
 class HashView;
+class TargetV1;
+class TargetV2;
 class Target;
 class Hash;
+class NonzeroHeight;
 class Header;
+
 class HeaderView : public View<80> {
     friend class HeaderGenerator;
-
+    friend class Header;
 public:
     static constexpr size_t offset_prevhash = 0ul;
     static constexpr size_t offset_target = 32ul;
@@ -22,12 +26,13 @@ public:
     static constexpr size_t bytesize = 80ul;
     using View::View;
 
-    bool validPOW() const;
+
+    inline Target target(NonzeroHeight h) const;
+    bool validPOW(const Hash& h, NonzeroHeight height) const;
     inline uint32_t version() const;
     inline HashView prevhash() const;
     inline HashView merkleroot() const;
     inline uint32_t timestamp() const;
-    Target target() const;
     inline uint32_t nonce() const;
     Hash hash() const;
     bool operator==(const HeaderView rhs) const;
@@ -45,5 +50,8 @@ public:
             return memcmp(hv.data(), arr.data(), 80) < 0;
         }
     };
+private:
+    TargetV1 target_v1() const;
+    TargetV2 target_v2() const;
 };
 

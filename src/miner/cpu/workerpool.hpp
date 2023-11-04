@@ -89,7 +89,7 @@ public:
         auto [hr, unit] = format_hashrate(rawhr);
         std::string durationstr;
         if (currentMiningTask) {
-            uint32_t seconds(currentMiningTask->b.header.target().difficulty() / rawhr);
+            uint32_t seconds(currentMiningTask->b.header.target_v1().difficulty() / rawhr);
             durationstr = spdlog::fmt_lib::format("(~{} per block)", format_duration(seconds));
         }
         spdlog::info("Hashrate: {} {}/s {}", hr, unit, durationstr);

@@ -19,11 +19,11 @@ public:
         const HeaderView hv;
         const Hash hash;
     };
-    HeaderVerifier() { clear(); }
+    HeaderVerifier();
     HeaderVerifier(const HeaderVerifier&, const Batch&, Height heightOffset);
     tl::expected<HeaderVerifier, ChainError> copy_apply(const std::optional<SignedSnapshot>& sp, const Batch& b, Height heightOffset) const;
     HeaderVerifier(const SharedBatch&);
-    void clear();
+    // void clear();
     [[nodiscard]] auto prepare_append(const std::optional<SignedSnapshot>& sp, HeaderView hv) const -> tl::expected<PreparedAppend, int32_t>;
 
     void initialize(const ExtendableHeaderchain& hc, Height length);
@@ -32,7 +32,7 @@ public:
     // getters
     Height height() const { return length; }
     HashView final_hash() const { return finalHash; };
-    Target next_target() const { return nextTarget; }
+    auto next_target() const { return nextTarget; }
     auto get_valid_timestamp() const { return std::max(timeValidator.get_valid_timestamp(),latestRetargetTime+1); }
 
 private:

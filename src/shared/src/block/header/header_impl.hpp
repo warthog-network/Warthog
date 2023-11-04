@@ -2,9 +2,13 @@
 #include "block/header/header.hpp"
 #include "block/header/view_inline.hpp"
 
-inline bool Header::validPOW() const
+inline Target Header::target(NonzeroHeight h) const
 {
-    return static_cast<HeaderView>(*this).validPOW();
+    return static_cast<HeaderView>(*this).target(h);
+}
+inline bool Header::validPOW(const Hash& h, NonzeroHeight height) const
+{
+    return static_cast<HeaderView>(*this).validPOW(h,height);
 }
 inline HashView Header::prevhash() const
 {
@@ -22,13 +26,21 @@ inline void Header::set_nonce(uint32_t nonce)
 {
     memcpy(data() + HeaderView::offset_nonce, &nonce, 4);
 }
+inline uint32_t Header::version() const
+{
+    return static_cast<HeaderView>(*this).version();
+}
 inline uint32_t Header::timestamp() const
 {
     return static_cast<HeaderView>(*this).timestamp();
 }
-inline Target Header::target() const
+inline TargetV1 Header::target_v1() const
 {
-    return static_cast<HeaderView>(*this).target();
+    return static_cast<HeaderView>(*this).target_v1();
+}
+inline TargetV2 Header::target_v2() const
+{
+    return static_cast<HeaderView>(*this).target_v2();
 }
 inline uint32_t Header::nonce() const
 {

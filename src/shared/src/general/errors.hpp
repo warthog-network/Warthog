@@ -80,9 +80,10 @@
     XX(81, EBATCHHEIGHT, "invalid batch height")                        \
     XX(82, EGRIDMISMATCH, "grid mismatch")                              \
     XX(83, ESELFSEND, "self send transaction not allowed")              \
+    XX(84, EBLOCKVERSION, "unsupported block version")                  \
     XX(201, EBADNONCE, "cannot parse nonce")                            \
     XX(202, EBADFEE, "invalid fee")                                     \
-    XX(203, EINEXACTFEE, "inexact fee not allowed")                      \
+    XX(203, EINEXACTFEE, "inexact fee not allowed")                     \
     XX(204, EBADAMOUNT, "invalid amount")                               \
     XX(205, EPARSESIG, "cannot parse signature")                        \
     XX(1000, ESIGTERM, "received SIGTERM")                              \

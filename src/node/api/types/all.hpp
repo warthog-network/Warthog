@@ -68,7 +68,7 @@ struct Block {
         Funds amount;
     };
     Header header;
-    Height height { 0 };
+    NonzeroHeight height;
     uint32_t confirmations = 0;
     std::vector<Transfer> transfers;
     std::vector<Reward> rewards;
@@ -77,7 +77,7 @@ struct Block {
         PinFloor pinFloor);
 
     Block(Header header,
-        Height height, uint32_t confirmations)
+        NonzeroHeight height, uint32_t confirmations)
         : header(header)
         , height(height)
         , confirmations(confirmations)

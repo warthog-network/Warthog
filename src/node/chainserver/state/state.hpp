@@ -56,7 +56,7 @@ public:
     }
 
     // general getters
-    auto get_header(Height h) const -> std::optional<Header>;
+    auto get_header(Height h) const -> std::optional<std::pair<NonzeroHeight,Header>>;
     auto get_headers() const { return chainstate.headers(); }
     auto get_hash(Height h) const -> std::optional<Hash>;
     auto get_blocks(DescriptedBlockRange) -> std::vector<BodyContainer>;
@@ -70,7 +70,7 @@ public:
     auto api_get_mempool(size_t) -> API::MempoolEntries;
     auto api_get_tx(HashView hash) const -> std::optional<API::Transaction>;
     auto api_get_latest_txs(size_t N=100) const -> API::TransactionsByBlocks;
-    auto api_get_header(API::HeightOrHash& h) const -> std::optional<Header>;
+    auto api_get_header(API::HeightOrHash& h) const -> std::optional<std::pair<NonzeroHeight,Header>>;
     auto api_get_block(const API::HeightOrHash& h) const -> std::optional<API::Block>;
     auto api_tx_cache() const -> const TransactionIds;
 

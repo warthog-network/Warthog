@@ -1,5 +1,4 @@
 #include "block/chain/consensus_headers.hpp"
-#include "spdlog/spdlog.h"
 
 SharedBatch::~SharedBatch()
 {
