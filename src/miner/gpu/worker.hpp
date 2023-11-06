@@ -87,9 +87,10 @@ class DeviceWorker {
 public:
     DeviceWorker(const CL::Device& device, DevicePool& pool)
         : pool(pool)
+        , miner(device)
         , deviceName(device.name())
     {
-        thread = std::jthread([=, this]() { run(device); });
+        tune();
     };
     DeviceWorker(const DeviceWorker&) = delete;
     DeviceWorker(DeviceWorker&&) = delete;
@@ -122,10 +123,11 @@ public:
         wakeup_nolock();
     };
 
+    void start_mining(){
+        thread = std::jthread([=, this]() { run(); });
+    }
 private:
-    void run(cl::Device device)
-    {
-        MinerDevice miner(device);
+    void tune() {
         using namespace std::literals::chrono_literals;
         using namespace std::chrono;
         spdlog::info("Tuning {}.", deviceName);
@@ -137,6 +139,12 @@ private:
                 break;
             hashesPerStep *= 2;
         }
+    }
+
+    void run()
+    {
+        using namespace std::literals::chrono_literals;
+        using namespace std::chrono;
         auto stop_token { thread.get_stop_token() };
         while (true) {
             decltype(nextTask) tmpTask;
@@ -196,6 +204,7 @@ private:
     uint32_t randOffset { 0 };
     std::optional<Block> nextTask;
     DevicePool& pool;
+    MinerDevice miner;
 
     // external variables
     std::optional<std::chrono::steady_clock::time_point> lastHashrateCheckpoint;

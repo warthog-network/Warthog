@@ -19,6 +19,10 @@ public:
         for (auto& d : devices) {
             workers.push_back(std::make_unique<DeviceWorker>(d, *this));
         }
+        for (auto &w : workers) {
+            w->start_mining();
+        }
+
     }
     bool empty() const { return workers.empty(); }
 
