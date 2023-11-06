@@ -114,7 +114,7 @@ private:
 
         std::string durationstr;
         if (task.has_value()) {
-            uint32_t seconds(task->header.target().difficulty() / sum);
+            uint32_t seconds(task->header.target_v1().difficulty() / sum);
             durationstr = spdlog::fmt_lib::format("(~{} per block)", format_duration(seconds));
         }
         auto [val, unit] = format_hashrate(sum);

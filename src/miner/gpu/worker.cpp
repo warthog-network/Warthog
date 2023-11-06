@@ -21,7 +21,7 @@ void DeviceWorker::init_mining(MinerDevice& miner)
 
     std::span<uint8_t,76> c(b.header.data(),b.header.data()+76);
     miner.set_block_header(c);
-    miner.set_target(b.header.target().binary());
+    miner.set_target(b.header.target_v1().binary());
 }
 
 void DeviceWorker::notify_mined(const Block& b)
