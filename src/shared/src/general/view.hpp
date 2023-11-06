@@ -31,10 +31,6 @@ struct View {
     {
         return operator<=>(v) == 0;
     }
-    bool operator!=(const View& v) const
-    {
-        return !operator==(v);
-    }
     View(const std::array<uint8_t, N>& a)
         : View(a.data())
     {

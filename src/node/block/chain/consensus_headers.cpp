@@ -1,10 +1,13 @@
 #include "consensus_headers.hpp"
 #include "general/now.hpp"
+#include "spdlog/spdlog.h"
 
 HeaderVerifier::HeaderVerifier(const SharedBatch& b)
+    : nextTarget(TargetV1())
 {
     length = b.upper_height();
-    finalHash = b.getBatch().last().hash();
+    HeaderView finalHeader { b.getBatch().last() };
+    finalHash = finalHeader.hash();
     latestRetargetHeight = length.retarget_floor();
 
     // find latestRetarget header
@@ -16,31 +19,28 @@ HeaderVerifier::HeaderVerifier(const SharedBatch& b)
     latestRetargetTime = uhv.timestamp();
 
     timeValidator.clear();
-    if (latestRetargetHeight == 1) {
-        nextTarget = Target::genesis();
+    if (JANUSENABLED && length == JANUSRETARGETSTART) {
+        nextTarget = TargetV2::min();
     } else {
-
-        nextTarget = uhv.target();
-
-        // find prevRetarget header
-        Height prevRetargetHeight = (latestRetargetHeight - 1).retarget_floor();
-        while (tmp->lower_height() > prevRetargetHeight) {
-            tmp = &tmp->prev();
-        }
-        HeaderView lhv = tmp->getBatch()[prevRetargetHeight - tmp->lower_height()];
-        uint32_t prevRetargetTime = lhv.timestamp();
-
-        assert(prevRetargetHeight < length);
-        nextTarget.scale(latestRetargetTime - prevRetargetTime,
-            BLOCKTIME * (latestRetargetHeight - prevRetargetHeight));
-        if (b.upper_height() > latestRetargetHeight) {
-            assert(b.getBatch().last().target() == nextTarget);
+        if (latestRetargetHeight == 1) {
+            nextTarget = TargetV1::genesis();
+        } else {
+            nextTarget = finalHeader.target(length.nonzero_assert());
+            if (length.retarget_floor() == length) { // need retarget
+                auto prevRetargetHeight = (length - 1).retarget_floor();
+                while (tmp->lower_height() > prevRetargetHeight) {
+                    tmp = &tmp->prev();
+                }
+                HeaderView lhv = tmp->getBatch()[prevRetargetHeight - tmp->lower_height()];
+                nextTarget.scale(finalHeader.timestamp() - lhv.timestamp(),
+                    BLOCKTIME * (length - prevRetargetHeight));
+            }
         }
     }
     static_assert(MEDIAN_N < HEADERBATCHSIZE);
     assert(MEDIAN_N < b.size());
     for (size_t i = 0; i < MEDIAN_N; ++i) {
-        timeValidator.append(b.size() - MEDIAN_N + i);
+        timeValidator.append(b.getBatch()[b.size() - MEDIAN_N + i].timestamp());
     }
 }
 
@@ -59,15 +59,24 @@ tl::expected<HeaderVerifier, ChainError> HeaderVerifier::copy_apply(const std::o
     return res;
 }
 
-void HeaderVerifier::clear()
+HeaderVerifier::HeaderVerifier()
+    : nextTarget(TargetV1::genesis())
 {
     length = Height(0);
     latestRetargetHeight = Height(0);
     latestRetargetTime = 0;
-    nextTarget = Target::genesis();
     timeValidator.clear();
     finalHash = Hash::genesis();
 }
+// void HeaderVerifier::clear()
+// {
+//     length = Height(0);
+//     latestRetargetHeight = Height(0);
+//     latestRetargetTime = 0;
+//     nextTarget = TargetV1::genesis();
+//     timeValidator.clear();
+//     finalHash = Hash::genesis();
+// }
 
 void HeaderVerifier::append(NonzeroHeight newlength, const PreparedAppend& p)
 {
@@ -77,49 +86,58 @@ void HeaderVerifier::append(NonzeroHeight newlength, const PreparedAppend& p)
     finalHash = p.hash;
 
     // adjust timestamp validator
-    uint32_t timestamp = p.hv.timestamp();
+    const uint32_t timestamp = p.hv.timestamp();
     assert(timestamp != 0);
     timeValidator.append(timestamp);
 
     // adjust next Target
     const Height upperHeight = newlength.retarget_floor();
-    if (upperHeight == newlength) {
-        if (upperHeight == 1) {
-            latestRetargetHeight = Height(1);
-            latestRetargetTime = timestamp;
+    static_assert(::retarget_floor(JANUSRETARGETSTART) == JANUSRETARGETSTART);
+    using namespace std;
+    if (upperHeight == newlength) { // need retarget
+        if (JANUSENABLED && newlength == JANUSRETARGETSTART) {
+            nextTarget = TargetV2::min();
         } else {
-            assert(latestRetargetHeight != 0);
-            assert(latestRetargetTime != 0);
-            assert(latestRetargetTime < timestamp);
-            Height lowerHeight((upperHeight - 1).retarget_floor());
-            assert(upperHeight - lowerHeight > 0);
-            nextTarget.scale(timestamp - latestRetargetTime,
-                BLOCKTIME * (upperHeight - lowerHeight));
-            latestRetargetHeight = upperHeight;
-            latestRetargetTime = timestamp;
+            if (upperHeight != 1) {
+                assert(latestRetargetHeight != 0);
+                assert(latestRetargetTime != 0);
+                assert(latestRetargetTime < timestamp);
+                Height lowerHeight((upperHeight - 1).retarget_floor());
+                assert(upperHeight - lowerHeight > 0);
+                nextTarget.scale(timestamp - latestRetargetTime,
+                    BLOCKTIME * (upperHeight - lowerHeight));
+            }
         }
+        latestRetargetHeight = upperHeight;
+        latestRetargetTime = timestamp;
     }
 }
 
 auto HeaderVerifier::prepare_append(const std::optional<SignedSnapshot>& sp, HeaderView hv) const -> tl::expected<PreparedAppend, int32_t>
 {
+    auto hash { hv.hash() };
+    NonzeroHeight appendHeight{height()+1};
 
     // Check header link
-    if (hv.prevhash() != finalHash) {
+    if (hv.prevhash() != finalHash)
         return tl::make_unexpected(EHEADERLINK);
+
+    // // Check version
+    if (JANUSENABLED && (height().value() >= JANUSRETARGETSTART)) {
+        if (hv.version() != 2) // For some reason some people mined with custom miner, and changed version ?!? so only stick to it after the mining alg change.
+            return tl::make_unexpected(EBLOCKVERSION);
     }
 
     // Check difficulty
-    if (hv.target() != nextTarget)
+    if (hv.target(appendHeight) != nextTarget)
         return tl::make_unexpected(EDIFFICULTY);
 
     // Check POW
-    if (!hv.validPOW()) {
+    if (!hv.validPOW(hash, appendHeight)) {
         return tl::make_unexpected(EPOW);
     }
 
     // Check signed pin
-    auto hash { hv.hash() };
     if (sp && length + 1 == sp->priority.height && sp->hash != hash)
         return tl::make_unexpected(ELEADERMISMATCH);
 
@@ -169,27 +187,28 @@ void HeaderVerifier::initialize(const ExtendableHeaderchain& hc,
     // initialize target
     //////////////////////////////
     Height upperHeight = length.retarget_floor();
+    static_assert(JANUSRETARGETSTART > 1);
     if (length == 0) {
-        nextTarget = Target::genesis();
+        nextTarget = TargetV1::genesis();
         latestRetargetHeight = Height(0);
         latestRetargetTime = 0;
     } else {
-        if (upperHeight == 1) {
-            nextTarget = Target::genesis();
-            latestRetargetHeight = upperHeight;
-            latestRetargetTime = hc[NonzeroHeight(1)].timestamp();
+        latestRetargetHeight = upperHeight;
+        auto upper { hc.get_header(upperHeight).value() };
+        latestRetargetTime = upper.timestamp();
+
+        // assign nextTarget
+        if (JANUSENABLED && length == JANUSRETARGETSTART) {
+            nextTarget = TargetV2::min();
         } else {
-            Height lowerHeight = (upperHeight - 1).retarget_floor();
-            auto lower { hc.get_header(lowerHeight) };
-            auto upper { hc.get_header(upperHeight) };
-            assert(lower);
-            assert(upper);
-            assert(upperHeight - lowerHeight > 0);
-            nextTarget = upper->target();
-            latestRetargetTime = upper->timestamp();
-            latestRetargetHeight = upperHeight;
-            nextTarget.scale(latestRetargetTime - lower->timestamp(),
-                BLOCKTIME * (upperHeight - lowerHeight));
+            nextTarget = hc.get_header(length).value().target(length.nonzero_assert());
+            if (upperHeight != 1 && upperHeight == length) {
+                Height lowerHeight = (upperHeight - 1).retarget_floor();
+                assert(upperHeight - lowerHeight > 0);
+                auto lower { hc.get_header(lowerHeight).value() };
+                nextTarget.scale(latestRetargetTime - lower.timestamp(),
+                    BLOCKTIME * (upperHeight - lowerHeight));
+            }
         }
     }
 }
@@ -269,7 +288,7 @@ ExtendableHeaderchain& ExtendableHeaderchain::operator=(Headerchain&& hc)
 void ExtendableHeaderchain::append(const HeaderVerifier::PreparedAppend& p,
     BatchRegistry& br)
 {
-    worksum += p.hv.target();
+    worksum += checker.next_target();
     incompleteBatch.append(p.hv);
     if (incompleteBatch.complete()) {
         finalPin = br.share(std::move(incompleteBatch), finalPin, worksum);

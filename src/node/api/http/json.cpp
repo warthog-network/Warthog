@@ -1,6 +1,5 @@
 #include "json.hpp"
 #include "api/types/all.hpp"
-#include "block/header/difficulty.hpp"
 #include "block/header/header_impl.hpp"
 #include "block/header/view.hpp"
 #include "chainserver/transaction_ids.hpp"
@@ -144,23 +143,21 @@ json grid_json(const Grid& g)
     return out;
 }
 
-json header_json(const Header& header)
+json header_json(const Header& header,NonzeroHeight height)
 {
-    HeaderView hv(header.data());
-    uint32_t targetBE = hv.target().binary();
+    auto target{header.target(height)};
+    uint32_t targetBE = target.binary();
     json h;
-    auto hash = hv.hash();
-    assert(hv.target().compatible(hash));
     h["raw"] = serialize_hex(header.data(), header.size());
-    h["timestamp"] = hv.timestamp();
-    h["utc"] = format_utc(hv.timestamp());
+    h["timestamp"] = header.timestamp();
+    h["utc"] = format_utc(header.timestamp());
     h["target"] = serialize_hex(targetBE);
-    h["difficulty"] = hv.target().difficulty();
-    h["hash"] = serialize_hex(hv.hash());
-    h["merkleroot"] = serialize_hex(hv.merkleroot());
-    h["nonce"] = serialize_hex(hv.nonce());
-    h["prevHash"] = serialize_hex(hv.prevhash());
-    h["version"] = serialize_hex(hv.version());
+    h["difficulty"] = target.difficulty();
+    h["hash"] = serialize_hex(header.hash());
+    h["merkleroot"] = serialize_hex(header.merkleroot());
+    h["nonce"] = serialize_hex(header.nonce());
+    h["prevHash"] = serialize_hex(header.prevhash());
+    h["version"] = serialize_hex(header.version());
     return h;
 }
 
@@ -252,6 +249,7 @@ json to_json(const API::Head& h)
     j["hash"] = serialize_hex(h.hash);
     j["height"] = h.height;
     j["difficulty"] = h.nextTarget.difficulty();
+    j["is_janushash"] = h.nextTarget.is_janushash();
     j["pinHeight"] = h.pinHeight;
     j["worksum"] = h.worksum.getdouble();
     j["worksumHex"] = h.worksum.to_string();
@@ -259,20 +257,21 @@ json to_json(const API::Head& h)
     return j;
 }
 
-json to_json(const Header& h)
+json to_json(const std::pair<NonzeroHeight,Header>& h)
 {
     return json {
-        { "header", header_json(h) }
+        { "header", header_json(h.second,h.first) }
     };
 }
 
 json to_json(const MiningTask& mt)
 {
     json j;
+    auto height{mt.block.height};
     j["header"] = serialize_hex(mt.block.header);
-    j["difficulty"] = mt.block.header.target().difficulty();
+    j["difficulty"] = mt.block.header.target(height).difficulty();
     j["body"] = serialize_hex(mt.block.body.data());
-    j["height"] = mt.block.height;
+    j["height"] = height;
     return j;
 }
 json to_json(const API::MempoolEntries& entries)
@@ -310,7 +309,7 @@ json to_json(const API::TransactionsByBlocks& txs)
     for (auto& block : std::ranges::reverse_view(txs.blocks_reversed)) {
         arr.push_back(
             json {
-                { "header", header_json(block.header) },
+                { "header", header_json(block.header, block.height) },
                 { "body", body_json(block) },
                 { "timestamp", block.header.timestamp() },
                 { "utc", format_utc(block.header.timestamp()) },
@@ -330,7 +329,7 @@ json to_json(const API::Block& block)
 {
     json j;
     HeaderView hv(block.header.data());
-    j["header"] = header_json(block.header);
+    j["header"] = header_json(block.header,block.height);
     j["body"] = body_json(block);
     j["timestamp"] = hv.timestamp();
     j["utc"] = format_utc(hv.timestamp());

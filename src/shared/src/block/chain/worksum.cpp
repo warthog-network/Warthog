@@ -25,10 +25,6 @@ Worksum& Worksum::operator*=(uint32_t factor)
     }
     return *this;
 };
-Worksum& Worksum::operator+=(const Target& t)
-{
-    return this->operator+=(Worksum(t));
-}
 Worksum& Worksum::operator+=(const Worksum& w)
 {
     uint64_t carry = 0;
@@ -63,13 +59,13 @@ Worksum::Worksum(std::array<uint8_t, 32> data)
     }
 };
 
-Worksum::Worksum(const Target& t)
+Worksum::Worksum(const TargetV1& t)
 {
     fragments.fill(0ul);
-    uint8_t zeros = t.at(0);
-    uint64_t invbits = (uint64_t(1) << (24 + 31)) / uint64_t(t.bits());
+    uint32_t zeros = t.at(0);
+    uint64_t invbits = (uint64_t(1) << (24 + 31)) / uint64_t(t.bits24());
     // 2^31<invbits<=2^32
-    if (invbits == uint64_t(8589934592ull)) { // 2^32
+    if (invbits == (uint64_t(1)<<32)) { // 2^32
         zeros += 1;
         size_t fragmentindex = zeros / 32;
         uint8_t shift = zeros & 0x1F; // zeros % 32
@@ -82,7 +78,33 @@ Worksum::Worksum(const Target& t)
             fragments[fragmentindex - 1] = (invbits << (1 + shift));
         }
     }
-};
+}
+
+Worksum::Worksum(const TargetV2& t)
+{
+    fragments.fill(0ul);
+    uint32_t zeros = t.zeros10();
+    uint64_t invbits = (uint64_t(1) << (22 + 31)) / uint64_t(t.bits22());
+    // 2^31<invbits<=2^32
+    if (invbits == (uint64_t(1)<<32)) { // 2^32
+        zeros += 1;
+        size_t fragmentindex = zeros / 32;
+        uint8_t shift = zeros & 0x1F; // zeros % 32
+        fragments[fragmentindex] = 1 << shift;
+    } else { // 2^31<invbits<2^32
+        size_t fragmentindex = zeros / 32;
+        uint8_t shift = zeros & 0x1F; // zeros % 32
+        fragments[fragmentindex] = (invbits >> (31 - shift));
+        if (fragmentindex > 0) {
+            fragments[fragmentindex - 1] = (invbits << (1 + shift));
+        }
+    }
+}
+
+Worksum::Worksum(const Target& t)
+{
+    *this = std::visit([&](const auto& t) -> Worksum { return t; }, t.get());
+}
 
 std::array<uint8_t, 32> Worksum::to_bytes() const
 {

@@ -81,13 +81,13 @@ inline Hash hashSHA256(const uint8_t* data, size_t len)
     return res;
 }
 
-inline std::array<uint8_t, 32> hashSHA256(const std::vector<uint8_t>& vec)
+inline Hash hashSHA256(const std::vector<uint8_t>& vec)
 {
     return hashSHA256(vec.data(), vec.size());
 }
 
 template <size_t N>
-inline std::array<uint8_t, 32> hashSHA256(const std::array<uint8_t, N>& arr)
+inline Hash hashSHA256(const std::array<uint8_t, N>& arr)
 {
     return hashSHA256(arr.data(), arr.size());
 }

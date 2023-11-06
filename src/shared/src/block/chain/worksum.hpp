@@ -2,6 +2,8 @@
 #include <array>
 #include <limits>
 #include <string>
+class TargetV1;
+class TargetV2;
 class Target;
 class Worksum {
 private:
@@ -29,15 +31,19 @@ public:
     Worksum& operator-=(const Worksum& w);
     Worksum& operator*=(uint32_t factor);
     Worksum& operator+=(const Worksum& w);
-    Worksum& operator+=(const Target& t);
+//     Worksum& operator+=(const Target& t);
+// Worksum& Worksum::operator+=(const Target& t)
+// {
+//     return this->operator+=(Worksum(t));
+// }
     friend Worksum operator+(Worksum w1, const Worksum& w2)
     {
         return w1 += w2;
     }
-    friend Worksum operator+(Worksum w, const Target& t)
-    {
-        return w += t;
-    }
+    // friend Worksum operator+(Worksum w, const TargetV1& t)
+    // {
+    //     return w += t;
+    // }
     inline bool operator<(const Worksum& rhs) const
     {
         size_t j = fragments.size();
@@ -91,5 +97,7 @@ public:
     {
     }
     Worksum(std::array<uint8_t, 32> data);
+    Worksum(const TargetV1& t);
+    Worksum(const TargetV2& t);
     Worksum(const Target& t);
 };

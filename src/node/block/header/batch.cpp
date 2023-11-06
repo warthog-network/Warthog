@@ -34,9 +34,11 @@ Worksum Batch::worksum(const Height offset, uint32_t maxElements) const
     Worksum sum;
     bool complete = false;
     while (!complete) {
+        NonzeroHeight h{(offset + 1+ rel_upper).nonzero_assert()};
         auto header = get_header(rel_upper);
         assert(header);
-        Worksum w(header->target());
+        Worksum w(header->target(h));
+        static_assert(::retarget_floor(JANUSRETARGETSTART) == JANUSRETARGETSTART); // this is required for this factor computation to be correct
         Height rf = (offset + rel_upper).retarget_floor();
         uint32_t factor;
         if (rf == Height(1)) {

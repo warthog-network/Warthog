@@ -15,7 +15,7 @@ inline Hash hash_cpuminer(HeaderView hv)
 
 std::tuple<bool, bool, uint32_t> mine(Header& header, uint32_t stop, uint32_t tries)
 {
-    const Target t = header.target();
+    const TargetV1 t = header.target_v1();
     const uint32_t nonce { header.nonce() };
     uint32_t end = nonce + std::min(stop - nonce, tries);
 

@@ -13,10 +13,6 @@ public:
     {
         return View::operator==(hv);
     };
-    inline bool operator!=(HashView hv) const
-    {
-        return !operator==(hv);
-    }
 };
 
 class Hash : public std::array<uint8_t, 32> {
@@ -37,8 +33,20 @@ public:
         memcpy(data(), hv.data(), 32);
     }
     Hash& operator=(const Hash&) = default;
+    bool operator==(const Hash&) const = default;
+    bool operator!=(const Hash&) const = default;
     static Hash genesis();
 };
+
+inline bool operator==(const Hash& h, const HashView& hv)
+{
+    return  (HashView(h) == hv);
+};
+inline bool operator==(const HashView& hv, const Hash& h)
+{
+    return (HashView(h) == hv);
+};
+
 class TxHash : public Hash {
 public:
     explicit TxHash(Hash h)

@@ -117,7 +117,7 @@ uint64_t Headerchain::hashrate(uint32_t nblocks) const
 {
     if (length() < Height(2))
         return 0;
-    NonzeroHeight lower { length().value() > nblocks ? (length() - nblocks).nonzero_assert() : NonzeroHeight { 1 } };
+    NonzeroHeight lower { length().value() > nblocks ? (length() - nblocks).nonzero_assert() : NonzeroHeight { 1u } };
     NonzeroHeight upper { length().nonzero_assert() };
     auto ltime { operator[](lower).timestamp() };
     auto utime { operator[](upper).timestamp() };
@@ -132,13 +132,13 @@ uint64_t Headerchain::hashrate(uint32_t nblocks) const
 API::HashrateChart Headerchain::hashrate_chart(NonzeroHeight reqmin, NonzeroHeight reqmax, const uint32_t nblocks) const
 {
     const auto max { std::min(Height(reqmax), length()) };
-    const auto min { std::max(reqmin, NonzeroHeight(2)) };
+    const auto min { std::max(reqmin, NonzeroHeight(2u)) };
     if (max < min)
         return { .range { .begin { min }, .end { max } }, .chart {} };
 
     std::vector<double> chart;
 
-    NonzeroHeight lower { min.value() > nblocks ? (min - nblocks).nonzero_assert() : NonzeroHeight { 1 } };
+    NonzeroHeight lower { min.value() > nblocks ? (min - nblocks).nonzero_assert() : NonzeroHeight { 1u } };
     NonzeroHeight upper { min };
     auto worksum { sum_work(lower + 1, upper + 1) };
     auto ltime { operator[](lower).timestamp() };
@@ -153,18 +153,18 @@ API::HashrateChart Headerchain::hashrate_chart(NonzeroHeight reqmin, NonzeroHeig
     };
     chart.push_back(compute_hashrate());
     for (auto h { min + 1}; h <= max; ++h) {
-        NonzeroHeight l { h.value() > nblocks ? (h - nblocks).nonzero_assert() : NonzeroHeight { 1 } };
+        NonzeroHeight l { h.value() > nblocks ? (h - nblocks).nonzero_assert() : NonzeroHeight { 1u } };
         NonzeroHeight u { h };
         ltime = operator[](l).timestamp();
         utime = operator[](u).timestamp();
         if (l!=lower) {
             assert(l == lower+1);
-            worksum -= operator[](l).target();
+            worksum -= operator[](l).target(l);
             lower=l;
         }
         if (u != upper) {
             assert(u == upper+1);
-            worksum += operator[](upper).target();
+            worksum += operator[](upper).target(upper);
             upper=u;
         }
         chart.push_back(compute_hashrate());
@@ -229,7 +229,7 @@ ForkHeight fork_height(const Headerchain& h1, const Headerchain& h2, NonzeroHeig
     const Batch& b1 = (f < h1.completeBatches.size() ? h1.completeBatches[f].getBatch() : h1.incompleteBatch);
     const Batch& b2 = (f < h2.completeBatches.size() ? h2.completeBatches[f].getBatch() : h2.incompleteBatch);
     auto [forkIndex, forked] = binary_forksearch(b1, b2);
-    return { NonzeroHeight(f * HEADERBATCHSIZE + forkIndex + 1), forked };
+    return { NonzeroHeight(uint32_t(f * HEADERBATCHSIZE + forkIndex + 1)), forked };
 }
 
 Headerchain::Headerchain(HeaderchainSkeleton skeleton)
@@ -285,24 +285,23 @@ void Headerchain::initialize_worksum()
     if (completeBatches.size() > 0) {
         worksum += completeBatches.back().total_work();
     }
-    auto ws2 = sum_work(Height(1), length() + 1);
+    auto ws2 = sum_work(NonzeroHeight(1u), (length() + 1).nonzero_assert());
     assert(worksum == ws2);
 }
 
-Worksum Headerchain::sum_work(const Height beginHeight,
-    const Height endHeight) const
+Worksum Headerchain::sum_work(const NonzeroHeight beginHeight,
+    const NonzeroHeight endHeight) const
 {
-    assert(beginHeight != 0);
     if (beginHeight >= endHeight)
         return {};
     Worksum sum;
     assert(endHeight <= length() + 1);
-    Height upperHeight = endHeight - 1;
+    Height upperHeight = (endHeight - 1).nonzero_assert();
     bool complete = false;
     while (!complete) {
         auto header = get_header(upperHeight);
         assert(header);
-        Worksum w(header->target());
+        Worksum w(header->target(upperHeight.nonzero_assert()));
         Height lower = (upperHeight - 1).retarget_floor();
         if (lower == 1) {
             lower = Height(0);
@@ -328,7 +327,7 @@ Worksum Headerchain::sum_work(const Height beginHeight,
     auto& incomplete { s.index() == completeBatches.size() ? incompleteBatch : completeBatches[s.index()].getBatch() };
     assert(s.offset() == prev.upper_height());
     Worksum w(prev.total_work() + incomplete.worksum(s.offset(), h - s.offset()));
-    assert(w == sum_work(Height(1), h + 1));
+    assert(w == sum_work(NonzeroHeight(1u), (h + 1).nonzero_assert()));
     return w;
 }
 

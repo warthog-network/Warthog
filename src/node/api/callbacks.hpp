@@ -11,6 +11,7 @@
 class TransferTxExchangeMessage;
 class Hash;
 class Grid;
+class NonzeroHeight;
 struct MiningTask;
 namespace HeaderDownload {
 class Downloader;
@@ -35,7 +36,7 @@ using HashrateChartCb = std::function<void(const tl::expected<API::HashrateChart
 using HeadCb = std::function<void(const tl::expected<API::Head, int32_t>&)>;
 using RoundCb = std::function<void(const tl::expected<API::Round16Bit, int32_t>&)>;
 using HeaderdownloadCb = std::function<void(const HeaderDownload::Downloader&)>;
-using HeaderCb = std::function<void(const tl::expected<Header, int32_t>&)>;
+using HeaderCb = std::function<void(const tl::expected<std::pair<NonzeroHeight,Header>, int32_t>&)>;
 using HashCb = std::function<void(const tl::expected<Hash, int32_t>&)>;
 using GridCb = std::function<void(const tl::expected<Grid, int32_t>&)>;
 using TxCb = std::function<void(const tl::expected<API::Transaction, int32_t>&)>;

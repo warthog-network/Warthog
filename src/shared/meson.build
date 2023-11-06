@@ -18,6 +18,8 @@ src_wh=[
   './src/crypto/address.cpp',
   './src/crypto/crypto.cpp',
   './src/crypto/hash.cpp',
+  './src/crypto/verushash/verushash.cpp',
+  './src/crypto/verushash/verus_clhash_port.cpp',
   './src/general/errors.cpp',
   './src/general/funds.cpp',
   './src/general/hex.cpp',

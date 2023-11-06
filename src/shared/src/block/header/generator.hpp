@@ -10,8 +10,7 @@ class HeaderGenerator {
 public:
     HeaderGenerator(std::array<uint8_t, 32> prevhash, const BodyView& bv,
         Target target,
-        uint32_t timestamp,
-        uint32_t version = 1);
+        uint32_t timestamp);
     // member elements
     int32_t version = 1; // 4 bytes
     std::array<uint8_t, 32> prevhash; // 32 bytes
@@ -22,5 +21,4 @@ public:
 
     //
     Header serialize(uint32_t nonce) const;
-    bool mine(std::array<uint8_t, 80>& out, size_t maxtries = 100000000ul);
 };

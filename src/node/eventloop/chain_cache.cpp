@@ -18,7 +18,7 @@ ForkRange& ChaincacheMatch::fork_range(Conref cr) const
 
 StageAndConsensus::StageAndConsensus(const ConsensusSlave& s)
     : consensus(s)
-    , scForkHeight(1, false)
+    , scForkHeight(1u, false)
 {
     stageHeaders = std::make_shared<Headerchain>();
 }
@@ -36,7 +36,7 @@ ForkHeight StageAndConsensus::update_stage(Headerchain&& newheaders)
 void StageAndConsensus::stage_clear()
 {
     (*stageHeaders) = Headerchain();
-    scForkHeight = { 1, false };
+    scForkHeight = { 1u, false };
 }
 
 AppendMsg StageAndConsensus::update_consensus(Append&& append)

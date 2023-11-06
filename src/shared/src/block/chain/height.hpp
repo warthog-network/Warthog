@@ -1,6 +1,6 @@
 #pragma once
-#include "general/funds.hpp"
 #include "general/errors.hpp"
+#include "general/funds.hpp"
 
 class PinHeight;
 class NonzeroHeight;
@@ -8,8 +8,8 @@ class Height : public IsUint32 {
     friend struct Batchslot;
 
 protected:
-    Height()
-        : IsUint32(0)
+    constexpr Height()
+        : IsUint32(uint32_t(0))
     {
     }
 
@@ -90,20 +90,23 @@ public:
 class NonzeroHeight : public IsUint32 {
     friend struct Batchslot;
 
-
 public:
-
     NonzeroHeight(Reader& r);
+    explicit NonzeroHeight(Height h)
+        : NonzeroHeight(h.value()) {}
+    NonzeroHeight(bool) = delete;
     constexpr NonzeroHeight(uint32_t v)
         : IsUint32(v)
     {
         assert(v != 0);
     }
 
-    operator Height() const{
-        return Height(value());
+    operator Height() const
+    {
+        auto v { value() };
+        return Height(v);
     }
-    NonzeroHeight retarget_floor()
+    NonzeroHeight retarget_floor() const
     {
         return NonzeroHeight { ::retarget_floor(val) };
     }
@@ -111,6 +114,10 @@ public:
 
     NonzeroHeight& operator=(const NonzeroHeight&) = default;
 
+    bool is_retarget_height() const
+    {
+        return *this == retarget_floor();
+    }
     NonzeroHeight& operator--()
     {
         assert(val > 1);
@@ -159,13 +166,13 @@ public:
         return Funds(GENESISBLOCKREWARD >> halvings);
     }
 
-    NonzeroHeight pin_bgin()
-    {
-        uint32_t shifted = val >> 5;
-        if (shifted < 255u)
-            return NonzeroHeight(0);
-        return NonzeroHeight((shifted - 255u) << 5);
-    }
+    // NonzeroHeight pin_bgin()
+    // {
+    //     uint32_t shifted = val >> 5;
+    //     if (shifted < 255u)
+    //         return NonzeroHeight(0);
+    //     return NonzeroHeight((shifted - 255u) << 5);
+    // }
 
     friend bool operator==(const NonzeroHeight& h1, uint32_t h)
     {
@@ -173,20 +180,23 @@ public:
     }
 };
 
-inline NonzeroHeight Height::nonzero_assert() const{
-    return {NonzeroHeight(value())};
+inline NonzeroHeight Height::nonzero_assert() const
+{
+    return { NonzeroHeight(value()) };
 }
 
-inline NonzeroHeight Height::nonzero_throw(int error) const{
-    if (val==0) {
+inline NonzeroHeight Height::nonzero_throw(int error) const
+{
+    if (val == 0) {
         throw Error(error);
     }
     return nonzero_assert();
 }
 
-inline NonzeroHeight Height::one_if_zero() const{
+inline NonzeroHeight Height::one_if_zero() const
+{
     if (val == 0) {
-        return NonzeroHeight(1);
+        return NonzeroHeight(1u);
     }
     return NonzeroHeight(value());
 }
@@ -210,7 +220,8 @@ struct PinFloor : public Height {
     using Height::Height;
     explicit PinFloor(Height h)
         : Height((h.value() >> 5) << 5) //& 0xFFFFFFE0u;
-        {}
+    {
+    }
 };
 
 inline bool Height::is_pin_height() const

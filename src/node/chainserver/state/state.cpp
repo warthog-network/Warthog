@@ -28,12 +28,14 @@ State::State(ChainDB& db, BatchRegistry& br, std::optional<SnapshotSigner> snaps
 {
 }
 
-std::optional<Header> State::get_header(Height h) const
+std::optional<std::pair<NonzeroHeight,Header>> State::get_header(Height h) const
 {
-    return chainstate.headers().get_header(h);
+    if (auto p{chainstate.headers().get_header(h)}; p.has_value())
+        return std::pair<NonzeroHeight,Header>{h.nonzero_assert(),Header(p.value())};
+    return {};
 }
 
-auto State::api_get_header(API::HeightOrHash& hh) const -> std::optional<Header>
+auto State::api_get_header(API::HeightOrHash& hh) const -> std::optional<std::pair<NonzeroHeight,Header>>
 {
     if (std::holds_alternative<Height>(hh.data)) {
         return get_header(std::get<Height>(hh.data));
