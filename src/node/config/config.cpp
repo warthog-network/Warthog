@@ -103,7 +103,17 @@ int Config::process_gengetopt(gengetopt_args_info& ai)
     jsonrpc.bind = EndpointAddress::parse(ai.rpc_arg).value();
     peers.connect = {};
     if (ENABLE_DEFAULT_NODE) {
+        peers.connect.push_back({ IPv4::parse("101.43.125.67").value(), 15806 });
+        peers.connect.push_back({ IPv4::parse("119.28.71.187").value(), 9186 });
+        peers.connect.push_back({ IPv4::parse("137.184.123.108").value(), 9186 });
+        peers.connect.push_back({ IPv4::parse("159.203.179.187").value(), 9186 });
+        peers.connect.push_back({ IPv4::parse("165.232.130.226").value(), 9186 });
+        peers.connect.push_back({ IPv4::parse("185.143.220.9").value(), 9186 });
         peers.connect.push_back({ IPv4::parse("193.218.118.57").value(), 9186 });
+        peers.connect.push_back({ IPv4::parse("23.224.49.59").value(), 9186 });
+        peers.connect.push_back({ IPv4::parse("51.38.131.226").value(), 9186 });
+        peers.connect.push_back({ IPv4::parse("69.57.217.113").value(), 9186 });
+        peers.connect.push_back({ IPv4::parse("69.57.217.94").value(), 9186 });
     }
 
     std::string filename = "config.toml";
