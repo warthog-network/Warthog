@@ -88,7 +88,7 @@ void Downloader::update_fork_iter(Conref c)
     auto& fd = data(c);
     if (fd.forkIter != forks.end())
         forks.erase(fd.forkIter);
-    assert(fd.forkRange.lower() <= fd.descripted->chain_length() + 1);
+    assert(fd.forkRange.lower() <= fd.descripted->chain_length() + 1); // TODO: Bug, fails sometimes
     fd.forkIter = forks.emplace(fd.forkRange.lower(), c);
 }
 
