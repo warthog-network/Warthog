@@ -80,10 +80,11 @@ bool AddressManager::erase(Conndatamap::iterator iter)
     }
 
     if (auto iter = pinned.find(a); iter != pinned.end()) {
-        auto& cs = iter->second;
-        auto expires = std::max(sc::now() + seconds(cs.sleepSeconds), iter->second.ratelimit_sleep());
+        auto& pinState = iter->second;
+        auto expires = std::max(sc::now() + seconds(pinState.sleepSeconds), iter->second.ratelimit_sleep());
         auto timer_iter = timer.emplace(expires, iter);
-        cs.timer_iter = timer_iter;
+        assert(pinState.timer_iter == timer.end());
+        pinState.timer_iter = timer_iter;
         return true;
     }
     return false;
@@ -225,6 +226,7 @@ bool AddressManager::on_failed_outbound(EndpointAddress a)
     if (auto iter = pinned.find(a); iter != pinned.end()) {
         auto& cs = iter->second;
         auto timer_iter = timer.emplace(sc::now() + seconds(cs.sleepSeconds), iter);
+        remove_timer(iter);
         cs.timer_iter = timer_iter;
         cs.sleepSeconds = std::max(cs.sleepSeconds, std::min(2 * (cs.sleepSeconds + 1), 5 * 60ul));
         return true;
