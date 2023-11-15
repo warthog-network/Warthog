@@ -89,6 +89,10 @@ Note: Ubuntu 20.04 does not meet these requirements.
   - for old OpenCL headers (like on Ubuntu 20.04): `meson configure -Dopencl-legacy=true`
 * Compile using ninja: `ninja`
 
+### Docker build (node and wallet)
+
+* Run `DOCKER_BUILDKIT=1 docker build . --output build` in the repo directory.
+
 
 ## ▶️ USAGE
 
