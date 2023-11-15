@@ -19,6 +19,9 @@ class Downloader;
 namespace chainserver {
 struct TransactionIds;
 }
+struct NodeVersion {
+    /* data */
+};
 class Header;
 
 using PeersCb = std::function<void(std::vector<API::Peerinfo>&)>;
@@ -44,3 +47,5 @@ using LatestTxsCb = std::function<void(const tl::expected<API::TransactionsByBlo
 using BlockCb = std::function<void(const tl::expected<API::Block, int32_t>&)>;
 using HistoryCb = std::function<void(const tl::expected<API::AccountHistory, int32_t>&)>;
 using RichlistCb = std::function<void(const tl::expected<API::Richlist, int32_t>&)>;
+
+using VersionCb = std::function<void(const tl::expected<NodeVersion, int32_t>&)>;

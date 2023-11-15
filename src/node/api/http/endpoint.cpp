@@ -1,11 +1,12 @@
 #include "endpoint.hpp"
+#include "api/http/parse.hpp"
 #include "api/types/all.hpp"
 #include "chainserver/transaction_ids.hpp"
 #include "communication/mining_task.hpp"
 #include "general/hex.hpp"
-#include "api/http/parse.hpp"
 #include "json.hpp"
 #include "spdlog/spdlog.h"
+#include "version.hpp"
 #include <charconv>
 #include <iostream>
 #include <type_traits>
@@ -20,7 +21,7 @@ struct ParameterParser {
     {
         T res {};
         auto result = std::from_chars(sv.data(), sv.end(), res);
-        if (result.ec != std::errc{} || result.ptr != sv.end()) {
+        if (result.ec != std::errc {} || result.ptr != sv.end()) {
             throw Error(EMALFORMED);
         }
         return res;
@@ -31,7 +32,8 @@ struct ParameterParser {
             return { Hash { *this } };
         return { Height { *this } };
     }
-    operator Funds(){
+    operator Funds()
+    {
         return Funds::throw_parse(sv);
     }
     operator Page()
@@ -72,6 +74,8 @@ void nav(uWS::HttpResponse<false>* res, uWS::HttpRequest*)
         <title>endpoint methods</title>
     </head>
     <body>
+        <h1>API for Warthog node version )HTML" CMDLINE_PARSER_VERSION
+                               R"HTML(</h1>
         <h2>Transaction endpoints</h2>
         <ul>
             <li>POST <a href=/transaction/add>/transaction/add</a> </li>
@@ -113,6 +117,7 @@ void nav(uWS::HttpResponse<false>* res, uWS::HttpRequest*)
         <ul>
             <li>GET <a href=/tools/encode16bit/from_e8/:feeE8>/tools/encode16bit/from_e8/:feeE8</a></li>
             <li>GET <a href=/tools/encode16bit/from_string/:feestring>/tools/encode16bit/from_string/:feestring</a></li>
+            <li>GET <a href=/tools/version>/tools/version</a></li>
         </ul>
         <h2>Debug endpoints</h2>
         <ul>
@@ -165,6 +170,7 @@ void HTTPEndpoint::work()
     // tools endpoints
     get_1("/tools/encode16bit/from_e8/:feeE8", get_round16bit_e8);
     get_1("/tools/encode16bit/from_string/:string", get_round16bit_funds);
+    get("/tools/version", get_version);
 
     // debug endpoints
     get("/debug/header_download", inspect_eventloop, jsonmsg::header_download);

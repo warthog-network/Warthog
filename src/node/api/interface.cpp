@@ -56,6 +56,9 @@ void get_round16bit_e8(uint64_t e8, RoundCb cb){
 void get_round16bit_funds(Funds f, RoundCb cb){
     cb(API::Round16Bit{f});
 };
+void get_version(VersionCb cb){
+    cb(NodeVersion{});
+};
 
 // chain functions
 void get_block_head(HeadCb f)

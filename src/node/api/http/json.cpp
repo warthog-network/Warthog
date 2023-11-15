@@ -10,6 +10,7 @@
 #include "eventloop/sync/sync.hpp"
 #include "general/errors.hpp"
 #include "general/hex.hpp"
+#include "version.hpp"
 #include <ranges>
 
 using namespace std::chrono;
@@ -143,9 +144,9 @@ json grid_json(const Grid& g)
     return out;
 }
 
-json header_json(const Header& header,NonzeroHeight height)
+json header_json(const Header& header, NonzeroHeight height)
 {
-    auto target{header.target(height)};
+    auto target { header.target(height) };
     uint32_t targetBE = target.binary();
     json h;
     h["raw"] = serialize_hex(header.data(), header.size());
@@ -257,17 +258,17 @@ json to_json(const API::Head& h)
     return j;
 }
 
-json to_json(const std::pair<NonzeroHeight,Header>& h)
+json to_json(const std::pair<NonzeroHeight, Header>& h)
 {
     return json {
-        { "header", header_json(h.second,h.first) }
+        { "header", header_json(h.second, h.first) }
     };
 }
 
 json to_json(const MiningTask& mt)
 {
     json j;
-    auto height{mt.block.height};
+    auto height { mt.block.height };
     j["header"] = serialize_hex(mt.block.header);
     j["difficulty"] = mt.block.header.target(height).difficulty();
     j["body"] = serialize_hex(mt.block.body.data());
@@ -329,7 +330,7 @@ json to_json(const API::Block& block)
 {
     json j;
     HeaderView hv(block.header.data());
-    j["header"] = header_json(block.header,block.height);
+    j["header"] = header_json(block.header, block.height);
     j["body"] = body_json(block);
     j["timestamp"] = hv.timestamp();
     j["utc"] = format_utc(hv.timestamp());
@@ -489,6 +490,16 @@ nlohmann::json to_json(const API::Round16Bit& e)
     };
 };
 
+nlohmann::json to_json(const NodeVersion&)
+{
+    return json {
+        { "name", CMDLINE_PARSER_VERSION },
+        { "major", VERSION_MAJOR },
+        { "minor", VERSION_MINOR },
+        { "patch", VERSION_PATCH },
+        { "commit", GIT_COMMIT_INFO }
+    };
+};
 std::string endpoints(const Eventloop& e)
 {
     auto [verified, failed, unverified, pending] = Inspector::endoints(e);
