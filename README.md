@@ -106,3 +106,7 @@ Note: Ubuntu 20.04 does not meet these requirements.
 NOTE: We (or some of us) might drop this project any time in case 
       deep/unfixable bugs or ugly design issues arise. Or without
       any reason and without prior notice. 
+
+## ⛏ Upcoming Mining algorithm
+ * NEWS: Custom [Janushash algorithm](./doc/janushash.md) in the works. First Proof of Balanced Work mining algorithm in the world.
+
