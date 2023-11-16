@@ -29,7 +29,7 @@ The multiplication is done as if the two computed hashes were floating-piont num
 ## Specific implementation in Warthog
 
 For PoBW verification a both hashes, Triple SHA256 and Verushash v2.1 are computed. Then both are converted into a custom floatin-point format called `HashExponentialDigest`:
-```
+```cpp
 class HashExponentialDigest {
   friend struct Target;
 
@@ -42,7 +42,7 @@ public:
 };
 ```
 It has two properties `negExp` and `data` which store the negative exponent and the mantissa of the stored values respectively. The default-constructed value corresponds to a stored value of 1. The conversion of a hash and the multiplication with the stored result is carried out in the `digest` function:
-```
+```cpp
 inline HashExponentialDigest& HashExponentialDigest::digest(const Hash &h) {
   negExp += 1; // we are considering hashes as number in (0,1), padded with
                // infinite amount of trailing 1's
@@ -85,7 +85,7 @@ inline HashExponentialDigest& HashExponentialDigest::digest(const Hash &h) {
 ```
 
 A header then has valid Janushash PoBW if it passes this check (pseudocode):
-```
+```cpp
 HashExponentialDigest hd; // stores 1 by default
 hd.digest(verus_hash(header)); // now stores the verus hash
 hd.digest(triple_sha256(header)); // now stores the hash product
