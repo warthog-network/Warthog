@@ -89,7 +89,7 @@ std::vector<Block> Focus::pop_data()
             from.clear();
             break;
         }
-
+        assert(downloadLength == node.batch_upper());
         map_erase(iter++);
     }
     assert(out.size() > 0);
@@ -164,7 +164,9 @@ void Focus::advance(Height newOffset)
     while (iter != map.end()) {
         assert(iter->first >= BlockSlot(downloadLength + 1));
         Node node { .iter = iter };
-        if (iter->first == bs) {
+        if (iter->first > bs)
+            break;
+        else if (iter->first == bs) {
             assert(newOffset + 1 >= node.batch_lower());
             assert(newOffset + 1 <= node.batch_upper());
             size_t nErase = newOffset + 1 - node.batch_lower();
@@ -176,8 +178,7 @@ void Focus::advance(Height newOffset)
                 bs.erase(bs.begin(), bs.begin() + nErase);
             }
             break;
-        } else {
-            assert(iter->first < bs);
+        } else { // (iter->first < bs)
             map_erase(iter++);
         }
     };
