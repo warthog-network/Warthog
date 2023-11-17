@@ -9,26 +9,26 @@ The method works by combining multiple hashes of different hash functions to *ha
 - requires each component hash function to be efficiently computed and
 - can therefore be used for example to create new mining algorithms that require both a capable CPU and GPU for efficient mining.
 
-Miner developers are strongly encouraged to read this paper since it describes how classical PoW concepts transfer to the PoBW setting, analyzes best mining approaches and provides examples which contribute to a deeper understanding, in particulary why efficient mining of hash products requires mining resources to be appropriately balanced among the involved hash functions.
+Miner developers are strongly encouraged to read this paper since it describes how classical PoW concepts transfer to the PoBW setting, analyzes best mining approaches and provides examples which contribute to a deeper understanding, in particularly why efficient mining of hash products requires mining resources to be appropriately balanced among the involved hash functions.
 
 
 ## What is Janushash?
-Janushash is a particularly simple incarnation of Proof of Balanced Work because it only combines two different hash functions via a product. We have chosen two fast hash functions: Triple SHA256 and VerusHash v2.1. VerusHash v2.1 is mined particularly efficiently on Smarthpones, or generally ARM based devices and also on CPUs. On the other hand Triple SHA256 can be most efficiently computed on ASICS, however the multiplicative combination with VerusHash v2.1 will force miners to resort to GPUs since high bandwidth between the hardware mining VerusHash v2.1 is necessary to form hash products at high rate.
+Janushash is a particularly simple incarnation of Proof of Balanced Work because it only combines two different hash functions via a product. We have chosen two fast hash functions: Triple SHA256 and VerusHash v2.1. VerusHash v2.1 is mined particularly efficiently on smartphones, or generally ARM based devices and also on CPUs. On the other hand Triple SHA256 can be most efficiently computed on ASICS, however the multiplicative combination with VerusHash v2.1 will force miners to resort to GPUs since high bandwidth between the hardware mining VerusHash v2.1 is necessary to form hash products at high rate.
 
 Therefore it is expected that the most efficient way to mine Janushash is a CPU/GPU combination. In this sense Janushash is the first proof of work algorithm which requires both, CPU and GPU capabilities at the same time. This fact coined the name "Janushash". 
 
-The goal of using this PoBW mining algorithm is to avoid harmful centralization in mining, neigher GPU farms with poor CPUs nor CPU mining farms shall be able to efficiently mine this algorithm, instead the "little guys" shall be in the focus of mining.
+The goal of using this PoBW mining algorithm is to avoid harmful centralization in mining, neither GPU farms with poor CPUs nor CPU mining farms shall be able to efficiently mine this algorithm, instead the "little guys" shall be in the focus of mining.
 
 From a high-level perspective computing a Janushash works by first computing both, the triple SHA256 hash and the Verushash v2.1 of an input byte sequence, and finally combining these two hashes into a new hash by multiplication:
 <p align="center">
   <img src="img/janus.svg" style="width:500px;"/>
 </p>
 
-The multiplication is done as if the two computed hashes were floating-piont numbers between 0 and 1. The next section explains how exactly this is done.
+The multiplication is done as if the two computed hashes were floating-point numbers between 0 and 1. The next section explains how exactly this is done.
 
 ## Specific implementation in Warthog
 
-For PoBW verification a both hashes, Triple SHA256 and Verushash v2.1 are computed. Then both are converted into a custom floatin-point format called `HashExponentialDigest`:
+For PoBW verification a both hashes, Triple SHA256 and Verushash v2.1 are computed. Then both are converted into a custom floating-point format called `HashExponentialDigest`:
 ```cpp
 class HashExponentialDigest {
   friend struct Target;
