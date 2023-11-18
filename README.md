@@ -107,6 +107,11 @@ NOTE: We (or some of us) might drop this project any time in case
       deep/unfixable bugs or ugly design issues arise. Or without
       any reason and without prior notice. 
 
+## 📖 Documentation
+* [API Reference](./doc/API.md)
+* [Python Integration Guide](./doc/integration_python.md)
+* Nodejs Integration Guide (soon)
+
 ## ⛏ Upcoming Mining algorithm
  * NEWS: Custom [Janushash algorithm](./doc/janushash.md) in the works. First Proof of Balanced Work mining algorithm in the world.
 

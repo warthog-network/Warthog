@@ -98,7 +98,7 @@ BYTES | DESCRIPTION
 - `s`: 32 byte coordinate parameter
 - `recid`: 1 byte recovery id, it should automatically have one of the four values 0,1,2,3.
 
-4. Concatenate the parameters to form the 65-byte compact recoverable signature with the following byte structure:
+4. Concatenate the parameters to form the 65-byte compact normalized (lower `s`) recoverable signature with the following byte structure:
 
 BYTES | DESCRIPTION
 ------|------------
@@ -109,7 +109,8 @@ BYTES | DESCRIPTION
 Note that this is not the standard compact recoverable signature representation because in Warthog, the recoverable id is the last byte of the 65 byte signature and has no offset of 27.
 
 
-
+#### Integration guides
+A working code snippet on how to generate and send transactions in Python3 is available [here](./integration_python.md).
 
 ### `POST /transaction/add`
  Send transactions. At the moment only binary format is available. TODO: allow JSON format:
