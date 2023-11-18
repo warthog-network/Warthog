@@ -6,7 +6,9 @@
 namespace chainserver {
 
 Chainstate::Chainstate(const ChainDB& db, BatchRegistry& br)
-    : Chainstate(db.getConsensusHeaders(), db, br) {}
+    : Chainstate(db.getConsensusHeaders(), db, br)
+{
+}
 
 Chainstate::Chainstate(
     std::tuple<std::vector<Batch>, HistoryHeights, AccountHeights> init,
@@ -44,8 +46,6 @@ void Chainstate::fork(Chainstate::ForkData&& fd)
     accountOffsets.append_vector(fd.appendResult.newAccountOffsets);
     assert_equal_length();
 
-
-
     //////////////////////////////
     // erase mempool after rollback height
     _mempool.erase_from_height(forkHeight);
@@ -67,7 +67,6 @@ void Chainstate::fork(Chainstate::ForkData&& fd)
             _mempool.insert_tx(tx, txh, txhash, from);
         }
     }
-
 
     // set transaction ids
     chainTxIds = std::move(fd.rollbackResult.chainTxIds);
@@ -108,7 +107,6 @@ auto Chainstate::rollback(const RollbackResult& rb) -> HeaderchainRollback
     // erase mempool after rollback height
     _mempool.erase_from_height(forkHeight);
 
-
     //////////////////////////////
     // insert transactions into mempool
     AccountCache accountCache(db);
@@ -135,8 +133,8 @@ auto Chainstate::append(AppendMulti ad) -> HeaderchainAppend
     // safety check, length must increment
     const Height l { length() };
     assert(l <= ad.patchedChain.length());
-    if (l!= 0) {
-        auto ll{l.nonzero_assert()};
+    if (l != 0) {
+        auto ll { l.nonzero_assert() };
         assert(ad.patchedChain[ll] == headerchain[ll]);
     }
 
@@ -146,10 +144,9 @@ auto Chainstate::append(AppendMulti ad) -> HeaderchainAppend
     accountOffsets.append_vector(ad.appendResult.newAccountOffsets);
     assert_equal_length();
 
-
     // remove from mempool
     // remove outdated transactions
-    auto nextBlockPinBegin{(ad.patchedChain.length()+1).pin_bgin()};
+    auto nextBlockPinBegin { (ad.patchedChain.length() + 1).pin_bgin() };
     _mempool.erase_before_height(nextBlockPinBegin);
     // remove used transactions
     for (auto& tid : ad.appendResult.newTxIds)
@@ -177,7 +174,7 @@ auto Chainstate::append(AppendSingle d) -> HeaderchainAppend
 
     // remove from mempool
     // remove outdated transactions
-    auto nextBlockPinBegin{(l+1).pin_bgin()};
+    auto nextBlockPinBegin { (l + 1).pin_bgin() };
     _mempool.erase_before_height(nextBlockPinBegin);
     // remove used transactions
     for (auto& tid : d.newTxIds)
@@ -195,7 +192,7 @@ auto Chainstate::append(AppendSingle d) -> HeaderchainAppend
 
 int32_t Chainstate::insert_tx(const TransferTxExchangeMessage& pm)
 {
-    if (pm.pin_height()<length().pin_bgin())
+    if (pm.pin_height() < length().pin_bgin())
         return EPINHEIGHT;
     if (txids().contains(pm.txid))
         return ENONCE;
@@ -213,24 +210,28 @@ int32_t Chainstate::insert_tx(const TransferTxExchangeMessage& pm)
 
 int32_t Chainstate::insert_tx(const PaymentCreateMessage& m)
 {
-    PinHeight pinHeight = m.pinHeight;
-    if (pinHeight > length())
-        return EPINHEIGHT;
-    if (pinHeight < length().pin_bgin())
-        return EPINHEIGHT;
-    auto pinHash = headers().hash_at(pinHeight);
-    auto txhash { m.tx_hash(pinHash) };
-    auto address = m.from_address(txhash);
-    auto p = db.lookup_address(address);
-    if (!p)
-        return ENOTFOUND;
-    auto& [accountId, balance] = *p;
-    AddressFunds af { address, balance };
-    TransferTxExchangeMessage pm(accountId, m);
-    if (txids().contains(pm.txid))
-        return ENONCE;
-    TransactionHeight th(pinHeight, account_height(accountId));
-    return _mempool.insert_tx(pm, th, txhash, af);
+    try {
+        PinHeight pinHeight = m.pinHeight;
+        if (pinHeight > length())
+            return EPINHEIGHT;
+        if (pinHeight < length().pin_bgin())
+            return EPINHEIGHT;
+        auto pinHash = headers().hash_at(pinHeight);
+        auto txhash { m.tx_hash(pinHash) };
+        auto address = m.from_address(txhash);
+        auto p = db.lookup_address(address);
+        if (!p)
+            return ENOTFOUND;
+        auto& [accountId, balance] = *p;
+        AddressFunds af { address, balance };
+        TransferTxExchangeMessage pm(accountId, m);
+        if (txids().contains(pm.txid))
+            return ENONCE;
+        TransactionHeight th(pinHeight, account_height(accountId));
+        return _mempool.insert_tx(pm, th, txhash, af);
+    } catch (Error e) {
+        return e.e;
+    }
 }
 
 void Chainstate::prune_txids()

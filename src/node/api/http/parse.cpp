@@ -47,15 +47,26 @@ NonceId extract_nonce_id(const nlohmann::json& json)
 CompactUInt extract_fee(const nlohmann::json& json)
 {
     try {
-        auto fee { Funds::parse(json["feeE8"].get<std::string>()) };
-        if (!fee.has_value()) 
-            goto error;
+        std::optional<Funds> fee;
+        auto iter = json.find("fee");
+        if (iter != json.end()) {
+            fee = { Funds::parse(iter->get<std::string>()) };
+            if (!fee.has_value())
+                goto error;
+        }
+        iter = json.find("feeE8");
+        if (iter != json.end()) {
+            if (fee.has_value()) 
+                goto error; // exclusive, either "amount" or "amountE8"
+            fee = Funds(iter->get<uint64_t>());
+        }
+
         auto compactFee { CompactUInt::compact(*fee) };
         bool exact = compactFee.uncompact() == *fee;
         if (!exact)
             throw Error(EINEXACTFEE);
         return compactFee;
-    } catch (json::exception& ) {
+    } catch (json::exception&) {
     }
 error:
     throw Error(EBADFEE);
@@ -73,11 +84,25 @@ Address extract_to_addr(const nlohmann::json& json)
 Funds extract_funds(const nlohmann::json& json)
 {
     try {
-        auto f{Funds::parse(json["amountE8"].get<std::string>())};
-        if (f.has_value()) 
+        std::optional<Funds> f;
+        auto iter = json.find("amount");
+        if (iter != json.end()) {
+            f = Funds::parse(iter->get<std::string>());
+            if (!f.has_value()) 
+                goto error;
+        }
+        iter = json.find("amountE8");
+        if (iter != json.end()) {
+            if (f.has_value()) 
+                goto error; // exclusive, either "amount" or "amountE8"
+            f = Funds(iter->get<uint64_t>());
+        }
+
+        if (f.has_value())
             return f.value();
     } catch (...) {
     }
+error:
     throw Error(EBADAMOUNT);
 }
 
@@ -104,9 +129,10 @@ PaymentCreateMessage parse_payment_create(const std::vector<uint8_t>& s)
     }
 }
 
-Funds parse_funds(const std::vector<uint8_t>& s){
-    std::string str(s.begin(),s.end());
-    if (auto o{Funds::parse(str)}; o.has_value())
+Funds parse_funds(const std::vector<uint8_t>& s)
+{
+    std::string str(s.begin(), s.end());
+    if (auto o { Funds::parse(str) }; o.has_value())
         return *o;
     throw Error(EMALFORMED);
 };

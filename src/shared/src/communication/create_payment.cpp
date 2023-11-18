@@ -67,8 +67,8 @@ PaymentCreateMessage::operator std::string()
         {"pinHeight",pinHeight.value()},
         {"nonceId",nonceId.value()},
         {"toAddr",toAddr.to_string()},
-        {"amountE8",amount.to_string()},
-        {"feeE8",compactFee.to_string()},
+        {"amount",amount.to_string()},
+        {"fee",compactFee.to_string()},
         {"signature65",signature.to_string()},
     }.dump(1);
 }
