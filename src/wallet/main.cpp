@@ -24,7 +24,7 @@ struct Wallet {
         j["privateKey"] = privKey.to_string();
         j["publicKey"] = pubKey.to_string();
         j["address"] = address.to_string();
-        return j.dump();
+        return j.dump(1);
     }
     void save(const filesystem::path& path) const
     {
