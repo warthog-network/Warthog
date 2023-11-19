@@ -110,7 +110,7 @@ Note that this is not the standard compact recoverable signature representation 
 
 
 #### Integration guides
-We provide working code snippets on how to generate and send transactions [in Python3](./integration_python.md) and [in NodeJS](./integration_nodejs.md).
+We provide working code snippets on how to generate and send transactions [in Python3](./integration_python.md), [Elixir](./integration_elixir.md) and [NodeJS](./integration_nodejs.md).
 
 ### `POST /transaction/add`
  Send transactions. At the moment only binary format is available. TODO: allow JSON format:
