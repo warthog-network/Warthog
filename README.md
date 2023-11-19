@@ -110,6 +110,7 @@ NOTE: We (or some of us) might drop this project any time in case
 ## 📖 Documentation
 * [API Reference](./doc/API.md)
 * [Python Integration Guide](./doc/integration_python.md)
+* [Elixir Integration Guide](./doc/integration_elixir.md)
 * [Nodejs Integration Guide](./doc/integration_nodejs.md)
 
 ## ⛏ Upcoming Mining algorithm
