@@ -2,6 +2,7 @@
 
 cpp_args = []
 if get_option('enable-gpu-miner') == true
+  message('GPU mining is enabled.')
   kernel_files = files(
   './gpu/third_party/hashcat/inc_vendor.h',
   './gpu/third_party/hashcat/inc_types.h',
@@ -31,6 +32,7 @@ if get_option('enable-gpu-miner') == true
     libuv_dep,
     opencl_dep]
 else
+  message('GPU mining is disabled.')
   gpusrc = [
     './gpu/disabled.cpp',
     ]
