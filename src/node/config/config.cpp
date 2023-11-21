@@ -1,14 +1,42 @@
 #include "config.hpp"
-#include "cmdline/cmdline.h"
+#include "cmdline/cmdline.hpp"
 #include "general/errors.hpp"
 #include "general/tcp_util.hpp"
 #include "spdlog/spdlog.h"
 #include "toml++/toml.hpp"
+#include "version.hpp"
 #include <filesystem>
 #include <iostream>
 #include <limits>
 #include <sstream>
 using namespace std;
+
+std::string get_default_datadir()
+{
+    const char* osBaseDir = nullptr;
+#ifdef __linux__
+    if ((osBaseDir = getenv("HOME")) == NULL) {
+        osBaseDir = getpwuid(getuid())->pw_dir;
+    }
+    if (osBaseDir == nullptr)
+        throw std::runtime_error("Cannot determine default data directory.");
+    return std::string(osBaseDir) + "/.warthog/";
+#elif _WIN32
+    osBaseDir = getenv("LOCALAPPDATA");
+    if (osBaseDir == nullptr)
+        throw std::runtime_error("Cannot determine default data directory.");
+    return std::string(osBaseDir) + "/Warthog/";
+#elif __APPLE__
+    if ((osBaseDir = getenv("HOME")) == NULL) {
+        osBaseDir = getpwuid(getuid())->pw_dir;
+    }
+    if (osBaseDir == nullptr)
+        throw std::runtime_error("Cannot determine default data directory.");
+    return std::string(osBaseDir) + "/Library/Warthog/";
+#else
+    throw std::runtime_error("Cannot determine default data directory.");
+#endif
+}
 
 namespace {
 std::optional<SnapshotSigner> parse_leader_key(std::string privKey)
@@ -91,14 +119,37 @@ std::vector<EndpointAddress> parse_endpoints(std::string csv)
 
 int Config::process_gengetopt(gengetopt_args_info& ai)
 {
+    bool dmp(ai.dump_config_given);
+    if (!dmp)
+        spdlog::info("Warthog Node v{}.{}.{} ", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
 
     // Log
     if (ai.debug_given)
         spdlog::set_level(spdlog::level::debug);
 
+    std::optional<std::string> ddd;
+    if (ai.peers_db_given) {
+        data.peersdb = ai.peers_db_arg;
+    } else {
+        ddd = get_default_datadir();
+        data.peersdb = *ddd + "peers.db3";
+    }
+    if (ai.chain_db_given) {
+        data.chaindb = ai.chain_db_arg;
+    } else {
+        if (!ddd)
+            ddd = get_default_datadir();
+        data.chaindb = *ddd + "chain.db3";
+    }
+    if (ddd && !std::filesystem::exists(*ddd)) {
+        if (!dmp)
+            spdlog::info("Crating default directory {}", *ddd);
+        std::error_code ec;
+        if (std::filesystem::create_directories(*ddd, ec)) {
+            throw std::runtime_error("Cannot create default directory " + *ddd + ": " + ec.message());
+        }
+    }
     // copy default values
-    data.chaindb = ai.chain_db_arg;
-    data.peersdb = ai.peers_db_arg;
     node.bind = EndpointAddress::parse(ai.bind_arg).value();
     jsonrpc.bind = EndpointAddress::parse(ai.rpc_arg).value();
     peers.connect = {};
@@ -114,7 +165,8 @@ int Config::process_gengetopt(gengetopt_args_info& ai)
 
     std::string filename = "config.toml";
     if (!ai.config_given && !std::filesystem::exists(filename)) {
-        spdlog::debug("No config.toml file found, using default configuration");
+        if (!dmp)
+            spdlog::debug("No config.toml file found, using default configuration");
         if (ai.test_given) {
             spdlog::error("No configuration file found.");
             return -1;
@@ -122,7 +174,8 @@ int Config::process_gengetopt(gengetopt_args_info& ai)
     } else {
         if (ai.config_given)
             filename = ai.config_arg;
-        spdlog::debug("Reading configuration file \"{}\"", filename);
+        if (!dmp)
+            spdlog::info("Reading configuration file \"{}\"", filename);
         try {
             // overwrite with config file
             toml::table tbl = toml::parse_file(filename);
@@ -213,7 +266,7 @@ int Config::process_gengetopt(gengetopt_args_info& ai)
         peers.connect = parse_endpoints(ai.connect_arg);
     }
 
-    if (ai.dump_config_given) {
+    if (dmp) {
         std::cout << dump();
         return 0;
     }

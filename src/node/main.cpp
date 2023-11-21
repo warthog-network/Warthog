@@ -8,7 +8,6 @@
 #include "global/globals.hpp"
 #include "peerserver/peerserver.hpp"
 #include "spdlog/spdlog.h"
-#include "version.hpp"
 
 #include <iostream>
 using namespace std;
@@ -81,8 +80,10 @@ int main(int argc, char** argv)
         return i; // >0 means continue with execution
     BatchRegistry breg;
 
+    spdlog::info("Chain database: {}", config().data.chaindb);
+    spdlog::info("Peers database: {}", config().data.peersdb);
 
-    spdlog::info("Warthog Node v{}.{}.{} ", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
+
     // spdlog::flush_on(spdlog::level::debug);
     /////////////////////
     // uv loop

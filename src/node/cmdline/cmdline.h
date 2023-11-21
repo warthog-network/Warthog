@@ -46,12 +46,12 @@ struct gengetopt_args_info
   char * connect_arg;	/**< @brief Specify peer list.  */
   char * connect_orig;	/**< @brief Specify peer list original value given at command line.  */
   const char *connect_help; /**< @brief Specify peer list help description.  */
-  char * chain_db_arg;	/**< @brief Chain data file (default='chain.db3').  */
-  char * chain_db_orig;	/**< @brief Chain data file original value given at command line.  */
-  const char *chain_db_help; /**< @brief Chain data file help description.  */
-  char * peers_db_arg;	/**< @brief Chain data file (default='peers.db3').  */
-  char * peers_db_orig;	/**< @brief Chain data file original value given at command line.  */
-  const char *peers_db_help; /**< @brief Chain data file help description.  */
+  char * chain_db_arg;	/**< @brief specify chain data file.  */
+  char * chain_db_orig;	/**< @brief specify chain data file original value given at command line.  */
+  const char *chain_db_help; /**< @brief specify chain data file help description.  */
+  char * peers_db_arg;	/**< @brief specify data file.  */
+  char * peers_db_orig;	/**< @brief specify data file original value given at command line.  */
+  const char *peers_db_help; /**< @brief specify data file help description.  */
   const char *debug_help; /**< @brief Enable debug messages help description.  */
   char * rpc_arg;	/**< @brief JSON RPC endpoint (default='127.0.0.1:3000').  */
   char * rpc_orig;	/**< @brief JSON RPC endpoint original value given at command line.  */

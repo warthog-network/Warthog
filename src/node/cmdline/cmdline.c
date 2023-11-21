@@ -42,8 +42,10 @@ const char *gengetopt_args_info_detailed_help[] = {
   "  -C, --connect=IP:PORT,...  Specify peer list",
   "  This option overrides the peers list, specify comma separated entries of\n  format 'IP:PORT'",
   "\nData file options:",
-  "      --chain-db=STRING      Chain data file  (default=`chain.db3')",
-  "      --peers-db=STRING      Chain data file  (default=`peers.db3')",
+  "      --chain-db=STRING      specify chain data file",
+  "  Defaults to ~/.warthog/chain.db3 in Linux, %LOCALAPPDATA%/Warthog/chain.db3\n  on Windows",
+  "      --peers-db=STRING      specify data file",
+  "  Defaults to ~/.warthog/peers.db3 in Linux, %LOCALAPPDATA%/Warthog/peers.db3\n  on Windows",
   "\nLogging options:",
   "  -d, --debug                Enable debug messages",
   "\nJSON RPC endpoint options:",
@@ -67,15 +69,15 @@ init_help_array(void)
   gengetopt_args_info_help[5] = gengetopt_args_info_detailed_help[5];
   gengetopt_args_info_help[6] = gengetopt_args_info_detailed_help[7];
   gengetopt_args_info_help[7] = gengetopt_args_info_detailed_help[8];
-  gengetopt_args_info_help[8] = gengetopt_args_info_detailed_help[9];
-  gengetopt_args_info_help[9] = gengetopt_args_info_detailed_help[10];
-  gengetopt_args_info_help[10] = gengetopt_args_info_detailed_help[11];
-  gengetopt_args_info_help[11] = gengetopt_args_info_detailed_help[12];
-  gengetopt_args_info_help[12] = gengetopt_args_info_detailed_help[13];
-  gengetopt_args_info_help[13] = gengetopt_args_info_detailed_help[14];
-  gengetopt_args_info_help[14] = gengetopt_args_info_detailed_help[15];
-  gengetopt_args_info_help[15] = gengetopt_args_info_detailed_help[16];
-  gengetopt_args_info_help[16] = gengetopt_args_info_detailed_help[17];
+  gengetopt_args_info_help[8] = gengetopt_args_info_detailed_help[10];
+  gengetopt_args_info_help[9] = gengetopt_args_info_detailed_help[12];
+  gengetopt_args_info_help[10] = gengetopt_args_info_detailed_help[13];
+  gengetopt_args_info_help[11] = gengetopt_args_info_detailed_help[14];
+  gengetopt_args_info_help[12] = gengetopt_args_info_detailed_help[15];
+  gengetopt_args_info_help[13] = gengetopt_args_info_detailed_help[16];
+  gengetopt_args_info_help[14] = gengetopt_args_info_detailed_help[17];
+  gengetopt_args_info_help[15] = gengetopt_args_info_detailed_help[18];
+  gengetopt_args_info_help[16] = gengetopt_args_info_detailed_help[19];
   gengetopt_args_info_help[17] = 0; 
   
 }
@@ -124,9 +126,9 @@ void clear_args (struct gengetopt_args_info *args_info)
   args_info->bind_orig = NULL;
   args_info->connect_arg = NULL;
   args_info->connect_orig = NULL;
-  args_info->chain_db_arg = gengetopt_strdup ("chain.db3");
+  args_info->chain_db_arg = NULL;
   args_info->chain_db_orig = NULL;
-  args_info->peers_db_arg = gengetopt_strdup ("peers.db3");
+  args_info->peers_db_arg = NULL;
   args_info->peers_db_orig = NULL;
   args_info->rpc_arg = gengetopt_strdup ("127.0.0.1:3000");
   args_info->rpc_orig = NULL;
@@ -146,12 +148,12 @@ void init_args_info(struct gengetopt_args_info *args_info)
   args_info->bind_help = gengetopt_args_info_detailed_help[4] ;
   args_info->connect_help = gengetopt_args_info_detailed_help[5] ;
   args_info->chain_db_help = gengetopt_args_info_detailed_help[8] ;
-  args_info->peers_db_help = gengetopt_args_info_detailed_help[9] ;
-  args_info->debug_help = gengetopt_args_info_detailed_help[11] ;
-  args_info->rpc_help = gengetopt_args_info_detailed_help[13] ;
-  args_info->config_help = gengetopt_args_info_detailed_help[15] ;
-  args_info->test_help = gengetopt_args_info_detailed_help[16] ;
-  args_info->dump_config_help = gengetopt_args_info_detailed_help[17] ;
+  args_info->peers_db_help = gengetopt_args_info_detailed_help[10] ;
+  args_info->debug_help = gengetopt_args_info_detailed_help[13] ;
+  args_info->rpc_help = gengetopt_args_info_detailed_help[15] ;
+  args_info->config_help = gengetopt_args_info_detailed_help[17] ;
+  args_info->test_help = gengetopt_args_info_detailed_help[18] ;
+  args_info->dump_config_help = gengetopt_args_info_detailed_help[19] ;
   
 }
 
@@ -533,12 +535,14 @@ cmdline_parser_internal (
   
   package_name = argv[0];
   
+  /* TODO: Why is this here? It is not used anywhere. */
   override = params->override;
   FIX_UNUSED(override);
 
   initialize = params->initialize;
   check_required = params->check_required;
 
+  /* TODO: Why is this here? It is not used anywhere. */
   check_ambiguity = params->check_ambiguity;
   FIX_UNUSED(check_ambiguity);
 
@@ -668,28 +672,28 @@ cmdline_parser_internal (
             exit (EXIT_SUCCESS);
           }
 
-          /* Chain data file.  */
+          /* specify chain data file.  */
           if (strcmp (long_options[option_index].name, "chain-db") == 0)
           {
           
           
             if (update_arg( (void *)&(args_info->chain_db_arg), 
                  &(args_info->chain_db_orig), &(args_info->chain_db_given),
-                &(local_args_info.chain_db_given), optarg, 0, "chain.db3", ARG_STRING,
+                &(local_args_info.chain_db_given), optarg, 0, 0, ARG_STRING,
                 check_ambiguity, override, 0, 0,
                 "chain-db", '-',
                 additional_error))
               goto failure;
           
           }
-          /* Chain data file.  */
+          /* specify data file.  */
           else if (strcmp (long_options[option_index].name, "peers-db") == 0)
           {
           
           
             if (update_arg( (void *)&(args_info->peers_db_arg), 
                  &(args_info->peers_db_orig), &(args_info->peers_db_given),
-                &(local_args_info.peers_db_given), optarg, 0, "peers.db3", ARG_STRING,
+                &(local_args_info.peers_db_given), optarg, 0, 0, ARG_STRING,
                 check_ambiguity, override, 0, 0,
                 "peers-db", '-',
                 additional_error))

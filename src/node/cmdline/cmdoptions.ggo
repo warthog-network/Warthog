@@ -11,8 +11,8 @@ option "bind" b "Port name to listen on" optional string typestr="IP:PORT" defau
 option "connect" C "Specify peer list" details="This option overrides the peers list, specify comma separated entries of format 'IP:PORT'" optional string typestr="IP:PORT,..."
 
 section "Data file options"
-option "chain-db" - "Chain data file" optional string default="chain.db3"
-option "peers-db" - "Chain data file" optional string default="peers.db3"
+option "chain-db" - "specify chain data file" details="Defaults to ~/.warthog/chain.db3 in Linux, %LOCALAPPDATA%/Warthog/chain.db3 on Windows" optional string 
+option "peers-db" - "specify data file" details="Defaults to ~/.warthog/peers.db3 in Linux, %LOCALAPPDATA%/Warthog/peers.db3 on Windows"optional string 
 
 
 
