@@ -304,7 +304,7 @@ void Eventloop::initialize_block_download()
 void Eventloop::handle_event(PeersCb&& cb)
 {
     std::vector<API::Peerinfo> out;
-    for (auto cr : connections.all()) {
+    for (auto cr : connections.initialized()) {
         out.push_back({
             .ip = cr->c->peer_address().ipv4,
             .initialized = cr.initialized(),

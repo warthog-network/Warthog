@@ -400,11 +400,11 @@ json to_json(const OffenseEntry& e)
     };
 }
 
-std::string serialize(const std::vector<API::Peerinfo>& banned)
+std::string serialize(const std::vector<API::Peerinfo>& connected)
 {
     using namespace nlohmann;
     json j = json::array();
-    for (auto& item : banned) {
+    for (auto& item : connected) {
         json elem;
         elem["connection"] = json {
             { "ip", item.ip.to_string().c_str() },

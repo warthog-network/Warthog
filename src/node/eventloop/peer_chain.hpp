@@ -19,6 +19,7 @@ enum class PeerchainMatch {
     CONSENSUSMATCH,
     BLOCKDOWNLOADMATCH
 };
+
 struct PeerChain {
 public:
     void initialize(const InitMsg& parsed, const StageAndConsensus&);
