@@ -362,10 +362,10 @@ HistoryId ChainDB::insertHistory(const HashView hash,
 
 void ChainDB::delete_history_from(NonzeroHeight h)
 {
-    int64_t nextHistoryId = stmtConsensusSelectHistory.one(h).get<int64_t>(0);
+    const int64_t nextHistoryId = stmtConsensusSelectHistory.one(h).get<int64_t>(0);
     assert(nextHistoryId >= 0);
     stmtHistoryDeleteFrom.run(nextHistoryId);
-    stmtAccountHistoryDeleteFrom.run(h);
+    stmtAccountHistoryDeleteFrom.run(nextHistoryId);
     cache.nextHistoryId = HistoryId{nextHistoryId};
 }
 

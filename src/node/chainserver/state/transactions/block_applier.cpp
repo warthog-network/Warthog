@@ -175,15 +175,15 @@ struct HistoryEntries {
     void push_reward(const RewardInternal& r)
     {
         insertHistory.emplace_back(r, nextHistoryId);
-        insertAccountHistry.emplace_back(r.toAccountId, nextHistoryId);
+        insertAccountHistory.emplace_back(r.toAccountId, nextHistoryId);
         ++nextHistoryId;
     }
     void push_transfer(const VerifiedTransfer& r)
     {
         insertHistory.emplace_back(r, nextHistoryId);
-        insertAccountHistry.emplace_back(r.ti.toAccountId, nextHistoryId);
+        insertAccountHistory.emplace_back(r.ti.toAccountId, nextHistoryId);
         if (r.ti.toAccountId != r.ti.fromAccountId) {
-            insertAccountHistry.emplace_back(r.ti.fromAccountId, nextHistoryId);
+            insertAccountHistory.emplace_back(r.ti.fromAccountId, nextHistoryId);
         }
         ++nextHistoryId;
     }
@@ -195,12 +195,12 @@ struct HistoryEntries {
             assert(p.historyId == inserted);
         }
         // insert account history
-        for (auto p : insertAccountHistry) {
+        for (auto p : insertAccountHistory) {
             db.insertAccountHistory(p.first, p.second);
         }
     }
     std::vector<InsertHistoryEntry> insertHistory;
-    std::vector<std::pair<AccountId, HistoryId>> insertAccountHistry;
+    std::vector<std::pair<AccountId, HistoryId>> insertAccountHistory;
 };
 
 } // namespace
