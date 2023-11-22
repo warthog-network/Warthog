@@ -200,6 +200,8 @@ int32_t Chainstate::insert_tx(const TransferTxExchangeMessage& pm)
     if (!h)
         return EPINHEIGHT;
     auto txHash { pm.txhash(*h) };
+    if (pm.from_address(txHash) == pm.toAddr)
+        return ESELFSEND;
 
     auto p = db.lookup_account(pm.from_id());
     if (!p)
@@ -218,12 +220,14 @@ int32_t Chainstate::insert_tx(const PaymentCreateMessage& m)
             return EPINHEIGHT;
         auto pinHash = headers().hash_at(pinHeight);
         auto txhash { m.tx_hash(pinHash) };
-        auto address = m.from_address(txhash);
-        auto p = db.lookup_address(address);
+        auto fromAddr = m.from_address(txhash);
+        if (fromAddr == m.toAddr) 
+            return ESELFSEND;
+        auto p = db.lookup_address(fromAddr);
         if (!p)
             return ENOTFOUND;
         auto& [accountId, balance] = *p;
-        AddressFunds af { address, balance };
+        AddressFunds af { fromAddr, balance };
         TransferTxExchangeMessage pm(accountId, m);
         if (txids().contains(pm.txid))
             return ENONCE;

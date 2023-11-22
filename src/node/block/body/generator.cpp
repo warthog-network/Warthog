@@ -137,15 +137,25 @@ BodyContainer BlockGenerator::gen_block(Height height,
     }
 
     // Payments
-    if (payouts.size() > std::numeric_limits<uint32_t>::max()) {
+    if (payments.size() > std::numeric_limits<uint32_t>::max()) {
         throw std::runtime_error("Too many payments");
     }
-    PaymentSection pms(payments.size());
+
+    // filter valid payments to survive self send 
+    std::vector<TransferTxExchangeMessage> validPayments;
     for (auto& pmsg : payments) {
-        AccountId toId = nas.getId(pmsg.toAddr);
-        // don't create blocks with self send
-        if (toId == pmsg.from_id()) 
+        if (nas.getId(pmsg.toAddr) == pmsg.from_id()) {
+            // This should not be possible because self sending transactions
+            // are detected on entering mempool.
+            spdlog::warn("Impossible self send detected.");
             continue;
+        }
+        validPayments.push_back(pmsg);
+    }
+
+    PaymentSection pms(validPayments.size());
+    for (auto& pmsg : validPayments) {
+        AccountId toId = nas.getId(pmsg.toAddr);
 
         auto ph = pmsg.pin_height();
         auto pn = PinNonce::make_pin_nonce(pmsg.nonce_id(), height, ph);
