@@ -145,7 +145,7 @@ int Config::process_gengetopt(gengetopt_args_info& ai)
         if (!dmp)
             spdlog::info("Crating default directory {}", *ddd);
         std::error_code ec;
-        if (std::filesystem::create_directories(*ddd, ec)) {
+        if (!std::filesystem::create_directories(*ddd, ec)) {
             throw std::runtime_error("Cannot create default directory " + *ddd + ": " + ec.message());
         }
     }
