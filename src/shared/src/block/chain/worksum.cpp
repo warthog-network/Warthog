@@ -62,7 +62,7 @@ Worksum::Worksum(std::array<uint8_t, 32> data)
 Worksum::Worksum(const TargetV1& t)
 {
     fragments.fill(0ul);
-    uint32_t zeros = t.at(0);
+    uint32_t zeros = t.zeros8();
     uint64_t invbits = (uint64_t(1) << (24 + 31)) / uint64_t(t.bits24());
     // 2^31<invbits<=2^32
     if (invbits == (uint64_t(1)<<32)) { // 2^32
@@ -115,3 +115,4 @@ std::array<uint8_t, 32> Worksum::to_bytes() const
     }
     return res;
 };
+
