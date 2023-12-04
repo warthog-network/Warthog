@@ -304,7 +304,7 @@ int Connection::connect(EndpointAddress a)
     uv_connect_t* p = new uv_connect_t;
     p->data = this;
     auto addr { a.sock_addr() };
-    spdlog::info("{} connecting ", to_string());
+    connection_log().info("{} connecting ", to_string());
     if (i = uv_tcp_connect(p, &tcp, (const sockaddr*)&addr, connect_caller); i != 0) {
         delete p;
     } else {
@@ -332,7 +332,7 @@ void Connection::close(int errcode)
     }
 
     state = State::CLOSING;
-    spdlog::info("{} closed: {} ({})",
+    connection_log().info("{} closed: {} ({})",
         to_string(), errors::err_name(errcode), errors::strerror(errcode));
     conman.peerServer.async_register_close(peerAddress.ipv4, errcode, logrow);
     if (eventloopref) {

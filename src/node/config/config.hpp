@@ -25,8 +25,10 @@ struct Config {
     bool localDebug { false };
 
     std::string dump();
+    const std::string defaultDataDir;
     int init(int argc, char** argv);
 
+    Config();
 private:
     int process_gengetopt(gengetopt_args_info&);
 };

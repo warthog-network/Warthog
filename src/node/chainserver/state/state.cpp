@@ -448,7 +448,6 @@ auto State::apply_stage(ChainDBTransaction&& t) -> std::pair<ChainError, std::op
 auto State::apply_signed_snapshot(SignedSnapshot&& ssnew) -> std::optional<StateUpdate>
 {
     if (signedSnapshot >= ssnew) {
-        spdlog::info("SetSignedPin {} OLD ", ssnew.height().value());
         return {};
     }
     spdlog::info("SetSignedPin {} new", ssnew.height().value());
