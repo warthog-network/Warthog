@@ -222,6 +222,7 @@ void Eventloop::handle_event(StateUpdate&& e)
 void Eventloop::update_chain(Append&& m)
 {
     const auto msg = chains.update_consensus(std::move(m));
+    log_chain_length();
     for (auto c : connections.initialized()) {
         try {
             c->chain.on_consensus_append(chains);
@@ -241,6 +242,7 @@ void Eventloop::update_chain(Append&& m)
 void Eventloop::update_chain(Fork&& fork)
 {
     auto msg { chains.update_consensus(std::move(fork)) };
+    log_chain_length();
     for (auto c : connections.initialized()) {
         try {
             c->chain.on_consensus_fork(msg.forkHeight, chains);
@@ -259,6 +261,7 @@ void Eventloop::update_chain(RollbackData&& rd)
     // update consensus
     const auto msg { chains.update_consensus(rd) };
     if (msg) {
+        log_chain_length();
         for (auto c : connections.initialized()) {
             c->chain.on_consensus_shrink(chains);
             c.send(*msg);
@@ -276,7 +279,7 @@ void Eventloop::update_chain(RollbackData&& rd)
         consider_send_snapshot(c);
 
     coordinate_sync();
-    spdlog::info("init blockdownload update_chain");
+    syncdebug_log().info("init blockdownload update_chain");
     initialize_block_download();
     do_requests();
 }
@@ -299,6 +302,23 @@ void Eventloop::initialize_block_download()
         };
         process_blockdownload_stage();
     }
+}
+
+ForkHeight Eventloop::update_blockdownload_headers(Headerchain&& hc)
+{
+    spdlog::info("Syncing 🗘 (height {} of {})", chains.consensus_length().value(), hc.length().value());
+    auto forkHeight { chains.update_stage(std::move(hc)) };
+    return forkHeight;
+}
+
+void Eventloop::log_chain_length()
+{
+    auto synced { chains.consensus_length().value() };
+    auto total { chains.stage_headers().length().value() };
+    if (synced < total)
+        spdlog::info("Syncing 🗘 (height {} of {})", synced, total);
+    else if (synced == total)
+        spdlog::info("Synced ✓ (height {}).", synced);
 }
 
 void Eventloop::handle_event(PeersCb&& cb)
@@ -364,7 +384,7 @@ void Eventloop::handle_event(HashrateCb&& cb)
 
 void Eventloop::handle_event(GetHashrateChart&& e)
 {
-    e.cb(consensus().headers().hashrate_chart(e.from,e.to,100));
+    e.cb(consensus().headers().hashrate_chart(e.from, e.to, 100));
 }
 
 void Eventloop::handle_event(OnPinAddress&& e)
@@ -433,7 +453,8 @@ void Eventloop::erase(Conref c)
     }
     c->c->eventloop_erased = true;
     assert(c.valid());
-    headerDownload.erase(c);
+    if (headerDownload.erase(c) && !closeReason)
+        spdlog::info("Connected to {} peers", headerDownload.size());
     if (blockDownload.erase(c)) {
         coordinate_sync();
     };
@@ -452,9 +473,11 @@ void Eventloop::unref(Connection* c)
 bool Eventloop::insert(Conref c, const InitMsg& data)
 {
     bool doRequests = true;
+
     c->chain.initialize(data, chains);
     headerDownload.insert(c);
     blockDownload.insert(c);
+    spdlog::info("Connected to {} peers", headerDownload.size());
     send_ping_await_pong(c);
     // LATER: return whether doRequests is necessary;
     return doRequests;
@@ -803,7 +826,7 @@ void Eventloop::handle_msg(Conref cr, BatchrepMsg&& m)
         close(o);
     }
 
-    spdlog::info("init blockdownload batch_rep");
+    syncdebug_log().info("init blockdownload batch_rep");
     initialize_block_download();
 
     // assign work

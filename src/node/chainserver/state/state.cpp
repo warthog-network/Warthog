@@ -441,7 +441,6 @@ auto State::apply_stage(ChainDBTransaction&& t) -> std::pair<ChainError, std::op
     db.set_consensus_work(stage.total_work());
     auto update { tr.commit(*this) };
 
-    spdlog::info("New chain length {}", chainlength().value());
     return { error, update };
 }
 
@@ -450,7 +449,7 @@ auto State::apply_signed_snapshot(SignedSnapshot&& ssnew) -> std::optional<State
     if (signedSnapshot >= ssnew) {
         return {};
     }
-    spdlog::info("SetSignedPin {} new", ssnew.height().value());
+    syncdebug_log().info("SetSignedPin {} new", ssnew.height().value());
     signedSnapshot = std::move(ssnew);
 
     using namespace state_update;

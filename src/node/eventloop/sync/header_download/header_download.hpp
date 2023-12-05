@@ -207,7 +207,9 @@ private:
     struct ConnectionFinder {
         ConnectionFinder(RequestSender& s, std::vector<Conref>& v)
             : s(s)
-            , connections(v) {}
+            , connections(v)
+        {
+        }
         RequestSender& s;
         const std::vector<Conref>& connections;
         size_t conIndex = 0;
@@ -222,9 +224,12 @@ public:
     {
         return leaderList.size() > 0;
     }
+    size_t size() const { return connections.size(); }
     Downloader(const StageAndConsensus& cache, Worksum minWork)
         : chains(cache)
-        , minWork(minWork) {}
+        , minWork(minWork)
+    {
+    }
     void set_min_worksum(const Worksum& ws);
 
     // peer message callbacks
@@ -234,7 +239,7 @@ public:
 
     void on_signed_snapshot_update();
     void insert(Conref cr);
-    void erase(Conref cr);
+    bool erase(Conref cr);
 
     auto leaders_end() { return leaderList.end(); }
 
@@ -270,7 +275,6 @@ private:
     void acquire_queued_batch(std::optional<Header>, HeaderView, Lead_iter);
     void release_first_queued_batch(Lead_iter);
     void shift_queued_batch(Lead_iter);
-
 
     // leader related functions
     void erase_leader(Lead_iter);

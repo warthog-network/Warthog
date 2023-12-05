@@ -235,6 +235,11 @@ private:
     void coordinate_sync();
 
     void initialize_block_download();
+    ForkHeight update_blockdownload_headers(Headerchain&&);
+
+    // log
+    void log_chain_length();
+
     // checkers
     void verify_rollback(Conref, const SignedPinRollbackMsg&); // throws
 

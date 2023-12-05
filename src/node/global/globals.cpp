@@ -10,6 +10,13 @@ auto create_connection_logger()
     return spdlog::rotating_logger_mt("connection_logger", config().defaultDataDir + "logs/connections.log", max_size, max_files);
 }
 
+auto create_syncdebug_logger()
+{
+    auto max_size = 1048576 * 5; // 5 MB
+    auto max_files = 3;
+    return spdlog::rotating_logger_mt("syncdebug_logger", config().defaultDataDir + "logs/syncdebug.log", max_size, max_files);
+}
+
 }
 
 namespace {
@@ -42,4 +49,5 @@ void global_init(BatchRegistry* pbr, PeerServer* pps, ChainServer* pcs, Conman* 
     globalinstance.pcs = pcs;
     globalinstance.pel = pel;
     globalinstance.connLogger = create_connection_logger();;
+    globalinstance.syncdebugLogger = create_syncdebug_logger();;
 };
