@@ -25,7 +25,7 @@ public:
     bool operator!=(const TargetV1& t) const { return data != t.data; };
     bool operator==(const TargetV1&) const = default;
 
-    uint32_t binary() const { return data; }
+    uint32_t binary() const { return htobe32(data); }
     // uint8_t& at(size_t index) { return ((uint8_t*)(&data))[index]; }
     // uint8_t& operator[](size_t index) { return at(index); }
     // uint8_t at(size_t index) const { return ((uint8_t*)(&data))[index]; }
@@ -48,7 +48,7 @@ class HashExponentialDigest;
 struct TargetV2 { // new target with 22 bit digits, 20 bit mantissa to represent hash product even for small factors
     static constexpr uint32_t MaxTargetHost = 0xe00fffffu; // maximal target, 3*256 zeros then all 22 set to 1
     static constexpr uint8_t MinDiffExponent = 22; // 2^(<this number>) is the expected number of tries to mine the first
-    static constexpr uint32_t MinTargetHost = (uint32_t(MinDiffExponent) << 24) | 0x003FFFFFu;
+    static constexpr uint32_t MinTargetHost = (uint32_t(MinDiffExponent) << 22) | 0x003FFFFFu;
     static_assert(MinDiffExponent < 0xe8u);
 
 private:
@@ -65,7 +65,7 @@ public:
         bool operator!=(const TargetV2& t) const { return data != t.data; };
         bool operator==(const TargetV2&) const = default;
 
-        uint32_t binary() const { return data; }
+        uint32_t binary() const { return htobe32(data); }
         // uint8_t& at(size_t index) { return ((uint8_t*)(&data))[index]; }
         // uint8_t& operator[](size_t index) { return at(index); }
         // uint8_t at(size_t index) const { return ((uint8_t*)(&data))[index]; }
