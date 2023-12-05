@@ -38,6 +38,11 @@ std::string get_default_datadir()
 #endif
 }
 
+Config::Config()
+    : defaultDataDir(get_default_datadir())
+{
+}
+
 namespace {
 std::optional<SnapshotSigner> parse_leader_key(std::string privKey)
 {
@@ -127,26 +132,22 @@ int Config::process_gengetopt(gengetopt_args_info& ai)
     if (ai.debug_given)
         spdlog::set_level(spdlog::level::debug);
 
-    std::optional<std::string> ddd;
     if (ai.peers_db_given) {
         data.peersdb = ai.peers_db_arg;
     } else {
-        ddd = get_default_datadir();
-        data.peersdb = *ddd + "peers.db3";
+        data.peersdb = defaultDataDir + "peers.db3";
     }
     if (ai.chain_db_given) {
         data.chaindb = ai.chain_db_arg;
     } else {
-        if (!ddd)
-            ddd = get_default_datadir();
-        data.chaindb = *ddd + "chain.db3";
+        data.chaindb = defaultDataDir + "chain.db3";
     }
-    if (ddd && !std::filesystem::exists(*ddd)) {
+    if (!std::filesystem::exists(defaultDataDir)) {
         if (!dmp)
-            spdlog::info("Crating default directory {}", *ddd);
+            spdlog::info("Crating default directory {}", defaultDataDir);
         std::error_code ec;
-        if (!std::filesystem::create_directories(*ddd, ec)) {
-            throw std::runtime_error("Cannot create default directory " + *ddd + ": " + ec.message());
+        if (!std::filesystem::create_directories(defaultDataDir, ec)) {
+            throw std::runtime_error("Cannot create default directory " + defaultDataDir + ": " + ec.message());
         }
     }
     // copy default values

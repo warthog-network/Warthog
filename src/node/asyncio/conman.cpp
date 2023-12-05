@@ -273,6 +273,6 @@ void Conman::connect(EndpointAddress a, std::optional<uint32_t> reconnectSleep)
     addref("connection");
     if (int i = conn.connect(a)) {
         conn.close(i);
-        spdlog::error("Cannot connect: {}", errors::err_name(i));
+        connection_log().error("Cannot connect: {}", errors::err_name(i));
     }
 }
