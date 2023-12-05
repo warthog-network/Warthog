@@ -13,13 +13,19 @@ struct TargetV1 { // original target with 24 bit digits, 8 bit mantissa
 
 private:
     uint32_t data;
+    // static
     void set(uint32_t zeros, uint32_t bytes)
     {
         data = zeros << 24 | bytes;
     }
 
+    constexpr TargetV1(uint32_t data)
+        : data(data) {};
+
 public:
-    constexpr TargetV1(uint32_t data = 0u);
+    TargetV1()
+        : data(0) {};
+    static TargetV1 from_raw(const uint8_t*);
     TargetV1(double difficulty);
 
     bool operator!=(const TargetV1& t) const { return data != t.data; };
@@ -58,54 +64,56 @@ private:
         data = zeros << 22 | bytes;
     }
 
-public:
     constexpr TargetV2(uint32_t data = 0u);
-        TargetV2(double difficulty);
 
-        bool operator!=(const TargetV2& t) const { return data != t.data; };
-        bool operator==(const TargetV2&) const = default;
+public:
+    static TargetV2 from_raw(const uint8_t*);
+    TargetV2(double difficulty);
 
-        uint32_t binary() const { return htobe32(data); }
-        // uint8_t& at(size_t index) { return ((uint8_t*)(&data))[index]; }
-        // uint8_t& operator[](size_t index) { return at(index); }
-        // uint8_t at(size_t index) const { return ((uint8_t*)(&data))[index]; }
-        // uint8_t operator[](size_t index) const { return at(index); }
-        uint32_t bits22() const;
-        uint32_t zeros10() const;
-        bool compatible(const HashExponentialDigest& digest) const;
+    bool operator!=(const TargetV2& t) const { return data != t.data; };
+    bool operator==(const TargetV2&) const = default;
 
-        // scale target by easierfactor/harderfactor
-        // easierfactor: int32_t which needs to be smaller than 0x80000000u because we multiply by 2 in the code
-        // harderfactor: int32_t which needs to be smaller than 0x80000000u because we multiply by 2 in the code
-        // These conditions should be fine because these factors will be based on seconds passed and 0x80000000u seconds are more than 60 years.
-        void scale(uint32_t easierfactor, uint32_t harderfactor);
-        double difficulty() const;
-        static TargetV2 min();
+    uint32_t binary() const { return htobe32(data); }
+    // uint8_t& at(size_t index) { return ((uint8_t*)(&data))[index]; }
+    // uint8_t& operator[](size_t index) { return at(index); }
+    // uint8_t at(size_t index) const { return ((uint8_t*)(&data))[index]; }
+    // uint8_t operator[](size_t index) const { return at(index); }
+    uint32_t bits22() const;
+    uint32_t zeros10() const;
+    bool compatible(const HashExponentialDigest& digest) const;
+
+    // scale target by easierfactor/harderfactor
+    // easierfactor: int32_t which needs to be smaller than 0x80000000u because we multiply by 2 in the code
+    // harderfactor: int32_t which needs to be smaller than 0x80000000u because we multiply by 2 in the code
+    // These conditions should be fine because these factors will be based on seconds passed and 0x80000000u seconds are more than 60 years.
+    void scale(uint32_t easierfactor, uint32_t harderfactor);
+    double difficulty() const;
+    static TargetV2 min();
 };
 
 class Target {
-    public:
-        Target(const auto& t)
-            : t(t)
-        {
-        }
-        auto difficulty() const
-        {
-            return std::visit([&](auto& t) { return t.difficulty(); }, t);
-        }
-        auto binary() const
-        {
-            return std::visit([&](auto& t) { return t.binary(); }, t);
-        }
-        bool is_janushash() const { return std::holds_alternative<TargetV2>(t); }
-        const std::variant<TargetV1, TargetV2>& get() const { return t; };
+public:
+    Target(const auto& t)
+        : t(t)
+    {
+    }
+    auto difficulty() const
+    {
+        return std::visit([&](auto& t) { return t.difficulty(); }, t);
+    }
+    auto binary() const
+    {
+        return std::visit([&](auto& t) { return t.binary(); }, t);
+    }
+    bool is_janushash() const { return std::holds_alternative<TargetV2>(t); }
+    const std::variant<TargetV1, TargetV2>& get() const { return t; };
 
-        auto scale(uint32_t easierfactor, uint32_t harderfactor)
-        {
-            return std::visit([&](auto& t) { return t.scale(easierfactor, harderfactor); }, t);
-        }
-        bool operator==(const Target&) const = default;
+    auto scale(uint32_t easierfactor, uint32_t harderfactor)
+    {
+        return std::visit([&](auto& t) { return t.scale(easierfactor, harderfactor); }, t);
+    }
+    bool operator==(const Target&) const = default;
 
-    private:
-        std::variant<TargetV1, TargetV2> t;
+private:
+    std::variant<TargetV1, TargetV2> t;
 };
