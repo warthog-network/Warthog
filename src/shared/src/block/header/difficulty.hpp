@@ -4,6 +4,7 @@
 #include "difficulty_declaration.hpp"
 #include "general/byte_order.hpp"
 #include "general/params.hpp"
+#include "general/reader.hpp"
 // #include <arpa/inet.h>
 #include <array>
 #include <cassert>
@@ -25,8 +26,11 @@
 // ordering required above
 //
 
-constexpr TargetV1::TargetV1(uint32_t data)
-    : data(hton32(data)) {};
+
+
+inline TargetV1 TargetV1::from_raw(const uint8_t*pos){
+    return TargetV1{readuint32(pos)};
+};
 
 inline TargetV1::TargetV1(double difficulty)
 {
@@ -163,7 +167,11 @@ inline TargetV1 TargetV1::genesis()
 //
 
 constexpr TargetV2::TargetV2(uint32_t data)
-    : data(hton32(data)) {};
+    : data(data) {};
+
+inline TargetV2 TargetV2::from_raw(const uint8_t*pos){
+    return TargetV2{readuint32(pos)};
+};
 
 inline TargetV2::TargetV2(double difficulty)
     : TargetV2(0u)

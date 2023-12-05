@@ -43,15 +43,11 @@ inline Target HeaderView::target(NonzeroHeight h) const
 
 inline TargetV1 HeaderView::target_v1() const
 {
-    uint32_t tmp;
-    memcpy(&tmp, data() + offset_target, 4);
-    return TargetV1(tmp);
+    return TargetV1::from_raw(data() + offset_target);
 }
 inline TargetV2 HeaderView::target_v2() const
 {
-    uint32_t tmp;
-    memcpy(&tmp, data() + offset_target, 4);
-    return TargetV2(tmp);
+    return TargetV2::from_raw(data() + offset_target);
 }
 inline uint32_t HeaderView::nonce() const
 {
