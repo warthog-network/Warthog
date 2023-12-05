@@ -38,6 +38,7 @@ public:
 
     // const lookup functions
     [[nodiscard]] std::optional<ChaincacheMatch> lookup(std::optional<ChainPin>) const;
+    auto consensus_length() const { return consensus.headers().length(); }
     auto consensus_state() const -> const auto& { return consensus; }
     auto stage_headers() const -> const Headerchain& { return *stageHeaders; }
     void stage_clear();

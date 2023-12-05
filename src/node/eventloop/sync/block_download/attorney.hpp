@@ -11,6 +11,6 @@ inline auto Attorney::connections() const
 
 inline auto Attorney::update_blockdownlad(Headerchain&& newheaders)
 {
-    return eventloop.chains.update_stage(std::move(newheaders));
+    return eventloop.update_blockdownload_headers(std::move(newheaders));
 }
 }

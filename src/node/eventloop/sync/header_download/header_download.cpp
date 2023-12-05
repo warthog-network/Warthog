@@ -171,7 +171,7 @@ bool Downloader::consider_insert_leader(Conref cr)
         return false;
     auto& pin { *o };
 
-    spdlog::info("acquire findLast: [{},{}]", pin.lower_height().value(), pin.upper_height().value());
+    syncdebug_log().info("acquire findLast: [{},{}]", pin.lower_height().value(), pin.upper_height().value());
 
     if (!valid_shared_batch(pin))
         return false;
@@ -634,9 +634,9 @@ bool Downloader::has_data() const
     return maximizer.has_value() && std::get<2>(maximizer.value()) > minWork;
 }
 
-void Downloader::erase(Conref cr)
+bool Downloader::erase(Conref cr)
 {
-    std::erase(connections, cr);
+    bool erased = std::erase(connections, cr);
 
     clear_connection_probe(cr);
     if (maximizer.has_value() && std::get<0>(maximizer.value()).cr == cr)
@@ -650,6 +650,7 @@ void Downloader::erase(Conref cr)
         data(cr).jobPtr->cr.clear();
         data(cr).jobPtr = nullptr;
     }
+    return erased;
 }
 
 void Downloader::select_leaders()
