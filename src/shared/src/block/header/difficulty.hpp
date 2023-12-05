@@ -36,7 +36,7 @@ inline TargetV1::TargetV1(double difficulty)
     double coef = std::frexp(difficulty, &exp);
     double inv = 1 / coef; // will be in the interval (1,2]
     if (exp - 1 >= 256 - 24) {
-        data = hton32(HARDESTTARGET_HOST);
+        data = HARDESTTARGET_HOST;
         return;
     };
     uint32_t zeros = exp - 1;
@@ -146,7 +146,7 @@ inline double TargetV1::difficulty() const
 }
 inline TargetV1 TargetV1::genesis()
 {
-    return hton32(GENESISTARGET_HOST);
+    return GENESISTARGET_HOST;
 }
 
 // TargetV2 encoding (4 bytes):
@@ -175,7 +175,7 @@ inline TargetV2::TargetV2(double difficulty)
     double inv = 1 / coef; // will be in the interval (1,2]
     uint32_t zeros = exp - 1;
     if (zeros >= 3 * 256) {
-        data = hton32(MaxTargetHost);
+        data = MaxTargetHost;
         return;
     };
     if (inv == 2.0) {
@@ -254,7 +254,7 @@ inline double TargetV2::difficulty() const
 }
 inline TargetV2 TargetV2::min()
 {
-    return hton32(MinTargetHost);
+    return MinTargetHost;
 }
 
 inline bool TargetV2::compatible(const HashExponentialDigest& digest) const
