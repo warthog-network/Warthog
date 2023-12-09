@@ -184,7 +184,7 @@ void Conman::handle_event(Delete&& e)
                 .conman = this,
                 .uv_timer {},
                 .address { a },
-                .nextReconnectSleep = std::max(seconds, std::min(2 * seconds + 1, 60ul)),
+                .nextReconnectSleep = std::max(seconds, std::min(2 * seconds + 1, size_t(60ul))),
                 .iter {} });
         auto iter = std::prev(reconnectTimers.end());
         auto& timer = *iter;

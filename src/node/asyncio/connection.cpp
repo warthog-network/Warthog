@@ -266,7 +266,7 @@ int Connection::accept()
     if (storage.ss_family != AF_INET)
         return EREFUSED;
     sockaddr_in* addr_i4 = (struct sockaddr_in*)&storage;
-    peerAddress.ipv4 = IPv4(ntoh32(reinterpret_cast<uint32_t>(addr_i4->sin_addr.s_addr)));
+    peerAddress.ipv4 = IPv4(ntoh32(uint32_t(addr_i4->sin_addr.s_addr)));
     peerAddress.port = addr_i4->sin_port;
     spdlog::info("{} new incoming", to_string());
     if (!conman.count(peerAddress.ipv4)) {

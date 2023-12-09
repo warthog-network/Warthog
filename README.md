@@ -91,7 +91,11 @@ Note: Ubuntu 20.04 does not meet these requirements.
 
 ### Docker build (node and wallet)
 
+#### Build for Linux
 * Run `DOCKER_BUILDKIT=1 docker build . --output build` in the repo directory.
+#### Build for Windows (cross-compilation on Linux)
+* Run `DOCKER_BUILDKIT=1 docker build . -f DockerfileWindows --output ./build/windows` in the repo.
+* Windows binaries are located in `./build/windows` directory.
 
 
 ## ▶️ USAGE

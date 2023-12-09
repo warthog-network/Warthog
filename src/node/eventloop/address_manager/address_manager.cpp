@@ -228,7 +228,7 @@ bool AddressManager::on_failed_outbound(EndpointAddress a)
         auto timer_iter = timer.emplace(sc::now() + seconds(cs.sleepSeconds), iter);
         remove_timer(iter);
         cs.timer_iter = timer_iter;
-        cs.sleepSeconds = std::max(cs.sleepSeconds, std::min(2 * (cs.sleepSeconds + 1), 5 * 60ul));
+        cs.sleepSeconds = std::max(cs.sleepSeconds, std::min(2 * (cs.sleepSeconds + 1), size_t(5 * 60ul)));
         return true;
     }
     return false;

@@ -52,7 +52,7 @@ private: // private methods
             return EMSGLEN;
         }
         // Now allocate
-        body.bytes.resize(std::min(bsize, 1024ul));
+        body.bytes.resize(std::min(bsize, size_t(1024ul)));
         // Copy additional bytes into body (needed for checksum)
         body.bytes[0] = header[8];
         body.bytes[1] = header[9];
@@ -60,7 +60,7 @@ private: // private methods
     }
     void realloc()
     {
-        body.bytes.resize(std::min(bsize, body.bytes.size() + 1024ul));
+        body.bytes.resize(std::min(bsize, body.bytes.size() + size_t(1024ul)));
     }
     bool finished()
     {

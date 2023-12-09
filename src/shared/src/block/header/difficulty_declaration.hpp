@@ -1,4 +1,5 @@
 #pragma once
+#include "general/byte_order.hpp"
 #include "general/params.hpp"
 #include <cstddef>
 #include <cstdint>
@@ -31,7 +32,7 @@ public:
     bool operator!=(const TargetV1& t) const { return data != t.data; };
     bool operator==(const TargetV1&) const = default;
 
-    uint32_t binary() const { return htobe32(data); }
+    uint32_t binary() const { return hton32(data); }
     // uint8_t& at(size_t index) { return ((uint8_t*)(&data))[index]; }
     // uint8_t& operator[](size_t index) { return at(index); }
     // uint8_t at(size_t index) const { return ((uint8_t*)(&data))[index]; }
@@ -73,7 +74,7 @@ public:
     bool operator!=(const TargetV2& t) const { return data != t.data; };
     bool operator==(const TargetV2&) const = default;
 
-    uint32_t binary() const { return htobe32(data); }
+    uint32_t binary() const { return hton32(data); }
     // uint8_t& at(size_t index) { return ((uint8_t*)(&data))[index]; }
     // uint8_t& operator[](size_t index) { return at(index); }
     // uint8_t at(size_t index) const { return ((uint8_t*)(&data))[index]; }

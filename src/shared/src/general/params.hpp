@@ -1,6 +1,5 @@
 #pragma once
 #include <cstdint>
-#include <endian.h>
 constexpr bool DEBUG_PARAMS = false;
 constexpr bool ENABLE_DEFAULT_NODE = true;
 

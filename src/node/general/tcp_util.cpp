@@ -9,7 +9,7 @@ IPv4::IPv4(Reader& r)
     : data(r.uint32()) {}
 
 IPv4::IPv4(const sockaddr_in& sin)
-    : IPv4(ntoh32(reinterpret_cast<uint32_t>(sin.sin_addr.s_addr))) {}
+    : IPv4(ntoh32(uint32_t(sin.sin_addr.s_addr))) {}
 
 bool IPv4::is_valid(bool allowLocalhost) const{
     uint32_t ndata = hton32(data);

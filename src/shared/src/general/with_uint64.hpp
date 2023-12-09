@@ -7,12 +7,12 @@
 struct IsUint32 {
 public:
     IsUint32(Reader& r);
-    explicit IsUint32(int64_t w);
-    explicit IsUint32(int w)
-        : IsUint32((int64_t)(w)) {};
+    // explicit IsUint32(int64_t w);
+    // explicit IsUint32(int w)
+    //     : IsUint32((int64_t)(w)) {};
     // explicit IsUint32(long long w)
     //     : IsUint32((int64_t)(w)) {};
-    explicit IsUint32(size_t w);
+    // explicit IsUint32(size_t w);
     constexpr explicit IsUint32(uint32_t val)
         : val(val) {};
 

@@ -18,7 +18,7 @@ class LeaderInfo;
 
 namespace BlockDownload {
 enum class ServerCall {
-    FALSE,
+    NO,
     STAGE_ADD,
     STAGE_SET
 };

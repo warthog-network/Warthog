@@ -54,7 +54,7 @@ std::vector<ChainOffender> Downloader::handle_stage_result(stage_operation::Stag
 ServerCall Downloader::next_stage_call() // OK
 {
     if (initialized == false || stageState.pendingOperation)
-        return FALSE;
+        return NO;
     if (stageState.is_stage_set_phase()) {
         if (stageState.stageSetAck < headers().length())
             return STAGE_SET;
@@ -62,7 +62,7 @@ ServerCall Downloader::next_stage_call() // OK
         if (focus.has_data())
             return STAGE_ADD;
     }
-    return FALSE;
+    return NO;
 }
 
 stage_operation::StageAddOperation Downloader::pop_stage_add() // OK
@@ -298,7 +298,7 @@ std::optional<stage_operation::Operation> Downloader::pop_stage()
         return pop_stage_add();
     case STAGE_SET:
         return pop_stage_set();
-    case FALSE:
+    case NO:
     default:
         return {};
     }
