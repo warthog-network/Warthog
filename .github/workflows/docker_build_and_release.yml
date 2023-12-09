@@ -23,6 +23,9 @@ jobs:
     - name: Docker Build
       run: DOCKER_BUILDKIT=1 docker build . --output build
 
+    - name: Docker Build Windows
+      run: DOCKER_BUILDKIT=1 docker build . -f DockerfileWindows --output ./build/windows
+
     - name: Create Release
       id: create_release
       uses: actions/create-release@v1
@@ -34,7 +37,7 @@ jobs:
           body: |
             Changes in this Release
             - Add your changes here
-    - name: Upload Docker Build Output WALLET
+    - name: Upload Linux Wallet
       id: upload-docker-build-output-wallet
       uses: actions/upload-release-asset@v1
       env:
@@ -44,7 +47,7 @@ jobs:
         asset_path: ./build/wart-wallet
         asset_name: wart-wallet-linux
         asset_content_type: application/octet-stream
-    - name: Upload Docker Build Output NODE
+    - name: Uploead Linux Node
       id: upload-docker-build-output-node
       uses: actions/upload-release-asset@v1
       env:
@@ -54,7 +57,7 @@ jobs:
         asset_path: ./build/wart-node
         asset_name: wart-node-linux
         asset_content_type: application/octet-stream
-    - name: Upload Docker Build Output MINER
+    - name: Upload Linux Miner
       id: upload-docker-build-output-MINER
       uses: actions/upload-release-asset@v1
       env:
@@ -64,4 +67,33 @@ jobs:
         asset_path: ./build/wart-miner
         asset_name: wart-miner-linux
         asset_content_type: application/octet-stream
-          
+    - name: Upload Windows Miner
+      id: upload-docker-build-output-MINER-windows
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }} 
+        asset_path: ./build/windows/wart-miner.exe
+        asset_name: wart-miner-windows
+        asset_content_type: application/octet-stream
+    - name: Upload Windows Node
+      id: upload-docker-build-output-node-windows
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }} 
+        asset_path: ./build/windows/wart-node.exe
+        asset_name: wart-node-windows
+        asset_content_type: application/octet-stream
+    - name: Upload Windows Wallet
+      id: upload-docker-build-output-wallet-windows
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }} 
+        asset_path: ./build/windows/wart-wallet.exe
+        asset_name: wart-wallet-windows
+        asset_content_type: application/octet-stream
