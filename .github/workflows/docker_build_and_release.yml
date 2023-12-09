@@ -75,7 +75,7 @@ jobs:
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }} 
         asset_path: ./build/windows/wart-miner.exe
-        asset_name: wart-miner-windows
+        asset_name: wart-miner-windows.exe
         asset_content_type: application/octet-stream
     - name: Upload Windows Node
       id: upload-docker-build-output-node-windows
@@ -85,7 +85,7 @@ jobs:
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }} 
         asset_path: ./build/windows/wart-node.exe
-        asset_name: wart-node-windows
+        asset_name: wart-node-windows.exe
         asset_content_type: application/octet-stream
     - name: Upload Windows Wallet
       id: upload-docker-build-output-wallet-windows
@@ -95,5 +95,5 @@ jobs:
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }} 
         asset_path: ./build/windows/wart-wallet.exe
-        asset_name: wart-wallet-windows
+        asset_name: wart-wallet-windows.exe
         asset_content_type: application/octet-stream
