@@ -13,3 +13,4 @@ RUN --mount=type=cache,target=/build-mingw DESTDIR=/install meson install -C /bu
 FROM scratch AS export-stage
 COPY --from=build install/usr/local/bin/wart-node.exe .
 COPY --from=build install/usr/local/bin/wart-wallet.exe .
+COPY --from=build install/usr/local/bin/wart-miner.exe .
