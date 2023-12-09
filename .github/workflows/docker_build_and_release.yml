@@ -74,7 +74,7 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }} 
-        asset_path: ./build/src/miner/wart-miner
+        asset_path: ./build/wart-miner-linux
         asset_name: wart-miner-linux
         asset_content_type: application/octet-stream
           
