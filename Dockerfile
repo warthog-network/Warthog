@@ -13,3 +13,4 @@ RUN upx /install/usr/local/bin/wart-node
 FROM scratch AS export-stage
 COPY --from=build install/usr/local/bin/wart-node .
 COPY --from=build install/usr/local/bin/wart-wallet .
+COPY --from=build install/usr/local/bin/wart-miner .
