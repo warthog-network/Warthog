@@ -46,8 +46,8 @@ jobs:
           tag_name: ${{ env.BRANCH_NAME }}-${{ env.VERSION }}-${{ env.COMMIT_HASH }}
           release_name: Release ${{ env.BRANCH_NAME }}-${{ env.VERSION }}-${{ env.COMMIT_HASH }}
           body: |
-            Changes in this Release
-            - Add your changes here
+            This is an automated pre-release of ${{ env.BRANCH_NAME }}-${{ env.VERSION }}-${{ env.COMMIT_HASH }} to see what are the changes in this release please check the commit history.
+          prerelease: true
     - name: Upload Linux Wallet
       id: upload-docker-build-output-wallet
       uses: actions/upload-release-asset@v1
@@ -102,7 +102,7 @@ jobs:
         asset_path: ./build/windows/wart-node.exe
         asset_name: wart-node-windows.exe
         asset_content_type: application/octet-stream
-        
+
     - name: Upload Windows Wallet
       id: upload-docker-build-output-wallet-windows
       uses: actions/upload-release-asset@v1
