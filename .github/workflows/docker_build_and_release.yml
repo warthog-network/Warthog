@@ -34,7 +34,7 @@ jobs:
     - name: Check if commit is tagged with release
       id: check_tag
       run: |
-        echo "IS_RELEASE=$(if git describe --exact-match --tags HEAD 2>/dev/null | grep -q '^release'; then echo 'false'; else echo 'true'; fi)" >> $GITHUB_ENV
+        echo "IS_RELEASE=$(if git describe --exact-match --tags HEAD 2>/dev/null | grep -q '^release'; then echo 'true'; else echo 'false'; fi)" >> $GITHUB_ENV
 
     - name: Docker Build
       run: DOCKER_BUILDKIT=1 docker build . --output build
