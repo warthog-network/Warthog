@@ -49,7 +49,7 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
       with:
           tag_name: ${{ env.BRANCH_NAME }}-${{ env.VERSION }}-${{ env.COMMIT_HASH }}
-          release_name: Release ${{ env.BRANCH_NAME }}-${{ env.VERSION }}-${{ env.COMMIT_HASH }}
+          release_name: Release ${{ env.BRANCH_NAME }}-${{ env.VERSION }}-${{ github.run_number }}-${{ env.COMMIT_HASH }}
           body: |
             This is an automated pre-release of ${{ env.BRANCH_NAME }}-${{ env.VERSION }}-${{ env.COMMIT_HASH }} to see what are the changes in this release please check the commit history.
           prerelease: ${{ env.IS_RELEASE }}
