@@ -31,6 +31,11 @@ jobs:
       run: |
         echo "COMMIT_HASH=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
 
+    - name: Check if commit is tagged with release
+      id: check_tag
+      run: |
+        echo "IS_RELEASE=$(if git describe --exact-match --tags HEAD 2>/dev/null | grep -q '^release'; then echo 'false'; else echo 'true'; fi)" >> $GITHUB_ENV
+
     - name: Docker Build
       run: DOCKER_BUILDKIT=1 docker build . --output build
 
@@ -47,7 +52,7 @@ jobs:
           release_name: Release ${{ env.BRANCH_NAME }}-${{ env.VERSION }}-${{ env.COMMIT_HASH }}
           body: |
             This is an automated pre-release of ${{ env.BRANCH_NAME }}-${{ env.VERSION }}-${{ env.COMMIT_HASH }} to see what are the changes in this release please check the commit history.
-          prerelease: true
+          prerelease: ${{ env.IS_RELEASE }}
     - name: Upload Linux Wallet
       id: upload-docker-build-output-wallet
       uses: actions/upload-release-asset@v1
