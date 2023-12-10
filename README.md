@@ -57,14 +57,29 @@ Have fun with it. Like we had implementing it.
 Not listed yet. At the moment only p2p on Discord. 
 
 
-## 📦 What is in the box?
+## 📦 Component overview
 
+### This Repo
 * Reference node implementation of the Warthog Network
 * Command line wallet software
 * CPU Miner
 * GPU Miner
 
-## 💻 System Requirements
+### Additional Tools:
+* GUI wallet [here](https://github.com/warthog-network/wart-wallet)
+ 
+
+## 💻 Installation
+
+Prebuilt binaries of the node daemon and cli wallet for Linux and Windows can be downloaded [here](https://github.com/warthog-network/Warthog/releases). They are staticlly linked and will just work without external dependencies.
+
+For mining you need to compile from source. See below or [here](https://github.com/warthog-network/warthog-guide) for a more detailed guide.
+
+## 😵‍💫 BUILD INSTRUCTIONS
+
+### Linux Native Build
+
+#### System Requirements
 
 * Linux
 * gcc11 or newer
@@ -74,22 +89,22 @@ Not listed yet. At the moment only p2p on Discord.
 Optional:
 * opencl (for GPU miner)
 
-Note: Ubuntu 20.04 does not meet these requirements.
-
-## 😵‍💫 BUILD INSTRUCTIONS
-
+#### Required Steps
 
 * Install gcc, meson, ninja: apt install meson ninja-build build-essential
 * Clone the repo: `git clone https://github.com/ByPumbaa/Warthog`
 * cd into the repo: `cd Warthog`
 * Create build directory: `meson build .` (`meson build . --buildtype=release` for better performance)
 * cd into build directory: `cd build`
-* [Optional] GPU miner support 
+* [Optional but highly recommended] GPU miner support 
   - enable GPU support in miner: `meson configure -Denable-gpu-miner=true`
   - for old OpenCL headers (like on Ubuntu 20.04): `meson configure -Dopencl-legacy=true`
 * Compile using ninja: `ninja`
 
 ### Docker build (node and wallet)
+#### System Requirements
+* Linux
+* Docker
 
 #### Build for Linux
 * Run `DOCKER_BUILDKIT=1 docker build . --output build` in the repo directory.
@@ -100,16 +115,15 @@ Note: Ubuntu 20.04 does not meet these requirements.
 
 ## ▶️ USAGE
 
-* Linux only at the moment
-* Compile with meson/ninja
 * Run the node (use some restarter in case it crashes)
-* Run the miner (compile with release build type for performance)
-* Optional: Run the wallet to send funds.
+* Run the miner (miner requires node running)
+* Optional: Run the wallet to send funds (wallet requires node running)
 * Good luck and have fun! Use --help the option.
 
 NOTE: We (or some of us) might drop this project any time in case 
       deep/unfixable bugs or ugly design issues arise. Or without
-      any reason and without prior notice. 
+      any reason and without prior notice. This is a highly 
+      experimental project.
 
 ## 📖 Documentation
 * [API Reference](./doc/API.md)
