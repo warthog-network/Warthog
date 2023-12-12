@@ -199,6 +199,8 @@ int32_t Chainstate::insert_tx(const TransferTxExchangeMessage& pm)
     auto h = headers().get_hash(pm.pin_height());
     if (!h)
         return EPINHEIGHT;
+    if (pm.amount.is_zero()) 
+        return EZEROAMOUNT;
     auto txHash { pm.txhash(*h) };
     if (pm.from_address(txHash) == pm.toAddr)
         return ESELFSEND;
@@ -218,6 +220,8 @@ int32_t Chainstate::insert_tx(const PaymentCreateMessage& m)
             return EPINHEIGHT;
         if (pinHeight < length().pin_bgin())
             return EPINHEIGHT;
+        if (m.amount.is_zero()) 
+            return EZEROAMOUNT;
         auto pinHash = headers().hash_at(pinHeight);
         auto txhash { m.tx_hash(pinHash) };
         auto fromAddr = m.from_address(txhash);

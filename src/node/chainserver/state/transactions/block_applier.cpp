@@ -65,6 +65,8 @@ public:
         Funds fee { compactFee.uncompact() };
         AccountId to = tv.toAccountId();
         AccountId from = tv.fromAccountId();
+        if (amount.is_zero())
+            throw Error(EZEROAMOUNT);
         if (from == to)
             throw Error(ESELFSEND);
         if (amount.overflow() || fee.overflow())

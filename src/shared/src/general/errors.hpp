@@ -81,6 +81,7 @@
     XX(82, EGRIDMISMATCH, "grid mismatch")                              \
     XX(83, ESELFSEND, "self send transaction not allowed")              \
     XX(84, EBLOCKVERSION, "unsupported block version")                  \
+    XX(85, EZEROAMOUNT, "transactions cannot send 0 WART")              \
     XX(201, EBADNONCE, "cannot parse nonce")                            \
     XX(202, EBADFEE, "invalid fee")                                     \
     XX(203, EINEXACTFEE, "inexact fee not allowed")                     \
