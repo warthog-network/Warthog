@@ -268,7 +268,7 @@ int Connection::accept()
     sockaddr_in* addr_i4 = (struct sockaddr_in*)&storage;
     peerAddress.ipv4 = IPv4(ntoh32(uint32_t(addr_i4->sin_addr.s_addr)));
     peerAddress.port = addr_i4->sin_port;
-    spdlog::info("{} new incoming", to_string());
+    connection_log().info("{} new incoming", to_string());
     if (!conman.count(peerAddress.ipv4)) {
         return EMAXCONNECTIONS;
     };
