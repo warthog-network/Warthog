@@ -703,8 +703,16 @@ void Eventloop::dispatch_message(Conref cr, Rcvbuffer& msg)
 
     auto m = msg.parse();
     // first message must be of type INIT (is_init() is only initially true)
-    if (cr.job().awaiting_init() != (std::holds_alternative<InitMsg>(m)))
-        throw Error(EMSGTYPE);
+    if (cr.job().awaiting_init()) {
+        if (!std::holds_alternative<InitMsg>(m)){
+            auto msgcode { std::visit([](auto a) { return a.msgcode; }, m) };
+            spdlog::error("Debug info: Expected init message from {} but got message of type {}", cr->c->peer_address().to_string(), msgcode);
+            throw Error(ENOINIT);
+        }
+    } else {
+        if (std::holds_alternative<InitMsg>(m))
+            throw Error(EINVINIT);
+    }
 
     std::visit([&](auto&& e) {
         handle_msg(cr, std::move(e));

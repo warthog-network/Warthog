@@ -243,7 +243,7 @@ Conref Downloader::try_send(ConnectionFinder& f, const ReqData& rd)
             if (rd.cacheMatch && (!pd || pd->qiter == rd.queueEntry.iter)) {
                 ForkRange& fr { rd.cacheMatch->fork_range(cr) };
                 fr.on_match(rd.slot.offset());
-                if (!pd || (pd->forkRange.lower() < fr.lower())) {  
+                if (!pd || (pd->fork_range().lower() < fr.lower())) {  
                     clear_connection_probe(cr);
                     ProbeData newpd { fr, std::move(rd.cacheMatch->pin) };
                     set_connection_probe(cr, std::move(newpd), desc, rd.queueEntry.iter);
@@ -292,9 +292,9 @@ bool Downloader::try_final_request(Lead_iter li, RequestSender& sender)
         if (ln.snapshot.descripted == ln.cr.chain().descripted()) {
             auto& blfr = ln.cr.chain().stage_fork_range();
             auto& cfr = ln.cr.chain().consensus_fork_range();
-            if (ln.probeData.forkRange.lower() < blfr.lower())
+            if (ln.probeData.fork_range().lower() < blfr.lower())
                 li->probeData = ProbeData { blfr, chains.stage_pin() };
-            else if (ln.probeData.forkRange.lower() < cfr.lower())
+            else if (ln.probeData.fork_range().lower() < cfr.lower())
                 li->probeData = ProbeData { cfr, chains.consensus_pin() };
         }
 
@@ -334,7 +334,7 @@ void Downloader::do_probe_requests(RequestSender s)
         const auto& pd { *data(cr).probeData };
         // we want upper slot height as maxLength because complete batches are shared
         // automatically, such that probe requests can only succeed within that batch
-        auto maxLength { Batchslot(pd.forkRange.lower()).upper() };
+        auto maxLength { Batchslot(pd.fork_range().lower()).upper() };
         auto pr { ProbeBalanced::probe_request(pd, pd.dsc, maxLength) };
         if (pr)
             s.send(cr, *pr);

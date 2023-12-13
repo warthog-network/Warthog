@@ -4,7 +4,7 @@
 namespace {
 bool can_download(Height forkLower, Height forkUpper, Height bound)
 {
-    assert(forkLower <= forkUpper); 
+    assert(forkLower <= forkUpper);
     assert(forkUpper <= bound + 1);
     auto delta = forkUpper - forkLower;
     auto downloadLength = (bound + 1 - forkLower);
@@ -26,7 +26,7 @@ std::optional<Proberequest> ProbeBalanced::probe_request(const ProbeData& pd, co
     auto u { pb.upper() };
 
     if (can_download(l, u, maxLength)) {
-        return Batchrequest(desc, pd.headers, slot.lower(), maxLength, h);
+        return Batchrequest(desc, pd.headers(), slot.lower(), maxLength, h);
     }
     return {};
 }
@@ -44,7 +44,7 @@ std::optional<Proberequest> ProbeBalanced::probe_request(const ProbeData& pd, co
         if (slot.lower() > l) {
             return Batchrequest(desc, slot, maxLength - slot.offset(), minWork);
         } else {
-            return Batchrequest(desc, pd.headers, l, maxLength, minWork);
+            return Batchrequest(desc, pd.headers(), l, maxLength, minWork);
         }
     }
     return {};
@@ -61,15 +61,15 @@ NonzeroHeight ProbeBalanced::lower()
 
 NonzeroHeight ProbeBalanced::lower(const ProbeData& probeData)
 {
-    return probeData.forkRange.lower();
+    return probeData.fork_range().lower();
 }
 
 NonzeroHeight ProbeBalanced::upper(const ProbeData& probeData, Height maxLength)
 {
-    assert(maxLength + 1 >= probeData.forkRange.lower());
-    assert(probeData.headers->length()+1 >= probeData.forkRange.lower());
-    auto u { (std::min(probeData.headers->length(), maxLength) + 1).nonzero_assert() };
-    if (auto& fr = probeData.forkRange; fr.forked() && fr.upper() < u)
+    assert(maxLength + 1 >= probeData.fork_range().lower());
+    assert(probeData.headers()->length() + 1 >= probeData.fork_range().lower()); // TODO: this fails for some people, must be a bug somewhere
+    auto u { (std::min(probeData.headers()->length(), maxLength) + 1).nonzero_assert() };
+    if (auto& fr = probeData.fork_range(); fr.forked() && fr.upper() < u)
         u = fr.upper();
     return u;
 }
