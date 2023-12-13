@@ -58,14 +58,14 @@ public:
         refTo.referredPayout.push_back(i);
     }
 
-    void register_transfer(TransferView tv) // OK
+    void register_transfer(TransferView tv, Height height) // OK
     {
         Funds amount { tv.amount() };
         auto compactFee = tv.compact_fee();
         Funds fee { compactFee.uncompact() };
         AccountId to = tv.toAccountId();
         AccountId from = tv.fromAccountId();
-        if (amount.is_zero())
+        if (height.value() > 719118 && amount.is_zero())
             throw Error(EZEROAMOUNT);
         if (from == to)
             throw Error(ESELFSEND);
@@ -261,7 +261,7 @@ Preparation BlockApplier::Preparer::prepare(const BodyView& bv, const NonzeroHei
 
     // Read transfer section
     for (auto t : bv.transfers())
-        balanceChecker.register_transfer(t);
+        balanceChecker.register_transfer(t, height);
 
     if (totalpayout > height.reward() + balanceChecker.getTotalFee())
         throw Error(EBALANCE);

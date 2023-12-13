@@ -122,8 +122,7 @@ struct Error { // error class for exceptions
 
 class NonzeroHeight;
 struct ChainError : public Error {
-    // ChainError() {};
-    ChainError(int32_t e, NonzeroHeight height);
+    ChainError(Error e, NonzeroHeight height);
     NonzeroHeight height() const;
 
 private:

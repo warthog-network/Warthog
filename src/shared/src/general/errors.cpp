@@ -30,7 +30,7 @@ const char* strerror(int err)
 
 } // namespace errors
 
-ChainError::ChainError(int32_t e, NonzeroHeight height)
+ChainError::ChainError(Error e, NonzeroHeight height)
     : Error(e)
     , h(height.value()) {};
 
