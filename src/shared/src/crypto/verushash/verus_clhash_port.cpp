@@ -234,51 +234,103 @@ void aesenc(unsigned char *s, const unsigned char *rk) {
   // #define XT4(x) ((((x) << 1) & 0xfefefefe) ^ ((((x) >> 31) & 1) ? 0x1b000000
   // : 0)^ ((((x) >> 23)&1) ? 0x001b0000 : 0)^ ((((x) >> 15)&1) ? 0x00001b00 :
   // 0)^ ((((x) >> 7)&1) ? 0x0000001b : 0))
-  uint32_t x0 = ((uint32_t *)s)[0];
-  uint32_t x1 = ((uint32_t *)s)[1];
-  uint32_t x2 = ((uint32_t *)s)[2];
-  uint32_t x3 = ((uint32_t *)s)[3];
+  uint32_t x[4];
+  memcpy(x,s,16);
 
-  uint32_t y0 = t[x0 & 0xff];
-  x0 >>= 8;
-  uint32_t y1 = t[x1 & 0xff];
-  x1 >>= 8;
-  uint32_t y2 = t[x2 & 0xff];
-  x2 >>= 8;
-  uint32_t y3 = t[x3 & 0xff];
-  x3 >>= 8;
+  uint32_t y0 = t[x[0] & 0xff];
+  x[0] >>= 8;
+  uint32_t y1 = t[x[1] & 0xff];
+  x[1] >>= 8;
+  uint32_t y2 = t[x[2] & 0xff];
+  x[2] >>= 8;
+  uint32_t y3 = t[x[3] & 0xff];
+  x[3] >>= 8;
   t += 256;
 
-  y0 ^= t[x1 & 0xff];
-  x1 >>= 8;
-  y1 ^= t[x2 & 0xff];
-  x2 >>= 8;
-  y2 ^= t[x3 & 0xff];
-  x3 >>= 8;
-  y3 ^= t[x0 & 0xff];
-  x0 >>= 8;
+  y0 ^= t[x[1] & 0xff];
+  x[1] >>= 8;
+  y1 ^= t[x[2] & 0xff];
+  x[2] >>= 8;
+  y2 ^= t[x[3] & 0xff];
+  x[3] >>= 8;
+  y3 ^= t[x[0] & 0xff];
+  x[0] >>= 8;
   t += 256;
 
-  y0 ^= t[x2 & 0xff];
-  x2 >>= 8;
-  y1 ^= t[x3 & 0xff];
-  x3 >>= 8;
-  y2 ^= t[x0 & 0xff];
-  x0 >>= 8;
-  y3 ^= t[x1 & 0xff];
-  x1 >>= 8;
+  y0 ^= t[x[2] & 0xff];
+  x[2] >>= 8;
+  y1 ^= t[x[3] & 0xff];
+  x[3] >>= 8;
+  y2 ^= t[x[0] & 0xff];
+  x[0] >>= 8;
+  y3 ^= t[x[1] & 0xff];
+  x[1] >>= 8;
   t += 256;
 
-  y0 ^= t[x3];
-  y1 ^= t[x0];
-  y2 ^= t[x1];
-  y3 ^= t[x2];
+  y0 ^= t[x[3]& 0xff];
+  y1 ^= t[x[0]& 0xff];
+  y2 ^= t[x[1]& 0xff];
+  y3 ^= t[x[2]& 0xff];
 
-  ((uint32_t *)s)[0] = y0 ^ ((uint32_t *)rk)[0];
-  ((uint32_t *)s)[1] = y1 ^ ((uint32_t *)rk)[1];
-  ((uint32_t *)s)[2] = y2 ^ ((uint32_t *)rk)[2];
-  ((uint32_t *)s)[3] = y3 ^ ((uint32_t *)rk)[3];
+  memcpy(x,rk,16);
+  x[0] ^= y0;
+  x[1] ^= y1;
+  x[2] ^= y2;
+  x[3] ^= y3;
+
+  memcpy(s,x,16);
 }
+// void aesenc(unsigned char *s, const unsigned char *rk) {
+//   // #define XT(x) (((x) << 1) ^ (((x) >> 7) ? 0x1b : 0))
+//   const uint32_t *t = saes_table[0];
+//   // #define XT4(x) ((((x) << 1) & 0xfefefefe) ^ ((((x) >> 31) & 1) ? 0x1b000000
+//   // : 0)^ ((((x) >> 23)&1) ? 0x001b0000 : 0)^ ((((x) >> 15)&1) ? 0x00001b00 :
+//   // 0)^ ((((x) >> 7)&1) ? 0x0000001b : 0))
+//   uint32_t x0 = ((uint32_t *)s)[0];
+//   uint32_t x1 = ((uint32_t *)s)[1];
+//   uint32_t x2 = ((uint32_t *)s)[2];
+//   uint32_t x3 = ((uint32_t *)s)[3];
+//
+//   uint32_t y0 = t[x0 & 0xff];
+//   x0 >>= 8;
+//   uint32_t y1 = t[x1 & 0xff];
+//   x1 >>= 8;
+//   uint32_t y2 = t[x2 & 0xff];
+//   x2 >>= 8;
+//   uint32_t y3 = t[x3 & 0xff];
+//   x3 >>= 8;
+//   t += 256;
+//
+//   y0 ^= t[x1 & 0xff];
+//   x1 >>= 8;
+//   y1 ^= t[x2 & 0xff];
+//   x2 >>= 8;
+//   y2 ^= t[x3 & 0xff];
+//   x3 >>= 8;
+//   y3 ^= t[x0 & 0xff];
+//   x0 >>= 8;
+//   t += 256;
+//
+//   y0 ^= t[x2 & 0xff];
+//   x2 >>= 8;
+//   y1 ^= t[x3 & 0xff];
+//   x3 >>= 8;
+//   y2 ^= t[x0 & 0xff];
+//   x0 >>= 8;
+//   y3 ^= t[x1 & 0xff];
+//   x1 >>= 8;
+//   t += 256;
+//
+//   y0 ^= t[x3];
+//   y1 ^= t[x0];
+//   y2 ^= t[x1];
+//   y3 ^= t[x2];
+//
+//   ((uint32_t *)s)[0] = y0 ^ ((uint32_t *)rk)[0];
+//   ((uint32_t *)s)[1] = y1 ^ ((uint32_t *)rk)[1];
+//   ((uint32_t *)s)[2] = y2 ^ ((uint32_t *)rk)[2];
+//   ((uint32_t *)s)[3] = y3 ^ ((uint32_t *)rk)[3];
+// }
 
 // static void aesenc2(unsigned char *s, const unsigned char *rk) {
 //   unsigned char i, t, u, v[4][4];
@@ -564,30 +616,17 @@ u128 _mm_clmulepi64_si128_emu(const __m128i &a, const __m128i &b, int imm) {
 }
 
 u128 _mm_mulhrs_epi16_emu(__m128i _a, __m128i _b) {
-  int16_t result[8];
-  int16_t *a = (int16_t *)&_a, *b = (int16_t *)&_b;
+    __m128i result;
+  int16_t a[8];
+  int16_t b[8];
+  memcpy(&a, &_a , 16);
+  memcpy(&b, &_b , 16);
   for (int i = 0; i < 8; i++) {
-    result[i] = (int16_t)((((int32_t)(a[i]) * (int32_t)(b[i])) + 0x4000) >> 15);
+    uint32_t ai = a[i];
+    uint32_t bi = b[i];
+    ((uint16_t*)&result)[i] = (int16_t)(((ai * bi) + 0x4000) >> 15);
   }
-
-  /*
-  const __m128i testresult = _mm_mulhrs_epi16(_a, _b);
-  if (!memcmp(&testresult, &result, 16))
-  {
-      printf("_mm_mulhrs_epi16_emu: Portable version passed!\n");
-  }
-  else
-  {
-      printf("_mm_mulhrs_epi16_emu: Portable version failed! a: %lxh %lxl, b:
-  %lxh %lxl, emu: %lxh %lxl, intrin: %lxh %lxl\n",
-             *((uint64_t *)&a + 1), *(uint64_t *)&a,
-             *((uint64_t *)&b + 1), *(uint64_t *)&b,
-             *((uint64_t *)result + 1), *(uint64_t *)result,
-             *((uint64_t *)&testresult + 1), *(uint64_t *)&testresult);
-  }
-  */
-
-  return *(__m128i *)result;
+  return result;
 }
 
 inline u128 _mm_set_epi64x_emu(uint64_t hi, uint64_t lo) {
