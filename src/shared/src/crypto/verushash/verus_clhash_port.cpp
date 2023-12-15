@@ -616,7 +616,7 @@ u128 _mm_clmulepi64_si128_emu(const __m128i &a, const __m128i &b, int imm) {
 }
 
 u128 _mm_mulhrs_epi16_emu(__m128i _a, __m128i _b) {
-    __m128i result;
+    uint16_t tmp[16];
   int16_t a[8];
   int16_t b[8];
   memcpy(&a, &_a , 16);
@@ -624,8 +624,10 @@ u128 _mm_mulhrs_epi16_emu(__m128i _a, __m128i _b) {
   for (int i = 0; i < 8; i++) {
     uint32_t ai = a[i];
     uint32_t bi = b[i];
-    ((uint16_t*)&result)[i] = (int16_t)(((ai * bi) + 0x4000) >> 15);
+    tmp[i] = (int16_t)(((ai * bi) + 0x4000) >> 15);
   }
+  __m128i result;
+  memcpy(&result, tmp, 16);
   return result;
 }
 
