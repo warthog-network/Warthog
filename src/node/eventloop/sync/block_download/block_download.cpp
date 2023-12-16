@@ -234,7 +234,7 @@ void Downloader::do_probe_requests(RequestSender rs)
             continue;
         const auto& fr { data(c).forkRange };
         assert(data(c).forkIter->first == fr.lower());
-        NonzeroHeight u { fr.forked() ? fr.upper() : NonzeroHeight((data(c).descripted->chain_length() + 1).nonzero_assert()) };
+        NonzeroHeight u { fr.forked() ? fr.upper() : headers().length() + 1 };
         if (u > focusBegin) {
             assert(u >= fr.lower());
             auto probeHeight { fr.lower() + (u - fr.lower()) / 2 };
