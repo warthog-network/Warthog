@@ -134,7 +134,8 @@ void Downloader::on_append(Conref c)
     check_upgrade_descripted(c);
 }
 
-void Downloader::on_rollback(Conref) {
+void Downloader::on_rollback(Conref)
+{
     // new chain must be shorter, no check_upgrade_descripted(c);
 }
 
@@ -234,7 +235,15 @@ void Downloader::do_probe_requests(RequestSender rs)
             continue;
         const auto& fr { data(c).forkRange };
         assert(data(c).forkIter->first == fr.lower());
-        NonzeroHeight u { fr.forked() ? fr.upper() : headers().length() + 1 };
+        NonzeroHeight u {
+            [&]() -> NonzeroHeight {
+                if (fr.forked())
+                    return fr.upper();
+                auto l1 { headers().length() };
+                auto l2 { data(c).descripted->chain_length() };
+                return (std::min(l1, l2) + 1).nonzero_assert();
+            }()
+        };
         if (u > focusBegin) {
             assert(u >= fr.lower());
             auto probeHeight { fr.lower() + (u - fr.lower()) / 2 };
@@ -393,7 +402,8 @@ void Downloader::on_blockreq_expire(Conref cr)
     focus.erase(cr);
 }
 
-void Downloader::on_probe_expire(Conref) {
+void Downloader::on_probe_expire(Conref)
+{
     // do nothing
 }
 
