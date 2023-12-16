@@ -231,6 +231,8 @@ void Downloader::do_probe_requests(RequestSender rs)
         return;
     Height focusBegin { focus.height_begin() };
     for (auto c : connections()) {
+        if (rs.finished())
+            return;
         if (c.job())
             continue;
         const auto& fr { data(c).forkRange };

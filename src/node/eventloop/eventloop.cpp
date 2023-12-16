@@ -612,6 +612,7 @@ void Eventloop::send_request(Conref c, const T& req)
     auto t = timer.insert(req.expiry_time, Timer::Expire { c.id() });
     c.job().assign(t, timer, req);
     if (req.isActiveRequest) {
+        assert(activeRequests < maxRequests);
         activeRequests += 1;
     }
     c.send(req);
