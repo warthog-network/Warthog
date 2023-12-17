@@ -306,7 +306,7 @@ void Eventloop::initialize_block_download()
 
 ForkHeight Eventloop::update_blockdownload_headers(Headerchain&& hc)
 {
-    spdlog::info("Syncing 🗘 (height {} of {})", chains.consensus_length().value(), hc.length().value());
+    spdlog::info("Syncing... (height {} of {})", chains.consensus_length().value(), hc.length().value());
     auto forkHeight { chains.update_stage(std::move(hc)) };
     return forkHeight;
 }
@@ -316,9 +316,9 @@ void Eventloop::log_chain_length()
     auto synced { chains.consensus_length().value() };
     auto total { chains.stage_headers().length().value() };
     if (synced < total)
-        spdlog::info("Syncing 🗘 (height {} of {})", synced, total);
+        spdlog::info("Syncing... (height {} of {})", synced, total);
     else if (synced == total)
-        spdlog::info("Synced ✓ (height {}).", synced);
+        spdlog::info("Synced. (height {}).", synced);
 }
 
 void Eventloop::handle_event(PeersCb&& cb)
