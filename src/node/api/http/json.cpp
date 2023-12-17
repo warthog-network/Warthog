@@ -147,7 +147,7 @@ json grid_json(const Grid& g)
 json header_json(const Header& header, NonzeroHeight height)
 {
     auto target { header.target(height) };
-    uint32_t targetBE = target.binary();
+    uint32_t targetBE = htobe32(target.binary());
     json h;
     h["raw"] = serialize_hex(header.data(), header.size());
     h["timestamp"] = header.timestamp();

@@ -5,6 +5,7 @@
 #include "general/byte_order.hpp"
 #include "general/params.hpp"
 #include "general/reader.hpp"
+#include "spdlog/spdlog.h"
 // #include <arpa/inet.h>
 #include <array>
 #include <cassert>
@@ -26,10 +27,9 @@
 // ordering required above
 //
 
-
-
-inline TargetV1 TargetV1::from_raw(const uint8_t*pos){
-    return TargetV1{readuint32(pos)};
+inline TargetV1 TargetV1::from_raw(const uint8_t* pos)
+{
+    return TargetV1 { readuint32(pos) };
 };
 
 inline TargetV1::TargetV1(double difficulty)
@@ -45,15 +45,15 @@ inline TargetV1::TargetV1(double difficulty)
     };
     uint32_t zeros = exp - 1;
     if (inv == 2.0) {
-        set(zeros,0x00FFFFFFu);
+        set(zeros, 0x00FFFFFFu);
     } else [[likely]] { // need to shift by 23 to the left
         uint32_t digits(std::ldexp(inv, 23));
         if (digits < 0x00800000u)
-            set(zeros,0x00800000u);
+            set(zeros, 0x00800000u);
         else if (digits > 0x00ffffffu)
-            set(zeros,0x00FFFFFFu);
+            set(zeros, 0x00FFFFFFu);
         else
-            set(zeros,digits);
+            set(zeros, digits);
     }
 }
 
@@ -140,13 +140,13 @@ checks:
         data = HARDESTTARGET_HOST;
         return;
     }
-    set(zeros,bits64);
+    set(zeros, bits64);
 }
 inline double TargetV1::difficulty() const
 {
     const int zeros = zeros8();
     double dbits = bits24();
-    return std::ldexp(1 / dbits, zeros + 24); 
+    return std::ldexp(1 / dbits, zeros + 24);
 }
 inline TargetV1 TargetV1::genesis()
 {
@@ -169,8 +169,9 @@ inline TargetV1 TargetV1::genesis()
 constexpr TargetV2::TargetV2(uint32_t data)
     : data(data) {};
 
-inline TargetV2 TargetV2::from_raw(const uint8_t*pos){
-    return TargetV2{readuint32(pos)};
+inline TargetV2 TargetV2::from_raw(const uint8_t* pos)
+{
+    return TargetV2 { readuint32(pos) };
 };
 
 inline TargetV2::TargetV2(double difficulty)
@@ -270,11 +271,13 @@ inline bool TargetV2::compatible(const HashExponentialDigest& digest) const
     auto zerosTarget { zeros10() };
     assert(digest.negExp > 0);
     auto zerosDigest { digest.negExp - 1 };
-    if (zerosTarget < zerosDigest)
-        return true;
     if (zerosTarget > zerosDigest)
         return false;
+    double bound(uint64_t(bits22() << 10) << (zerosDigest - zerosTarget));
+    double val(digest.data);
+    spdlog::info("fraction: {}", val / bound);
+    if (zerosTarget < zerosDigest)
+        return true;
     auto bits32 { bits22() << 10 };
     return digest.data < bits32;
 }
-
