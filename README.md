@@ -34,7 +34,7 @@ The block chain has the following characteristics:
 
 ## 💣 A word of caution
 But beware of bugs: Here be dragons. Almost everything was 
-implemented from scratch. We are no experts so don't expect this
+implemented from scratch. Don't expect this
 software to be rock solid, and don't even expect things to work 
 properly. Use at your own risk. There may be and almost 
 certainly are serious bugs! You have been warned.
