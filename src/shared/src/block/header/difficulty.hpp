@@ -273,9 +273,9 @@ inline bool TargetV2::compatible(const HashExponentialDigest& digest) const
     auto zerosDigest { digest.negExp - 1 };
     if (zerosTarget > zerosDigest)
         return false;
-    double bound(uint64_t(bits22() << 10) << (zerosDigest - zerosTarget));
-    double val(digest.data);
-    spdlog::info("fraction: {}", val / bound);
+    // double bound(uint64_t(bits22() << 10) << (zerosDigest - zerosTarget));
+    // double val(digest.data);
+    // spdlog::info("fraction: {}", val / bound);
     if (zerosTarget < zerosDigest)
         return true;
     auto bits32 { bits22() << 10 };

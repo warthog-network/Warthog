@@ -12,10 +12,8 @@ inline bool HeaderView::validPOW(const Hash& h, NonzeroHeight height) const
     if (JANUSENABLED && height.value() > JANUSRETARGETSTART) {
         HashExponentialDigest hd; // prepare hash product of  Proof of Balanced work with two algos: verus + 3xsha256
         auto verusHashV2_1 { verus_hash({ data(), size() }) };
-        spdlog::info("Verushash v2.1: {}", serialize_hex(verusHashV2_1));
         hd.digest(verusHashV2_1);
         auto triplesha { hashSHA256(h) };
-        spdlog::info("triple sha256: {}", serialize_hex(triplesha));
         hd.digest(triplesha);
         return verusHashV2_1[0] == 0 && target_v2().compatible(hd);
     } else {
