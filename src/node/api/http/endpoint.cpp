@@ -174,6 +174,9 @@ void HTTPEndpoint::work()
 
     // debug endpoints
     get("/debug/header_download", inspect_eventloop, jsonmsg::header_download);
+    app.ws<void>("/ws_sneak_peek", {
+            .open = [](auto* ws) { ws->subscribe(API::Block::WEBSOCKET_EVENT); },
+    });
     app.listen(bind.ipv4.to_string(), bind.port, std::bind(&HTTPEndpoint::on_listen, this, _1));
     lc.loop->run();
 }
@@ -286,6 +289,20 @@ void HTTPEndpoint::shutdown()
         us_listen_socket_close(0, listen_socket);
         listen_socket = nullptr;
     }
+}
+
+void HTTPEndpoint::on_event(WebsocketEvent&& e)
+{
+    std::visit([&](auto&& e) {
+        handle_event(std::move(e));
+    },
+        std::move(e));
+}
+
+void HTTPEndpoint::handle_event(const API::Block& b)
+{
+    auto txt { jsonmsg::to_json(b).dump() };
+    app.publish(b.WEBSOCKET_EVENT, txt, uWS::OpCode::TEXT);
 }
 
 void HTTPEndpoint::send_reply(uWS::HttpResponse<false>* res, const std::string& s)

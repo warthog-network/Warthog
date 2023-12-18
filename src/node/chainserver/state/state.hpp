@@ -80,7 +80,7 @@ private:
     std::optional<NonzeroHeight> consensus_height(const Hash&) const;
 
     // transactions
-    [[nodiscard]] auto apply_stage(ChainDBTransaction&& t) -> std::pair<ChainError, std::optional<StateUpdate>>;
+    [[nodiscard]] auto apply_stage(ChainDBTransaction&& t) -> std::tuple<ChainError, std::optional<StateUpdate>, std::vector<API::Block>>;
 
 public:
     [[nodiscard]] auto apply_signed_snapshot(SignedSnapshot&& sp) -> std::optional<StateUpdate>;

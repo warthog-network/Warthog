@@ -1,4 +1,5 @@
 #include "state.hpp"
+#include "api/http//endpoint.hpp"
 #include "api/types/all.hpp"
 #include "block/body/generator.hpp"
 #include "block/body/parse.hpp"
@@ -28,14 +29,14 @@ State::State(ChainDB& db, BatchRegistry& br, std::optional<SnapshotSigner> snaps
 {
 }
 
-std::optional<std::pair<NonzeroHeight,Header>> State::get_header(Height h) const
+std::optional<std::pair<NonzeroHeight, Header>> State::get_header(Height h) const
 {
-    if (auto p{chainstate.headers().get_header(h)}; p.has_value())
-        return std::pair<NonzeroHeight,Header>{h.nonzero_assert(),Header(p.value())};
+    if (auto p { chainstate.headers().get_header(h) }; p.has_value())
+        return std::pair<NonzeroHeight, Header> { h.nonzero_assert(), Header(p.value()) };
     return {};
 }
 
-auto State::api_get_header(API::HeightOrHash& hh) const -> std::optional<std::pair<NonzeroHeight,Header>>
+auto State::api_get_header(API::HeightOrHash& hh) const -> std::optional<std::pair<NonzeroHeight, Header>>
 {
     if (std::holds_alternative<Height>(hh.data)) {
         return get_header(std::get<Height>(hh.data));
@@ -160,7 +161,7 @@ auto State::api_get_latest_txs(size_t N) const -> API::TransactionsByBlocks
     HistoryId upper { db.next_history_id() };
     // note: history ids start with 1
     HistoryId lower { (upper.value() > N + 1) ? db.next_history_id() - N : HistoryId { 1 } };
-    API::TransactionsByBlocks res { .fromId { lower }, .blocks_reversed{}};
+    API::TransactionsByBlocks res { .fromId { lower }, .blocks_reversed {} };
     if (upper.value() == 0)
         return res;
     auto lookup { db.lookupHistoryRange(lower, upper) };
@@ -339,7 +340,13 @@ auto State::add_stage(const std::vector<Block>& blocks, const Headerchain& hc) -
         stage.append(prepared.value(), batchRegistry);
     }
     if (stage.total_work() > chainstate.headers().total_work()) {
-        auto [error, update] = apply_stage(std::move(transaction));
+        auto [error, update, apiBlocks] { apply_stage(std::move(transaction)) };
+
+        // publish websocket events
+        for (auto &b : apiBlocks) {
+            http_endpoint().push_event(b);
+        }
+
         if (error.is_error())
             return { { error }, update };
         else
@@ -418,7 +425,7 @@ RollbackResult State::rollback(const Height newlength) const
     };
 }
 
-auto State::apply_stage(ChainDBTransaction&& t) -> std::pair<ChainError, std::optional<StateUpdate>>
+auto State::apply_stage(ChainDBTransaction&& t) -> std::tuple<ChainError, std::optional<StateUpdate>, std::vector<API::Block>>
 {
     assert(!signedSnapshot || signedSnapshot->compatible(stage));
     assert(stage.total_work() > chainstate.headers().total_work());
@@ -426,7 +433,7 @@ auto State::apply_stage(ChainDBTransaction&& t) -> std::pair<ChainError, std::op
 
     chainserver::ApplyStageTransaction tr { *this, std::move(t) };
     tr.consider_rollback(fh - 1);
-    auto error = tr.apply_stage_blocks();
+    auto [apiBlocks, error] { tr.apply_stage_blocks() };
     if (error) {
         if (global().conf.localDebug) {
             assert(0 == 1); // In local debug mode no errors should occurr (no bad actors)
@@ -435,13 +442,13 @@ auto State::apply_stage(ChainDBTransaction&& t) -> std::pair<ChainError, std::op
             db.delete_bad_block(stage.hash_at(h));
         stage.shrink(error.height() - 1);
         if (stage.total_work_at(error.height() - 1) <= chainstate.headers().total_work()) {
-            return { error, {} };
+            return { error, {}, {} };
         }
     }
     db.set_consensus_work(stage.total_work());
     auto update { tr.commit(*this) };
 
-    return { error, update };
+    return { error, update, apiBlocks };
 }
 
 auto State::apply_signed_snapshot(SignedSnapshot&& ssnew) -> std::optional<StateUpdate>
@@ -517,7 +524,8 @@ auto State::append_mined_block(const Block& b) -> StateUpdate
     }
 
     chainserver::BlockApplier e { db, chainstate.headers(), chainstate.txids(), false };
-    e.apply_block(bv, nextHeight, blockId);
+    auto apiBlock{e.apply_block(bv, b.header, nextHeight, blockId)};
+    http_endpoint().push_event(apiBlock);
     db.set_consensus_work(chainstate.work_with_new_block());
     transaction.commit();
 

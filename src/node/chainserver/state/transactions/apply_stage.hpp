@@ -1,6 +1,7 @@
 #pragma once
 #include "../state.hpp"
 #include "db/chain_db.hpp"
+#include "api/types/forward_declarations.hpp"
 
 namespace chainserver {
 class ApplyStageTransaction {
@@ -9,7 +10,7 @@ public:
     ApplyStageTransaction(const State& s, ChainDBTransaction&& transaction);
 
     void consider_rollback(Height shrinkLength);
-    [[nodiscard]] ChainError apply_stage_blocks();
+    [[nodiscard]] std::pair<std::vector<API::Block>,ChainError> apply_stage_blocks();
     [[nodiscard]] StateUpdate commit(State&);
 
 private:

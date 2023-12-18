@@ -1,4 +1,5 @@
 #include "block_applier.hpp"
+#include "api/types/all.hpp"
 #include "block/body/parse.hpp"
 #include "block/body/rollback.hpp"
 #include "block/chain/header_chain.hpp"
@@ -174,20 +175,22 @@ struct HistoryEntries {
     {
     }
     HistoryId nextHistoryId;
-    void push_reward(const RewardInternal& r)
+    [[nodiscard]] const auto& push_reward(const RewardInternal& r)
     {
-        insertHistory.emplace_back(r, nextHistoryId);
+        auto& e { insertHistory.emplace_back(r, nextHistoryId) };
         insertAccountHistory.emplace_back(r.toAccountId, nextHistoryId);
         ++nextHistoryId;
+        return e;
     }
-    void push_transfer(const VerifiedTransfer& r)
+    [[nodiscard]] auto& push_transfer(const VerifiedTransfer& r)
     {
-        insertHistory.emplace_back(r, nextHistoryId);
+        auto& e { insertHistory.emplace_back(r, nextHistoryId) };
         insertAccountHistory.emplace_back(r.ti.toAccountId, nextHistoryId);
         if (r.ti.toAccountId != r.ti.fromAccountId) {
             insertAccountHistory.emplace_back(r.ti.fromAccountId, nextHistoryId);
         }
         ++nextHistoryId;
+        return e;
     }
     void write(ChainDB& db)
     {
@@ -212,6 +215,8 @@ struct Preparation {
     std::set<TransactionId> txset;
     std::vector<std::pair<AccountId, Funds>> updateBalances;
     std::vector<std::tuple<AddressView, Funds, AccountId>> insertBalances;
+    std::vector<API::Block::Reward> apiRewards;
+    std::vector<API::Block::Transfer> apiTransfers;
     HistoryEntries historyEntries;
     RollbackGenerator rg;
     Preparation(HistoryId nextHistoryId, AccountId beginNewAccountId)
@@ -307,7 +312,13 @@ Preparation BlockApplier::Preparer::prepare(const BodyView& bv, const NonzeroHei
 
     for (auto& r : balanceChecker.get_rewards()) {
         assert(!r.toAddress.is_null());
-        res.historyEntries.push_reward(r);
+        auto& ref { res.historyEntries.push_reward(r) };
+
+        res.apiRewards.push_back({
+            .txhash { ref.he.hash },
+            .toAddress { r.toAddress },
+            .amount { r.amount },
+        });
     }
     for (auto& tr : balanceChecker.get_transfers()) {
         auto verified { tr.verify(hc, height) };
@@ -318,12 +329,21 @@ Preparation BlockApplier::Preparer::prepare(const BodyView& bv, const NonzeroHei
             throw Error(ENONCE);
         }
 
-        res.historyEntries.push_transfer(verified);
+        auto& ref { res.historyEntries.push_transfer(verified) };
+        res.apiTransfers.push_back({
+            .fromAddress { tr.fromAddress },
+            .fee { tr.compactFee.uncompact() },
+            .nonceId { tr.pinNonce.id },
+            .pinHeight { tr.pinNonce.pin_height(PinFloor { height - 1 }) },
+            .txhash { ref.he.hash },
+            .toAddress { tr.toAddress },
+            .amount { tr.amount },
+        });
     }
     return res;
 }
 
-void BlockApplier::apply_block(const BodyView& bv, NonzeroHeight height, BlockId blockId)
+API::Block BlockApplier::apply_block(const BodyView& bv, HeaderView hv, NonzeroHeight height, BlockId blockId)
 {
     auto prepared { preparer.prepare(bv, height) }; // call const function
 
@@ -352,6 +372,10 @@ void BlockApplier::apply_block(const BodyView& bv, NonzeroHeight height, BlockId
         db.insert_consensus(height, blockId, db.next_history_id(), prepared.rg.begin_new_accounts());
 
         prepared.historyEntries.write(db);
+        API::Block b(hv, height, 0);
+        b.rewards = std::move(prepared.apiRewards);
+        b.transfers = std::move(prepared.apiTransfers);
+        return b;
     } catch (Error e) {
         throw std::runtime_error(std::string("Unexpected exception: ") + __PRETTY_FUNCTION__ + ":" + e.strerror());
     }

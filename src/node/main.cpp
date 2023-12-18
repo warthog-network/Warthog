@@ -102,9 +102,6 @@ int main(int argc, char** argv)
     Eventloop el(ps, cs, config());
     Conman cm(&l, ps, config());
 
-    // setup globals
-    global_init(&breg, &ps, &cs, &cm, &el);
-
     // setup signals
     setup_signals(&l);
 
@@ -112,6 +109,9 @@ int main(int argc, char** argv)
 
     // starting endpoint
     HTTPEndpoint endpoint { config() };
+
+    // setup globals
+    global_init(&breg, &ps, &cs, &cm, &el, &endpoint);
 
     // running eventloops
     el.start_async_loop();

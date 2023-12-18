@@ -4,16 +4,16 @@
 #include "block/chain/history/index.hpp"
 #include "block/chain/signed_snapshot.hpp"
 #include "block/chain/worksum.hpp"
-#include "block/header/header.hpp"
 #include "block/header/difficulty_declaration.hpp"
+#include "block/header/header.hpp"
 #include "crypto/address.hpp"
 #include "db/offense_entry.hpp"
 #include "eventloop/peer_chain.hpp"
 #include "general/funds.hpp"
 #include "general/tcp_util.hpp"
 #include "height_or_hash.hpp"
-#include <vector>
 #include <variant>
+#include <vector>
 namespace chainserver {
 class AccountCache;
 }
@@ -53,6 +53,7 @@ struct Balance {
     Funds balance;
 };
 struct Block {
+    static constexpr const char WEBSOCKET_EVENT[] = "Block";
     struct Transfer {
         Address fromAddress;
         Funds fee;
@@ -90,12 +91,12 @@ struct AccountHistory {
     std::vector<API::Block> blocks_reversed;
 };
 struct TransactionsByBlocks {
-    size_t count {0};
+    size_t count { 0 };
     HistoryId fromId;
     std::vector<API::Block> blocks_reversed;
 };
-struct Richlist{
-    std::vector<std::pair<Address,Funds>> entries;
+struct Richlist {
+    std::vector<std::pair<Address, Funds>> entries;
 };
 struct MempoolEntry : public TransferTxExchangeMessage {
     Hash txHash;

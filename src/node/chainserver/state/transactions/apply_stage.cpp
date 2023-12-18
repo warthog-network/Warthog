@@ -1,4 +1,5 @@
 #include "apply_stage.hpp"
+#include "api/types/all.hpp"
 #include "block/body/view.hpp"
 #include "block_applier.hpp"
 #include "general/hex.hpp"
@@ -9,17 +10,18 @@ namespace chainserver {
 ApplyStageTransaction::ApplyStageTransaction(const State& s, ChainDBTransaction&& transaction)
     : ccs(s)
     , transaction(std::move(transaction))
-    , chainlength(s.chainlength()) {
+    , chainlength(s.chainlength())
+{
+}
 
-    }
-
-[[nodiscard]] ChainError ApplyStageTransaction::apply_stage_blocks()
+[[nodiscard]] std::pair<std::vector<API::Block>, ChainError> ApplyStageTransaction::apply_stage_blocks()
 {
     assert(!applyResult);
     applyResult = AppendBlocksResult {};
     auto& res { applyResult.value() };
     auto& baseTxIds { rb ? rb->chainTxIds : ccs.chainstate.txids() };
     chainserver::BlockApplier ba { ccs.db, ccs.stage, baseTxIds, true };
+    std::vector<API::Block> apiBlocks;
     for (NonzeroHeight h = (chainlength + 1).nonzero_assert(); h <= ccs.stage.length(); ++h) {
         auto historyId { ccs.db.next_history_id() };
         AccountId accountId { ccs.db.next_state_id() };
@@ -36,20 +38,21 @@ ApplyStageTransaction::ApplyStageTransaction(const State& s, ChainDBTransaction&
         assert(bv.valid());
 
         try {
-            ba.apply_block(bv, h, blockId);
+            auto apiBlock { ba.apply_block(bv, b.header, h, blockId) };
+            apiBlocks.push_back(std::move(apiBlock));
         } catch (Error e) {
             std::string fname { std::to_string(now_timestamp()) + "_" + std::to_string(h.value()) + "_failed.block" };
             std::ofstream f(fname);
             f << serialize_hex(b.body.data());
             res.newTxIds = ba.move_new_txids();
-            return { e, h };
+            return { apiBlocks, { e, h } };
         }
         res.newHistoryOffsets.push_back(historyId);
         res.newAccountOffsets.push_back(accountId);
         chainlength = h;
     }
     res.newTxIds = ba.move_new_txids();
-    return { Error(0), (ccs.stage.length() + 1).nonzero_assert() };
+    return { apiBlocks, { Error(0), (ccs.stage.length() + 1).nonzero_assert() } };
 }
 
 void ApplyStageTransaction::consider_rollback(Height shrinkLength)

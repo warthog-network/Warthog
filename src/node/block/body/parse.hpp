@@ -72,7 +72,6 @@ struct Transfer {
     }
     [[nodiscard]] TransactionId txid(PinHeight pinHeight) const
     {
-        PinFloor pf(pinHeight);
         return { fromId,
             pinHeight, pinNonce.id };
     }

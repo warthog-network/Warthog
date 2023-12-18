@@ -41,13 +41,18 @@ const Config& config()
     return globalinstance.conf;
 }
 
-void global_init(BatchRegistry* pbr, PeerServer* pps, ChainServer* pcs, Conman* pcm, Eventloop* pel)
+void global_init(BatchRegistry* pbr, PeerServer* pps, ChainServer* pcs, Conman* pcm, Eventloop* pel, HTTPEndpoint* httpEndpoint)
 {
     globalinstance.pbr = pbr;
     globalinstance.pps = pps;
     globalinstance.pcm = pcm;
     globalinstance.pcs = pcs;
     globalinstance.pel = pel;
+    globalinstance.httpEndpoint = httpEndpoint;
     globalinstance.connLogger = create_connection_logger();;
     globalinstance.syncdebugLogger = create_syncdebug_logger();;
+};
+
+HTTPEndpoint& http_endpoint(){
+    return *globalinstance.httpEndpoint;
 };
