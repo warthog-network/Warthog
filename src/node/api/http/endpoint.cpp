@@ -174,7 +174,7 @@ void HTTPEndpoint::work()
 
     // debug endpoints
     get("/debug/header_download", inspect_eventloop, jsonmsg::header_download);
-    app.ws<void>("/ws_sneak_peek", {
+    app.ws<int>("/ws_sneak_peek", {
             .open = [](auto* ws) { ws->subscribe(API::Block::WEBSOCKET_EVENT); },
     });
     app.listen(bind.ipv4.to_string(), bind.port, std::bind(&HTTPEndpoint::on_listen, this, _1));
