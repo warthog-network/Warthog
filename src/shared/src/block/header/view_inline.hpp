@@ -4,15 +4,20 @@
 #include "crypto/hasher_sha256.hpp"
 #include "crypto/verushash/verushash.hpp"
 #include "difficulty.hpp"
+#include "general/hex.hpp"
 #include "general/reader.hpp"
 
 inline bool HeaderView::validPOW(const Hash& h, NonzeroHeight height) const
 {
-    if (JANUSENABLED && height.value() > JANUSRETARGETSTART){
+    if (JANUSENABLED && height.value() > JANUSRETARGETSTART) {
         HashExponentialDigest hd; // prepare hash product of  Proof of Balanced work with two algos: verus + 3xsha256
-        hd.digest(verus_hash({ data(), size() })); // verus hash v2.1
-        hd.digest(hashSHA256(h)); // triple sha
-        return target_v2().compatible(hd);
+        auto verusHashV2_1 { verus_hash({ data(), size() }) };
+        spdlog::info("Verushash v2.1: {}", serialize_hex(verusHashV2_1));
+        hd.digest(verusHashV2_1);
+        auto triplesha { hashSHA256(h) };
+        spdlog::info("triple sha256: {}", serialize_hex(triplesha));
+        hd.digest(triplesha);
+        return verusHashV2_1[0] == 0 && target_v2().compatible(hd);
     } else {
         return target_v1().compatible(h);
     }

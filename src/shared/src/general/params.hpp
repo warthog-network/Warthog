@@ -65,5 +65,5 @@ inline constexpr uint32_t retarget_floor(uint32_t height)
 /////////////
 // Janushash Start
 /////////////
-constexpr bool JANUSENABLED = false;
-constexpr uint32_t JANUSRETARGETSTART = retarget_floor(720);
+constexpr bool JANUSENABLED = true;
+constexpr uint32_t JANUSRETARGETSTART = retarget_floor(745200);
