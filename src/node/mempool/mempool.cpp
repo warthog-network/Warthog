@@ -4,7 +4,7 @@ namespace mempool {
 
 std::vector<TransferTxExchangeMessage> Mempool::get_payments(size_t n, std::vector<Hash>* hashes) const
 {
-    if (n==0) {
+    if (n == 0) {
         return {};
     }
     std::vector<TransferTxExchangeMessage> res;
@@ -93,7 +93,7 @@ void Mempool::erase_from_height(Height h)
 void Mempool::erase_before_height(Height h)
 {
     auto end = byPin.lower_bound(h);
-    for (auto iter = byPin.begin(); iter != end;){
+    for (auto iter = byPin.begin(); iter != end;) {
         erase(*(iter++));
     }
 };
@@ -131,6 +131,9 @@ int32_t Mempool::insert_tx(const TransferTxExchangeMessage& pm,
     const TxHash& txhash,
     const AddressFunds& af)
 {
+    if (pm.from_address(txhash) != af.address)
+        return EFAKEACCID;
+
     if (af.funds.is_zero())
         return EBALANCE;
     auto& e = balanceEntries.try_emplace(pm.from_id(), af).first->second;

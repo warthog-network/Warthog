@@ -84,6 +84,7 @@
     XX(85, EZEROAMOUNT, "transactions cannot send 0 WART")              \
     XX(86, ENOINIT, "first message must be init message")               \
     XX(87, EINVINIT, "only first message can be init message")          \
+    XX(88, EFAKEACCID, "fake account id")                               \
     XX(201, EBADNONCE, "cannot parse nonce")                            \
     XX(202, EBADFEE, "invalid fee")                                     \
     XX(203, EINEXACTFEE, "inexact fee not allowed")                     \
