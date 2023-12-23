@@ -425,6 +425,7 @@ void Downloader::process_final(Lead_iter li, std::vector<Offender>& out)
 
     // check header chain
     const HeaderVerifier parent { fromGenesis ? HeaderVerifier {} : (*li->verifier)->second.verifier };
+    // TODO: this is called on each new block, scans old POW again for whole batch, not good
     auto o { parent.copy_apply(chains.signed_snapshot(), li->finalBatch.batch, heightOffset) };
     if (!o.has_value()) {
         out.push_back({ o.error(), li->cr });

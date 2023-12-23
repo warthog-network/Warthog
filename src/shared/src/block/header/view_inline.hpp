@@ -1,25 +1,16 @@
 #pragma once
+
 #include "block/chain/height.hpp"
+#include "block/header/custom_float.hpp"
 #include "block/header/header.hpp"
 #include "crypto/hasher_sha256.hpp"
 #include "crypto/verushash/verushash.hpp"
 #include "difficulty.hpp"
 #include "general/hex.hpp"
 #include "general/reader.hpp"
+#include <iostream>
 
-inline bool HeaderView::validPOW(const Hash& h, NonzeroHeight height) const
-{
-    if (JANUSENABLED && height.value() > JANUSRETARGETSTART) {
-        HashExponentialDigest hd; // prepare hash product of  Proof of Balanced work with two algos: verus + 3xsha256
-        auto verusHashV2_1 { verus_hash({ data(), size() }) };
-        hd.digest(verusHashV2_1);
-        auto triplesha { hashSHA256(h) };
-        hd.digest(triplesha);
-        return verusHashV2_1[0] == 0 && target_v2().compatible(hd);
-    } else {
-        return target_v1().compatible(h);
-    }
-}
+
 inline uint32_t HeaderView::version() const
 {
     return readuint32(data() + offset_version);

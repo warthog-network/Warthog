@@ -19,9 +19,18 @@ HeaderVerifier::HeaderVerifier(const SharedBatch& b)
     latestRetargetTime = uhv.timestamp();
 
     timeValidator.clear();
-    if (JANUSENABLED && length == JANUSRETARGETSTART) {
-        nextTarget = TargetV2::min();
-    } else {
+    bool override = false;
+    if (JANUSENABLED) {
+        if (length == JANUSRETARGETSTART) {
+            override = true;
+            nextTarget = TargetV2::initial();
+        }
+        if (length == JANUSV2RETARGETSTART) {
+            override = true;
+            nextTarget = TargetV2::initialv2();
+        }
+    }
+    if (!override) {
         if (latestRetargetHeight == 1) {
             nextTarget = TargetV1::genesis();
         } else {
@@ -33,7 +42,7 @@ HeaderVerifier::HeaderVerifier(const SharedBatch& b)
                 }
                 HeaderView lhv = tmp->getBatch()[prevRetargetHeight - tmp->lower_height()];
                 nextTarget.scale(finalHeader.timestamp() - lhv.timestamp(),
-                    BLOCKTIME * (length - prevRetargetHeight));
+                    BLOCKTIME * (length - prevRetargetHeight), length + 1);
             }
         }
     }
@@ -95,9 +104,18 @@ void HeaderVerifier::append(NonzeroHeight newlength, const PreparedAppend& p)
     static_assert(::retarget_floor(JANUSRETARGETSTART) == JANUSRETARGETSTART);
     using namespace std;
     if (upperHeight == newlength) { // need retarget
-        if (JANUSENABLED && newlength == JANUSRETARGETSTART) {
-            nextTarget = TargetV2::min();
-        } else {
+        bool override = false;
+        if (JANUSENABLED) {
+            if (length == JANUSRETARGETSTART) {
+                override = true;
+                nextTarget = TargetV2::initial();
+            }
+            if (length == JANUSV2RETARGETSTART) {
+                override = true;
+                nextTarget = TargetV2::initialv2();
+            }
+        }
+        if (!override) {
             if (upperHeight != 1) {
                 assert(latestRetargetHeight != 0);
                 assert(latestRetargetTime != 0);
@@ -105,7 +123,7 @@ void HeaderVerifier::append(NonzeroHeight newlength, const PreparedAppend& p)
                 Height lowerHeight((upperHeight - 1).retarget_floor());
                 assert(upperHeight - lowerHeight > 0);
                 nextTarget.scale(timestamp - latestRetargetTime,
-                    BLOCKTIME * (upperHeight - lowerHeight));
+                    BLOCKTIME * (upperHeight - lowerHeight), newlength);
             }
         }
         latestRetargetHeight = upperHeight;
@@ -116,7 +134,7 @@ void HeaderVerifier::append(NonzeroHeight newlength, const PreparedAppend& p)
 auto HeaderVerifier::prepare_append(const std::optional<SignedSnapshot>& sp, HeaderView hv) const -> tl::expected<PreparedAppend, int32_t>
 {
     auto hash { hv.hash() };
-    NonzeroHeight appendHeight{height()+1};
+    NonzeroHeight appendHeight { height() + 1 };
 
     // Check header link
     if (hv.prevhash() != finalHash)
@@ -198,16 +216,25 @@ void HeaderVerifier::initialize(const ExtendableHeaderchain& hc,
         latestRetargetTime = upper.timestamp();
 
         // assign nextTarget
-        if (JANUSENABLED && length == JANUSRETARGETSTART) {
-            nextTarget = TargetV2::min();
-        } else {
+        bool override = false;
+        if (JANUSENABLED) {
+            if (length == JANUSRETARGETSTART) {
+                override = true;
+                nextTarget = TargetV2::initial();
+            }
+            if (length == JANUSV2RETARGETSTART) {
+                override = true;
+                nextTarget = TargetV2::initialv2();
+            }
+        }
+        if (!override) {
             nextTarget = hc.get_header(length).value().target(length.nonzero_assert());
             if (upperHeight != 1 && upperHeight == length) {
                 Height lowerHeight = (upperHeight - 1).retarget_floor();
                 assert(upperHeight - lowerHeight > 0);
                 auto lower { hc.get_header(lowerHeight).value() };
                 nextTarget.scale(latestRetargetTime - lower.timestamp(),
-                    BLOCKTIME * (upperHeight - lowerHeight));
+                    BLOCKTIME * (upperHeight - lowerHeight), length + 1);
             }
         }
     }

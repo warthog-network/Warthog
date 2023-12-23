@@ -236,7 +236,7 @@ void Downloader::do_probe_requests(RequestSender rs)
         if (c.job())
             continue;
         const auto& fr { data(c).forkRange };
-        assert(data(c).forkIter->first == fr.lower());
+        assert(data(c).forkIter->first == fr.lower()); // assert failed for me!!
         NonzeroHeight u {
             [&]() -> NonzeroHeight {
                 if (fr.forked())
