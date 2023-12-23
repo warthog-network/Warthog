@@ -1,5 +1,5 @@
 project( 'Warthog', ['c','cpp'],
-  version : '0.1.2',
+  version : '0.1.3',
   default_options : ['warning_level=3', 'cpp_std=c++20'])
 
 libuv_dep = subproject('libuv', default_options : ['warning_level=0', 'werror=false', 'build_tests=false']).get_variable('libuv_dep')
@@ -10,3 +10,4 @@ subdir('./src/shared')
 subdir('./src/node')
 subdir('./src/wallet')
 subdir('./src/miner')
+subdir('./src/test')

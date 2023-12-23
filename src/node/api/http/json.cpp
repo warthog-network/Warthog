@@ -146,6 +146,9 @@ json grid_json(const Grid& g)
 
 json header_json(const Header& header, NonzeroHeight height)
 {
+    auto verusHash{verus_hash(header)};
+    auto blockHash{header.hash()};
+    auto sha256tHash{hashSHA256(blockHash)};
     auto target { header.target(height) };
     uint32_t targetBE = hton32(target.binary());
     json h;
@@ -155,6 +158,12 @@ json header_json(const Header& header, NonzeroHeight height)
     h["target"] = serialize_hex(targetBE);
     h["difficulty"] = target.difficulty();
     h["hash"] = serialize_hex(header.hash());
+    h["pow"] = json{
+        {"hashVerus",serialize_hex(verusHash)},
+        {"hashSha256t",serialize_hex(sha256tHash)},
+        {"floatVerus",CustomFloat(verusHash).to_double()},
+        {"floatSha256t",CustomFloat(sha256tHash).to_double()},
+    };
     h["merkleroot"] = serialize_hex(header.merkleroot());
     h["nonce"] = serialize_hex(header.nonce());
     h["prevHash"] = serialize_hex(header.prevhash());

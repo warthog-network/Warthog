@@ -102,7 +102,7 @@ inline uint32_t TargetV1::bits24() const
             return false;
     return true;
 }
-inline void TargetV1::scale(uint32_t easierfactor, uint32_t harderfactor)
+inline void TargetV1::scale(uint32_t easierfactor, uint32_t harderfactor, Height)
 {
     assert(easierfactor != 0);
     assert(harderfactor != 0);
@@ -211,8 +211,12 @@ inline uint32_t TargetV2::zeros10() const
     return data >> 22;
 };
 
-inline void TargetV2::scale(uint32_t easierfactor, uint32_t harderfactor)
+inline void TargetV2::scale(uint32_t easierfactor, uint32_t harderfactor, Height height)
 {
+    bool v2 { height.value() > JANUSV2RETARGETSTART };
+    uint8_t MinDiffExponent = (v2? 40 : 43);
+    uint32_t MinTargetHost = (MinDiffExponent << 22) | 0x003FFFFFu;
+
     assert(easierfactor != 0);
     assert(harderfactor != 0);
     if (easierfactor >= 0x80000000u)
@@ -261,9 +265,14 @@ inline double TargetV2::difficulty() const
         zeros + 22); // first digit  of ((uint8_t*)(&encodedDifficulty))[1] is 1,
                      // compensate for other 23 digts of the 3 byte mantissa
 }
-inline TargetV2 TargetV2::min()
+inline TargetV2 TargetV2::initial()
 {
-    return MinTargetHost;
+    return (uint32_t(43) << 22) | 0x003FFFFFu;
+}
+
+inline TargetV2 TargetV2::initialv2()
+{
+    return (uint32_t(40) << 22) | 0x003FFFFFu;
 }
 
 inline bool TargetV2::compatible(const HashExponentialDigest& digest) const
