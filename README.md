@@ -62,18 +62,19 @@ Not listed yet. At the moment only p2p on Discord.
 ### This Repo
 * Reference node implementation of the Warthog Network
 * Command line wallet software
-* CPU Miner
-* GPU Miner
+
+### Miner
+* GPU/CPU Miner for JanusHash [here](https://github.com/CoinFuMasterShifu/janusminer)
 
 ### Additional Tools:
 * GUI wallet [here](https://github.com/warthog-network/wart-wallet)
  
-
 ## 💻 Installation
-
 Prebuilt binaries of the node daemon and cli wallet for Linux and Windows can be downloaded [here](https://github.com/warthog-network/Warthog/releases). They are staticlly linked and will just work without external dependencies.
 
-For mining you need to compile from source. See below or [here](https://github.com/warthog-network/warthog-guide) for a more detailed guide.
+Prebuilt binaries of the miner for Linux and HiveOS can be downloaded [here](https://github.com/CoinFuMasterShifu/janusminer/releases)
+
+To compile from source see below or [here](https://github.com/warthog-network/warthog-guide) for a more detailed guide.
 
 ## 😵‍💫 BUILD INSTRUCTIONS
 
@@ -86,19 +87,12 @@ For mining you need to compile from source. See below or [here](https://github.c
 * meson
 * ninja
 
-Optional:
-* opencl (for GPU miner)
-
 #### Required Steps
-
 * Install gcc, meson, ninja: apt install meson ninja-build build-essential
 * Clone the repo: `git clone https://github.com/ByPumbaa/Warthog`
 * cd into the repo: `cd Warthog`
 * Create build directory: `meson build .` (`meson build . --buildtype=release` for better performance)
 * cd into build directory: `cd build`
-* [Optional but highly recommended] GPU miner support 
-  - enable GPU support in miner: `meson configure -Denable-gpu-miner=true`
-  - for old OpenCL headers (like on Ubuntu 20.04): `meson configure -Dopencl-legacy=true`
 * Compile using ninja: `ninja`
 
 ### Docker build (node and wallet)
@@ -112,11 +106,13 @@ Optional:
 * Run `DOCKER_BUILDKIT=1 docker build . -f DockerfileWindows --output ./build/windows` in the repo.
 * Windows binaries are located in `./build/windows` directory.
 
-
 ## ▶️ USAGE
-
-* Run the node (use some restarter in case it crashes)
-* Run the miner (miner requires node running)
+* Run the node (use some restarter in case it crashes) <br />
+One line example to run the node: `screen -dmS wart_node bash -c "while true; do wart-node-linux ; done"` <br />
+Use `screen -r wart_node` to see its output and CTRL+A+D to detach from the screen session. <br />
+Note: You should run node with  `--rpc=0.0.0.0:3000` to accept remote connections from your other rigs. <br />
+* Run the miner (miner requires node running). 
+More detailed information how to set up and run the miner you can find [here](https://github.com/CoinFuMasterShifu/janusminer/blob/master/README.md).
 * Optional: Run the wallet to send funds (wallet requires node running)
 * Good luck and have fun! Use --help the option.
 
