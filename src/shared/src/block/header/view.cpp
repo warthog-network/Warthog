@@ -27,6 +27,22 @@ inline bool operator<(const CustomFloat& hashproduct, TargetV2 t)
     return hashproduct.mantissa() < bits32;
 }
 
+inline bool operator<(const CustomFloat& arg, const CustomFloat bound)
+{
+    assert(bound.positive());
+    assert(bound.exponent() <= 0);
+    uint32_t zerosBound(-bound.exponent());
+
+    assert(arg.positive());
+    assert(arg.exponent() <= 0);
+    uint32_t zerosArg(-arg.exponent());
+    if (zerosArg < zerosBound)
+        return false;
+    if (zerosArg > zerosBound)
+        return true;
+    return arg.mantissa() < bound.mantissa();
+}
+
 [[nodiscard]] inline std::string to_bin(Hash v)
 {
     std::string s;
@@ -47,8 +63,8 @@ bool HeaderView::validPOW(const Hash& h, NonzeroHeight height) const
         if (height.value() > JANUSV2RETARGETSTART) {
             auto verusHashV2_1 { verus_hash({ data(), size() }) };
             if (height.value() > JANUSV3RETARGETSTART) {
-                if (verusHashV2_1[0] != 0 || verusHashV2_1[1] != 0 || (verusHashV2_1[2] > 7u)) {
-                    // reject verushash with log2 less than -21
+                if (!(verusHashV2_1 < CustomFloat(-30, 3496838790))) {
+                    // reject verushash with log_e less than -21
                     return false;
                 }
             }
