@@ -62,15 +62,9 @@ bool HeaderView::validPOW(const Hash& h, NonzeroHeight height) const
     if (JANUSENABLED && height.value() > JANUSRETARGETSTART) {
         if (height.value() > JANUSV2RETARGETSTART) {
             auto verusHashV2_1 { verus_hash({ data(), size() }) };
-            static_assert(JANUSV4RETARGETSTART>JANUSV3RETARGETSTART);
-            if (height.value() > JANUSV4RETARGETSTART) {
+            if (height.value() > JANUSV3RETARGETSTART) {
                 if (!(verusHashV2_1 < CustomFloat(-30, 3496838790))) {
                     // reject verushash with log_e less than -21
-                    return false;
-                }
-            }else if (height.value() > JANUSV3RETARGETSTART) {
-                if (verusHashV2_1[0] != 0 || verusHashV2_1[1] != 0 || (verusHashV2_1[2] > 7u)) {
-                    // reject verushash with log2 less than -21
                     return false;
                 }
             }
