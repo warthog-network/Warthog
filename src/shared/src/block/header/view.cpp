@@ -1,12 +1,12 @@
 #include "view.hpp"
+#include "block/chain/height.hpp"
+#include "block/header/header_impl.hpp"
 #include "crypto/hasher_sha256.hpp"
-#include "general/params.hpp"
 #include "crypto/verushash/verushash.hpp"
 #include "custom_float.hpp"
-#include <iostream>
-#include "block/chain/height.hpp"
 #include "difficulty.hpp"
-#include "block/header/header_impl.hpp"
+#include "general/params.hpp"
+#include <iostream>
 
 inline bool operator<(const CustomFloat& hashproduct, TargetV2 t)
 {
@@ -46,6 +46,12 @@ bool HeaderView::validPOW(const Hash& h, NonzeroHeight height) const
     if (JANUSENABLED && height.value() > JANUSRETARGETSTART) {
         if (height.value() > JANUSV2RETARGETSTART) {
             auto verusHashV2_1 { verus_hash({ data(), size() }) };
+            if (height.value() > JANUSV3RETARGETSTART) {
+                if (verusHashV2_1[0] != 0 || verusHashV2_1[1] != 0 || (verusHashV2_1[2] > 7u)) {
+                    // reject verushash with log2 less than -21
+                    return false;
+                }
+            }
             auto verusFloat { CustomFloat(verusHashV2_1) };
             using namespace std;
             // cout << to_bin(verusHashV2_1) << endl;
@@ -53,7 +59,7 @@ bool HeaderView::validPOW(const Hash& h, NonzeroHeight height) const
             // now introduce        _  ___  _Hacker: "shi*t" <-- At difficulty 2^40 which is minimum SHA256t
             // factor to cripple     \|o o|/                     must have 40/0.7 ~ 57 zeros to generate
             // GPU-only mining         \0/                       a valid block alone (2000x of 46 now)
-            constexpr auto factor { CustomFloat(0,3006477107) }; // = 0.7 <-- this can be decreased if necessary
+            constexpr auto factor { CustomFloat(0, 3006477107) }; // = 0.7 <-- this can be decreased if necessary
             // constexpr auto factor { CustomFloat(0, 3435973836) }; // = 0.8, lift to this later when we have better miner
             auto hashProduct { verusFloat * pow(sha256tFloat, factor) };
             return verusHashV2_1[0] == 0 && (hashProduct < target_v2());
@@ -65,7 +71,7 @@ bool HeaderView::validPOW(const Hash& h, NonzeroHeight height) const
             // auto triplesha { hashSHA256(h) };
             // hd.digest(triplesha);
             // return verusHashV2_1[0] == 0 && target_v2().compatible(hd);
-            
+
             auto verusHashV2_1 { verus_hash({ data(), size() }) };
             auto verusFloat { CustomFloat(verusHashV2_1) };
             using namespace std;
