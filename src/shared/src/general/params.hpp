@@ -68,4 +68,5 @@ inline constexpr uint32_t retarget_floor(uint32_t height)
 constexpr bool JANUSENABLED = true;
 constexpr uint32_t JANUSRETARGETSTART = retarget_floor(745200);
 constexpr uint32_t JANUSV2RETARGETSTART = retarget_floor(769680);
-constexpr uint32_t JANUSV3RETARGETSTART = retarget_floor(776880);
+constexpr uint32_t JANUSV3RETARGETSTART = retarget_floor(775440);
+constexpr uint32_t JANUSV4RETARGETSTART = retarget_floor(776880);
