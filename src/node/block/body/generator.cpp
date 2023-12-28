@@ -112,14 +112,14 @@ public:
         : nas(db)
     {
     }
-    BodyContainer gen_block(Height height, const std::vector<Payout>& payouts,
+    BodyContainer gen_block(NonzeroHeight height, const std::vector<Payout>& payouts,
         const std::vector<TransferTxExchangeMessage>& payments);
 
 private:
     NewAddressSection nas;
 };
 
-BodyContainer BlockGenerator::gen_block(Height height,
+BodyContainer BlockGenerator::gen_block(NonzeroHeight height,
     const std::vector<Payout>& payouts,
     const std::vector<TransferTxExchangeMessage>& payments
     )
@@ -208,7 +208,7 @@ void BlockGenerator::PaymentSection::add_payment(
 }
 }
 
-BodyContainer generate_body(const ChainDB& db, Height height, const std::vector<Payout>& payouts, const std::vector<TransferTxExchangeMessage>& payments){
+BodyContainer generate_body(const ChainDB& db, NonzeroHeight height, const std::vector<Payout>& payouts, const std::vector<TransferTxExchangeMessage>& payments){
     BlockGenerator bg(db);
     return bg.gen_block(height,payouts,payments);
 }

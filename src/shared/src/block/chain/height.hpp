@@ -87,13 +87,16 @@ public:
     }
 };
 
+
 class NonzeroHeight : public IsUint32 {
     friend struct Batchslot;
 
 public:
     NonzeroHeight(Reader& r);
     explicit NonzeroHeight(Height h)
-        : NonzeroHeight(h.value()) {}
+        : NonzeroHeight(h.value())
+    {
+    }
     NonzeroHeight(bool) = delete;
     constexpr NonzeroHeight(uint32_t v)
         : IsUint32(v)
@@ -180,6 +183,13 @@ public:
     }
 };
 
+class PrevHeight : public Height {
+public:
+    explicit PrevHeight(NonzeroHeight h)
+        : Height(h - 1)
+    {}
+};
+
 inline NonzeroHeight Height::nonzero_assert() const
 {
     return { NonzeroHeight(value()) };
@@ -203,7 +213,7 @@ inline NonzeroHeight Height::one_if_zero() const
 
 class PinHeight : public Height {
 public:
-    PinHeight(const Height h);
+    explicit PinHeight(const Height h);
 };
 struct AccountHeight : public Height {
     using Height::Height;
@@ -218,7 +228,7 @@ struct TransactionHeight : public Height {
 
 struct PinFloor : public Height {
     using Height::Height;
-    explicit PinFloor(Height h)
+    explicit PinFloor(PrevHeight h)
         : Height((h.value() >> 5) << 5) //& 0xFFFFFFE0u;
     {
     }

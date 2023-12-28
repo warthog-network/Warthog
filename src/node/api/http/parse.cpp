@@ -24,12 +24,12 @@ MiningTask parse_mining_task(const std::vector<uint8_t>& s)
 }
 
 namespace {
-Height extract_pin_height(const nlohmann::json& json)
+PinHeight extract_pin_height(const nlohmann::json& json)
 {
     try {
         auto h = json["pinHeight"].get<int>();
         if (h >= 0) {
-            return Height(h);
+            return PinHeight(Height(h));
         }
     } catch (...) {
     }

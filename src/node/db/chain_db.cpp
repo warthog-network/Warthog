@@ -496,11 +496,11 @@ std::vector<TransactionId> read_tx_ids(const BodyContainer& body,
     if (!bv.valid())
         throw std::runtime_error(
             "Database corrupted (invalid block body at height " + std::to_string(height) + ".");
-    PinFloor pinFloor { height - 1 };
+    PinFloor pinFloor { PrevHeight(height) };
 
     std::vector<TransactionId> out;
     for (auto t : bv.transfers()) {
-        auto txid { t.txid(pinFloor) };
+        auto txid { t.txid(t.pinHeight(pinFloor)) };
         out.push_back(txid);
     }
     return out;
@@ -509,7 +509,7 @@ std::vector<TransactionId> read_tx_ids(const BodyContainer& body,
 
 chainserver::TransactionIds ChainDB::fetch_tx_ids(Height height) const
 {
-    auto [lower, upper] = chainserver::TransactionIds::block_range(height);
+    const auto [lower, upper] = chainserver::TransactionIds::block_range(height);
     chainserver::TransactionIds out;
     spdlog::debug("Loading nonces from blocks {} to {} into cache...", lower.value(), upper.value());
     auto ids { consensus_block_ids(lower, upper) };

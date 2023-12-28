@@ -6,11 +6,12 @@ VerifiedTransfer TransferInternal::verify(const Headerchain& hc, NonzeroHeight h
     assert(height <= hc.length() + 1);
     assert(!fromAddress.is_null());
     assert(!toAddress.is_null());
-    const PinFloor pinFloor { height - 1 };
+    const PinFloor pinFloor { PrevHeight(height) };
     PinHeight pinHeight(pinNonce.pin_height(pinFloor));
     Hash pinHash { hc.hash_at(pinHeight) };
     return VerifiedTransfer(*this, pinHeight, pinHash);
 }
+
 Hash RewardInternal::hash() const
 {
     return HasherSHA256()

@@ -80,7 +80,7 @@ std::optional<API::Block> State::api_get_block(Height zh) const
     if (zh == 0 || zh > chainlength())
         return {};
     auto h { zh.nonzero_assert() };
-    PinFloor pinFloor { h - 1 };
+    PinFloor pinFloor { PrevHeight(h) };
     auto lower = chainstate.historyOffset(h);
     auto upper = (h == chainlength() ? HistoryId { 0 }
                                      : chainstate.historyOffset(h + 1));
@@ -138,7 +138,7 @@ std::optional<API::Transaction> State::api_get_tx(const HashView txHash) const
                 .fromAddress = db.fetch_account(d.fromAccountId).address,
                 .fee = d.compactFee,
                 .nonceId = d.pinNonce.id,
-                .pinHeight = d.pinNonce.pin_height((PinFloor(h - 1)))
+                .pinHeight = d.pinNonce.pin_height((PinFloor(PrevHeight(h))))
             };
         } else {
             assert(std::holds_alternative<history::RewardData>(*parsed));
@@ -171,7 +171,7 @@ auto State::api_get_latest_txs(size_t N) const -> API::TransactionsByBlocks
     chainserver::AccountCache cache(db);
     auto update_tmp = [&](auto id) {
         auto h { chainstate.history_height(id) };
-        PinFloor pinFloor { h - 1 };
+        PinFloor pinFloor { PrevHeight(h) };
         auto header { chainstate.headers()[h] };
         auto b { API::Block(header, h, chainlength() - h + 1) };
         auto beginId { chainstate.historyOffset(h) };
@@ -245,7 +245,7 @@ MiningTask State::mining_task(const Address& a)
         payouts { { a, md.reward + totalfee } };
 
     // mempool should have deleted out of window transactions
-    auto body { generate_body(db, chainlength() + 1, payouts, payments) };
+    auto body { generate_body(db, (chainlength() + 1).nonzero_assert(), payouts, payments) };
     BodyView bv(body.view());
     if (!bv.valid())
         spdlog::error("Cannot create mining task, body invalid");
@@ -343,7 +343,7 @@ auto State::add_stage(const std::vector<Block>& blocks, const Headerchain& hc) -
         auto [error, update, apiBlocks] { apply_stage(std::move(transaction)) };
 
         // publish websocket events
-        for (auto &b : apiBlocks) {
+        for (auto& b : apiBlocks) {
             http_endpoint().push_event(b);
         }
 
@@ -362,8 +362,8 @@ RollbackResult State::rollback(const Height newlength) const
     spdlog::info("Rolling back chain");
     std::vector<TransferTxExchangeMessage> toMempool;
     assert(newlength < chainlength());
-    Height beginHeight = newlength + 1;
-    const PinFloor newPinFloor { beginHeight - 1 };
+    NonzeroHeight beginHeight = (newlength + 1).nonzero_assert();
+    const PinFloor newPinFloor { PrevHeight(beginHeight) };
     Height endHeight(chainlength() + 1);
 
     // load ids
@@ -373,8 +373,8 @@ RollbackResult State::rollback(const Height newlength) const
     std::map<AccountId, Funds> balanceMap;
     for (size_t i = 0; i < ids.size(); ++i) {
         const auto id { ids[i] };
-        Height height = beginHeight + i;
-        PinFloor pinFloor { height - 1 };
+        NonzeroHeight height = beginHeight + i;
+        PinFloor pinFloor { PrevHeight(height) };
         auto u = db.get_block_undo(id);
         if (!u)
             throw std::runtime_error("Database corrupted (could not load block)");
@@ -524,7 +524,7 @@ auto State::append_mined_block(const Block& b) -> StateUpdate
     }
 
     chainserver::BlockApplier e { db, chainstate.headers(), chainstate.txids(), false };
-    auto apiBlock{e.apply_block(bv, b.header, nextHeight, blockId)};
+    auto apiBlock { e.apply_block(bv, b.header, nextHeight, blockId) };
     http_endpoint().push_event(apiBlock);
     db.set_consensus_work(chainstate.work_with_new_block());
     transaction.commit();
@@ -593,7 +593,8 @@ auto State::insert_txs(const TxVec& txs) -> std::pair<std::vector<int32_t>, memp
 
 API::Head State::api_get_head() const
 {
-    PinFloor pf { chainlength() };
+    NonzeroHeight nextHeight { (chainlength() + 1).nonzero_assert() };
+    PinFloor pf { PrevHeight(nextHeight) };
     return API::Head {
         .signedSnapshot { signedSnapshot },
         .worksum { chainstate.headers().total_work() },
@@ -601,7 +602,7 @@ API::Head State::api_get_head() const
         .hash { chainstate.final_hash() },
         .height { chainlength() },
         .pinHash { chainstate.headers().hash_at(pf) },
-        .pinHeight { pf },
+        .pinHeight { PinHeight(pf) },
     };
 }
 
@@ -640,7 +641,7 @@ auto State::api_get_history(Address a, uint64_t beforeId) -> std::optional<API::
         prevHistoryId = historyId;
         if (historyId >= nextHistoryOffset) {
             auto height { chainstate.history_height(historyId) };
-            pinFloor = PinFloor(height - 1);
+            pinFloor = PinFloor(PrevHeight(height));
             auto header = chainstate.headers()[height];
             bool b = height == chainlength();
             nextHistoryOffset = (b

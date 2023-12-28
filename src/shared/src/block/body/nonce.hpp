@@ -2,6 +2,7 @@
 #include "general/with_uint64.hpp"
 #include <optional>
 class Height;
+class NonzeroHeight;
 class PinHeight;
 class Reader;
 class PinFloor;
@@ -42,7 +43,7 @@ private:
     PinNonce(ReaderCheck<bytesize> r);
 
 public:
-    static std::optional<PinNonce> make_pin_nonce(NonceId, Height, PinHeight);
+    static std::optional<PinNonce> make_pin_nonce(NonceId, NonzeroHeight, PinHeight);
     PinNonce(Reader& r);
     PinNonce(const PinNonce&) = default;
 

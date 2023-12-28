@@ -30,9 +30,9 @@ PinHeight PinNonce::pin_height(PinFloor pf) const
     return PinHeight(h);
 }
 
-std::optional<PinNonce> PinNonce::make_pin_nonce(NonceId nid, Height height, PinHeight pinHeight)
+std::optional<PinNonce> PinNonce::make_pin_nonce(NonceId nid, NonzeroHeight height, PinHeight pinHeight)
 {
-    PinFloor ph { height - 1 };
+    PinFloor ph { PrevHeight(height) };
     if (ph < pinHeight)
         return {};
     uint64_t index = ((ph - pinHeight) >> 5);

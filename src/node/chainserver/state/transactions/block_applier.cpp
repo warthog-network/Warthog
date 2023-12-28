@@ -334,7 +334,7 @@ Preparation BlockApplier::Preparer::prepare(const BodyView& bv, const NonzeroHei
             .fromAddress { tr.fromAddress },
             .fee { tr.compactFee.uncompact() },
             .nonceId { tr.pinNonce.id },
-            .pinHeight { tr.pinNonce.pin_height(PinFloor { height - 1 }) },
+            .pinHeight { tr.pinNonce.pin_height(PinFloor { PrevHeight { height } }) },
             .txhash { ref.he.hash },
             .toAddress { tr.toAddress },
             .amount { tr.amount },
