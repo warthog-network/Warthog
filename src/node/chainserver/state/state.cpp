@@ -557,15 +557,6 @@ tl::expected<mempool::Log, Error> State::append_gentx(const PaymentCreateMessage
     return chainstate.pop_mempool_log();
 }
 
-std::optional<Hash> State::get_pin_hash(PinHeight pinHeight)
-{
-    if (pinHeight > chainlength())
-        return {};
-    if (pinHeight < chainlength().pin_begin())
-        return {};
-    return chainstate.headers().hash_at(pinHeight);
-}
-
 API::Balance State::api_get_address(AddressView address)
 {
     if (auto p = db.lookup_address(address); p) {

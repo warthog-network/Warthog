@@ -35,7 +35,6 @@ public:
 
     auto append_gentx(const PaymentCreateMessage& ) -> tl::expected<mempool::Log, Error>;
     auto chainlength() const -> Height { return chainstate.headers().length(); }
-    std::optional<Hash> get_pin_hash(PinHeight);
 
     // mempool
     [[nodiscard]] auto insert_txs(const TxVec&) -> std::pair<std::vector<int32_t>, mempool::Log>;
