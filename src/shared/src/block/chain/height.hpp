@@ -71,7 +71,7 @@ public:
         return Funds(GENESISBLOCKREWARD >> halvings);
     }
 
-    Height pin_bgin()
+    Height pin_begin()
     {
         uint32_t shifted = val >> 5;
         if (shifted < 255u)

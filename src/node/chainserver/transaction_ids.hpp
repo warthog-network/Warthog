@@ -15,7 +15,7 @@ struct TransactionIds : public std::set<TransactionId, ByPinHeight> {
     static std::pair<Height, Height> block_range(Height length)
     {
         Height upper { length + 1 }; // height of next block
-        Height lower = upper.pin_bgin() + 1; // +1 because at pin_begin we cannot have
+        Height lower = upper.pin_begin() + 1; // +1 because at pin_begin we cannot have
                                              // the same pinHeight
         return { lower, upper };
     }

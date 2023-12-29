@@ -146,7 +146,7 @@ auto Chainstate::append(AppendMulti ad) -> HeaderchainAppend
 
     // remove from mempool
     // remove outdated transactions
-    auto nextBlockPinBegin { (ad.patchedChain.length() + 1).pin_bgin() };
+    auto nextBlockPinBegin { (ad.patchedChain.length() + 1).pin_begin() };
     _mempool.erase_before_height(nextBlockPinBegin);
     // remove used transactions
     for (auto& tid : ad.appendResult.newTxIds)
@@ -174,7 +174,7 @@ auto Chainstate::append(AppendSingle d) -> HeaderchainAppend
 
     // remove from mempool
     // remove outdated transactions
-    auto nextBlockPinBegin { (l + 1).pin_bgin() };
+    auto nextBlockPinBegin { (l + 1).pin_begin() };
     _mempool.erase_before_height(nextBlockPinBegin);
     // remove used transactions
     for (auto& tid : d.newTxIds)
@@ -192,7 +192,7 @@ auto Chainstate::append(AppendSingle d) -> HeaderchainAppend
 
 int32_t Chainstate::insert_tx(const TransferTxExchangeMessage& pm)
 {
-    if (pm.pin_height() < length().pin_bgin())
+    if (pm.pin_height() < length().pin_begin())
         return EPINHEIGHT;
     if (txids().contains(pm.txid))
         return ENONCE;
@@ -218,7 +218,7 @@ int32_t Chainstate::insert_tx(const PaymentCreateMessage& m)
         PinHeight pinHeight = m.pinHeight;
         if (pinHeight > length())
             return EPINHEIGHT;
-        if (pinHeight < length().pin_bgin())
+        if (pinHeight < length().pin_begin())
             return EPINHEIGHT;
         if (m.amount.is_zero()) 
             return EZEROAMOUNT;

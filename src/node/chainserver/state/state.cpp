@@ -561,7 +561,7 @@ std::optional<Hash> State::get_pin_hash(PinHeight pinHeight)
 {
     if (pinHeight > chainlength())
         return {};
-    if (pinHeight < chainlength().pin_bgin())
+    if (pinHeight < chainlength().pin_begin())
         return {};
     return chainstate.headers().hash_at(pinHeight);
 }
