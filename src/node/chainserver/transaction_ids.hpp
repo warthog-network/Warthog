@@ -16,18 +16,15 @@ struct TransactionIds : public std::set<TransactionId, ByPinHeight> {
     {
         Height upper { length + 1 }; // height of next block
         Height lower = upper.pin_begin() + 1; // +1 because at pin_begin we cannot have
-                                             // the same pinHeight
+                                              // the same pinHeight
         return { lower, upper };
     }
     void prune(Height length)
     {
-        auto [lower, upper] = block_range(length);
-        assert(lower <= upper);
-        Height pruneBound { lower };
+        const Height minPinHeight { (length + 1).pin_begin() };
         auto iter = begin();
-        while (iter != end() && iter->pinHeight < pruneBound) {
-            ++iter;
-        }
+        while (iter != end() && iter->pinHeight < minPinHeight)
+            erase(iter++);
     }
 };
 }
