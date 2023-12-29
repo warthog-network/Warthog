@@ -192,14 +192,14 @@ auto Chainstate::append(AppendSingle d) -> HeaderchainAppend
 
 int32_t Chainstate::insert_tx(const TransferTxExchangeMessage& pm)
 {
-    if (pm.pin_height() < length().pin_begin())
+    if (pm.pin_height() < (length() + 1).pin_begin())
         return EPINHEIGHT;
     if (txids().contains(pm.txid))
         return ENONCE;
     auto h = headers().get_hash(pm.pin_height());
     if (!h)
         return EPINHEIGHT;
-    if (pm.amount.is_zero()) 
+    if (pm.amount.is_zero())
         return EZEROAMOUNT;
     auto txHash { pm.txhash(*h) };
     if (pm.from_address(txHash) == pm.toAddr)
@@ -218,14 +218,14 @@ int32_t Chainstate::insert_tx(const PaymentCreateMessage& m)
         PinHeight pinHeight = m.pinHeight;
         if (pinHeight > length())
             return EPINHEIGHT;
-        if (pinHeight < length().pin_begin())
+        if (pinHeight < (length() + 1).pin_begin())
             return EPINHEIGHT;
-        if (m.amount.is_zero()) 
+        if (m.amount.is_zero())
             return EZEROAMOUNT;
         auto pinHash = headers().hash_at(pinHeight);
         auto txhash { m.tx_hash(pinHash) };
         auto fromAddr = m.from_address(txhash);
-        if (fromAddr == m.toAddr) 
+        if (fromAddr == m.toAddr)
             return ESELFSEND;
         auto p = db.lookup_address(fromAddr);
         if (!p)
