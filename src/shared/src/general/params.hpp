@@ -49,10 +49,10 @@ constexpr uint64_t MAXSUPPLY = GENESISBLOCKREWARD * HALVINTINTERVAL * 2;
 inline constexpr uint32_t retarget_floor(uint32_t height)
 {
     constexpr uint32_t fourhours = 4 * 60 * 60 / BLOCKTIME;
-    constexpr uint32_t sevenmonths = 7 * 30 * 24 * 60 * 60 / BLOCKTIME;
-    static_assert(sevenmonths % HEADERBATCHSIZE == 0);
+    constexpr uint32_t tenmonths = 10 * 30 * 24 * 60 * 60 / BLOCKTIME;
+    static_assert(tenmonths % HEADERBATCHSIZE == 0);
     static_assert(60 % BLOCKTIME == 0);
-    if (height < sevenmonths) {
+    if (height < tenmonths) {
         const uint32_t val = (height / fourhours) * fourhours;
         if (val == 0)
             return 1;
