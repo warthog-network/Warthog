@@ -62,16 +62,29 @@ bool HeaderView::validPOW(const Hash& h, NonzeroHeight height) const
     if (JANUSENABLED && height.value() > JANUSRETARGETSTART) {
         if (height.value() > JANUSV2RETARGETSTART) {
             auto verusHashV2_1 { verus_hash({ data(), size() }) };
-            if (height.value() > JANUSV3RETARGETSTART) {
+            auto verusFloat { CustomFloat(verusHashV2_1) };
+            auto sha256tFloat { CustomFloat(hashSHA256(h)) };
+            if (height.value() > JANUSV4RETARGETSTART) {
+                constexpr auto twoto15inv = CustomFloat(-14, 2147483648u); // 2^(-15)
+                if (sha256tFloat < twoto15inv) {
+                    // cap at exploiter's threshold 2^-15
+                    // this must be a temporary fix (that guy gets 41% of hashrate, so it's justified).
+                    sha256tFloat = twoto15inv;
+                }
+
+                if (!(verusHashV2_1 < CustomFloat(-33, 3785965345))) {
+                    // reject verushash with log_e less than -23
+                    return false;
+                }
+
+            } else if (height.value() > JANUSV3RETARGETSTART) {
                 if (!(verusHashV2_1 < CustomFloat(-30, 3496838790))) {
                     // reject verushash with log_e less than -21
                     return false;
                 }
             }
-            auto verusFloat { CustomFloat(verusHashV2_1) };
             using namespace std;
             // cout << to_bin(verusHashV2_1) << endl;
-            auto sha256tFloat { CustomFloat(hashSHA256(h)) };
             // now introduce        _  ___  _Hacker: "shi*t" <-- At difficulty 2^40 which is minimum SHA256t
             // factor to cripple     \|o o|/                     must have 40/0.7 ~ 57 zeros to generate
             // GPU-only mining         \0/                       a valid block alone (2000x of 46 now)
