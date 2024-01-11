@@ -132,8 +132,8 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }} 
-        asset_path: ./build/macos/wart-node.exe
-        asset_name: wart-node-macos.exe
+        asset_path: ./build/macos/wart-node
+        asset_name: wart-node-macos
         asset_content_type: application/octet-stream
 
     - name: Upload MacOS Wallet
@@ -143,6 +143,6 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }} 
-        asset_path: ./build/macos/wart-wallet.exe
-        asset_name: wart-wallet-macos.exe
+        asset_path: ./build/macos/wart-wallet
+        asset_name: wart-wallet-macos
         asset_content_type: application/octet-stream
