@@ -45,7 +45,7 @@ jobs:
     - name: Docker Build Windows
       run: DOCKER_BUILDKIT=1 docker build . -f DockerfileWindows --output ./build/windows
 
-    -name : Docker Build MacOS
+    - name : Docker Build MacOS
       run : DOCKER_BUILDKIT=1 docker build . -f DockerfileMacOS --output ./build/macos
 
     - name: Create Release
