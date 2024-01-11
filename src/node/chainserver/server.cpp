@@ -33,7 +33,7 @@ ChainServer::ChainServer(ChainDB& db, BatchRegistry& br, std::optional<SnapshotS
     , batchRegistry(br)
     , state(db, br, snapshotSigner)
 {
-    worker = std::jthread(&ChainServer::workerfun, this);
+    worker = std::thread(&ChainServer::workerfun, this);
 }
 
 ChainServer::~ChainServer()
@@ -226,7 +226,7 @@ void ChainServer::handle_event(GetMempool&& e)
 void ChainServer::handle_event(LookupTxids&& e)
 {
     std::vector<std::optional<TransferTxExchangeMessage>> out;
-    std::ranges::transform(e.txids, std::back_inserter(out),
+    std::transform(e.txids.begin(), e.txids.end(), std::back_inserter(out),
         [&](auto txid) { return state.get_mempool_tx(txid); });
     e.callback(out);
 }
@@ -244,7 +244,8 @@ void ChainServer::handle_event(LookupTxHash&& e)
     e.callback(noval_to_err(state.api_get_tx(e.hash)));
 }
 
-void ChainServer::handle_event(LookupLatestTxs&& e){
+void ChainServer::handle_event(LookupLatestTxs&& e)
+{
     e.callback(state.api_get_latest_txs());
 };
 

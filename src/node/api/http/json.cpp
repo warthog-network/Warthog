@@ -316,7 +316,8 @@ json to_json(const API::Transaction& tx)
 json to_json(const API::TransactionsByBlocks& txs)
 {
     json arr = json::array();
-    for (auto& block : std::ranges::reverse_view(txs.blocks_reversed)) {
+    for (auto iter = txs.blocks_reversed.begin(); iter != txs.blocks_reversed.end(); ++iter) {
+        auto& block{*iter};
         arr.push_back(
             json {
                 { "header", header_json(block.header, block.height) },

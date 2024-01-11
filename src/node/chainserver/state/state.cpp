@@ -625,7 +625,8 @@ auto State::api_get_history(Address a, uint64_t beforeId) -> std::optional<API::
     chainserver::AccountCache cache(db);
 
     auto prevHistoryId = HistoryId { 0 };
-    for (auto& [historyId, txid, data] : std::ranges::reverse_view { entries_desc }) {
+    for (auto iter = entries_desc.rbegin(); iter != entries_desc.rend();++iter) {
+        auto& [historyId, txid, data] =*iter;
         if (firstHistoryId == HistoryId { 0 })
             firstHistoryId = historyId;
         assert(prevHistoryId < historyId);

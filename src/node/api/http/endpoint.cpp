@@ -186,7 +186,7 @@ HTTPEndpoint::HTTPEndpoint(const Config& c)
     , app(lc.loop)
 {
     spdlog::info("RPC endpoint is {}.", bind.to_string());
-    t = std::jthread(&HTTPEndpoint::work, this);
+    t = std::thread(&HTTPEndpoint::work, this);
 }
 
 void HTTPEndpoint::get(std::string pattern, auto asyncfun, auto serializer)

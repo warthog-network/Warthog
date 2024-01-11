@@ -125,7 +125,7 @@ sockaddr_in EndpointAddress::sock_addr() const
     out.sin_family = AF_INET;
     out.sin_port = hton16(port);
 #ifdef SIN6_LEN
-    addr->sin_len = sizeof(out);
+    out.sin_len = sizeof(out);
 #endif
     uint32_t ntmp = hton32(ipv4.data);
 

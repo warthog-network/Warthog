@@ -224,11 +224,6 @@ public:
     }
 };
 
-namespace std {
-template <typename T, size_t N>
-class array;
-}
-
 class ChainDB {
 private:
     friend class ChainDBTransaction;
@@ -284,7 +279,7 @@ public:
     // Account functions
     // get
     [[nodiscard]] std::optional<AddressFunds> lookup_account(AccountId id) const;
-    [[nodiscard]] API::Richlist lookup_richlist(size_t N) const;
+    [[nodiscard]] API::Richlist lookup_richlist(uint32_t N) const;
     [[nodiscard]] AddressFunds fetch_account(AccountId id) const;
 
     /////////////////////

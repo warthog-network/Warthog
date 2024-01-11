@@ -57,5 +57,5 @@ private:
     const uWS::LoopCleaner lc;
     uWS::App app;
     bool bshutdown = false;
-    std::jthread t;
+    std::thread t;
 };

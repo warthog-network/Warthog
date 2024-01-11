@@ -127,7 +127,7 @@ std::vector<EndpointAddress> AddressManager::sample_verified(size_t N)
 
     // sample from cache
     std::vector<EndpointAddress> out;
-    std::ranges::sample(verifiedCache, std::back_inserter(out),
+    std::sample(verifiedCache.begin(), verifiedCache.end(), std::back_inserter(out),
         N, std::mt19937 { std::random_device {}() });
     return out;
 }
@@ -274,7 +274,7 @@ std::vector<EndpointAddress> AddressManager::pop_connect()
 }
 bool AddressManager::is_own_endpoint(EndpointAddress a)
 {
-    return (std::ranges::find(ownIps, a.ipv4) != ownIps.end()
+    return (std::find(ownIps.begin(), ownIps.end(), a.ipv4) != ownIps.end()
         && config().node.bind.port == a.port);
 }
 
@@ -329,7 +329,7 @@ void AddressManager::check_prune_verified()
         for (auto iter = verified.begin(); iter != verified.end(); ++iter) {
             v.push_back(iter);
         }
-        std::ranges::sort(v, [](VI i1, VI i2) -> bool {
+        std::sort(v.begin(), v.end(), [](VI i1, VI i2) -> bool {
             return (i1->second.outboundConnection < i2->second.outboundConnection)
                 || (i1->second.lastVerified < i2->second.lastVerified);
         });

@@ -446,7 +446,7 @@ std::optional<AddressFunds> ChainDB::lookup_account(AccountId id) const
     };
 }
 
-API::Richlist ChainDB::lookup_richlist(size_t N) const
+API::Richlist ChainDB::lookup_richlist(uint32_t N) const
 {
     API::Richlist out;
     stmtRichlistLookup.for_each([&](Statement2::Row& r) {

@@ -408,7 +408,7 @@ void Eventloop::handle_event(mempool::Log&& log)
             entries.push_back(std::get<mempool::Put>(action).entry);
         }
     }
-    std::ranges::sort(entries,
+    std::sort(entries.begin(),entries.end(),
         [](const mempool::Entry& e1, const mempool::Entry& e2) {
             if (e1.second.transactionHeight == e2.second.transactionHeight)
                 return e1.first < e2.first;

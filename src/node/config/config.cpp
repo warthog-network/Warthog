@@ -9,6 +9,11 @@
 #include <iostream>
 #include <limits>
 #include <sstream>
+#ifdef __APPLE__
+#include <sys/types.h>
+#include <unistd.h>
+#endif
+
 using namespace std;
 
 std::string get_default_datadir()

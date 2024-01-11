@@ -235,5 +235,5 @@ private:
     bool haswork = false;
     bool closing = false;
     bool switching = false; // doing chain switch?
-    std::jthread worker;
+    std::thread worker;
 };

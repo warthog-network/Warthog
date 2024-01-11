@@ -240,7 +240,7 @@ Headerchain::Headerchain(HeaderchainSkeleton skeleton)
         completeBatches.push_back(SharedBatchView(*p));
         p = &p->prev();
     }
-    std::ranges::reverse(completeBatches);
+    std::reverse(completeBatches.begin(), completeBatches.end());
     initialize_worksum();
 }
 Headerchain::Headerchain(const Headerchain& from, Height subheight)

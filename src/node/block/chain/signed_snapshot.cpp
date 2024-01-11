@@ -52,7 +52,7 @@ uint16_t SnapshotSigner::get_importance(const PubKey& pk)
         "03b612b5bb4648cedc65080452418486c13249d21c30ff2fc08322012e1196d868"sv,
         "0283df9d39202c98d3c40402d23662d3d77c30b48ec171ba8cd39b77ff2b89ff71"sv
     };
-    auto pos = std::ranges::find(leaderPubkeys, hex);
+    auto pos = std::find(leaderPubkeys.begin(),leaderPubkeys.end(), hex);
     if (pos == leaderPubkeys.end())
         throw Error(EBADLEADER);
     return pos - leaderPubkeys.begin();
