@@ -1,0 +1,13 @@
+[binaries]
+c = 'aarch64-apple-darwin22.2-clang'
+cpp = 'aarch64-apple-darwin22.2-clang++'
+ar = 'aarch64-apple-darwin22.2-ar'
+ld = 'aarch64-apple-darwin22.2-ld'
+ranlib = 'aarch64-apple-darwin22.2-ranlib'
+
+[host_machine]
+system = 'darwin'
+cpu_family = 'aarch64'
+cpu = 'aarch64'
+endian = 'little'
+

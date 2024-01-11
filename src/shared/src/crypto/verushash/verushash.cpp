@@ -5,8 +5,8 @@
 
 #if defined(__arm__) || defined(__aarch64__)
 #include "crypto/sse2neon.h"
-#include <asm/hwcap.h>
-#include <sys/auxv.h>
+// #include <asm/hwcap.h>
+// #include <sys/auxv.h>
 #else
 #include <cpuid.h>
 #include <x86intrin.h>
@@ -71,11 +71,11 @@ private:
 bool can_optimize()
 {
 #if defined(__arm__) || defined(__aarch64__)
-    long hwcaps = getauxval(AT_HWCAP);
-
-    if ((hwcaps & HWCAP_AES) && (hwcaps & HWCAP_PMULL))
-        return true;
-    else
+    // long hwcaps = getauxval(AT_HWCAP);
+    //
+    // if ((hwcaps & HWCAP_AES) && (hwcaps & HWCAP_PMULL))
+    //     return true;
+    // else
         return false;
 #else
     unsigned int eax, ebx, ecx, edx;

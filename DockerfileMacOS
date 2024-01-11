@@ -4,7 +4,7 @@ ARG OSXCROSS_VERSION=latest
 FROM --platform=$BUILDPLATFORM crazymax/osxcross:${OSXCROSS_VERSION}-alpine AS osxcross
 
 FROM alpine as build
-RUN apk add --no-cache clang lld musl-dev
+RUN apk add --no-cache clang lld musl-dev fts-dev
 ENV PATH="/osxcross/bin:$PATH"
 ENV LD_LIBRARY_PATH="/osxcross/lib:$LD_LIBRARY_PATH"
 COPY --from=osxcross /osxcross /osxcross
@@ -12,10 +12,11 @@ RUN apk add meson libgcc musl-dev gcc g++ upx
 COPY . /code
 RUN mkdir /build
 WORKDIR /code
-RUN meson setup --cross-file aarch64.txt build-osx
-RUN meson compile -C build-osx -v
+
+RUN meson setup /build-macos --cross-file aarch64-macOS.txt --default-library static --buildtype=release
+RUN meson compile -C /build-macos
 RUN mkdir /install
-RUN DESTDIR=/install meson install -C build-osx
+RUN DESTDIR=/install meson install -C /build-macos
 
 FROM scratch AS export-stage
 COPY --from=build install/usr/local/bin/wart-node .
