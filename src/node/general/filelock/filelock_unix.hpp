@@ -9,6 +9,7 @@
 class Filelock {
   public:
     Filelock(const std::string &path) {
+#ifndef __APPLE__
         fd = open(path.c_str(), 0);
         if (fd < 0) {
             throw std::runtime_error("Cannot open file \"" + path +
@@ -18,6 +19,7 @@ class Filelock {
             throw std::runtime_error("Another instance is accessing the database \"" + path +
                     "\": " + strerror(errno));
         }
+#endif
     };
     Filelock(const Filelock &) = delete;
     ~Filelock() {
