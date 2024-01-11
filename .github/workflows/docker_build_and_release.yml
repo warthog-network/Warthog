@@ -45,6 +45,9 @@ jobs:
     - name: Docker Build Windows
       run: DOCKER_BUILDKIT=1 docker build . -f DockerfileWindows --output ./build/windows
 
+    - name : Docker Build MacOS
+      run : DOCKER_BUILDKIT=1 docker build . -f DockerfileMacOS --output ./build/macos
+
     - name: Create Release
       id: create_release
       uses: actions/create-release@v1
@@ -120,4 +123,26 @@ jobs:
         upload_url: ${{ steps.create_release.outputs.upload_url }} 
         asset_path: ./build/windows/wart-wallet.exe
         asset_name: wart-wallet-windows.exe
+        asset_content_type: application/octet-stream
+    
+    - name: Upload MacOS Node
+      id: upload-docker-build-output-node-macos
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }} 
+        asset_path: ./build/macos/wart-node
+        asset_name: wart-node-macos
+        asset_content_type: application/octet-stream
+
+    - name: Upload MacOS Wallet
+      id: upload-docker-build-output-wallet-macos
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }} 
+        asset_path: ./build/macos/wart-wallet
+        asset_name: wart-wallet-macos
         asset_content_type: application/octet-stream
