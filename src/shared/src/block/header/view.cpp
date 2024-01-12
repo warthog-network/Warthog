@@ -65,6 +65,15 @@ bool HeaderView::validPOW(const Hash& h, NonzeroHeight height) const
             auto verusFloat { CustomFloat(verusHashV2_1) };
             auto sha256tFloat { CustomFloat(hashSHA256(h)) };
             if (height.value() > JANUSV4RETARGETSTART) {
+                if (height.value() > JANUSV5RETARGETSTART) { 
+                    // temporary fix against unfair mining
+                    // better GPU hashrate will also give more candidatess that pass through this threshold
+                    // for verushash computation.
+                    constexpr auto c = CustomFloat(-9, 3306097748); // CustomFloat::from_double(0.0015034391929775724)
+                    if (sha256tFloat < c)
+                        return false;
+                }
+
                 constexpr auto twoto15inv = CustomFloat(-14, 2147483648u); // 2^(-15)
                 if (sha256tFloat < twoto15inv) {
                     // cap at exploiter's threshold 2^-15
@@ -107,6 +116,13 @@ bool HeaderView::validPOW(const Hash& h, NonzeroHeight height) const
             // cout << to_bin(verusHashV2_1) << endl;
             auto sha256tFloat { CustomFloat(hashSHA256(h)) };
             auto hashProduct { verusFloat * sha256tFloat };
+            if (height.value() > JANUSV5RETARGETSTART) {
+                // honest miners will be with 90% in a band around threshold, too good hashes are unlikely. 
+                // Here we reject best 10% of too good hashes, 90% of normally mined blocks will pass through. 
+                // This is to avoid unfair mining.
+                if (hashProduct * CustomFloat(4, 2684354560) < target_v2())
+                    return false;
+            }
             return verusHashV2_1[0] == 0 && (hashProduct < target_v2());
         }
     } else {
