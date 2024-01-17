@@ -1,24 +1,32 @@
 # API DOCUMENTATION
+
 ## Configuration
+
 API is accessed via the RPC endpoints of the node. The endpoints socket can be configured via the `--rpc` command line option:
-```
+
+```bash
 JSON RPC endpoint options:
   -r, --rpc=IP:PORT          JSON RPC endpoint  (default=`127.0.0.1:3000')
 ```
-For example invoke 
-```
+
+For example invoke
+
+```bash
 $./wart-node --rpc=0.0.0.0:3000
 ```
+
 to start the node with RPC listening on all devices on port 3000.
 
 **⚠ WARNING:** The RPC endpoint should not exposed to the internet, use appropriate firewall settings.
 
 Below we assume the RPC socket is accessible at `localhost:3000`. On startup the node reports the RPC endpoint setting:
-```
+
+```bash
 [info] RPC endpoint is 127.0.0.1:3000.
 ```
 
-## Endpoint Overview 
+## Endpoint Overview
+
 You can see an HTML overview of all supported RPC endpoints by opening `localhost:3000` in your browser. Currently the following endpoints are supported:
 
 METHOD| PATH | DESCRIPTION
@@ -45,14 +53,15 @@ METHOD| PATH | DESCRIPTION
 `GET`   |`/peers/connected`| Show info of connected peers
 `GET`   |`/peers/endpoints`| Show known peer endpoints
 `GET`   |`/peers/connect_timers`| Show timers used for reconnect
-`GET `  |`/tools/encode16bit/from_e8/:feeE8`| Round raw 64 integer to closest 16 bit representation (for fee specification)
+`GET`  |`/tools/encode16bit/from_e8/:feeE8`| Round raw 64 integer to closest 16 bit representation (for fee specification)
 `GET`   |`/tools/encode16bit/from_string/:feestring`| Round coin amount string to closest 16 bit representation (for fee specification)
 
 ## Detailed Description
 
 ### `POST /transaction/add`
+
  Send transactions in JSON format:
- 
+
  PARAMETER | TYPE | DETAILS
  ----------|------|--------
  pinHeight | unsigned 32 bit integer | Signature includes block hash at this height
@@ -65,20 +74,25 @@ METHOD| PATH | DESCRIPTION
  signature65| string of length 130 | hex-encoded 65 byte compact recoverable ECDSA signature in custom format, see below.
 
 **NOTE**:
- - The transfer amount must be specified either via `amount` or via `amountE8`. 
- - The transaction fee must be specified either via `fee` or via `feeE8`.
- - Miner fee must be exactly representable in a 16 bit encoding.
+
+- The transfer amount must be specified either via `amount` or via `amountE8`.
+- The transaction fee must be specified either via `fee` or via `feeE8`.
+- Miner fee must be exactly representable in a 16 bit encoding.
 
 #### Details on fees
+
 Fees are not subtracted from the amount sent in the transaction. The sender spends both, transfer amount and transaction fee, `toAddr` receives the transferred amount and the miner of the block including this transaction gets the transaction fee.
 
 For efficiency and compactness transaction fees are internally encoded as 2-byte floating-point numbers (16 bits), where the first 6 bits encode the exponent and the remaining 10 bits encode a 11 bit mantissa starting with an implicit 1. Of course not every 64 bit value can be encoded in 16 bits and only fee 64 bit values which are representable exactly in the 16 bits encoding are accepted. You can use the `/tools/encode16bit/from_e8/:feeE8` or `/tools/encode16bit/from_string/:feestring` endpoints to round an arbitrary 64-bit fee value to an accepted 64 bit value.
 
 #### How to specify the sender?
+
 The sender's address is recovered from the recoverable ECDSA signature `signature65`. It is implicitly specified by creating a signature with the corresponding private key.
 
 #### Signature generation
+
 The following steps are required:
+
 1. Call the `/chain/head` endpoint and extract the  `pinHash` and `pinHeight` fields.
 
 2. Compute transaction hash. The transaction hash is the SHA256 hash of the following bytes:
@@ -94,6 +108,7 @@ BYTES | DESCRIPTION
 72-79 | `amountE8` (`uint64_t` in network byte order)
 
 3. Generate the secp256k1-ECDSA recoverable signature of the 32-byte transaction hash using the private key corresponding to the sender's address. The signature will have three properties:
+
 - `r`: 32 byte coordinate parameter
 - `s`: 32 byte coordinate parameter
 - `recid`: 1 byte recovery id, it should automatically have one of the four values 0,1,2,3.
@@ -102,21 +117,24 @@ BYTES | DESCRIPTION
 
 BYTES | DESCRIPTION
 ------|------------
-1 -32 | `r` 
-33-64 | `s` 
-65    | `recid` 
+1 -32 | `r`
+33-64 | `s`
+65    | `recid`
 
 Note that this is not the standard compact recoverable signature representation because in Warthog, the recoverable id is the last byte of the 65 byte signature and has no offset of 27.
 
-
 #### Integration guides
+
 We provide working code snippets on how to generate and send transactions [in Python3](./integration_python.md), [Elixir](./integration_elixir.md) and [NodeJS](./integration_nodejs.md).
 
 ### `POST /transaction/add`
+
  Send transactions. At the moment only binary format is available. TODO: allow JSON format:
 
 ### `GET /transaction/mempool`
+
  Show content of mempool. Example output:
+
  ```json
 {
  "code": 0,
@@ -127,7 +145,9 @@ We provide working code snippets on how to generate and send transactions [in Py
 ```
 
 ### `GET /transaction/lookup/:txid`
+
  Transaction lookup by transaction id. Example output of `/transaction/lookup/4b3bc48295742b71ff7c3b98ede5b652fafd16c67f0d2db6226e936a1cdbf0a5`:
+
  ```json
 {
  "code": 0,
@@ -146,9 +166,11 @@ We provide working code snippets on how to generate and send transactions [in Py
  }
 } 
  ```
- 
+
 ### `GET /chain/head`
+
  Show info on chain head. Example output:
+
  ```json
 {
  "code": 0,
@@ -163,8 +185,11 @@ We provide working code snippets on how to generate and send transactions [in Py
  }
 }
  ```
+
 ### `GET /chain/grid`
+
  Show hexadecimal header grid. This grid is used for chain sync to allow nodes spot points where chains diverge. Example output (truncated):
+
  ```json
 {
  "code": 0,
@@ -183,9 +208,11 @@ We provide working code snippets on how to generate and send transactions [in Py
  ]
 } 
  ```
- 
+
 ### `GET /chain/signed_snapshot`
+
  Show chain snapshot. Example output
+
  ```json
 {
  "code": 0,
@@ -207,7 +234,9 @@ We provide working code snippets on how to generate and send transactions [in Py
  ```
 
 ### `GET /chain/block/:id/hash`
+
  Show hash of specific block. Example output of `/chain/block/366700/hash`
+
  ```json
 {
  "code": 0,
@@ -216,11 +245,13 @@ We provide working code snippets on how to generate and send transactions [in Py
  }
 }
 ```
- 
+
 ### `GET /chain/block/:id/header`
- Show header of specific block. 
+
+ Show header of specific block.
 
  Example output of `/chain/block/366700/header`
+
  ```json
  {
  "code": 0,
@@ -240,11 +271,12 @@ We provide working code snippets on how to generate and send transactions [in Py
  }
 }
  ```
- 
 
 ### `GET/chain/block/:id`
- Show header and body of specific block. 
+
+ Show header and body of specific block.
  Example output of `/chain/block/366700`
+
  ```json
  {
  "code": 0,
@@ -291,8 +323,11 @@ We provide working code snippets on how to generate and send transactions [in Py
  }
 }
 ```
+
 ### `GET /chain/mine/:address`
+
  Generate data required for mining. Example output of `/chain/mine/e4145cfe3e34f206956487c2a16b65a47f05fc347ef6e287`
+
 ```json
 {
  "code": 0,
@@ -306,16 +341,20 @@ We provide working code snippets on how to generate and send transactions [in Py
 ```
 
 ### `GET /chain/txcache`
- Show transaction cache. Example output: 
+
+ Show transaction cache. Example output:
+
  ```json
 {
  "code": 0,
  "data": []
 } 
  ```
- 
+
 ### `GET /chain/hashrate`
+
  Show current hashrate
+
  ```json
 {
  "code": 0,
@@ -324,12 +363,16 @@ We provide working code snippets on how to generate and send transactions [in Py
  }
 } 
  ```
- 
+
 ### `POST /chain/append`
+
  Append mined block. Miners must POST mined block they received from `GET /chain/mine/:address`.
  TODO: Detailed description
+
 ### `GET /account/:account/balance`
+
  Show balance of specific account. Example output:
+
  ```json
  {
  "code": 0,
@@ -340,9 +383,12 @@ We provide working code snippets on how to generate and send transactions [in Py
  }
 }
 ```
+
 ### `GET /account/:account/history/:beforeTxIndex`
- Show transaction history of specific account 
+
+ Show transaction history of specific account
  Example output:
+
  ```json
 {
  "code": 0,
@@ -395,7 +441,9 @@ We provide working code snippets on how to generate and send transactions [in Py
 ```
 
 ### `GET /tools/encode16bit/from_e8/:feeE8`| Round raw 64 integer to closest 16 bit representation (for fee specification)
+
  Round raw fee integer representation (coin amount is this number divided by 10^8) to closest 16 bit representation. This is required for fee specification in the `/transaction/add` endpoint. Example output of `/tools/encode16bit/from_e8/5002`
+
 ```json
 {
  "code": 0,
@@ -410,6 +458,7 @@ We provide working code snippets on how to generate and send transactions [in Py
 ```
 
 ### `GET /tools/encode16bit/from_string/:feestring`
+
  Round fee amount string to closest 16 bit representation. This is required for fee specification in the `/transaction/add` endpoint. Example output of `/tools/encode16bit/from_string/0.001`:
 
 ```json
@@ -425,10 +474,10 @@ We provide working code snippets on how to generate and send transactions [in Py
 }
 ```
 
-### WIP Websocket 
+### `WIP Websocket`
+
   Raw blocks, so rollbacks are not tracked, this must be added in future to have complete incremental chain change feed.
 
-''' 
+'''bash
 wscat -c ws://localhost:3000/ws_sneak_peek
-
 '''
