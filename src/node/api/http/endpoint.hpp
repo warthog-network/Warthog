@@ -16,6 +16,7 @@ public:
     ~HTTPEndpoint()
     {
         lc.loop->defer(std::bind(&HTTPEndpoint::shutdown, this));
+        t.join();
     }
     void push_event(WebsocketEvent e)
     {
