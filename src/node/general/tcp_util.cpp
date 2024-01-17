@@ -4,22 +4,9 @@
 #include <array>
 #include <cassert>
 #include <cstring>
+#include <stdexcept>
 
-IPv4::IPv4(Reader& r)
-    : data(r.uint32()) {}
-
-IPv4::IPv4(const sockaddr_in& sin)
-    : IPv4(ntoh32(uint32_t(sin.sin_addr.s_addr))) {}
-
-bool IPv4::is_valid(bool allowLocalhost) const{
-    uint32_t ndata = hton32(data);
-    uint8_t* pdata =reinterpret_cast<uint8_t*>(&ndata);
-    return data != 0 // ignore 0.0.0.0
-        && (allowLocalhost || pdata[0] != 127)
-        && pdata[0] != 192 // ignore 192.xxx.xxx.xxx
-        && !(pdata[0] == 169 && pdata[1] == 254); // ignore 192.xxx.xxx.xxx
-}
-
+namespace {
 std::optional<uint16_t> parse_port(const std::string_view& s)
 {
     uint16_t out;
@@ -42,6 +29,37 @@ std::optional<uint16_t> parse_port(const std::string_view& s)
     out = port;
     return out;
 }
+}
+
+IPv4::IPv4(Reader& r)
+    : data(r.uint32())
+{
+}
+
+IPv4::IPv4(const sockaddr_in& sin)
+    : IPv4(ntoh32(uint32_t(sin.sin_addr.s_addr)))
+{
+}
+
+bool IPv4::is_valid(bool allowLocalhost) const
+{
+    uint32_t ndata = hton32(data);
+    uint8_t* pdata = reinterpret_cast<uint8_t*>(&ndata);
+    return data != 0 // ignore 0.0.0.0
+        && (allowLocalhost || pdata[0] != 127)
+        && pdata[0] != 192 // ignore 192.xxx.xxx.xxx
+        && !(pdata[0] == 169 && pdata[1] == 254); // ignore 192.xxx.xxx.xxx
+}
+
+EndpointAddress::EndpointAddress(std::string_view s)
+    : EndpointAddress(
+        [&] {
+            auto ea { EndpointAddress::parse(s) };
+            if (ea)
+                return *ea;
+            throw std::runtime_error("Cannot parse endpoint address \"" + std::string(s) + "\".");
+        }()) {
+    };
 
 // modified version of libuv's
 // static int inet_pton4(const char *src, unsigned char *dst) {
@@ -91,7 +109,9 @@ std::string IPv4::to_string() const
 
 EndpointAddress::EndpointAddress(Reader& r)
     : ipv4(r)
-    , port(r.uint16()) {}
+    , port(r.uint16())
+{
+}
 
 std::optional<EndpointAddress> EndpointAddress::parse(const std::string_view& s)
 {

@@ -160,13 +160,26 @@ int Config::process_gengetopt(gengetopt_args_info& ai)
     jsonrpc.bind = EndpointAddress::parse(ai.rpc_arg).value();
     peers.connect = {};
     if (ENABLE_DEFAULT_NODE) {
-        peers.connect.push_back({ IPv4::parse("101.43.125.67").value(), 15806 });
-        peers.connect.push_back({ IPv4::parse("119.28.71.187").value(), 9186 });
-        peers.connect.push_back({ IPv4::parse("134.209.99.202").value(), 9186 });
-        peers.connect.push_back({ IPv4::parse("159.203.179.187").value(), 9186 });
-        peers.connect.push_back({ IPv4::parse("185.143.220.9").value(), 9186 });
-        peers.connect.push_back({ IPv4::parse("193.218.118.57").value(), 9186 });
-        peers.connect.push_back({ IPv4::parse("51.38.131.226").value(), 9186 });
+        peers.connect = {
+            { "1.92.79.140:9186" },
+            { "45.91.203.135:9186" },
+            { "93.92.201.8:9186" },
+            { "149.102.141.100:9186" },
+            { "119.28.71.187:9186" },
+            { "135.181.200.100:9186" },
+            { "135.181.142.177:9186" },
+            { "103.91.16.143:9186" },
+            { "101.43.125.67:15806" },
+            { "91.107.162.154:9186" },
+            { "89.104.71.12:9186" },
+            { "68.227.255.200:9186" },
+            { "185.255.134.101:9186" },
+            { "193.218.118.57:9186" },
+            { "185.162.32.61:9186" },
+            { "119.17.136.107:9186" },
+            { "89.104.69.92:9186" },
+            { "74.122.131.1:9186" }
+        };
     }
 
     std::string filename = "config.toml";
