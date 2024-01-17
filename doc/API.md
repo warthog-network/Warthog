@@ -481,3 +481,12 @@ We provide working code snippets on how to generate and send transactions [in Py
 ```bash
 wscat -c ws://localhost:3000/ws_sneak_peek
 ```
+
+Exemple output :
+
+```bash
+
+< {"body":{"rewards":[{"amount":"3.00000000","amountE8":300000000,"toAddress":"8b263f767fb3bb97eb4c51371cc418f0c1ebc58ff29d38de","txHash":"e9b9c4e9b4675c26aaa67f507d824943f7204dfab86775c21f009ebfff878b30"}],"transfers":[]},"confirmations":0,"header":{"difficulty":12416803050367.305,"hash":"97d7572245923377cd972657994013e9bcbe8d07251db053be7a8603c4c2325f","merkleroot":"a893cfcab30cb30bd374b2862b8f253cbf7899c8dd43a2082413dddbfc7b1fcb","nonce":"4eaebc09","prevHash":"3eb6fc536af5dd035c568d9148d6f21e71fb6340ffbb1958b60038090fb11751","raw":"3eb6fc536af5dd035c568d9148d6f21e71fb6340ffbb1958b60038090fb117510aed5677a893cfcab30cb30bd374b2862b8f253cbf7899c8dd43a2082413dddbfc7b1fcb000000026580b4b84eaebc09","target":"0aed5677","timestamp":1702933688,"utc":"2023-12-18 21:08:08 UTC","version":"00000002"},"height":746726,"timestamp":1702933688,"utc":"2023-12-18 21:08:08 UTC"}
+< {"body":{"rewards":[{"amount":"3.00000000","amountE8":300000000,"toAddress":"7711106fc68ac806df7e9c628934b5c018b907663866dd2e","txHash":"f6889c6d21e1cbb1a8de6c6fc2f9a89196b9d39647509a1d7dd2e130d1307cd3"}],"transfers":[]},"confirmations":0,"header":{"difficulty":12416803050367.305,"hash":"a235342bab7ff6a10ff47e6ba07392946b152785cd6a45e9fbaeb4bd8a9abe11","merkleroot":"607773e58740a6161b1338bbf51ceea97a76431707c44c6dc0a8143267b7fcb5","nonce":"e36e3bc8","prevHash":"97d7572245923377cd972657994013e9bcbe8d07251db053be7a8603c4c2325f","raw":"97d7572245923377cd972657994013e9bcbe8d07251db053be7a8603c4c2325f0aed5677607773e58740a6161b1338bbf51ceea97a76431707c44c6dc0a8143267b7fcb5000000026580b4bce36e3bc8","target":"0aed5677","timestamp":1702933692,"utc":"2023-12-18 21:08:12 UTC","version":"00000002"},"height":746727,"timestamp":1702933692,"utc":"2023-12-18 21:08:12 UTC"}
+
+```
