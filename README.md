@@ -107,6 +107,9 @@ To compile from source see below or [here](https://github.com/warthog-network/wa
 #### Build for Windows (cross-compilation on Linux)
 * Run `DOCKER_BUILDKIT=1 docker build . -f DockerfileWindows --output ./build/windows` in the repo.
 * Windows binaries are located in `./build/windows` directory.
+#### Build for MacOS - aarch64 (cross-compilation on Linux)
+* Run `DOCKER_BUILDKIT=1 docker build . -f DockerfileMacOS --output ./build/macos` in the repo.
+* MacOS binaries are located in `./build/macos` directory.
 
 ## ▶️ USAGE
 * Run the node (use some restarter in case it crashes) <br />
