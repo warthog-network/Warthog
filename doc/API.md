@@ -424,3 +424,11 @@ We provide working code snippets on how to generate and send transactions [in Py
  }
 }
 ```
+
+### WIP Websocket 
+  Raw blocks, so rollbacks are not tracked, this must be added in future to have complete incremental chain change feed.
+
+''' 
+wscat -c ws://localhost:3000/ws_sneak_peek
+
+'''
