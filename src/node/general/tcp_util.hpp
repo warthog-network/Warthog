@@ -22,7 +22,6 @@ struct IPv4 {
     std::string to_string() const;
 };
 
-std::optional<uint16_t> parse_port(const std::string_view&);
 struct EndpointAddress {
     EndpointAddress(Reader& r);
     EndpointAddress(IPv4 ipv4, uint16_t port = DEFAULT_ENDPOINT_PORT)
@@ -30,6 +29,7 @@ struct EndpointAddress {
         , port(port)
     {
     }
+    EndpointAddress(std::string_view);
     static EndpointAddress from_sql_id(int64_t id)
     {
         return EndpointAddress(
