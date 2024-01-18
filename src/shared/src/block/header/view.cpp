@@ -50,6 +50,15 @@ bool HeaderView::validPOW(const Hash& h, NonzeroHeight height) const
             auto verusFloat { CustomFloat(verusHashV2_1) };
             auto sha256tFloat { CustomFloat(hashSHA256(h)) };
             if (height.value() > JANUSV4RETARGETSTART) {
+
+                if (height.value() > JANUSV6RETARGETSTART) { 
+                    constexpr auto c = CustomFloat(-7, 2748779069); // 0.005
+                    if (sha256tFloat < c) {
+                        // we will adjust that if better miner is available
+                        sha256tFloat = c;
+                    }
+                }
+
                 if (height.value() > JANUSV5RETARGETSTART) { 
                     // temporary fix against unfair mining
                     // better GPU hashrate will also give more candidatess that pass through this threshold
@@ -59,12 +68,6 @@ bool HeaderView::validPOW(const Hash& h, NonzeroHeight height) const
                         return false;
                 }
 
-                constexpr auto twoto15inv = CustomFloat(-14, 2147483648u); // 2^(-15)
-                if (sha256tFloat < twoto15inv) {
-                    // cap at exploiter's threshold 2^-15
-                    // this must be a temporary fix (that guy gets 41% of hashrate, so it's justified).
-                    sha256tFloat = twoto15inv;
-                }
 
                 if (!(verusHashV2_1 < CustomFloat(-33, 3785965345))) {
                     // reject verushash with log_e less than -23

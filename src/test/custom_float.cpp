@@ -206,7 +206,7 @@ void test_custom_float()
 
 int main()
 {
-    auto f = CustomFloat::from_double(10);
+    auto f = CustomFloat::from_double(0.005);
     cout<<"exponent:  "<<f.exponent()<<endl;
     cout<<"mantissa:  "<<f.mantissa()<<endl;
     cout<<"to_double: "<<f.to_double()<<endl;
