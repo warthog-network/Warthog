@@ -27,21 +27,6 @@ inline bool operator<(const CustomFloat& hashproduct, TargetV2 t)
     return hashproduct.mantissa() < bits32;
 }
 
-inline bool operator<(const CustomFloat& arg, const CustomFloat bound)
-{
-    assert(bound.positive());
-    assert(bound.exponent() <= 0);
-    uint32_t zerosBound(-bound.exponent());
-
-    assert(arg.positive());
-    assert(arg.exponent() <= 0);
-    uint32_t zerosArg(-arg.exponent());
-    if (zerosArg < zerosBound)
-        return false;
-    if (zerosArg > zerosBound)
-        return true;
-    return arg.mantissa() < bound.mantissa();
-}
 
 [[nodiscard]] inline std::string to_bin(Hash v)
 {

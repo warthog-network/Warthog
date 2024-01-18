@@ -117,6 +117,9 @@ class CustomFloat {
         auto positive() const { return _positive; }
     };
 
+    friend inline bool operator<(const CustomFloat& arg, const CustomFloat& bound);
+    
+
     // this function is for testing purposes
     static void assert_branch(int branch, int assertBranch)
     {
@@ -373,3 +376,19 @@ public:
         return pow2(exponent * log2(base));
     }
 };
+
+inline bool operator<(const CustomFloat& arg, const CustomFloat& bound)
+{
+    assert(bound.positive());
+    assert(bound.exponent() <= 0);
+    uint32_t zerosBound(-bound.exponent());
+
+    assert(arg.positive());
+    assert(arg.exponent() <= 0);
+    uint32_t zerosArg(-arg.exponent());
+    if (zerosArg < zerosBound)
+        return false;
+    if (zerosArg > zerosBound)
+        return true;
+    return arg.mantissa() < bound.mantissa();
+}
