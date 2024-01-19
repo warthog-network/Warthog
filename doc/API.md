@@ -355,6 +355,8 @@ We provide working code snippets on how to generate and send transactions [in Py
 
  Show current hashrate
 
+Note this endpoint is currently deprecated since the algorithm update, it will need some research and math.
+
  ```json
 {
  "code": 0,
