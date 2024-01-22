@@ -31,7 +31,7 @@ public:
 
     // normal methods
     void garbage_collect();
-    auto mining_task(const Address& a) -> MiningTask;
+    auto mining_task(const Address& a, bool log) -> MiningTask;
 
     auto append_gentx(const PaymentCreateMessage& ) -> tl::expected<mempool::Log, Error>;
     auto chainlength() const -> Height { return chainstate.headers().length(); }

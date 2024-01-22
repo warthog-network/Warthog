@@ -36,6 +36,7 @@ void get_version(VersionCb cb);
 // chain functions
 void get_block_head(HeadCb cb);
 void get_chain_mine(const Address& a, MiningCb cb);
+void get_chain_mine_log(const Address& a, MiningCb cb);
 void get_chain_header(API::HeightOrHash, HeaderCb cb);
 void get_chain_hash(Height height, HashCb cb);
 void get_chain_grid(GridCb cb);

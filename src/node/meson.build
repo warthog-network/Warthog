@@ -50,6 +50,7 @@ src= [
   './eventloop/types/chainstate.cpp',
   './eventloop/types/conndata.cpp',
   './general/tcp_util.cpp',
+  './general/log_compressed.cpp',
   './global/globals.cpp',
   './mempool/mempool.cpp',
   './mempool/subscription.cpp',

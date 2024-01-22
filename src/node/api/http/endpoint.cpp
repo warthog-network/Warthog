@@ -147,6 +147,7 @@ void HTTPEndpoint::work()
     get_1("/chain/block/:id/header", get_chain_header);
     get_1("/chain/block/:id", get_chain_block);
     get_1("/chain/mine/:account", get_chain_mine);
+    get_1("/chain/mine/:account/log", get_chain_mine_log);
     get("/chain/signed_snapshot", get_signed_snapshot);
     get("/chain/txcache", get_txcache);
     get("/chain/hashrate", get_hashrate);

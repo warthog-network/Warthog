@@ -94,6 +94,7 @@ public:
     };
     struct GetMining {
         Address address;
+        bool log;
         MiningCb callback;
     };
     struct GetTxcache {
@@ -182,7 +183,7 @@ public:
     void api_get_header(API::HeightOrHash, HeaderCb callback);
     void api_get_hash(Height height, HashCb callback);
     void api_get_block(API::HeightOrHash, BlockCb callback);
-    void api_get_mining(const Address& a, MiningCb callback);
+    void api_get_mining(const Address& a, bool log, MiningCb callback);
     void api_get_txcache(TxcacheCb callback);
 
     void async_set_signed_checkpoint(SignedSnapshot);

@@ -67,7 +67,12 @@ void get_block_head(HeadCb f)
 }
 void get_chain_mine(const Address& a, MiningCb f)
 {
-    global().pcs->api_get_mining(a, f);
+    global().pcs->api_get_mining(a, false, f);
+}
+
+void get_chain_mine_log(const Address& a, MiningCb f)
+{
+    global().pcs->api_get_mining(a, true, f);
 }
 
 void get_chain_header(API::HeightOrHash hh, HeaderCb f)
