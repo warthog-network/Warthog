@@ -59,34 +59,22 @@ Hash BodyView::merkleRoot() const
     std::vector<Hash> tmp, *from, *to;
     from = &hashes;
     to = &tmp;
-    bool includedSeed = false;
-    bool finish = false;
     do {
         to->resize((from->size() + 1) / 2);
-        if (from->size() <= 2 && !includedSeed) {
+        size_t j = 0;
+        for (size_t i = 0; i < (from->size() + 1) / 2; ++i) {
             HasherSHA256 hasher {};
-            hasher.write((*from)[0].data(), 32);
-            if (1 < from->size()) {
-                hasher.write((*from)[1].data(), 32);
+            hasher.write((*from)[j].data(), 32);
+            if (j + 1 < from->size()) {
+                hasher.write((*from)[j + 1].data(), 32);
             }
-            hasher.write(data(), 4);
-            includedSeed = true;
-            (*to)[0] = std::move(hasher);
-        } else {
-            if (from->size() == 1)
-                finish = true;
-            size_t j = 0;
-            for (size_t i = 0; i < (from->size() + 1) / 2; ++i) {
-                HasherSHA256 hasher {};
-                hasher.write((*from)[j].data(), 32);
-                if (j + 1 < from->size()) {
-                    hasher.write((*from)[j + 1].data(), 32);
-                }
-                (*to)[i] = std::move(hasher);
-                j += 2;
-            }
+
+            if (to->size() == 1)
+                hasher.write(data(), 4); // first 4 bytes in block are for extranonce I think?
+            (*to)[i] = std::move(hasher);
+            j += 2;
         }
         std::swap(from, to);
-    } while (!finish);
+    } while (from->size() > 1);
     return from->front();
 }
