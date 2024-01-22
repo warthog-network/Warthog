@@ -1,6 +1,7 @@
 #pragma once
 
 #include "crypto/hash.hpp"
+#include "block/chain/height.hpp"
 #include <span>
 
 struct TransferView;
@@ -129,7 +130,7 @@ public:
     constexpr static size_t RewardSize { 16 };
     constexpr static size_t TransferSize { 34 + SIGLEN };
     BodyView(std::span<const uint8_t>);
-    Hash merkleRoot() const;
+    Hash merkleRoot(Height h) const;
     bool valid() const { return isValid; }
     size_t size() const { return s.size(); }
     const uint8_t* data() const { return s.data(); }

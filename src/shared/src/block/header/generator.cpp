@@ -3,10 +3,10 @@
 #include "block/header/view_inline.hpp"
 HeaderGenerator::HeaderGenerator(std::array<uint8_t, 32> prevhash,
     const BodyView& bv, Target target,
-    uint32_t timestamp)
+    uint32_t timestamp, Height height)
     : version(target.is_janushash() ? 2 : 1)
     , prevhash(prevhash)
-    , merkleroot(bv.merkleRoot())
+    , merkleroot(bv.merkleRoot(height))
     , timestamp(timestamp)
     , target(target)
     , nonce(0u) {

@@ -356,7 +356,7 @@ void Downloader::on_blockreq_reply(Conref cr, BlockrepMsg&& rep, Blockrequest& r
         BodyView bv(rep.blocks[i].view());
         if (!bv.valid())
             throw Error(EMALFORMED);
-        if (bv.merkleRoot() != headers()[height].merkleroot())
+        if (bv.merkleRoot(height) != headers()[height].merkleroot())
             throw Error(EMROOT);
     }
 

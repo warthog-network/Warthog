@@ -10,7 +10,7 @@ class HeaderGenerator {
 public:
     HeaderGenerator(std::array<uint8_t, 32> prevhash, const BodyView& bv,
         Target target,
-        uint32_t timestamp);
+        uint32_t timestamp, Height height);
     // member elements
     int32_t version = 1; // 4 bytes
     std::array<uint8_t, 32> prevhash; // 32 bytes

@@ -250,9 +250,10 @@ MiningTask State::mining_task(const Address& a, bool log)
     if (!bv.valid())
         spdlog::error("Cannot create mining task, body invalid");
 
-    HeaderGenerator hg(md.prevhash, bv, md.target, md.timestamp);
+    NonzeroHeight height{(chainlength() + 1).nonzero_assert()};
+    HeaderGenerator hg(md.prevhash, bv, md.target, md.timestamp, height);
     return { .block {
-        .height = (chainlength() + 1).nonzero_assert(),
+        .height = height,
         .header = hg.serialize(0),
         .body = std::move(body),
     } };
@@ -328,7 +329,7 @@ auto State::add_stage(const std::vector<Block>& blocks, const Headerchain& hc) -
             break;
         }
         BodyView bv(b.body.view());
-        if (b.header.merkleroot() != bv.merkleRoot()) {
+        if (b.header.merkleroot() != bv.merkleRoot(b.height)) {
             err = { EMROOT, b.height };
             break;
         }
@@ -504,7 +505,7 @@ auto State::append_mined_block(const Block& b) -> StateUpdate
     auto prepared { chainstate.prepare_append(signedSnapshot, b.header) };
     if (!prepared.has_value())
         throw Error(prepared.error());
-    if (b.header.merkleroot() != bv.merkleRoot())
+    if (b.header.merkleroot() != bv.merkleRoot(b.height))
         throw Error(EMROOT);
     if (!bv.valid())
         throw Error(EMALFORMED);
