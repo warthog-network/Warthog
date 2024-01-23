@@ -9,6 +9,7 @@ By Pumbaa, Timon & Rafiki"
 section "Node options"
 option "bind" b "Port name to listen on" optional string typestr="IP:PORT" default="0.0.0.0:9186" 
 option "connect" C "Specify peer list" details="This option overrides the peers list, specify comma separated entries of format 'IP:PORT'" optional string typestr="IP:PORT,..."
+option "isolated" - "Do not allow peers (for testing purposes, do not use in production)" details="This option isolates the node such that it does not connect to other peers and does not accept incoming connections from other peers. This option is for debugging and testing purposes only, do not use in production, mined blocks will not be included in main net" optional
 
 section "Data file options"
 option "chain-db" - "specify chain data file" details="Defaults to ~/.warthog/chain.db3 in Linux, %LOCALAPPDATA%/Warthog/chain.db3 on Windows" optional string 

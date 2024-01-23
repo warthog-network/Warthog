@@ -8,6 +8,8 @@ static constexpr bool debug_refcount = false;
 // Callers (static libuv callback functions)
 void Conman::new_connection_caller(uv_stream_t* server, int status)
 {
+    if (config().node.isolated) 
+        return;
     Conman& c = (*reinterpret_cast<Conman*>(server->data));
     if (!c.closing) {
         c.on_connect(status);
@@ -268,6 +270,8 @@ void Conman::close(int32_t reason)
 
 void Conman::connect(EndpointAddress a, std::optional<uint32_t> reconnectSleep)
 {
+    if (config().node.isolated) 
+        return;
     auto p = connections.emplace(new Connection(*this, false, reconnectSleep));
     auto& conn = **p.first;
     addref("connection");

@@ -134,6 +134,8 @@ std::vector<EndpointAddress> AddressManager::sample_verified(size_t N)
 
 bool AddressManager::pin(EndpointAddress a)
 {
+    if (config().node.isolated)
+        return true;
     auto p = pinned.try_emplace(a);
     if (!p.second)
         return false;

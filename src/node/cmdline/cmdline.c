@@ -41,6 +41,8 @@ const char *gengetopt_args_info_detailed_help[] = {
   "  -b, --bind=IP:PORT         Port name to listen on  (default=`0.0.0.0:9186')",
   "  -C, --connect=IP:PORT,...  Specify peer list",
   "  This option overrides the peers list, specify comma separated entries of\n  format 'IP:PORT'",
+  "      --isolated             Do not allow peers (for testing purposes, do not\n                               use in production)",
+  "  This option isolates the node such that it does not connect to other peers\n  and does not accept incoming connections from other peers. This option is for\n  debugging and testing purposes only, do not use in production, mined blocks\n  will not be included in main net",
   "\nData file options:",
   "      --chain-db=STRING      specify chain data file",
   "  Defaults to ~/.warthog/chain.db3 in Linux, %LOCALAPPDATA%/Warthog/chain.db3\n  on Windows",
@@ -68,21 +70,22 @@ init_help_array(void)
   gengetopt_args_info_help[4] = gengetopt_args_info_detailed_help[4];
   gengetopt_args_info_help[5] = gengetopt_args_info_detailed_help[5];
   gengetopt_args_info_help[6] = gengetopt_args_info_detailed_help[7];
-  gengetopt_args_info_help[7] = gengetopt_args_info_detailed_help[8];
+  gengetopt_args_info_help[7] = gengetopt_args_info_detailed_help[9];
   gengetopt_args_info_help[8] = gengetopt_args_info_detailed_help[10];
   gengetopt_args_info_help[9] = gengetopt_args_info_detailed_help[12];
-  gengetopt_args_info_help[10] = gengetopt_args_info_detailed_help[13];
-  gengetopt_args_info_help[11] = gengetopt_args_info_detailed_help[14];
-  gengetopt_args_info_help[12] = gengetopt_args_info_detailed_help[15];
-  gengetopt_args_info_help[13] = gengetopt_args_info_detailed_help[16];
-  gengetopt_args_info_help[14] = gengetopt_args_info_detailed_help[17];
-  gengetopt_args_info_help[15] = gengetopt_args_info_detailed_help[18];
-  gengetopt_args_info_help[16] = gengetopt_args_info_detailed_help[19];
-  gengetopt_args_info_help[17] = 0; 
+  gengetopt_args_info_help[10] = gengetopt_args_info_detailed_help[14];
+  gengetopt_args_info_help[11] = gengetopt_args_info_detailed_help[15];
+  gengetopt_args_info_help[12] = gengetopt_args_info_detailed_help[16];
+  gengetopt_args_info_help[13] = gengetopt_args_info_detailed_help[17];
+  gengetopt_args_info_help[14] = gengetopt_args_info_detailed_help[18];
+  gengetopt_args_info_help[15] = gengetopt_args_info_detailed_help[19];
+  gengetopt_args_info_help[16] = gengetopt_args_info_detailed_help[20];
+  gengetopt_args_info_help[17] = gengetopt_args_info_detailed_help[21];
+  gengetopt_args_info_help[18] = 0; 
   
 }
 
-const char *gengetopt_args_info_help[18];
+const char *gengetopt_args_info_help[19];
 
 typedef enum {ARG_NO
   , ARG_STRING
@@ -109,6 +112,7 @@ void clear_given (struct gengetopt_args_info *args_info)
   args_info->version_given = 0 ;
   args_info->bind_given = 0 ;
   args_info->connect_given = 0 ;
+  args_info->isolated_given = 0 ;
   args_info->chain_db_given = 0 ;
   args_info->peers_db_given = 0 ;
   args_info->debug_given = 0 ;
@@ -147,13 +151,14 @@ void init_args_info(struct gengetopt_args_info *args_info)
   args_info->version_help = gengetopt_args_info_detailed_help[2] ;
   args_info->bind_help = gengetopt_args_info_detailed_help[4] ;
   args_info->connect_help = gengetopt_args_info_detailed_help[5] ;
-  args_info->chain_db_help = gengetopt_args_info_detailed_help[8] ;
-  args_info->peers_db_help = gengetopt_args_info_detailed_help[10] ;
-  args_info->debug_help = gengetopt_args_info_detailed_help[13] ;
-  args_info->rpc_help = gengetopt_args_info_detailed_help[15] ;
-  args_info->config_help = gengetopt_args_info_detailed_help[17] ;
-  args_info->test_help = gengetopt_args_info_detailed_help[18] ;
-  args_info->dump_config_help = gengetopt_args_info_detailed_help[19] ;
+  args_info->isolated_help = gengetopt_args_info_detailed_help[7] ;
+  args_info->chain_db_help = gengetopt_args_info_detailed_help[10] ;
+  args_info->peers_db_help = gengetopt_args_info_detailed_help[12] ;
+  args_info->debug_help = gengetopt_args_info_detailed_help[15] ;
+  args_info->rpc_help = gengetopt_args_info_detailed_help[17] ;
+  args_info->config_help = gengetopt_args_info_detailed_help[19] ;
+  args_info->test_help = gengetopt_args_info_detailed_help[20] ;
+  args_info->dump_config_help = gengetopt_args_info_detailed_help[21] ;
   
 }
 
@@ -304,6 +309,8 @@ cmdline_parser_dump(FILE *outfile, struct gengetopt_args_info *args_info)
     write_into_file(outfile, "bind", args_info->bind_orig, 0);
   if (args_info->connect_given)
     write_into_file(outfile, "connect", args_info->connect_orig, 0);
+  if (args_info->isolated_given)
+    write_into_file(outfile, "isolated", 0, 0 );
   if (args_info->chain_db_given)
     write_into_file(outfile, "chain-db", args_info->chain_db_orig, 0);
   if (args_info->peers_db_given)
@@ -566,6 +573,7 @@ cmdline_parser_internal (
         { "version",	0, NULL, 'V' },
         { "bind",	1, NULL, 'b' },
         { "connect",	1, NULL, 'C' },
+        { "isolated",	0, NULL, 0 },
         { "chain-db",	1, NULL, 0 },
         { "peers-db",	1, NULL, 0 },
         { "debug",	0, NULL, 'd' },
@@ -672,8 +680,22 @@ cmdline_parser_internal (
             exit (EXIT_SUCCESS);
           }
 
+          /* Do not allow peers (for testing purposes, do not use in production).  */
+          if (strcmp (long_options[option_index].name, "isolated") == 0)
+          {
+          
+          
+            if (update_arg( 0 , 
+                 0 , &(args_info->isolated_given),
+                &(local_args_info.isolated_given), optarg, 0, 0, ARG_NO,
+                check_ambiguity, override, 0, 0,
+                "isolated", '-',
+                additional_error))
+              goto failure;
+          
+          }
           /* specify chain data file.  */
-          if (strcmp (long_options[option_index].name, "chain-db") == 0)
+          else if (strcmp (long_options[option_index].name, "chain-db") == 0)
           {
           
           

@@ -15,6 +15,7 @@ struct Config {
     struct Node {
         std::optional<SnapshotSigner> snapshotSigner;
         EndpointAddress bind;
+        bool isolated { false };
         std::atomic<bool> logCommunication { false };
     } node;
     struct Peers {

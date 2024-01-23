@@ -46,6 +46,7 @@ struct gengetopt_args_info
   char * connect_arg;	/**< @brief Specify peer list.  */
   char * connect_orig;	/**< @brief Specify peer list original value given at command line.  */
   const char *connect_help; /**< @brief Specify peer list help description.  */
+  const char *isolated_help; /**< @brief Do not allow peers (for testing purposes, do not use in production) help description.  */
   char * chain_db_arg;	/**< @brief specify chain data file.  */
   char * chain_db_orig;	/**< @brief specify chain data file original value given at command line.  */
   const char *chain_db_help; /**< @brief specify chain data file help description.  */
@@ -67,6 +68,7 @@ struct gengetopt_args_info
   unsigned int version_given ;	/**< @brief Whether version was given.  */
   unsigned int bind_given ;	/**< @brief Whether bind was given.  */
   unsigned int connect_given ;	/**< @brief Whether connect was given.  */
+  unsigned int isolated_given ;	/**< @brief Whether isolated was given.  */
   unsigned int chain_db_given ;	/**< @brief Whether chain-db was given.  */
   unsigned int peers_db_given ;	/**< @brief Whether peers-db was given.  */
   unsigned int debug_given ;	/**< @brief Whether debug was given.  */

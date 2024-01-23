@@ -157,6 +157,7 @@ int Config::process_gengetopt(gengetopt_args_info& ai)
     }
     // copy default values
     node.bind = EndpointAddress::parse(ai.bind_arg).value();
+    node.isolated = ai.isolated_given;
     jsonrpc.bind = EndpointAddress::parse(ai.rpc_arg).value();
     peers.connect = {};
     if (ENABLE_DEFAULT_NODE) {
@@ -228,6 +229,8 @@ int Config::process_gengetopt(gengetopt_args_info& ai)
                             }
                         } else if (k == "leader-key") {
                             node.snapshotSigner = parse_leader_key(fetch<std::string>(v));
+                        } else if (k == "isolated") {
+                            node.isolated = fetch<bool>(v);
                         } else if (k == "enable-ban") {
                             peers.enableBan = fetch<bool>(v);
                         } else if (k == "allow-localhost-ip") {
