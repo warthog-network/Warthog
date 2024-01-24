@@ -22,6 +22,7 @@ src_wh=[
     './src/crypto/verushash/verushash.cpp',
     './src/general/compact_uint.cpp',
     './src/general/errors.cpp',
+    './src/general/is_testnet.cpp',
     './src/general/funds.cpp',
     './src/general/hex.cpp',
     './src/general/with_uint64.cpp',

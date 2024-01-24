@@ -28,9 +28,9 @@ inline uint32_t HeaderView::timestamp() const
     return readuint32(data() + offset_timestamp);
 }
 
-inline Target HeaderView::target(NonzeroHeight h) const
+inline Target HeaderView::target(NonzeroHeight h, bool testnet) const
 {
-    if (JANUSENABLED && h.value() > JANUSRETARGETSTART)
+    if (testnet || (JANUSENABLED && h.value() > JANUSRETARGETSTART))
         return target_v2();
     return target_v1();
 }

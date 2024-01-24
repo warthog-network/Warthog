@@ -27,8 +27,8 @@ public:
     using View::View;
 
 
-    inline Target target(NonzeroHeight h) const;
-    bool validPOW(const Hash& h, NonzeroHeight height) const;
+    inline Target target(NonzeroHeight h, bool testnet) const;
+    bool validPOW(const Hash& h, NonzeroHeight height, bool testnet) const;
     inline uint32_t version() const;
     inline HashView prevhash() const;
     inline HashView merkleroot() const;

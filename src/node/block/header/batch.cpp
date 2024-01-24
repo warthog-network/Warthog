@@ -1,7 +1,9 @@
 #include "batch.hpp"
 #include "block/chain/header_chain.hpp"
 #include "block/header/header_impl.hpp"
+#include "general/is_testnet.hpp"
 #include "general/now.hpp"
+#include "global/globals.hpp"
 #include "timestamprule.hpp"
 
 namespace {
@@ -9,8 +11,8 @@ auto last_element_vector(const Headerchain& hc, Batchslot begin)
 {
     std::vector<HeaderView> v;
     v.reserve(hc.complete_batches().size());
-    for (size_t i=begin.index(); i < hc.complete_batches().size(); ++i){
-        auto &sb{hc.complete_batches()[i]};
+    for (size_t i = begin.index(); i < hc.complete_batches().size(); ++i) {
+        auto& sb { hc.complete_batches()[i] };
         v.push_back(sb.getBatch().last());
     }
     return v;
@@ -34,10 +36,10 @@ Worksum Batch::worksum(const Height offset, uint32_t maxElements) const
     Worksum sum;
     bool complete = false;
     while (!complete) {
-        NonzeroHeight h{(offset + 1+ rel_upper).nonzero_assert()};
+        NonzeroHeight h { (offset + 1 + rel_upper).nonzero_assert() };
         auto header = get_header(rel_upper);
         assert(header);
-        Worksum w(header->target(h));
+        Worksum w(header->target(h, is_testnet()));
         static_assert(::retarget_floor(JANUSRETARGETSTART) == JANUSRETARGETSTART); // this is required for this factor computation to be correct
         Height rf = (offset + rel_upper).retarget_floor();
         uint32_t factor;
@@ -82,7 +84,9 @@ Grid::Grid(std::span<const uint8_t> s)
 }
 
 Grid::Grid(const Headerchain& hc, Batchslot begin)
-    : Headervec(last_element_vector(hc,begin)) {}
+    : Headervec(last_element_vector(hc, begin))
+{
+}
 
 bool Grid::valid_checkpoint() const
 {

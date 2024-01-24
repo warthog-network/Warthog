@@ -3,6 +3,7 @@
 #include "block/chain/binary_forksearch.hpp"
 #include "block/header/view_inline.hpp"
 #include "crypto/hasher_sha256.hpp"
+#include "general/is_testnet.hpp"
 #include <algorithm>
 #include <stdexcept>
 using namespace std;
@@ -152,26 +153,26 @@ API::HashrateChart Headerchain::hashrate_chart(NonzeroHeight reqmin, NonzeroHeig
         return worksum.getdouble() / seconds;
     };
     chart.push_back(compute_hashrate());
-    for (auto h { min + 1}; h <= max; ++h) {
+    for (auto h { min + 1 }; h <= max; ++h) {
         NonzeroHeight l { h.value() > nblocks ? (h - nblocks).nonzero_assert() : NonzeroHeight { 1u } };
         NonzeroHeight u { h };
         ltime = operator[](l).timestamp();
         utime = operator[](u).timestamp();
-        if (l!=lower) {
-            assert(l == lower+1);
-            worksum -= operator[](l).target(l);
-            lower=l;
+        if (l != lower) {
+            assert(l == lower + 1);
+            worksum -= operator[](l).target(l, is_testnet());
+            lower = l;
         }
         if (u != upper) {
-            assert(u == upper+1);
-            worksum += operator[](upper).target(upper);
-            upper=u;
+            assert(u == upper + 1);
+            worksum += operator[](upper).target(upper, is_testnet());
+            upper = u;
         }
         chart.push_back(compute_hashrate());
     }
-    assert(chart.size() == max-min+1);
+    assert(chart.size() == max - min + 1);
     assert(chart.size() != 0);
-    return {.range{.begin{min},.end{max}},.chart{std::move(chart)}};
+    return { .range { .begin { min }, .end { max } }, .chart { std::move(chart) } };
 }
 
 Batch Headerchain::get_headers(NonzeroHeight begin, NonzeroHeight end) const
@@ -301,7 +302,7 @@ Worksum Headerchain::sum_work(const NonzeroHeight beginHeight,
     while (!complete) {
         auto header = get_header(upperHeight);
         assert(header);
-        Worksum w(header->target(upperHeight.nonzero_assert()));
+        Worksum w(header->target(upperHeight.nonzero_assert(),is_testnet()));
         Height lower = (upperHeight - 1).retarget_floor();
         if (lower == 1) {
             lower = Height(0);

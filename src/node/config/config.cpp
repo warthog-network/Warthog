@@ -1,6 +1,7 @@
 #include "config.hpp"
 #include "cmdline/cmdline.hpp"
 #include "general/errors.hpp"
+#include "general/is_testnet.hpp"
 #include "general/tcp_util.hpp"
 #include "spdlog/spdlog.h"
 #include "toml++/toml.hpp"
@@ -137,16 +138,6 @@ int Config::process_gengetopt(gengetopt_args_info& ai)
     if (ai.debug_given)
         spdlog::set_level(spdlog::level::debug);
 
-    if (ai.peers_db_given) {
-        data.peersdb = ai.peers_db_arg;
-    } else {
-        data.peersdb = defaultDataDir + "peers.db3";
-    }
-    if (ai.chain_db_given) {
-        data.chaindb = ai.chain_db_arg;
-    } else {
-        data.chaindb = defaultDataDir + "chain.db3";
-    }
     if (!std::filesystem::exists(defaultDataDir)) {
         if (!dmp)
             spdlog::info("Crating default directory {}", defaultDataDir);
@@ -156,9 +147,10 @@ int Config::process_gengetopt(gengetopt_args_info& ai)
         }
     }
     // copy default values
-    node.bind = EndpointAddress::parse(ai.bind_arg).value();
+    std::optional<EndpointAddress> nodeBind;
+    std::optional<EndpointAddress> rpcBind;
     node.isolated = ai.isolated_given;
-    jsonrpc.bind = EndpointAddress::parse(ai.rpc_arg).value();
+    node.testnet = ai.testnet_given;
     peers.connect = {};
     if (ENABLE_DEFAULT_NODE) {
         peers.connect = {
@@ -213,14 +205,14 @@ int Config::process_gengetopt(gengetopt_args_info& ai)
                 } else if (key == "jsonrpc") {
                     for (auto& [k, v] : *t) {
                         if (k == "bind")
-                            jsonrpc.bind = fetch_endpointaddress(v);
+                            rpcBind = fetch_endpointaddress(v);
                         else
                             warning_config(k);
                     }
                 } else if (key == "node") {
                     for (auto& [k, v] : *t) {
                         if (k == "bind") {
-                            node.bind = fetch_endpointaddress(v);
+                            nodeBind = fetch_endpointaddress(v);
                         } else if (k == "connect") {
                             peers.connect.clear();
                             toml::array& c = array_ref(v);
@@ -229,6 +221,8 @@ int Config::process_gengetopt(gengetopt_args_info& ai)
                             }
                         } else if (k == "leader-key") {
                             node.snapshotSigner = parse_leader_key(fetch<std::string>(v));
+                        } else if (k == "testnet") {
+                            node.testnet = fetch<bool>(v);
                         } else if (k == "isolated") {
                             node.isolated = fetch<bool>(v);
                         } else if (k == "enable-ban") {
@@ -262,10 +256,22 @@ int Config::process_gengetopt(gengetopt_args_info& ai)
     // DB args
     if (ai.chain_db_given)
         data.chaindb = ai.chain_db_arg;
+    else{
+        if (data.chaindb.empty()) 
+            data.chaindb = defaultDataDir + (node.testnet ? "testnet_chain.db3" : "chain.db3");
+    }
     if (ai.peers_db_given)
         data.peersdb = ai.peers_db_arg;
+    else{
+        if (data.peersdb.empty()) {
+            data.peersdb = defaultDataDir + (node.testnet ? "testnet_peers.db3" : "peers.db3");
+        }
+    }
 
-    // JSONRPC
+    if (node.testnet) 
+        enable_testnet();
+
+    // JSON RPC socket
     if (ai.rpc_given) {
         auto p = EndpointAddress::parse(ai.rpc_arg);
         if (!p) {
@@ -273,9 +279,14 @@ int Config::process_gengetopt(gengetopt_args_info& ai)
             return -1;
         };
         jsonrpc.bind = p.value();
+    }else{
+        if (is_testnet()) 
+            jsonrpc.bind = EndpointAddress::parse("127.0.0.1:3100").value();
+        else
+            jsonrpc.bind = EndpointAddress::parse("127.0.0.1:3000").value();
     }
 
-    // Node
+    // Node socket
     if (ai.bind_given) {
         auto p = EndpointAddress::parse(ai.bind_arg);
         if (!p) {
@@ -283,6 +294,15 @@ int Config::process_gengetopt(gengetopt_args_info& ai)
             return -1;
         };
         node.bind = p.value();
+    }else{
+        if (nodeBind) 
+            node.bind = *nodeBind;
+        else{
+            if (is_testnet()) 
+                node.bind = EndpointAddress::parse("0.0.0.0:9286").value();
+            else
+                node.bind = EndpointAddress::parse("0.0.0.0:9186").value();
+        }
     }
     if (ai.connect_given) {
         peers.connect = parse_endpoints(ai.connect_arg);
@@ -306,7 +326,15 @@ std::string Config::dump()
     for (auto ea : peers.connect) {
         connect.push_back(ea.to_string());
     }
-    tbl.insert_or_assign("node", toml::table { { "bind", node.bind.to_string() }, { "connect", connect }, { "enable-ban", peers.enableBan }, { "allow-localhost-ip", peers.allowLocalhostIp }, { "log-communication", (bool)node.logCommunication } });
+    tbl.insert_or_assign("node",
+        toml::table {
+            { "bind", node.bind.to_string() },
+            { "connect", connect },
+            { "isolated", node.isolated },
+            { "testnet", node.testnet },
+            { "enable-ban", peers.enableBan },
+            { "allow-localhost-ip", peers.allowLocalhostIp },
+            { "log-communication", (bool)node.logCommunication } });
     tbl.insert_or_assign("db", toml::table {
                                    { "chain-db", data.chaindb },
                                    { "peers-db", data.peersdb },

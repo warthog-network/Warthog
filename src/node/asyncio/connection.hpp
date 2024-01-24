@@ -29,6 +29,8 @@ private:
         size_t size(bool inbound) { return (inbound ? (waitForAck ? 25 : 24) : 22); }
         static constexpr const char connect_grunt[] = "WARTHOG GRUNT?";
         static constexpr const char accept_grunt[] = "WARTHOG GRUNT!";
+        static constexpr const char connect_grunt_testnet[] = "TESTNET GRUNT?";
+        static constexpr const char accept_grunt_testnet[] =  "TESTNET GRUNT!";
         uint8_t pos = 0;
         bool handshakesent = false;
         uint32_t version(bool inbound)

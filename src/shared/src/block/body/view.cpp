@@ -2,6 +2,7 @@
 #include "crypto/crypto.hpp"
 #include "crypto/hasher_sha256.hpp"
 #include "general/hex.hpp"
+#include "general/is_testnet.hpp"
 #include "general/reader.hpp"
 #include <iostream>
 #include <vector>
@@ -60,7 +61,7 @@ Hash BodyView::merkleRoot(Height h) const
     from = &hashes;
     to = &tmp;
 
-    bool new_root_type = h.value() >= NEWMERKLEROOT;
+    bool new_root_type = is_testnet() || h.value() >= NEWMERKLEROOT;
     if (new_root_type) {
         do {
             to->resize((from->size() + 1) / 2);

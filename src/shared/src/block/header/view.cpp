@@ -27,7 +27,6 @@ inline bool operator<(const CustomFloat& hashproduct, TargetV2 t)
     return hashproduct.mantissa() < bits32;
 }
 
-
 [[nodiscard]] inline std::string to_bin(Hash v)
 {
     std::string s;
@@ -42,8 +41,21 @@ inline bool operator<(const CustomFloat& hashproduct, TargetV2 t)
     return "0b_" + s;
 }
 
-bool HeaderView::validPOW(const Hash& h, NonzeroHeight height) const
+bool HeaderView::validPOW(const Hash& h, NonzeroHeight height, bool testnet) const
 {
+    if (testnet) {
+        auto verusHashV2_1 { verus_hash({ data(), size() }) };
+        auto verusFloat { CustomFloat(verusHashV2_1) };
+        auto sha256tFloat { CustomFloat(hashSHA256(h)) };
+        constexpr auto c = CustomFloat(-7, 2748779069); // 0.005
+        if (sha256tFloat < c) {
+            // we will adjust that if better miner is available
+            sha256tFloat = c;
+        }
+        constexpr auto factor { CustomFloat(0, 3006477107) }; // = 0.7 <-- this can be decreased if necessary
+        auto hashProduct { verusFloat * pow(sha256tFloat, factor) };
+        return hashProduct < target_v2();
+    }
     if (JANUSENABLED && height.value() > JANUSRETARGETSTART) {
         if (height.value() > JANUSV2RETARGETSTART) {
             auto verusHashV2_1 { verus_hash({ data(), size() }) };
@@ -51,7 +63,7 @@ bool HeaderView::validPOW(const Hash& h, NonzeroHeight height) const
             auto sha256tFloat { CustomFloat(hashSHA256(h)) };
             if (height.value() > JANUSV4RETARGETSTART) {
 
-                if (height.value() > JANUSV6RETARGETSTART) { 
+                if (height.value() > JANUSV6RETARGETSTART) {
                     constexpr auto c = CustomFloat(-7, 2748779069); // 0.005
                     if (sha256tFloat < c) {
                         // we will adjust that if better miner is available
@@ -59,7 +71,7 @@ bool HeaderView::validPOW(const Hash& h, NonzeroHeight height) const
                     }
                 }
 
-                if (height.value() > JANUSV5RETARGETSTART) { 
+                if (height.value() > JANUSV5RETARGETSTART) {
                     // temporary fix against unfair mining
                     // better GPU hashrate will also give more candidatess that pass through this threshold
                     // for verushash computation.
@@ -67,7 +79,6 @@ bool HeaderView::validPOW(const Hash& h, NonzeroHeight height) const
                     if (sha256tFloat < c)
                         return false;
                 }
-
 
                 if (!(verusHashV2_1 < CustomFloat(-33, 3785965345))) {
                     // reject verushash with log_e less than -23
@@ -80,13 +91,7 @@ bool HeaderView::validPOW(const Hash& h, NonzeroHeight height) const
                     return false;
                 }
             }
-            using namespace std;
-            // cout << to_bin(verusHashV2_1) << endl;
-            // now introduce        _  ___  _Hacker: "shi*t" <-- At difficulty 2^40 which is minimum SHA256t
-            // factor to cripple     \|o o|/                     must have 40/0.7 ~ 57 zeros to generate
-            // GPU-only mining         \0/                       a valid block alone (2000x of 46 now)
             constexpr auto factor { CustomFloat(0, 3006477107) }; // = 0.7 <-- this can be decreased if necessary
-            // constexpr auto factor { CustomFloat(0, 3435973836) }; // = 0.8, lift to this later when we have better miner
             auto hashProduct { verusFloat * pow(sha256tFloat, factor) };
             return verusHashV2_1[0] == 0 && (hashProduct < target_v2());
 
@@ -105,8 +110,8 @@ bool HeaderView::validPOW(const Hash& h, NonzeroHeight height) const
             auto sha256tFloat { CustomFloat(hashSHA256(h)) };
             auto hashProduct { verusFloat * sha256tFloat };
             if (height.value() > JANUSV5RETARGETSTART) {
-                // honest miners will be with 90% in a band around threshold, too good hashes are unlikely. 
-                // Here we reject best 10% of too good hashes, 90% of normally mined blocks will pass through. 
+                // honest miners will be with 90% in a band around threshold, too good hashes are unlikely.
+                // Here we reject best 10% of too good hashes, 90% of normally mined blocks will pass through.
                 // This is to avoid unfair mining.
                 if (hashProduct * CustomFloat(4, 2684354560) < target_v2())
                     return false;

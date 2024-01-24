@@ -90,6 +90,7 @@ public:
     double difficulty() const;
     static TargetV2 initial();
     static TargetV2 initialv2();
+    static TargetV2 genesis_testnet();
 };
 
 class Target {

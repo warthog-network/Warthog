@@ -40,13 +40,14 @@ struct gengetopt_args_info
   const char *help_help; /**< @brief Print help and exit help description.  */
   const char *detailed_help_help; /**< @brief Print help, including all details and hidden options, and exit help description.  */
   const char *version_help; /**< @brief Print version and exit help description.  */
-  char * bind_arg;	/**< @brief Port name to listen on (default='0.0.0.0:9186').  */
-  char * bind_orig;	/**< @brief Port name to listen on original value given at command line.  */
-  const char *bind_help; /**< @brief Port name to listen on help description.  */
+  char * bind_arg;	/**< @brief Socket to listen on, defaults to \"0.0.0.0:9186\" for main net and \"0.0.0.0:9286\" for testnet.  */
+  char * bind_orig;	/**< @brief Socket to listen on, defaults to \"0.0.0.0:9186\" for main net and \"0.0.0.0:9286\" for testnet original value given at command line.  */
+  const char *bind_help; /**< @brief Socket to listen on, defaults to \"0.0.0.0:9186\" for main net and \"0.0.0.0:9286\" for testnet help description.  */
   char * connect_arg;	/**< @brief Specify peer list.  */
   char * connect_orig;	/**< @brief Specify peer list original value given at command line.  */
   const char *connect_help; /**< @brief Specify peer list help description.  */
   const char *isolated_help; /**< @brief Do not allow peers (for testing purposes, do not use in production) help description.  */
+  const char *testnet_help; /**< @brief Enable testnet help description.  */
   char * chain_db_arg;	/**< @brief specify chain data file.  */
   char * chain_db_orig;	/**< @brief specify chain data file original value given at command line.  */
   const char *chain_db_help; /**< @brief specify chain data file help description.  */
@@ -54,9 +55,9 @@ struct gengetopt_args_info
   char * peers_db_orig;	/**< @brief specify data file original value given at command line.  */
   const char *peers_db_help; /**< @brief specify data file help description.  */
   const char *debug_help; /**< @brief Enable debug messages help description.  */
-  char * rpc_arg;	/**< @brief JSON RPC endpoint (default='127.0.0.1:3000').  */
-  char * rpc_orig;	/**< @brief JSON RPC endpoint original value given at command line.  */
-  const char *rpc_help; /**< @brief JSON RPC endpoint help description.  */
+  char * rpc_arg;	/**< @brief JSON RPC endpoint socket, defaults to \"127.0.0.1:3000\" for main net and \"127.0.0.1:4000\" for testnet.  */
+  char * rpc_orig;	/**< @brief JSON RPC endpoint socket, defaults to \"127.0.0.1:3000\" for main net and \"127.0.0.1:4000\" for testnet original value given at command line.  */
+  const char *rpc_help; /**< @brief JSON RPC endpoint socket, defaults to \"127.0.0.1:3000\" for main net and \"127.0.0.1:4000\" for testnet help description.  */
   char * config_arg;	/**< @brief Configuration file (default='config.toml').  */
   char * config_orig;	/**< @brief Configuration file original value given at command line.  */
   const char *config_help; /**< @brief Configuration file help description.  */
@@ -69,6 +70,7 @@ struct gengetopt_args_info
   unsigned int bind_given ;	/**< @brief Whether bind was given.  */
   unsigned int connect_given ;	/**< @brief Whether connect was given.  */
   unsigned int isolated_given ;	/**< @brief Whether isolated was given.  */
+  unsigned int testnet_given ;	/**< @brief Whether testnet was given.  */
   unsigned int chain_db_given ;	/**< @brief Whether chain-db was given.  */
   unsigned int peers_db_given ;	/**< @brief Whether peers-db was given.  */
   unsigned int debug_given ;	/**< @brief Whether debug was given.  */

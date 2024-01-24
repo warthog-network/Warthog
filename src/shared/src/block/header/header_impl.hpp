@@ -2,13 +2,13 @@
 #include "block/header/header.hpp"
 #include "block/header/view_inline.hpp"
 
-inline Target Header::target(NonzeroHeight h) const
+inline Target Header::target(NonzeroHeight h, bool testnet) const
 {
-    return static_cast<HeaderView>(*this).target(h);
+    return static_cast<HeaderView>(*this).target(h, testnet);
 }
-inline bool Header::validPOW(const Hash& h, NonzeroHeight height) const
+inline bool Header::validPOW(const Hash& h, NonzeroHeight height, bool testnet) const
 {
-    return static_cast<HeaderView>(*this).validPOW(h,height);
+    return static_cast<HeaderView>(*this).validPOW(h, height,testnet);
 }
 inline HashView Header::prevhash() const
 {

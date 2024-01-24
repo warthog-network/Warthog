@@ -1,5 +1,6 @@
 #include "connection.hpp"
 #include "eventloop/eventloop.hpp"
+#include "general/is_testnet.hpp"
 #include "global/globals.hpp"
 #include "version.hpp"
 
@@ -215,7 +216,11 @@ Connection::~Connection()
 void Connection::send_handshake()
 {
     char* data = new char[24];
-    memcpy(data, (inbound ? Handshakedata::accept_grunt : Handshakedata::connect_grunt), 14);
+    if (is_testnet()) {
+        memcpy(data, (inbound ? Handshakedata::accept_grunt_testnet : Handshakedata::connect_grunt_testnet), 14);
+    }else{
+        memcpy(data, (inbound ? Handshakedata::accept_grunt : Handshakedata::connect_grunt), 14);
+    }
     uint32_t nver = hton32(version);
     memcpy(data + 14, &nver, 4);
     memset(data + 18, 0, 4);

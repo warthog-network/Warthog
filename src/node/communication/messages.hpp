@@ -231,9 +231,6 @@ struct BlockreqMsg : public RandNonce, public MsgCode<10> {
 
     // data
     DescriptedBlockRange range;
-
-private:
-    // BlockreqMsg(
 };
 
 struct BlockrepMsg : public WithNonce, public MsgCode<11> {

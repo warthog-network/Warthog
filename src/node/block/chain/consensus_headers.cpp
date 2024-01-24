@@ -1,5 +1,7 @@
 #include "consensus_headers.hpp"
+#include "general/is_testnet.hpp"
 #include "general/now.hpp"
+#include "block/header/difficulty_scale.hpp"
 #include "spdlog/spdlog.h"
 
 HeaderVerifier::HeaderVerifier(const SharedBatch& b)
@@ -20,7 +22,7 @@ HeaderVerifier::HeaderVerifier(const SharedBatch& b)
 
     timeValidator.clear();
     bool override = false;
-    if (JANUSENABLED) {
+    if (JANUSENABLED && !is_testnet()) {
         if (length == JANUSRETARGETSTART) {
             override = true;
             nextTarget = TargetV2::initial();
@@ -32,9 +34,12 @@ HeaderVerifier::HeaderVerifier(const SharedBatch& b)
     }
     if (!override) {
         if (latestRetargetHeight == 1) {
-            nextTarget = TargetV1::genesis();
+            if (is_testnet()) 
+                nextTarget = TargetV2::genesis_testnet();
+            else
+                nextTarget = TargetV1::genesis();
         } else {
-            nextTarget = finalHeader.target(length.nonzero_assert());
+            nextTarget = finalHeader.target(length.nonzero_assert(), is_testnet());
             if (length.retarget_floor() == length) { // need retarget
                 auto prevRetargetHeight = (length - 1).retarget_floor();
                 while (tmp->lower_height() > prevRetargetHeight) {
@@ -77,15 +82,6 @@ HeaderVerifier::HeaderVerifier()
     timeValidator.clear();
     finalHash = Hash::genesis();
 }
-// void HeaderVerifier::clear()
-// {
-//     length = Height(0);
-//     latestRetargetHeight = Height(0);
-//     latestRetargetTime = 0;
-//     nextTarget = TargetV1::genesis();
-//     timeValidator.clear();
-//     finalHash = Hash::genesis();
-// }
 
 void HeaderVerifier::append(NonzeroHeight newlength, const PreparedAppend& p)
 {
@@ -105,7 +101,7 @@ void HeaderVerifier::append(NonzeroHeight newlength, const PreparedAppend& p)
     using namespace std;
     if (upperHeight == newlength) { // need retarget
         bool override = false;
-        if (JANUSENABLED) {
+        if (JANUSENABLED && !is_testnet()) {
             if (length == JANUSRETARGETSTART) {
                 override = true;
                 nextTarget = TargetV2::initial();
@@ -147,11 +143,11 @@ auto HeaderVerifier::prepare_append(const std::optional<SignedSnapshot>& sp, Hea
     }
 
     // Check difficulty
-    if (hv.target(appendHeight) != nextTarget)
+    if (hv.target(appendHeight, is_testnet()) != nextTarget)
         return tl::make_unexpected(EDIFFICULTY);
 
     // Check POW
-    if (!hv.validPOW(hash, appendHeight)) {
+    if (!hv.validPOW(hash, appendHeight, is_testnet())) {
         return tl::make_unexpected(EPOW);
     }
 
@@ -207,7 +203,11 @@ void HeaderVerifier::initialize(const ExtendableHeaderchain& hc,
     Height upperHeight = length.retarget_floor();
     static_assert(JANUSRETARGETSTART > 1);
     if (length == 0) {
-        nextTarget = TargetV1::genesis();
+        if(is_testnet()){
+            nextTarget = TargetV2::genesis_testnet();
+        }else{
+            nextTarget = TargetV1::genesis();
+        } 
         latestRetargetHeight = Height(0);
         latestRetargetTime = 0;
     } else {
@@ -217,7 +217,7 @@ void HeaderVerifier::initialize(const ExtendableHeaderchain& hc,
 
         // assign nextTarget
         bool override = false;
-        if (JANUSENABLED) {
+        if (JANUSENABLED && !is_testnet()) {
             if (length == JANUSRETARGETSTART) {
                 override = true;
                 nextTarget = TargetV2::initial();
@@ -228,7 +228,7 @@ void HeaderVerifier::initialize(const ExtendableHeaderchain& hc,
             }
         }
         if (!override) {
-            nextTarget = hc.get_header(length).value().target(length.nonzero_assert());
+            nextTarget = hc.get_header(length).value().target(length.nonzero_assert(), is_testnet());
             if (upperHeight != 1 && upperHeight == length) {
                 Height lowerHeight = (upperHeight - 1).retarget_floor();
                 assert(upperHeight - lowerHeight > 0);

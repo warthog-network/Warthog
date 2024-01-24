@@ -10,6 +10,7 @@
 #include "eventloop/sync/sync.hpp"
 #include "general/errors.hpp"
 #include "general/hex.hpp"
+#include "general/is_testnet.hpp"
 #include "version.hpp"
 #include <ranges>
 
@@ -149,7 +150,7 @@ json header_json(const Header& header, NonzeroHeight height)
     auto verusHash{verus_hash(header)};
     auto blockHash{header.hash()};
     auto sha256tHash{hashSHA256(blockHash)};
-    auto target { header.target(height) };
+    auto target { header.target(height, is_testnet()) };
     uint32_t targetBE = hton32(target.binary());
     json h;
     h["raw"] = serialize_hex(header.data(), header.size());
@@ -279,7 +280,7 @@ json to_json(const MiningTask& mt)
     json j;
     auto height { mt.block.height };
     j["header"] = serialize_hex(mt.block.header);
-    j["difficulty"] = mt.block.header.target(height).difficulty();
+    j["difficulty"] = mt.block.header.target(height, is_testnet()).difficulty();
     j["body"] = serialize_hex(mt.block.body.data());
     j["height"] = height;
     return j;
