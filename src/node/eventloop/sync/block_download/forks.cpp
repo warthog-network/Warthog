@@ -4,21 +4,14 @@
 
 namespace BlockDownload {
 
-void Forks::assert_valid(Conref c)
-{
-    auto& d { data(c) };
-    assert(d.forkRange.lower() <= d._descripted->chain_length() + 1);
-}
-
 void Forks::update_fork_iter(Conref c)
 {
     auto& d { data(c) };
     if (d.forkIter != forks.end())
         forks.erase(d.forkIter);
-    assert_valid(c);
     assert(d.forkRange.lower() <= d._descripted->chain_length() + 1);
     d.forkIter = forks.emplace(d.forkRange.lower(), c);
-    assert(d.forkIter->first == d.forkRange.lower()); 
+    assert(d.forkIter->first == d.forkRange.lower());
 }
 
 void Forks::link(Conref c)
@@ -29,9 +22,9 @@ void Forks::link(Conref c)
     d._descripted = c->chain.descripted();
     assert(d.forkRange.lower() <= d._descripted->chain_length() + 1);
     update_fork_iter(c);
-    assert(d.fork_iter()->first == d.forkRange.lower()); 
+    assert(d.fork_iter()->first == d.forkRange.lower());
 }
-std::optional<Height> Forks::reachable_length()
+std::optional<Height> Forks::reachable_length() const
 {
     if (forks.size() == 0)
         return {};
@@ -44,16 +37,9 @@ void Forks::match(Conref c, const Headerchain& headers, NonzeroHeight h, HeaderV
     if (d.forkRange.match(headers, h, hv).changedLower)
         update_fork_iter(c);
     assert(d.forkRange.lower() <= d._descripted->chain_length() + 1);
-    assert(d.forkIter->first == d.forkRange.lower()); 
+    assert(d.forkIter->first == d.forkRange.lower());
 };
 
-void Forks::clear()
-{
-    for (auto& [h, c] : forks) {
-        data(c).forkIter = forks.end();
-    }
-    forks.clear();
-}
 
 void Forks::assign(Conref c, std::shared_ptr<Descripted> descripted, ForkRange fr)
 {
@@ -62,7 +48,19 @@ void Forks::assign(Conref c, std::shared_ptr<Descripted> descripted, ForkRange f
     d.forkRange = fr;
     update_fork_iter(c);
     assert(d.forkRange.lower() <= d._descripted->chain_length() + 1);
-    assert(d.forkIter->first == d.forkRange.lower()); 
+    assert(d.forkIter->first == d.forkRange.lower());
+}
+
+void Forks::clear()
+{
+    for (auto& [h, c] : forks) {
+        auto& fd { data(c) };
+        data(c).forkIter = forks.end();
+        fd.forkIter = forks.end();
+        fd._descripted = {};
+        fd.forkRange = {};
+    }
+    forks.clear();
 }
 
 void Forks::erase(Conref c)

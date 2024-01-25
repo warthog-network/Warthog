@@ -17,7 +17,6 @@ class ConnectionData {
 
 private:
     ForkIter forkIter;
-
     std::shared_ptr<Descripted> _descripted;
     ForkRange forkRange;
 

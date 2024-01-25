@@ -5,10 +5,9 @@ namespace BlockDownload {
 
 class Forks {
 public:
-    void update_fork_iter(Conref c);
     size_t size() const { return forks.size(); }
     void link(Conref c);
-    std::optional<Height> reachable_length();
+    std::optional<Height> reachable_length() const;
     void match(Conref c, const Headerchain& hc, NonzeroHeight h, HeaderView hv);
     void assign(Conref, std::shared_ptr<Descripted>, ForkRange);
     void clear();
@@ -21,7 +20,8 @@ public:
     auto rbegin() { return forks.rbegin(); }
 
 private:
-    void assert_valid(Conref c);
+    void update_fork_iter(Conref c);
+    auto& forkdata(Conref c);
     Forkmap forks;
 };
 }
