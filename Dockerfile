@@ -13,3 +13,7 @@ RUN upx /install/usr/local/bin/wart-node
 FROM scratch AS export-stage
 COPY --from=build install/usr/local/bin/wart-node .
 COPY --from=build install/usr/local/bin/wart-wallet .
+
+VOLUME ["/warthog/.warthog"]
+ENTRYPOINT ["./wart-node", "--chain-db=/warthog/.warthog/chain.db", "--peers-db=/warthog/.warthog/peers.db"]
+EXPOSE 9186 3000
