@@ -24,6 +24,7 @@ public:
     inline PeerChain& chain();
     operator bool() { return data.val != 0; };
     inline auto& job();
+    inline auto& job() const;
     inline auto& ping();
     inline auto operator->();
     void clear() { data.val = 0; }

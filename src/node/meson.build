@@ -42,6 +42,8 @@ src= [
   './eventloop/sync/block_download/attorney.cpp',
   './eventloop/sync/block_download/block_download.cpp',
   './eventloop/sync/block_download/focus.cpp',
+  './eventloop/sync/block_download/forks.cpp',
+  './eventloop/sync/block_download/connection_data.cpp',
   './eventloop/sync/block_download/stage_state.cpp',
   './eventloop/sync/header_download/connection_data.cpp',
   './eventloop/sync/header_download/header_download.cpp',

@@ -11,10 +11,6 @@
 #include "spdlog/spdlog.h"
 
 namespace BlockDownload {
-[[nodiscard]] static auto& data(Conref cr)
-{
-    return cr->usage.data_blockdownload;
-}
 using enum ServerCall;
 
 const Headerchain& Downloader::headers() const
@@ -83,40 +79,21 @@ stage_operation::StageSetOperation Downloader::pop_stage_set() // OK
     return { headers() };
 }
 
-void Downloader::update_fork_iter(Conref c)
-{
-    auto& fd = data(c);
-    if (fd.forkIter != forks.end())
-        forks.erase(fd.forkIter);
-    assert(fd.forkRange.lower() <= fd.descripted->chain_length() + 1); // TODO: Bug, fails sometimes
-    fd.forkIter = forks.emplace(fd.forkRange.lower(), c);
-}
-
-void Downloader::link(Conref c)
-{
-    auto& fd = data(c);
-    fd.forkRange = c->chain.stage_fork_range();
-    fd.descripted = c->chain.descripted();
-    update_fork_iter(c);
-}
-
 std::optional<Height> Downloader::reachable_length()
 {
-    if (forks.size() == 0)
-        return {};
-    return forks.rbegin()->first - 1;
+    return forks.reachable_length();
 }
 
 void Downloader::check_upgrade_descripted(Conref c)
 {
     auto& fdata = data(c);
-    assert(fdata.descripted.use_count() > 0);
-    if (c->chain.descripted() == fdata.descripted)
+    assert(fdata.descripted().use_count() > 0);
+    if (c->chain.descripted() == fdata.descripted())
         return;
-    auto l1 = fdata.forkRange.lower();
+    auto l1 = fdata.fork_range().lower();
     auto l2 = c->chain.stage_fork_range().lower();
     if (l1 <= l2) {
-        link(c);
+        forks.link(c);
     }
 }
 
@@ -144,17 +121,16 @@ void Downloader::on_probe_reply(Conref c, const ProbereqMsg& req, const Proberep
     if (!initialized)
         return;
     auto& fdata = data(c);
-    if (req.descriptor != fdata.descripted->descriptor) {
+    if (req.descriptor != fdata.descripted()->descriptor) {
         return;
     }
-    assert((*fdata.descripted).chain_length() >= req.height);
+    assert((*fdata.descripted()).chain_length() >= req.height);
 
     if (!rep.requested.has_value()) {
-        link(c);
+        forks.link(c);
         return;
     }
-    if (fdata.forkRange.match(headers(), req.height, *rep.requested).changedLower)
-        update_fork_iter(c);
+    forks.match(c, headers(), req.height, *rep.requested);
 }
 
 std::vector<ChainOffender> Downloader::init(std::tuple<HeaderDownload::LeaderInfo, Headerchain> thc) // OK?
@@ -197,17 +173,13 @@ std::vector<ChainOffender> Downloader::init(std::tuple<HeaderDownload::LeaderInf
             continue;
         }
 
-        auto& fdata = data(c);
-        fdata.forkIter = forks.end();
         if (c == li.cr) {
-            fdata.descripted = li.descripted;
-            fdata.forkRange = ForkRange((headers().length() + 1).nonzero_assert());
+            ForkRange fr((headers().length() + 1).nonzero_assert());
+            forks.assign(c, li.descripted, fr);
             validLeader = true;
         } else {
-            fdata.descripted = c->chain.descripted();
-            fdata.forkRange = c->chain.stage_fork_range();
+            forks.assign(c, c->chain.descripted(), c->chain.stage_fork_range());
         }
-        update_fork_iter(c);
     }
 
     assert(validLeader);
@@ -221,7 +193,7 @@ void Downloader::insert(Conref c) // OK
 {
     if (!initialized)
         return;
-    link(c);
+    forks.link(c);
     update_reachable();
 }
 
@@ -235,14 +207,20 @@ void Downloader::do_probe_requests(RequestSender rs)
             return;
         if (c.job())
             continue;
-        const auto& fr { data(c).forkRange };
-        assert(data(c).forkIter->first == fr.lower()); // assert failed for me!!
+        const auto& fr { data(c).fork_range() };
+        auto a { data(c).fork_iter()->first };
+        auto b { fr.lower() };
+        if (a != b) {
+            spdlog::error("data(c).fork_iter()->first={}, fr.lower()={}", a.value(), b.value());
+            sleep(1);
+        }
+        assert(data(c).fork_iter()->first == fr.lower()); // assert failed for me!!
         NonzeroHeight u {
             [&]() -> NonzeroHeight {
                 if (fr.forked())
                     return fr.upper();
                 auto l1 { headers().length() };
-                auto l2 { data(c).descripted->chain_length() };
+                auto l2 { data(c).descripted()->chain_length() };
                 return (std::min(l1, l2) + 1).nonzero_assert();
             }()
         };
@@ -250,7 +228,7 @@ void Downloader::do_probe_requests(RequestSender rs)
             assert(u >= fr.lower());
             auto probeHeight { fr.lower() + (u - fr.lower()) / 2 };
             if (probeHeight > fr.lower()) {
-                Proberequest req(data(c).descripted, probeHeight);
+                Proberequest req(data(c).descripted(), probeHeight);
                 rs.send(c, req);
             }
         }
@@ -290,7 +268,6 @@ void Downloader::do_peer_requests(RequestSender s) // OK?
                 return;
             if (!forkIter->second.job()) {
                 Conref& cr = forkIter->second;
-                assert(has_fork_data(cr));
                 auto req { n->link_request(cr) };
                 s.send(cr, req);
                 if (s.finished())
@@ -373,13 +350,8 @@ void Downloader::reset()
     // download target related
     reachableWork.setzero();
     reachableHeight = Height(0);
-    forks.clear();
     for (auto c : connections()) {
-        auto& fd { data(c) };
-        fd.forkIter = forks.end();
-        fd.focusIter = focus.map_end();
-        fd.descripted = {};
-        fd.forkRange = {};
+        forks.erase(c);
     }
 
     // download focus related
@@ -392,9 +364,7 @@ void Downloader::reset()
 
 bool Downloader::erase(Conref cr)
 { // OK
-    if (has_fork_data(cr)) {
-        forks.erase(data(cr).forkIter);
-    }
+    forks.erase(cr);
     focus.erase(cr);
     return update_reachable();
 }

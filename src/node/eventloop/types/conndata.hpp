@@ -230,6 +230,7 @@ struct PeerState {
     Usage usage;
     friend class Eventloop;
     friend class BlockDownload::Downloader;
+    friend class BlockDownload::Forks;
     friend class Conref;
     friend class BlockDownload::Attorney;
 
@@ -255,6 +256,7 @@ Conref::operator const Connection*() const
 const PeerChain& Conref::chain() const { return data.iter->second.chain; }
 PeerChain& Conref::chain() { return data.iter->second.chain; }
 auto& Conref::job() { return data.iter->second.job; }
+auto& Conref::job() const{ return data.iter->second.job; }
 auto& Conref::ping() { return data.iter->second.ping; }
 auto Conref::operator->() { return &(data.iter->second); }
 bool Conref::initialized() { return !data.iter->second.job.waiting_for_init(); }

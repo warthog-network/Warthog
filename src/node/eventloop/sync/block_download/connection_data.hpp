@@ -10,17 +10,29 @@ struct BlockSlot;
 struct FocusNode;
 using FocusMap = std::map<BlockSlot, FocusNode>; // indexed by batch index
 class Downloader;
+class Forks;
+class Focus;
+class ConnectionData {
+    friend class Forks;
 
-struct ConnectionData {
+private:
+    ForkIter forkIter;
+
+    std::shared_ptr<Descripted> _descripted;
+    ForkRange forkRange;
+
+public:
+    FocusMap::iterator focusIter;
+
+public:
     ConnectionData(Forkmap::iterator forkEnd, FocusMap::iterator focusEnd)
         : forkIter(forkEnd)
         , focusIter(focusEnd)
     {
     }
-    ForkIter forkIter;
-    FocusMap::iterator focusIter;
-
-    std::shared_ptr<Descripted> descripted;
-    ForkRange forkRange;
+    auto& fork_range() const { return forkRange; }
+    auto& fork_iter() const { return forkIter; }
+    auto& descripted() const { return _descripted; }
 };
+[[nodiscard]] ConnectionData& data(Conref);
 }

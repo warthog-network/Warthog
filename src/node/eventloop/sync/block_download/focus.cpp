@@ -28,10 +28,6 @@ public:
     }
     const FocusMap::iterator& iter;
 };
-[[nodiscard]] static auto& data(Conref cr)
-{
-    return cr->usage.data_blockdownload;
-}
 
 auto Focus::begin() -> Iterator
 {
@@ -53,7 +49,7 @@ Blockrequest Focus::FocusSlot::link_request(Conref cr)
     iter->second.refs.push_back(cr);
 
     // craft block request
-    auto& descripted = data(cr).descripted;
+    auto& descripted = data(cr).descripted();
     return Blockrequest(descripted, r, focus.headers().hash_at(r.upper));
 }
 
@@ -136,6 +132,10 @@ void Focus::fork(NonzeroHeight fh)
 
 void Focus::clear()
 {
+    for (auto& [f, node] : map) {
+        for (auto& c : node.refs)
+            data(c).focusIter = map.end();
+    }
     map.clear();
     downloadLength = Height(0);
 }

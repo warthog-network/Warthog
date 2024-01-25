@@ -23,10 +23,11 @@ struct Proberequest : public ProbereqMsg, public IsRequest {
     bool deprecated = false; // if deprecated expires close connection
 
     std::shared_ptr<Descripted> descripted;
-    Proberequest(std::shared_ptr<Descripted> descripted, NonzeroHeight height)
-        : ProbereqMsg(descripted->descriptor, height)
-        , descripted(std::move(descripted))
+    Proberequest(std::shared_ptr<Descripted> dsc, NonzeroHeight height)
+        : ProbereqMsg(dsc->descriptor, height)
+        , descripted(std::move(dsc))
     {
+        assert(descripted->chain_length() >= height);
     }
 };
 

@@ -3,6 +3,7 @@
 #include "attorney_declaration.hpp"
 #include "block/block.hpp"
 #include "block/chain/header_chain.hpp"
+#include "forks.hpp"
 #include "block/chain/offender.hpp"
 #include "communication/messages.hpp"
 #include "communication/stage_operation/request.hpp"
@@ -73,15 +74,9 @@ private:
     const Headerchain& headers() const;
     auto connections();
     bool update_reachable(bool reset = false); // returns whether reachable was actually updated
-    bool has_fork_data(Conref cr)
-    {
-        return cr->usage.data_blockdownload.forkIter != forks.end();
-    }
     bool can_do_requests();
 
     void check_upgrade_descripted(Conref cr);
-    void link(Conref cr);
-    void update_fork_iter(Conref);
     std::optional<Height> reachable_length();
 
 private:
@@ -90,7 +85,8 @@ private:
     // download target related
     Worksum reachableWork;
     Height reachableHeight { 0 };
-    Forkmap forks;
+    // Forkmap forks;
+    Forks forks;
 
     // download focus related
     Focus focus;
