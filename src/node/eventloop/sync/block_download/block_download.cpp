@@ -212,7 +212,6 @@ void Downloader::do_probe_requests(RequestSender rs)
         auto b { fr.lower() };
         if (a != b) {
             spdlog::error("data(c).fork_iter()->first={}, fr.lower()={}", a.value(), b.value());
-            sleep(1);
         }
         assert(data(c).fork_iter()->first == fr.lower()); // assert failed for me!!
         NonzeroHeight u {
