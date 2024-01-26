@@ -10,6 +10,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       -
+        name: Check out repository
+        uses: actions/checkout@v2
+      -
         name: Set up QEMU
         uses: docker/setup-qemu-action@v3
       -
@@ -21,9 +24,16 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Get version
+        id: get_version
+        run: |
+          echo "VERSION=$(grep 'version :' meson.build | cut -d "'" -f 2)" >> $GITHUB_ENV
       -
         name: Build and push
         uses: docker/build-push-action@v5
         with:
           push: true
-          tags: zzjulien/warthog_node:latest
+          tags: |
+            zzjulien/warthog_node:latest
+            zzjulien/warthog_node:${{ env.VERSION }}
