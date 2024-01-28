@@ -355,7 +355,7 @@ void Connection::close(int errcode)
         to_string(), errors::err_name(errcode), errors::strerror(errcode));
     conman.peerServer.async_register_close(peerAddress.ipv4, errcode, logrow);
     if (eventloopref) {
-        global().pel->async_erase(this);
+        global().pel->async_erase(this, errcode);
     }
     std::unique_lock<std::mutex> lock(mutex);
 

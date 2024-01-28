@@ -61,7 +61,7 @@ public:
     void async_state_update(StateUpdate&& s);
     void async_mempool_update(mempool::Log&& s);
     bool async_process(Connection* c);
-    void async_erase(Connection* c);
+    void async_erase(Connection* c, int32_t error);
     void async_shutdown(int32_t reason);
     void async_report_failed_outbound(EndpointAddress);
     void async_stage_action(stage_operation::Result);
@@ -91,7 +91,7 @@ private:
 
     //////////////////////////////
     // Connection related functions
-    void erase(Conref cr);
+    void erase(Conref cr, int32_t error);
     void unref(Connection* c);
     [[nodiscard]] bool insert(Conref cr, const InitMsg& data); // returns true if requests might be possbile
     void close(Conref cr, uint32_t reason);
@@ -177,6 +177,7 @@ private:
     // event types
     struct OnRelease {
         Connection* c;
+        int32_t error;
     };
     struct OnProcessConnection {
         Connection* c;

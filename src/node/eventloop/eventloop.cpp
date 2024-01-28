@@ -79,9 +79,9 @@ void Eventloop::async_report_failed_outbound(EndpointAddress a)
     defer(OnFailedAddressEvent { a });
 }
 
-void Eventloop::async_erase(Connection* c)
+void Eventloop::async_erase(Connection* c, int32_t error)
 {
-    if (!defer(OnRelease { c })) {
+    if (!defer(OnRelease { c, error })) {
     }
 }
 
@@ -186,7 +186,7 @@ bool Eventloop::check_shutdown()
     for (auto cr : connections.all()) {
         if (cr->erased())
             continue;
-        erase(cr);
+        erase(cr, closeReason);
         unref(cr);
     }
 
@@ -199,7 +199,7 @@ void Eventloop::handle_event(OnRelease&& m)
     bool erased { m.c->eventloop_erased };
     bool registered { m.c->eventloop_registered };
     if ((!erased) && registered)
-        erase(m.c->dataiter);
+        erase(m.c->dataiter, m.error);
     unref(m.c);
 }
 void Eventloop::handle_event(OnProcessConnection&& m)
@@ -442,7 +442,7 @@ void Eventloop::handle_event(mempool::Log&& log)
     }
 }
 
-void Eventloop::erase(Conref c)
+void Eventloop::erase(Conref c, int32_t error)
 {
     bool doRequests = false;
     c.job().unref_active_requests(activeRequests);
@@ -453,8 +453,9 @@ void Eventloop::erase(Conref c)
     }
     c->c->eventloop_erased = true;
     assert(c.valid());
-    if (headerDownload.erase(c) && !closeReason)
-        spdlog::info("Connected to {} peers", headerDownload.size());
+    if (headerDownload.erase(c) && !closeReason) {
+        spdlog::info("Connected to {} peers (closed connection to {}, reason: {})", headerDownload.size(), c->c->peer_endpoint().to_string(), Error(error).err_name());
+    }
     if (blockDownload.erase(c)) {
         coordinate_sync();
     };
@@ -477,7 +478,7 @@ bool Eventloop::insert(Conref c, const InitMsg& data)
     c->chain.initialize(data, chains);
     headerDownload.insert(c);
     blockDownload.insert(c);
-    spdlog::info("Connected to {} peers", headerDownload.size());
+    spdlog::info("Connected to {} peers (new peer {})", headerDownload.size(), c->c->peer_address().to_string());
     send_ping_await_pong(c);
     // LATER: return whether doRequests is necessary;
     return doRequests;
@@ -488,9 +489,8 @@ void Eventloop::close(Conref cr, uint32_t reason)
     Connection* c = cr->c;
     if (c->eventloop_erased)
         return;
-    spdlog::info("Closing connection to {}, reason: {}", cr->c->peer_endpoint().to_string(), Error(reason).err_name());
     c->async_close(reason);
-    erase(cr); // do not consider this connection anymore
+    erase(cr, reason); // do not consider this connection anymore
 }
 
 void Eventloop::close_by_id(uint64_t conId, int32_t reason)
