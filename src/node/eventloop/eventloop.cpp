@@ -408,7 +408,7 @@ void Eventloop::handle_event(mempool::Log&& log)
             entries.push_back(std::get<mempool::Put>(action).entry);
         }
     }
-    std::sort(entries.begin(),entries.end(),
+    std::sort(entries.begin(), entries.end(),
         [](const mempool::Entry& e1, const mempool::Entry& e2) {
             if (e1.second.transactionHeight == e2.second.transactionHeight)
                 return e1.first < e2.first;
@@ -488,6 +488,7 @@ void Eventloop::close(Conref cr, uint32_t reason)
     Connection* c = cr->c;
     if (c->eventloop_erased)
         return;
+    spdlog::info("Closing connection to {}, reason: {}", cr->c->peer_endpoint().to_string(), Error(reason).err_name());
     c->async_close(reason);
     erase(cr); // do not consider this connection anymore
 }
@@ -705,7 +706,7 @@ void Eventloop::dispatch_message(Conref cr, Rcvbuffer& msg)
     auto m = msg.parse();
     // first message must be of type INIT (is_init() is only initially true)
     if (cr.job().awaiting_init()) {
-        if (!std::holds_alternative<InitMsg>(m)){
+        if (!std::holds_alternative<InitMsg>(m)) {
             auto msgcode { std::visit([](auto a) { return a.msgcode; }, m) };
             spdlog::error("Debug info: Expected init message from {} but got message of type {}", cr->c->peer_address().to_string(), msgcode);
             throw Error(ENOINIT);

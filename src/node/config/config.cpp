@@ -150,9 +150,34 @@ int Config::process_gengetopt(gengetopt_args_info& ai)
     std::optional<EndpointAddress> nodeBind;
     std::optional<EndpointAddress> rpcBind;
     node.isolated = ai.isolated_given;
-    node.testnet = ai.testnet_given;
-    peers.connect = {};
-    if (ENABLE_DEFAULT_NODE) {
+    if (ai.testnet_given) {
+        enable_testnet();
+    }
+
+    if (is_testnet()) {
+        peers.connect = {
+            { "10.0.0.204:3005" },
+            { "86.81.104.92:9286" },
+            { "1.92.79.140:9286" },
+            { "45.91.203.135:9286" },
+            { "93.92.201.8:9286" },
+            { "149.102.141.100:9286" },
+            { "119.28.71.187:9286" },
+            { "135.181.200.100:9286" },
+            { "135.181.142.177:9286" },
+            { "103.91.16.143:9286" },
+            { "101.43.125.67:15806" },
+            { "91.107.162.154:9286" },
+            { "89.104.71.12:9286" },
+            { "68.227.255.200:9286" },
+            { "185.255.134.101:9286" },
+            { "193.218.118.57:9286" },
+            { "185.162.32.61:9286" },
+            { "119.17.136.107:9286" },
+            { "89.104.69.92:9286" },
+            { "74.122.131.1:9286" }
+        };
+    } else {
         peers.connect = {
             { "1.92.79.140:9186" },
             { "45.91.203.135:9186" },
@@ -175,7 +200,7 @@ int Config::process_gengetopt(gengetopt_args_info& ai)
         };
     }
 
-    std::string filename = "config.toml";
+    std::string filename = is_testnet() ? "testnet_config.toml" : "config.toml";
     if (!ai.config_given && !std::filesystem::exists(filename)) {
         if (!dmp)
             spdlog::debug("No config.toml file found, using default configuration");
@@ -221,8 +246,6 @@ int Config::process_gengetopt(gengetopt_args_info& ai)
                             }
                         } else if (k == "leader-key") {
                             node.snapshotSigner = parse_leader_key(fetch<std::string>(v));
-                        } else if (k == "testnet") {
-                            node.testnet = fetch<bool>(v);
                         } else if (k == "isolated") {
                             node.isolated = fetch<bool>(v);
                         } else if (k == "enable-ban") {
@@ -253,23 +276,21 @@ int Config::process_gengetopt(gengetopt_args_info& ai)
         }
     }
 
+
     // DB args
     if (ai.chain_db_given)
         data.chaindb = ai.chain_db_arg;
-    else{
-        if (data.chaindb.empty()) 
-            data.chaindb = defaultDataDir + (node.testnet ? "testnet_chain.db3" : "chain.db3");
+    else {
+        if (data.chaindb.empty())
+            data.chaindb = defaultDataDir + (is_testnet() ? "testnet_chain.db3" : "chain.db3");
     }
     if (ai.peers_db_given)
         data.peersdb = ai.peers_db_arg;
-    else{
+    else {
         if (data.peersdb.empty()) {
-            data.peersdb = defaultDataDir + (node.testnet ? "testnet_peers.db3" : "peers.db3");
+            data.peersdb = defaultDataDir + (is_testnet() ? "testnet_peers.db3" : "peers.db3");
         }
     }
-
-    if (node.testnet) 
-        enable_testnet();
 
     // JSON RPC socket
     if (ai.rpc_given) {
@@ -279,8 +300,8 @@ int Config::process_gengetopt(gengetopt_args_info& ai)
             return -1;
         };
         jsonrpc.bind = p.value();
-    }else{
-        if (is_testnet()) 
+    } else {
+        if (is_testnet())
             jsonrpc.bind = EndpointAddress::parse("127.0.0.1:3100").value();
         else
             jsonrpc.bind = EndpointAddress::parse("127.0.0.1:3000").value();
@@ -294,11 +315,11 @@ int Config::process_gengetopt(gengetopt_args_info& ai)
             return -1;
         };
         node.bind = p.value();
-    }else{
-        if (nodeBind) 
+    } else {
+        if (nodeBind)
             node.bind = *nodeBind;
-        else{
-            if (is_testnet()) 
+        else {
+            if (is_testnet())
                 node.bind = EndpointAddress::parse("0.0.0.0:9286").value();
             else
                 node.bind = EndpointAddress::parse("0.0.0.0:9186").value();
@@ -331,7 +352,6 @@ std::string Config::dump()
             { "bind", node.bind.to_string() },
             { "connect", connect },
             { "isolated", node.isolated },
-            { "testnet", node.testnet },
             { "enable-ban", peers.enableBan },
             { "allow-localhost-ip", peers.allowLocalhostIp },
             { "log-communication", (bool)node.logCommunication } });

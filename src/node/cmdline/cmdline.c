@@ -38,7 +38,7 @@ const char *gengetopt_args_info_detailed_help[] = {
   "      --detailed-help        Print help, including all details and hidden\n                               options, and exit",
   "  -V, --version              Print version and exit",
   "\nNode options:",
-  "  -b, --bind=IP:PORT         Socket to listen on, defaults to \"0.0.0.0:9186\"\n                               for main net and \"0.0.0.0:9286\" for testnet",
+  "  -b, --bind=IP:PORT         Socket to listen on, defaults to \"0.0.0.0:9186\"\n                               for main net and \"0.0.0.0:9286\" for test net",
   "  -C, --connect=IP:PORT,...  Specify peer list",
   "  This option overrides the peers list, specify comma separated entries of\n  format 'IP:PORT'",
   "      --isolated             Do not allow peers (for testing purposes, do not\n                               use in production)",
@@ -46,15 +46,15 @@ const char *gengetopt_args_info_detailed_help[] = {
   "      --testnet              Enable testnet",
   "\nData file options:",
   "      --chain-db=STRING      specify chain data file",
-  "  Defaults to ~/.warthog/chain.db3 in Linux, %LOCALAPPDATA%/Warthog/chain.db3\n  on Windows. In testnet, default filename is 'testnet_chain.db3'",
+  "  Defaults to ~/.warthog/chain.db3 in Linux, %LOCALAPPDATA%/Warthog/chain.db3\n  on Windows.'",
   "      --peers-db=STRING      specify data file",
   "  Defaults to ~/.warthog/peers.db3 in Linux, %LOCALAPPDATA%/Warthog/peers.db3\n  on Windows",
   "\nLogging options:",
   "  -d, --debug                Enable debug messages",
   "\nJSON RPC endpoint options:",
-  "  -r, --rpc=IP:PORT          JSON RPC endpoint socket, defaults to\n                               \"127.0.0.1:3000\" for main net and\n                               \"127.0.0.1:4000\" for testnet",
+  "  -r, --rpc=IP:PORT          JSON RPC endpoint socket, defaults to\n                               \"127.0.0.1:3000\" for main net and\n                               \"127.0.0.1:3100\" for test net",
   "\nConfiguration file options:",
-  "  -c, --config=FILENAME      Configuration file  (default=`config.toml')",
+  "  -c, --config=FILENAME      Configuration file, default is \"config.toml\", in\n                               testnet \"testnet_chain.db3\"",
   "  -t, --test                 test the configuration file (check for correct\n                               syntax)",
   "      --dump-config          dump the current configuration to stdout",
   "  This option can be useful to generate a configuration file template",
@@ -139,7 +139,7 @@ void clear_args (struct gengetopt_args_info *args_info)
   args_info->peers_db_orig = NULL;
   args_info->rpc_arg = NULL;
   args_info->rpc_orig = NULL;
-  args_info->config_arg = gengetopt_strdup ("config.toml");
+  args_info->config_arg = NULL;
   args_info->config_orig = NULL;
   
 }
@@ -607,7 +607,7 @@ cmdline_parser_internal (
           cmdline_parser_free (&local_args_info);
           exit (EXIT_SUCCESS);
 
-        case 'b':	/* Socket to listen on, defaults to \"0.0.0.0:9186\" for main net and \"0.0.0.0:9286\" for testnet.  */
+        case 'b':	/* Socket to listen on, defaults to \"0.0.0.0:9186\" for main net and \"0.0.0.0:9286\" for test net.  */
         
         
           if (update_arg( (void *)&(args_info->bind_arg), 
@@ -643,7 +643,7 @@ cmdline_parser_internal (
             goto failure;
         
           break;
-        case 'r':	/* JSON RPC endpoint socket, defaults to \"127.0.0.1:3000\" for main net and \"127.0.0.1:4000\" for testnet.  */
+        case 'r':	/* JSON RPC endpoint socket, defaults to \"127.0.0.1:3000\" for main net and \"127.0.0.1:3100\" for test net.  */
         
         
           if (update_arg( (void *)&(args_info->rpc_arg), 
@@ -655,12 +655,12 @@ cmdline_parser_internal (
             goto failure;
         
           break;
-        case 'c':	/* Configuration file.  */
+        case 'c':	/* Configuration file, default is \"config.toml\", in testnet \"testnet_chain.db3\".  */
         
         
           if (update_arg( (void *)&(args_info->config_arg), 
                &(args_info->config_orig), &(args_info->config_given),
-              &(local_args_info.config_given), optarg, 0, "config.toml", ARG_STRING,
+              &(local_args_info.config_given), optarg, 0, 0, ARG_STRING,
               check_ambiguity, override, 0, 0,
               "config", 'c',
               additional_error))

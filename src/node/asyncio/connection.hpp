@@ -33,14 +33,7 @@ private:
         static constexpr const char accept_grunt_testnet[] =  "TESTNET GRUNT!";
         uint8_t pos = 0;
         bool handshakesent = false;
-        uint32_t version(bool inbound)
-        { // return value 0 indicates error
-            if (memcmp(recvbuf.data(), (inbound ? connect_grunt : accept_grunt), 14) != 0)
-                return 0;
-            uint32_t tmp;
-            memcpy(&tmp, recvbuf.data() + 14, 4);
-            return hton32(tmp);
-        }
+        uint32_t version(bool inbound);
         uint16_t port(bool inbound)
         {
             assert(inbound);

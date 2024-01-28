@@ -1,7 +1,6 @@
 #pragma once
 #include <cstdint>
 constexpr bool DEBUG_PARAMS = false;
-constexpr bool ENABLE_DEFAULT_NODE = true;
 
 constexpr uint64_t COINUNIT = 100000000; // 1 UNIT of the coin in the smallest representable quantity (i.e. implicit definition of precision)
 

@@ -29,6 +29,7 @@ public:
         , focusIter(focusEnd)
     {
     }
+    ConnectionData(const ConnectionData&) = delete;
     auto& fork_range() const { return forkRange; }
     auto& fork_iter() const { return forkIter; }
     auto& descripted() const { return _descripted; }

@@ -40,9 +40,9 @@ struct gengetopt_args_info
   const char *help_help; /**< @brief Print help and exit help description.  */
   const char *detailed_help_help; /**< @brief Print help, including all details and hidden options, and exit help description.  */
   const char *version_help; /**< @brief Print version and exit help description.  */
-  char * bind_arg;	/**< @brief Socket to listen on, defaults to \"0.0.0.0:9186\" for main net and \"0.0.0.0:9286\" for testnet.  */
-  char * bind_orig;	/**< @brief Socket to listen on, defaults to \"0.0.0.0:9186\" for main net and \"0.0.0.0:9286\" for testnet original value given at command line.  */
-  const char *bind_help; /**< @brief Socket to listen on, defaults to \"0.0.0.0:9186\" for main net and \"0.0.0.0:9286\" for testnet help description.  */
+  char * bind_arg;	/**< @brief Socket to listen on, defaults to \"0.0.0.0:9186\" for main net and \"0.0.0.0:9286\" for test net.  */
+  char * bind_orig;	/**< @brief Socket to listen on, defaults to \"0.0.0.0:9186\" for main net and \"0.0.0.0:9286\" for test net original value given at command line.  */
+  const char *bind_help; /**< @brief Socket to listen on, defaults to \"0.0.0.0:9186\" for main net and \"0.0.0.0:9286\" for test net help description.  */
   char * connect_arg;	/**< @brief Specify peer list.  */
   char * connect_orig;	/**< @brief Specify peer list original value given at command line.  */
   const char *connect_help; /**< @brief Specify peer list help description.  */
@@ -55,12 +55,12 @@ struct gengetopt_args_info
   char * peers_db_orig;	/**< @brief specify data file original value given at command line.  */
   const char *peers_db_help; /**< @brief specify data file help description.  */
   const char *debug_help; /**< @brief Enable debug messages help description.  */
-  char * rpc_arg;	/**< @brief JSON RPC endpoint socket, defaults to \"127.0.0.1:3000\" for main net and \"127.0.0.1:4000\" for testnet.  */
-  char * rpc_orig;	/**< @brief JSON RPC endpoint socket, defaults to \"127.0.0.1:3000\" for main net and \"127.0.0.1:4000\" for testnet original value given at command line.  */
-  const char *rpc_help; /**< @brief JSON RPC endpoint socket, defaults to \"127.0.0.1:3000\" for main net and \"127.0.0.1:4000\" for testnet help description.  */
-  char * config_arg;	/**< @brief Configuration file (default='config.toml').  */
-  char * config_orig;	/**< @brief Configuration file original value given at command line.  */
-  const char *config_help; /**< @brief Configuration file help description.  */
+  char * rpc_arg;	/**< @brief JSON RPC endpoint socket, defaults to \"127.0.0.1:3000\" for main net and \"127.0.0.1:3100\" for test net.  */
+  char * rpc_orig;	/**< @brief JSON RPC endpoint socket, defaults to \"127.0.0.1:3000\" for main net and \"127.0.0.1:3100\" for test net original value given at command line.  */
+  const char *rpc_help; /**< @brief JSON RPC endpoint socket, defaults to \"127.0.0.1:3000\" for main net and \"127.0.0.1:3100\" for test net help description.  */
+  char * config_arg;	/**< @brief Configuration file, default is \"config.toml\", in testnet \"testnet_chain.db3\".  */
+  char * config_orig;	/**< @brief Configuration file, default is \"config.toml\", in testnet \"testnet_chain.db3\" original value given at command line.  */
+  const char *config_help; /**< @brief Configuration file, default is \"config.toml\", in testnet \"testnet_chain.db3\" help description.  */
   const char *test_help; /**< @brief test the configuration file (check for correct syntax) help description.  */
   const char *dump_config_help; /**< @brief dump the current configuration to stdout help description.  */
   

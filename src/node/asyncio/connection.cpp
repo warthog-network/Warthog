@@ -213,12 +213,26 @@ Connection::~Connection()
         spdlog::error("Memory leak: connection data!=nullptr");
 }
 
+uint32_t Connection::Handshakedata::version(bool inbound)
+{ // return value 0 indicates error
+    if (is_testnet()) {
+        if (memcmp(recvbuf.data(), (inbound ? connect_grunt_testnet : accept_grunt_testnet), 14) != 0)
+            return 0;
+    } else {
+        if (memcmp(recvbuf.data(), (inbound ? connect_grunt : accept_grunt), 14) != 0)
+            return 0;
+    }
+    uint32_t tmp;
+    memcpy(&tmp, recvbuf.data() + 14, 4);
+    return hton32(tmp);
+}
+
 void Connection::send_handshake()
 {
     char* data = new char[24];
     if (is_testnet()) {
         memcpy(data, (inbound ? Handshakedata::accept_grunt_testnet : Handshakedata::connect_grunt_testnet), 14);
-    }else{
+    } else {
         memcpy(data, (inbound ? Handshakedata::accept_grunt : Handshakedata::connect_grunt), 14);
     }
     uint32_t nver = hton32(version);

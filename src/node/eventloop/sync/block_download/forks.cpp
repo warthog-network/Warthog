@@ -55,7 +55,6 @@ void Forks::clear()
 {
     for (auto& [h, c] : forks) {
         auto& fd { data(c) };
-        data(c).forkIter = forks.end();
         fd.forkIter = forks.end();
         fd._descripted = {};
         fd.forkRange = {};

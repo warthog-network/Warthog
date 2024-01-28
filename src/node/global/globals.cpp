@@ -1,13 +1,21 @@
 #include "globals.hpp"
 #include "asyncio/conman.hpp"
+#include "general/is_testnet.hpp"
 #include "spdlog/sinks/rotating_file_sink.h"
 namespace {
 
+    std::string logdir(){
+        if (is_testnet()) {
+            return "logs_testnet";
+        }else{
+            return "logs";
+        }
+    }
 auto create_connection_logger()
 {
     auto max_size = 1048576 * 5; // 5 MB
     auto max_files = 3;
-    return spdlog::rotating_logger_mt("connection_logger", config().defaultDataDir + "logs/connections.log", max_size, max_files);
+    return spdlog::rotating_logger_mt("connection_logger", config().defaultDataDir + logdir()+"/connections.log", max_size, max_files);
 }
 
 auto create_syncdebug_logger()

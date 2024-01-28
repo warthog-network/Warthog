@@ -13,7 +13,7 @@ option "isolated" - "Do not allow peers (for testing purposes, do not use in pro
 option "testnet" - "Enable testnet" optional
 
 section "Data file options"
-option "chain-db" - "specify chain data file" details="Defaults to ~/.warthog/chain.db3 in Linux, %LOCALAPPDATA%/Warthog/chain.db3 on Windows. In testnet, default filename is 'testnet_chain.db3'" optional string 
+option "chain-db" - "specify chain data file" details="Defaults to ~/.warthog/chain.db3 in Linux, %LOCALAPPDATA%/Warthog/chain.db3 on Windows.'" optional string 
 option "peers-db" - "specify data file" details="Defaults to ~/.warthog/peers.db3 in Linux, %LOCALAPPDATA%/Warthog/peers.db3 on Windows"optional string 
 
 
@@ -25,6 +25,6 @@ section "JSON RPC endpoint options"
 option "rpc" r "JSON RPC endpoint socket, defaults to \"127.0.0.1:3000\" for main net and \"127.0.0.1:3100\" for test net" optional string typestr="IP:PORT"
 
 section "Configuration file options"
-option "config" c  "Configuration file" optional string typestr="FILENAME" default="config.toml"
+option "config" c  "Configuration file, default is \"config.toml\", in testnet \"testnet_chain.db3\"" optional string typestr="FILENAME"
 option "test" t "test the configuration file (check for correct syntax)" optional
 option "dump-config" - "dump the current configuration to stdout" details="This option can be useful to generate a configuration file template" optional

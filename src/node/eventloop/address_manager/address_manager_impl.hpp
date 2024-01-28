@@ -14,7 +14,7 @@ inline void AddressManager::All::Iterator::find_next()
 inline void AddressManager::Initialized::Iterator::find_next()
 {
     while (true) {
-        if (iter == ref.conndatamap.end() || (!iter->second.erased() && (*iter).initialized()))
+        if (iter == ref.conndatamap.end() || ((!iter->second.erased()) && (*iter).initialized()))
             break;
         ++iter;
     }
