@@ -139,6 +139,8 @@ std::vector<ChainOffender> Downloader::init(std::tuple<HeaderDownload::LeaderInf
 
     std::vector<ChainOffender> out;
     auto& [li, hc] = thc;
+
+    spdlog::info("Syncing from {}", li.cr->c->peer_endpoint().to_string());
     ForkHeight fh = attorney.set_stage_headers(std::move(hc));
 
     assert(headers().length() != 0);
@@ -366,7 +368,6 @@ bool Downloader::erase(Conref cr)
 { // OK
     if (!initialized) 
         return false;
-    spdlog::warn("Erase {} ", cr.id());
     forks.erase(cr);
     focus.erase(cr);
     return update_reachable();

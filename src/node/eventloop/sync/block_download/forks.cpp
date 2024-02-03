@@ -18,7 +18,7 @@ void Forks::pin_current_chain(Conref c)
 {
     auto pin { c->chain.descripted() };
     auto& d = data(c);
-    reset(c);
+    erase(c);
     auto fr { c->chain.stage_fork_range() };
     auto iter = forks.emplace(fr.lower(), c);
     d.forkData = ConnectionData::ForkData(pin, iter, fr);
@@ -32,14 +32,6 @@ void Forks::pin_leader_chain(Conref c, std::shared_ptr<Descripted> pin, ForkRang
     d.forkData = ConnectionData::ForkData(pin, iter, fr);
 }
 
-void Forks::reset(Conref c)
-{
-    auto& d { data(c) };
-    if (d.forkData) {
-        forks.erase(d.forkData->iter());
-        d.forkData.reset();
-    }
-}
 
 void Forks::replace_fork_iter(ConnectionData::ForkData& fd, Conref c, ForkRange fr)
 {
@@ -77,10 +69,11 @@ void Forks::clear()
 
 void Forks::erase(Conref c)
 {
-    auto& fd { data(c) };
-    assert(fd.forkData.has_value());
-    forks.erase(fd.fork_iter());
-    fd.forkData.reset();
+    auto& d { data(c) };
+    if (d.forkData) {
+        forks.erase(d.forkData->iter());
+        d.forkData.reset();
+    }
 }
 
 }

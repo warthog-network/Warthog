@@ -20,7 +20,6 @@ public:
     auto rbegin() { return forks.rbegin(); }
 
 private:
-    void reset(Conref c);
     void replace_fork_iter(ConnectionData::ForkData& fd,Conref c, ForkRange fr);
     auto& forkdata(Conref c);
     Forkmap forks;
