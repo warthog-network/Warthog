@@ -6,10 +6,10 @@ namespace BlockDownload {
 class Forks {
 public:
     size_t size() const { return forks.size(); }
-    void link(Conref c);
+    void pin_current_chain(Conref c);
+    void pin_leader_chain(Conref, std::shared_ptr<Descripted>, ForkRange);
     std::optional<Height> reachable_length() const;
     void match(Conref c, const Headerchain& hc, NonzeroHeight h, HeaderView hv);
-    void assign(Conref, std::shared_ptr<Descripted>, ForkRange);
     void clear();
     auto lower_bound(NonzeroHeight h)
     {
@@ -20,7 +20,8 @@ public:
     auto rbegin() { return forks.rbegin(); }
 
 private:
-    void update_fork_iter(Conref c);
+    void reset(Conref c);
+    void replace_fork_iter(ConnectionData::ForkData& fd,Conref c, ForkRange fr);
     auto& forkdata(Conref c);
     Forkmap forks;
 };

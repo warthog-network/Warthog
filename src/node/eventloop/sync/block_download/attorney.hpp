@@ -9,8 +9,8 @@ inline auto Attorney::connections() const
     return eventloop.connections.initialized();
 }
 
-inline auto Attorney::update_blockdownlad(Headerchain&& newheaders)
+inline auto Attorney::set_stage_headers(Headerchain&& newheaders)
 {
-    return eventloop.update_blockdownload_headers(std::move(newheaders));
+    return eventloop.set_stage_headers(std::move(newheaders));
 }
 }

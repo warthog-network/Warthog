@@ -93,7 +93,7 @@ void Downloader::check_upgrade_descripted(Conref c)
     auto l1 = fdata.fork_range().lower();
     auto l2 = c->chain.stage_fork_range().lower();
     if (l1 <= l2) {
-        forks.link(c);
+        forks.pin_current_chain(c);
     }
 }
 
@@ -126,8 +126,8 @@ void Downloader::on_probe_reply(Conref c, const ProbereqMsg& req, const Proberep
     }
     assert((*fdata.descripted()).chain_length() >= req.height);
 
-    if (!rep.requested.has_value()) {
-        forks.link(c);
+    if (!rep.requested.has_value()) { // chain info no longer available at peer
+        forks.pin_current_chain(c);
         return;
     }
     forks.match(c, headers(), req.height, *rep.requested);
@@ -139,7 +139,7 @@ std::vector<ChainOffender> Downloader::init(std::tuple<HeaderDownload::LeaderInf
 
     std::vector<ChainOffender> out;
     auto& [li, hc] = thc;
-    ForkHeight fh = attorney.update_blockdownlad(std::move(hc));
+    ForkHeight fh = attorney.set_stage_headers(std::move(hc));
 
     assert(headers().length() != 0);
 
@@ -175,10 +175,10 @@ std::vector<ChainOffender> Downloader::init(std::tuple<HeaderDownload::LeaderInf
 
         if (c == li.cr) {
             ForkRange fr((headers().length() + 1).nonzero_assert());
-            forks.assign(c, li.descripted, fr);
+            forks.pin_leader_chain(c, li.descripted, fr);
             validLeader = true;
         } else {
-            forks.assign(c, c->chain.descripted(), c->chain.stage_fork_range());
+            forks.pin_current_chain(c);
         }
     }
 
@@ -193,7 +193,7 @@ void Downloader::insert(Conref c) // OK
 {
     if (!initialized)
         return;
-    forks.link(c);
+    forks.pin_current_chain(c);
     update_reachable();
 }
 
@@ -207,6 +207,9 @@ void Downloader::do_probe_requests(RequestSender rs)
             return;
         if (c.job())
             continue;
+        if (!data(c).has_fork_data()) {
+            spdlog::error("Peer {} has_fork_data == false", c->c->peer_address().to_string());
+        }
         const auto& fr { data(c).fork_range() };
         auto a { data(c).fork_iter()->first };
         auto b { fr.lower() };
@@ -349,9 +352,7 @@ void Downloader::reset()
     // download target related
     reachableWork.setzero();
     reachableHeight = Height(0);
-    for (auto c : connections()) {
-        forks.erase(c);
-    }
+    forks.clear();
 
     // download focus related
     focus.clear();
@@ -363,6 +364,9 @@ void Downloader::reset()
 
 bool Downloader::erase(Conref cr)
 { // OK
+    if (!initialized) 
+        return false;
+    spdlog::warn("Erase {} ", cr.id());
     forks.erase(cr);
     focus.erase(cr);
     return update_reachable();

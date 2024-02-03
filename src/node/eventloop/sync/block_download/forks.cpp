@@ -4,26 +4,50 @@
 
 namespace BlockDownload {
 
-void Forks::update_fork_iter(Conref c)
+// void Forks::update_fork_iter(Conref c)
+// {
+//     auto& d { data(c) };
+//     if (d.forkIter != forks.end())
+//         forks.erase(d.forkIter);
+//     assert(d.forkRange.lower() <= d._descripted->chain_length() + 1);
+//     d.forkIter = forks.emplace(d.forkRange.lower(), c);
+//     assert(d.forkIter->first == d.forkRange.lower());
+// }
+
+void Forks::pin_current_chain(Conref c)
+{
+    auto pin { c->chain.descripted() };
+    auto& d = data(c);
+    reset(c);
+    auto fr { c->chain.stage_fork_range() };
+    auto iter = forks.emplace(fr.lower(), c);
+    d.forkData = ConnectionData::ForkData(pin, iter, fr);
+}
+
+void Forks::pin_leader_chain(Conref c, std::shared_ptr<Descripted> pin, ForkRange fr)
 {
     auto& d { data(c) };
-    if (d.forkIter != forks.end())
-        forks.erase(d.forkIter);
-    assert(d.forkRange.lower() <= d._descripted->chain_length() + 1);
-    d.forkIter = forks.emplace(d.forkRange.lower(), c);
-    assert(d.forkIter->first == d.forkRange.lower());
+    assert(!d.forkData.has_value());
+    auto iter = forks.emplace(fr.lower(), c);
+    d.forkData = ConnectionData::ForkData(pin, iter, fr);
 }
 
-void Forks::link(Conref c)
+void Forks::reset(Conref c)
 {
-
-    auto& d = data(c);
-    d.forkRange = c->chain.stage_fork_range();
-    d._descripted = c->chain.descripted();
-    assert(d.forkRange.lower() <= d._descripted->chain_length() + 1);
-    update_fork_iter(c);
-    assert(d.fork_iter()->first == d.forkRange.lower());
+    auto& d { data(c) };
+    if (d.forkData) {
+        forks.erase(d.forkData->iter());
+        d.forkData.reset();
+    }
 }
+
+void Forks::replace_fork_iter(ConnectionData::ForkData& fd, Conref c, ForkRange fr)
+{
+    forks.erase(fd.iter());
+    auto iter = forks.emplace(fr.lower(), c);
+    fd.udpate_iter_range(iter, fr);
+};
+
 std::optional<Height> Forks::reachable_length() const
 {
     if (forks.size() == 0)
@@ -34,30 +58,19 @@ std::optional<Height> Forks::reachable_length() const
 void Forks::match(Conref c, const Headerchain& headers, NonzeroHeight h, HeaderView hv)
 {
     auto& d { data(c) };
-    if (d.forkRange.match(headers, h, hv).changedLower)
-        update_fork_iter(c);
-    assert(d.forkRange.lower() <= d._descripted->chain_length() + 1);
-    assert(d.forkIter->first == d.forkRange.lower());
+    assert(d.forkData.has_value());
+    auto& fd { d.forkData.value() };
+    auto fr { fd.range() };
+
+    if (fr.match(headers, h, hv).changedLower)
+        replace_fork_iter(fd, c, fr);
 };
-
-
-void Forks::assign(Conref c, std::shared_ptr<Descripted> descripted, ForkRange fr)
-{
-    auto& d { data(c) };
-    d._descripted = std::move(descripted);
-    d.forkRange = fr;
-    update_fork_iter(c);
-    assert(d.forkRange.lower() <= d._descripted->chain_length() + 1);
-    assert(d.forkIter->first == d.forkRange.lower());
-}
 
 void Forks::clear()
 {
     for (auto& [h, c] : forks) {
         auto& fd { data(c) };
-        fd.forkIter = forks.end();
-        fd._descripted = {};
-        fd.forkRange = {};
+        fd.forkData.reset();
     }
     forks.clear();
 }
@@ -65,12 +78,9 @@ void Forks::clear()
 void Forks::erase(Conref c)
 {
     auto& fd { data(c) };
-    if (fd.forkIter == forks.end())
-        return;
-    forks.erase(fd.forkIter);
-    fd.forkIter = forks.end();
-    fd._descripted = {};
-    fd.forkRange = {};
-};
+    assert(fd.forkData.has_value());
+    forks.erase(fd.fork_iter());
+    fd.forkData.reset();
+}
 
 }

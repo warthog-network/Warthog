@@ -26,4 +26,4 @@ void Conref::send(Sndbuffer b)
 
 Usage::Usage(HeaderDownload::Downloader& h, BlockDownload::Downloader& b)
     : data_headerdownload(h)
-    , data_blockdownload(b.forks_end(), b.focus_end()) {};
+    , data_blockdownload(b.focus_end()) {};

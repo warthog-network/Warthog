@@ -236,7 +236,7 @@ private:
     void coordinate_sync();
 
     void initialize_block_download();
-    ForkHeight update_blockdownload_headers(Headerchain&&);
+    ForkHeight set_stage_headers(Headerchain&&);
 
     // log
     void log_chain_length();

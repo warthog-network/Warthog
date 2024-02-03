@@ -8,7 +8,7 @@ class Attorney {
     Attorney(Eventloop& eventloop)
         : eventloop(eventloop) {};
     void clear_blockdownload() ;
-    auto update_blockdownlad(Headerchain&& newheaders);
+    auto set_stage_headers(Headerchain&& newheaders);
     const Headerchain& headers() const;
     auto connections() const;
 

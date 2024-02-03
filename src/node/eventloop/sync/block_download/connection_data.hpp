@@ -16,23 +16,35 @@ class ConnectionData {
     friend class Forks;
 
 private:
-    ForkIter forkIter;
-    std::shared_ptr<Descripted> _descripted;
-    ForkRange forkRange;
+    class ForkData {
+        std::shared_ptr<Descripted> _descripted;
+        struct IterRange {
+            ForkIter _iter;
+            ForkRange _range;
+            IterRange(ForkIter iter, ForkRange range);
+        } iterRange;
+        public:
+        ForkIter iter() const {return iterRange._iter;}
+        auto range() const {return iterRange._range;}
+        auto& descripted() const {return _descripted;}
+        void udpate_iter_range(ForkIter iter, ForkRange range);
+        ForkData(std::shared_ptr<Descripted> d,ForkIter fi, ForkRange forkRange);
+    };
+    std::optional<ForkData> forkData;
 
 public:
     FocusMap::iterator focusIter;
 
 public:
-    ConnectionData(Forkmap::iterator forkEnd, FocusMap::iterator focusEnd)
-        : forkIter(forkEnd)
-        , focusIter(focusEnd)
+    ConnectionData(FocusMap::iterator focusEnd)
+        : focusIter(focusEnd)
     {
     }
+    bool has_fork_data()const{return forkData.has_value();}
     ConnectionData(const ConnectionData&) = delete;
-    auto& fork_range() const { return forkRange; }
-    auto& fork_iter() const { return forkIter; }
-    auto& descripted() const { return _descripted; }
+    auto fork_range() const { return forkData.value().range(); }
+    auto fork_iter() const { return forkData.value().iter(); }
+    auto& descripted() const { return forkData.value().descripted(); }
 };
 [[nodiscard]] ConnectionData& data(Conref);
 }

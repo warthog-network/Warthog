@@ -304,7 +304,7 @@ void Eventloop::initialize_block_download()
     }
 }
 
-ForkHeight Eventloop::update_blockdownload_headers(Headerchain&& hc)
+ForkHeight Eventloop::set_stage_headers(Headerchain&& hc)
 {
     spdlog::info("Syncing... (height {} of {})", chains.consensus_length().value(), hc.length().value());
     auto forkHeight { chains.update_stage(std::move(hc)) };
@@ -444,6 +444,9 @@ void Eventloop::handle_event(mempool::Log&& log)
 
 void Eventloop::erase(Conref c, int32_t error)
 {
+    if (c->c->eventloop_erased)
+        return;
+    c->c->eventloop_erased = true;
     bool doRequests = false;
     c.job().unref_active_requests(activeRequests);
     if (c.ping().has_timerref(timer))
@@ -451,14 +454,12 @@ void Eventloop::erase(Conref c, int32_t error)
     if (c.job().has_timerref(timer)) {
         timer.cancel(c.job().timer());
     }
-    c->c->eventloop_erased = true;
     assert(c.valid());
     if (headerDownload.erase(c) && !closeReason) {
         spdlog::info("Connected to {} peers (closed connection to {}, reason: {})", headerDownload.size(), c->c->peer_endpoint().to_string(), Error(error).err_name());
     }
-    if (blockDownload.erase(c)) {
+    if (blockDownload.erase(c)) 
         coordinate_sync();
-    };
     if (connections.erase(c.iterator()))
         update_wakeup();
     if (doRequests) {
