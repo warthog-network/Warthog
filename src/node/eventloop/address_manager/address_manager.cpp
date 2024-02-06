@@ -19,7 +19,7 @@ Conref AddressManager::find(uint64_t id)
     return ConrefIter { iter };
 }
 
-std::pair<int32_t, Conref> AddressManager::insert(Connection* c, HeaderDownload::Downloader& h, BlockDownload::Downloader& b, Timer& t)
+std::pair<int32_t, Conref> AddressManager::insert(std::shared_ptr<Connection> c, HeaderDownload::Downloader& h, BlockDownload::Downloader& b, Timer& t)
 {
     EndpointAddress a { c->peer_endpoint() };
     if (auto iter = byEndpoint.find(a); iter != byEndpoint.end()) {

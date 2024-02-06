@@ -52,11 +52,12 @@ void Conman::uncount(IPv4 ip)
 }
 
 // reference counting
-void Conman::unlink(Connection* const pcon)
+void Conman::unlink(std::shared_ptr<Connection> pcon)
 {
-    connections.erase(pcon);
-    unref("connection");
+    if(connections.erase(pcon))
+        unref("connection");
 }
+
 void Conman::addref(const char* tag)
 {
     std::unique_lock<std::mutex> lock(mutex);
@@ -64,6 +65,7 @@ void Conman::addref(const char* tag)
     if (debug_refcount)
         spdlog::debug("[conman] addref -> {}, {}", refcount, tag);
 }
+
 void Conman::unref(const char* tag)
 {
     refcount -= 1;
@@ -76,30 +78,32 @@ void Conman::unref(const char* tag)
     }
 }
 
-void Conman::async_send(Connection* pcon) // CALLED BY PROCESSING THREAD
+void Conman::async_send(std::shared_ptr<Connection> c) // CALLED BY PROCESSING THREAD
 {
     std::unique_lock<std::mutex> lock(mutex);
-    events.push(Send { pcon });
+    events.push(Send { std::move(c) });
     uv_async_send(&wakeup);
 }
-void Conman::async_delete(Connection* pcon) // POTENTIALLY CALLED BY OTHER THREAD
+
+void Conman::async_delete(std::shared_ptr<Connection> pcon) // POTENTIALLY CALLED BY OTHER THREAD
 {
     std::unique_lock<std::mutex> lock(mutex);
-    events.push(Delete { pcon });
+    events.push(Delete { std::move(pcon) });
     uv_async_send(&wakeup);
 }
-void Conman::async_close(Connection* pcon,
+
+void Conman::async_close(std::shared_ptr<Connection> c,
     int32_t error) // POTENTIALLY CALLED BY OTHER THREAD
 {
     std::unique_lock<std::mutex> lock(mutex);
-    events.push(Close { pcon, error });
+    events.push(Close { std::move(c), error });
     uv_async_send(&wakeup);
 }
-void Conman::async_validate(Connection* c, bool accept, int64_t rowid)
+
+void Conman::async_validate(std::weak_ptr<Connection> c, bool accept, int64_t rowid)
 {
     std::unique_lock<std::mutex> lock(mutex);
-    c->addref("validate");
-    events.push(Validation { c, accept, rowid });
+    events.push(Validation { std::move(c), accept, rowid });
     uv_async_send(&wakeup);
 }
 
@@ -139,12 +143,12 @@ void Conman::on_connect(int status)
             std::string(errors::err_name(status)), status);
         return;
     }
-    auto p = connections.emplace(new Connection(*this, true));
-    auto& conn = **p.first;
+    auto [iter,inserted] = connections.emplace(std::make_shared<Connection>(*this, true));
+    const auto& p = *iter;
     addref("connection");
-    if (status = conn.accept(); status != 0)
-        return conn.close(status);
-    peerServer.async_validate(*this, &conn);
+    if (status = p->accept(); status != 0)
+        return p->close(status);
+    peerServer.async_validate(*this, p);
 }
 void Conman::on_wakeup()
 {
@@ -175,8 +179,6 @@ void Conman::on_reconnect_closed(ReconnectTimer& t)
 void Conman::handle_event(Delete&& e)
 {
     assert(e.c->state == Connection::State::CLOSING);
-    assert(e.c->timer.data == nullptr);
-    unlink(e.c);
     if (e.c->reconnectSleep.has_value() && !e.c->inbound) {
         auto a = e.c->peerAddress;
         const size_t seconds = e.c->reconnectSleep.value();
@@ -196,8 +198,9 @@ void Conman::handle_event(Delete&& e)
         assert(uv_timer_init(loop(), &timer.uv_timer) == 0);
         uv_timer_start(&timer.uv_timer, &Conman::reconnect_caller, milliseconds, 0);
     }
-    delete e.c;
+    unlink(e.c);
 }
+
 void Conman::handle_event(Close&& e)
 {
     e.c->close(e.reason);
@@ -209,20 +212,20 @@ void Conman::handle_event(Send&& e)
 
 void Conman::handle_event(Validation&& e)
 {
-    Connection* c = e.c;
-    c->unref("validate");
-    c->logrow = e.rowid;
-    if (e.accept) { // accept
-        c->start_read();
-    } else {
-        c->close(EREFUSED);
+    if (auto l{e.c.lock()}; l) {
+        l->logrow=e.rowid;
+        if (e.accept) { 
+            l->start_read();
+        } else {
+            l->close(EREFUSED);
+        }
     }
 }
 
 void Conman::handle_event(GetPeers&& e)
 {
     std::vector<APIPeerdata> data;
-    for (Connection* c : connections) {
+    for (auto c : connections) {
         APIPeerdata item;
         item.address = c->peerAddress;
         item.since = c->connected_since;

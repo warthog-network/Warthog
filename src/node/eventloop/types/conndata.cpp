@@ -10,8 +10,8 @@ ConnectionJob::ConnectionJob(uint64_t conId, Timer& t)
 {
 }
 
-PeerState::PeerState(Connection* c, HeaderDownload::Downloader& h, BlockDownload::Downloader& b, Timer& t)
-    : c(c)
+PeerState::PeerState(std::shared_ptr<Connection> p, HeaderDownload::Downloader& h, BlockDownload::Downloader& b, Timer& t)
+    : c(std::move(p))
     , job(c->id, t)
     , ping(t)
     , usage(h, b)

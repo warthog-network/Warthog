@@ -60,8 +60,8 @@ public:
 
     void async_state_update(StateUpdate&& s);
     void async_mempool_update(mempool::Log&& s);
-    bool async_process(Connection* c);
-    void async_erase(Connection* c, int32_t error);
+    bool async_process(std::shared_ptr<Connection> c);
+    void async_erase(std::shared_ptr<Connection> c, int32_t error);
     void async_shutdown(int32_t reason);
     void async_report_failed_outbound(EndpointAddress);
     void async_stage_action(stage_operation::Result);
@@ -82,7 +82,7 @@ private:
     bool has_work();
     void work();
     bool check_shutdown();
-    void process_connection(Connection* c);
+    void process_connection(std::shared_ptr<Connection> c);
 
     //////////////////////////////
     // Private async functions
@@ -92,7 +92,6 @@ private:
     //////////////////////////////
     // Connection related functions
     void erase(Conref cr, int32_t error);
-    void unref(Connection* c);
     [[nodiscard]] bool insert(Conref cr, const InitMsg& data); // returns true if requests might be possbile
     void close(Conref cr, uint32_t reason);
     void close_by_id(uint64_t connectionId, int32_t reason);
@@ -176,11 +175,11 @@ private:
     ////////////////////////
     // event types
     struct OnRelease {
-        Connection* c;
+        std::shared_ptr<Connection> c;
         int32_t error;
     };
     struct OnProcessConnection {
-        Connection* c;
+        std::shared_ptr<Connection> c;
     };
     struct OnForwardBlockrep {
         uint64_t conId;

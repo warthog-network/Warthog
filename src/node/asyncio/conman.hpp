@@ -40,14 +40,14 @@ private:
     void uncount(IPv4);
 
     // reference counting
-    void unlink(Connection* const pcon);
+    void unlink(std::shared_ptr<Connection> const pcon);
     void addref(const char*);
     void unref(const char*);
 
-    void async_send(Connection* pcon); // CALLED BY PROCESSING THREAD
-    void async_delete(Connection* pcon); // POTENTIALLY CALLED BY OTHER THREAD
-    void async_close(Connection* pcon, int32_t error); // POTENTIALLY CALLED BY OTHER THREAD
-    void async_validate(Connection* c, bool accept, int64_t rowid); // CALLED BY OTHER THREAD
+    void async_send(std::shared_ptr<Connection> c); // CALLED BY PROCESSING THREAD
+    void async_delete(std::shared_ptr<Connection> c); // POTENTIALLY CALLED BY OTHER THREAD
+    void async_close(std::shared_ptr<Connection> c, int32_t error); // POTENTIALLY CALLED BY OTHER THREAD
+    void async_validate(std::weak_ptr<Connection> c, bool accept, int64_t rowid); // CALLED BY OTHER THREAD
 
 public:
     struct APIPeerdata {
@@ -88,7 +88,7 @@ private:
     //--------------------------------------
     // data accessed by libuv thread
     PerIpCounter perIpCounter;
-    std::set<Connection*> connections;
+    std::set<std::shared_ptr<Connection>> connections;
     std::list<ReconnectTimer> reconnectTimers;
     int refcount { 0 }; // count connections + tcp_handle + wakeup
     bool closing = false;
@@ -97,17 +97,17 @@ private:
 
     // MESSAGE QUEUE
     struct Delete {
-        Connection* c;
+        std::shared_ptr<Connection> c;
     };
     struct Close {
-        Connection* c;
+        std::shared_ptr<Connection> c;
         int32_t reason;
     };
     struct Send {
-        Connection* c;
+        std::shared_ptr<Connection> c;
     };
     struct Validation {
-        Connection* c;
+        std::weak_ptr<Connection> c;
         bool accept;
         int64_t rowid;
     };

@@ -217,9 +217,6 @@ public:
     CustomFloat operator+(CustomFloat f) const { return CustomFloat(*this) += f; }
     CustomFloat operator-(CustomFloat f) { return CustomFloat(*this) -= f; }
 
-    // auto operator<=>(CustomFloat f) const{ // TODO
-    //
-    // }
     CustomFloat& operator*=(CustomFloat cf)
     {
         if (is_zero() || cf.is_zero()) {

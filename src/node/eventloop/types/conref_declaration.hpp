@@ -23,6 +23,7 @@ public:
     inline const PeerChain& chain() const;
     inline PeerChain& chain();
     operator bool() { return data.val != 0; };
+    inline bool closed();
     inline auto& job();
     inline auto& job() const;
     inline auto& ping();

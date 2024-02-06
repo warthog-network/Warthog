@@ -216,8 +216,8 @@ namespace BlockDownload {
 class Attorney;
 }
 struct PeerState {
-    PeerState(Connection* c, HeaderDownload::Downloader& h, BlockDownload::Downloader& b, Timer& t);
-    Connection* c;
+    PeerState(std::shared_ptr<Connection> c, HeaderDownload::Downloader& h, BlockDownload::Downloader& b, Timer& t);
+    std::shared_ptr<Connection> c;
     std::optional<mempool::SubscriptionIter> subscriptionIter;
     ConnectionJob job;
     Height txSubscription { 0 };
@@ -244,13 +244,13 @@ bool Conref::operator==(Conref other) const { return data.iter == other.data.ite
 Conref::operator Connection*()
 {
     if (valid())
-        return data.iter->second.c;
+        return data.iter->second.c.get();
     return nullptr;
 }
 Conref::operator const Connection*() const
 {
     if (valid())
-        return data.iter->second.c;
+        return data.iter->second.c.get();
     return nullptr;
 }
 const PeerChain& Conref::chain() const { return data.iter->second.chain; }

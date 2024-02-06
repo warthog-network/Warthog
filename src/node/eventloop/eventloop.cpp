@@ -62,9 +62,9 @@ bool Eventloop::defer(Event e)
     cv.notify_one();
     return true;
 }
-bool Eventloop::async_process(Connection* c)
+bool Eventloop::async_process(std::shared_ptr<Connection> c)
 {
-    return defer(OnProcessConnection { c });
+    return defer(OnProcessConnection { std::move(c) });
 }
 void Eventloop::async_shutdown(int32_t reason)
 {
@@ -79,9 +79,9 @@ void Eventloop::async_report_failed_outbound(EndpointAddress a)
     defer(OnFailedAddressEvent { a });
 }
 
-void Eventloop::async_erase(Connection* c, int32_t error)
+void Eventloop::async_erase(std::shared_ptr<Connection> c, int32_t error)
 {
-    if (!defer(OnRelease { c, error })) {
+    if (!defer(OnRelease { std::move(c), error })) {
     }
 }
 
@@ -187,7 +187,6 @@ bool Eventloop::check_shutdown()
         if (cr->erased())
             continue;
         erase(cr, closeReason);
-        unref(cr);
     }
 
     stateServer.shutdown_join();
@@ -200,11 +199,11 @@ void Eventloop::handle_event(OnRelease&& m)
     bool registered { m.c->eventloop_registered };
     if ((!erased) && registered)
         erase(m.c->dataiter, m.error);
-    unref(m.c);
 }
+
 void Eventloop::handle_event(OnProcessConnection&& m)
 {
-    process_connection(m.c);
+    process_connection(std::move(m.c));
 }
 
 void Eventloop::handle_event(StateUpdate&& e)
@@ -467,10 +466,6 @@ void Eventloop::erase(Conref c, int32_t error)
     }
 }
 
-void Eventloop::unref(Connection* c)
-{
-    c->eventloop_unref("eventloop 2");
-}
 
 bool Eventloop::insert(Conref c, const InitMsg& data)
 {
@@ -487,10 +482,9 @@ bool Eventloop::insert(Conref c, const InitMsg& data)
 
 void Eventloop::close(Conref cr, uint32_t reason)
 {
-    Connection* c = cr->c;
-    if (c->eventloop_erased)
+    if (!cr->c->eventloop_registered)
         return;
-    c->async_close(reason);
+    cr->c->async_close(reason);
     erase(cr, reason); // do not consider this connection anymore
 }
 
@@ -516,7 +510,7 @@ void Eventloop::close(Conref cr, ChainError e)
     close(cr, e.e);
 }
 
-void Eventloop::process_connection(Connection* c)
+void Eventloop::process_connection(std::shared_ptr<Connection> c)
 {
     if (c->eventloop_erased)
         return;

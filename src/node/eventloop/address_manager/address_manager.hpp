@@ -158,7 +158,7 @@ public:
 
     // erase/insert
     [[nodiscard]] bool erase(Conndatamap::iterator); // returns whether is pinned
-    std::pair<int32_t, Conref> insert(Connection*,
+    std::pair<int32_t, Conref> insert(std::shared_ptr<Connection>,
         HeaderDownload::Downloader&, BlockDownload::Downloader&, Timer&);
 
     // callbacks

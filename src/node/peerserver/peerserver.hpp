@@ -35,7 +35,7 @@ private:
     friend struct Inspector;
     struct NewConnection {
         Conman& cm;
-        Connection* c;
+        std::weak_ptr<Connection> c;
     };
     struct Unban {
         ResultCB cb;
@@ -60,10 +60,10 @@ public:
         hasWork = true;
         cv.notify_one();
     }
-    bool async_validate(Conman& cm, Connection* c)
+    bool async_validate(Conman& cm, std::shared_ptr<Connection> c)
     {
         // make sure that addref is called before
-        return async_event(NewConnection { cm, c });
+        return async_event(NewConnection { cm, std::move(c) });
     }
     bool async_get_banned(BannedCB cb)
     {

@@ -4,7 +4,83 @@
 #include "conman.hpp"
 #include "eventloop/types/conref_declaration.hpp"
 
-class Connection final {
+class Connection final : public std::enable_shared_from_this<Connection> {
+    struct TCP_t : public uv_tcp_t {
+        std::shared_ptr<Connection> con;
+        uv_stream_t* to_stream_ptr() { 
+            return reinterpret_cast<uv_stream_t*>(static_cast<uv_tcp_t*>(this));
+        }
+        uv_handle_t* to_handle_ptr() { 
+            return reinterpret_cast<uv_handle_t*>(static_cast<uv_tcp_t*>(this));
+        }
+        static TCP_t* from_handle_ptr(uv_handle_t* p){
+            return static_cast<TCP_t*>(reinterpret_cast<uv_tcp_t*>(p));
+        }
+        TCP_t(uv_loop_t* loop, std::shared_ptr<Connection> p)
+            : con(std::move(p))
+        {
+            assert(uv_tcp_init(loop, this) == 0);
+        }
+    };
+    struct TimeoutTimer {
+    private:
+        struct Internal : public uv_timer_t {
+            std::shared_ptr<Connection> con;
+            std::shared_ptr<Internal> self;
+            inline uv_handle_t* to_handle_ptr()
+            {
+                return reinterpret_cast<uv_handle_t*>(static_cast<uv_timer_t*>(this));
+            }
+            static inline Internal* from_handle_ptr(uv_handle_t* h)
+            {
+                return static_cast<Internal*>(reinterpret_cast<uv_timer_t*>(h));
+            }
+            static void on_close(uv_timer_t* handle){
+                auto p { static_cast<Internal*>(handle) };
+                p->con->close(ETIMEOUT);
+                p->close();
+            }
+            Internal(Connection& c)
+                :con(c.shared_from_this())
+            {
+                assert(uv_timer_init(c.conman.server.loop, this) == 0);
+                assert(uv_timer_start(
+                           this, on_close,
+                           5000, 0)
+                    == 0);
+            }
+            void close()
+            {
+                if (uv_is_closing(to_handle_ptr()))
+                    return;
+                assert(uv_timer_stop(this)==0);
+                uv_close(to_handle_ptr(), [](uv_handle_t* handle) {
+                    auto t { from_handle_ptr(handle) };
+                    t->self = {};
+                });
+            }
+        };
+        std::weak_ptr<Internal> internal;
+
+    public:
+        bool expired()
+        {
+            return internal.expired();
+        }
+        void cancel()
+        {
+            if (auto p { internal.lock() }; p)
+                p->close();
+        }
+        void start(Connection& c)
+        {
+            cancel();
+            auto p { std::make_shared<Internal>(c) };
+            internal = p;
+            p->self = std::move(p);
+        }
+    };
+
 private:
     // Connection counts its references and will eventually be destructed by
     // Conman using delete It must be created with new
@@ -30,7 +106,7 @@ private:
         static constexpr const char connect_grunt[] = "WARTHOG GRUNT?";
         static constexpr const char accept_grunt[] = "WARTHOG GRUNT!";
         static constexpr const char connect_grunt_testnet[] = "TESTNET GRUNT?";
-        static constexpr const char accept_grunt_testnet[] =  "TESTNET GRUNT!";
+        static constexpr const char accept_grunt_testnet[] = "TESTNET GRUNT!";
         uint8_t pos = 0;
         bool handshakesent = false;
         uint32_t version(bool inbound);
@@ -61,7 +137,7 @@ private:
 
     //////////////////////////////
     // mutex protected methods
-    void async_send(std::unique_ptr<char[]>&& data, size_t size);
+    void async_send(std::unique_ptr<char[]> data, size_t size);
 
 public:
     enum class State { CONNECTING,
@@ -70,23 +146,19 @@ public:
         CLOSING,
     };
     std::vector<Rcvbuffer> extractMessages();
-    void eventloop_unref(const char* tag);
     void asyncsend(Sndbuffer&& msg);
     void async_close(int errcode);
     [[nodiscard]] EndpointAddress peer_address() { return peerAddress; }
     [[nodiscard]] EndpointAddress peer_endpoint() { return EndpointAddress { peerAddress.ipv4, peerEndpointPort }; }
 
-private:
-    void unref(const char* tag);
     Connection(Conman& conman, bool inbound, std::optional<uint32_t> reconnectSeconds = {});
     ~Connection();
     Connection(const Connection&) = delete;
     Connection(Connection&&) = delete;
+private:
 
     // closes connection and restarts after timeout if needed
     void close(int errcode);
-    void addref(const char* tag);
-    void addref_locked(const char* tag);
     void send_handshake();
     void send_handshake_ack();
     int send_buffers();
@@ -100,8 +172,8 @@ private:
 
 public:
     // data accessed by eventloop thread
-    bool eventloop_erased = false;
     bool eventloop_registered = false;
+    bool eventloop_erased = false;
     std::optional<uint32_t> reconnectSleep;
     const bool inbound;
     const uint64_t id;
@@ -122,17 +194,15 @@ private:
     std::unique_ptr<Handshakedata> handshakedata;
     uint32_t peerVersion;
     int64_t logrow = -1;
-    State state;
-    bool eventloopref = false; // whether the eventloop took notice of this connection
+    State state = State::CONNECTING;
     EndpointAddress peerAddress;
     uint16_t peerEndpointPort;
-    uv_tcp_t tcp;
-    uv_timer_t timer;
+    std::shared_ptr<TCP_t> tcp;
+    TimeoutTimer timeoutTimer;
 
     //////////////////////////////
     // Mutex locked members
     std::mutex mutex;
-    int refcount { 0 };
     std::list<Writebuffer> buffers; // FIFO queue
     std::set<EndpointAddress> reconnect;
     uint32_t bufferedbytes = 0;

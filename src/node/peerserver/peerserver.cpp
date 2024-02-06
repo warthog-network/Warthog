@@ -81,26 +81,28 @@ void PeerServer::handle_event(GetOffenses&& go)
 
 void PeerServer::handle_event(NewConnection&& nc)
 {
-    Connection* c = nc.c;
-    bool allowed = true;
-    const IPv4& ip = c->peer_address().ipv4;
-    uint32_t banuntil;
-    int32_t offense;
-    if (bancache.get(ip, banuntil) || db.get_peer(ip.data, banuntil, offense)) { // found entry
-        if (enableBan == true && banuntil > now) {
-            allowed = false;
-            db.insert_refuse(ip, now);
+    if (auto l{nc.c.lock()}; l){
+        bool allowed = true;
+        const IPv4& ip = l->peer_address().ipv4;
+        uint32_t banuntil;
+        int32_t offense;
+        if (bancache.get(ip, banuntil) || db.get_peer(ip.data, banuntil, offense)) { // found entry
+            if (enableBan == true && banuntil > now) {
+                allowed = false;
+                db.insert_refuse(ip, now);
+            }
+        } else {
+            db.insert_peer(ip);
+        };
+        if (allowed) {
+            auto rowid = db.insert_connect(ip.data, now);
+            nc.cm.async_validate(std::move(l), true, rowid);
+        } else {
+            nc.cm.async_validate(std::move(l), false, -1);
         }
-    } else {
-        db.insert_peer(ip);
-    };
-    if (allowed) {
-        auto rowid = db.insert_connect(ip.data, now);
-        nc.cm.async_validate(c, true, rowid);
-    } else {
-        nc.cm.async_validate(c, false, -1);
     }
-};
+}
+
 void PeerServer::handle_event(BannedCB&& cb)
 {
     auto banned = db.get_banned_peers();
