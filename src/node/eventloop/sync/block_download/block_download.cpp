@@ -366,10 +366,10 @@ void Downloader::reset()
 
 bool Downloader::erase(Conref cr)
 { // OK
-    if (!initialized) 
-        return false;
     forks.erase(cr);
     focus.erase(cr);
+    if (!initialized) 
+        return false;
     return update_reachable();
 }
 

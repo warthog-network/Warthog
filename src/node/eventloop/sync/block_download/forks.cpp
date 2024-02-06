@@ -56,7 +56,7 @@ void Forks::match(Conref c, const Headerchain& headers, NonzeroHeight h, HeaderV
 
     if (fr.match(headers, h, hv).changedLower)
         replace_fork_iter(fd, c, fr);
-};
+}
 
 void Forks::clear()
 {
