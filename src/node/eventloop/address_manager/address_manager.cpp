@@ -109,7 +109,7 @@ void AddressManager::remove_timer(decltype(pinned)::iterator iter)
 
 std::optional<std::chrono::steady_clock::time_point> AddressManager::wakeup_time()
 {
-    if (timer.empty())
+    if (timer.empty() || pendingOutgoing.size() >= maxPending)
         return {};
     return timer.begin()->first;
 }
