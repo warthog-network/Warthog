@@ -284,7 +284,7 @@ int Connection::connect(EndpointAddress a)
         {
         }
     };
-    uv_connect_t* p = new connect_t(shared_from_this());
+    auto p = new connect_t(shared_from_this());
     auto addr { a.sock_addr() };
     connection_log().info("{} connecting ", to_string());
     if (int i = uv_tcp_connect(p, &*tmp, (const sockaddr*)&addr,
