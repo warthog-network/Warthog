@@ -226,7 +226,7 @@ int Connection::accept()
 {
     int i;
     auto tmp { std::make_shared<TCP_t>(conman.server.loop, shared_from_this()) };
-    if ((i = uv_accept((uv_stream_t*)&conman.server, tcp->to_stream_ptr())))
+    if ((i = uv_accept((uv_stream_t*)&conman.server, tmp->to_stream_ptr())))
         return i;
     tcp = std::move(tmp);
 
