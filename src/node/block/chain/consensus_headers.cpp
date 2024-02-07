@@ -76,6 +76,9 @@ tl::expected<HeaderVerifier, ChainError> HeaderVerifier::copy_apply(const std::o
 HeaderVerifier::HeaderVerifier()
     : nextTarget(TargetV1::genesis())
 {
+    if (is_testnet()) {
+        nextTarget=TargetV2::genesis_testnet();
+    }
     length = Height(0);
     latestRetargetHeight = Height(0);
     latestRetargetTime = 0;

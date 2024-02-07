@@ -1,6 +1,7 @@
 #include "signed_snapshot.hpp"
 #include "block/chain/header_chain.hpp"
 #include "chainserver/state/state.hpp"
+#include "general/is_testnet.hpp"
 #include "general/reader.hpp"
 #include "general/writer.hpp"
 #include "spdlog/spdlog.h"
@@ -17,7 +18,7 @@ uint16_t SignedSnapshot::get_importance()
 
 bool SignedSnapshot::compatible(const Headerchain& hc) const
 {
-    return (hc.length() < priority.height) || hc.hash_at(priority.height) == hash;
+    return is_testnet() || (hc.length() < priority.height) || hc.hash_at(priority.height) == hash;
 }
 
 bool SignedSnapshot::compatible_inefficient(const HeaderchainSkeleton& hc) const

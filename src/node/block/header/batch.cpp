@@ -91,6 +91,6 @@ Grid::Grid(const Headerchain& hc, Batchslot begin)
 bool Grid::valid_checkpoint() const
 {
     auto cp = GridPin::checkpoint();
-    return (!cp)
+    return is_testnet() || (!cp)
         || (cp->slot < slot_end() && cp->finalHeader == operator[](cp->slot));
 }
