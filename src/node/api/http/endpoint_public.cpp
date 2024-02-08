@@ -89,7 +89,6 @@ void nav(uWS::HttpResponse<false>* res, uWS::HttpRequest*)
             <li>GET <a href=/chain/block/:id/hash>/chain/block/:id/hash</a></li>
             <li>GET <a href=/chain/block/:id/header>/chain/block/:id/header</a></li>
             <li>GET <a href=/chain/block/:id>/chain/block/:id</a></li>
-            <li>GET <a href=/chain/mine/:address>/chain/mine/:address</a></li>
             <li>POST <a href=/chain/append>/chain/append</a></li>
         </ul>
         <h2>Account endpoints</h2>
@@ -126,8 +125,6 @@ void HTTPEndpointPublic::work()
     get_1("/chain/block/:id/hash", get_chain_hash);
     get_1("/chain/block/:id/header", get_chain_header);
     get_1("/chain/block/:id", get_chain_block);
-    get_1("/chain/mine/:account", get_chain_mine);
-    get_1("/chain/mine/:account/log", get_chain_mine_log);
     post("/chain/append", parse_mining_task, put_chain_append);
 
     // Account endpoints
