@@ -1,4 +1,5 @@
 #include "api/http/endpoint.hpp"
+#include "api/http/endpoint_public.hpp"
 #include "asyncio/conman.hpp"
 #include "chainserver/server.hpp"
 #include "db/chain_db.hpp"
@@ -109,6 +110,7 @@ int main(int argc, char** argv)
 
     // starting endpoint
     HTTPEndpoint endpoint { config() };
+    auto endpointPublic { HTTPEndpointPublic::make_endpoint_public(config()) };
 
     // setup globals
     global_init(&breg, &ps, &cs, &cm, &el, &endpoint);

@@ -12,6 +12,10 @@ struct Config {
     struct JSONRPC {
         EndpointAddress bind;
     } jsonrpc;
+    struct PublicAPI {
+        EndpointAddress bind;
+    };
+    std::optional<PublicAPI> publicAPI;
     struct Node {
         std::optional<SnapshotSigner> snapshotSigner;
         EndpointAddress bind;

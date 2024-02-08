@@ -149,9 +149,13 @@ int Config::process_gengetopt(gengetopt_args_info& ai)
     // copy default values
     std::optional<EndpointAddress> nodeBind;
     std::optional<EndpointAddress> rpcBind;
+    std::optional<EndpointAddress> publicrpcBind;
     node.isolated = ai.isolated_given;
     if (ai.testnet_given) {
         enable_testnet();
+    }
+    if (ai.enable_public_given) {
+        publicrpcBind = EndpointAddress("0.0.0.0:3001");
     }
 
     if (is_testnet()) {
@@ -224,6 +228,13 @@ int Config::process_gengetopt(gengetopt_args_info& ai)
                             data.chaindb = fetch<std::string>(v);
                         else if (k == "peers-db")
                             data.peersdb = fetch<std::string>(v);
+                        else
+                            warning_config(k);
+                    }
+                } else if (key == "publicrpc") {
+                    for (auto& [k, v] : *t) {
+                        if (k == "bind")
+                            publicrpcBind = fetch_endpointaddress(v);
                         else
                             warning_config(k);
                     }
@@ -301,10 +312,28 @@ int Config::process_gengetopt(gengetopt_args_info& ai)
         };
         jsonrpc.bind = p.value();
     } else {
-        if (is_testnet())
-            jsonrpc.bind = EndpointAddress::parse("127.0.0.1:3100").value();
-        else
-            jsonrpc.bind = EndpointAddress::parse("127.0.0.1:3000").value();
+        if (rpcBind) {
+            jsonrpc.bind = *rpcBind;
+        }else{
+            if (is_testnet())
+                jsonrpc.bind = EndpointAddress::parse("127.0.0.1:3100").value();
+            else
+                jsonrpc.bind = EndpointAddress::parse("127.0.0.1:3000").value();
+        }
+    }
+
+    // JSON Puclic RPC socket
+    if (ai.publicrpc_given) {
+        auto p = EndpointAddress::parse(ai.publicrpc_arg);
+        if (!p) {
+            std::cerr << "Bad --publicrpc option '" << ai.rpc_arg << "'.\n";
+            return -1;
+        };
+        publicAPI = PublicAPI{p.value()};
+    } else {
+        if (publicrpcBind) {
+            publicAPI = PublicAPI(publicrpcBind.value());
+        }
     }
 
     // Node socket

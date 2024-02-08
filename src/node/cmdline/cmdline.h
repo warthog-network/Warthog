@@ -58,6 +58,10 @@ struct gengetopt_args_info
   char * rpc_arg;	/**< @brief JSON RPC endpoint socket, defaults to \"127.0.0.1:3000\" for main net and \"127.0.0.1:3100\" for test net.  */
   char * rpc_orig;	/**< @brief JSON RPC endpoint socket, defaults to \"127.0.0.1:3000\" for main net and \"127.0.0.1:3100\" for test net original value given at command line.  */
   const char *rpc_help; /**< @brief JSON RPC endpoint socket, defaults to \"127.0.0.1:3000\" for main net and \"127.0.0.1:3100\" for test net help description.  */
+  char * publicrpc_arg;	/**< @brief Public JSON RPC endpoint socket, disabled by default.  */
+  char * publicrpc_orig;	/**< @brief Public JSON RPC endpoint socket, disabled by default original value given at command line.  */
+  const char *publicrpc_help; /**< @brief Public JSON RPC endpoint socket, disabled by default help description.  */
+  const char *enable_public_help; /**< @brief Shorthand for --publicrpc=0.0.0.0:3001 help description.  */
   char * config_arg;	/**< @brief Configuration file, default is \"config.toml\", in testnet \"testnet_chain.db3\".  */
   char * config_orig;	/**< @brief Configuration file, default is \"config.toml\", in testnet \"testnet_chain.db3\" original value given at command line.  */
   const char *config_help; /**< @brief Configuration file, default is \"config.toml\", in testnet \"testnet_chain.db3\" help description.  */
@@ -75,6 +79,8 @@ struct gengetopt_args_info
   unsigned int peers_db_given ;	/**< @brief Whether peers-db was given.  */
   unsigned int debug_given ;	/**< @brief Whether debug was given.  */
   unsigned int rpc_given ;	/**< @brief Whether rpc was given.  */
+  unsigned int publicrpc_given ;	/**< @brief Whether publicrpc was given.  */
+  unsigned int enable_public_given ;	/**< @brief Whether enable-public was given.  */
   unsigned int config_given ;	/**< @brief Whether config was given.  */
   unsigned int test_given ;	/**< @brief Whether test was given.  */
   unsigned int dump_config_given ;	/**< @brief Whether dump-config was given.  */

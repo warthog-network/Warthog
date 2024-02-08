@@ -53,6 +53,8 @@ const char *gengetopt_args_info_detailed_help[] = {
   "  -d, --debug                Enable debug messages",
   "\nJSON RPC endpoint options:",
   "  -r, --rpc=IP:PORT          JSON RPC endpoint socket, defaults to\n                               \"127.0.0.1:3000\" for main net and\n                               \"127.0.0.1:3100\" for test net",
+  "      --publicrpc=IP:PORT    Public JSON RPC endpoint socket, disabled by\n                               default",
+  "      --enable-public        Shorthand for --publicrpc=0.0.0.0:3001",
   "\nConfiguration file options:",
   "  -c, --config=FILENAME      Configuration file, default is \"config.toml\", in\n                               testnet \"testnet_chain.db3\"",
   "  -t, --test                 test the configuration file (check for correct\n                               syntax)",
@@ -83,11 +85,13 @@ init_help_array(void)
   gengetopt_args_info_help[16] = gengetopt_args_info_detailed_help[20];
   gengetopt_args_info_help[17] = gengetopt_args_info_detailed_help[21];
   gengetopt_args_info_help[18] = gengetopt_args_info_detailed_help[22];
-  gengetopt_args_info_help[19] = 0; 
+  gengetopt_args_info_help[19] = gengetopt_args_info_detailed_help[23];
+  gengetopt_args_info_help[20] = gengetopt_args_info_detailed_help[24];
+  gengetopt_args_info_help[21] = 0; 
   
 }
 
-const char *gengetopt_args_info_help[20];
+const char *gengetopt_args_info_help[22];
 
 typedef enum {ARG_NO
   , ARG_STRING
@@ -120,6 +124,8 @@ void clear_given (struct gengetopt_args_info *args_info)
   args_info->peers_db_given = 0 ;
   args_info->debug_given = 0 ;
   args_info->rpc_given = 0 ;
+  args_info->publicrpc_given = 0 ;
+  args_info->enable_public_given = 0 ;
   args_info->config_given = 0 ;
   args_info->test_given = 0 ;
   args_info->dump_config_given = 0 ;
@@ -139,6 +145,8 @@ void clear_args (struct gengetopt_args_info *args_info)
   args_info->peers_db_orig = NULL;
   args_info->rpc_arg = NULL;
   args_info->rpc_orig = NULL;
+  args_info->publicrpc_arg = NULL;
+  args_info->publicrpc_orig = NULL;
   args_info->config_arg = NULL;
   args_info->config_orig = NULL;
   
@@ -160,9 +168,11 @@ void init_args_info(struct gengetopt_args_info *args_info)
   args_info->peers_db_help = gengetopt_args_info_detailed_help[13] ;
   args_info->debug_help = gengetopt_args_info_detailed_help[16] ;
   args_info->rpc_help = gengetopt_args_info_detailed_help[18] ;
-  args_info->config_help = gengetopt_args_info_detailed_help[20] ;
-  args_info->test_help = gengetopt_args_info_detailed_help[21] ;
-  args_info->dump_config_help = gengetopt_args_info_detailed_help[22] ;
+  args_info->publicrpc_help = gengetopt_args_info_detailed_help[19] ;
+  args_info->enable_public_help = gengetopt_args_info_detailed_help[20] ;
+  args_info->config_help = gengetopt_args_info_detailed_help[22] ;
+  args_info->test_help = gengetopt_args_info_detailed_help[23] ;
+  args_info->dump_config_help = gengetopt_args_info_detailed_help[24] ;
   
 }
 
@@ -271,6 +281,8 @@ cmdline_parser_release (struct gengetopt_args_info *args_info)
   free_string_field (&(args_info->peers_db_orig));
   free_string_field (&(args_info->rpc_arg));
   free_string_field (&(args_info->rpc_orig));
+  free_string_field (&(args_info->publicrpc_arg));
+  free_string_field (&(args_info->publicrpc_orig));
   free_string_field (&(args_info->config_arg));
   free_string_field (&(args_info->config_orig));
   
@@ -325,6 +337,10 @@ cmdline_parser_dump(FILE *outfile, struct gengetopt_args_info *args_info)
     write_into_file(outfile, "debug", 0, 0 );
   if (args_info->rpc_given)
     write_into_file(outfile, "rpc", args_info->rpc_orig, 0);
+  if (args_info->publicrpc_given)
+    write_into_file(outfile, "publicrpc", args_info->publicrpc_orig, 0);
+  if (args_info->enable_public_given)
+    write_into_file(outfile, "enable-public", 0, 0 );
   if (args_info->config_given)
     write_into_file(outfile, "config", args_info->config_orig, 0);
   if (args_info->test_given)
@@ -585,6 +601,8 @@ cmdline_parser_internal (
         { "peers-db",	1, NULL, 0 },
         { "debug",	0, NULL, 'd' },
         { "rpc",	1, NULL, 'r' },
+        { "publicrpc",	1, NULL, 0 },
+        { "enable-public",	0, NULL, 0 },
         { "config",	1, NULL, 'c' },
         { "test",	0, NULL, 't' },
         { "dump-config",	0, NULL, 0 },
@@ -739,6 +757,34 @@ cmdline_parser_internal (
                 &(local_args_info.peers_db_given), optarg, 0, 0, ARG_STRING,
                 check_ambiguity, override, 0, 0,
                 "peers-db", '-',
+                additional_error))
+              goto failure;
+          
+          }
+          /* Public JSON RPC endpoint socket, disabled by default.  */
+          else if (strcmp (long_options[option_index].name, "publicrpc") == 0)
+          {
+          
+          
+            if (update_arg( (void *)&(args_info->publicrpc_arg), 
+                 &(args_info->publicrpc_orig), &(args_info->publicrpc_given),
+                &(local_args_info.publicrpc_given), optarg, 0, 0, ARG_STRING,
+                check_ambiguity, override, 0, 0,
+                "publicrpc", '-',
+                additional_error))
+              goto failure;
+          
+          }
+          /* Shorthand for --publicrpc=0.0.0.0:3001.  */
+          else if (strcmp (long_options[option_index].name, "enable-public") == 0)
+          {
+          
+          
+            if (update_arg( 0 , 
+                 0 , &(args_info->enable_public_given),
+                &(local_args_info.enable_public_given), optarg, 0, 0, ARG_NO,
+                check_ambiguity, override, 0, 0,
+                "enable-public", '-',
                 additional_error))
               goto failure;
           
