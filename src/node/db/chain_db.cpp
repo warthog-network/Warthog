@@ -492,7 +492,7 @@ namespace {
 std::vector<TransactionId> read_tx_ids(const BodyContainer& body,
     NonzeroHeight height)
 {
-    BodyView bv(body.view());
+    BodyView bv(body.view(height));
     if (!bv.valid())
         throw std::runtime_error(
             "Database corrupted (invalid block body at height " + std::to_string(height) + ".");

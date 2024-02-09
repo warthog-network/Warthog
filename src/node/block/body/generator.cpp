@@ -1,6 +1,6 @@
 #include "generator.hpp"
-#include "spdlog/spdlog.h"
 #include "db/chain_db.hpp"
+#include "spdlog/spdlog.h"
 
 struct TransferTxExchangeMessage;
 
@@ -46,11 +46,12 @@ class BlockGenerator {
                 auto id = nextStateId++;
                 auto iter = cache.emplace(address, id).first;
                 newEntries.push_back(iter->first);
+                assert(newEntries.size() < std::numeric_limits<uint16_t>::max());
                 return id;
             }
         }
         void clear() { newEntries.clear(); }
-        size_t binarysize() { return 4 + 20 * newEntries.size(); }
+        size_t binarysize() { return 2 + 20 * newEntries.size(); }
         uint8_t* write(uint8_t* out);
 
     private:
@@ -64,13 +65,20 @@ class BlockGenerator {
     public:
         PaymentSection(uint32_t n)
         {
-            buf.reserve(4 + n * 99);
-            buf.resize(4);
-            bewrite(buf.data(), n);
+            if (n == 0)
+                buf.resize(0);
+            else {
+                buf.reserve(4 + n * 99);
+                buf.resize(4);
+                bewrite(buf.data(), n);
+            }
         }
         void add_payment(AccountId toId, PinNonce pinNonce,
             const TransferTxExchangeMessage&);
-        size_t binarysize() { return buf.size(); }
+        size_t binarysize()
+        {
+            return buf.size();
+        }
         uint8_t* write(uint8_t* out)
         {
             memcpy(out, buf.data(), buf.size());
@@ -82,21 +90,18 @@ class BlockGenerator {
     };
     struct PayoutSection {
     public:
-        PayoutSection(uint16_t n)
+        PayoutSection(AccountId toId, Funds amount)
         {
-            buf.reserve(2 + n * 16);
-            buf.resize(2);
-            bewrite(buf.data(), n);
-        }
-        void write(AccountId toId, Funds amount)
-        {
-            size_t offset = buf.size();
-            buf.resize(offset + 16);
-            uint8_t* pos = buf.data() + offset;
+            buf.resize(16);
+            uint8_t* pos = buf.data();
             pos = bewrite(pos, toId.value());
             pos = bewrite(pos, amount.E8());
         }
-        size_t binarysize() { return buf.size(); }
+        size_t binarysize()
+        {
+            assert(buf.size() == 16);
+            return buf.size();
+        }
         uint8_t* write(uint8_t* out)
         {
             memcpy(out, buf.data(), buf.size());
@@ -112,7 +117,7 @@ public:
         : nas(db)
     {
     }
-    BodyContainer gen_block(NonzeroHeight height, const std::vector<Payout>& payouts,
+    BodyContainer gen_block(NonzeroHeight height, const Payout& payouts,
         const std::vector<TransferTxExchangeMessage>& payments);
 
 private:
@@ -120,28 +125,20 @@ private:
 };
 
 BodyContainer BlockGenerator::gen_block(NonzeroHeight height,
-    const std::vector<Payout>& payouts,
-    const std::vector<TransferTxExchangeMessage>& payments
-    )
+    const Payout& payout,
+    const std::vector<TransferTxExchangeMessage>& payments)
 {
     nas.clear();
 
     // Payouts
-    if (payouts.size() > std::numeric_limits<uint16_t>::max()) {
-        throw std::runtime_error("Too many payouts");
-    }
-    PayoutSection pos(payouts.size());
-    for (auto& p : payouts) {
-        AccountId toId = nas.getId(p.to);
-        pos.write(toId, p.amount);
-    }
+    PayoutSection pos(nas.getId(payout.to), payout.amount);
 
     // Payments
     if (payments.size() > std::numeric_limits<uint32_t>::max()) {
         throw std::runtime_error("Too many payments");
     }
 
-    // filter valid payments to survive self send 
+    // filter valid payments to survive self send
     std::vector<TransferTxExchangeMessage> validPayments;
     for (auto& pmsg : payments) {
         if (nas.getId(pmsg.toAddr) == pmsg.from_id()) {
@@ -166,13 +163,13 @@ BodyContainer BlockGenerator::gen_block(NonzeroHeight height,
     }
 
     // Serialize block
-    size_t size { 4 + nas.binarysize() + pos.binarysize() + pms.binarysize() };
+    size_t size { 10 + nas.binarysize() + pos.binarysize() + pms.binarysize() };
     if (size > MAXBLOCKSIZE) {
         throw std::runtime_error("Block size too large");
     }
     std::vector<uint8_t> out;
     out.resize(size);
-    uint8_t* p = out.data() + 4;
+    uint8_t* p = out.data() + 10;
     p = nas.write(p);
     p = pos.write(p);
     pms.write(p);
@@ -181,7 +178,7 @@ BodyContainer BlockGenerator::gen_block(NonzeroHeight height,
 
 uint8_t* BlockGenerator::NewAddressSection::write(uint8_t* out)
 {
-    uint32_t n = newEntries.size();
+    uint16_t n = newEntries.size();
     out = bewrite(out, n);
     for (size_t i = 0; i < newEntries.size(); ++i) {
         memcpy(out, newEntries[i].data(), 20);
@@ -208,7 +205,8 @@ void BlockGenerator::PaymentSection::add_payment(
 }
 }
 
-BodyContainer generate_body(const ChainDB& db, NonzeroHeight height, const std::vector<Payout>& payouts, const std::vector<TransferTxExchangeMessage>& payments){
+BodyContainer generate_body(const ChainDB& db, NonzeroHeight height, const Payout& payout, const std::vector<TransferTxExchangeMessage>& payments)
+{
     BlockGenerator bg(db);
-    return bg.gen_block(height,payouts,payments);
+    return bg.gen_block(height, payout, payments);
 }

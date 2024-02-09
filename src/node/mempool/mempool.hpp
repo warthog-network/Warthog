@@ -42,7 +42,7 @@ public:
     void erase_before_height(Height);
 
     // getters
-    [[nodiscard]] auto get_payments(size_t n, bool log, std::vector<Hash>* hashes = nullptr) const
+    [[nodiscard]] auto get_payments(size_t n, bool log, NonzeroHeight h, std::vector<Hash>* hashes = nullptr) const
         -> std::vector<TransferTxExchangeMessage>;
     [[nodiscard]] auto take(size_t) const -> std::vector<TxidWithFee>;
     [[nodiscard]] auto filter_new(const std::vector<TxidWithFee>&) const

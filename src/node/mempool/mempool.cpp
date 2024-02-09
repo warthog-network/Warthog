@@ -3,7 +3,7 @@
 #include "general/log_compressed.hpp"
 namespace mempool {
 
-std::vector<TransferTxExchangeMessage> Mempool::get_payments(size_t n, bool log, std::vector<Hash>* hashes) const
+std::vector<TransferTxExchangeMessage> Mempool::get_payments(size_t n, bool log, NonzeroHeight h, std::vector<Hash>* hashes) const
 {
     if (n == 0) {
         return {};
@@ -15,7 +15,7 @@ std::vector<TransferTxExchangeMessage> Mempool::get_payments(size_t n, bool log,
         try {
             TransferTxExchangeMessage m { (*iter)->first, (*iter)->second };
             if (log) {
-                log_compressed(m);
+                log_compressed(m, h);
             }
 
             res.push_back(m);

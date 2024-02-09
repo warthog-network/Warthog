@@ -34,7 +34,7 @@ ApplyStageTransaction::ApplyStageTransaction(const State& s, ChainDBTransaction&
         }
         BlockId blockId { p->first };
         Block& b = p->second;
-        BodyView bv(b.body.view());
+        BodyView bv(b.body.view(h));
         assert(bv.valid());
 
         try {

@@ -237,20 +237,19 @@ MiningTask State::mining_task(const Address& a, bool log)
 {
     auto md = chainstate.mining_data();
 
-    auto payments { chainstate.mempool().get_payments(50,log) };
+    NonzeroHeight height { next_height() };
+    auto payments { chainstate.mempool().get_payments(50,  log, height) };
     Funds totalfee { 0 };
     for (auto& p : payments)
         totalfee += p.fee();
-    std::vector<Payout>
-        payouts { { a, md.reward + totalfee } };
+    Payout payout { a, md.reward + totalfee };
 
     // mempool should have deleted out of window transactions
-    auto body { generate_body(db, (chainlength() + 1).nonzero_assert(), payouts, payments) };
-    BodyView bv(body.view());
+    auto body { generate_body(db, height, payout, payments) };
+    BodyView bv(body.view(height));
     if (!bv.valid())
         spdlog::error("Cannot create mining task, body invalid");
 
-    NonzeroHeight height{(chainlength() + 1).nonzero_assert()};
     HeaderGenerator hg(md.prevhash, bv, md.target, md.timestamp, height);
     return { .block {
         .height = height,
@@ -328,7 +327,7 @@ auto State::add_stage(const std::vector<Block>& blocks, const Headerchain& hc) -
             err = { prepared.error(), b.height };
             break;
         }
-        BodyView bv(b.body.view());
+        BodyView bv(b.body_view());
         if (b.header.merkleroot() != bv.merkleRoot(b.height)) {
             err = { EMROOT, b.height };
             break;
@@ -381,7 +380,7 @@ RollbackResult State::rollback(const Height newlength) const
             throw std::runtime_error("Database corrupted (could not load block)");
         auto& [header, body, undo] = *u;
 
-        BodyView bv(body);
+        BodyView bv(body, height);
         if (!bv.valid())
             throw std::runtime_error(
                 "Database corrupted (invalid block body at height " + std::to_string(height) + ".");
@@ -498,10 +497,10 @@ auto State::apply_signed_snapshot(SignedSnapshot&& ssnew) -> std::optional<State
 
 auto State::append_mined_block(const Block& b) -> StateUpdate
 {
-    auto nextHeight { (chainlength() + 1).nonzero_assert() };
+    auto nextHeight { next_height() };
     if (nextHeight != b.height)
         throw Error(EMINEDDEPRECATED);
-    BodyView bv(b.body.view());
+    BodyView bv(b.body_view());
     auto prepared { chainstate.prepare_append(signedSnapshot, b.header) };
     if (!prepared.has_value())
         throw Error(prepared.error());
@@ -585,7 +584,7 @@ auto State::insert_txs(const TxVec& txs) -> std::pair<std::vector<int32_t>, memp
 
 API::Head State::api_get_head() const
 {
-    NonzeroHeight nextHeight { (chainlength() + 1).nonzero_assert() };
+    NonzeroHeight nextHeight { next_height() };
     PinFloor pf { PrevHeight(nextHeight) };
     return API::Head {
         .signedSnapshot { signedSnapshot },
@@ -601,7 +600,7 @@ API::Head State::api_get_head() const
 auto State::api_get_mempool(size_t) -> API::MempoolEntries
 {
     std::vector<Hash> hashes;
-    auto entries = chainstate.mempool().get_payments(100, false, &hashes);
+    auto entries = chainstate.mempool().get_payments(100, false, next_height(), &hashes);
     assert(hashes.size() == entries.size());
     API::MempoolEntries out;
     for (size_t i = 0; i < hashes.size(); ++i) {
@@ -626,8 +625,8 @@ auto State::api_get_history(Address a, uint64_t beforeId) -> std::optional<API::
     chainserver::AccountCache cache(db);
 
     auto prevHistoryId = HistoryId { 0 };
-    for (auto iter = entries_desc.rbegin(); iter != entries_desc.rend();++iter) {
-        auto& [historyId, txid, data] =*iter;
+    for (auto iter = entries_desc.rbegin(); iter != entries_desc.rend(); ++iter) {
+        auto& [historyId, txid, data] = *iter;
         if (firstHistoryId == HistoryId { 0 })
             firstHistoryId = historyId;
         assert(prevHistoryId < historyId);

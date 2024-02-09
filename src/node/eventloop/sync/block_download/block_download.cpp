@@ -334,7 +334,7 @@ void Downloader::on_blockreq_reply(Conref cr, BlockrepMsg&& rep, Blockrequest& r
     size_t i0 = (req.range.lower < focus.height_begin() ? focus.height_begin() - req.range.lower : 0);
     for (size_t i = i0; i < rep.blocks.size(); ++i) {
         auto height { req.range.lower + i };
-        BodyView bv(rep.blocks[i].view());
+        BodyView bv(rep.blocks[i].view(height));
         if (!bv.valid())
             throw Error(EMALFORMED);
         if (bv.merkleRoot(height) != headers()[height].merkleroot())

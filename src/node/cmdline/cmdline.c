@@ -56,7 +56,7 @@ const char *gengetopt_args_info_detailed_help[] = {
   "      --publicrpc=IP:PORT    Public JSON RPC endpoint socket, disabled by\n                               default",
   "      --enable-public        Shorthand for --publicrpc=0.0.0.0:3001",
   "\nConfiguration file options:",
-  "  -c, --config=FILENAME      Configuration file, default is \"config.toml\", in\n                               testnet \"testnet_chain.db3\"",
+  "  -c, --config=FILENAME      Configuration file, default is \"config.toml\", in\n                               testnet \"testnet2_chain.db3\"",
   "  -t, --test                 test the configuration file (check for correct\n                               syntax)",
   "      --dump-config          dump the current configuration to stdout",
   "  This option can be useful to generate a configuration file template",
@@ -673,7 +673,7 @@ cmdline_parser_internal (
             goto failure;
         
           break;
-        case 'c':	/* Configuration file, default is \"config.toml\", in testnet \"testnet_chain.db3\".  */
+        case 'c':	/* Configuration file, default is \"config.toml\", in testnet \"testnet2_chain.db3\".  */
         
         
           if (update_arg( (void *)&(args_info->config_arg), 

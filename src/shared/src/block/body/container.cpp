@@ -12,17 +12,18 @@ BodyContainer::BodyContainer(std::span<const uint8_t> s)
     }
 }
 
-BodyView BodyContainer::view() const
+BodyView BodyContainer::view(NonzeroHeight h) const
 {
-    return { bytes };
-};
+    return { bytes, h };
+}
 
 BodyContainer::BodyContainer(Reader& r)
 {
     auto s { r.span() };
     bytes.assign(s.begin(), s.end());
-};
+}
 
-Writer& operator<<(Writer& r, const BodyContainer& b){
-    return r<<(uint32_t)b.bytes.size()<< Range(b.bytes);
-};
+Writer& operator<<(Writer& r, const BodyContainer& b)
+{
+    return r << (uint32_t)b.bytes.size() << Range(b.bytes);
+}

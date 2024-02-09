@@ -33,7 +33,7 @@ public:
     void garbage_collect();
     auto mining_task(const Address& a, bool log) -> MiningTask;
 
-    auto append_gentx(const PaymentCreateMessage& ) -> tl::expected<mempool::Log, Error>;
+    auto append_gentx(const PaymentCreateMessage&) -> tl::expected<mempool::Log, Error>;
     auto chainlength() const -> Height { return chainstate.headers().length(); }
 
     // mempool
@@ -55,7 +55,7 @@ public:
     }
 
     // general getters
-    auto get_header(Height h) const -> std::optional<std::pair<NonzeroHeight,Header>>;
+    auto get_header(Height h) const -> std::optional<std::pair<NonzeroHeight, Header>>;
     auto get_headers() const { return chainstate.headers(); }
     auto get_hash(Height h) const -> std::optional<Hash>;
     auto get_blocks(DescriptedBlockRange) -> std::vector<BodyContainer>;
@@ -68,15 +68,16 @@ public:
     auto api_get_richlist(size_t N) -> API::Richlist;
     auto api_get_mempool(size_t) -> API::MempoolEntries;
     auto api_get_tx(HashView hash) const -> std::optional<API::Transaction>;
-    auto api_get_latest_txs(size_t N=100) const -> API::TransactionsByBlocks;
-    auto api_get_header(API::HeightOrHash& h) const -> std::optional<std::pair<NonzeroHeight,Header>>;
+    auto api_get_latest_txs(size_t N = 100) const -> API::TransactionsByBlocks;
+    auto api_get_header(API::HeightOrHash& h) const -> std::optional<std::pair<NonzeroHeight, Header>>;
     auto api_get_block(const API::HeightOrHash& h) const -> std::optional<API::Block>;
     auto api_tx_cache() const -> const TransactionIds;
 
 private:
-    // delegated getters 
+    // delegated getters
     auto api_get_block(Height h) const -> std::optional<API::Block>;
     std::optional<NonzeroHeight> consensus_height(const Hash&) const;
+    NonzeroHeight next_height() const { return (chainlength() + 1).nonzero_assert(); }
 
     // transactions
     [[nodiscard]] auto apply_stage(ChainDBTransaction&& t) -> std::tuple<ChainError, std::optional<StateUpdate>, std::vector<API::Block>>;

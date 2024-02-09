@@ -268,7 +268,7 @@ Preparation BlockApplier::Preparer::prepare(const BodyView& bv, const NonzeroHei
 
     // Read transfer section
     for (auto t : bv.transfers()) {
-        log_compressed(t);
+        log_compressed(t, height);
         balanceChecker.register_transfer(t, height);
     }
 
