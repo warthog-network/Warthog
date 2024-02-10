@@ -27,6 +27,6 @@ option "publicrpc" - "Public JSON RPC endpoint socket, disabled by default" opti
 option "enable-public" - "Shorthand for --publicrpc=0.0.0.0:3001" optional 
 
 section "Configuration file options"
-option "config" c  "Configuration file, default is \"config.toml\", in testnet \"testnet2_chain.db3\"" optional string typestr="FILENAME"
+option "config" c  "Configuration file, default is \"config.toml\", in testnet \"testnet3_chain.db3\"" optional string typestr="FILENAME"
 option "test" t "test the configuration file (check for correct syntax)" optional
 option "dump-config" - "dump the current configuration to stdout" details="This option can be useful to generate a configuration file template" optional

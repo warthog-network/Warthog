@@ -62,9 +62,9 @@ struct gengetopt_args_info
   char * publicrpc_orig;	/**< @brief Public JSON RPC endpoint socket, disabled by default original value given at command line.  */
   const char *publicrpc_help; /**< @brief Public JSON RPC endpoint socket, disabled by default help description.  */
   const char *enable_public_help; /**< @brief Shorthand for --publicrpc=0.0.0.0:3001 help description.  */
-  char * config_arg;	/**< @brief Configuration file, default is \"config.toml\", in testnet \"testnet2_chain.db3\".  */
-  char * config_orig;	/**< @brief Configuration file, default is \"config.toml\", in testnet \"testnet2_chain.db3\" original value given at command line.  */
-  const char *config_help; /**< @brief Configuration file, default is \"config.toml\", in testnet \"testnet2_chain.db3\" help description.  */
+  char * config_arg;	/**< @brief Configuration file, default is \"config.toml\", in testnet \"testnet3_chain.db3\".  */
+  char * config_orig;	/**< @brief Configuration file, default is \"config.toml\", in testnet \"testnet3_chain.db3\" original value given at command line.  */
+  const char *config_help; /**< @brief Configuration file, default is \"config.toml\", in testnet \"testnet3_chain.db3\" help description.  */
   const char *test_help; /**< @brief test the configuration file (check for correct syntax) help description.  */
   const char *dump_config_help; /**< @brief dump the current configuration to stdout help description.  */
   

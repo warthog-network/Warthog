@@ -283,6 +283,7 @@ json to_json(const MiningTask& mt)
     j["difficulty"] = mt.block.header.target(height, is_testnet()).difficulty();
     j["body"] = serialize_hex(mt.block.body.data());
     j["height"] = height;
+    j["testnet"] = is_testnet();
     return j;
 }
 json to_json(const API::MempoolEntries& entries)

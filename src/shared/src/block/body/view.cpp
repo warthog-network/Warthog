@@ -89,6 +89,7 @@ Hash BodyView::merkleRoot(Height h) const
     to = &tmp;
 
     bool new_root_type = is_testnet() || h.value() >= NEWMERKLEROOT;
+    bool block_v2 = is_testnet() || h.value() >= NEWBLOCKSTRUCUTREHEIGHT;
     if (new_root_type) {
         do {
             to->resize((from->size() + 1) / 2);
@@ -101,7 +102,7 @@ Hash BodyView::merkleRoot(Height h) const
                 }
 
                 if (to->size() == 1)
-                    hasher.write(data(), 4); // first 4 bytes in block are for extranonce I think?
+                    hasher.write(data(), block_v2 ? 10 : 4);
                 (*to)[i] = std::move(hasher);
                 j += 2;
             }
