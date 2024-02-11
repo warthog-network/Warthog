@@ -66,8 +66,10 @@ bool HeaderView::validPOW(const Hash& h, NonzeroHeight height, bool testnet) con
                 if (height.value() > JANUSV6RETARGETSTART) {
                     constexpr auto c = CustomFloat(-7, 2748779069); // 0.005
                     if (sha256tFloat < c) {
-                        // we will adjust that if better miner is available
-                        sha256tFloat = c;
+                        if (height.value() > JANUSV7RETARGETSTART)
+                            return false;
+                        else
+                            sha256tFloat = c;
                     }
                 }
 

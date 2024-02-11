@@ -71,5 +71,6 @@ constexpr uint32_t JANUSV3RETARGETSTART = retarget_floor(776880);
 constexpr uint32_t JANUSV4RETARGETSTART = retarget_floor(809280);
 constexpr uint32_t JANUSV5RETARGETSTART = 855000;
 constexpr uint32_t JANUSV6RETARGETSTART = 879500;
+constexpr uint32_t JANUSV7RETARGETSTART = 987000;
 constexpr uint32_t NEWMERKLEROOT = 900000;
 constexpr uint32_t NEWBLOCKSTRUCUTREHEIGHT = 981500;
