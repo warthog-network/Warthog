@@ -3,7 +3,7 @@ RUN apk add meson libgcc musl-dev gcc g++ mingw-w64-gcc
 COPY . /code
 RUN mkdir /build-mingw
 WORKDIR /code
-RUN --mount=type=cache,target=/build-mingw LDFLAGS='-static' meson setup /build-mingw --cross-file x86_64-w64-mingw32.txt  --default-library static --buildtype=release
+RUN --mount=type=cache,target=/build-mingw LDFLAGS='-static' meson setup /build-mingw --cross-file crosscompile/x86_64-w64-mingw32.txt  --default-library static --buildtype=release
 
 RUN --mount=type=cache,target=/build-mingw meson compile -C /build-mingw
 RUN mkdir /install

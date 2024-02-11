@@ -13,7 +13,7 @@ COPY . /code
 RUN mkdir /build
 WORKDIR /code
 
-RUN meson setup /build-macos --cross-file aarch64-macOS.txt --default-library static --buildtype=release
+RUN meson setup /build-macos --cross-file crosscompile/aarch64-macOS.txt --default-library static --buildtype=release
 RUN meson compile -C /build-macos
 RUN mkdir /install
 RUN DESTDIR=/install meson install -C /build-macos
