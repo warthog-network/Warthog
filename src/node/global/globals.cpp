@@ -22,7 +22,7 @@ auto create_syncdebug_logger()
 {
     auto max_size = 1048576 * 5; // 5 MB
     auto max_files = 3;
-    return spdlog::rotating_logger_mt("syncdebug_logger", config().defaultDataDir + "logs/syncdebug.log", max_size, max_files);
+    return spdlog::rotating_logger_mt("syncdebug_logger", config().defaultDataDir + logdir()+"/syncdebug.log", max_size, max_files);
 }
 
 }
