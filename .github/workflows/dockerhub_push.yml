@@ -33,7 +33,7 @@ jobs:
         name: Build and push
         uses: docker/build-push-action@v5
         with:
-          context: dockerfiles/Dockerfile
+          file: ./dockerfiles/Dockerfile
           push: true
           tags: |
             zzjulien/warthog_node:latest
