@@ -56,8 +56,8 @@ struct Chainstate {
     [[nodiscard]] auto append(AppendMulti) -> HeaderchainAppend;
     [[nodiscard]] auto append(AppendSingle) -> HeaderchainAppend;
 
-    [[nodiscard]] int32_t insert_tx(const TransferTxExchangeMessage& m);
-    [[nodiscard]] int32_t insert_tx(const PaymentCreateMessage& m);
+    TxHash insert_tx(const TransferTxExchangeMessage& m);
+    [[nodiscard]] TxHash insert_tx(const PaymentCreateMessage& m);
 
     // const functions
     Worksum work_with_new_block() const{return headerchain.total_work() + headerchain.next_target();};

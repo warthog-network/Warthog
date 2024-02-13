@@ -3,6 +3,7 @@
 #include "nlohmann/json.hpp"
 struct Head;
 class Hash;
+class TxHash;
 class Header;
 namespace jsonmsg {
 
@@ -10,6 +11,7 @@ nlohmann::json to_json(const API::Balance&);
 nlohmann::json to_json(const Grid&);
 nlohmann::json to_json(const NodeVersion&);
 nlohmann::json to_json(const Hash&);
+nlohmann::json to_json(const TxHash&);
 nlohmann::json to_json(const API::Head&);
 nlohmann::json to_json(const std::pair<NonzeroHeight,Header>&);
 nlohmann::json to_json(const MiningTask&);

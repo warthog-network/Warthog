@@ -190,56 +190,56 @@ auto Chainstate::append(AppendSingle d) -> HeaderchainAppend
     return headers().get_append(l);
 }
 
-int32_t Chainstate::insert_tx(const TransferTxExchangeMessage& pm)
+TxHash Chainstate::insert_tx(const TransferTxExchangeMessage& pm)
 {
     if (pm.pin_height() < (length() + 1).pin_begin())
-        return EPINHEIGHT;
+        throw Error(EPINHEIGHT);
     if (txids().contains(pm.txid))
-        return ENONCE;
+        throw Error(ENONCE);
     auto h = headers().get_hash(pm.pin_height());
     if (!h)
-        return EPINHEIGHT;
+        throw Error(EPINHEIGHT);
     if (pm.amount.is_zero())
-        return EZEROAMOUNT;
+        throw Error(EZEROAMOUNT);
     auto txHash { pm.txhash(*h) };
     if (pm.from_address(txHash) == pm.toAddr)
-        return ESELFSEND;
+        throw Error(ESELFSEND);
 
     auto p = db.lookup_account(pm.from_id());
     if (!p)
-        return ENOTFOUND;
+        throw Error(ENOTFOUND);
     TransactionHeight th(pm.pin_height(), account_height(pm.from_id()));
-    return _mempool.insert_tx(pm, th, txHash, *p);
+    if (auto e{ _mempool.insert_tx(pm, th, txHash, *p)}; e!= 0)
+        throw Error(e);
+    return txHash;
 }
 
-int32_t Chainstate::insert_tx(const PaymentCreateMessage& m)
+TxHash Chainstate::insert_tx(const PaymentCreateMessage& m)
 {
-    try {
-        PinHeight pinHeight = m.pinHeight;
-        if (pinHeight > length())
-            return EPINHEIGHT;
-        if (pinHeight < (length() + 1).pin_begin())
-            return EPINHEIGHT;
-        if (m.amount.is_zero())
-            return EZEROAMOUNT;
-        auto pinHash = headers().hash_at(pinHeight);
-        auto txhash { m.tx_hash(pinHash) };
-        auto fromAddr = m.from_address(txhash);
-        if (fromAddr == m.toAddr)
-            return ESELFSEND;
-        auto p = db.lookup_address(fromAddr);
-        if (!p)
-            return ENOTFOUND;
-        auto& [accountId, balance] = *p;
-        AddressFunds af { fromAddr, balance };
-        TransferTxExchangeMessage pm(accountId, m);
-        if (txids().contains(pm.txid))
-            return ENONCE;
-        TransactionHeight th(pinHeight, account_height(accountId));
-        return _mempool.insert_tx(pm, th, txhash, af);
-    } catch (Error e) {
-        return e.e;
-    }
+    PinHeight pinHeight = m.pinHeight;
+    if (pinHeight > length())
+        throw Error(EPINHEIGHT);
+    if (pinHeight < (length() + 1).pin_begin())
+        throw Error(EPINHEIGHT);
+    if (m.amount.is_zero())
+        throw Error(EZEROAMOUNT);
+    auto pinHash = headers().hash_at(pinHeight);
+    auto txHash { m.tx_hash(pinHash) };
+    auto fromAddr = m.from_address(txHash);
+    if (fromAddr == m.toAddr)
+        throw Error(ESELFSEND);
+    auto p = db.lookup_address(fromAddr);
+    if (!p)
+        throw Error(ENOTFOUND);
+    auto& [accountId, balance] = *p;
+    AddressFunds af { fromAddr, balance };
+    TransferTxExchangeMessage pm(accountId, m);
+    if (txids().contains(pm.txid))
+        throw Error(ENONCE);
+    TransactionHeight th(pinHeight, account_height(accountId));
+    if (auto e{_mempool.insert_tx(pm, th, txHash, af)}; e!= 0)
+        throw Error(e);
+    return txHash;
 }
 
 void Chainstate::prune_txids()

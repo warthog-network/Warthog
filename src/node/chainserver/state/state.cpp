@@ -238,7 +238,7 @@ MiningTask State::mining_task(const Address& a, bool log)
     auto md = chainstate.mining_data();
 
     NonzeroHeight height { next_height() };
-    auto payments { chainstate.mempool().get_payments(50,  log, height) };
+    auto payments { chainstate.mempool().get_payments(50, log, height) };
     Funds totalfee { 0 };
     for (auto& p : payments)
         totalfee += p.fee();
@@ -546,15 +546,17 @@ auto State::append_mined_block(const Block& b) -> StateUpdate
     };
 }
 
-tl::expected<mempool::Log, Error> State::append_gentx(const PaymentCreateMessage& m)
+std::pair<mempool::Log, TxHash> State::append_gentx(const PaymentCreateMessage& m)
 {
-    if (int32_t e = chainstate.insert_tx(m); e != 0) {
-        Error err(e);
-        spdlog::warn("Rejected new transaction: {}", err.strerror());
-        return tl::make_unexpected(err);
+    try {
+        auto txhash { chainstate.insert_tx(m) };
+        auto log { chainstate.pop_mempool_log() };
+        spdlog::info("Added new transaction to mempool");
+        return { std::move(log), std::move(txhash) };
+    } catch (const Error& e) {
+        spdlog::warn("Rejected new transaction: {}", e.strerror());
+        throw;
     }
-    spdlog::info("Added new transaction to mempool");
-    return chainstate.pop_mempool_log();
 }
 
 API::Balance State::api_get_address(AddressView address)
@@ -577,7 +579,12 @@ auto State::insert_txs(const TxVec& txs) -> std::pair<std::vector<int32_t>, memp
     std::vector<int32_t> res;
     res.reserve(txs.size());
     for (auto& tx : txs) {
-        res.push_back(chainstate.insert_tx(tx));
+        try {
+            chainstate.insert_tx(tx);
+            res.push_back(0);
+        } catch (const Error& e) {
+            res.push_back(e.e);
+        }
     }
     return { res, chainstate.pop_mempool_log() };
 }

@@ -42,7 +42,7 @@ public:
     };
     struct PutMempool {
         PaymentCreateMessage m;
-        ResultCb callback;
+        MempoolInsertCb  callback;
     };
     struct GetGrid {
         GridCb callback;
@@ -172,7 +172,8 @@ public:
 
     // API methods
     void api_mining_append(Block&&, ResultCb);
-    void api_put_mempool(PaymentCreateMessage, ResultCb cb);
+    // void api_put_mempool(PaymentCreateMessage, ResultCb cb);
+    void api_put_mempool(PaymentCreateMessage, MempoolInsertCb cb);
     void api_get_balance(const Address& a, BalanceCb callback);
     void api_get_grid(GridCb);
     void api_get_mempool(MempoolCb callback);
@@ -196,7 +197,7 @@ private:
     ChainError apply_stage(ChainDBTransaction&& t);
     void workerfun();
 
-    int32_t append_gentx(const PaymentCreateMessage&);
+    TxHash append_gentx(const PaymentCreateMessage&);
 
 private:
     void handle_event(MiningAppend&&);

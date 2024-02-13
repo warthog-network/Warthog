@@ -33,7 +33,7 @@ public:
     void garbage_collect();
     auto mining_task(const Address& a, bool log) -> MiningTask;
 
-    auto append_gentx(const PaymentCreateMessage&) -> tl::expected<mempool::Log, Error>;
+    auto append_gentx(const PaymentCreateMessage&) -> std::pair<mempool::Log,TxHash>;
     auto chainlength() const -> Height { return chainstate.headers().length(); }
 
     // mempool

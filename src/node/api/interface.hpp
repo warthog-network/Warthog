@@ -6,7 +6,7 @@
 #include "global/globals.hpp"
 
 // mempool cbunctions
-void put_mempool(PaymentCreateMessage&&, ResultCb);
+void put_mempool(PaymentCreateMessage&&, MempoolInsertCb);
 void get_mempool(MempoolCb cb);
 void lookup_tx(const Hash hash, TxCb f);
 

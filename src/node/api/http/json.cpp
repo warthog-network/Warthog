@@ -254,6 +254,14 @@ json to_json(const Hash& h)
     j["hash"] = serialize_hex(h);
     return j;
 }
+
+json to_json(const TxHash& h)
+{
+    json j;
+    j["txHash"] = serialize_hex(h);
+    return j;
+}
+
 json to_json(const API::Head& h)
 {
     json j;

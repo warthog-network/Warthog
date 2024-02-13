@@ -10,6 +10,7 @@
 // forward declarations
 class TransferTxExchangeMessage;
 class Hash;
+class TxHash;
 class Grid;
 class NonzeroHeight;
 struct MiningTask;
@@ -30,6 +31,7 @@ using BalanceCb = std::function<void(const tl::expected<API::Balance, int32_t>&)
 
 // using OffensesCb = std::function<void(const tl::expected<std, int32_t>&)>;
 using MempoolCb = std::function<void(const tl::expected<API::MempoolEntries, int32_t>&)>;
+using MempoolInsertCb = std::function<void(const tl::expected<TxHash, int32_t>&)>;
 using MempoolTxsCb = std::function<void(std::vector<std::optional<TransferTxExchangeMessage>>&)>;
 using MiningCb = std::function<void(const tl::expected<MiningTask, int32_t>&)>;
 using TxcacheCb = std::function<void(const tl::expected<chainserver::TransactionIds, int32_t>&)>;

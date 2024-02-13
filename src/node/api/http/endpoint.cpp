@@ -79,6 +79,7 @@ void nav(uWS::HttpResponse<false>* res, uWS::HttpRequest*)
         <h2>Transaction endpoints</h2>
         <ul>
             <li>POST <a href=/transaction/add>/transaction/add</a> </li>
+            <li>POST <a href=/transaction/add_v2>/transaction/add_v2</a> </li>
             <li>GET <a href=/transaction/mempool>/transaction/mempool</a></li>
             <li>GET <a href=/transaction/lookup/:txid>/transaction/lookup/:txid </a></li>
             <li>GET <a href=/transaction/latest>/transaction/lookup/latest </a></li>

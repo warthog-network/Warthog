@@ -58,7 +58,7 @@ void ChainServer::async_put_mempool(std::vector<TransferTxExchangeMessage> txs)
 }
 
 void ChainServer::api_put_mempool(PaymentCreateMessage m,
-    ResultCb callback)
+    MempoolInsertCb  callback)
 {
     defer_maybe_busy(PutMempool { std::move(m), std::move(callback) });
 }
@@ -185,13 +185,11 @@ void ChainServer::workerfun()
     }
 }
 
-int32_t ChainServer::append_gentx(const PaymentCreateMessage& m)
+TxHash ChainServer::append_gentx(const PaymentCreateMessage& m)
 {
-    auto r = state.append_gentx(m);
-    if (!r.has_value())
-        return r.error().e;
-    global().pel->async_mempool_update(std::move(r.value()));
-    return 0;
+    auto [log,txhash] = state.append_gentx(m);
+    global().pel->async_mempool_update(std::move(log));
+    return txhash;
 }
 
 void ChainServer::handle_event(MiningAppend&& e)
@@ -317,10 +315,12 @@ void ChainServer::handle_event(stage_operation::StageAddOperation&& r)
 
 void ChainServer::handle_event(PutMempool&& e)
 {
-    if (int err = append_gentx(std::move(e.m)); err != 0)
-        e.callback(tl::make_unexpected(err));
-    else
-        e.callback({});
+    try {
+        auto txhash{append_gentx(std::move(e.m))};
+        e.callback(txhash);
+    }catch(Error err) {
+        e.callback(tl::make_unexpected(err.e));
+    }
 }
 
 void ChainServer::handle_event(PutMempoolBatch&& mb)

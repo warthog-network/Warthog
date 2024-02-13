@@ -129,7 +129,16 @@ We provide working code snippets on how to generate and send transactions [in Py
 
 ### `POST /transaction/add`
 
- Send transactions. At the moment only binary format is available. TODO: allow JSON format:
+Send transactions in JSON format, returns transaction hash in hex format:
+
+ ```json
+{
+ "code": 0,
+ "data": {
+  "txHash": <txhash> 
+ }
+}
+```
 
 ### `GET /transaction/mempool`
 
