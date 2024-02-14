@@ -111,6 +111,7 @@ void nav(uWS::HttpResponse<false>* res, uWS::HttpRequest*)
             <li>GET <a href=/peers/unban>/peers/unban</a></li>
             <li>GET <a href=/peers/offenses/:page>/peers/offenses/:page</a></li>
             <li>GET <a href=/peers/connected>/peers/connected</a></li>
+            <li>GET <a href=/peers/connected/connection>/peers/connected/connection</a></li>
             <li>GET <a href=/peers/endpoints>/peers/endpoints</a></li>
             <li>GET <a href=/peers/connect_timers>/peers/connect_timers</a></li>
         </ul>
@@ -142,7 +143,7 @@ void HTTPEndpoint::work()
     get("/transaction/latest", get_latest_transactions);
 
     // Chain endpoints
-    get("/chain/head", get_block_head, jsonmsg::serialize<API::Head>);
+    get("/chain/head", get_block_head);
     get("/chain/grid", get_chain_grid);
     get_1("/chain/block/:id/hash", get_chain_hash);
     get_1("/chain/block/:id/header", get_chain_header);
@@ -166,6 +167,7 @@ void HTTPEndpoint::work()
     get("/peers/unban", unban_peers);
     get_1("/peers/offenses/:page", get_offenses);
     get("/peers/connected", get_connected_peers2);
+    get("/peers/connected/connection", get_connected_connection);
     get("/peers/endpoints", inspect_eventloop, jsonmsg::endpoints);
     get("/peers/connect_timers", inspect_eventloop, jsonmsg::connect_timers);
 
@@ -177,8 +179,8 @@ void HTTPEndpoint::work()
     // debug endpoints
     get("/debug/header_download", inspect_eventloop, jsonmsg::header_download);
     app.ws<int>("/ws_sneak_peek", {
-            .open = [](auto* ws) { ws->subscribe(API::Block::WEBSOCKET_EVENT); },
-    });
+                                      .open = [](auto* ws) { ws->subscribe(API::Block::WEBSOCKET_EVENT); },
+                                  });
     app.listen(bind.ipv4.to_string(), bind.port, std::bind(&HTTPEndpoint::on_listen, this, _1));
     lc.loop->run();
 }
@@ -211,8 +213,8 @@ void HTTPEndpoint::get(std::string pattern, auto asyncfun)
         [this, asyncfun, pattern](auto* res, auto* req) {
             spdlog::debug("GET {}", req->getUrl());
             asyncfun(
-                [this, res](auto& data) {
-                    async_reply(res, jsonmsg::serialize(data));
+                [this, res]<typename T>(T&& data) {
+                    async_reply(res, jsonmsg::serialize(std::forward<T>(data)));
                 });
             pendingRequests.insert(res);
             res->onAborted([this, res]() { on_aborted(res); });

@@ -16,5 +16,6 @@ struct Richlist;
 struct Peerinfo;
 struct HeightOrHash;
 struct Round16Bit;
+struct PeerinfoConnections;
 using Transaction = std::variant<RewardTransaction, TransferTransaction>;
 }

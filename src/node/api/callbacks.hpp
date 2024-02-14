@@ -23,10 +23,13 @@ struct TransactionIds;
 struct NodeVersion {
     /* data */
 };
+
+
 class Header;
 
-using PeersCb = std::function<void(std::vector<API::Peerinfo>&)>;
+using PeersCb = std::function<void(const std::vector<API::Peerinfo>&)>;
 using ResultCb = std::function<void(const tl::expected<void, int32_t>&)>;
+using ConnectedConnectionCB = std::function<void(const API::PeerinfoConnections&)>;
 using BalanceCb = std::function<void(const tl::expected<API::Balance, int32_t>&)>;
 
 // using OffensesCb = std::function<void(const tl::expected<std, int32_t>&)>;

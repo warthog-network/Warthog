@@ -4,10 +4,9 @@
 #include "chainserver/server.hpp"
 #include "eventloop/eventloop.hpp"
 #include "global/globals.hpp"
-#include "api/types/all.hpp"
 
 // mempool functions
-void put_mempool(PaymentCreateMessage &&m, MempoolInsertCb cb)
+void put_mempool(PaymentCreateMessage&& m, MempoolInsertCb cb)
 {
     global().pcs->api_put_mempool(std::move(m), std::move(cb));
 }
@@ -22,7 +21,8 @@ void lookup_tx(const Hash hash, TxCb f)
     global().pcs->api_lookup_tx(hash, std::move(f));
 }
 
-void get_latest_transactions(LatestTxsCb f){
+void get_latest_transactions(LatestTxsCb f)
+{
     global().pcs->api_lookup_latest_txs(std::move(f));
 };
 
@@ -49,15 +49,25 @@ void get_connected_peers2(PeersCb&& cb)
     global().pel->api_get_peers(std::move(cb));
 }
 
-void get_round16bit_e8(uint64_t e8, RoundCb cb){
-    cb(API::Round16Bit{Funds(e8)});
+void get_connected_connection(ConnectedConnectionCB&& cb)
+{
+    global().pel->api_get_peers([cb = std::move(cb)](const std::vector<API::Peerinfo>& pi) {
+        cb({ pi });
+    });
+}
+
+void get_round16bit_e8(uint64_t e8, RoundCb cb)
+{
+    cb(API::Round16Bit { Funds(e8) });
 };
 
-void get_round16bit_funds(Funds f, RoundCb cb){
-    cb(API::Round16Bit{f});
+void get_round16bit_funds(Funds f, RoundCb cb)
+{
+    cb(API::Round16Bit { f });
 };
-void get_version(VersionCb cb){
-    cb(NodeVersion{});
+void get_version(VersionCb cb)
+{
+    cb(NodeVersion {});
 };
 
 // chain functions
@@ -104,7 +114,7 @@ void get_hashrate(HashrateCb&& cb)
 }
 void get_hashrate_chart(NonzeroHeight from, NonzeroHeight to, HashrateChartCb&& cb)
 {
-    global().pel->api_get_hashrate_chart(from,to,std::move(cb));
+    global().pel->api_get_hashrate_chart(from, to, std::move(cb));
 }
 
 void put_chain_append(MiningTask&& mt, ResultCb f)

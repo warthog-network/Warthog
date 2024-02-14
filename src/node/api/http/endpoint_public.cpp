@@ -121,7 +121,7 @@ void HTTPEndpointPublic::work()
     get("/transaction/latest", get_latest_transactions);
 
     // Chain endpoints
-    get("/chain/head", get_block_head, jsonmsg::serialize<API::Head>);
+    get("/chain/head", get_block_head);
     get_1("/chain/block/:id/hash", get_chain_hash);
     get_1("/chain/block/:id/header", get_chain_header);
     get_1("/chain/block/:id", get_chain_block);

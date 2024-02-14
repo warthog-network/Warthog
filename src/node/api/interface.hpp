@@ -27,6 +27,7 @@ void get_failed_addresses(PeerServer::BannedCB cb);
 void get_verified_addresses(PeerServer::BannedCB cb);
 
 void get_connected_peers2(PeersCb&& cb);
+void get_connected_connection(ConnectedConnectionCB&& cb);
 
 // tools functions
 void get_round16bit_e8(uint64_t e8, RoundCb cb);

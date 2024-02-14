@@ -64,7 +64,6 @@ tl::expected<HeaderVerifier, ChainError> HeaderVerifier::copy_apply(const std::o
     assert(hrange.begin_height() == length + 1);
     for (auto h : hrange) {
         auto e { res.prepare_append(sp, h) };
-        spdlog::info("Checking header at height {}", h.height.value());
         if (!e.has_value()) {
             return tl::make_unexpected(ChainError(e.error(), h.height));
         }

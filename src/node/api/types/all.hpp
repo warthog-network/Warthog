@@ -123,13 +123,21 @@ struct HashrateChart {
 };
 
 struct Peerinfo {
-    IPv4 ip;
+    EndpointAddress endpoint;
     bool initialized;
     PeerChain chainstate;
     SignedSnapshot::Priority theirSnapshotPriority;
     SignedSnapshot::Priority acknowledgedSnapshotPriority;
     uint32_t since;
-    uint16_t port;
+};
+
+struct Network {
+    /* data */
+};
+
+struct PeerinfoConnections {
+    const std::vector<API::Peerinfo>& v;
+    static constexpr auto map = [](const Peerinfo& pi) -> auto& { return pi.endpoint; };
 };
 
 struct Round16Bit {

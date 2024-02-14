@@ -323,6 +323,14 @@ json to_json(const API::Transaction& tx)
         tx);
 }
 
+json to_json(const EndpointAddress& ea){
+    return ea.to_string();
+}
+
+json to_json(const API::PeerinfoConnections& pc){
+    return to_json(pc.v,pc.map);
+};
+
 json to_json(const API::TransactionsByBlocks& txs)
 {
     json arr = json::array();
@@ -427,8 +435,8 @@ std::string serialize(const std::vector<API::Peerinfo>& connected)
     for (auto& item : connected) {
         json elem;
         elem["connection"] = json {
-            { "ip", item.ip.to_string().c_str() },
-            { "port", item.port },
+            { "ip", item.endpoint.ipv4.to_string().c_str() },
+            { "port", item.endpoint.port },
             { "sinceTimestamp", item.since },
             { "sinceUtc", format_utc(item.since) }
         };

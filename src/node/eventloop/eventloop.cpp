@@ -325,13 +325,12 @@ void Eventloop::handle_event(PeersCb&& cb)
     std::vector<API::Peerinfo> out;
     for (auto cr : connections.initialized()) {
         out.push_back({
-            .ip = cr->c->peer_address().ipv4,
+            .endpoint { cr->c->peer_address() },
             .initialized = cr.initialized(),
             .chainstate = cr.chain(),
             .theirSnapshotPriority = cr->theirSnapshotPriority,
             .acknowledgedSnapshotPriority = cr->acknowledgedSnapshotPriority,
             .since = cr->c->connected_since,
-            .port = cr->c->peer_address().port,
         });
     }
     cb(out);
@@ -457,7 +456,7 @@ void Eventloop::erase(Conref c, int32_t error)
     if (headerDownload.erase(c) && !closeReason) {
         spdlog::info("Connected to {} peers (closed connection to {}, reason: {})", headerDownload.size(), c->c->peer_endpoint().to_string(), Error(error).err_name());
     }
-    if (blockDownload.erase(c)) 
+    if (blockDownload.erase(c))
         coordinate_sync();
     if (connections.erase(c.iterator()))
         update_wakeup();
@@ -465,7 +464,6 @@ void Eventloop::erase(Conref c, int32_t error)
         do_requests();
     }
 }
-
 
 bool Eventloop::insert(Conref c, const InitMsg& data)
 {

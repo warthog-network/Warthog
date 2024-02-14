@@ -4,6 +4,15 @@
 #include "general/tcp_util.hpp"
 #include <atomic>
 struct gengetopt_args_info;
+struct EndpointVector: public std::vector<EndpointAddress> {
+    using vector::vector;
+    EndpointVector(std::vector<EndpointAddress> v):vector(std::move(v)){}
+    EndpointVector(std::initializer_list<std::string> l){
+        for (auto &s : l) {
+            push_back({s});
+        }
+    }
+};
 struct Config {
     struct Data {
         std::string chaindb;
@@ -24,7 +33,7 @@ struct Config {
     } node;
     struct Peers {
         bool allowLocalhostIp = false; // do not ignore 127.xxx.xxx.xxx peer node addresses provided by peers
-        std::vector<EndpointAddress> connect;
+        EndpointVector connect;
         bool enableBan { false };
     } peers;
     bool localDebug { false };
