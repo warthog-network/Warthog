@@ -1,5 +1,6 @@
 #include "block/header/difficulty_declaration.hpp"
 #include "global/globals.hpp"
+#include "general/is_testnet.hpp"
 inline void TargetV1::scale(uint32_t easierfactor, uint32_t harderfactor, Height)
 {
     assert(easierfactor != 0);

@@ -233,6 +233,18 @@ ForkHeight fork_height(const Headerchain& h1, const Headerchain& h2, NonzeroHeig
     return { NonzeroHeight(uint32_t(f * HEADERBATCHSIZE + forkIndex + 1)), forked };
 }
 
+NonzeroHeight Headerchain::scan_fork_height(const HeaderRange& hrange) const
+{
+    NonzeroHeight h { (length() + 1).nonzero_assert() };
+    for (auto header1 : hrange) {
+        auto header2 { get_header(header1.height) };
+        if (header2 != header1)
+            return h;
+        h = header1.height + 1;
+    }
+    return h;
+}
+
 Headerchain::Headerchain(HeaderchainSkeleton skeleton)
     : HeaderchainSkeleton(std::move(skeleton))
 {
@@ -302,7 +314,7 @@ Worksum Headerchain::sum_work(const NonzeroHeight beginHeight,
     while (!complete) {
         auto header = get_header(upperHeight);
         assert(header);
-        Worksum w(header->target(upperHeight.nonzero_assert(),is_testnet()));
+        Worksum w(header->target(upperHeight.nonzero_assert(), is_testnet()));
         Height lower = (upperHeight - 1).retarget_floor();
         if (lower == 1) {
             lower = Height(0);

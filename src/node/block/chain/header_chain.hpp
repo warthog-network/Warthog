@@ -42,6 +42,7 @@ protected:
 class Headerchain;
 [[nodiscard]] ForkHeight fork_height(const Headerchain& h1, const Headerchain& h2, NonzeroHeight startHeight = { 1u });
 class Headerchain : public HeaderchainSkeleton {
+    friend class HeaderVerifier;
     struct HeaderViewNoHash : public HeaderView {
         HeaderViewNoHash(const HeaderView& hv)
             : HeaderView(hv) {};
@@ -134,9 +135,9 @@ public:
 
     void clear();
     friend ForkHeight fork_height(const Headerchain& h1, const Headerchain& h2, NonzeroHeight startHeight);
+    NonzeroHeight scan_fork_height(const HeaderRange&) const;
 
 protected: // methods
-    const HeaderView header_view(uint32_t height) const;
     void initialize_worksum();
     [[nodiscard]] Worksum sum_work(const NonzeroHeight begin, const NonzeroHeight end) const;
 

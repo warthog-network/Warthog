@@ -72,11 +72,15 @@ NonzeroSnapshot::NonzeroSnapshot(std::shared_ptr<Descripted> d)
 }
 VerifierNode::VerifierNode(SharedBatch&& b)
     : verifier(b.verifier())
-    , sb(std::move(b)) {}
+    , sb(std::move(b))
+{
+}
 
 VerifierNode::VerifierNode(SharedBatch&& b, HeaderVerifier&& hv)
     : verifier(std::move(hv))
-    , sb(b) {}
+    , sb(b)
+{
+}
 
 Ver_iter Downloader::acquire_verifier(SharedBatch&& pin)
 {
@@ -243,7 +247,7 @@ Conref Downloader::try_send(ConnectionFinder& f, const ReqData& rd)
             if (rd.cacheMatch && (!pd || pd->qiter == rd.queueEntry.iter)) {
                 ForkRange& fr { rd.cacheMatch->fork_range(cr) };
                 fr.on_match(rd.slot.offset());
-                if (!pd || (pd->fork_range().lower() < fr.lower())) {  
+                if (!pd || (pd->fork_range().lower() < fr.lower())) {
                     clear_connection_probe(cr);
                     ProbeData newpd { fr, std::move(rd.cacheMatch->pin) };
                     set_connection_probe(cr, std::move(newpd), desc, rd.queueEntry.iter);
@@ -404,7 +408,8 @@ void Downloader::on_proberep(Conref c, const Proberequest& req, const ProberepMs
     }
 }
 
-void Downloader::on_probe_request_expire(Conref /*cr*/) {
+void Downloader::on_probe_request_expire(Conref /*cr*/)
+{
     // do nothing
 }
 
@@ -421,12 +426,17 @@ void Downloader::process_final(Lead_iter li, std::vector<Offender>& out)
         return;
     }
     bool fromGenesis = !li->verifier.has_value();
-    Height heightOffset = li->final_slot().offset();
+    HeaderRange hrange { li->final_slot(), b };
 
-    // check header chain
-    const HeaderVerifier parent { fromGenesis ? HeaderVerifier {} : (*li->verifier)->second.verifier };
-    // TODO: this is called on each new block, scans old POW again for whole batch, not good
-    auto o { parent.copy_apply(chains.signed_snapshot(), li->finalBatch.batch, heightOffset) };
+    const HeaderVerifier parent {
+        [&] {
+            if (auto hv { chains.header_verifier(hrange) }; hv.has_value())
+                return *hv;
+            return fromGenesis ? HeaderVerifier {} : (*li->verifier)->second.verifier;
+        }()
+    };
+
+    auto o { parent.copy_apply(chains.signed_snapshot(), hrange.sub_range(parent.height() + 1)) };
     if (!o.has_value()) {
         out.push_back({ o.error(), li->cr });
         return;
@@ -454,10 +464,10 @@ void Downloader::process_final(Lead_iter li, std::vector<Offender>& out)
 bool Downloader::advance_verifier(const Ver_iter* vi, const Lead_set& leaders, const Batch& b,
     std::vector<Offender>& out)
 {
+
     auto a {
         (vi ? (*vi)->second.verifier : HeaderVerifier {})
-            .copy_apply(chains.signed_snapshot(), b,
-                (vi ? (*vi)->second.sb.upper_height() : Height(0)))
+            .copy_apply(chains.signed_snapshot(), HeaderRange((vi ? (*vi)->second.sb.next_slot() : Batchslot(0)), b))
     };
     if (!a.has_value()) {
         for (const Lead_iter& li : leaders) {

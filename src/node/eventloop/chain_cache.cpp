@@ -1,4 +1,5 @@
 #include "chain_cache.hpp"
+#include "block/chain/consensus_headers.hpp"
 #include "peer_chain.hpp"
 #include "types/conndata.hpp"
 #include "types/conref_declaration.hpp"
@@ -94,6 +95,40 @@ std::optional<ChaincacheMatch> StageAndConsensus::lookup(std::optional<ChainPin>
         auto ch = consensus.headers().get_header(p->height);
         if (ch && ch == p->header)
             return ChaincacheMatch { T::CONSENSUS, consensus_pin() };
+    }
+    return {};
+}
+
+std::optional<HeaderVerifier> StageAndConsensus::header_verifier(const HeaderRange& sb) const
+{
+    struct Optimizer {
+        const HeaderRange& sb;
+        struct Optimal {
+            const Headerchain* h;
+            NonzeroHeight forkHeight;
+        };
+        std::optional<Optimal> optimal;
+        Optimizer(const HeaderRange& sb)
+            : sb(sb)
+        {
+        }
+        void consider(const Headerchain& hc)
+        {
+            auto fh { hc.scan_fork_height(sb) };
+            if (fh > sb.offset()) {
+                if (!optimal || optimal->forkHeight < fh)
+                    optimal = Optimal { &hc, fh };
+            }
+        }
+    };
+    Optimizer o { sb };
+    o.consider(stage_headers());
+    o.consider(consensus.headers());
+    if (o.optimal) {
+        auto& headerChain { *o.optimal->h };
+        Height height{o.optimal->forkHeight-1};
+        assert(headerChain.get_header(height) == sb.at(height));
+        return HeaderVerifier { headerChain, height };
     }
     return {};
 }

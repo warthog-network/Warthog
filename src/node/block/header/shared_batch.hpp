@@ -58,6 +58,7 @@ public:
     size_t size() const { return view().size(); }
     Height upper_height() const { return view().upper_height(); }
     std::optional<Batchslot> slot() const { return view().slot(); }
+    Batchslot next_slot() const { return slot().value_or(Batchslot(0))+1; }
     Height lower_height() const { return view().lower_height(); }
     std::optional<HeaderView> getHeader(size_t id) const { return view().getHeader(id); }
     [[nodiscard]] HeaderView operator[](Height h) const { return getHeader(h - lower_height()).value(); }

@@ -53,7 +53,9 @@ public:
     private:
         friend class Headervec;
         const_iterator(const uint8_t* pos)
-            : pos(pos) {}
+            : pos(pos)
+        {
+        }
         struct Helper {
             HeaderView* operator->() { return &hv; }
             HeaderView hv;
@@ -122,6 +124,90 @@ public:
     bool complete() const { return size() == HEADERBATCHSIZE; }
     Worksum worksum(Height offset, uint32_t maxElements = HEADERBATCHSIZE) const;
     bool valid_inner_links();
+};
+
+class HeaderRange {
+    struct HeightHeader : public HeaderView {
+        const NonzeroHeight height;
+        HeightHeader(HeaderView hv, NonzeroHeight h)
+            : HeaderView(hv)
+            , height(h)
+        {
+        }
+    };
+    struct Sentinel {
+        const size_t numElements;
+    };
+    struct Iterator {
+        Iterator(const HeaderRange& b, size_t i)
+            : b(b)
+            , index(i)
+        {
+        }
+        const HeaderRange& b;
+        uint32_t index;
+        void operator++()
+        {
+            index += 1;
+        }
+        HeightHeader operator*() const
+        {
+            return { b.batch.get_header(index).value(),
+                (b.batchOffset + index + 1).nonzero_assert() };
+        }
+        bool operator!=(Sentinel s)
+        {
+            return index != s.numElements;
+        }
+    };
+
+    HeaderRange(const HeaderRange& hr, Height begin)
+        : batchOffset(hr.batchOffset)
+        , batch(hr.batch)
+    {
+        assert(begin >= begin_height());
+        extraOffset = begin - begin_height();
+    }
+
+public:
+    HeaderRange sub_range(Height begin)
+    {
+        return { *this, begin };
+    }
+    HeaderRange(Batchslot s, const Batch& b)
+        : batchOffset(s.offset())
+        , batch(b)
+    {
+    }
+    auto begin() const
+    {
+        return Iterator(*this, extraOffset);
+    }
+    auto end() const
+    {
+        return Sentinel { batch.size() };
+    }
+    NonzeroHeight begin_height() const
+    {
+        return (offset() + 1).nonzero_assert();
+    }
+    NonzeroHeight end_height() const
+    {
+        return (batchOffset + (1 + uint32_t(batch.size()))).nonzero_assert();
+    }
+
+    auto at(Height h) const
+    {
+        if (h < begin_height() + extraOffset || h >= end_height())
+            throw std::range_error("Invalid height " + std::to_string(h.value()) + " index in SlotBatch");
+        return batch[h - begin_height()];
+    }
+    Height offset() const { return batchOffset + extraOffset; }
+
+private:
+    const Height batchOffset;
+    uint32_t extraOffset { 0 };
+    const Batch& batch;
 };
 
 class Grid : public Headervec {

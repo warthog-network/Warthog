@@ -1,7 +1,7 @@
 #include "consensus_headers.hpp"
+#include "block/header/difficulty_scale.hpp"
 #include "general/is_testnet.hpp"
 #include "general/now.hpp"
-#include "block/header/difficulty_scale.hpp"
 #include "spdlog/spdlog.h"
 
 HeaderVerifier::HeaderVerifier(const SharedBatch& b)
@@ -34,7 +34,7 @@ HeaderVerifier::HeaderVerifier(const SharedBatch& b)
     }
     if (!override) {
         if (latestRetargetHeight == 1) {
-            if (is_testnet()) 
+            if (is_testnet())
                 nextTarget = TargetV2::genesis_testnet();
             else
                 nextTarget = TargetV1::genesis();
@@ -58,17 +58,17 @@ HeaderVerifier::HeaderVerifier(const SharedBatch& b)
     }
 }
 
-tl::expected<HeaderVerifier, ChainError> HeaderVerifier::copy_apply(const std::optional<SignedSnapshot>& sp, const Batch& b, Height heightOffset) const
+tl::expected<HeaderVerifier, ChainError> HeaderVerifier::copy_apply(const std::optional<SignedSnapshot>& sp, const HeaderRange& hrange) const
 {
     HeaderVerifier res { *this };
-    assert(heightOffset == length);
-    for (size_t i = 0; i < b.size(); ++i) {
-        auto e { res.prepare_append(sp, b[i]) };
-        auto height { (heightOffset + 1 + i).nonzero_assert() };
+    assert(hrange.begin_height() == length + 1);
+    for (auto h : hrange) {
+        auto e { res.prepare_append(sp, h) };
+        spdlog::info("Checking header at height {}", h.height.value());
         if (!e.has_value()) {
-            return tl::make_unexpected(ChainError(e.error(), height));
+            return tl::make_unexpected(ChainError(e.error(), h.height));
         }
-        res.append(height, e.value());
+        res.append(h.height, e.value());
     }
     return res;
 }
@@ -77,7 +77,7 @@ HeaderVerifier::HeaderVerifier()
     : nextTarget(TargetV1::genesis())
 {
     if (is_testnet()) {
-        nextTarget=TargetV2::genesis_testnet();
+        nextTarget = TargetV2::genesis_testnet();
     }
     length = Height(0);
     latestRetargetHeight = Height(0);
@@ -173,7 +173,13 @@ auto HeaderVerifier::prepare_append(const std::optional<SignedSnapshot>& sp, Hea
     return PreparedAppend { hv, hash };
 }
 
-void HeaderVerifier::initialize(const ExtendableHeaderchain& hc,
+HeaderVerifier::HeaderVerifier(const Headerchain& hc, Height length)
+    : HeaderVerifier()
+{
+    initialize(hc, length);
+}
+
+void HeaderVerifier::initialize(const Headerchain& hc,
     Height length)
 {
     finalHash = hc.hash_at(length);
@@ -206,11 +212,11 @@ void HeaderVerifier::initialize(const ExtendableHeaderchain& hc,
     Height upperHeight = length.retarget_floor();
     static_assert(JANUSRETARGETSTART > 1);
     if (length == 0) {
-        if(is_testnet()){
+        if (is_testnet()) {
             nextTarget = TargetV2::genesis_testnet();
-        }else{
+        } else {
             nextTarget = TargetV1::genesis();
-        } 
+        }
         latestRetargetHeight = Height(0);
         latestRetargetTime = 0;
     } else {
@@ -246,7 +252,7 @@ void HeaderVerifier::initialize(const ExtendableHeaderchain& hc,
 void ExtendableHeaderchain::initialize()
 {
     initialize_worksum();
-    checker.initialize(*this, length());
+    checker = { *this, length() };
 }
 
 void ExtendableHeaderchain::shrink(Height newlength)

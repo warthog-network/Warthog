@@ -20,13 +20,13 @@ public:
         const Hash hash;
     };
     HeaderVerifier();
+    HeaderVerifier(const Headerchain& hc, Height length);
     HeaderVerifier(const HeaderVerifier&, const Batch&, Height heightOffset);
-    tl::expected<HeaderVerifier, ChainError> copy_apply(const std::optional<SignedSnapshot>& sp, const Batch& b, Height heightOffset) const;
+    tl::expected<HeaderVerifier, ChainError> copy_apply(const std::optional<SignedSnapshot>& sp, const HeaderRange&) const;
     HeaderVerifier(const SharedBatch&);
     // void clear();
     [[nodiscard]] auto prepare_append(const std::optional<SignedSnapshot>& sp, HeaderView hv) const -> tl::expected<PreparedAppend, int32_t>;
 
-    void initialize(const ExtendableHeaderchain& hc, Height length);
     void append(NonzeroHeight length, const PreparedAppend&);
 
     // getters
@@ -35,7 +35,10 @@ public:
     auto next_target() const { return nextTarget; }
     auto get_valid_timestamp() const { return std::max(timeValidator.get_valid_timestamp(),latestRetargetTime+1); }
 
-private:
+protected:
+    void initialize(const Headerchain& hc, Height length);
+
+private: // data
     Height length { 0 };
     //
     // for retarget computation
@@ -50,7 +53,6 @@ private:
     Hash finalHash;
 };
 class ExtendableHeaderchain : public Headerchain {
-    friend class HeaderVerifier;
 
 public:
     // Constructors
