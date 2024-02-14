@@ -362,9 +362,8 @@ Send transactions in JSON format, returns transaction hash in hex format:
 
 ### `GET /chain/hashrate`
 
- Show current hashrate
+ Show current hashrate  
 
-Note this endpoint is currently deprecated since the algorithm update, it will need some research and math.
 
  ```json
 {
