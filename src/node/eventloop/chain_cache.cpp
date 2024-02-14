@@ -126,8 +126,9 @@ std::optional<HeaderVerifier> StageAndConsensus::header_verifier(const HeaderRan
     o.consider(consensus.headers());
     if (o.optimal) {
         auto& headerChain { *o.optimal->h };
-        Height height{o.optimal->forkHeight-1};
-        assert(headerChain.get_header(height) == sb.at(height));
+        Height height { o.optimal->forkHeight - 1 };
+        if (height != 0)
+            assert(headerChain.get_header(height) == sb.at(height.nonzero_assert()));
         return HeaderVerifier { headerChain, height };
     }
     return {};

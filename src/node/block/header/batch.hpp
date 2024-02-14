@@ -196,10 +196,10 @@ public:
         return (batchOffset + (1 + uint32_t(batch.size()))).nonzero_assert();
     }
 
-    auto at(Height h) const
+    auto at(NonzeroHeight h) const
     {
         if (h < begin_height() + extraOffset || h >= end_height())
-            throw std::range_error("Invalid height " + std::to_string(h.value()) + " index in SlotBatch");
+            throw std::range_error("Invalid height " + std::to_string(h.value()) + " index in HeaderRange.");
         return batch[h - begin_height()];
     }
     Height offset() const { return batchOffset + extraOffset; }
