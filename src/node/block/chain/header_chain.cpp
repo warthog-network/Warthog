@@ -233,14 +233,14 @@ ForkHeight fork_height(const Headerchain& h1, const Headerchain& h2, NonzeroHeig
     return { NonzeroHeight(uint32_t(f * HEADERBATCHSIZE + forkIndex + 1)), forked };
 }
 
-NonzeroHeight Headerchain::scan_fork_height(const HeaderRange& hrange) const
+std::optional<NonzeroHeight> Headerchain::max_match_height(const HeaderRange& hrange) const
 {
-    NonzeroHeight h { (length() + 1).nonzero_assert() };
+    std::optional<NonzeroHeight> h;
     for (auto header1 : hrange) {
         auto header2 { get_header(header1.height) };
         if (header2 != header1)
             return h;
-        h = header1.height + 1;
+        h = header1.height;
     }
     return h;
 }

@@ -135,7 +135,7 @@ public:
 
     void clear();
     friend ForkHeight fork_height(const Headerchain& h1, const Headerchain& h2, NonzeroHeight startHeight);
-    NonzeroHeight scan_fork_height(const HeaderRange&) const;
+    std::optional<NonzeroHeight> max_match_height(const HeaderRange&) const;
 
 protected: // methods
     void initialize_worksum();

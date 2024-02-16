@@ -102,22 +102,22 @@ std::optional<ChaincacheMatch> StageAndConsensus::lookup(std::optional<ChainPin>
 std::optional<HeaderVerifier> StageAndConsensus::header_verifier(const HeaderRange& sb) const
 {
     struct Optimizer {
-        const HeaderRange& sb;
+        const HeaderRange& hr;
         struct Optimal {
             const Headerchain* h;
-            NonzeroHeight forkHeight;
+            NonzeroHeight matchHeight;
         };
         std::optional<Optimal> optimal;
         Optimizer(const HeaderRange& sb)
-            : sb(sb)
+            : hr(sb)
         {
         }
         void consider(const Headerchain& hc)
         {
-            auto fh { hc.scan_fork_height(sb) };
-            if (fh > sb.offset()) {
-                if (!optimal || optimal->forkHeight < fh)
-                    optimal = Optimal { &hc, fh };
+            auto mh { hc.max_match_height(hr) };
+            if (mh.has_value()) {
+                if (!optimal || optimal->matchHeight < *mh)
+                    optimal = Optimal { &hc, *mh };
             }
         }
     };
@@ -126,9 +126,8 @@ std::optional<HeaderVerifier> StageAndConsensus::header_verifier(const HeaderRan
     o.consider(consensus.headers());
     if (o.optimal) {
         auto& headerChain { *o.optimal->h };
-        Height height { o.optimal->forkHeight - 1 };
-        if (height != 0)
-            assert(headerChain.get_header(height) == sb.at(height.nonzero_assert()));
+        NonzeroHeight height { o.optimal->matchHeight };
+        assert(headerChain.get_header(height) == sb.at(height));
         return HeaderVerifier { headerChain, height };
     }
     return {};
