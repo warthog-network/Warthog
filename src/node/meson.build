@@ -1,6 +1,5 @@
 src= [
   './api/http/endpoint.cpp',
-  './api/http/endpoint_public.cpp',
   './api/http/json.cpp',
   './api/http/parse.cpp',
   './api/interface.cpp',

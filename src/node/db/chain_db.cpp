@@ -401,12 +401,12 @@ void ChainDB::insertAccountHistory(AccountId accountId, HistoryId historyId)
     stmtAccountHistoryInsert.run(accountId, historyId);
 }
 
-std::optional<std::tuple<AccountId, Funds>> ChainDB::lookup_address(const AddressView address) const
+std::optional<AccountFunds> ChainDB::lookup_address(const AddressView address) const
 {
     auto p = stmtAddressLookup.one(address);
     if (!p.has_value())
         return {};
-    return std::tuple<AccountId, Funds> {
+    return AccountFunds{
         p.get<AccountId>(0),
         p.get<Funds>(1)
     };

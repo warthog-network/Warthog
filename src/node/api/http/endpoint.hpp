@@ -10,9 +10,22 @@
 using WebsocketEvent = std::variant<API::Block>;
 
 struct Config;
+class IndexGenerator {
+public:
+    void get(std::string s);
+    void post(std::string s);
+    void section(std::string s);
+    std::string result(bool isPublic) const;
+
+private:
+    bool fresh{true};
+    std::string inner;
+};
+
 class HTTPEndpoint {
 public:
-    HTTPEndpoint(const Config&);
+    static std::optional<HTTPEndpoint> make_public_endpoint(const Config&);
+    HTTPEndpoint(EndpointAddress bind, bool isPublic = false);
     ~HTTPEndpoint()
     {
         lc.loop->defer(std::bind(&HTTPEndpoint::shutdown, this));
@@ -35,11 +48,11 @@ private:
     void on_event(WebsocketEvent&& e);
 
     void send_reply(uWS::HttpResponse<false>* res, const std::string& s);
-    void get(std::string pattern, auto asyncfun, auto serializer);
-    void get(std::string pattern, auto asyncfun);
-    void get_1(std::string pattern, auto asyncfun);
-    void get_2(std::string pattern, auto asyncfun);
-    void post(std::string pattern, auto parser, auto asyncfun);
+    void get(std::string pattern, auto asyncfun, auto serializer, bool priv = false);
+    void get(std::string pattern, auto asyncfun, bool priv = false);
+    void get_1(std::string pattern, auto asyncfun, bool priv = false);
+    void get_2(std::string pattern, auto asyncfun, bool priv = false);
+    void post(std::string pattern, auto parser, auto asyncfun, bool priv = false);
 
     //////////////////////////////
     // handlers
@@ -52,8 +65,10 @@ private:
 
     //////////////////////////////
     // variables
+    IndexGenerator indexGenerator;
     std::set<uWS::HttpResponse<false>*> pendingRequests;
     EndpointAddress bind;
+    bool isPublic;
     us_listen_socket_t* listen_socket = nullptr;
     const uWS::LoopCleaner lc;
     uWS::App app;

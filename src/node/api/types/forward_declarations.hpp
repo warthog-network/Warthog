@@ -17,5 +17,6 @@ struct Peerinfo;
 struct HeightOrHash;
 struct Round16Bit;
 struct PeerinfoConnections;
+struct AccountIdOrAddress;;
 using Transaction = std::variant<RewardTransaction, TransferTransaction>;
 }

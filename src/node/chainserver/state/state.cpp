@@ -563,11 +563,30 @@ API::Balance State::api_get_address(AddressView address)
 {
     if (auto p = db.lookup_address(address); p) {
         return API::Balance {
-            std::get<0>(*p),
-            std::get<1>(*p)
+            address,
+            p->accointId,
+            p->funds
         };
     } else {
         return API::Balance {
+            {},
+            AccountId { 0 },
+            Funds { 0 }
+        };
+    }
+}
+
+API::Balance State::api_get_address(AccountId accountId)
+{
+    if (auto p = db.lookup_account(accountId); p) {
+        return API::Balance {
+            p->address,
+            accountId,
+            p->funds
+        };
+    } else {
+        return API::Balance {
+            {},
             AccountId { 0 },
             Funds { 0 }
         };

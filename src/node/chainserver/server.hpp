@@ -1,5 +1,6 @@
 #pragma once
 #include "api/callbacks.hpp"
+#include "api/types/accountid_or_address.hpp"
 #include "communication/create_payment.hpp"
 #include "communication/stage_operation/request.hpp"
 #include "state/state.hpp"
@@ -48,7 +49,7 @@ public:
         GridCb callback;
     };
     struct GetBalance {
-        Address address;
+        API::AccountIdOrAddress account;
         BalanceCb callback;
     };
     struct GetMempool {
@@ -174,7 +175,7 @@ public:
     void api_mining_append(Block&&, ResultCb);
     // void api_put_mempool(PaymentCreateMessage, ResultCb cb);
     void api_put_mempool(PaymentCreateMessage, MempoolInsertCb cb);
-    void api_get_balance(const Address& a, BalanceCb callback);
+    void api_get_balance(const API::AccountIdOrAddress& a, BalanceCb callback);
     void api_get_grid(GridCb);
     void api_get_mempool(MempoolCb callback);
     void api_lookup_tx(const HashView hash, TxCb callback);

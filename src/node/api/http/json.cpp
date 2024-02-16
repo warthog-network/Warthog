@@ -147,9 +147,9 @@ json grid_json(const Grid& g)
 
 json header_json(const Header& header, NonzeroHeight height)
 {
-    auto verusHash{verus_hash(header)};
-    auto blockHash{header.hash()};
-    auto sha256tHash{hashSHA256(blockHash)};
+    auto verusHash { verus_hash(header) };
+    auto blockHash { header.hash() };
+    auto sha256tHash { hashSHA256(blockHash) };
     auto target { header.target(height, is_testnet()) };
     uint32_t targetBE = hton32(target.binary());
     json h;
@@ -159,11 +159,11 @@ json header_json(const Header& header, NonzeroHeight height)
     h["target"] = serialize_hex(targetBE);
     h["difficulty"] = target.difficulty();
     h["hash"] = serialize_hex(header.hash());
-    h["pow"] = json{
-        {"hashVerus",serialize_hex(verusHash)},
-        {"hashSha256t",serialize_hex(sha256tHash)},
-        {"floatVerus",CustomFloat(verusHash).to_double()},
-        {"floatSha256t",CustomFloat(sha256tHash).to_double()},
+    h["pow"] = json {
+        { "hashVerus", serialize_hex(verusHash) },
+        { "hashSha256t", serialize_hex(sha256tHash) },
+        { "floatVerus", CustomFloat(verusHash).to_double() },
+        { "floatSha256t", CustomFloat(sha256tHash).to_double() },
     };
     h["merkleroot"] = serialize_hex(header.merkleroot());
     h["nonce"] = serialize_hex(header.nonce());
@@ -323,19 +323,21 @@ json to_json(const API::Transaction& tx)
         tx);
 }
 
-json to_json(const EndpointAddress& ea){
+json to_json(const EndpointAddress& ea)
+{
     return ea.to_string();
 }
 
-json to_json(const API::PeerinfoConnections& pc){
-    return to_json(pc.v,pc.map);
+json to_json(const API::PeerinfoConnections& pc)
+{
+    return to_json(pc.v, pc.map);
 };
 
 json to_json(const API::TransactionsByBlocks& txs)
 {
     json arr = json::array();
     for (auto iter = txs.blocks_reversed.begin(); iter != txs.blocks_reversed.end(); ++iter) {
-        auto& block{*iter};
+        auto& block { *iter };
         arr.push_back(
             json {
                 { "header", header_json(block.header, block.height) },
@@ -463,6 +465,10 @@ json to_json(const API::Balance& b)
     json j;
     j["balance"] = b.balance.to_string();
     j["balanceE8"] = b.balance.E8();
+    if (b.address)
+        j["address"] = b.address->to_string();
+    else
+        j["address"] = nullptr;
     auto v { b.accountId.value() };
     if (v > 0)
         j["accountId"] = v;

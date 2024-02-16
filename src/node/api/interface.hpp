@@ -52,7 +52,7 @@ void get_signed_snapshot(Eventloop::SignedSnapshotCb&& cb);
 void get_headerdownload(HeaderdownloadCb f);
 
 // account functions
-void get_account_balance(const Address& address, BalanceCb cb);
+void get_account_balance(const API::AccountIdOrAddress& address, BalanceCb cb);
 void get_account_history(const Address& address, uint64_t end, HistoryCb cb);
 void get_account_richlist(RichlistCb cb);
 

@@ -127,7 +127,7 @@ void get_signed_snapshot(Eventloop::SignedSnapshotCb&& cb)
 }
 
 // account functions
-void get_account_balance(const Address& address, BalanceCb f)
+void get_account_balance(const API::AccountIdOrAddress& address, BalanceCb f)
 {
     global().pcs->api_get_balance(address, f);
 }

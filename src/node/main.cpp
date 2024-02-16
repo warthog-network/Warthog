@@ -1,5 +1,4 @@
 #include "api/http/endpoint.hpp"
-#include "api/http/endpoint_public.hpp"
 #include "asyncio/conman.hpp"
 #include "chainserver/server.hpp"
 #include "db/chain_db.hpp"
@@ -68,8 +67,8 @@ void initialize_srand()
 }
 
 struct ECC {
-    ECC(){ECC_Start();}
-    ~ECC(){ECC_Stop();}
+    ECC() { ECC_Start(); }
+    ~ECC() { ECC_Stop(); }
 };
 
 int main(int argc, char** argv)
@@ -84,7 +83,6 @@ int main(int argc, char** argv)
     spdlog::info("Chain database: {}", config().data.chaindb);
     spdlog::info("Peers database: {}", config().data.peersdb);
 
-
     // spdlog::flush_on(spdlog::level::debug);
     /////////////////////
     // uv loop
@@ -98,7 +96,7 @@ int main(int argc, char** argv)
 
     spdlog::debug("Opening chain database \"{}\"", config().data.chaindb);
     ChainDB db(config().data.chaindb);
-    ChainServer cs(db, breg,config().node.snapshotSigner);
+    ChainServer cs(db, breg, config().node.snapshotSigner);
 
     Eventloop el(ps, cs, config());
     Conman cm(&l, ps, config());
@@ -109,8 +107,8 @@ int main(int argc, char** argv)
     spdlog::debug("Starting libuv loop");
 
     // starting endpoint
-    HTTPEndpoint endpoint { config() };
-    auto endpointPublic { HTTPEndpointPublic::make_endpoint_public(config()) };
+    HTTPEndpoint endpoint { config().jsonrpc.bind };
+    auto endpointPublic { HTTPEndpoint::make_public_endpoint(config())};
 
     // setup globals
     global_init(&breg, &ps, &cs, &cm, &el, &endpoint);

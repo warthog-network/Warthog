@@ -318,7 +318,7 @@ public:
 
     //////////////////////////////
     // BELOW METHODS REQUIRED FOR INDEXING NODES
-    std::optional<std::tuple<AccountId, Funds>> lookup_address(const AddressView address) const; // for indexing nodes
+    std::optional<AccountFunds> lookup_address(const AddressView address) const; // for indexing nodes
     std::vector<std::tuple<HistoryId, Hash, std::vector<uint8_t>>> lookup_history_100_desc(AccountId account_id, int64_t beforeId);
 
 

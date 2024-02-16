@@ -63,6 +63,7 @@ public:
 
     // api getters
     auto api_get_address(AddressView) -> API::Balance;
+    auto api_get_address(AccountId) -> API::Balance;
     auto api_get_head() const -> API::Head;
     auto api_get_history(Address a, uint64_t beforeId) -> std::optional<API::AccountHistory>;
     auto api_get_richlist(size_t N) -> API::Richlist;

@@ -1,5 +1,6 @@
 #include "endpoint.hpp"
 #include "api/http/parse.hpp"
+#include "api/types/accountid_or_address.hpp"
 #include "api/types/all.hpp"
 #include "chainserver/transaction_ids.hpp"
 #include "communication/mining_task.hpp"
@@ -13,6 +14,7 @@
 using namespace std::placeholders;
 
 namespace {
+
 struct ParameterParser {
     std::string_view sv;
     template <typename T>
@@ -31,6 +33,12 @@ struct ParameterParser {
         if (sv.length() == 64)
             return { Hash { *this } };
         return { Height { *this } };
+    }
+    operator API::AccountIdOrAddress()
+    {
+        if (sv.length() == 48)
+            return { Address { *this } };
+        return { AccountId { static_cast<uint64_t>(*this) } };
     }
     operator Funds()
     {
@@ -63,10 +71,101 @@ void send_json(uWS::HttpResponse<false>* res, const std::string& s)
     res->end(s, true);
 }
 
-void nav(uWS::HttpResponse<false>* res, uWS::HttpRequest*)
+void send_html(uWS::HttpResponse<false>* res, const std::string& s)
 {
     res->writeHeader("Content-type", "text/html; charset=utf-8");
-    constexpr const char s[] = R"HTML(
+    res->end(s, true);
+}
+
+// void nav(uWS::HttpResponse<false>* res, uWS::HttpRequest*)
+// {
+//     res->writeHeader("Content-type", "text/html; charset=utf-8");
+//     constexpr const char s[] = R"HTML(
+// <!doctype html>
+// <html>
+//     <head>
+//         <meta charset="utf-8" />
+//         <title>endpoint methods</title>
+//     </head>
+//     <body>
+//         <h1>API for Warthog node version )HTML" CMDLINE_PARSER_VERSION
+//                                R"HTML(</h1>
+//         <h2>Transaction endpoints</h2>
+//         <ul>
+//             <li>POST <a href=/transaction/add>/transaction/add</a> </li>
+//             <li>POST <a href=/transaction/add_v2>/transaction/add_v2</a> </li>
+//             <li>GET <a href=/transaction/mempool>/transaction/mempool</a></li>
+//             <li>GET <a href=/transaction/lookup/:txid>/transaction/lookup/:txid </a></li>
+//             <li>GET <a href=/transaction/latest>/transaction/lookup/latest </a></li>
+//         </ul>
+//         <h2>Chain endpoints</h2>
+//         <ul>
+//             <li>GET <a href=/chain/head>/chain/head</a></li>
+//             <li>GET <a href=/chain/grid>/chain/grid</a></li>
+//             <li>GET <a href=/chain/block/:id/hash>/chain/block/:id/hash</a></li>
+//             <li>GET <a href=/chain/signed_snapshot>/chain/signed_snapshot</a></li>
+//             <li>GET <a href=/chain/block/:id/header>/chain/block/:id/header</a></li>
+//             <li>GET <a href=/chain/block/:id>/chain/block/:id</a></li>
+//             <li>GET <a href=/chain/mine/:address>/chain/mine/:address</a></li>
+//             <li>GET <a href=/chain/txcache>/chain/txcache</a></li>
+//             <li>GET <a href=/chain/hashrate>/chain/hashrate</a></li>
+//             <li>GET <a href=/chain/hashrate/chart/:from/:to>/chain/hashrate/chart/:from/:to</a></li>
+//             <li>POST <a href=/chain/append>/chain/append</a></li>
+//         </ul>
+//         <h2>Account endpoints</h2>
+//         <ul>
+//             <li>GET <a href=/account/:address/balance>/account/:address/balance</a></li>
+//             <li>GET <a href=/account/:address/history/:beforeTxIndex>/account/:address/history/:beforeTxIndex</a></li>
+//             <li>GET <a href=/account/richlist>/account/richlist</a></li>
+//         </ul>
+//         <h2>Peers endpoints</h2>
+//         <ul>
+//             <li>GET <a href=/peers/ip_count>/peers/ip_count</a></li>
+//             <li>GET <a href=/peers/banned>/peers/banned</a></li>
+//             <li>GET <a href=/peers/unban>/peers/unban</a></li>
+//             <li>GET <a href=/peers/offenses/:page>/peers/offenses/:page</a></li>
+//             <li>GET <a href=/peers/connected>/peers/connected</a></li>
+//             <li>GET <a href=/peers/connected/connection>/peers/connected/connection</a></li>
+//             <li>GET <a href=/peers/endpoints>/peers/endpoints</a></li>
+//             <li>GET <a href=/peers/connect_timers>/peers/connect_timers</a></li>
+//         </ul>
+//         <h2>Tools endpoints</h2>
+//         <ul>
+//             <li>GET <a href=/tools/encode16bit/from_e8/:feeE8>/tools/encode16bit/from_e8/:feeE8</a></li>
+//             <li>GET <a href=/tools/encode16bit/from_string/:feestring>/tools/encode16bit/from_string/:feestring</a></li>
+//             <li>GET <a href=/tools/version>/tools/version</a></li>
+//         </ul>
+//         <h2>Debug endpoints</h2>
+//         <ul>
+//             <li>GET <a href=/debug/header_download>/debug/header_download</a></li>
+//         </ul>
+//     </body>
+// </html>
+//     )HTML";
+//     res->end(s, true);
+// }
+} // namespace
+
+void IndexGenerator::get(std::string s)
+{
+    inner += "            <li>GET <a href=" + s + ">" + s + "</a></li>";
+}
+void IndexGenerator::post(std::string s)
+{
+    inner += "            <li>POST <a href=" + s + ">" + s + "</a></li>";
+}
+void IndexGenerator::section(std::string s)
+{
+    if (!fresh) {
+        inner += "        </ul>";
+    } else
+        fresh = false;
+    inner += R"(        <h2>)" + s + R"(</h2>
+        <ul>)";
+}
+std::string IndexGenerator::result(bool isPublic) const
+{
+    return R"HTML(
 <!doctype html>
 <html>
     <head>
@@ -74,110 +173,63 @@ void nav(uWS::HttpResponse<false>* res, uWS::HttpRequest*)
         <title>endpoint methods</title>
     </head>
     <body>
-        <h1>API for Warthog node version )HTML" CMDLINE_PARSER_VERSION
-                               R"HTML(</h1>
-        <h2>Transaction endpoints</h2>
-        <ul>
-            <li>POST <a href=/transaction/add>/transaction/add</a> </li>
-            <li>POST <a href=/transaction/add_v2>/transaction/add_v2</a> </li>
-            <li>GET <a href=/transaction/mempool>/transaction/mempool</a></li>
-            <li>GET <a href=/transaction/lookup/:txid>/transaction/lookup/:txid </a></li>
-            <li>GET <a href=/transaction/latest>/transaction/lookup/latest </a></li>
-        </ul>
-        <h2>Chain endpoints</h2>
-        <ul>
-            <li>GET <a href=/chain/head>/chain/head</a></li>
-            <li>GET <a href=/chain/grid>/chain/grid</a></li>
-            <li>GET <a href=/chain/block/:id/hash>/chain/block/:id/hash</a></li>
-            <li>GET <a href=/chain/signed_snapshot>/chain/signed_snapshot</a></li>
-            <li>GET <a href=/chain/block/:id/header>/chain/block/:id/header</a></li>
-            <li>GET <a href=/chain/block/:id>/chain/block/:id</a></li>
-            <li>GET <a href=/chain/mine/:address>/chain/mine/:address</a></li>
-            <li>GET <a href=/chain/txcache>/chain/txcache</a></li>
-            <li>GET <a href=/chain/hashrate>/chain/hashrate</a></li>
-            <li>GET <a href=/chain/hashrate/chart/:from/:to>/chain/hashrate/chart/:from/:to</a></li>
-            <li>POST <a href=/chain/append>/chain/append</a></li>
-        </ul>
-        <h2>Account endpoints</h2>
-        <ul>
-            <li>GET <a href=/account/:account/balance>/account/:account/balance</a></li>
-            <li>GET <a href=/account/:account/history/:beforeTxIndex>/account/:account/history/:beforeTxIndex</a></li>
-            <li>GET <a href=/account/richlist>/account/richlist</a></li>
-        </ul>
-        <h2>Peers endpoints</h2>
-        <ul>
-            <li>GET <a href=/peers/ip_count>/peers/ip_count</a></li>
-            <li>GET <a href=/peers/banned>/peers/banned</a></li>
-            <li>GET <a href=/peers/unban>/peers/unban</a></li>
-            <li>GET <a href=/peers/offenses/:page>/peers/offenses/:page</a></li>
-            <li>GET <a href=/peers/connected>/peers/connected</a></li>
-            <li>GET <a href=/peers/connected/connection>/peers/connected/connection</a></li>
-            <li>GET <a href=/peers/endpoints>/peers/endpoints</a></li>
-            <li>GET <a href=/peers/connect_timers>/peers/connect_timers</a></li>
-        </ul>
-        <h2>Tools endpoints</h2>
-        <ul>
-            <li>GET <a href=/tools/encode16bit/from_e8/:feeE8>/tools/encode16bit/from_e8/:feeE8</a></li>
-            <li>GET <a href=/tools/encode16bit/from_string/:feestring>/tools/encode16bit/from_string/:feestring</a></li>
-            <li>GET <a href=/tools/version>/tools/version</a></li>
-        </ul>
-        <h2>Debug endpoints</h2>
-        <ul>
-            <li>GET <a href=/debug/header_download>/debug/header_download</a></li>
-        </ul>
+        <h1>)HTML"
+        + std::string(isPublic ? "Public " : "") + "API for Warthog node version " CMDLINE_PARSER_VERSION + "</h1>\n"
+        + inner
+        +
+        R"HTML(</ul>
     </body>
-</html>
-    )HTML";
-    res->end(s, true);
+</html>)HTML";
 }
-} // namespace
 
 void HTTPEndpoint::work()
 {
-    app.get("/", &nav);
+    app.get("/", [&](uWS::HttpResponse<false>* res, uWS::HttpRequest*) {
+        send_html(res, indexGenerator.result(isPublic));
+    });
 
-    // transaction endpoints
+    indexGenerator.section("Transaction Endpoints");
     post("/transaction/add", parse_payment_create, put_mempool);
     get("/transaction/mempool", get_mempool);
     get_1("/transaction/lookup/:txid", lookup_tx);
     get("/transaction/latest", get_latest_transactions);
 
-    // Chain endpoints
+    indexGenerator.section("Chain Endpoints");
     get("/chain/head", get_block_head);
-    get("/chain/grid", get_chain_grid);
+    get("/chain/grid", get_chain_grid, true);
     get_1("/chain/block/:id/hash", get_chain_hash);
     get_1("/chain/block/:id/header", get_chain_header);
     get_1("/chain/block/:id", get_chain_block);
     get_1("/chain/mine/:account", get_chain_mine);
     get_1("/chain/mine/:account/log", get_chain_mine_log);
-    get("/chain/signed_snapshot", get_signed_snapshot);
+    get("/chain/signed_snapshot", get_signed_snapshot, true);
     get("/chain/txcache", get_txcache);
     get("/chain/hashrate", get_hashrate);
-    get_2("/chain/hashrate/chart/:from/:to", get_hashrate_chart);
-    post("/chain/append", parse_mining_task, put_chain_append);
+    get_2("/chain/hashrate/chart/:from/:to", get_hashrate_chart, true);
+    post("/chain/append", parse_mining_task, put_chain_append, true);
 
-    // Account endpoints
+    indexGenerator.section("Account Endpoints");
     get_1("/account/:account/balance", get_account_balance);
     get_2("/account/:account/history/:beforeTxIndex", get_account_history);
     get("/account/richlist", get_account_richlist);
 
-    // peers endpoints
+    indexGenerator.section("Peers Endpoints");
     get("/peers/ip_count", inspect_conman, jsonmsg::ip_counter);
     get("/peers/banned", get_banned_peers);
-    get("/peers/unban", unban_peers);
+    get("/peers/unban", unban_peers, true);
     get_1("/peers/offenses/:page", get_offenses);
-    get("/peers/connected", get_connected_peers2);
+    get("/peers/connected", get_connected_peers2, true);
     get("/peers/connected/connection", get_connected_connection);
-    get("/peers/endpoints", inspect_eventloop, jsonmsg::endpoints);
-    get("/peers/connect_timers", inspect_eventloop, jsonmsg::connect_timers);
+    get("/peers/endpoints", inspect_eventloop, jsonmsg::endpoints, true);
+    get("/peers/connect_timers", inspect_eventloop, jsonmsg::connect_timers, true);
 
-    // tools endpoints
+    indexGenerator.section("Tools Endpoints");
     get_1("/tools/encode16bit/from_e8/:feeE8", get_round16bit_e8);
     get_1("/tools/encode16bit/from_string/:string", get_round16bit_funds);
     get("/tools/version", get_version);
 
-    // debug endpoints
-    get("/debug/header_download", inspect_eventloop, jsonmsg::header_download);
+    indexGenerator.section("Debug Endpoints");
+    get("/debug/header_download", inspect_eventloop, jsonmsg::header_download, true);
     app.ws<int>("/ws_sneak_peek", {
                                       .open = [](auto* ws) { ws->subscribe(API::Block::WEBSOCKET_EVENT); },
                                   });
@@ -185,16 +237,28 @@ void HTTPEndpoint::work()
     lc.loop->run();
 }
 
-HTTPEndpoint::HTTPEndpoint(const Config& c)
-    : bind(c.jsonrpc.bind)
+std::optional<HTTPEndpoint> HTTPEndpoint::make_public_endpoint(const Config&)
+{
+    auto& pAPI { config().publicAPI };
+    if (!pAPI)
+        return {};
+    return std::optional<HTTPEndpoint> { std::in_place, pAPI->bind, true };
+};
+
+HTTPEndpoint::HTTPEndpoint(EndpointAddress bind, bool isPublic)
+    : bind(bind)
+    , isPublic(isPublic)
     , app(lc.loop)
 {
-    spdlog::info("RPC endpoint is {}.", bind.to_string());
+    spdlog::info("RPC {}endpoint is {}.", isPublic ? "public " : "", bind.to_string());
     t = std::thread(&HTTPEndpoint::work, this);
 }
 
-void HTTPEndpoint::get(std::string pattern, auto asyncfun, auto serializer)
+void HTTPEndpoint::get(std::string pattern, auto asyncfun, auto serializer, bool priv)
 {
+    if (priv && isPublic)
+        return;
+    indexGenerator.get(pattern);
     app.get(pattern,
         [this, asyncfun, serializer, pattern](auto* res, auto* req) {
             spdlog::debug("GET {}", req->getUrl());
@@ -207,8 +271,11 @@ void HTTPEndpoint::get(std::string pattern, auto asyncfun, auto serializer)
         });
 }
 
-void HTTPEndpoint::get(std::string pattern, auto asyncfun)
+void HTTPEndpoint::get(std::string pattern, auto asyncfun, bool priv)
 {
+    if (priv && isPublic)
+        return;
+    indexGenerator.get(pattern);
     app.get(pattern,
         [this, asyncfun, pattern](auto* res, auto* req) {
             spdlog::debug("GET {}", req->getUrl());
@@ -221,8 +288,11 @@ void HTTPEndpoint::get(std::string pattern, auto asyncfun)
         });
 }
 
-void HTTPEndpoint::get_1(std::string pattern, auto asyncfun)
+void HTTPEndpoint::get_1(std::string pattern, auto asyncfun, bool priv)
 {
+    if (priv && isPublic)
+        return;
+    indexGenerator.get(pattern);
     app.get(pattern,
         [this, asyncfun, pattern](auto* res, auto* req) {
             spdlog::debug("GET {}", req->getUrl());
@@ -239,8 +309,11 @@ void HTTPEndpoint::get_1(std::string pattern, auto asyncfun)
             }
         });
 }
-void HTTPEndpoint::get_2(std::string pattern, auto asyncfun)
+void HTTPEndpoint::get_2(std::string pattern, auto asyncfun, bool priv)
 {
+    if (priv && isPublic)
+        return;
+    indexGenerator.get(pattern);
     app.get(pattern,
         [this, asyncfun, pattern](auto* res, auto* req) {
             spdlog::debug("GET {}", req->getUrl());
@@ -259,8 +332,11 @@ void HTTPEndpoint::get_2(std::string pattern, auto asyncfun)
         });
 }
 
-void HTTPEndpoint::post(std::string pattern, auto parser, auto asyncfun)
+void HTTPEndpoint::post(std::string pattern, auto parser, auto asyncfun, bool priv)
 {
+    if (priv && isPublic)
+        return;
+    indexGenerator.post(pattern);
     app.post(pattern,
         [this, pattern, parser = std::move(parser), asyncfun = std::move(asyncfun)](auto* res, uWS::HttpRequest* req) {
             spdlog::debug("POST {}", req->getUrl());

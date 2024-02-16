@@ -12,6 +12,7 @@
 #include "general/funds.hpp"
 #include "general/tcp_util.hpp"
 #include "height_or_hash.hpp"
+#include "accountid_or_address.hpp"
 #include <variant>
 #include <vector>
 namespace chainserver {
@@ -49,6 +50,7 @@ struct TransferTransaction {
     PinHeight pinHeight { PinHeight::undef() };
 };
 struct Balance {
+    std::optional<Address> address;
     AccountId accountId;
     Funds balance;
 };
@@ -143,6 +145,7 @@ struct PeerinfoConnections {
 struct Round16Bit {
     Funds original;
 };
+
 
 using OffenseEntry = ::OffenseEntry;
 

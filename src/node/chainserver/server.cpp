@@ -63,7 +63,7 @@ void ChainServer::api_put_mempool(PaymentCreateMessage m,
     defer_maybe_busy(PutMempool { std::move(m), std::move(callback) });
 }
 
-void ChainServer::api_get_balance(const Address& a, BalanceCb callback)
+void ChainServer::api_get_balance(const API::AccountIdOrAddress& a, BalanceCb callback)
 {
     defer_maybe_busy(GetBalance { a, std::move(callback) });
 }
@@ -213,7 +213,8 @@ void ChainServer::handle_event(GetGrid&& e)
 
 void ChainServer::handle_event(GetBalance&& e)
 {
-    e.callback(state.api_get_address(e.address));
+    auto result = e.account.visit([&](const auto& t){return state.api_get_address(t);});
+    e.callback(result);
 }
 
 void ChainServer::handle_event(GetMempool&& e)
