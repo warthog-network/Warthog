@@ -1,9 +1,8 @@
 name: DockerHub Push
 
 on:
-  push:
-    branches:
-      - master
+  repository_dispatch:
+    types: [docker]
 
 jobs:
   docker:

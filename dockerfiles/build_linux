@@ -11,8 +11,8 @@ RUN --mount=type=cache,target=/build DESTDIR=/install meson install
 RUN upx /install/usr/local/bin/wart-node
 
 FROM scratch AS export-stage
-COPY --from=build install/usr/local/bin/wart-node .
-COPY --from=build install/usr/local/bin/wart-wallet .
+COPY --from=build install/usr/local/bin/wart-node ./wart-node-linux
+COPY --from=build install/usr/local/bin/wart-wallet ./wart-wallet-linux
 
 VOLUME ["/warthog/.warthog"]
 ENTRYPOINT ["./wart-node", "--chain-db=/warthog/.warthog/chain.db", "--peers-db=/warthog/.warthog/peers.db"]

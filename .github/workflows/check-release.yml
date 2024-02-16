@@ -1,0 +1,57 @@
+name: Check version
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+
+jobs:
+  check-version:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Get latest release
+        id: latest_release
+        run: |
+          echo "LATEST_RELEASE=$(curl --silent "https://api.github.com/repos/$GITHUB_REPOSITORY/releases/latest" | jq -r .tag_name)" >> $GITHUB_ENV
+
+      - name: Get new version
+        id: new_version
+        run: |
+          echo "NEW_VERSION=$(grep 'version :' meson.build | cut -d "'" -f 2)" >> $GITHUB_ENV
+          echo "::set-output name=version::$(grep 'version :' meson.build | cut -d "'" -f 2)"
+
+      - name: Compare versions
+        id: compare_versions
+        run: |
+          LATEST_MAJOR_MINOR=$(echo $LATEST_RELEASE | cut -d '.' -f 1,2)
+          NEW_MAJOR_MINOR=$(echo ${{ steps.new_version.outputs.version }} | cut -d '.' -f 1,2)
+          if [ "$NEW_MAJOR_MINOR" = "$LATEST_MAJOR_MINOR" ]; then
+            echo "WORKFLOW=pre_release.yml" >> $GITHUB_ENV
+            echo "Same major.minor version, calling pre-release workflow"
+          else
+            echo "WORKFLOW=release.yml" >> $GITHUB_ENV
+            echo "Different major.minor version, calling release workflow"
+          fi
+
+      - name: Call Release
+        if: env.WORKFLOW == 'release.yml'
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          event-type: release
+
+      - name: Call Pre-Release
+        if: env.WORKFLOW == 'pre_release.yml'
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          event-type: pre-release
+    
+      - name: Call Docker
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          event-type: docker
