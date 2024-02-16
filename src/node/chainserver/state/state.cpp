@@ -184,7 +184,7 @@ auto State::api_get_latest_txs(size_t N) const -> API::TransactionsByBlocks
         auto id { upper - 1 - i };
         if (id < beginId) { // start new tmp block
             res.blocks_reversed.push_back(block);
-            tmp = update_tmp(upper - 1);
+            tmp = update_tmp(id);
         }
 
         auto& [hash, data] = lookup[lookup.size() - 1 - i];
