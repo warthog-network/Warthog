@@ -65,5 +65,5 @@ public:
 
 private:
     std::map<AccountId, Funds> originalBalances;
-    AccountId beginNewAccounts;
+    const AccountId beginNewAccounts;
 };

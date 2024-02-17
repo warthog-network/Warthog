@@ -149,7 +149,7 @@ auto Chainstate::append(AppendMulti ad) -> HeaderchainAppend
     auto nextBlockPinBegin { (ad.patchedChain.length() + 1).pin_begin() };
     _mempool.erase_before_height(nextBlockPinBegin);
     // remove used transactions
-    for (auto& tid : ad.appendResult.newTxIds)
+    for (const auto& tid : ad.appendResult.newTxIds)
         _mempool.erase(tid);
 
     // merge transaction ids

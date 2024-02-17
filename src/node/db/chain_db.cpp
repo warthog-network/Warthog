@@ -509,14 +509,14 @@ std::vector<TransactionId> read_tx_ids(const BodyContainer& body,
 
 chainserver::TransactionIds ChainDB::fetch_tx_ids(Height height) const
 {
-    const auto [lower, upper] = chainserver::TransactionIds::block_range(height);
+    const auto [begin, end] = chainserver::TransactionIds::block_range(height);
     chainserver::TransactionIds out;
-    spdlog::debug("Loading nonces from blocks {} to {} into cache...", lower.value(), upper.value());
-    auto ids { consensus_block_ids(lower, upper) };
-    if (ids.size() != upper - lower)
+    spdlog::debug("Loading nonces from blocks {} to {} into cache...", begin.value(), end.value());
+    auto ids { consensus_block_ids(begin, end) };
+    if (ids.size() != end - begin)
         throw std::runtime_error("Cannot load block ids.");
-    for (size_t i = 0; i < upper - lower; ++i) {
-        Height height = lower + i;
+    for (size_t i = 0; i < end - begin; ++i) {
+        Height height = begin + i;
         auto id = ids[i];
         auto b = get_block(id);
         if (!b) {

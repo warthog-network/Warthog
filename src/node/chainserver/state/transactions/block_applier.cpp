@@ -80,7 +80,7 @@ public:
             throw Error(EIDPOLICY);
 
         payments.emplace_back(from, compactFee, to, amount, tv.pin_nonce(), tv.signature());
-        int i = payments.size() - 1;
+        size_t i = payments.size() - 1;
         auto& ref = payments.back();
         if (from >= beginNewAccountId) {
             ref.fromAddress = get_new_address(from - beginNewAccountId);
