@@ -148,7 +148,7 @@ int32_t Mempool::insert_tx(const TransferTxExchangeMessage& pm,
     auto& e = balanceEntries.try_emplace(pm.from_id(), af).first->second;
 
     assert(!e.avail.is_zero());
-    Funds spend = pm.fee() + pm.amount;
+    const Funds spend = pm.fee() + pm.amount;
     if (spend.overflow() || spend + e._used > e.avail)
         return EBALANCE;
 
@@ -169,6 +169,6 @@ int32_t Mempool::insert_tx(const TransferTxExchangeMessage& pm,
     byHash.insert(iter);
     e._used += spend;
     return 0;
-};
+}
 
 }

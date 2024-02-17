@@ -12,7 +12,6 @@ struct BalanceEntry {
     friend class Mempool;
     Funds avail { 0 };
     Address address;
-    Funds used() { return _used; };
     BalanceEntry(const AddressFunds& af)
         : avail(af.funds)
         , address(af.address) {};

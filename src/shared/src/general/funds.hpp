@@ -10,7 +10,7 @@ public:
     using IsUint64::IsUint64;
     static std::optional<Funds> parse(std::string_view);
     static Funds throw_parse(std::string_view);
-    bool overflow()
+    bool overflow() const
     {
         return val > MAXSUPPLY;
     }
