@@ -1,9 +1,8 @@
 #include "mempool.hpp"
 #include "chainserver/transaction_ids.hpp"
-#include "general/log_compressed.hpp"
 namespace mempool {
 
-std::vector<TransferTxExchangeMessage> Mempool::get_payments(size_t n, bool log, NonzeroHeight h, std::vector<Hash>* hashes) const
+std::vector<TransferTxExchangeMessage> Mempool::get_payments(size_t n, std::vector<Hash>* hashes) const
 {
     if (n == 0) {
         return {};
@@ -14,9 +13,6 @@ std::vector<TransferTxExchangeMessage> Mempool::get_payments(size_t n, bool log,
     for (auto iter = byFee.rbegin(); iter != byFee.rend(); ++iter) {
         try {
             TransferTxExchangeMessage m { (*iter)->first, (*iter)->second };
-            if (log) {
-                log_compressed(m, h);
-            }
 
             res.push_back(m);
             if (hashes)

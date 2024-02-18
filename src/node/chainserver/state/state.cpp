@@ -233,12 +233,12 @@ ConsensusSlave State::get_chainstate_concurrent()
     return { signedSnapshot, chainstate.descriptor(), chainstate.headers() };
 }
 
-MiningTask State::mining_task(const Address& a, bool log)
+MiningTask State::mining_task(const Address& a)
 {
     auto md = chainstate.mining_data();
 
     NonzeroHeight height { next_height() };
-    auto payments { chainstate.mempool().get_payments(50, log, height) };
+    auto payments { chainstate.mempool().get_payments(50) };
     Funds totalfee { 0 };
     for (auto& p : payments)
         totalfee += p.fee();
@@ -626,7 +626,7 @@ API::Head State::api_get_head() const
 auto State::api_get_mempool(size_t) -> API::MempoolEntries
 {
     std::vector<Hash> hashes;
-    auto entries = chainstate.mempool().get_payments(100, false, next_height(), &hashes);
+    auto entries = chainstate.mempool().get_payments(100, &hashes);
     assert(hashes.size() == entries.size());
     API::MempoolEntries out;
     for (size_t i = 0; i < hashes.size(); ++i) {

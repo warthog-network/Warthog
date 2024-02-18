@@ -5,7 +5,6 @@
 #include "block/chain/header_chain.hpp"
 #include "block/chain/history/history.hpp"
 #include "db/chain_db.hpp"
-#include "general/log_compressed.hpp"
 
 namespace {
 
@@ -268,7 +267,6 @@ Preparation BlockApplier::Preparer::prepare(const BodyView& bv, const NonzeroHei
 
     // Read transfer section
     for (auto t : bv.transfers()) {
-        log_compressed(t, height);
         balanceChecker.register_transfer(t, height);
     }
 

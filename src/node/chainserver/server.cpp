@@ -103,9 +103,9 @@ void ChainServer::api_get_richlist(RichlistCb callback)
 {
     defer_maybe_busy(GetRichlist { std::move(callback) });
 }
-void ChainServer::api_get_mining(const Address& address, bool log, MiningCb callback)
+void ChainServer::api_get_mining(const Address& address, MiningCb callback)
 {
-    defer_maybe_busy(GetMining { address, log, std::move(callback) });
+    defer_maybe_busy(GetMining { address, std::move(callback) });
 }
 
 void ChainServer::api_get_txcache(TxcacheCb callback)
@@ -287,7 +287,7 @@ void ChainServer::handle_event(GetBlock&& e)
 
 void ChainServer::handle_event(GetMining&& e)
 {
-    auto mt = state.mining_task(e.address,e.log);
+    auto mt = state.mining_task(e.address);
     e.callback(mt);
 }
 
