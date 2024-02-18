@@ -1,0 +1,45 @@
+name: Release
+on:
+    workflow_call:
+    repository_dispatch:
+        types: [release]
+      
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+        - name: Checkout
+          uses: actions/checkout@v3
+
+        - name: Set up Docker Buildx
+          uses: docker/setup-buildx-action@v1
+
+        - name : Meson Test
+          run : DOCKER_BUILDKIT=1 docker build . --file dockerfiles/run_tests --progress plain
+    
+        - name: Docker Build
+          run: DOCKER_BUILDKIT=1 docker build . -f dockerfiles/build_linux --output build
+    
+        - name: Docker Build Windows
+          run: DOCKER_BUILDKIT=1 docker build . -f dockerfiles/build_windows --output ./build/windows
+    
+        - name : Docker Build MacOS
+          run : DOCKER_BUILDKIT=1 docker build . -f dockerfiles/build_macos --output ./build/aarch64-macos
+
+        - name: Get version
+          id: get_version
+          run: |
+           echo "VERSION=$(grep 'version :' meson.build | cut -d "'" -f 2)" >> $GITHUB_ENV 
+
+        - name: Release
+          uses: softprops/action-gh-release@v0.1.15
+          with:
+            tag_name: ${{ env.VERSION }}
+            generate_release_notes: true
+            files: |
+              ./build/aarch64-macos/wart-wallet-aarch64
+              ./build/aarch64-macos/wart-node-aarch64
+              ./build/windows/wart-wallet.exe
+              ./build/windows/wart-node.exe
+              ./build/wart-node-linux
+              ./build/wart-wallet-linux

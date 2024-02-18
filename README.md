@@ -103,12 +103,12 @@ To compile from source see below or [here](https://github.com/warthog-network/wa
 * Docker
 
 #### Build for Linux
-* Run `DOCKER_BUILDKIT=1 docker build . --output build` in the repo directory.
+* Run `DOCKER_BUILDKIT=1 docker build . -f dockerfiles/build_linux --output build` in the repo directory.
 #### Build for Windows (cross-compilation on Linux)
-* Run `DOCKER_BUILDKIT=1 docker build . -f DockerfileWindows --output ./build/windows` in the repo.
+* Run `DOCKER_BUILDKIT=1 docker build . -f dockerfiles/build_windows --output ./build/windows` in the repo.
 * Windows binaries are located in `./build/windows` directory.
 #### Build for MacOS - aarch64 (cross-compilation on Linux)
-* Run `DOCKER_BUILDKIT=1 docker build . -f DockerfileMacOS --output ./build/macos` in the repo.
+* Run `DOCKER_BUILDKIT=1 docker build . -f dockerfiles/build_macos --output ./build/macos` in the repo.
 * MacOS binaries are located in `./build/macos` directory.
 
 ## ▶️ USAGE
