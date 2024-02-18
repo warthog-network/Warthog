@@ -18,6 +18,7 @@ struct BlockApplier {
     {
     }
     TransactionIds&& move_new_txids() { return std::move(preparer.newTxIds); };
+    auto&& move_balance_updates() { return std::move(balanceUpdates); };
     [[nodiscard]] API::Block apply_block(const BodyView& bv, HeaderView, NonzeroHeight height, BlockId blockId);
 
 private: // private methods
@@ -31,6 +32,7 @@ private: // private methods
 
 private: // private data
     Preparer preparer;
+    std::map<AccountId,Funds> balanceUpdates;
     ChainDB& db;
     bool fromStage;
 };

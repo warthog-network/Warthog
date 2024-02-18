@@ -52,6 +52,7 @@ ApplyStageTransaction::ApplyStageTransaction(const State& s, ChainDBTransaction&
         chainlength = h;
     }
     res.newTxIds = ba.move_new_txids();
+    res.balanceUpdates = ba.move_balance_updates();
     return { apiBlocks, { Error(0), (ccs.stage.length() + 1).nonzero_assert() } };
 }
 

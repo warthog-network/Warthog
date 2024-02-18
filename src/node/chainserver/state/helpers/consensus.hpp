@@ -15,10 +15,12 @@ namespace chainserver {
 struct RollbackResult {
     Height shrinkLength;
     std::vector<TransferTxExchangeMessage> toMempool;
+    std::map<AccountId,Funds> balanceUpdates;
     TransactionIds chainTxIds;
     DeletionKey deletionKey;
 };
 struct AppendBlocksResult {
+    std::map<AccountId,Funds> balanceUpdates;
     std::vector<HistoryId> newHistoryOffsets;
     std::vector<AccountId> newAccountOffsets;
     TransactionIds newTxIds;
@@ -38,6 +40,7 @@ struct Chainstate {
         AppendBlocksResult&& appendResult;
     };
     struct AppendSingle {
+        std::map<AccountId,Funds> balanceUpdates;
         std::optional<SignedSnapshot>& signedSnapshot;
         HeaderVerifier::PreparedAppend prepared;
         TransactionIds&& newTxIds;

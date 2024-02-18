@@ -420,6 +420,7 @@ RollbackResult State::rollback(const Height newlength) const
     return chainserver::RollbackResult {
         .shrinkLength { newlength },
         .toMempool { std::move(toMempool) },
+        .balanceUpdates { std::move(balanceMap) },
         .chainTxIds { db.fetch_tx_ids(newlength) },
         .deletionKey { dk }
     };
@@ -531,6 +532,7 @@ auto State::append_mined_block(const Block& b) -> StateUpdate
 
     std::unique_lock<std::mutex> ul(chainstateMutex);
     auto headerchainAppend = chainstate.append(Chainstate::AppendSingle {
+        .balanceUpdates { e.move_balance_updates() },
         .signedSnapshot { signedSnapshot },
         .prepared { prepared.value() },
         .newTxIds { e.move_new_txids() },
@@ -722,6 +724,7 @@ auto State::commit_fork(RollbackResult&& rr, AppendBlocksResult&& abr) -> StateU
     assert(!signedSnapshot || signedSnapshot->compatible(stage));
     auto forkHeight { (rr.shrinkLength + 1).nonzero_assert() };
     auto headers_ptr { blockCache.add_old_chain(chainstate, rr.deletionKey) };
+
     chainstate.fork(chainserver::Chainstate::ForkData {
         .stage { stage },
         .rollbackResult { std::move(rr) },

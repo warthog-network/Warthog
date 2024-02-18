@@ -362,12 +362,16 @@ API::Block BlockApplier::apply_block(const BodyView& bv, HeaderView hv, NonzeroH
         preparer.newTxIds.merge(std::move(prepared.txset));
 
         // update old balances
-        for (auto& [accId, bal] : prepared.updateBalances)
+        for (auto& [accId, bal] : prepared.updateBalances){
             db.set_balance(accId, bal);
+            balanceUpdates.insert_or_assign(accId, bal);
+        }
 
         // insert new balances
-        for (auto& [addr, bal, accId] : prepared.insertBalances)
+        for (auto& [addr, bal, accId] : prepared.insertBalances){
             db.insertStateEntry(addr, bal, accId);
+            balanceUpdates.insert_or_assign(accId, bal);
+        }
 
         // write undo data
         db.set_block_undo(blockId, prepared.rg.serialze());

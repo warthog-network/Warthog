@@ -4,8 +4,8 @@
 #include "mempool/log.hpp"
 #include <set>
 #include <vector>
-namespace chainserver{
-    struct TransactionIds;
+namespace chainserver {
+struct TransactionIds;
 }
 namespace mempool {
 struct BalanceEntry {
@@ -15,6 +15,7 @@ struct BalanceEntry {
     BalanceEntry(const AddressFunds& af)
         : avail(af.funds)
         , address(af.address) {};
+
 private:
     Funds _used { 0 };
 };
@@ -37,6 +38,7 @@ public:
     void apply_log(const Log& log);
     int32_t insert_tx(const TransferTxExchangeMessage& pm, TransactionHeight txh, const TxHash& hash, const AddressFunds& e);
     void erase(TransactionId id);
+    void set_balance(AccountId, Funds newBalance);
     void erase_from_height(Height);
     void erase_before_height(Height);
 
@@ -54,18 +56,19 @@ public:
         -> std::optional<TransferTxExchangeMessage>;
 
 private:
+    using BalanceEntries = std::map<AccountId, BalanceEntry>;
     void apply_logevent(const Put&);
     void apply_logevent(const Erase&);
     void erase(Txmap::iterator);
+    bool erase(Txmap::iterator, BalanceEntries::iterator);
 
 private:
-
     Log log;
     Txmap txs;
     std::set<iter_t, ComparatorPin> byPin;
     std::set<iter_t, ComparatorFee> byFee;
     std::set<iter_t, ComparatorHash> byHash;
-    std::map<AccountId, BalanceEntry> balanceEntries;
+    BalanceEntries balanceEntries;
     bool master;
     size_t maxSize;
 };

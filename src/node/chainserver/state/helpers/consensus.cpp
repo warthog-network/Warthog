@@ -51,6 +51,13 @@ void Chainstate::fork(Chainstate::ForkData&& fd)
     _mempool.erase_from_height(forkHeight);
 
     //////////////////////////////
+    // inform mempool about balance changes
+    auto balanceUpdates { std::move(fd.appendResult.balanceUpdates) };
+    balanceUpdates.merge(fd.rollbackResult.balanceUpdates);
+    for (auto& [accountId, balance] : balanceUpdates)
+        _mempool.set_balance(accountId, balance);
+
+    //////////////////////////////
     // insert transactions into mempool
     AccountCache accountCache(db);
     for (auto& tx : fd.rollbackResult.toMempool) {
@@ -108,6 +115,12 @@ auto Chainstate::rollback(const RollbackResult& rb) -> HeaderchainRollback
     _mempool.erase_from_height(forkHeight);
 
     //////////////////////////////
+    // inform mempool about balance changes
+    auto& balanceUpdates { rb.balanceUpdates };
+    for (auto& [accountId, balance] : balanceUpdates)
+        _mempool.set_balance(accountId, balance);
+
+    //////////////////////////////
     // insert transactions into mempool
     AccountCache accountCache(db);
     for (auto& tx : rb.toMempool) {
@@ -144,6 +157,12 @@ auto Chainstate::append(AppendMulti ad) -> HeaderchainAppend
     accountOffsets.append_vector(ad.appendResult.newAccountOffsets);
     assert_equal_length();
 
+    //////////////////////////////
+    // inform mempool about balance changes
+    auto& balanceUpdates { ad.appendResult.balanceUpdates };
+    for (auto& [accountId, balance] : balanceUpdates)
+        _mempool.set_balance(accountId, balance);
+
     // remove from mempool
     // remove outdated transactions
     auto nextBlockPinBegin { (ad.patchedChain.length() + 1).pin_begin() };
@@ -171,6 +190,12 @@ auto Chainstate::append(AppendSingle d) -> HeaderchainAppend
     historyOffsets.append(d.newHistoryOffset);
     accountOffsets.append(d.newAccountOffset);
     assert_equal_length();
+
+    //////////////////////////////
+    // inform mempool about balance changes
+    auto& balanceUpdates { d.balanceUpdates };
+    for (auto& [accountId, balance] : balanceUpdates)
+        _mempool.set_balance(accountId, balance);
 
     // remove from mempool
     // remove outdated transactions
@@ -209,7 +234,7 @@ TxHash Chainstate::insert_tx(const TransferTxExchangeMessage& pm)
     if (!p)
         throw Error(ENOTFOUND);
     TransactionHeight th(pm.pin_height(), account_height(pm.from_id()));
-    if (auto e{ _mempool.insert_tx(pm, th, txHash, *p)}; e!= 0)
+    if (auto e { _mempool.insert_tx(pm, th, txHash, *p) }; e != 0)
         throw Error(e);
     return txHash;
 }
@@ -237,7 +262,7 @@ TxHash Chainstate::insert_tx(const PaymentCreateMessage& m)
     if (txids().contains(pm.txid))
         throw Error(ENONCE);
     TransactionHeight th(pinHeight, account_height(accountId));
-    if (auto e{_mempool.insert_tx(pm, th, txHash, af)}; e!= 0)
+    if (auto e { _mempool.insert_tx(pm, th, txHash, af) }; e != 0)
         throw Error(e);
     return txHash;
 }
