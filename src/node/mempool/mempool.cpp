@@ -113,14 +113,14 @@ void Mempool::erase(decltype(txs)::iterator iter)
 void Mempool::erase_from_height(Height h)
 {
     auto iter = byPin.lower_bound(h);
-    while (iter != byPin.end()) 
+    while (iter != byPin.end())
         erase(*(iter++));
 }
 
 void Mempool::erase_before_height(Height h)
 {
     auto end = byPin.lower_bound(h);
-    for (auto iter = byPin.begin(); iter != end;) 
+    for (auto iter = byPin.begin(); iter != end;)
         erase(*(iter++));
 }
 
@@ -146,7 +146,10 @@ std::vector<TransactionId> Mempool::filter_new(const std::vector<TxidWithFee>& v
     std::vector<TransactionId> out;
     for (auto& t : v) {
         auto iter = txs.find(t.txid);
-        if ((iter == txs.end() && t.fee >= min_fee()) || t.fee > iter->second.fee)
+        if (iter == txs.end()) {
+            if (t.fee >= min_fee())
+                out.push_back(t.txid);
+        } else if (t.fee > iter->second.fee)
             out.push_back(t.txid);
     }
     return out;
