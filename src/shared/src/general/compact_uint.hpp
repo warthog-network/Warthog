@@ -25,6 +25,13 @@ public:
             return Funds(m << (e - 10));
         }
     }
+    auto next() const
+    {
+        auto res(*this);
+        res.val+=1;
+        return res;
+        assert(res.val != 0);
+    }
     uint16_t value() const { return val; }
 
     // default comparison is correct even without uncompacting.

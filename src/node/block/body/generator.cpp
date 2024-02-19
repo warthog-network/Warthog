@@ -34,7 +34,7 @@ class BlockGenerator_v2 {
         {
         }
 
-        AccountId getId(const AddressView address)
+        std::optional<AccountId> getId(const AddressView address, bool allowNew)
         {
             if (auto iter = cache.find(address); iter != cache.end()) {
                 return iter->second;
@@ -45,6 +45,8 @@ class BlockGenerator_v2 {
                 cache.emplace(address, id);
                 return id;
             } else {
+                if (!allowNew)
+                    return {};
                 auto id = nextStateId++;
                 auto iter = cache.emplace(address, id).first;
                 newEntries.push_back(iter->first);
@@ -154,7 +156,6 @@ private:
     NewAddressSection_v2 nas;
 };
 
-
 BodyContainer BlockGenerator_v2::gen_block_v2(NonzeroHeight height,
     const Payout& payout,
     const std::vector<TransferTxExchangeMessage>& payments)
@@ -162,7 +163,7 @@ BodyContainer BlockGenerator_v2::gen_block_v2(NonzeroHeight height,
     nas.clear();
 
     // Payouts
-    PayoutSection_v2 pos(nas.getId(payout.to), payout.amount);
+    PayoutSection_v2 pos(*nas.getId(payout.to, true), payout.amount);
 
     // Payments
     if (payments.size() > std::numeric_limits<uint32_t>::max()) {
@@ -172,7 +173,7 @@ BodyContainer BlockGenerator_v2::gen_block_v2(NonzeroHeight height,
     // filter valid payments to survive self send
     std::vector<TransferTxExchangeMessage> validPayments;
     for (auto& pmsg : payments) {
-        if (nas.getId(pmsg.toAddr) == pmsg.from_id()) {
+        if (nas.getId(pmsg.toAddr, true).value() == pmsg.from_id()) {
             // This should not be possible because self sending transactions
             // are detected on entering mempool.
             spdlog::warn("Impossible self send detected.");
@@ -183,14 +184,22 @@ BodyContainer BlockGenerator_v2::gen_block_v2(NonzeroHeight height,
 
     PaymentSection pms(validPayments.size());
     for (auto& pmsg : validPayments) {
-        AccountId toId = nas.getId(pmsg.toAddr);
+        size_t size { 10 + nas.binarysize() + pos.binarysize() + pms.binarysize() };
+        assert(size <= MAXBLOCKSIZE);
+        size_t remaining = MAXBLOCKSIZE - size;
+        if (remaining < 99)
+            break;
+        bool allowNewAddress { remaining < 99 + 20 };
+        auto toId = nas.getId(pmsg.toAddr, allowNewAddress);
+        if (!toId)
+            break;
 
         auto ph = pmsg.pin_height();
         auto pn = PinNonce::make_pin_nonce(pmsg.nonce_id(), height, ph);
         if (!pn)
             throw std::runtime_error("Cannot make pin_nonce");
 
-        pms.add_payment(toId, *pn, pmsg);
+        pms.add_payment(*toId, *pn, pmsg);
     }
 
     // Serialize block
@@ -206,7 +215,6 @@ BodyContainer BlockGenerator_v2::gen_block_v2(NonzeroHeight height,
     pms.write(p);
     return out;
 }
-
 
 uint8_t* BlockGenerator_v2::NewAddressSection_v2::write(uint8_t* out)
 {
@@ -333,8 +341,7 @@ private:
 
 BodyContainer BlockGenerator::gen_block(NonzeroHeight height,
     const std::vector<Payout>& payouts,
-    const std::vector<TransferTxExchangeMessage>& payments
-    )
+    const std::vector<TransferTxExchangeMessage>& payments)
 {
     nas.clear();
 
@@ -353,7 +360,7 @@ BodyContainer BlockGenerator::gen_block(NonzeroHeight height,
         throw std::runtime_error("Too many payments");
     }
 
-    // filter valid payments to survive self send 
+    // filter valid payments to survive self send
     std::vector<TransferTxExchangeMessage> validPayments;
     for (auto& pmsg : payments) {
         if (nas.getId(pmsg.toAddr) == pmsg.from_id()) {
@@ -425,9 +432,8 @@ BodyContainer generate_body(const ChainDB& db, NonzeroHeight height, const Payou
     if (height.value() >= NEWBLOCKSTRUCUTREHEIGHT || is_testnet()) {
         BlockGenerator_v2 bg(db);
         return bg.gen_block_v2(height, payout, payments);
-    }
-    else{
+    } else {
         BlockGenerator bg(db);
-        return bg.gen_block(height, {payout}, payments);
+        return bg.gen_block(height, { payout }, payments);
     }
 }

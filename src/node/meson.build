@@ -54,6 +54,7 @@ src= [
   './general/tcp_util.cpp',
   './global/globals.cpp',
   './mempool/mempool.cpp',
+  './mempool/txmap.cpp',
   './mempool/subscription.cpp',
   './peerserver/ban_cache.cpp',
   './peerserver/peerserver.cpp',

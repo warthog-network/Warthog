@@ -19,3 +19,4 @@ CompactUInt CompactUInt::compact(Funds f){
     }
     return (e << 10) | (uint16_t(e8) & uint16_t(0x03FF));
 }
+

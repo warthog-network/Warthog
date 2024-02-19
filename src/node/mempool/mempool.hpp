@@ -9,22 +9,28 @@ struct TransactionIds;
 }
 namespace mempool {
 struct BalanceEntry {
-    friend class Mempool;
-    Funds avail { 0 };
     Address address;
     BalanceEntry(const AddressFunds& af)
-        : avail(af.funds)
-        , address(af.address) {};
+        : address(af.address)
+        , avail(af.funds) {};
+
+    void lock(Funds amount);
+    void unlock(Funds amount);
+    [[nodiscard]] bool set_avail(Funds amount);
+    Funds remaining() const { return avail - used; }
+    Funds locked() const { return used; }
+    bool is_clean() { return used.is_zero(); }
 
 private:
-    Funds _used { 0 };
+    Funds avail { 0 };
+    Funds used { 0 };
 };
 
 class Mempool {
     using iter_t = Txmap::iterator;
 
 public:
-    Mempool(bool master = true, size_t maxSize = 100000)
+    Mempool(bool master = true, size_t maxSize = 10000)
         : master(master)
         , maxSize(maxSize)
     {
@@ -54,13 +60,16 @@ public:
         -> std::optional<TransferTxExchangeMessage>;
     [[nodiscard]] auto operator[](const HashView txHash) const
         -> std::optional<TransferTxExchangeMessage>;
+    [[nodiscard]] size_t size() const { return txs.size(); }
+    [[nodiscard]] CompactUInt min_fee() const;
 
 private:
     using BalanceEntries = std::map<AccountId, BalanceEntry>;
     void apply_logevent(const Put&);
     void apply_logevent(const Erase&);
     void erase(Txmap::iterator);
-    bool erase(Txmap::iterator, BalanceEntries::iterator);
+    bool erase(Txmap::iterator, BalanceEntries::iterator, bool gc = true);
+    void prune();
 
 private:
     Log log;

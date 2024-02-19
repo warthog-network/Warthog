@@ -16,6 +16,8 @@ namespace mempool {
                 auto begin(){return txmap.lower_bound(accountId);}
                 auto end(){return txmap.upper_bound(accountId);}
             };
+            [[nodiscard]] std::vector<iterator> by_fee_inc(AccountId);
+
         AccountRange account_range(AccountId id){return {*this,id};}
     };
 }

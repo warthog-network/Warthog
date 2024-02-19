@@ -238,7 +238,7 @@ MiningTask State::mining_task(const Address& a)
     auto md = chainstate.mining_data();
 
     NonzeroHeight height { next_height() };
-    auto payments { chainstate.mempool().get_payments(50) };
+    auto payments { chainstate.mempool().get_payments(400) };
     Funds totalfee { 0 };
     for (auto& p : payments)
         totalfee += p.fee();
