@@ -39,9 +39,9 @@ jobs:
             prerelease: true
             generate_release_notes: true
             files: |
-             ./build/aarch64-macos/wart-wallet-aarch64
-             ./build/aarch64-macos/wart-node-aarch64
-             ./build/windows/wart-wallet.exe
-             ./build/windows/wart-node.exe
-             ./build/wart-node-linux
-             ./build/wart-wallet-linux
+              ./build/aarch64-macos/wart-wallet-aarch64
+              ./build/aarch64-macos/wart-node-aarch64
+              ./build/windows/wart-wallet-windows.exe
+              ./build/windows/wart-node-windows.exe
+              ./build/wart-node-linux
+              ./build/wart-wallet-linux
