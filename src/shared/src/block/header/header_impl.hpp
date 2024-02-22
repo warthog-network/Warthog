@@ -22,10 +22,6 @@ inline void Header::set_merkleroot(std::array<uint8_t, 32> a)
 {
     memcpy(data() + HeaderView::offset_merkleroot, a.data(), 32);
 }
-inline void Header::set_nonce(uint32_t nonce)
-{
-    memcpy(data() + HeaderView::offset_nonce, &nonce, 4);
-}
 inline uint32_t Header::version() const
 {
     return static_cast<HeaderView>(*this).version();

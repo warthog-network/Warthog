@@ -26,12 +26,13 @@ public:
     inline HashView prevhash() const;
     inline HashView merkleroot() const;
     void set_merkleroot(std::array<uint8_t, 32>);
-    void set_nonce(uint32_t nonce);
     inline uint32_t timestamp() const;
+    void set_timestamp(std::array<uint8_t,4>);
     inline uint32_t version() const;
     inline TargetV1 target_v1() const;
     inline TargetV2 target_v2() const;
     inline uint32_t nonce() const;
+    void set_nonce(std::array<uint8_t,4>);
     inline Hash hash() const;
     constexpr static size_t byte_size()
     {

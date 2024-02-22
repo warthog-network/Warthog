@@ -130,7 +130,9 @@ public:
     constexpr static size_t RewardSize { 16 };
     constexpr static size_t TransferSize { 34 + SIGLEN };
     BodyView(std::span<const uint8_t>, NonzeroHeight h);
-    Hash merkleRoot(Height h) const;
+    std::vector<Hash> merkle_leaves() const;
+    Hash merkle_root(Height h) const;
+    std::vector<uint8_t> merkle_prefix() const;
     bool valid() const { return isValid; }
     size_t size() const { return s.size(); }
     const uint8_t* data() const { return s.data(); }

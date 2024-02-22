@@ -1,5 +1,6 @@
 #include "api/http/endpoint.hpp"
 #include "asyncio/conman.hpp"
+#include "api/stratum/stratum_server.hpp"
 #include "chainserver/server.hpp"
 #include "db/chain_db.hpp"
 #include "db/peer_db.hpp"
@@ -96,9 +97,10 @@ int main(int argc, char** argv)
 
     spdlog::debug("Opening chain database \"{}\"", config().data.chaindb);
     ChainDB db(config().data.chaindb);
-    ChainServer cs(db, breg, config().node.snapshotSigner);
+    auto cs =ChainServer::make_chain_server(db, breg, config().node.snapshotSigner);
 
-    Eventloop el(ps, cs, config());
+    StratumServer stratumServer;
+    Eventloop el(ps, *cs, config());
     Conman cm(&l, ps, config());
 
     // setup signals
@@ -111,7 +113,7 @@ int main(int argc, char** argv)
     auto endpointPublic { HTTPEndpoint::make_public_endpoint(config())};
 
     // setup globals
-    global_init(&breg, &ps, &cs, &cm, &el, &endpoint);
+    global_init(&breg, &ps, &*cs, &cm, &el, &endpoint);
 
     // running eventloops
     el.start_async_loop();

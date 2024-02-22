@@ -4,7 +4,6 @@
 #include <list>
 #include <set>
 
-#define DEFAULT_BACKLOG 128
 
 struct Config;
 struct Inspector;
@@ -70,8 +69,7 @@ public:
     }
     uv_loop_t* loop() { return server.loop; }
 
-    Conman(uv_loop_t* l, PeerServer& peerdb, const Config&,
-        int backlog = DEFAULT_BACKLOG);
+    Conman(uv_loop_t* l, PeerServer& peerdb, const Config&);
     void connect(EndpointAddress, std::optional<uint32_t> reconnectSleep = 0);
     void close(int32_t reason);
 

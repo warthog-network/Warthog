@@ -328,7 +328,7 @@ auto State::add_stage(const std::vector<Block>& blocks, const Headerchain& hc) -
             break;
         }
         BodyView bv(b.body_view());
-        if (b.header.merkleroot() != bv.merkleRoot(b.height)) {
+        if (b.header.merkleroot() != bv.merkle_root(b.height)) {
             err = { EMROOT, b.height };
             break;
         }
@@ -505,7 +505,7 @@ auto State::append_mined_block(const Block& b) -> StateUpdate
     auto prepared { chainstate.prepare_append(signedSnapshot, b.header) };
     if (!prepared.has_value())
         throw Error(prepared.error());
-    if (b.header.merkleroot() != bv.merkleRoot(b.height))
+    if (b.header.merkleroot() != bv.merkle_root(b.height))
         throw Error(EMROOT);
     if (!bv.valid())
         throw Error(EMALFORMED);

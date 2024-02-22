@@ -3,6 +3,7 @@ src= [
   './api/http/json.cpp',
   './api/http/parse.cpp',
   './api/interface.cpp',
+  './api/stratum/stratum_server.cpp',
   './api/types/all.cpp',
   './asyncio/conman.cpp',
   './asyncio/connection.cpp',
@@ -22,6 +23,7 @@ src= [
   './block/header/timestamprule.cpp',
   './chainserver/account_cache.cpp',
   './chainserver/server.cpp',
+  './chainserver/mining_subscription.cpp',
   './chainserver/state/helpers/consensus.cpp',
   './chainserver/state/helpers/past_chains.cpp',
   './chainserver/state/state.cpp',
@@ -67,6 +69,6 @@ lib_thirdparty=[libsecp256k1, libusockets]
 executable('wart-node', vcs_dep, [src,'./main.cpp', src_spdlog],
   include_directories:['./' ,include_thirdparty],
   link_with: lib_thirdparty,
-  dependencies: [sqlite3_dep,libuv_dep],
+  dependencies: [sqlite3_dep,libuv_dep,uvw_dep],
   install : true)
 

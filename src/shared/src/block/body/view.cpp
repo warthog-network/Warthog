@@ -68,9 +68,8 @@ BodyView::BodyView(std::span<const uint8_t> s, NonzeroHeight h)
     isValid = true;
 };
 
-Hash BodyView::merkleRoot(Height h) const
+std::vector<Hash> BodyView::merkle_leaves() const
 {
-    assert(isValid);
     std::vector<Hash> hashes(nAddresses + nRewards + nTransfers);
 
     // hash addresses
@@ -84,6 +83,46 @@ Hash BodyView::merkleRoot(Height h) const
     // hash payments
     for (size_t i = 0; i < nTransfers; ++i)
         hashes[idx++] = hashSHA256(data() + offsetTransfers + i * TransferSize, TransferSize);
+    return hashes;
+};
+
+std::vector<uint8_t> BodyView::merkle_prefix() const
+{
+    std::vector<Hash> hashes(merkle_leaves());
+    std::vector<Hash> tmp, *from, *to;
+    from = &hashes;
+    to = &tmp;
+
+    do {
+        to->resize((from->size() + 1) / 2);
+        size_t j = 0;
+        for (size_t i = 0; i < (from->size() + 1) / 2; ++i) {
+            if (to->size() == 1) {
+                std::vector<uint8_t> res;
+                std::ranges::copy((*from)[j], std::back_inserter(res));
+                if (j + 1 < from->size()) {
+                    std::ranges::copy((*from)[j + 1], std::back_inserter(res));
+                }
+                return res;
+            }
+            HasherSHA256 hasher {};
+            hasher.write((*from)[j].data(), 32);
+            if (j + 1 < from->size()) {
+                hasher.write((*from)[j + 1].data(), 32);
+            }
+
+            (*to)[i] = std::move(hasher);
+            j += 2;
+        }
+        std::swap(from, to);
+    } while (from->size() > 1);
+    assert(false);
+}
+
+Hash BodyView::merkle_root(Height h) const
+{
+    assert(isValid);
+    std::vector<Hash> hashes(merkle_leaves());
     std::vector<Hash> tmp, *from, *to;
     from = &hashes;
     to = &tmp;

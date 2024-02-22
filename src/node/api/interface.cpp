@@ -79,6 +79,10 @@ void get_chain_mine(const Address& a, MiningCb f)
 {
     global().pcs->api_get_mining(a, f);
 }
+mining_subscription::MiningSubscription subscribe_chain_mine(Address address, mining_subscription::callback_t callback)
+{
+    return global().pcs->api_subscribe_mining(address,std::move(callback));
+}
 
 void get_chain_header(API::HeightOrHash hh, HeaderCb f)
 {

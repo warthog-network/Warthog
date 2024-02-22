@@ -45,7 +45,7 @@ template <size_t N>
 std::array<uint8_t, N> hex_to_arr(std::string_view in)
 {
     std::array<uint8_t, N> out;
-    if (!parse_hex(in, out.data(), out.size()))
+    if (!parse_hex(in, out.data(), N))
         throw Error(EMALFORMED);
     return out;
 }

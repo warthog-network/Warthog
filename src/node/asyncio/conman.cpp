@@ -3,6 +3,7 @@
 #include "eventloop/eventloop.hpp"
 #include "global/globals.hpp"
 static constexpr bool debug_refcount = false;
+#define DEFAULT_BACKLOG 128
 
 //////////////////////////////
 // Callers (static libuv callback functions)
@@ -107,8 +108,7 @@ void Conman::async_validate(std::weak_ptr<Connection> c, bool accept, int64_t ro
     uv_async_send(&wakeup);
 }
 
-Conman::Conman(uv_loop_t* l, PeerServer& peerServer, const Config& config,
-    int backlog)
+Conman::Conman(uv_loop_t* l, PeerServer& peerServer, const Config& config)
     : peerServer(peerServer)
     , bindAddress(config.node.bind)
 {
@@ -123,7 +123,7 @@ Conman::Conman(uv_loop_t* l, PeerServer& peerServer, const Config& config,
     spdlog::info("P2P endpoint is {}.", bindAddress.to_string());
     if ((i = uv_tcp_bind(&server, (const struct sockaddr*)&addr, 0)))
         goto error;
-    if ((i = uv_listen((uv_stream_t*)&server, backlog,
+    if ((i = uv_listen((uv_stream_t*)&server, DEFAULT_BACKLOG,
              new_connection_caller)))
         goto error;
     if ((i = uv_async_init(l, &wakeup, wakeup_caller) < 0))

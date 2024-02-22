@@ -28,7 +28,7 @@ ConsensusSlave ChainServer::get_chainstate()
     return state.get_chainstate_concurrent();
 }
 
-ChainServer::ChainServer(ChainDB& db, BatchRegistry& br, std::optional<SnapshotSigner> snapshotSigner)
+ChainServer::ChainServer(ChainDB& db, BatchRegistry& br, std::optional<SnapshotSigner> snapshotSigner, Token)
     : db(db)
     , batchRegistry(br)
     , state(db, br, snapshotSigner)
@@ -58,7 +58,7 @@ void ChainServer::async_put_mempool(std::vector<TransferTxExchangeMessage> txs)
 }
 
 void ChainServer::api_put_mempool(PaymentCreateMessage m,
-    MempoolInsertCb  callback)
+    MempoolInsertCb callback)
 {
     defer_maybe_busy(PutMempool { std::move(m), std::move(callback) });
 }
@@ -106,6 +106,19 @@ void ChainServer::api_get_richlist(RichlistCb callback)
 void ChainServer::api_get_mining(const Address& address, MiningCb callback)
 {
     defer_maybe_busy(GetMining { address, std::move(callback) });
+}
+
+auto ChainServer::api_subscribe_mining(Address address, mining_subscription::callback_t callback) -> mining_subscription::MiningSubscription
+{
+    auto req { SubscribeMining::make(address, callback) };
+    auto id { req.id };
+    defer(std::move(req));
+    return { shared_from_this(), id };
+}
+
+void ChainServer::api_unsubscribe_mining(mining_subscription::SubscriptionId id)
+{
+    defer(UnsubscribeMining { id });
 }
 
 void ChainServer::api_get_txcache(TxcacheCb callback)
@@ -185,9 +198,16 @@ void ChainServer::workerfun()
     }
 }
 
+void ChainServer::dispatch_mining_subscriptions()
+{
+    miningSubscriptions.dispatch([&](const Address& a) {
+        return state.mining_task(a);
+    });
+}
+
 TxHash ChainServer::append_gentx(const PaymentCreateMessage& m)
 {
-    auto [log,txhash] = state.append_gentx(m);
+    auto [log, txhash] = state.append_gentx(m);
     global().pel->async_mempool_update(std::move(log));
     return txhash;
 }
@@ -199,6 +219,7 @@ void ChainServer::handle_event(MiningAppend&& e)
         global().pel->async_state_update(std::move(res));
         spdlog::info("Accepted new block #{}", state.chainlength().value());
         e.callback({});
+        dispatch_mining_subscriptions();
     } catch (Error err) {
         spdlog::info("Rejected new block #{}: {}", (state.chainlength() + 1).value(),
             err.strerror());
@@ -213,7 +234,7 @@ void ChainServer::handle_event(GetGrid&& e)
 
 void ChainServer::handle_event(GetBalance&& e)
 {
-    auto result = e.account.visit([&](const auto& t){return state.api_get_address(t);});
+    auto result = e.account.visit([&](const auto& t) { return state.api_get_address(t); });
     e.callback(result);
 }
 
@@ -291,6 +312,17 @@ void ChainServer::handle_event(GetMining&& e)
     e.callback(mt);
 }
 
+void ChainServer::handle_event(SubscribeMining&& e)
+{
+    e.callback(state.mining_task(e.address));
+    miningSubscriptions.subscribe(std::move(e));
+}
+
+void ChainServer::handle_event(UnsubscribeMining&& e)
+{
+    miningSubscriptions.unsubscribe(e.id);
+}
+
 void ChainServer::handle_event(GetTxcache&& e)
 {
     e.callback(state.api_tx_cache());
@@ -309,17 +341,19 @@ void ChainServer::handle_event(stage_operation::StageSetOperation&& r)
 void ChainServer::handle_event(stage_operation::StageAddOperation&& r)
 {
     auto [stageAddResult, delta] { state.add_stage(r.blocks, r.headers) };
-    if (delta)
+    if (delta) {
         global().pel->async_state_update(std::move(*delta));
+        dispatch_mining_subscriptions();
+    }
     global().pel->async_stage_action(std::move(stageAddResult));
 }
 
 void ChainServer::handle_event(PutMempool&& e)
 {
     try {
-        auto txhash{append_gentx(std::move(e.m))};
+        auto txhash { append_gentx(std::move(e.m)) };
         e.callback(txhash);
-    }catch(Error err) {
+    } catch (Error err) {
         e.callback(tl::make_unexpected(err.e));
     }
 }

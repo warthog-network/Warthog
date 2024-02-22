@@ -2,6 +2,7 @@
 
 #include "asyncio/conman.hpp"
 #include "callbacks.hpp"
+#include "chainserver/mining_subscription.hpp"
 #include "eventloop/eventloop.hpp"
 #include "global/globals.hpp"
 
@@ -37,6 +38,7 @@ void get_version(VersionCb cb);
 // chain functions
 void get_block_head(HeadCb cb);
 void get_chain_mine(const Address& a, MiningCb cb);
+mining_subscription::MiningSubscription subscribe_chain_mine(Address address, mining_subscription::callback_t callback);
 void get_chain_header(API::HeightOrHash, HeaderCb cb);
 void get_chain_hash(Height height, HashCb cb);
 void get_chain_grid(GridCb cb);

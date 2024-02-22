@@ -6,7 +6,7 @@ HeaderGenerator::HeaderGenerator(std::array<uint8_t, 32> prevhash,
     uint32_t timestamp, Height height)
     : version(target.is_janushash() ? 2 : 1)
     , prevhash(prevhash)
-    , merkleroot(bv.merkleRoot(height))
+    , merkleroot(bv.merkle_root(height))
     , timestamp(timestamp)
     , target(target)
     , nonce(0u) {

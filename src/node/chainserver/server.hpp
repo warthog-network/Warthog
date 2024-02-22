@@ -1,15 +1,16 @@
 #pragma once
 #include "api/callbacks.hpp"
 #include "api/types/accountid_or_address.hpp"
+#include "api/types/height_or_hash.hpp"
+#include "chainserver/mining_subscription.hpp"
 #include "communication/create_payment.hpp"
 #include "communication/stage_operation/request.hpp"
 #include "state/state.hpp"
-#include "api/types/height_or_hash.hpp"
 #include <condition_variable>
 #include <queue>
 #include <thread>
 
-class ChainServer {
+class ChainServer : public std::enable_shared_from_this<ChainServer> {
     using getBlocksCb = std::function<void(std::vector<BodyContainer>&&)>;
 
 private:
@@ -43,7 +44,7 @@ public:
     };
     struct PutMempool {
         PaymentCreateMessage m;
-        MempoolInsertCb  callback;
+        MempoolInsertCb callback;
     };
     struct GetGrid {
         GridCb callback;
@@ -97,6 +98,10 @@ public:
         Address address;
         MiningCb callback;
     };
+    using SubscribeMining = mining_subscription::SubscriptionRequest;
+    struct UnsubscribeMining {
+        mining_subscription::SubscriptionId id;
+    };
     struct GetTxcache {
         TxcacheCb callback;
     };
@@ -129,6 +134,8 @@ public:
         GetHash,
         GetBlock,
         GetMining,
+        SubscribeMining,
+        UnsubscribeMining,
         GetTxcache,
         GetBlocks,
         stage_operation::StageAddOperation,
@@ -159,8 +166,14 @@ private:
         }
     }
 
+    struct Token { };
+
 public:
-    ChainServer(ChainDB& b, BatchRegistry&, std::optional<SnapshotSigner> snapshotSigner);
+    ChainServer(ChainDB& b, BatchRegistry&, std::optional<SnapshotSigner> snapshotSigner, Token);
+    static auto make_chain_server(ChainDB& b, BatchRegistry& br, std::optional<SnapshotSigner> snapshotSigner)
+    {
+        return std::make_shared<ChainServer>(b, br, snapshotSigner, Token {});
+    }
     ~ChainServer();
 
     bool is_busy();
@@ -185,6 +198,8 @@ public:
     void api_get_hash(Height height, HashCb callback);
     void api_get_block(API::HeightOrHash, BlockCb callback);
     void api_get_mining(const Address& a, MiningCb callback);
+    [[nodiscard]] mining_subscription::MiningSubscription api_subscribe_mining(Address address, mining_subscription::callback_t callback);
+    void api_unsubscribe_mining(mining_subscription::SubscriptionId);
     void api_get_txcache(TxcacheCb callback);
 
     void async_set_signed_checkpoint(SignedSnapshot);
@@ -196,6 +211,7 @@ private:
     void close();
     ChainError apply_stage(ChainDBTransaction&& t);
     void workerfun();
+    void dispatch_mining_subscriptions();
 
     TxHash append_gentx(const PaymentCreateMessage&);
 
@@ -216,6 +232,8 @@ private:
     void handle_event(GetHash&&);
     void handle_event(GetBlock&&);
     void handle_event(GetMining&&);
+    void handle_event(SubscribeMining&&);
+    void handle_event(UnsubscribeMining&&);
     void handle_event(GetTxcache&&);
     void handle_event(GetBlocks&&);
     void handle_event(stage_operation::StageSetOperation&&);
@@ -233,9 +251,12 @@ private:
     // mutex protected variables
     std::mutex mutex;
     std::queue<Event> events;
+    MiningSubscriptions miningSubscriptions;
+
     //
     bool haswork = false;
     bool closing = false;
     bool switching = false; // doing chain switch?
     std::thread worker;
 };
+;
