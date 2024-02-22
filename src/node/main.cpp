@@ -99,7 +99,10 @@ int main(int argc, char** argv)
     ChainDB db(config().data.chaindb);
     auto cs =ChainServer::make_chain_server(db, breg, config().node.snapshotSigner);
 
-    StratumServer stratumServer;
+    std::optional<StratumServer> stratumServer;
+    if (config().stratumPool) {
+        stratumServer.emplace(config().stratumPool->bind);
+    }
     Eventloop el(ps, *cs, config());
     Conman cm(&l, ps, config());
 

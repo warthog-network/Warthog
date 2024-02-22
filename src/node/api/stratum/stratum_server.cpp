@@ -2,6 +2,7 @@
 
 #include "api/interface.hpp"
 #include "block/header/header_impl.hpp"
+#include "general/tcp_util.hpp"
 #include "nlohmann/json.hpp"
 #include <cassert>
 #include <iostream>
@@ -40,7 +41,7 @@ namespace messages {
         }
         void apply_to(Block& b) const
         {
-            std::ranges::copy(extranonce2, b.body.data().begin());
+            std::copy(extranonce2.begin(), extranonce2.end(), b.body.data().begin());
             b.header.set_merkleroot(b.body_view().merkle_root(b.height));
             b.header.set_nonce(nonce);
             b.header.set_timestamp(ntime);
@@ -71,7 +72,7 @@ namespace messages {
         bool clean { false };
         MiningNotify(std::string jobId, const Block& b, bool clean)
             : jobId(std::move(jobId))
-            , prevHash{b.header.prevhash()}
+            , prevHash { b.header.prevhash() }
             , merklePrefix(b.body_view().merkle_prefix())
             , version(b.header.version())
             , nbits(hton32(b.header.target_v2().binary()))
@@ -325,7 +326,7 @@ void StratumServer::handle_event(ShutdownEvent&&)
 void StratumServer::handle_event(AppendResult&& ar)
 {
     auto p { ar.p.lock() };
-    p->on_append_result(ar.stratumId,ar.result);
+    p->on_append_result(ar.stratumId, ar.result);
 }
 
 void StratumServer::handle_events()
@@ -343,7 +344,7 @@ void StratumServer::handle_events()
     }
 }
 
-void StratumServer::acceptor(std::string bindIp, uint16_t port)
+void StratumServer::acceptor(EndpointAddress endpointAddress)
 {
     std::shared_ptr<uvw::tcp_handle> tcp = loop->resource<uvw::tcp_handle>();
 
@@ -380,18 +381,20 @@ void StratumServer::acceptor(std::string bindIp, uint16_t port)
         }
     };
 
-    check_result(tcp->bind(bindIp, port));
+    ;
+    check_result(tcp->bind(endpointAddress.ipv4.to_string(), endpointAddress.port));
     check_result(tcp->listen());
 }
 
-StratumServer::StratumServer(std::string bind, uint16_t port)
+StratumServer::StratumServer(EndpointAddress endpointAddress)
     : loop(uvw::loop::create())
     , async(loop->resource<uvw::async_handle>())
 {
+    spdlog::info("Starting Stratum server on {}", endpointAddress.to_string());
     async->on<uvw::async_event>([&](uvw::async_event&, uvw::async_handle&) {
         handle_events();
     });
-    acceptor(bind, port);
+    acceptor(endpointAddress);
     t = std::thread([&]() { loop->run(); });
 }
 

@@ -24,7 +24,11 @@ struct Config {
     struct PublicAPI {
         EndpointAddress bind;
     };
+    struct StratumPool {
+        EndpointAddress bind;
+    };
     std::optional<PublicAPI> publicAPI;
+    std::optional<StratumPool> stratumPool;
     struct Node {
         std::optional<SnapshotSigner> snapshotSigner;
         EndpointAddress bind;

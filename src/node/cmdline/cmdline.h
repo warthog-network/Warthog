@@ -61,6 +61,9 @@ struct gengetopt_args_info
   char * publicrpc_arg;	/**< @brief Public JSON RPC endpoint socket, disabled by default.  */
   char * publicrpc_orig;	/**< @brief Public JSON RPC endpoint socket, disabled by default original value given at command line.  */
   const char *publicrpc_help; /**< @brief Public JSON RPC endpoint socket, disabled by default help description.  */
+  char * stratum_arg;	/**< @brief Solo mining stratum.  */
+  char * stratum_orig;	/**< @brief Solo mining stratum original value given at command line.  */
+  const char *stratum_help; /**< @brief Solo mining stratum help description.  */
   const char *enable_public_help; /**< @brief Shorthand for --publicrpc=0.0.0.0:3001 help description.  */
   char * config_arg;	/**< @brief Configuration file, default is \"config.toml\", in testnet \"testnet3_chain.db3\".  */
   char * config_orig;	/**< @brief Configuration file, default is \"config.toml\", in testnet \"testnet3_chain.db3\" original value given at command line.  */
@@ -80,6 +83,7 @@ struct gengetopt_args_info
   unsigned int debug_given ;	/**< @brief Whether debug was given.  */
   unsigned int rpc_given ;	/**< @brief Whether rpc was given.  */
   unsigned int publicrpc_given ;	/**< @brief Whether publicrpc was given.  */
+  unsigned int stratum_given ;	/**< @brief Whether stratum was given.  */
   unsigned int enable_public_given ;	/**< @brief Whether enable-public was given.  */
   unsigned int config_given ;	/**< @brief Whether config was given.  */
   unsigned int test_given ;	/**< @brief Whether test was given.  */

@@ -150,6 +150,7 @@ int Config::process_gengetopt(gengetopt_args_info& ai)
     std::optional<EndpointAddress> nodeBind;
     std::optional<EndpointAddress> rpcBind;
     std::optional<EndpointAddress> publicrpcBind;
+    std::optional<EndpointAddress> stratumBind;
     node.isolated = ai.isolated_given;
     if (ai.testnet_given) {
         enable_testnet();
@@ -202,6 +203,13 @@ int Config::process_gengetopt(gengetopt_args_info& ai)
                             data.chaindb = fetch<std::string>(v);
                         else if (k == "peers-db")
                             data.peersdb = fetch<std::string>(v);
+                        else
+                            warning_config(k);
+                    }
+                } else if (key == "stratum") {
+                    for (auto& [k, v] : *t) {
+                        if (k == "bind")
+                            stratumBind = fetch_endpointaddress(v);
                         else
                             warning_config(k);
                     }
@@ -261,7 +269,6 @@ int Config::process_gengetopt(gengetopt_args_info& ai)
         }
     }
 
-
     // DB args
     if (ai.chain_db_given)
         data.chaindb = ai.chain_db_arg;
@@ -277,22 +284,17 @@ int Config::process_gengetopt(gengetopt_args_info& ai)
         }
     }
 
-    // JSON RPC socket
-    if (ai.rpc_given) {
-        auto p = EndpointAddress::parse(ai.rpc_arg);
+    // Stratum API socket
+    if (ai.stratum_given) {
+        auto p = EndpointAddress::parse(ai.stratum_arg);
         if (!p) {
             std::cerr << "Bad --rpc option '" << ai.rpc_arg << "'.\n";
             return -1;
         };
-        jsonrpc.bind = p.value();
+        stratumPool = StratumPool { .bind = p.value() };
     } else {
-        if (rpcBind) {
-            jsonrpc.bind = *rpcBind;
-        }else{
-            if (is_testnet())
-                jsonrpc.bind = EndpointAddress::parse("127.0.0.1:3100").value();
-            else
-                jsonrpc.bind = EndpointAddress::parse("127.0.0.1:3000").value();
+        if (stratumBind) {
+            stratumPool = StratumPool { *stratumBind };
         }
     }
 
@@ -303,7 +305,21 @@ int Config::process_gengetopt(gengetopt_args_info& ai)
             std::cerr << "Bad --publicrpc option '" << ai.rpc_arg << "'.\n";
             return -1;
         };
-        publicAPI = PublicAPI{p.value()};
+        publicAPI = PublicAPI { p.value() };
+    } else {
+        if (publicrpcBind) {
+            publicAPI = PublicAPI(publicrpcBind.value());
+        }
+    }
+
+    // JSON Puclic RPC socket
+    if (ai.publicrpc_given) {
+        auto p = EndpointAddress::parse(ai.publicrpc_arg);
+        if (!p) {
+            std::cerr << "Bad --publicrpc option '" << ai.rpc_arg << "'.\n";
+            return -1;
+        };
+        publicAPI = PublicAPI { p.value() };
     } else {
         if (publicrpcBind) {
             publicAPI = PublicAPI(publicrpcBind.value());
@@ -350,6 +366,10 @@ std::string Config::dump()
     for (auto ea : peers.connect) {
         connect.push_back(ea.to_string());
     }
+    tbl.insert_or_assign("stratum",
+            toml::table {
+            { "bind", stratumPool ? stratumPool->bind.to_string() : ""s },
+            });
     tbl.insert_or_assign("node",
         toml::table {
             { "bind", node.bind.to_string() },
@@ -363,6 +383,6 @@ std::string Config::dump()
                                    { "peers-db", data.peersdb },
                                });
     stringstream ss;
-    ss << tbl;
+    ss << tbl<<endl;
     return ss.str();
 }

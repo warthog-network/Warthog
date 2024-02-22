@@ -54,6 +54,7 @@ const char *gengetopt_args_info_detailed_help[] = {
   "\nJSON RPC endpoint options:",
   "  -r, --rpc=IP:PORT          JSON RPC endpoint socket, defaults to\n                               \"127.0.0.1:3000\" for main net and\n                               \"127.0.0.1:3100\" for test net",
   "      --publicrpc=IP:PORT    Public JSON RPC endpoint socket, disabled by\n                               default",
+  "      --stratum=IP:PORT      Solo mining stratum",
   "      --enable-public        Shorthand for --publicrpc=0.0.0.0:3001",
   "\nConfiguration file options:",
   "  -c, --config=FILENAME      Configuration file, default is \"config.toml\", in\n                               testnet \"testnet3_chain.db3\"",
@@ -87,11 +88,12 @@ init_help_array(void)
   gengetopt_args_info_help[18] = gengetopt_args_info_detailed_help[22];
   gengetopt_args_info_help[19] = gengetopt_args_info_detailed_help[23];
   gengetopt_args_info_help[20] = gengetopt_args_info_detailed_help[24];
-  gengetopt_args_info_help[21] = 0; 
+  gengetopt_args_info_help[21] = gengetopt_args_info_detailed_help[25];
+  gengetopt_args_info_help[22] = 0; 
   
 }
 
-const char *gengetopt_args_info_help[22];
+const char *gengetopt_args_info_help[23];
 
 typedef enum {ARG_NO
   , ARG_STRING
@@ -125,6 +127,7 @@ void clear_given (struct gengetopt_args_info *args_info)
   args_info->debug_given = 0 ;
   args_info->rpc_given = 0 ;
   args_info->publicrpc_given = 0 ;
+  args_info->stratum_given = 0 ;
   args_info->enable_public_given = 0 ;
   args_info->config_given = 0 ;
   args_info->test_given = 0 ;
@@ -147,6 +150,8 @@ void clear_args (struct gengetopt_args_info *args_info)
   args_info->rpc_orig = NULL;
   args_info->publicrpc_arg = NULL;
   args_info->publicrpc_orig = NULL;
+  args_info->stratum_arg = NULL;
+  args_info->stratum_orig = NULL;
   args_info->config_arg = NULL;
   args_info->config_orig = NULL;
   
@@ -169,10 +174,11 @@ void init_args_info(struct gengetopt_args_info *args_info)
   args_info->debug_help = gengetopt_args_info_detailed_help[16] ;
   args_info->rpc_help = gengetopt_args_info_detailed_help[18] ;
   args_info->publicrpc_help = gengetopt_args_info_detailed_help[19] ;
-  args_info->enable_public_help = gengetopt_args_info_detailed_help[20] ;
-  args_info->config_help = gengetopt_args_info_detailed_help[22] ;
-  args_info->test_help = gengetopt_args_info_detailed_help[23] ;
-  args_info->dump_config_help = gengetopt_args_info_detailed_help[24] ;
+  args_info->stratum_help = gengetopt_args_info_detailed_help[20] ;
+  args_info->enable_public_help = gengetopt_args_info_detailed_help[21] ;
+  args_info->config_help = gengetopt_args_info_detailed_help[23] ;
+  args_info->test_help = gengetopt_args_info_detailed_help[24] ;
+  args_info->dump_config_help = gengetopt_args_info_detailed_help[25] ;
   
 }
 
@@ -283,6 +289,8 @@ cmdline_parser_release (struct gengetopt_args_info *args_info)
   free_string_field (&(args_info->rpc_orig));
   free_string_field (&(args_info->publicrpc_arg));
   free_string_field (&(args_info->publicrpc_orig));
+  free_string_field (&(args_info->stratum_arg));
+  free_string_field (&(args_info->stratum_orig));
   free_string_field (&(args_info->config_arg));
   free_string_field (&(args_info->config_orig));
   
@@ -339,6 +347,8 @@ cmdline_parser_dump(FILE *outfile, struct gengetopt_args_info *args_info)
     write_into_file(outfile, "rpc", args_info->rpc_orig, 0);
   if (args_info->publicrpc_given)
     write_into_file(outfile, "publicrpc", args_info->publicrpc_orig, 0);
+  if (args_info->stratum_given)
+    write_into_file(outfile, "stratum", args_info->stratum_orig, 0);
   if (args_info->enable_public_given)
     write_into_file(outfile, "enable-public", 0, 0 );
   if (args_info->config_given)
@@ -602,6 +612,7 @@ cmdline_parser_internal (
         { "debug",	0, NULL, 'd' },
         { "rpc",	1, NULL, 'r' },
         { "publicrpc",	1, NULL, 0 },
+        { "stratum",	1, NULL, 0 },
         { "enable-public",	0, NULL, 0 },
         { "config",	1, NULL, 'c' },
         { "test",	0, NULL, 't' },
@@ -771,6 +782,20 @@ cmdline_parser_internal (
                 &(local_args_info.publicrpc_given), optarg, 0, 0, ARG_STRING,
                 check_ambiguity, override, 0, 0,
                 "publicrpc", '-',
+                additional_error))
+              goto failure;
+          
+          }
+          /* Solo mining stratum.  */
+          else if (strcmp (long_options[option_index].name, "stratum") == 0)
+          {
+          
+          
+            if (update_arg( (void *)&(args_info->stratum_arg), 
+                 &(args_info->stratum_orig), &(args_info->stratum_given),
+                &(local_args_info.stratum_given), optarg, 0, 0, ARG_STRING,
+                check_ambiguity, override, 0, 0,
+                "stratum", '-',
                 additional_error))
               goto failure;
           

@@ -24,6 +24,7 @@ option "debug" d "Enable debug messages" optional
 section "JSON RPC endpoint options"
 option "rpc" r "JSON RPC endpoint socket, defaults to \"127.0.0.1:3000\" for main net and \"127.0.0.1:3100\" for test net" optional string typestr="IP:PORT"
 option "publicrpc" - "Public JSON RPC endpoint socket, disabled by default" optional string typestr="IP:PORT"
+option "stratum" - "Solo mining stratum" optional string typestr="IP:PORT"
 option "enable-public" - "Shorthand for --publicrpc=0.0.0.0:3001" optional 
 
 section "Configuration file options"
