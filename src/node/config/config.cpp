@@ -288,7 +288,7 @@ int Config::process_gengetopt(gengetopt_args_info& ai)
     if (ai.stratum_given) {
         auto p = EndpointAddress::parse(ai.stratum_arg);
         if (!p) {
-            std::cerr << "Bad --rpc option '" << ai.rpc_arg << "'.\n";
+            std::cerr << "Bad --stratum option '" << ai.rpc_arg << "'.\n";
             return -1;
         };
         stratumPool = StratumPool { .bind = p.value() };
@@ -298,21 +298,26 @@ int Config::process_gengetopt(gengetopt_args_info& ai)
         }
     }
 
-    // JSON Puclic RPC socket
-    if (ai.publicrpc_given) {
-        auto p = EndpointAddress::parse(ai.publicrpc_arg);
+    // JSON RPC socket
+    if (ai.rpc_given) {
+        auto p = EndpointAddress::parse(ai.rpc_arg);
         if (!p) {
-            std::cerr << "Bad --publicrpc option '" << ai.rpc_arg << "'.\n";
+            std::cerr << "Bad --rpc option '" << ai.rpc_arg << "'.\n";
             return -1;
         };
-        publicAPI = PublicAPI { p.value() };
+        jsonrpc.bind = p.value();
     } else {
-        if (publicrpcBind) {
-            publicAPI = PublicAPI(publicrpcBind.value());
+        if (rpcBind) {
+            jsonrpc.bind = *rpcBind;
+        }else{
+            if (is_testnet())
+                jsonrpc.bind = EndpointAddress::parse("127.0.0.1:3100").value();
+            else
+                jsonrpc.bind = EndpointAddress::parse("127.0.0.1:3000").value();
         }
     }
 
-    // JSON Puclic RPC socket
+    // JSON Public RPC socket
     if (ai.publicrpc_given) {
         auto p = EndpointAddress::parse(ai.publicrpc_arg);
         if (!p) {
