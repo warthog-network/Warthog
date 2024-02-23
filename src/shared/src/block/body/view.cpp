@@ -101,7 +101,7 @@ std::vector<uint8_t> BodyView::merkle_prefix() const
                 std::vector<uint8_t> res;
                 std::copy((*from)[j].begin(), (*from)[j].end(), std::back_inserter(res));
                 if (j + 1 < from->size()) {
-                    std::ranges::copy((*from)[j + 1].begin(), (*from)[j + 1].end(), std::back_inserter(res));
+                    std::copy((*from)[j + 1].begin(), (*from)[j + 1].end(), std::back_inserter(res));
                 }
                 return res;
             }
