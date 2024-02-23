@@ -189,7 +189,7 @@ BodyContainer BlockGenerator_v2::gen_block_v2(NonzeroHeight height,
         size_t remaining = MAXBLOCKSIZE - size;
         if (remaining < 99)
             break;
-        bool allowNewAddress { remaining < 99 + 20 };
+        bool allowNewAddress { remaining >= 99 + 20 };
         auto toId = nas.getId(pmsg.toAddr, allowNewAddress);
         if (!toId)
             break;
