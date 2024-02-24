@@ -3,7 +3,6 @@
 #include "general/address_funds.hpp"
 #include "mempool/log.hpp"
 #include <set>
-#include <vector>
 namespace chainserver {
 struct TransactionIds;
 }
@@ -52,6 +51,7 @@ public:
     [[nodiscard]] auto get_payments(size_t n, std::vector<Hash>* hashes = nullptr) const
         -> std::vector<TransferTxExchangeMessage>;
     [[nodiscard]] auto take(size_t) const -> std::vector<TxidWithFee>;
+    [[nodiscard]] auto sample(size_t) const -> std::vector<TxidWithFee>;
     [[nodiscard]] auto filter_new(const std::vector<TxidWithFee>&) const
         -> std::vector<TransactionId>;
 
@@ -75,7 +75,7 @@ private:
     Log log;
     Txmap txs;
     std::set<iter_t, ComparatorPin> byPin;
-    std::set<iter_t, ComparatorFee> byFee;
+    ByFee byFee;
     std::set<iter_t, ComparatorHash> byHash;
     BalanceEntries balanceEntries;
     bool master;

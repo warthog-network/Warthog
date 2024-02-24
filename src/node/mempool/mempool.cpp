@@ -1,6 +1,8 @@
 #include "mempool.hpp"
 #include "chainserver/transaction_ids.hpp"
 #include <algorithm>
+#include <numeric>
+#include <random>
 namespace mempool {
 bool BalanceEntry::set_avail(Funds amount)
 {
@@ -86,7 +88,7 @@ bool Mempool::erase(Txmap::iterator iter, BalanceEntries::iterator b_iter, bool 
 {
     const TransactionId id { iter->first };
     byPin.erase(iter);
-    byFee.erase(iter);
+    assert(byFee.erase(iter) == 1);
     byHash.erase(iter);
     auto tx = *iter;
     Funds spend = tx.second.fee.uncompact() + tx.second.amount;
@@ -133,9 +135,21 @@ void Mempool::erase(TransactionId id)
 std::vector<TxidWithFee> Mempool::take(size_t N) const
 {
     std::vector<TxidWithFee> out;
-    for (auto p : txs) {
-        if (out.size() == N)
-            break;
+    auto begin { byFee.begin() };
+    N = std::min(byFee.size(), N);
+    auto end { begin + N };
+    for (auto iter = begin; iter != end; ++iter) {
+        auto& p { **iter };
+        out.push_back({ p.first, p.second.fee });
+    }
+    return out;
+}
+std::vector<TxidWithFee> Mempool::sample(size_t N) const
+{
+    auto sampled { byFee.sample(800, N) };
+    std::vector<TxidWithFee> out;
+    for (auto iter : sampled) {
+        auto& p { *iter };
         out.push_back({ p.first, p.second.fee });
     }
     return out;
@@ -240,7 +254,7 @@ int32_t Mempool::insert_tx(const TransferTxExchangeMessage& pm,
 void Mempool::prune()
 {
     while (size() > maxSize) {
-        erase(*byFee.rend()); // delete smallest element
+        erase(byFee.smallest()); // delete smallest element
     }
 }
 
@@ -248,7 +262,7 @@ CompactUInt Mempool::min_fee() const
 {
     if (size() < maxSize)
         return 0;
-    return (*byFee.rend())->second.fee.next();
+    return byFee.smallest()->second.fee.next();
 }
 
 }

@@ -625,10 +625,10 @@ API::Head State::api_get_head() const
     };
 }
 
-auto State::api_get_mempool(size_t) -> API::MempoolEntries
+auto State::api_get_mempool(size_t n) -> API::MempoolEntries
 {
     std::vector<Hash> hashes;
-    auto entries = chainstate.mempool().get_payments(100, &hashes);
+    auto entries = chainstate.mempool().get_payments(n, &hashes);
     assert(hashes.size() == entries.size());
     API::MempoolEntries out;
     for (size_t i = 0; i < hashes.size(); ++i) {

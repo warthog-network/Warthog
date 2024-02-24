@@ -240,7 +240,7 @@ void ChainServer::handle_event(GetBalance&& e)
 
 void ChainServer::handle_event(GetMempool&& e)
 {
-    e.callback(state.api_get_mempool(100));
+    e.callback(state.api_get_mempool(2000));
 }
 
 void ChainServer::handle_event(LookupTxids&& e)
