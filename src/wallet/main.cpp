@@ -178,7 +178,7 @@ int process(gengetopt_args_info& ai)
             return 0;
         }
         if (ai.send_given) {
-            bool interactive { ai.to_given || !ai.fee_given || !ai.amount_given || !ai.nonce_given };
+            bool interactive { !ai.to_given || !ai.fee_given || !ai.amount_given };
             Address to(ai.to_given ? Address(ai.to_arg) : read_address("To: "));
             CompactUInt fee { CompactUInt::compact({ ai.fee_given ? parse_amount(ai.fee_arg) : read_fee("Fee: ") }) };
             Funds amount { ai.amount_given ? parse_amount(ai.amount_arg) : read_amount(balance_lambda, fee) };
