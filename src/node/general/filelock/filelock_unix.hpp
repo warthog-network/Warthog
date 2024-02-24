@@ -10,6 +10,8 @@ class Filelock {
   public:
     Filelock(const std::string &path) {
 #ifndef __APPLE__
+        if (path == "") 
+            return ;
         fd = open(path.c_str(), 0);
         if (fd < 0) {
             throw std::runtime_error("Cannot open file \"" + path +

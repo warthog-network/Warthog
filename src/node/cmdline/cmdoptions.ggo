@@ -10,6 +10,7 @@ section "Node options"
 option "bind" b "Socket to listen on, defaults to \"0.0.0.0:9186\" for main net and \"0.0.0.0:9286\" for test net" optional string typestr="IP:PORT"  
 option "connect" C "Specify peer list" details="This option overrides the peers list, specify comma separated entries of format 'IP:PORT'" optional string typestr="IP:PORT,..."
 option "isolated" - "Do not allow peers (for testing purposes, do not use in production)" details="This option isolates the node such that it does not connect to other peers and does not accept incoming connections from other peers. This option is for debugging and testing purposes only, do not use in production, mined blocks will not be included in main net" optional
+option "temporary" - "Use temporary database (for testing purposes, do not use in production)" details="This option starts the node with a temporary empty chain database." optional
 option "testnet" - "Enable testnet" optional
 
 section "Data file options"

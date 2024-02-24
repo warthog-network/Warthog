@@ -50,7 +50,6 @@ public:
     // getters
     [[nodiscard]] auto get_payments(size_t n, std::vector<Hash>* hashes = nullptr) const
         -> std::vector<TransferTxExchangeMessage>;
-    [[nodiscard]] auto take(size_t) const -> std::vector<TxidWithFee>;
     [[nodiscard]] auto sample(size_t) const -> std::vector<TxidWithFee>;
     [[nodiscard]] auto filter_new(const std::vector<TxidWithFee>&) const
         -> std::vector<TransactionId>;

@@ -47,6 +47,7 @@ struct gengetopt_args_info
   char * connect_orig;	/**< @brief Specify peer list original value given at command line.  */
   const char *connect_help; /**< @brief Specify peer list help description.  */
   const char *isolated_help; /**< @brief Do not allow peers (for testing purposes, do not use in production) help description.  */
+  const char *temporary_help; /**< @brief Use temporary database (for testing purposes, do not use in production) help description.  */
   const char *testnet_help; /**< @brief Enable testnet help description.  */
   char * chain_db_arg;	/**< @brief specify chain data file.  */
   char * chain_db_orig;	/**< @brief specify chain data file original value given at command line.  */
@@ -77,6 +78,7 @@ struct gengetopt_args_info
   unsigned int bind_given ;	/**< @brief Whether bind was given.  */
   unsigned int connect_given ;	/**< @brief Whether connect was given.  */
   unsigned int isolated_given ;	/**< @brief Whether isolated was given.  */
+  unsigned int temporary_given ;	/**< @brief Whether temporary was given.  */
   unsigned int testnet_given ;	/**< @brief Whether testnet was given.  */
   unsigned int chain_db_given ;	/**< @brief Whether chain-db was given.  */
   unsigned int peers_db_given ;	/**< @brief Whether peers-db was given.  */

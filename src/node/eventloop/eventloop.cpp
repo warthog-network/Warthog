@@ -762,7 +762,7 @@ void Eventloop::handle_msg(Conref c, PingMsg&& m)
     size_t nAddr { std::min(uint16_t(20), m.maxAddresses) };
     auto addresses = connections.sample_verified(nAddr);
     c->ratelimit.ping();
-    PongMsg msg(m.nonce, std::move(addresses), mempool.take(m.maxTransactions));
+    PongMsg msg(m.nonce, std::move(addresses), mempool.sample(m.maxTransactions));
     spdlog::debug("{} Sending {} addresses", c.str(), msg.addresses.size());
     if (c->theirSnapshotPriority < m.sp)
         c->theirSnapshotPriority = m.sp;

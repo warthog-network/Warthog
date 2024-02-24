@@ -283,6 +283,8 @@ int Config::process_gengetopt(gengetopt_args_info& ai)
             data.peersdb = defaultDataDir + (is_testnet() ? "testnet_peers.db3" : "peers.db3");
         }
     }
+    if (ai.temporary_given) 
+        data.chaindb = "";
 
     // Stratum API socket
     if (ai.stratum_given) {

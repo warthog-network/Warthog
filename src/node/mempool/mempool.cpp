@@ -132,18 +132,6 @@ void Mempool::erase(TransactionId id)
         erase(iter);
 }
 
-std::vector<TxidWithFee> Mempool::take(size_t N) const
-{
-    std::vector<TxidWithFee> out;
-    auto begin { byFee.begin() };
-    N = std::min(byFee.size(), N);
-    auto end { begin + N };
-    for (auto iter = begin; iter != end; ++iter) {
-        auto& p { **iter };
-        out.push_back({ p.first, p.second.fee });
-    }
-    return out;
-}
 std::vector<TxidWithFee> Mempool::sample(size_t N) const
 {
     auto sampled { byFee.sample(800, N) };

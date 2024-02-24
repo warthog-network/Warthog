@@ -43,6 +43,8 @@ const char *gengetopt_args_info_detailed_help[] = {
   "  This option overrides the peers list, specify comma separated entries of\n  format 'IP:PORT'",
   "      --isolated             Do not allow peers (for testing purposes, do not\n                               use in production)",
   "  This option isolates the node such that it does not connect to other peers\n  and does not accept incoming connections from other peers. This option is for\n  debugging and testing purposes only, do not use in production, mined blocks\n  will not be included in main net",
+  "      --temporary            Use temporary database (for testing purposes, do\n                               not use in production)",
+  "  This option starts the node with a temporary empty chain database.",
   "      --testnet              Enable testnet",
   "\nData file options:",
   "      --chain-db=STRING      specify chain data file",
@@ -75,25 +77,26 @@ init_help_array(void)
   gengetopt_args_info_help[5] = gengetopt_args_info_detailed_help[5];
   gengetopt_args_info_help[6] = gengetopt_args_info_detailed_help[7];
   gengetopt_args_info_help[7] = gengetopt_args_info_detailed_help[9];
-  gengetopt_args_info_help[8] = gengetopt_args_info_detailed_help[10];
-  gengetopt_args_info_help[9] = gengetopt_args_info_detailed_help[11];
+  gengetopt_args_info_help[8] = gengetopt_args_info_detailed_help[11];
+  gengetopt_args_info_help[9] = gengetopt_args_info_detailed_help[12];
   gengetopt_args_info_help[10] = gengetopt_args_info_detailed_help[13];
   gengetopt_args_info_help[11] = gengetopt_args_info_detailed_help[15];
-  gengetopt_args_info_help[12] = gengetopt_args_info_detailed_help[16];
-  gengetopt_args_info_help[13] = gengetopt_args_info_detailed_help[17];
-  gengetopt_args_info_help[14] = gengetopt_args_info_detailed_help[18];
-  gengetopt_args_info_help[15] = gengetopt_args_info_detailed_help[19];
-  gengetopt_args_info_help[16] = gengetopt_args_info_detailed_help[20];
-  gengetopt_args_info_help[17] = gengetopt_args_info_detailed_help[21];
-  gengetopt_args_info_help[18] = gengetopt_args_info_detailed_help[22];
-  gengetopt_args_info_help[19] = gengetopt_args_info_detailed_help[23];
-  gengetopt_args_info_help[20] = gengetopt_args_info_detailed_help[24];
-  gengetopt_args_info_help[21] = gengetopt_args_info_detailed_help[25];
-  gengetopt_args_info_help[22] = 0; 
+  gengetopt_args_info_help[12] = gengetopt_args_info_detailed_help[17];
+  gengetopt_args_info_help[13] = gengetopt_args_info_detailed_help[18];
+  gengetopt_args_info_help[14] = gengetopt_args_info_detailed_help[19];
+  gengetopt_args_info_help[15] = gengetopt_args_info_detailed_help[20];
+  gengetopt_args_info_help[16] = gengetopt_args_info_detailed_help[21];
+  gengetopt_args_info_help[17] = gengetopt_args_info_detailed_help[22];
+  gengetopt_args_info_help[18] = gengetopt_args_info_detailed_help[23];
+  gengetopt_args_info_help[19] = gengetopt_args_info_detailed_help[24];
+  gengetopt_args_info_help[20] = gengetopt_args_info_detailed_help[25];
+  gengetopt_args_info_help[21] = gengetopt_args_info_detailed_help[26];
+  gengetopt_args_info_help[22] = gengetopt_args_info_detailed_help[27];
+  gengetopt_args_info_help[23] = 0; 
   
 }
 
-const char *gengetopt_args_info_help[23];
+const char *gengetopt_args_info_help[24];
 
 typedef enum {ARG_NO
   , ARG_STRING
@@ -121,6 +124,7 @@ void clear_given (struct gengetopt_args_info *args_info)
   args_info->bind_given = 0 ;
   args_info->connect_given = 0 ;
   args_info->isolated_given = 0 ;
+  args_info->temporary_given = 0 ;
   args_info->testnet_given = 0 ;
   args_info->chain_db_given = 0 ;
   args_info->peers_db_given = 0 ;
@@ -168,17 +172,18 @@ void init_args_info(struct gengetopt_args_info *args_info)
   args_info->bind_help = gengetopt_args_info_detailed_help[4] ;
   args_info->connect_help = gengetopt_args_info_detailed_help[5] ;
   args_info->isolated_help = gengetopt_args_info_detailed_help[7] ;
-  args_info->testnet_help = gengetopt_args_info_detailed_help[9] ;
-  args_info->chain_db_help = gengetopt_args_info_detailed_help[11] ;
-  args_info->peers_db_help = gengetopt_args_info_detailed_help[13] ;
-  args_info->debug_help = gengetopt_args_info_detailed_help[16] ;
-  args_info->rpc_help = gengetopt_args_info_detailed_help[18] ;
-  args_info->publicrpc_help = gengetopt_args_info_detailed_help[19] ;
-  args_info->stratum_help = gengetopt_args_info_detailed_help[20] ;
-  args_info->enable_public_help = gengetopt_args_info_detailed_help[21] ;
-  args_info->config_help = gengetopt_args_info_detailed_help[23] ;
-  args_info->test_help = gengetopt_args_info_detailed_help[24] ;
-  args_info->dump_config_help = gengetopt_args_info_detailed_help[25] ;
+  args_info->temporary_help = gengetopt_args_info_detailed_help[9] ;
+  args_info->testnet_help = gengetopt_args_info_detailed_help[11] ;
+  args_info->chain_db_help = gengetopt_args_info_detailed_help[13] ;
+  args_info->peers_db_help = gengetopt_args_info_detailed_help[15] ;
+  args_info->debug_help = gengetopt_args_info_detailed_help[18] ;
+  args_info->rpc_help = gengetopt_args_info_detailed_help[20] ;
+  args_info->publicrpc_help = gengetopt_args_info_detailed_help[21] ;
+  args_info->stratum_help = gengetopt_args_info_detailed_help[22] ;
+  args_info->enable_public_help = gengetopt_args_info_detailed_help[23] ;
+  args_info->config_help = gengetopt_args_info_detailed_help[25] ;
+  args_info->test_help = gengetopt_args_info_detailed_help[26] ;
+  args_info->dump_config_help = gengetopt_args_info_detailed_help[27] ;
   
 }
 
@@ -335,6 +340,8 @@ cmdline_parser_dump(FILE *outfile, struct gengetopt_args_info *args_info)
     write_into_file(outfile, "connect", args_info->connect_orig, 0);
   if (args_info->isolated_given)
     write_into_file(outfile, "isolated", 0, 0 );
+  if (args_info->temporary_given)
+    write_into_file(outfile, "temporary", 0, 0 );
   if (args_info->testnet_given)
     write_into_file(outfile, "testnet", 0, 0 );
   if (args_info->chain_db_given)
@@ -606,6 +613,7 @@ cmdline_parser_internal (
         { "bind",	1, NULL, 'b' },
         { "connect",	1, NULL, 'C' },
         { "isolated",	0, NULL, 0 },
+        { "temporary",	0, NULL, 0 },
         { "testnet",	0, NULL, 0 },
         { "chain-db",	1, NULL, 0 },
         { "peers-db",	1, NULL, 0 },
@@ -726,6 +734,20 @@ cmdline_parser_internal (
                 &(local_args_info.isolated_given), optarg, 0, 0, ARG_NO,
                 check_ambiguity, override, 0, 0,
                 "isolated", '-',
+                additional_error))
+              goto failure;
+          
+          }
+          /* Use temporary database (for testing purposes, do not use in production).  */
+          else if (strcmp (long_options[option_index].name, "temporary") == 0)
+          {
+          
+          
+            if (update_arg( 0 , 
+                 0 , &(args_info->temporary_given),
+                &(local_args_info.temporary_given), optarg, 0, 0, ARG_NO,
+                check_ambiguity, override, 0, 0,
+                "temporary", '-',
                 additional_error))
               goto failure;
           
