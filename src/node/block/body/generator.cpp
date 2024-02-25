@@ -67,24 +67,19 @@ class BlockGenerator {
 
     class TransferSection {
     public:
-        TransferSection(uint32_t n)
-        {
-            if (n == 0)
-                buf.resize(0);
-            else {
-                buf.reserve(4 + n * 99);
-                buf.resize(4);
-            }
-        }
         void add_payment(AccountId toId, PinNonce pinNonce,
             const TransferTxExchangeMessage&);
         size_t binarysize()
         {
-            return buf.size();
+            if (buf.size() == 0) 
+                return 0;
+            return 4 + buf.size();
         }
         uint8_t* write(uint8_t* out)
         {
-            bewrite(buf.data(), nTransfers);
+            if (buf.size() == 0) 
+                return out;
+            out = bewrite(out, nTransfers);
             memcpy(out, buf.data(), buf.size());
             return out + buf.size();
         }
@@ -150,7 +145,7 @@ BodyContainer BlockGenerator::gen_block(NonzeroHeight height,
         validTransfers.push_back(pmsg);
     }
 
-    TransferSection trs(validTransfers.size());
+    TransferSection trs;
     for (auto& pmsg : validTransfers) {
         size_t size { 10 + nas.binarysize() + RewardSection::binary_size + trs.binarysize() };
         assert(size <= MAXBLOCKSIZE);
