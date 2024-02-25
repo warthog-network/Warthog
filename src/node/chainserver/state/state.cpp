@@ -242,10 +242,9 @@ MiningTask State::mining_task(const Address& a)
     Funds totalfee { 0 };
     for (auto& p : payments)
         totalfee += p.fee();
-    Payout payout { a, md.reward + totalfee };
 
     // mempool should have deleted out of window transactions
-    auto body { generate_body(db, height, payout, payments) };
+    auto body { generate_body(db, height, a, payments) };
     BodyView bv(body.view(height));
     if (!bv.valid())
         spdlog::error("Cannot create mining task, body invalid");

@@ -4,5 +4,5 @@
 #include "general/byte_order.hpp"
 
 class ChainDB;
-BodyContainer generate_body(const ChainDB& db, NonzeroHeight height, const Payout& payout, const std::vector<TransferTxExchangeMessage>& payments);
+BodyContainer generate_body(const ChainDB& db, NonzeroHeight height, const Address& miner, const std::vector<TransferTxExchangeMessage>& payments);
 

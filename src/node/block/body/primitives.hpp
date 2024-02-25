@@ -8,17 +8,6 @@
 class Address;
 class HashView;
 class TransferView;
-struct Payout {
-    Payout(const Address& address, Funds amount);
-
-    Address to;
-    Funds amount;
-};
-struct Payment {
-    Address from;
-    Address to;
-    Funds amount;
-};
 
 class PaymentCreateMessage;
 

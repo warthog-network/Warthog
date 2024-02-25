@@ -3,9 +3,6 @@
 #include "mempool/entry.hpp"
 #include "parse.hpp"
 
-Payout::Payout(const Address& address, Funds amount)
-    : to(address)
-    , amount(amount) {}
 
 Writer& operator<<(Writer& w, TransferTxExchangeMessage m)
 {
