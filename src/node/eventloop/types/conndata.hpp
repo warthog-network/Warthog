@@ -1,5 +1,6 @@
 #pragma once
 
+#include "asyncio/connection_base.hpp"
 #include "eventloop/peer_chain.hpp"
 #include "eventloop/sync/block_download/connection_data.hpp"
 #include "eventloop/sync/header_download/connection_data.hpp"
@@ -9,9 +10,13 @@
 class Timerref {
 public:
     Timerref(Timer& t)
-        : timer_iter(t.end()) {}
+        : timer_iter(t.end())
+    {
+    }
     Timerref(Timer::iterator iter)
-        : timer_iter(iter) {}
+        : timer_iter(iter)
+    {
+    }
     Timer::iterator& timer_ref() { return timer_iter; }
     void reset_expired(Timer& t)
     {
@@ -87,9 +92,10 @@ struct ConnectionJob : public Timerref {
             throw Error(EUNREQUESTED);
     }
 
-    [[nodiscard]] bool awaiting_init() const { 
+    [[nodiscard]] bool awaiting_init() const
+    {
         assert(!data_v.valueless_by_exception());
-        return std::holds_alternative<AwaitInit>(data_v); 
+        return std::holds_alternative<AwaitInit>(data_v);
     }
 
     void restart_expired(Timer::iterator iter, Timer& t)
@@ -154,7 +160,9 @@ private:
 
 struct Ping : public Timerref {
     Ping(Timer& end)
-        : Timerref(end) {}
+        : Timerref(end)
+    {
+    }
     void await_pong(PingMsg msg, Timer::iterator iter)
     {
         assert(!data);
@@ -215,9 +223,11 @@ struct Usage {
 namespace BlockDownload {
 class Attorney;
 }
-struct PeerState {
-    PeerState(std::shared_ptr<Connection> c, HeaderDownload::Downloader& h, BlockDownload::Downloader& b, Timer& t);
-    std::shared_ptr<Connection> c;
+
+class PeerState {
+    public:
+    PeerState(std::shared_ptr<ConnectionBase> c, HeaderDownload::Downloader& h, BlockDownload::Downloader& b, Timer& t);
+    std::shared_ptr<ConnectionBase> c;
     std::optional<mempool::SubscriptionIter> subscriptionIter;
     ConnectionJob job;
     Height txSubscription { 0 };
@@ -240,27 +250,16 @@ private:
     PeerChain chain;
 };
 
-bool Conref::operator==(Conref other) const { return data.iter == other.data.iter; }
-Conref::operator Connection*()
-{
-    if (valid())
-        return data.iter->second.c.get();
-    return nullptr;
-}
-Conref::operator const Connection*() const
-{
-    if (valid())
-        return data.iter->second.c.get();
-    return nullptr;
-}
-const PeerChain& Conref::chain() const { return data.iter->second.chain; }
-PeerChain& Conref::chain() { return data.iter->second.chain; }
-auto& Conref::job() { return data.iter->second.job; }
-auto& Conref::job() const{ return data.iter->second.job; }
-auto& Conref::ping() { return data.iter->second.ping; }
-auto Conref::operator->() { return &(data.iter->second); }
-bool Conref::initialized() { return !data.iter->second.job.waiting_for_init(); }
+inline bool Conref::operator==(const Conref& cr) const { return iter == cr.iter; }
+const PeerChain& Conref::chain() const { return iter->second.chain; }
+PeerChain& Conref::chain() { return iter->second.chain; }
+auto& Conref::job() { return iter->second.job; }
+auto& Conref::job() const { return iter->second.job; }
+auto& Conref::peer() const { return iter->second.c->peer; }
+auto& Conref::ping() { return iter->second.ping; }
+auto Conref::operator->() { return &(iter->second); }
+bool Conref::initialized() { return !iter->second.job.waiting_for_init(); }
 inline uint64_t Conref::id() const
 {
-    return data.iter->first;
+    return iter->first;
 }

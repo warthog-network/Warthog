@@ -22,9 +22,7 @@ public:
     };
     struct CloseNoPong: public WithConnecitonId {
     };
-    struct Connect {
-    };
-    using Event = std::variant<SendPing, Expire, CloseNoReply,CloseNoPong, Connect>;
+    using Event = std::variant<SendPing, Expire, CloseNoReply,CloseNoPong>;
 
 private:
     using time_point = std::chrono::steady_clock::time_point;

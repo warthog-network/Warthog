@@ -2,6 +2,7 @@
 #include "address_manager/address_manager.hpp"
 #include "api/callbacks.hpp"
 #include "api/types/forward_declarations.hpp"
+#include "asyncio/connection_base.hpp"
 #include "block/chain/signed_snapshot.hpp"
 #include "chain_cache.hpp"
 #include "chainserver/state/update/update.hpp"
@@ -24,12 +25,12 @@
 
 #include <algorithm>
 
-class Connection;
+class TCPConnection;
 class Rcvbuffer;
 class Reader;
 class Eventprocessor;
 class EndAttorney;
-struct Config;
+struct ConfigParams;
 
 struct ForkMsg;
 struct AppendMsg;
@@ -47,7 +48,7 @@ class Eventloop {
 
 public:
     friend struct Inspector;
-    Eventloop(PeerServer&, ChainServer& ss, const Config& config);
+    Eventloop(PeerServer&, ChainServer& ss, const ConfigParams& config);
     ~Eventloop();
 
     // API callbacks
@@ -60,8 +61,8 @@ public:
 
     void async_state_update(StateUpdate&& s);
     void async_mempool_update(mempool::Log&& s);
-    bool async_process(std::shared_ptr<Connection> c);
-    void async_erase(std::shared_ptr<Connection> c, int32_t error);
+    bool async_process(std::shared_ptr<ConnectionBase> c);
+    void erase(std::shared_ptr<ConnectionBase> c);
     void async_shutdown(int32_t reason);
     void async_report_failed_outbound(EndpointAddress);
     void async_stage_action(stage_operation::Result);
@@ -69,7 +70,7 @@ public:
     void api_get_peers(PeersCb&& cb);
     void api_get_hashrate(HashrateCb&& cb);
     void api_get_hashrate_chart(HashrateChartCb&& cb);
-    void api_get_hashrate_chart(NonzeroHeight from, NonzeroHeight to,HashrateChartCb&& cb);
+    void api_get_hashrate_chart(NonzeroHeight from, NonzeroHeight to, HashrateChartCb&& cb);
     void api_inspect(InspectorCb&&);
 
     void start_async_loop();
@@ -82,7 +83,7 @@ private:
     bool has_work();
     void work();
     bool check_shutdown();
-    void process_connection(std::shared_ptr<Connection> c);
+    void process_connection(std::shared_ptr<ConnectionBase> c);
 
     //////////////////////////////
     // Private async functions
@@ -91,7 +92,7 @@ private:
 
     //////////////////////////////
     // Connection related functions
-    void erase(Conref cr, int32_t error);
+    void erase_internal(Conref cr);
     [[nodiscard]] bool insert(Conref cr, const InitMsg& data); // returns true if requests might be possbile
     void close(Conref cr, uint32_t reason);
     void close_by_id(uint64_t connectionId, int32_t reason);
@@ -101,7 +102,7 @@ private:
 
     ////////////////////////
     // Handling incoming messages
-    void dispatch_message(Conref cr, Rcvbuffer& rb);
+    void dispatch_message(Conref cr, messages::Msg&& rb);
     void handle_msg(Conref cr, PingMsg&&);
     void handle_msg(Conref cr, PongMsg&&);
     void handle_msg(Conref cr, BatchreqMsg&&);
@@ -148,14 +149,12 @@ private:
     void cancel_timer(Timer::iterator& ref);
     void send_ping_await_pong(Conref cr);
     void received_pong_sleep_ping(Conref cr);
-    void update_wakeup();
 
     ////////////////////////
     // Timeout callbacks
     template <typename T>
     requires std::derived_from<T, Timer::WithConnecitonId>
     void handle_timeout(T&&);
-    void handle_timeout(Timer::Connect&&);
     void handle_connection_timeout(Conref, Timer::SendPing&&);
     void handle_connection_timeout(Conref, Timer::Expire&&);
     void handle_connection_timeout(Conref, Timer::CloseNoReply&&);
@@ -168,31 +167,18 @@ private:
     // blockdownload result
     void process_blockdownload_stage();
 
-    ////////////////////////
-    // establish new connections
-    void connect_scheduled();
 
     ////////////////////////
     // event types
-    struct OnRelease {
-        std::shared_ptr<Connection> c;
-        int32_t error;
+    struct Erase {
+        std::shared_ptr<ConnectionBase> c;
     };
     struct OnProcessConnection {
-        std::shared_ptr<Connection> c;
+        std::shared_ptr<ConnectionBase> c;
     };
     struct OnForwardBlockrep {
         uint64_t conId;
         std::vector<BodyContainer> blocks;
-    };
-    struct OnFailedAddressEvent {
-        EndpointAddress a;
-    };
-    struct OnPinAddress {
-        EndpointAddress a;
-    };
-    struct OnUnpinAddress {
-        EndpointAddress a;
     };
     struct GetHashrateChart {
         HashrateChartCb cb;
@@ -200,29 +186,26 @@ private:
         NonzeroHeight to;
     };
     // event queue
-    using Event = std::variant<OnRelease, OnProcessConnection,
+    using Event = std::variant<Erase, OnProcessConnection,
         StateUpdate, SignedSnapshotCb, PeersCb, stage_operation::Result,
-        OnForwardBlockrep, OnFailedAddressEvent, InspectorCb, HashrateCb, GetHashrateChart,
-        OnPinAddress, OnUnpinAddress, mempool::Log>;
+        OnForwardBlockrep, InspectorCb, HashrateCb, GetHashrateChart,
+        mempool::Log>;
 
 public:
     bool defer(Event e);
 
 private:
     // event handlers
-    void handle_event(OnRelease&&);
+    void handle_event(Erase&&);
     void handle_event(OnProcessConnection&&);
     void handle_event(StateUpdate&&);
     void handle_event(PeersCb&&);
     void handle_event(SignedSnapshotCb&&);
     void handle_event(stage_operation::Result&&);
     void handle_event(OnForwardBlockrep&&);
-    void handle_event(OnFailedAddressEvent&&);
     void handle_event(InspectorCb&&);
     void handle_event(HashrateCb&&);
     void handle_event(GetHashrateChart&&);
-    void handle_event(OnPinAddress&&);
-    void handle_event(OnUnpinAddress&&);
     void handle_event(mempool::Log&&);
 
     // chain updates

@@ -2,155 +2,77 @@
 #include "connection.hpp"
 #include "eventloop/eventloop.hpp"
 #include "global/globals.hpp"
-static constexpr bool debug_refcount = false;
-#define DEFAULT_BACKLOG 128
-
-//////////////////////////////
-// Callers (static libuv callback functions)
-void Conman::new_connection_caller(uv_stream_t* server, int status)
+#include "uvw.hpp"
+#include <memory>
+namespace {
+[[nodiscard]] std::optional<EndpointAddress> get_ipv4_endpoint(const uvw::tcp_handle& handle)
 {
-    if (config().node.isolated) 
-        return;
-    Conman& c = (*reinterpret_cast<Conman*>(server->data));
-    if (!c.closing) {
-        c.on_connect(status);
-    }
+    sockaddr_storage storage;
+    int alen = sizeof(storage);
+    assert(uv_tcp_getpeername(handle.raw(), (struct sockaddr*)&storage, &alen) == 0);
+    if (storage.ss_family != AF_INET)
+        return {};
+    sockaddr_in* addr_i4 = (struct sockaddr_in*)&storage;
+    return EndpointAddress(IPv4(ntoh32(uint32_t(addr_i4->sin_addr.s_addr))), addr_i4->sin_port);
 }
-void Conman::wakeup_caller(uv_async_t* handle)
-{
-    Conman& cm = (*reinterpret_cast<Conman*>(handle->data));
-    cm.on_wakeup();
-}
-void Conman::close_caller(uv_handle_t* handle)
-{
-    Conman& cm = (*reinterpret_cast<Conman*>(handle->data));
-    handle->data = nullptr;
-    cm.unref("closed");
-}
-void Conman::reconnect_caller(uv_timer_t* handle)
-{
-    ReconnectTimer& timer = (*reinterpret_cast<ReconnectTimer*>(handle->data));
-    timer.conman->on_reconnect_wakeup(timer);
-}
-void Conman::reconnect_closed_cb(uv_handle_t* handle)
-{
-    ReconnectTimer& timer = (*reinterpret_cast<ReconnectTimer*>(handle->data));
-    timer.conman->on_reconnect_closed(timer);
 }
 
-// ip counting
-bool Conman::count(IPv4 ip)
+TCPConnection& UV_Helper::insert_connection(std::shared_ptr<uvw::tcp_handle>& tcpHandle, const EndpointAddress& peer, bool inbound)
 {
-    return perIpCounter.insert(ip, max_conn_per_ip);
-}
-void Conman::count_force(IPv4 ip)
-{
-    perIpCounter.insert(ip);
-}
-void Conman::uncount(IPv4 ip)
-{
-    perIpCounter.erase(ip);
-}
+    auto con { TCPConnection::make_new(tcpHandle, peer, inbound, *this) };
+    tcpConnections.insert(con);
+    auto iter = tcpConnections.begin();
+    tcpHandle->data(con);
+    tcpHandle->on<uvw::close_event>([this, iter](const uvw::close_event&, uvw::tcp_handle& client) {
+        client.data(nullptr);
+        tcpConnections.erase(iter);
+    });
+    tcpHandle->on<uvw::end_event>([](const uvw::end_event&, uvw::tcp_handle& client) {
+        client.data<TCPConnection>()->close_internal(UV_EOF);
+    });
+    tcpHandle->on<uvw::error_event>([](const uvw::error_event& e, uvw::tcp_handle& client) {
+        client.data<TCPConnection>()->close_internal(e.code());
+    });
+    tcpHandle->on<uvw::shutdown_event>([](const uvw::shutdown_event&, uvw::tcp_handle& client) { client.close(); });
+    tcpHandle->on<uvw::data_event>([](const uvw::data_event& de, uvw::tcp_handle& client) {
+        client.data<TCPConnection>()->on_message({ reinterpret_cast<uint8_t*>(de.data.get()), de.length });
+    });
+    return *con;
+};
 
-// reference counting
-void Conman::unlink(std::shared_ptr<Connection> pcon)
+UV_Helper::UV_Helper(std::shared_ptr<uvw::loop> loop, PeerServer& ps, const ConfigParams& cfg)
+    : bindAddress(cfg.node.bind)
 {
-    if(connections.erase(pcon))
-        unref("connection");
-}
-
-void Conman::addref(const char* tag)
-{
-    std::unique_lock<std::mutex> lock(mutex);
-    refcount += 1;
-    if (debug_refcount)
-        spdlog::debug("[conman] addref -> {}, {}", refcount, tag);
-}
-
-void Conman::unref(const char* tag)
-{
-    refcount -= 1;
-    if (debug_refcount)
-        spdlog::debug("[conman] unref -> {}, {}", refcount, tag);
-    if (closing) {
-        if (refcount == 1) { // 1 for the wakeup callback
-            uv_close((uv_handle_t*)&wakeup, close_caller);
+    listener = loop->resource<uvw::tcp_handle>();
+    assert(listener);
+    listener->on<uvw::error_event>([](const uvw::error_event&, uvw::tcp_handle&) {
+        spdlog::error("");
+    });
+    listener->on<uvw::listen_event>([this, &ps](const uvw::listen_event&, uvw::tcp_handle& server) {
+        if (config().node.isolated)
+            return;
+        std::shared_ptr<uvw::tcp_handle> tcpHandle = server.parent().resource<uvw::tcp_handle>();
+        assert(server.accept(*tcpHandle) == 0);
+        auto endpoint { get_ipv4_endpoint(*tcpHandle) };
+        if (endpoint) {
+            auto connection { insert_connection(tcpHandle, *endpoint, true).shared_from_this() };
+            ps.authenticate(connection);
         }
-    }
-}
+    });
+    wakeup = loop->resource<uvw::async_handle>();
+    assert(wakeup);
+    wakeup->on<uvw::async_event>([&](uvw::async_event&, uvw::async_handle&) {
+        on_wakeup();
+    });
 
-void Conman::async_send(std::shared_ptr<Connection> c) // CALLED BY PROCESSING THREAD
-{
-    std::unique_lock<std::mutex> lock(mutex);
-    events.push(Send { std::move(c) });
-    uv_async_send(&wakeup);
-}
-
-void Conman::async_delete(std::shared_ptr<Connection> pcon) // POTENTIALLY CALLED BY OTHER THREAD
-{
-    std::unique_lock<std::mutex> lock(mutex);
-    events.push(Delete { std::move(pcon) });
-    uv_async_send(&wakeup);
-}
-
-void Conman::async_close(std::shared_ptr<Connection> c,
-    int32_t error) // POTENTIALLY CALLED BY OTHER THREAD
-{
-    std::unique_lock<std::mutex> lock(mutex);
-    events.push(Close { std::move(c), error });
-    uv_async_send(&wakeup);
-}
-
-void Conman::async_validate(std::weak_ptr<Connection> c, bool accept, int64_t rowid)
-{
-    std::unique_lock<std::mutex> lock(mutex);
-    events.push(Validation { std::move(c), accept, rowid });
-    uv_async_send(&wakeup);
-}
-
-Conman::Conman(uv_loop_t* l, PeerServer& peerServer, const Config& config)
-    : peerServer(peerServer)
-    , bindAddress(config.node.bind)
-{
-    int i;
-    server.data = wakeup.data = nullptr;
-    if ((i = uv_tcp_init(l, &server)))
-        throw std::runtime_error("Cannot initialize TCP Server");
-    server.data = this;
-    addref("TCP Server");
-    // only accept IPv4
-    auto addr { bindAddress.sock_addr() };
     spdlog::info("P2P endpoint is {}.", bindAddress.to_string());
-    if ((i = uv_tcp_bind(&server, (const struct sockaddr*)&addr, 0)))
-        goto error;
-    if ((i = uv_listen((uv_stream_t*)&server, DEFAULT_BACKLOG,
-             new_connection_caller)))
-        goto error;
-    if ((i = uv_async_init(l, &wakeup, wakeup_caller) < 0))
-        goto error;
-    wakeup.data = this;
-    addref("wakeup");
-
-    return;
-error:
-    throw std::runtime_error(
-        "Cannot start connection manager (memory will leak): " + std::string(errors::err_name(i)));
+    int i = 0;
+    if ((i = listener->bind(bindAddress)) || (i = listener->listen()))
+        throw std::runtime_error(
+            "Cannot start connection manager: " + std::string(errors::err_name(i)));
+    assert(0 == listener->listen());
 }
-void Conman::on_connect(int status)
-{
-    if (status != 0) {
-        spdlog::error("Failed to accept connection: {}, status:{}",
-            std::string(errors::err_name(status)), status);
-        return;
-    }
-    auto [iter,inserted] = connections.emplace(std::make_shared<Connection>(*this, true));
-    const auto& p = *iter;
-    addref("connection");
-    if (status = p->accept(); status != 0)
-        return p->close(status);
-    peerServer.async_validate(*this, p);
-}
-void Conman::on_wakeup()
+void UV_Helper::on_wakeup()
 {
     decltype(events) tmp;
     { // lock for very short time (swap)
@@ -163,123 +85,51 @@ void Conman::on_wakeup()
         tmp.pop();
     }
 }
-void Conman::on_reconnect_wakeup(ReconnectTimer& t)
-{
-    uv_close((uv_handle_t*)&t.uv_timer, &Conman::reconnect_closed_cb);
-}
-void Conman::on_reconnect_closed(ReconnectTimer& t)
-{
-    if (t.nextReconnectSleep > 0) {
-        connect(t.address, t.nextReconnectSleep);
-    }
-    reconnectTimers.erase(t.iter);
-    unref("reconnect closed");
-}
 
-void Conman::handle_event(Delete&& e)
-{
-    assert(e.c->state == Connection::State::CLOSING);
-    if (e.c->reconnectSleep.has_value() && !e.c->inbound) {
-        auto a = e.c->peerAddress;
-        const size_t seconds = e.c->reconnectSleep.value();
-        const size_t milliseconds = seconds * 1000;
-        reconnectTimers.push_back(
-            ReconnectTimer {
-                .conman = this,
-                .uv_timer {},
-                .address { a },
-                .nextReconnectSleep = std::max(seconds, std::min(2 * seconds + 1, size_t(60ul))),
-                .iter {} });
-        auto iter = std::prev(reconnectTimers.end());
-        auto& timer = *iter;
-        addref("timer");
-        timer.uv_timer.data = &timer;
-        timer.iter = iter;
-        assert(uv_timer_init(loop(), &timer.uv_timer) == 0);
-        uv_timer_start(&timer.uv_timer, &Conman::reconnect_caller, milliseconds, 0);
-    }
-    unlink(e.c);
-}
-
-void Conman::handle_event(Close&& e)
-{
-    e.c->close(e.reason);
-}
-void Conman::handle_event(Send&& e)
-{
-    e.c->send_buffers();
-}
-
-void Conman::handle_event(Validation&& e)
-{
-    if (auto l{e.c.lock()}; l) {
-        l->logrow=e.rowid;
-        if (e.accept) { 
-            l->start_read();
-        } else {
-            l->close(EREFUSED);
-        }
-    }
-}
-
-void Conman::handle_event(GetPeers&& e)
+void UV_Helper::handle_event(GetPeers&& e)
 {
     std::vector<APIPeerdata> data;
-    for (auto c : connections) {
-        APIPeerdata item;
-        item.address = c->peerAddress;
-        item.since = c->connected_since;
-        data.push_back(item);
+    for (auto c : tcpConnections) {
+        data.push_back({ c->peer, c->created_at_timestmap() });
     }
     e.cb(std::move(data));
 }
 
-void Conman::handle_event(Connect&& c)
+void UV_Helper::handle_event(Connect&& c)
 {
-    if (!closing) {
-        connect(c.a, c.reconnectSleep);
-    }
+    connect(c.a);
 }
 
-void Conman::handle_event(Inspect&& e)
+void UV_Helper::handle_event(Inspect&& e)
 {
     e.callback(*this);
 }
 
-void Conman::close(int32_t reason)
+void UV_Helper::handle_event(DeferFunc&& f)
+{
+    f.callback();
+};
+
+void UV_Helper::shutdown(int32_t reason)
 {
     if (closing == true)
         return;
     closing = true;
-    global().pel->async_shutdown(reason);
-    // uv_async_send(&wakeup);
-    if (server.data != nullptr) {
-        uv_close((uv_handle_t*)&server, close_caller);
-    }
-    for (auto& c : connections) {
-        c->reconnectSleep.reset(); // avoid reconnect
-        c->close(reason);
-    }
-    for (auto& t : reconnectTimers) {
-        t.nextReconnectSleep = 0;
-        uv_timer_stop(&t.uv_timer);
-        uv_close((uv_handle_t*)&t.uv_timer, reconnect_closed_cb);
-    }
-    peerServer.async_shutdown();
-    if (closing && refcount == 1) { // 1 for the wakeup callback
-        uv_close((uv_handle_t*)&wakeup, close_caller);
-    }
+    wakeup->close();
+    listener->close();
+    for (auto& c : tcpConnections)
+        c->close_internal(reason);
 }
 
-void Conman::connect(EndpointAddress a, std::optional<uint32_t> reconnectSleep)
+void UV_Helper::connect(EndpointAddress a)
 {
-    if (config().node.isolated) 
-        return;
-    auto p = connections.emplace(new Connection(*this, false, reconnectSleep));
-    auto& conn = **p.first;
-    addref("connection");
-    if (int i = conn.connect(a)) {
-        conn.close(i);
-        connection_log().error("Cannot connect: {}", errors::err_name(i));
+    // connection_log().info("{} connecting ", to_string());// TODO: do connection_log
+    auto& loop { listener->parent() };
+    auto tcp { loop.resource<uvw::tcp_handle>() };
+    auto err { tcp->connect(a.sock_addr()) };
+    if (err) {
+        global().peerServer->on_failed_connect(a, err);
     }
+    auto& connection { insert_connection(tcp, a, false) };
+    connection.start_read();
 }

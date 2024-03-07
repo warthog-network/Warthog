@@ -1,5 +1,6 @@
 #include "peer_db.hpp"
 #include "general/now.hpp"
+#include "spdlog/spdlog.h"
 PeerDB::CreateTables::CreateTables(SQLite::Database& db)
 {
     db.exec("CREATE TABLE IF NOT EXISTS \"offenses\" ( \"ip\"	INTEGER, \"timestamp\", \"offense\"	TEXT)");
@@ -36,6 +37,7 @@ PeerDB::PeerDB(const std::string& path)
     , disconnectset(db, "UPDATE `connection_log` SET `end`=?, `code`=? WHERE ROWID=?")
     , refuseinsert(db, "INSERT INTO `refuse_log` (`peer`,`timestamp`) VALUES (?,?)")
 {
+    spdlog::info("{} IPs are currently blacklisted.", get_banned_peers().size());
 }
 
 std::vector<std::pair<EndpointAddress, uint32_t>> PeerDB::recent_peers(int64_t maxEntries)

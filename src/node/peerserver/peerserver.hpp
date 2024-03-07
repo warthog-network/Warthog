@@ -1,10 +1,11 @@
 #pragma once
 
-#include "general/page.hpp"
+#include "asyncio/connection_base.hpp"
 #include "ban_cache.hpp"
 #include "db/peer_db.hpp"
 #include "expected.hpp"
 #include "general/errors.hpp"
+#include "general/page.hpp"
 #include "general/tcp_util.hpp"
 #include "spdlog/spdlog.h"
 #include <condition_variable>
@@ -15,43 +16,51 @@
 #include <uv.h>
 #include <variant>
 
-class Connection;
-class Conman;
+class TCPConnection;
+class UV_Helper;
 struct Inspector;
-struct Config;
+struct ConfigParams;
 
 class PeerServer {
 public:
-    struct Offense {
-        IPv4 ip;
+    struct OnClose {
+        std::shared_ptr<peerserver::ConnectionData> con;
         int32_t offense;
-        int64_t rowid;
     };
-    using BannedCB = std::function<void(const std::vector<PeerDB::BanEntry>&)>;
-    using OffensesCb = std::function<void(const tl::expected<std::vector<OffenseEntry>, int32_t>&)>;
-    using ResultCB = std::function<void(const tl::expected<void, int32_t>&)>;
+    using banned_callback_t = std::function<void(const std::vector<PeerDB::BanEntry>&)>;
+    using offenses_callback_t = std::function<void(const tl::expected<std::vector<OffenseEntry>, int32_t>&)>;
+    using result_callback_t = std::function<void(const tl::expected<void, int32_t>&)>;
 
 private:
+    using Source = IPv4;
     friend struct Inspector;
-    struct NewConnection {
-        Conman& cm;
-        std::weak_ptr<Connection> c;
+    struct SuccessfulOutbound {
+        std::shared_ptr<ConnectionBase> c;
+    };
+    struct VerifyPeer {
+        EndpointAddress c;
+        Source source;
+    };
+    struct Authenticate {
+        std::shared_ptr<ConnectionBase> c;
     };
     struct Unban {
-        ResultCB cb;
+        result_callback_t cb;
     };
 
     struct GetOffenses {
         Page page;
-        OffensesCb cb;
+        offenses_callback_t cb;
     };
 
 public:
-    bool async_register_close(IPv4 ip, int32_t offense, int64_t rowid = -1)
+    bool async_register_close(std::shared_ptr<peerserver::ConnectionData> con, int32_t offense)
     {
+        // TODO:
+        // global().core->async_report_failed_outbound(peerAddress);
         if (offense == EREFUSED)
             return false;
-        return async_event(Offense { ip, offense, rowid });
+        return async_event(OnClose { std::move(con), offense });
     }
     void async_shutdown()
     {
@@ -60,20 +69,30 @@ public:
         hasWork = true;
         cv.notify_one();
     }
-    bool async_validate(Conman& cm, std::shared_ptr<Connection> c)
+
+    bool authenticate(std::shared_ptr<ConnectionBase> c)
     {
-        // make sure that addref is called before
-        return async_event(NewConnection { cm, std::move(c) });
+        return async_event(Authenticate{std::move(c)});
     }
-    bool async_get_banned(BannedCB cb)
+    void verify_peer(EndpointAddress c, Source source){
+        async_event(VerifyPeer{std::move(c),source});
+    }
+    void notify_successful_outbound(std::shared_ptr<ConnectionBase> c){
+        async_event(SuccessfulOutbound(std::move(c)));
+    }
+    auto on_failed_connect(EndpointAddress address, Error reason){
+        return async_event(FailedConnect{address, reason});
+    };
+
+    bool async_get_banned(banned_callback_t cb)
     {
         return async_event(cb);
     };
-    bool async_unban(ResultCB cb)
+    bool async_unban(result_callback_t cb)
     {
         return async_event(Unban { std::move(cb) });
     }
-    bool async_get_offenses(Page page, OffensesCb cb)
+    bool async_get_offenses(Page page, offenses_callback_t cb)
     {
         return async_event(GetOffenses { page, std::move(cb) });
     }
@@ -96,7 +115,7 @@ public:
         return async_event(Inspect { std::move(cb) });
     }
 
-    PeerServer(PeerDB& db, const Config&);
+    PeerServer(PeerDB& db, const ConfigParams&);
     ~PeerServer()
     {
         async_shutdown();
@@ -117,8 +136,12 @@ private:
     struct Inspect {
         std::function<void(const PeerServer&)> cb;
     };
-    using Event = std::variant<Offense, NewConnection, GetOffenses, Unban, BannedCB, RegisterPeer, SeenPeer, GetRecentPeers, Inspect>;
-    [[nodiscard]] bool async_event(Event e)
+    struct FailedConnect {
+        EndpointAddress endpointAddress;
+        int32_t reason;
+    };
+    using Event = std::variant<SuccessfulOutbound, VerifyPeer, OnClose, Authenticate, GetOffenses, Unban, banned_callback_t, RegisterPeer, SeenPeer, GetRecentPeers, Inspect, FailedConnect>;
+    bool async_event(Event e)
     {
         std::unique_lock<std::mutex> l(mutex);
         if (shutdown)
@@ -137,15 +160,18 @@ private:
     PeerDB& db;
     uint32_t now;
     BanCache bancache;
-    void handle_event(Offense&&);
+    void handle_event(SuccessfulOutbound&&);
+    void handle_event(VerifyPeer&&);
+    void handle_event(OnClose&&);
     void handle_event(Unban&&);
     void handle_event(GetOffenses&&);
-    void handle_event(NewConnection&&);
-    void handle_event(BannedCB&&);
+    void handle_event(Authenticate&&);
+    void handle_event(banned_callback_t&&);
     void handle_event(RegisterPeer&&);
     void handle_event(SeenPeer&&);
     void handle_event(GetRecentPeers&&);
     void handle_event(Inspect&&);
+    void handle_event(FailedConnect&&);
 
     ////////////////
     // Mutex protected variables

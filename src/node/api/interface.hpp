@@ -14,18 +14,18 @@ void lookup_tx(const Hash hash, TxCb f);
 void get_latest_transactions(LatestTxsCb f);
 
 // peer db functions
-void get_banned_peers(PeerServer::BannedCB&& cb);
+void get_banned_peers(PeerServer::banned_callback_t&& cb);
 void unban_peers(ResultCb&& cb);
 
-inline void get_offenses(Page page, PeerServer::OffensesCb&& cb)
+inline void get_offenses(Page page, PeerServer::offenses_callback_t&& cb)
 {
-    global().pps->async_get_offenses(page, std::move(cb));
+    global().peerServer->async_get_offenses(page, std::move(cb));
 }
 
 // void get_connected_peers(Conman::PeersCB cb);
 
-void get_failed_addresses(PeerServer::BannedCB cb);
-void get_verified_addresses(PeerServer::BannedCB cb);
+void get_failed_addresses(PeerServer::banned_callback_t cb);
+void get_verified_addresses(PeerServer::banned_callback_t cb);
 
 void get_connected_peers2(PeersCb&& cb);
 void get_connected_connection(ConnectedConnectionCB&& cb);
@@ -59,4 +59,4 @@ void get_account_richlist(RichlistCb cb);
 
 // endpoints function
 void inspect_eventloop(std::function<void(const Eventloop& e)>&&);
-void inspect_conman(std::function<void(const Conman& c)>&&);
+void inspect_conman(std::function<void(const UV_Helper& c)>&&);

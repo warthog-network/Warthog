@@ -1,6 +1,6 @@
 #include "api/http/endpoint.hpp"
-#include "asyncio/conman.hpp"
 #include "api/stratum/stratum_server.hpp"
+#include "asyncio/conman.hpp"
 #include "chainserver/server.hpp"
 #include "db/chain_db.hpp"
 #include "db/peer_db.hpp"
@@ -9,22 +9,30 @@
 #include "global/globals.hpp"
 #include "peerserver/peerserver.hpp"
 #include "spdlog/spdlog.h"
+#include "uvw.hpp"
 
 #include <iostream>
 using namespace std;
+
+static void shutdown(int32_t reason)
+{
+    global().conman->shutdown(reason);
+    global().core->async_shutdown(reason);
+    global().peerServer->async_shutdown();
+}
 
 static void signal_caller(uv_signal_t* /*handle*/, int signum)
 {
     spdlog::info("Terminating...");
     switch (signum) {
     case SIGTERM:
-        global().pcm->close(ESIGTERM);
+        shutdown(ESIGTERM);
         return;
     case SIGHUP:
-        global().pcm->close(ESIGHUP);
+        shutdown(ESIGHUP);
         return;
     case SIGINT:
-        global().pcm->close(ESIGINT);
+        shutdown(ESIGINT);
         return;
     default:;
     }
@@ -87,46 +95,43 @@ int main(int argc, char** argv)
     // spdlog::flush_on(spdlog::level::debug);
     /////////////////////
     // uv loop
-    uv_loop_t l;
-    uv_loop_init(&l);
+    auto l { uvw::loop::create() };
 
     spdlog::debug("Opening peers database \"{}\"", config().data.peersdb);
     PeerDB pdb(config().data.peersdb);
     PeerServer ps(pdb, config());
-    spdlog::info("{} IPs are currently blacklisted.", pdb.get_banned_peers().size());
 
     spdlog::debug("Opening chain database \"{}\"", config().data.chaindb);
     ChainDB db(config().data.chaindb);
-    auto cs =ChainServer::make_chain_server(db, breg, config().node.snapshotSigner);
+    auto cs = ChainServer::make_chain_server(db, breg, config().node.snapshotSigner);
 
     std::optional<StratumServer> stratumServer;
     if (config().stratumPool) {
         stratumServer.emplace(config().stratumPool->bind);
     }
     Eventloop el(ps, *cs, config());
-    Conman cm(&l, ps, config());
+    UV_Helper cm(l, ps, config());
 
     // setup signals
-    setup_signals(&l);
+    setup_signals(l->raw());
 
     spdlog::debug("Starting libuv loop");
 
     // starting endpoint
     HTTPEndpoint endpoint { config().jsonrpc.bind };
-    auto endpointPublic { HTTPEndpoint::make_public_endpoint(config())};
+    auto endpointPublic { HTTPEndpoint::make_public_endpoint(config()) };
 
     // setup globals
-    global_init(&breg, &ps, &*cs, &cm, &el, &endpoint);
+    global_init(&l, &breg, &ps, &*cs, &cm, &el, &endpoint);
 
     // running eventloops
     el.start_async_loop();
-    if ((i = uv_run(&l, UV_RUN_DEFAULT)))
+    if ((i = l->run( uvw::loop::run_mode::DEFAULT)))
         goto error;
     free_signals();
-    if ((i = uv_run(&l, UV_RUN_DEFAULT)))
+    if ((i = l->run( uvw::loop::run_mode::DEFAULT)))
         goto error;
-    uv_loop_close(&l);
-
+    l->close();
     return 0;
 error:
     spdlog::error("libuv error:", errors::err_name(i));

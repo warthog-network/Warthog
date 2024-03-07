@@ -10,7 +10,7 @@ ConnectionJob::ConnectionJob(uint64_t conId, Timer& t)
 {
 }
 
-PeerState::PeerState(std::shared_ptr<Connection> p, HeaderDownload::Downloader& h, BlockDownload::Downloader& b, Timer& t)
+PeerState::PeerState(std::shared_ptr<ConnectionBase> p, HeaderDownload::Downloader& h, BlockDownload::Downloader& b, Timer& t)
     : c(std::move(p))
     , job(c->id, t)
     , ping(t)
@@ -20,7 +20,7 @@ PeerState::PeerState(std::shared_ptr<Connection> p, HeaderDownload::Downloader& 
 void Conref::send(Sndbuffer b)
 {
     if (!(*this)->c->eventloop_erased) {
-        data.iter->second.c->asyncsend(std::move(b));
+        iter->second.c->send(std::move(b));
     }
 };
 

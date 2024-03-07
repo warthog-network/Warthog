@@ -55,6 +55,8 @@ class VariantParser<std::variant<Types...>>{
 
 messages::Msg Rcvbuffer::parse()
 {
+    if (!verify()) 
+        throw Error(ECHECKSUM);
     using namespace messages;
     Reader r(*this);
     return VariantParser<messages::Msg>::parse(type(),r);

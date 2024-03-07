@@ -56,11 +56,10 @@ private:
 
 struct FocusNode {
     std::vector<BodyContainer> blockBodies;
-    bool activeRequest() { return c.valid(); }
+    bool activeRequest() const { return c.has_value(); }
     void register_downloader(Conref);
-    Conref conref() const { return c; };
 
-    Conref c; // connection downloading this block batch
+    std::optional<Conref> c; // connection downloading this block batch
     std::vector<Conref> refs;
 };
 struct Focus {

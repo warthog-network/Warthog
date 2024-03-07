@@ -23,12 +23,12 @@ void PerIpCounter::erase(IPv4 ip)
     }
 }
 
-size_t PerIpCounter::count(IPv4 ip)
+size_t PerIpCounter::count(IPv4 ip) const
 {
     auto iter = counts.find(ip);
     if (iter == counts.end())
         return 0;
-    size_t& count = iter->second;
+    auto& count = iter->second;
     assert(count != 0);
     return count;
 }

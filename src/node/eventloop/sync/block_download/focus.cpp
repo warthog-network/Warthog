@@ -147,7 +147,7 @@ void Focus::erase(Conref cr)
         // unlink from focusNode
         auto& focusNode { focusIter->second };
         if (focusNode.c == cr) {
-            focusNode.c.clear();
+            focusNode.c.reset();
         }
         std::erase(focusNode.refs, cr);
 

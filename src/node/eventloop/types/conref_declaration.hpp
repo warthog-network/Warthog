@@ -2,45 +2,33 @@
 #include <cstdint>
 #include <map>
 #include <string>
-struct PeerState;
+class PeerState;
 class PeerChain;
-class Connection;
+class TCPConnection;
 class Sndbuffer;
 using Conndatamap = std::map<uint64_t, PeerState>;
 using Coniter = Conndatamap::iterator;
 
 class Conref {
-    union Data {
-        uint64_t val = 0;
-        Coniter iter;
-    };
+    Coniter iter;
 
 public:
-    inline bool operator<(Conref other) const { return data.val < other.data.val; }
-    inline bool operator==(Conref other) const;
-    inline operator Connection*();
-    inline operator const Connection*() const;
+    bool operator==(const Conref&) const;
     inline const PeerChain& chain() const;
     inline PeerChain& chain();
-    operator bool() { return data.val != 0; };
     inline bool closed();
     inline auto& job();
+    inline auto& peer() const;
     inline auto& job() const;
     inline auto& ping();
     inline auto operator->();
-    void clear() { data.val = 0; }
     inline bool initialized();
     void send(Sndbuffer);
-    Conref()
-        : data({ .val = 0ul })
-    {
-    }
     Conref(Coniter iter)
-        : data({ .iter = iter })
+        : iter(iter)
     {
     }
-    Coniter iterator() { return data.iter; };
-    bool valid() const { return data.val != 0ul; };
+    Coniter iterator() { return iter; };
     uint64_t id() const;
     std::string str() const;
 
@@ -52,8 +40,4 @@ public:
 
     template <typename... Args>
     inline void warn(const char* fmt, Args&&... args);
-
-private:
-    Data data;
-    static_assert(sizeof(Data) == sizeof(uint64_t));
 };

@@ -9,7 +9,7 @@
 
 using WebsocketEvent = std::variant<API::Block>;
 
-struct Config;
+struct ConfigParams;
 class IndexGenerator {
 public:
     void get(std::string s);
@@ -24,7 +24,7 @@ private:
 
 class HTTPEndpoint {
 public:
-    static std::optional<HTTPEndpoint> make_public_endpoint(const Config&);
+    static std::optional<HTTPEndpoint> make_public_endpoint(const ConfigParams&);
     HTTPEndpoint(EndpointAddress bind, bool isPublic = false);
     ~HTTPEndpoint()
     {

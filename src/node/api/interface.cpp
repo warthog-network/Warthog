@@ -8,37 +8,37 @@
 // mempool functions
 void put_mempool(PaymentCreateMessage&& m, MempoolInsertCb cb)
 {
-    global().pcs->api_put_mempool(std::move(m), std::move(cb));
+    global().chainServer->api_put_mempool(std::move(m), std::move(cb));
 }
 
 void get_mempool(MempoolCb cb)
 {
-    global().pcs->api_get_mempool(std::move(cb));
+    global().chainServer->api_get_mempool(std::move(cb));
 }
 
 void lookup_tx(const Hash hash, TxCb f)
 {
-    global().pcs->api_lookup_tx(hash, std::move(f));
+    global().chainServer->api_lookup_tx(hash, std::move(f));
 }
 
 void get_latest_transactions(LatestTxsCb f)
 {
-    global().pcs->api_lookup_latest_txs(std::move(f));
+    global().chainServer->api_lookup_latest_txs(std::move(f));
 };
 
 // peer db functions
 
-void get_banned_peers(PeerServer::BannedCB&& f)
+void get_banned_peers(PeerServer::banned_callback_t&& f)
 {
-    global().pps->async_get_banned(std::move(f));
+    global().peerServer->async_get_banned(std::move(f));
 }
 void unban_peers(ResultCb&& f)
 {
-    global().pps->async_unban(std::move(f));
+    global().peerServer->async_unban(std::move(f));
 }
 void get_offense_entries(ResultCb&& f)
 {
-    global().pps->async_unban(std::move(f));
+    global().peerServer->async_unban(std::move(f));
 }
 // void get_connected_peers(Conman::PeersCB f)
 // {
@@ -46,12 +46,12 @@ void get_offense_entries(ResultCb&& f)
 // }
 void get_connected_peers2(PeersCb&& cb)
 {
-    global().pel->api_get_peers(std::move(cb));
+    global().core->api_get_peers(std::move(cb));
 }
 
 void get_connected_connection(ConnectedConnectionCB&& cb)
 {
-    global().pel->api_get_peers([cb = std::move(cb)](const std::vector<API::Peerinfo>& pi) {
+    global().core->api_get_peers([cb = std::move(cb)](const std::vector<API::Peerinfo>& pi) {
         cb({ pi });
     });
 }
@@ -73,81 +73,81 @@ void get_version(VersionCb cb)
 // chain functions
 void get_block_head(HeadCb f)
 {
-    global().pcs->async_get_head(f);
+    global().chainServer->async_get_head(f);
 }
 void get_chain_mine(const Address& a, MiningCb f)
 {
-    global().pcs->api_get_mining(a, f);
+    global().chainServer->api_get_mining(a, f);
 }
 mining_subscription::MiningSubscription subscribe_chain_mine(Address address, mining_subscription::callback_t callback)
 {
-    return global().pcs->api_subscribe_mining(address,std::move(callback));
+    return global().chainServer->api_subscribe_mining(address,std::move(callback));
 }
 
 void get_chain_header(API::HeightOrHash hh, HeaderCb f)
 {
-    global().pcs->api_get_header(hh, f);
+    global().chainServer->api_get_header(hh, f);
 }
 void get_chain_hash(Height hh, HashCb f)
 {
-    global().pcs->api_get_hash(hh, f);
+    global().chainServer->api_get_hash(hh, f);
 }
 
 void get_chain_grid(GridCb f)
 {
-    global().pcs->api_get_grid(f);
+    global().chainServer->api_get_grid(f);
 }
 void get_chain_block(API::HeightOrHash hh, BlockCb cb)
 {
-    global().pcs->api_get_block(hh, cb);
+    global().chainServer->api_get_block(hh, cb);
 }
 
 void get_txcache(TxcacheCb&& cb)
 {
-    global().pcs->api_get_txcache(std::move(cb));
+    global().chainServer->api_get_txcache(std::move(cb));
 }
 
 void get_hashrate(HashrateCb&& cb)
 {
-    global().pel->api_get_hashrate(std::move(cb));
+    global().core->api_get_hashrate(std::move(cb));
 }
 void get_hashrate_chart(NonzeroHeight from, NonzeroHeight to, HashrateChartCb&& cb)
 {
-    global().pel->api_get_hashrate_chart(from, to, std::move(cb));
+    global().core->api_get_hashrate_chart(from, to, std::move(cb));
 }
 
 void put_chain_append(MiningTask&& mt, ResultCb f)
 {
-    global().pcs->api_mining_append(std::move(mt.block), f);
+    global().chainServer->api_mining_append(std::move(mt.block), f);
 }
 void get_signed_snapshot(Eventloop::SignedSnapshotCb&& cb)
 {
-    global().pel->defer(std::move(cb));
+    global().core->defer(std::move(cb));
 }
 
 // account functions
 void get_account_balance(const API::AccountIdOrAddress& address, BalanceCb f)
 {
-    global().pcs->api_get_balance(address, f);
+    global().chainServer->api_get_balance(address, f);
 }
 
 void get_account_history(const Address& address, uint64_t beforeId,
     HistoryCb f)
 {
-    global().pcs->api_get_history(address, beforeId, f);
+    global().chainServer->api_get_history(address, beforeId, f);
 }
 
 void get_account_richlist(RichlistCb f)
 {
-    global().pcs->api_get_richlist(f);
+    global().chainServer->api_get_richlist(f);
 }
 
-void inspect_conman(std::function<void(const Conman& e)>&& cb)
+void inspect_conman(std::function<void(const UV_Helper& e)>&& cb)
 {
-    global().pcm->async_inspect(std::move(cb));
+    global().conman->async_inspect(std::move(cb));
 }
 
 void inspect_eventloop(std::function<void(const Eventloop& e)>&& cb)
 {
-    global().pel->api_inspect(std::move(cb));
+    global().core->api_inspect(std::move(cb));
 }

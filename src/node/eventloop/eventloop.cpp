@@ -17,13 +17,19 @@
 #include <iostream>
 #include <sstream>
 
+template <typename... Args>
+inline void log_communication(spdlog::format_string_t<Args...> fmt, Args&&... args)
+{
+    if (config().logCommunication)
+        spdlog::info(fmt, std::forward<Args>(args)...);
+}
+
 using namespace std::chrono_literals;
-Eventloop::Eventloop(PeerServer& ps, ChainServer& cs, const Config& config)
+Eventloop::Eventloop(PeerServer& ps, ChainServer& cs, const ConfigParams& config)
     : stateServer(cs)
     , chains(cs.get_chainstate())
     , mempool(false)
-    , connections(ps, config.peers.connect)
-    // , signedSnapshot(chains.signed_snapshot())
+    // , connections(ps, config.peers.connect) // TODO
     , headerDownload(chains, consensus().total_work())
     , blockDownload(*this)
 {
@@ -35,8 +41,6 @@ Eventloop::Eventloop(PeerServer& ps, ChainServer& cs, const Config& config)
     } else {
         spdlog::info("Chain snapshot not present");
     }
-
-    update_wakeup();
 }
 
 Eventloop::~Eventloop()
@@ -62,7 +66,7 @@ bool Eventloop::defer(Event e)
     cv.notify_one();
     return true;
 }
-bool Eventloop::async_process(std::shared_ptr<Connection> c)
+bool Eventloop::async_process(std::shared_ptr<ConnectionBase> c)
 {
     return defer(OnProcessConnection { std::move(c) });
 }
@@ -74,15 +78,9 @@ void Eventloop::async_shutdown(int32_t reason)
     cv.notify_one();
 }
 
-void Eventloop::async_report_failed_outbound(EndpointAddress a)
+void Eventloop::erase(std::shared_ptr<ConnectionBase> c)
 {
-    defer(OnFailedAddressEvent { a });
-}
-
-void Eventloop::async_erase(std::shared_ptr<Connection> c, int32_t error)
-{
-    if (!defer(OnRelease { std::move(c), error })) {
-    }
+    defer(Erase { std::move(c) });
 }
 
 void Eventloop::async_state_update(StateUpdate&& s)
@@ -126,7 +124,6 @@ bool Eventloop::has_work()
 
 void Eventloop::loop()
 {
-    connect_scheduled();
     while (true) {
         {
             std::unique_lock<std::mutex> ul(mutex);
@@ -186,19 +183,19 @@ bool Eventloop::check_shutdown()
     for (auto cr : connections.all()) {
         if (cr->erased())
             continue;
-        erase(cr, closeReason);
+        erase_internal(cr);
     }
 
     stateServer.shutdown_join();
     return true;
 }
 
-void Eventloop::handle_event(OnRelease&& m)
+void Eventloop::handle_event(Erase&& m)
 {
     bool erased { m.c->eventloop_erased };
     bool registered { m.c->eventloop_registered };
     if ((!erased) && registered)
-        erase(m.c->dataiter, m.error);
+        erase_internal(m.c->dataiter);
 }
 
 void Eventloop::handle_event(OnProcessConnection&& m)
@@ -324,13 +321,13 @@ void Eventloop::handle_event(PeersCb&& cb)
 {
     std::vector<API::Peerinfo> out;
     for (auto cr : connections.initialized()) {
-        out.push_back({
-            .endpoint { cr->c->peer_address() },
+        out.push_back(API::Peerinfo {
+            .endpoint { cr->c->peer },
             .initialized = cr.initialized(),
             .chainstate = cr.chain(),
             .theirSnapshotPriority = cr->theirSnapshotPriority,
             .acknowledgedSnapshotPriority = cr->acknowledgedSnapshotPriority,
-            .since = cr->c->connected_since,
+            .since = cr->c->created_at_timestmap(),
         });
     }
     cb(out);
@@ -357,16 +354,9 @@ void Eventloop::handle_event(stage_operation::Result&& r)
 void Eventloop::handle_event(OnForwardBlockrep&& m)
 {
     if (auto cr { connections.find(m.conId) }; cr) {
-        BlockrepMsg msg(cr->lastNonce, std::move(m.blocks));
-        cr.send(msg);
+        BlockrepMsg msg((*cr)->lastNonce, std::move(m.blocks));
+        cr->send(msg);
     }
-}
-
-void Eventloop::handle_event(OnFailedAddressEvent&& e)
-{
-    if (connections.on_failed_outbound(e.a))
-        update_wakeup();
-    connect_scheduled();
 }
 
 void Eventloop::handle_event(InspectorCb&& cb)
@@ -385,16 +375,6 @@ void Eventloop::handle_event(GetHashrateChart&& e)
     e.cb(consensus().headers().hashrate_chart(e.from, e.to, 100));
 }
 
-void Eventloop::handle_event(OnPinAddress&& e)
-{
-    connections.pin(e.a);
-    update_wakeup();
-}
-void Eventloop::handle_event(OnUnpinAddress&& e)
-{
-    connections.unpin(e.a);
-    update_wakeup();
-}
 void Eventloop::handle_event(mempool::Log&& log)
 {
     mempool.apply_log(log);
@@ -440,7 +420,7 @@ void Eventloop::handle_event(mempool::Log&& log)
     }
 }
 
-void Eventloop::erase(Conref c, int32_t error)
+void Eventloop::erase_internal(Conref c)
 {
     if (c->c->eventloop_erased)
         return;
@@ -452,14 +432,13 @@ void Eventloop::erase(Conref c, int32_t error)
     if (c.job().has_timerref(timer)) {
         timer.cancel(c.job().timer());
     }
-    assert(c.valid());
     if (headerDownload.erase(c) && !closeReason) {
-        spdlog::info("Connected to {} peers (closed connection to {}, reason: {})", headerDownload.size(), c->c->peer_endpoint().to_string(), Error(error).err_name());
+        // TODO: add log
+        // spdlog::info("Connected to {} peers (closed connection to {}, reason: {})", headerDownload.size(), c->c->peer_endpoint().to_string(), Error(error).err_name());
     }
     if (blockDownload.erase(c))
         coordinate_sync();
-    if (connections.erase(c.iterator()))
-        update_wakeup();
+    connections.erase(c.iterator());
     if (doRequests) {
         do_requests();
     }
@@ -472,7 +451,8 @@ bool Eventloop::insert(Conref c, const InitMsg& data)
     c->chain.initialize(data, chains);
     headerDownload.insert(c);
     blockDownload.insert(c);
-    spdlog::info("Connected to {} peers (new peer {})", headerDownload.size(), c->c->peer_address().to_string());
+    // c->c->
+    spdlog::info("Connected to {} peers (new peer {})", headerDownload.size(), c.peer().to_string());
     send_ping_await_pong(c);
     // LATER: return whether doRequests is necessary;
     return doRequests;
@@ -482,14 +462,14 @@ void Eventloop::close(Conref cr, uint32_t reason)
 {
     if (!cr->c->eventloop_registered)
         return;
-    cr->c->async_close(reason);
-    erase(cr, reason); // do not consider this connection anymore
+    cr->c->close(reason);
+    erase_internal(cr); // do not consider this connection anymore
 }
 
 void Eventloop::close_by_id(uint64_t conId, int32_t reason)
 {
     if (auto cr { connections.find(conId) }; cr)
-        close(cr, reason);
+        close(*cr, reason);
     // LATER: report offense to peerserver
 }
 
@@ -497,7 +477,7 @@ void Eventloop::close(const ChainOffender& o)
 {
     assert(o);
     if (auto cr { connections.find(o.conId) }; cr) {
-        close(cr, o.e);
+        close(*cr, o.e);
     } else {
         report(o);
     }
@@ -508,7 +488,7 @@ void Eventloop::close(Conref cr, ChainError e)
     close(cr, e.e);
 }
 
-void Eventloop::process_connection(std::shared_ptr<Connection> c)
+void Eventloop::process_connection(std::shared_ptr<ConnectionBase> c)
 {
     if (c->eventloop_erased)
         return;
@@ -516,26 +496,24 @@ void Eventloop::process_connection(std::shared_ptr<Connection> c)
         // fresh connection
 
         c->eventloop_registered = true;
-        auto [error, cr] = connections.insert(
-            c, headerDownload, blockDownload, timer);
-        update_wakeup();
-        connect_scheduled();
-        if (error != 0) {
-            c->async_close(error);
+        auto prepared { connections.prepare_insert(c) };
+        if (prepared) {
+            log_communication("{} connected", c->to_string());
+            close(prepared.value().evictionCandidate, EEVICTED);
+            Conref res { connections.insert_prepared(
+                c, headerDownload, blockDownload, timer) };
+            send_init(res);
+        } else {
+            c->close(prepared.error());
             c->eventloop_erased = true;
             return;
         }
-        if (config().node.logCommunication)
-            spdlog::info("{} connected", c->to_string());
-
-        send_init(cr);
     }
-    auto messages = c->extractMessages();
+    auto messages = c->pop_messages();
     Conref cr { c->dataiter };
     for (auto& msg : messages) {
         try {
-            dispatch_message(cr, msg);
-            // active
+            dispatch_message(cr, msg.parse());
         } catch (Error e) {
             close(cr, e.e);
             do_requests();
@@ -549,8 +527,7 @@ void Eventloop::process_connection(std::shared_ptr<Connection> c)
 
 void Eventloop::send_ping_await_pong(Conref c)
 {
-    if (config().node.logCommunication)
-        spdlog::info("{} Sending Ping", c.str());
+    log_communication("{} Sending Ping", c.str());
     auto t = timer.insert(
         (config().localDebug ? 10min : 1min),
         Timer::CloseNoPong { c.id() });
@@ -564,20 +541,6 @@ void Eventloop::received_pong_sleep_ping(Conref c)
     auto t = timer.insert(10s, Timer::SendPing { c.id() });
     auto old_t = c.ping().sleep(t);
     cancel_timer(old_t);
-}
-
-void Eventloop::update_wakeup()
-{
-    auto wakeupTime = connections.wakeup_time();
-    if (wakeupTimer && (wakeupTime == (*wakeupTimer)->first))
-        return; // no change
-    if (wakeupTimer) {
-        timer.cancel(*wakeupTimer);
-        wakeupTimer.reset();
-    }
-    if (!wakeupTime)
-        return;
-    wakeupTimer = timer.insert(*wakeupTime, Timer::Connect {});
 }
 
 void Eventloop::send_requests(Conref cr, const std::vector<Request>& requests)
@@ -601,8 +564,7 @@ void Eventloop::do_requests()
 template <typename T>
 void Eventloop::send_request(Conref c, const T& req)
 {
-    if (config().node.logCommunication)
-        spdlog::info("{} send {}", c.str(), req.log_str());
+    log_communication("{} send {}", c.str(), req.log_str());
     auto t = timer.insert(req.expiry_time, Timer::Expire { c.id() });
     c.job().assign(t, timer, req);
     if (req.isActiveRequest) {
@@ -621,9 +583,8 @@ template <typename T>
 requires std::derived_from<T, Timer::WithConnecitonId>
 void Eventloop::handle_timeout(T&& t)
 {
-    Conref cr { connections.find(t.conId) };
-    if (cr) {
-        handle_connection_timeout(cr, std::move(t));
+    if (auto cr { connections.find(t.conId) }; cr.has_value()) {
+        handle_connection_timeout(*cr, std::move(t));
     }
 }
 void Eventloop::handle_connection_timeout(Conref cr, Timer::CloseNoReply&&)
@@ -680,28 +641,13 @@ void Eventloop::on_request_expired(Conref cr, const Blockrequest&)
     do_requests();
 }
 
-void Eventloop::handle_timeout(Timer::Connect&&)
-{
-    wakeupTimer.reset();
-    auto connect = connections.pop_connect();
-    for (auto& a : connect) {
-        global().pcm->async_connect(a);
-    }
-    update_wakeup();
-}
-
-void Eventloop::dispatch_message(Conref cr, Rcvbuffer& msg)
+void Eventloop::dispatch_message(Conref cr, messages::Msg&& m)
 {
     using namespace messages;
-    if (msg.verify() == false)
-        throw Error(ECHECKSUM);
 
-    auto m = msg.parse();
     // first message must be of type INIT (is_init() is only initially true)
     if (cr.job().awaiting_init()) {
         if (!std::holds_alternative<InitMsg>(m)) {
-            auto msgcode { std::visit([](auto a) { return a.msgcode; }, m) };
-            spdlog::error("Debug info: Expected init message from {} but got message of type {}", cr->c->peer_address().to_string(), msgcode);
             throw Error(ENOINIT);
         }
     } else {
@@ -717,8 +663,7 @@ void Eventloop::dispatch_message(Conref cr, Rcvbuffer& msg)
 
 void Eventloop::handle_msg(Conref cr, InitMsg&& m)
 {
-    if (config().node.logCommunication)
-        spdlog::info("{} handle init: height {}, work {}", cr.str(), m.chainLength.value(), m.worksum.getdouble());
+    log_communication("{} handle init: height {}, work {}", cr.str(), m.chainLength.value(), m.worksum.getdouble());
     cr.job().reset_notexpired<AwaitInit>(timer);
     if (insert(cr, m))
         do_requests();
@@ -726,8 +671,7 @@ void Eventloop::handle_msg(Conref cr, InitMsg&& m)
 
 void Eventloop::handle_msg(Conref cr, AppendMsg&& m)
 {
-    if (config().node.logCommunication)
-        spdlog::info("{} handle append", cr.str());
+    log_communication("{} handle append", cr.str());
     cr->chain.on_peer_append(m, chains);
     headerDownload.on_append(cr);
     blockDownload.on_append(cr);
@@ -736,8 +680,7 @@ void Eventloop::handle_msg(Conref cr, AppendMsg&& m)
 
 void Eventloop::handle_msg(Conref c, SignedPinRollbackMsg&& m)
 {
-    if (config().node.logCommunication)
-        spdlog::info("{} handle rollback ", c.str());
+    log_communication("{} handle rollback ", c.str());
     verify_rollback(c, m);
     c->chain.on_peer_shrink(m, chains);
     headerDownload.on_rollback(c);
@@ -747,8 +690,7 @@ void Eventloop::handle_msg(Conref c, SignedPinRollbackMsg&& m)
 
 void Eventloop::handle_msg(Conref c, ForkMsg&& m)
 {
-    if (config().node.logCommunication)
-        spdlog::info("{} handle fork", c.str());
+    log_communication("{} handle fork", c.str());
     c->chain.on_peer_fork(m, chains);
     headerDownload.on_fork(c);
     blockDownload.on_fork(c);
@@ -757,8 +699,7 @@ void Eventloop::handle_msg(Conref c, ForkMsg&& m)
 
 void Eventloop::handle_msg(Conref c, PingMsg&& m)
 {
-    if (config().node.logCommunication)
-        spdlog::info("{} handle ping", c.str());
+    log_communication("{} handle ping", c.str());
     size_t nAddr { std::min(uint16_t(20), m.maxAddresses) };
     auto addresses = connections.sample_verified(nAddr);
     c->ratelimit.ping();
@@ -772,12 +713,11 @@ void Eventloop::handle_msg(Conref c, PingMsg&& m)
 
 void Eventloop::handle_msg(Conref cr, PongMsg&& m)
 {
-    if (config().node.logCommunication)
-        spdlog::info("{} handle pong", cr.str());
+    log_communication("{} handle pong", cr.str());
     auto& pingMsg = cr.ping().check(m);
     received_pong_sleep_ping(cr);
     spdlog::debug("{} Received {} addresses", cr.str(), m.addresses.size());
-    connections.queue_verification(m.addresses);
+    // TODO: connections.queue_verification(m.addresses);
     spdlog::debug("{} Got {} transaction Ids in pong message", cr.str(), m.txids.size());
 
     // update acknowledged priority
@@ -789,15 +729,11 @@ void Eventloop::handle_msg(Conref cr, PongMsg&& m)
     auto txids = mempool.filter_new(m.txids);
     if (txids.size() > 0)
         cr.send(TxreqMsg(txids));
-
-    // connect scheduled (in case new addresses were added)
-    connect_scheduled();
 }
 
 void Eventloop::handle_msg(Conref cr, BatchreqMsg&& m)
 {
-    if (config().node.logCommunication)
-        spdlog::info("{} handle batchreq [{},{}]", cr.str(), m.selector.startHeight.value(), (m.selector.startHeight + m.selector.length - 1).value());
+    log_communication("{} handle batchreq [{},{}]", cr.str(), m.selector.startHeight.value(), (m.selector.startHeight + m.selector.length - 1).value());
     auto& s = m.selector;
     Batch batch = [&]() {
         if (s.descriptor == consensus().descriptor()) {
@@ -814,8 +750,7 @@ void Eventloop::handle_msg(Conref cr, BatchreqMsg&& m)
 
 void Eventloop::handle_msg(Conref cr, BatchrepMsg&& m)
 {
-    if (config().node.logCommunication)
-        spdlog::info("{} handle_batchrep", cr.str());
+    log_communication("{} handle_batchrep", cr.str());
     // check nonce and get associated data
     auto req = cr.job().pop_req(m, timer, activeRequests);
 
@@ -838,8 +773,7 @@ void Eventloop::handle_msg(Conref cr, BatchrepMsg&& m)
 
 void Eventloop::handle_msg(Conref cr, ProbereqMsg&& m)
 {
-    if (config().node.logCommunication)
-        spdlog::info("{} handle_probereq d:{}, h:{}", cr.str(), m.descriptor.value(), m.height.value());
+    log_communication("{} handle_probereq d:{}, h:{}", cr.str(), m.descriptor.value(), m.height.value());
     ProberepMsg rep(m.nonce, consensus().descriptor().value());
     auto h = consensus().headers().get_header(m.height);
     if (h)
@@ -858,8 +792,7 @@ void Eventloop::handle_msg(Conref cr, ProbereqMsg&& m)
 
 void Eventloop::handle_msg(Conref cr, ProberepMsg&& rep)
 {
-    if (config().node.logCommunication)
-        spdlog::info("{} handle_proberep", cr.str());
+    log_communication("{} handle_proberep", cr.str());
     auto req = cr.job().pop_req(rep, timer, activeRequests);
     if (!rep.requested.has_value() && !req.descripted->expired()) {
         throw ChainError { EEMPTY, req.height };
@@ -874,16 +807,14 @@ void Eventloop::handle_msg(Conref cr, BlockreqMsg&& m)
 {
     using namespace std::placeholders;
     BlockreqMsg req(m);
-    if (config().node.logCommunication)
-        spdlog::info("{} handle_blockreq [{},{}]", cr.str(), req.range.lower.value(), req.range.upper.value());
+    log_communication("{} handle_blockreq [{},{}]", cr.str(), req.range.lower.value(), req.range.upper.value());
     cr->lastNonce = req.nonce;
     stateServer.async_get_blocks(req.range, std::bind(&Eventloop::async_forward_blockrep, this, cr.id(), _1));
 }
 
 void Eventloop::handle_msg(Conref cr, BlockrepMsg&& m)
 {
-    if (config().node.logCommunication)
-        spdlog::info("{} handle blockrep", cr.str());
+    log_communication("{} handle blockrep", cr.str());
     auto req = cr.job().pop_req(m, timer, activeRequests);
 
     try {
@@ -897,8 +828,7 @@ void Eventloop::handle_msg(Conref cr, BlockrepMsg&& m)
 
 void Eventloop::handle_msg(Conref cr, TxnotifyMsg&& m)
 {
-    if (config().node.logCommunication)
-        spdlog::info("{} handle Txnotify", cr.str());
+    log_communication("{} handle Txnotify", cr.str());
     auto txids = mempool.filter_new(m.txids);
     if (txids.size() > 0)
         cr.send(TxreqMsg(txids));
@@ -907,8 +837,7 @@ void Eventloop::handle_msg(Conref cr, TxnotifyMsg&& m)
 
 void Eventloop::handle_msg(Conref cr, TxreqMsg&& m)
 {
-    if (config().node.logCommunication)
-        spdlog::info("{} handle TxreqMsg", cr.str());
+    log_communication("{} handle TxreqMsg", cr.str());
     std::vector<std::optional<TransferTxExchangeMessage>> out;
     for (auto& e : m.txids) {
         out.push_back(mempool[e]);
@@ -919,8 +848,7 @@ void Eventloop::handle_msg(Conref cr, TxreqMsg&& m)
 
 void Eventloop::handle_msg(Conref cr, TxrepMsg&& m)
 {
-    if (config().node.logCommunication)
-        spdlog::info("{} handle TxrepMsg", cr.str());
+    log_communication("{} handle TxrepMsg", cr.str());
     std::vector<TransferTxExchangeMessage> txs;
     for (auto& o : m.txs) {
         if (o)
@@ -932,8 +860,7 @@ void Eventloop::handle_msg(Conref cr, TxrepMsg&& m)
 
 void Eventloop::handle_msg(Conref cr, LeaderMsg&& msg)
 {
-    if (config().node.logCommunication)
-        spdlog::info("{} handle LeaderMsg", cr.str());
+    log_communication("{} handle LeaderMsg", cr.str());
     // ban if necessary
     if (msg.signedSnapshot.priority <= cr->acknowledgedSnapshotPriority) {
         close(cr, ELOWPRIORITY);
@@ -980,14 +907,6 @@ void Eventloop::cancel_timer(Timer::iterator& ref)
     ref = timer.end();
 }
 
-void Eventloop::connect_scheduled()
-{
-    auto as = connections.pop_connect();
-    for (auto& a : as) {
-        global().pcm->async_connect(a);
-    }
-}
-
 void Eventloop::verify_rollback(Conref cr, const SignedPinRollbackMsg& m)
 {
     if (cr.chain().descripted()->chain_length() <= m.shrinkLength)
@@ -1008,6 +927,6 @@ void Eventloop::update_sync_state()
     syncState.set_block_download(blockDownload.is_active());
     syncState.set_header_download(headerDownload.is_active());
     if (auto c { syncState.detect_change() }; c) {
-        global().pcs->async_set_synced(c.value());
+        global().chainServer->async_set_synced(c.value());
     }
 }

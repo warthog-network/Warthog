@@ -17,7 +17,7 @@
 
 using namespace std;
 
-std::string get_default_datadir()
+std::string ConfigParams::get_default_datadir()
 {
     const char* osBaseDir = nullptr;
 #ifdef __linux__
@@ -44,11 +44,6 @@ std::string get_default_datadir()
 #endif
 }
 
-Config::Config()
-    : defaultDataDir(get_default_datadir())
-{
-}
-
 namespace {
 std::optional<SnapshotSigner> parse_leader_key(std::string privKey)
 {
@@ -62,20 +57,42 @@ std::optional<SnapshotSigner> parse_leader_key(std::string privKey)
     return {};
 }
 
-}
+struct CmdlineParsed {
+    static std::optional<CmdlineParsed> parse(int argc, char** argv)
+    {
+        gengetopt_args_info ai;
+        if (cmdline_parser(argc, argv, &ai) != 0)
+            return {};
+        return CmdlineParsed { ai };
+    }
+    ~CmdlineParsed()
+    {
+        cmdline_parser_free(&ai);
+    }
+    auto& value() const { return ai; }
 
-int Config::init(int argc, char** argv)
-{
-    // default peer
+private:
+    CmdlineParsed(gengetopt_args_info ai)
+        : ai(ai)
+    {
+    }
 
     gengetopt_args_info ai;
-    if (cmdline_parser(argc, argv, &ai) != 0) {
-        return -1;
-    }
-    int res = process_gengetopt(ai);
-    cmdline_parser_free(&ai);
-    return res;
+};
 }
+
+tl::expected<ConfigParams, int> ConfigParams::from_args(int argc, char** argv)
+{
+    if (auto p { CmdlineParsed::parse(argc, argv) }) {
+        ConfigParams c;
+        if (auto i { c.init(p->value()) }) {
+            return tl::make_unexpected(i);
+        }
+        return c;
+    }
+    return tl::make_unexpected(-1);
+}
+
 namespace {
 void warning_config(const toml::key k)
 {
@@ -128,8 +145,9 @@ EndpointVector parse_endpoints(std::string csv)
 }
 } // namespace
 
-int Config::process_gengetopt(gengetopt_args_info& ai)
+int ConfigParams::init(const gengetopt_args_info& ai)
 {
+    const auto defaultDataDir { get_default_datadir() };
     bool dmp(ai.dump_config_given);
     if (!dmp)
         spdlog::info("Warthog Node v{}.{}.{} ", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
@@ -246,7 +264,7 @@ int Config::process_gengetopt(gengetopt_args_info& ai)
                         } else if (k == "allow-localhost-ip") {
                             peers.allowLocalhostIp = fetch<bool>(v);
                         } else if (k == "log-communication") {
-                            node.logCommunication = fetch<bool>(v);
+                            node.logCommunicationVal = fetch<bool>(v);
                         } else
                             warning_config(k);
                     }
@@ -283,7 +301,7 @@ int Config::process_gengetopt(gengetopt_args_info& ai)
             data.peersdb = defaultDataDir + (is_testnet() ? "testnet_peers.db3" : "peers.db3");
         }
     }
-    if (ai.temporary_given) 
+    if (ai.temporary_given)
         data.chaindb = "";
 
     // Stratum API socket
@@ -311,7 +329,7 @@ int Config::process_gengetopt(gengetopt_args_info& ai)
     } else {
         if (rpcBind) {
             jsonrpc.bind = *rpcBind;
-        }else{
+        } else {
             if (is_testnet())
                 jsonrpc.bind = EndpointAddress::parse("127.0.0.1:3100").value();
             else
@@ -362,7 +380,7 @@ int Config::process_gengetopt(gengetopt_args_info& ai)
     return 1;
 }
 
-std::string Config::dump()
+std::string ConfigParams::dump()
 {
     toml::table tbl;
     tbl.insert_or_assign("jsonrpc", toml::table {
@@ -374,9 +392,9 @@ std::string Config::dump()
         connect.push_back(ea.to_string());
     }
     tbl.insert_or_assign("stratum",
-            toml::table {
+        toml::table {
             { "bind", stratumPool ? stratumPool->bind.to_string() : ""s },
-            });
+        });
     tbl.insert_or_assign("node",
         toml::table {
             { "bind", node.bind.to_string() },
@@ -384,12 +402,18 @@ std::string Config::dump()
             { "isolated", node.isolated },
             { "enable-ban", peers.enableBan },
             { "allow-localhost-ip", peers.allowLocalhostIp },
-            { "log-communication", (bool)node.logCommunication } });
+            { "log-communication", (bool)node.logCommunicationVal } });
     tbl.insert_or_assign("db", toml::table {
                                    { "chain-db", data.chaindb },
                                    { "peers-db", data.peersdb },
                                });
     stringstream ss;
-    ss << tbl<<endl;
+    ss << tbl << endl;
     return ss.str();
+}
+
+Config::Config(ConfigParams&& params)
+    : ConfigParams(std::move(params))
+{
+    logCommunication = node.logCommunicationVal;
 }

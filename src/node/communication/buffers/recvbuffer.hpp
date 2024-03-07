@@ -7,7 +7,7 @@
 #include <cstring>
 
 class Rcvbuffer {
-    friend class Connection;
+    friend class ConnectionBase;
     friend class Reader;
 
 public:
@@ -20,7 +20,6 @@ public:
     {
         return readuint32(header);
     }
-    bool verify();
     uint8_t type() { return header[9]; }
     Rcvbuffer() {};
     Rcvbuffer(Rcvbuffer&& buf)
@@ -33,12 +32,13 @@ public:
     messages::Msg parse();
 
 private: // private methods
+    bool verify();
     void clear()
     {
         pos = 0;
         body.bytes.clear();
     }
-    int32_t allocate_body()
+    void allocate_body()
     {
         bsize = bodysize();
         // Check if message is valid. The message is encoded in the 2 message
@@ -46,21 +46,16 @@ private: // private methods
         // because one byte header[9] is sufficient to cover all message cases.
         size_t sb = messages::size_bound(header[9]);
         if (header[8] != 0 || sb == 0)
-            return EMSGTYPE;
+            throw Error(EMSGTYPE);
         // Check if proposed bodysize is in valid limits
         if (bsize < 2 || bsize > 2 + sb) {
-            return EMSGLEN;
+            throw Error(EMSGLEN);
         }
         // Now allocate
-        body.bytes.resize(std::min(bsize, size_t(1024ul)));
+        body.bytes.resize(2);
         // Copy additional bytes into body (needed for checksum)
         body.bytes[0] = header[8];
         body.bytes[1] = header[9];
-        return 0;
-    }
-    void realloc()
-    {
-        body.bytes.resize(std::min(bsize, body.bytes.size() + size_t(1024ul)));
     }
     bool finished()
     {

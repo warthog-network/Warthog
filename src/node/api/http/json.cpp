@@ -30,12 +30,12 @@ std::string format_utc(uint32_t timestamp)
 }
 }
 struct Inspector {
-    static auto endoints(const Eventloop& e)
-    {
-        auto& m = e.connections;
-        return std::tuple { &m.verified, &m.failedAddresses.data(), &m.unverifiedAddresses, &m.pendingOutgoing };
-    }
-    static auto& ip_counter(const Conman& c)
+    // static auto endoints(const Eventloop& e)
+    // {
+    //     auto& m = e.connections;
+    //     return std::tuple { &m.verified, &m.failedAddresses.data(), &m.unverifiedAddresses, &m.pendingOutgoing };
+    // }
+    static auto& ip_counter(const UV_Helper& c)
     {
         return c.perIpCounter;
     }
@@ -65,36 +65,36 @@ struct Inspector {
         }
         return j.dump(1);
     }
-    static std::string endpoint_timers(const Eventloop& c)
-    {
-        auto now = steady_clock::now();
-        auto& m = c.connections;
-        using VerIter = decltype(c.connections)::VerIter;
-        using PinIter = decltype(c.connections)::PinIter;
-        json j;
-        json verifiers = json::array();
-        json pins = json::array();
-        for (auto& [t, v] : m.timer) {
-            json e;
-            e["expiresSeconds"] = duration_cast<seconds>(t - now).count();
-            if (std::holds_alternative<VerIter>(v)) {
-                auto& iter = std::get<VerIter>(v);
-                auto& n = iter->second;
-                e["endpoint"] = iter->first.to_string();
-                e["seenSecondsAgo"] = n.outboundConnection ? 0 : duration_cast<seconds>(now - n.lastVerified).count();
-                verifiers.push_back(e);
-            } else {
-                assert(std::holds_alternative<PinIter>(v));
-                auto& iter = std::get<PinIter>(v);
-                e["endpoint"] = iter->first.to_string();
-                e["sleepOnFailedSeconds"] = iter->second.sleepSeconds;
-                pins.push_back(e);
-            }
-        }
-        j["verifiers"] = verifiers;
-        j["pins"] = pins;
-        return j.dump(1);
-    }
+    // static std::string endpoint_timers(const Eventloop& c)
+    // {
+    //     auto now = steady_clock::now();
+    //     auto& m = c.connections;
+    //     using VerIter = decltype(c.connections)::VerIter;
+    //     using PinIter = decltype(c.connections)::PinIter;
+    //     json j;
+    //     json verifiers = json::array();
+    //     json pins = json::array();
+    //     for (auto& [t, v] : m.timer) {
+    //         json e;
+    //         e["expiresSeconds"] = duration_cast<seconds>(t - now).count();
+    //         if (std::holds_alternative<VerIter>(v)) {
+    //             auto& iter = std::get<VerIter>(v);
+    //             auto& n = iter->second;
+    //             e["endpoint"] = iter->first.to_string();
+    //             e["seenSecondsAgo"] = n.outboundConnection ? 0 : duration_cast<seconds>(now - n.lastVerified).count();
+    //             verifiers.push_back(e);
+    //         } else {
+    //             assert(std::holds_alternative<PinIter>(v));
+    //             auto& iter = std::get<PinIter>(v);
+    //             e["endpoint"] = iter->first.to_string();
+    //             e["sleepOnFailedSeconds"] = iter->second.sleepSeconds;
+    //             pins.push_back(e);
+    //         }
+    //     }
+    //     j["verifiers"] = verifiers;
+    //     j["pins"] = pins;
+    //     return j.dump(1);
+    // }
 };
 
 namespace {
@@ -114,19 +114,19 @@ json verified_json(const std::map<EndpointAddress, T>& map)
     }
     return e;
 }
-json pending_json(const std::map<EndpointAddress, std::chrono::steady_clock::time_point>& m)
-{
-    auto now = steady_clock::now();
-    json e = json::array();
-    for (const auto& [ae, tp] : m) {
-        json j = {
-            { "endpoints", ae.to_string() },
-            { "seconds", duration_cast<seconds>(now - tp).count() }
-        };
-        e.push_back(j);
-    }
-    return e;
-}
+// json pending_json(const std::map<EndpointAddress, std::chrono::steady_clock::time_point>& m)
+// {
+//     auto now = steady_clock::now();
+//     json e = json::array();
+//     for (const auto& [ae, tp] : m) {
+//         json j = {
+//             { "endpoints", ae.to_string() },
+//             { "seconds", duration_cast<seconds>(now - tp).count() }
+//         };
+//         e.push_back(j);
+//     }
+//     return e;
+// }
 json endpoint_json(auto& v)
 {
     json e = json::array();
@@ -534,28 +534,28 @@ nlohmann::json to_json(const NodeVersion&)
         { "commit", GIT_COMMIT_INFO }
     };
 };
-std::string endpoints(const Eventloop& e)
-{
-    auto [verified, failed, unverified, pending] = Inspector::endoints(e);
-    json j;
-    j["verified"] = verified_json(*verified);
-    j["failed"] = endpoint_json(*failed);
-    j["unverified"] = endpoint_json(*unverified);
-    auto a = *pending;
-    j["pending"] = pending_json(*pending);
-    return j.dump(1);
-}
+// std::string endpoints(const Eventloop& e)
+// {
+//     auto [verified, failed, unverified, pending] = Inspector::endoints(e);
+//     json j;
+//     j["verified"] = verified_json(*verified);
+//     j["failed"] = endpoint_json(*failed);
+//     j["unverified"] = endpoint_json(*unverified);
+//     auto a = *pending;
+//     j["pending"] = pending_json(*pending);
+//     return j.dump(1);
+// }
 
-std::string connect_timers(const Eventloop& e)
-{
-    return Inspector::endpoint_timers(e);
-}
+// std::string connect_timers(const Eventloop& e)
+// {
+//     return Inspector::endpoint_timers(e);
+// }
 std::string header_download(const Eventloop& e)
 {
     return Inspector::header_download(e);
 }
 
-std::string ip_counter(const Conman& e)
+std::string ip_counter(const UV_Helper& e)
 {
     auto& ipCounter = Inspector::ip_counter(e);
     json j = json::object();

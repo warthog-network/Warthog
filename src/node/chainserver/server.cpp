@@ -208,7 +208,7 @@ void ChainServer::dispatch_mining_subscriptions()
 TxHash ChainServer::append_gentx(const PaymentCreateMessage& m)
 {
     auto [log, txhash] = state.append_gentx(m);
-    global().pel->async_mempool_update(std::move(log));
+    global().core->async_mempool_update(std::move(log));
     return txhash;
 }
 
@@ -216,7 +216,7 @@ void ChainServer::handle_event(MiningAppend&& e)
 {
     try {
         auto res = state.append_mined_block(e.block);
-        global().pel->async_state_update(std::move(res));
+        global().core->async_state_update(std::move(res));
         spdlog::info("Accepted new block #{}", state.chainlength().value());
         e.callback({});
         dispatch_mining_subscriptions();
@@ -335,17 +335,17 @@ void ChainServer::handle_event(GetBlocks&& e)
 
 void ChainServer::handle_event(stage_operation::StageSetOperation&& r)
 {
-    global().pel->async_stage_action(state.set_stage(std::move(r.headers)));
+    global().core->async_stage_action(state.set_stage(std::move(r.headers)));
 }
 
 void ChainServer::handle_event(stage_operation::StageAddOperation&& r)
 {
     auto [stageAddResult, delta] { state.add_stage(r.blocks, r.headers) };
     if (delta) {
-        global().pel->async_state_update(std::move(*delta));
+        global().core->async_state_update(std::move(*delta));
         dispatch_mining_subscriptions();
     }
-    global().pel->async_stage_action(std::move(stageAddResult));
+    global().core->async_stage_action(std::move(stageAddResult));
 }
 
 void ChainServer::handle_event(PutMempool&& e)
@@ -363,13 +363,13 @@ void ChainServer::handle_event(PutMempoolBatch&& mb)
     auto [_, log] { state.insert_txs(mb.txs) };
     // LATER: introduce some logic to ban
     // peers who sent such bad transactions
-    global().pel->async_mempool_update(std::move(log));
+    global().core->async_mempool_update(std::move(log));
 }
 
 void ChainServer::handle_event(SetSignedPin&& e)
 {
     auto res { state.apply_signed_snapshot(std::move(e.ss)) };
     if (res) {
-        global().pel->defer(std::move(*res));
+        global().core->defer(std::move(*res));
     }
 }

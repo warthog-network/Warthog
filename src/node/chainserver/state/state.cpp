@@ -435,7 +435,7 @@ auto State::apply_stage(ChainDBTransaction&& t) -> std::tuple<ChainError, std::o
     tr.consider_rollback(fh - 1);
     auto [apiBlocks, error] { tr.apply_stage_blocks() };
     if (error) {
-        if (global().conf.localDebug) {
+        if (config().localDebug) {
             assert(0 == 1); // In local debug mode no errors should occurr (no bad actors)
         }
         for (auto h { error.height() }; h < stage.length(); ++h)

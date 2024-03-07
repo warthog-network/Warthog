@@ -1,6 +1,7 @@
 #pragma once
 
 #include "block/chain/signed_snapshot.hpp"
+#include "expected.hpp"
 #include "general/tcp_util.hpp"
 #include <atomic>
 struct gengetopt_args_info;
@@ -13,13 +14,13 @@ struct EndpointVector: public std::vector<EndpointAddress> {
         }
     }
 };
-struct Config {
+struct ConfigParams {
     struct Data {
         std::string chaindb;
         std::string peersdb;
     } data;
     struct JSONRPC {
-        EndpointAddress bind;
+        EndpointAddress bind{"127.0.0.1:3000"};
     } jsonrpc;
     struct PublicAPI {
         EndpointAddress bind;
@@ -31,9 +32,9 @@ struct Config {
     std::optional<StratumPool> stratumPool;
     struct Node {
         std::optional<SnapshotSigner> snapshotSigner;
-        EndpointAddress bind;
+        EndpointAddress bind{"127.0.0.1"};
         bool isolated { false };
-        std::atomic<bool> logCommunication { false };
+        bool logCommunicationVal { false };
     } node;
     struct Peers {
         bool allowLocalhostIp = false; // do not ignore 127.xxx.xxx.xxx peer node addresses provided by peers
@@ -42,11 +43,14 @@ struct Config {
     } peers;
     bool localDebug { false };
 
+    static std::string get_default_datadir();
     std::string dump();
-    const std::string defaultDataDir;
-    int init(int argc, char** argv);
+    [[nodiscard]] static tl::expected<ConfigParams,int> from_args(int argc, char** argv);
 
-    Config();
 private:
-    int process_gengetopt(gengetopt_args_info&);
+    int init(const gengetopt_args_info&);
+};
+struct Config: public ConfigParams {
+    Config(ConfigParams&&);
+    std::atomic<bool> logCommunication { false };
 };
