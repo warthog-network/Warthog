@@ -11,8 +11,7 @@ Copyright (c) 2023 Pumbaa, Timon & Rafiki
 Welcome to Warthog!
 
 Warthog is an experimental L1-cryptocurrency implementation without
-specific focus. Don't take this project seriously, it is just 
-our hobby experiment. This project is not a dumb fork of something else. It was developed completely from scratch! 
+specific focus. This project is not a dumb fork of something else. It was developed completely from scratch! 
 
 
 
@@ -127,11 +126,13 @@ NOTE: We (or some of us) might drop this project any time in case
       experimental project.
 
 ## 📖 Documentation
-* [API Reference](./doc/API.md)
-* [Python Integration Guide](./doc/integration_python.md)
-* [Elixir Integration Guide](./doc/integration_elixir.md)
-* [Nodejs Integration Guide](./doc/integration_nodejs.md)
+* [API Reference](https://www.warthog.network/docs/developers/api/)
+* [Wallet Integration Guide](https://www.warthog.network/docs/developers/integrations/wallet-integration/)
+* [Pool Integration Guide](https://www.warthog.network/docs/developers/integrations/pools/)
+* [Miner Integration Guide](https://www.warthog.network/docs/developers/integrations/miners/)
+* [Janushash algorithm](https://www.warthog.network/docs/janushash/interpreting-hashes-as-numbers/). First Proof of Balanced Work mining algorithm in the world.
 
-## ⛏ Upcoming Mining algorithm
- * NEWS: Custom [Janushash algorithm](./doc/janushash.md) in the works. First Proof of Balanced Work mining algorithm in the world.
+## Useful Links
+* [See here](https://www.warthog.network/docs/links/)
+
 
