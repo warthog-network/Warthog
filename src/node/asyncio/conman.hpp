@@ -1,6 +1,7 @@
 #pragma once
 #include "helpers/per_ip_counter.hpp"
 #include "peerserver/peerserver.hpp"
+#include "general/move_only_function.hpp"
 #include "uvw.hpp"
 #include <list>
 #include <set>
@@ -42,7 +43,7 @@ public:
         EndpointAddress address;
         uint32_t since;
     };
-    using PeersCB = std::function<void(std::vector<APIPeerdata>)>;
+    using PeersCB = MoveOnlyFunction<void(std::vector<APIPeerdata>)>;
 
     void async_get_peers(PeersCB cb)
     {
@@ -52,12 +53,12 @@ public:
     {
         async_add_event(Connect { a, reconnectSleep });
     }
-    void async_inspect(std::function<void(const UV_Helper&)>&& cb)
+    void async_inspect(MoveOnlyFunction<void(const UV_Helper&)>&& cb)
     {
         async_add_event(Inspect { std::move(cb) });
     }
     // auto& loop() { return tcp->parent(); }
-    void async_call(std::function<void()>&& cb){
+    void async_call(MoveOnlyFunction<void()>&& cb){
         async_add_event(DeferFunc{std::move(cb)});
     }
 
@@ -90,10 +91,10 @@ private:
         std::optional<uint32_t> reconnectSleep;
     };
     struct Inspect {
-        std::function<void(const UV_Helper&)> callback;
+        MoveOnlyFunction<void(const UV_Helper&)> callback;
     };
     struct DeferFunc {
-        std::function<void()> callback;
+        MoveOnlyFunction<void()> callback;
     };
     using Event = std::variant<GetPeers, Connect, Inspect, DeferFunc>;
     void async_add_event(Event e)

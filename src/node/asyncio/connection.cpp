@@ -2,10 +2,12 @@
 #include "eventloop/eventloop.hpp"
 #include "general/is_testnet.hpp"
 #include "global/globals.hpp"
+#include "uwebsockets/MoveOnlyFunction.h"
 #include "version.hpp"
 #include <chrono>
 
-uint16_t TCPConnection::listen_port() {
+uint16_t TCPConnection::listen_port()
+{
     return conman.bindAddress.port;
 };
 
@@ -60,17 +62,7 @@ void TCPConnection::close_internal(int errcode)
 // CALLED BY OTHER THREAD
 void TCPConnection::async_send(std::unique_ptr<char[]> data, size_t size)
 {
-    // workaround with Wrapper:
-    // std::function needs to be copyable and does not support capturing std::unique_ptr
-    // should we switch to C++23 and use std::move_only_function?
-    struct Wrapper {
-        std::unique_ptr<char[]> data; 
-        size_t size;
-    };
-    
-    conman.async_call([this, wrapper = std::make_shared<Wrapper>(std::move(data),size)]() mutable {
-            auto &data=wrapper->data;
-            auto size=wrapper->size;
+    conman.async_call([this, data = std::move(data), size]() mutable {
         if (!tcpHandle->closing()) {
             if (tcpHandle->write(std::move(data), size)
                 || tcpHandle->write_queue_size() > MAXBUFFER)
