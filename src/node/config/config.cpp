@@ -85,7 +85,7 @@ tl::expected<ConfigParams, int> ConfigParams::from_args(int argc, char** argv)
 {
     if (auto p { CmdlineParsed::parse(argc, argv) }) {
         ConfigParams c;
-        if (auto i { c.init(p->value()) }) {
+        if (auto i { c.init(p->value()) }; i < 1) {
             return tl::make_unexpected(i);
         }
         return c;

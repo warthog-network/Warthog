@@ -43,7 +43,7 @@ int init_config(int argc, char** argv)
     if (!params.has_value())
         return params.error();
     globalinstance.conf.emplace(std::move(params.value()));
-    return 0;
+    return 1;
 };
 
 const Config& config()

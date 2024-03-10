@@ -25,8 +25,7 @@ struct IPv4 {
 
 constexpr std::optional<IPv4> IPv4::parse(const std::string_view& s)
 {
-    uint32_t tmp{0};
-
+    uint32_t tmp { 0 };
     int saw_digit = 0;
     int index = 0;
 
@@ -36,9 +35,9 @@ constexpr std::optional<IPv4> IPv4::parse(const std::string_view& s)
             nw = nw * 10 + (c - '0');
             if ((saw_digit && nw == 0) || nw > 255)
                 return {};
-            tmp+= uint32_t(nw) << 8*(3-index);
             saw_digit = 1;
         } else if (c == '.' && saw_digit) {
+            tmp += uint32_t(nw) << 8 * (3 - index);
             if (++index >= 4)
                 return {};
             saw_digit = 0;
@@ -49,5 +48,6 @@ constexpr std::optional<IPv4> IPv4::parse(const std::string_view& s)
     }
     if (index != 3 || !saw_digit)
         return {};
-    return IPv4(ntoh32(tmp));
+    tmp += uint32_t(nw) << 8 * (3 - index);
+    return IPv4(tmp);
 }
