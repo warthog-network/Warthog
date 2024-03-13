@@ -5,22 +5,27 @@
 #include "general/tcp_util.hpp"
 #include <atomic>
 struct gengetopt_args_info;
-struct EndpointVector: public std::vector<EndpointAddress> {
+struct EndpointVector : public std::vector<EndpointAddress> {
     using vector::vector;
-    EndpointVector(std::vector<EndpointAddress> v):vector(std::move(v)){}
-    EndpointVector(std::initializer_list<std::string> l){
-        for (auto &s : l) {
-            push_back({s});
+    EndpointVector(std::vector<EndpointAddress> v)
+        : vector(std::move(v))
+    {
+    }
+    EndpointVector(std::initializer_list<std::string> l)
+    {
+        for (auto& s : l) {
+            push_back({ s });
         }
     }
 };
 struct ConfigParams {
+    static constexpr IPv4 localhost { "127.0.0.1" };
     struct Data {
         std::string chaindb;
         std::string peersdb;
     } data;
     struct JSONRPC {
-        EndpointAddress bind{"127.0.0.1:3000"};
+        EndpointAddress bind { localhost, 3000 };
     } jsonrpc;
     struct PublicAPI {
         EndpointAddress bind;
@@ -31,8 +36,9 @@ struct ConfigParams {
     std::optional<PublicAPI> publicAPI;
     std::optional<StratumPool> stratumPool;
     struct Node {
+        static constexpr EndpointAddress default_endpoint { localhost, DEFAULT_ENDPOINT_PORT };
         std::optional<SnapshotSigner> snapshotSigner;
-        EndpointAddress bind{"127.0.0.1"};
+        EndpointAddress bind { default_endpoint };
         bool isolated { false };
         bool logCommunicationVal { false };
     } node;
@@ -45,12 +51,12 @@ struct ConfigParams {
 
     static std::string get_default_datadir();
     std::string dump();
-    [[nodiscard]] static tl::expected<ConfigParams,int> from_args(int argc, char** argv);
+    [[nodiscard]] static tl::expected<ConfigParams, int> from_args(int argc, char** argv);
 
 private:
     int init(const gengetopt_args_info&);
 };
-struct Config: public ConfigParams {
+struct Config : public ConfigParams {
     Config(ConfigParams&&);
     std::atomic<bool> logCommunication { false };
 };

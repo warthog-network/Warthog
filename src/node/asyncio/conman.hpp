@@ -1,7 +1,7 @@
 #pragma once
+#include "general/move_only_function.hpp"
 #include "helpers/per_ip_counter.hpp"
 #include "peerserver/peerserver.hpp"
-#include "general/move_only_function.hpp"
 #include "uvw.hpp"
 #include <list>
 #include <set>
@@ -28,15 +28,15 @@ private:
 
     //////////////////////////////
     // Private methods
-    [[nodiscard]] TCPConnection& insert_connection(std::shared_ptr<uvw::tcp_handle>& h, const EndpointAddress& peer, bool inbound);
+    [[nodiscard]] TCPConnection& insert_connection(std::shared_ptr<uvw::tcp_handle>& h, const peerserver::ConnectRequest& r);
     void on_wakeup();
+    void connect_internal(const peerserver::ConnectRequest&);
 
     // ip counting
     bool count(IPv4);
     void uncount(IPv4);
 
     // reference counting
-
 
 public:
     struct APIPeerdata {
@@ -49,21 +49,21 @@ public:
     {
         async_add_event(GetPeers { std::move(cb) });
     }
-    void async_connect(EndpointAddress a, std::optional<uint32_t> reconnectSleep = {})
+    void connect(const peerserver::ConnectRequest& cr)
     {
-        async_add_event(Connect { a, reconnectSleep });
+        async_add_event(Connect { cr });
     }
     void async_inspect(MoveOnlyFunction<void(const UV_Helper&)>&& cb)
     {
         async_add_event(Inspect { std::move(cb) });
     }
     // auto& loop() { return tcp->parent(); }
-    void async_call(MoveOnlyFunction<void()>&& cb){
-        async_add_event(DeferFunc{std::move(cb)});
+    void async_call(MoveOnlyFunction<void()>&& cb)
+    {
+        async_add_event(DeferFunc { std::move(cb) });
     }
 
     UV_Helper(std::shared_ptr<uvw::loop> l, PeerServer& peerdb, const ConfigParams&);
-    void connect(EndpointAddress);// TODO: notify peer server
     void shutdown(int32_t reason);
 
 private:
@@ -86,10 +86,7 @@ private:
     struct GetPeers {
         PeersCB cb;
     };
-    struct Connect {
-        EndpointAddress a;
-        std::optional<uint32_t> reconnectSleep;
-    };
+    using Connect = peerserver::ConnectRequest;
     struct Inspect {
         MoveOnlyFunction<void(const UV_Helper&)> callback;
     };

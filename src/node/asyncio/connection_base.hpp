@@ -84,7 +84,8 @@ public:
     struct CloseState {
         int error;
     };
-    ConnectionBase(EndpointAddress peer,bool inbound);
+    // for inbound connections
+    ConnectionBase(peerserver::ConnectRequest peer);
     virtual ~ConnectionBase() {};
 
     // can be called from all threads

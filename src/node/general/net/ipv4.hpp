@@ -4,6 +4,7 @@
 #include <compare>
 #include <cstdint>
 #include <optional>
+#include <stdexcept>
 #include <string_view>
 class Reader;
 struct sockaddr_in;
@@ -19,6 +20,14 @@ struct IPv4 {
     bool is_localhost() const;
     auto operator<=>(const IPv4& rhs) const = default;
     static constexpr std::optional<IPv4> parse(const std::string_view&);
+    constexpr IPv4(const std::string_view& s)
+        : IPv4(
+            [&] {
+                auto ea { parse(s) };
+                if (ea)
+                    return *ea;
+                throw std::runtime_error("Cannot parse ip address \"" + std::string(s) + "\".");
+            }()) {};
     uint32_t data;
     std::string to_string() const;
 };

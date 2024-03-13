@@ -18,7 +18,7 @@ public:
     inline PeerChain& chain();
     inline bool closed();
     inline auto& job();
-    inline auto& peer() const;
+    inline auto peer() const;
     inline auto& job() const;
     inline auto& ping();
     inline auto operator->();

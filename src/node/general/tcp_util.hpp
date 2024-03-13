@@ -1,17 +1,13 @@
 #pragma once
 
-#include "general/params.hpp"
 #include "net/ipv4.hpp"
-#include <cstdint>
-#include <optional>
 #include <stdexcept>
-#include <string>
 #include <uv.h>
 
 class Reader;
 struct EndpointAddress {
     EndpointAddress(Reader& r);
-    constexpr EndpointAddress(IPv4 ipv4, uint16_t port = DEFAULT_ENDPOINT_PORT)
+    constexpr EndpointAddress(IPv4 ipv4, uint16_t port)
         : ipv4(ipv4)
         , port(port)
     {
@@ -67,17 +63,15 @@ std::optional<EndpointAddress> constexpr EndpointAddress::parse(const std::strin
     auto ip = IPv4::parse(ipv4str);
     if (!ip)
         return {};
-    if (d1 != std::string::npos) {
-        size_t d2 = s.find("//", d1 + 1);
-        auto portstr { s.substr(d1 + 1, d2 - d1 - 1) };
-        auto port = parse_port(portstr);
-        if (!port)
-            return {};
+    if (d1 == std::string::npos)
+        return {};
+    size_t d2 = s.find("//", d1 + 1);
+    auto portstr { s.substr(d1 + 1, d2 - d1 - 1) };
+    auto port = parse_port(portstr);
+    if (!port)
+        return {};
 
-        return EndpointAddress { ip.value(), port.value() };
-    } else {
-        return EndpointAddress { ip.value() };
-    }
+    return EndpointAddress { ip.value(), port.value() };
 }
 
 constexpr EndpointAddress::EndpointAddress(std::string_view s)

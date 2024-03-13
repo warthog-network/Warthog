@@ -17,9 +17,9 @@ namespace {
 }
 }
 
-TCPConnection& UV_Helper::insert_connection(std::shared_ptr<uvw::tcp_handle>& tcpHandle, const EndpointAddress& peer, bool inbound)
+TCPConnection& UV_Helper::insert_connection(std::shared_ptr<uvw::tcp_handle>& tcpHandle, const peerserver::ConnectRequest& r)
 {
-    auto con { TCPConnection::make_new(tcpHandle, peer, inbound, *this) };
+    auto con { TCPConnection::make_new(tcpHandle, r, *this) };
     tcpConnections.insert(con);
     auto iter = tcpConnections.begin();
     tcpHandle->data(con);
@@ -55,7 +55,8 @@ UV_Helper::UV_Helper(std::shared_ptr<uvw::loop> loop, PeerServer& ps, const Conf
         assert(server.accept(*tcpHandle) == 0);
         auto endpoint { get_ipv4_endpoint(*tcpHandle) };
         if (endpoint) {
-            auto connection { insert_connection(tcpHandle, *endpoint, true).shared_from_this() };
+            auto connectRequest { peerserver::ConnectRequest::inbound(*endpoint) };
+            auto connection { insert_connection(tcpHandle, connectRequest).shared_from_this() };
             ps.authenticate(connection);
         }
     });
@@ -90,14 +91,14 @@ void UV_Helper::handle_event(GetPeers&& e)
 {
     std::vector<APIPeerdata> data;
     for (auto c : tcpConnections) {
-        data.push_back({ c->peer, c->created_at_timestmap() });
+        data.push_back({ c->peer(), c->created_at_timestmap() });
     }
     e.cb(std::move(data));
 }
 
 void UV_Helper::handle_event(Connect&& c)
 {
-    connect(c.a);
+    connect_internal(c);
 }
 
 void UV_Helper::handle_event(Inspect&& e)
@@ -121,15 +122,16 @@ void UV_Helper::shutdown(int32_t reason)
         c->close_internal(reason);
 }
 
-void UV_Helper::connect(EndpointAddress a)
+void UV_Helper::connect_internal(const peerserver::ConnectRequest& r)
 {
     // connection_log().info("{} connecting ", to_string());// TODO: do connection_log
     auto& loop { listener->parent() };
     auto tcp { loop.resource<uvw::tcp_handle>() };
-    auto err { tcp->connect(a.sock_addr()) };
+    auto err { tcp->connect(r.address.sock_addr()) };
     if (err) {
-        global().peerServer->on_failed_connect(a, err);
+        global().peerServer->on_failed_connect(r, err);
+        return;
     }
-    auto& connection { insert_connection(tcp, a, false) };
+    auto& connection { insert_connection(tcp, r) };
     connection.start_read();
 }

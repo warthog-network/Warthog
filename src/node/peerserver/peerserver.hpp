@@ -8,10 +8,12 @@
 #include "general/page.hpp"
 #include "general/tcp_util.hpp"
 #include "spdlog/spdlog.h"
+#include <bitset>
 #include <condition_variable>
 #include <cstdint>
 #include <mutex>
 #include <queue>
+#include <set>
 #include <thread>
 #include <uv.h>
 #include <variant>
@@ -20,6 +22,150 @@ class TCPConnection;
 class UV_Helper;
 struct Inspector;
 struct ConfigParams;
+
+namespace peerserver {
+using Source = IPv4;
+using time_point = std::chrono::steady_clock::time_point;
+using duration = std::chrono::steady_clock::duration;
+using steady_clock = std::chrono::steady_clock;
+
+struct EndpointAddressItem {
+    EndpointAddress address;
+    Source source;
+};
+
+// data structure to encode success of recent connection tries
+class ConnectionLog {
+public:
+    size_t recent_failures() const;
+    [[nodiscard]] size_t log_failure(); // returns number of repeated failures
+    void log_success();
+
+private:
+    uint32_t active_bits() const
+    {
+        return bits & 0x1F;
+    }
+    uint32_t bits { 0 };
+};
+
+
+enum class EndpointState {
+    VERIFIED,
+    UNVERIFIED_FAILED,
+    UNVERIFIED_NEW
+};
+
+struct ReconnectContext {
+    duration prevWait;
+    EndpointState state;
+    bool pinned;
+};
+class EndpointVector;
+class EndpointData {
+    friend class EndpointVector;
+
+public:
+    EndpointData(const EndpointAddressItem& i)
+        : address(i.address)
+        , sources { i.source }
+
+    {
+    }
+    void add_source(Source);
+
+    // returns expiration time point
+    std::optional<time_point> try_pop(time_point, std::vector<ConnectRequest>& out);
+    std::optional<time_point> timeout() const;
+
+    // connection event callbacks
+    void connection_established();
+    void connection_closed();
+    [[nodiscard]] time_point failed_connection_closed(const ReconnectContext&);
+    [[nodiscard]] time_point outbound_connect_failed(const ReconnectContext&);
+
+private:
+    [[nodiscard]] time_point update_timer_failed(const ReconnectContext&);
+
+    struct Timer {
+        auto sleep_duration() const { return _sleepDuration; }
+        auto timeout() const { return _timeout; }
+        bool expired(time_point tp) const { return _timeout < tp; }
+        void set(duration d)
+        {
+            _sleepDuration = d;
+            _timeout = steady_clock::now() + d;
+        }
+        Timer()
+        { // new timers wake up immediately
+            set(duration::zero());
+        }
+
+    private:
+        duration _sleepDuration;
+        time_point _timeout;
+    };
+    EndpointAddress address;
+    Timer timer;
+    ConnectionLog connectionLog;
+    std::set<Source> sources;
+    bool pending { false };
+    uint32_t connected { 0 };
+};
+
+using Sources = std::map<EndpointAddress, EndpointData>;
+
+class EndpointVector {
+
+public:
+    [[nodiscard]] EndpointData* find(const EndpointAddress&) const;
+    EndpointData* move_entry(const EndpointAddress& key, EndpointVector& to);
+    std::pair<EndpointData&, bool> emplace(const EndpointAddressItem&);
+    void pop_requests(time_point now, std::vector<ConnectRequest>&);
+    bool set_timeout(const EndpointAddress&, time_point tp);
+
+    std::optional<time_point> timeout() const { return wakeup_tp; }
+
+private:
+    EndpointData& insert(const EndpointAddressItem&);
+    void update_wakeup_time(const std::optional<time_point>&);
+    std::optional<time_point> wakeup_tp;
+    mutable std::vector<EndpointData> data;
+};
+
+class ConnectionSchedule {
+public:
+    [[nodiscard]] std::optional<EndpointAddress> insert(EndpointAddressItem);
+
+    void connection_established(const ConnectionData&);
+
+    void outbound_closed(const ConnectionData&);
+    void successful_outbound_closed(const ConnectRequest&);
+    void failed_outbound_closed(const ConnectRequest&);
+    void outbound_connect_failed(const ConnectRequest&);
+
+    // void outbound_failed(const 
+
+    [[nodiscard]] std::vector<peerserver::ConnectRequest> pop_requests();
+    time_point wake_up_time();
+
+private:
+struct Found {
+        EndpointData& item;
+        EndpointState state;
+};
+    void refresh_wakeup_time();
+    std::optional<ReconnectContext> get_reconnect_context(const ConnectRequest&);
+    void update_wakeup_time(const std::optional<time_point> &);
+    [[nodiscard]] auto find(const EndpointAddress& a)const  -> std::optional<Found> ;
+    EndpointVector verified;
+    EndpointVector unverifiedNew;
+    EndpointVector unverifiedFailed;
+    size_t totalConnected{0};
+    std::set<EndpointAddress> pinned;
+    std::optional<time_point> wakeup_tp;
+};
+}
 
 class PeerServer {
 public:
@@ -32,15 +178,11 @@ public:
     using result_callback_t = std::function<void(const tl::expected<void, int32_t>&)>;
 
 private:
-    using Source = IPv4;
     friend struct Inspector;
     struct SuccessfulOutbound {
         std::shared_ptr<ConnectionBase> c;
     };
-    struct VerifyPeer {
-        EndpointAddress c;
-        Source source;
-    };
+    using VerifyPeer = peerserver::EndpointAddressItem;
     struct Authenticate {
         std::shared_ptr<ConnectionBase> c;
     };
@@ -72,16 +214,20 @@ public:
 
     bool authenticate(std::shared_ptr<ConnectionBase> c)
     {
-        return async_event(Authenticate{std::move(c)});
+        return async_event(Authenticate { std::move(c) });
     }
-    void verify_peer(EndpointAddress c, Source source){
-        async_event(VerifyPeer{std::move(c),source});
+    void verify_peer(EndpointAddress c, IPv4 source)
+    {
+        async_event(VerifyPeer { std::move(c), source });
     }
-    void notify_successful_outbound(std::shared_ptr<ConnectionBase> c){
+
+    void notify_successful_outbound(std::shared_ptr<ConnectionBase> c)
+    {
         async_event(SuccessfulOutbound(std::move(c)));
     }
-    auto on_failed_connect(EndpointAddress address, Error reason){
-        return async_event(FailedConnect{address, reason});
+    auto on_failed_connect(const peerserver::ConnectRequest& r, Error reason)
+    {
+        return async_event(FailedConnect { r, reason });
     };
 
     bool async_get_banned(banned_callback_t cb)
@@ -137,7 +283,7 @@ private:
         std::function<void(const PeerServer&)> cb;
     };
     struct FailedConnect {
-        EndpointAddress endpointAddress;
+        peerserver::ConnectRequest connectRequest;
         int32_t reason;
     };
     using Event = std::variant<SuccessfulOutbound, VerifyPeer, OnClose, Authenticate, GetOffenses, Unban, banned_callback_t, RegisterPeer, SeenPeer, GetRecentPeers, Inspect, FailedConnect>;
@@ -152,6 +298,8 @@ private:
         return true;
     }
     void work();
+    void process_timer();
+    void start_request(const peerserver::ConnectRequest&);
     void accept_connection();
     void register_close(IPv4 address, uint32_t now, int32_t offense, int64_t rowid);
     ////////////////
@@ -181,6 +329,9 @@ private:
     bool shutdown = false;
     std::queue<Event> events;
     std::condition_variable cv;
+
+    // std::vector<Pinned> pinned
+    peerserver::ConnectionSchedule connectionSchedule;
 
     // worker
     std::thread worker;

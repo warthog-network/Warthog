@@ -13,8 +13,8 @@ namespace {
 std::mutex statechangeMutex;
 std::atomic<uint64_t> connectionCounter { 1 }; // global counter of ids
 }
-ConnectionBase::ConnectionBase(EndpointAddress peer, bool inbound)
-    : peerserver::Connection(peer, inbound)
+ConnectionBase::ConnectionBase(peerserver::ConnectRequest r)
+    : peerserver::Connection(std::move(r))
     , id(connectionCounter++)
     , createdAt(std::chrono::steady_clock::now())
     , createdAtSystem(std::chrono::system_clock::now())
@@ -23,12 +23,12 @@ ConnectionBase::ConnectionBase(EndpointAddress peer, bool inbound)
 
 std::string ConnectionBase::to_string() const
 {
-    return "(" + std::to_string(id) + ")" + (inbound ? "← " : "→ ") + peer.to_string();
+    return "(" + std::to_string(id) + ")" + (inbound() ? "← " : "→ ") + peer.to_string();
 }
 
 EndpointAddress ConnectionBase::peer_endpoint() const
 {
-    if (inbound) {
+    if (inbound()) {
         // on inbound connection take the port the peer claims to listen on
         return EndpointAddress { peer.ipv4,
             std::get<MessageState>(state).handshakeData.port.value() };
@@ -93,20 +93,20 @@ std::span<uint8_t> ConnectionBase::process_message(std::span<uint8_t>, std::mono
 }
 std::span<uint8_t> ConnectionBase::process_message(std::span<uint8_t> data, HandshakeState& p)
 {
-    auto r { p.remaining(inbound) };
+    auto r { p.remaining(inbound()) };
     auto s { data.size() };
     if (r <= s) {
         std::ranges::copy(data, p.data() + p.pos);
         p.pos += s;
         if (r == s) {
-            if (inbound) {
+            if (inbound()) {
                 send_handshake();
                 std::lock_guard l(statechangeMutex);
-                state = AckState(p.parse(inbound));
+                state = AckState(p.parse(inbound()));
             } else {
                 send_handshake_ack();
                 std::lock_guard l(statechangeMutex);
-                state.emplace<MessageState>(p.parse(inbound));
+                state.emplace<MessageState>(p.parse(inbound()));
             }
         }
         return {};
@@ -190,7 +190,8 @@ auto HandshakeState::parse(bool inbound) -> Parsed
     uint32_t tmp;
     memcpy(&tmp, recvbuf.data() + 14, 4);
     Parsed p {
-        .version = hton32(tmp)
+        .version = hton32(tmp),
+        .port {}
     };
     if (inbound) {
         uint16_t tmp;
@@ -204,14 +205,14 @@ void ConnectionBase::send_handshake()
 {
     char* data = new char[24];
     if (is_testnet()) {
-        memcpy(data, (inbound ? HandshakeState::accept_grunt_testnet : HandshakeState::connect_grunt_testnet), 14);
+        memcpy(data, (inbound() ? HandshakeState::accept_grunt_testnet : HandshakeState::connect_grunt_testnet), 14);
     } else {
-        memcpy(data, (inbound ? HandshakeState::accept_grunt : HandshakeState::connect_grunt), 14);
+        memcpy(data, (inbound() ? HandshakeState::accept_grunt : HandshakeState::connect_grunt), 14);
     }
     uint32_t nver = hton32(version);
     memcpy(data + 14, &nver, 4);
     memset(data + 18, 0, 4);
-    if (!inbound) {
+    if (!inbound()) {
         uint16_t portBe = hton16(listen_port());
         memcpy(data + 22, &portBe, 2);
         async_send(std::unique_ptr<char[]>(data), 24);
@@ -229,7 +230,7 @@ void ConnectionBase::send_handshake_ack()
 
 void ConnectionBase::on_connected()
 {
-    if (!inbound) {
+    if (!inbound()) {
         send_handshake();
     }
     std::lock_guard l(statechangeMutex);

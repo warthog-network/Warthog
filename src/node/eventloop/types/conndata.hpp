@@ -255,7 +255,7 @@ const PeerChain& Conref::chain() const { return iter->second.chain; }
 PeerChain& Conref::chain() { return iter->second.chain; }
 auto& Conref::job() { return iter->second.job; }
 auto& Conref::job() const { return iter->second.job; }
-auto& Conref::peer() const { return iter->second.c->peer; }
+auto Conref::peer() const { return iter->second.c->peer(); }
 auto& Conref::ping() { return iter->second.ping; }
 auto Conref::operator->() { return &(iter->second); }
 bool Conref::initialized() { return !iter->second.job.waiting_for_init(); }

@@ -17,15 +17,15 @@ std::optional<Conref> AddressManager::find(uint64_t id)
 
 auto AddressManager::prepare_insert(const std::shared_ptr<ConnectionBase>& c) -> tl::expected<EvictionCandidate, int32_t>
 {
-    auto ip { c->peer.ipv4 };
+    auto ip { c->peer().ipv4 };
     if (!ip.is_localhost()) {
         if (ipCounter.contains(ip))
             return tl::unexpected(EDUPLICATECONNECTION);
-        if (!c->inbound) {
+        if (!c->inbound()) {
             global().peerServer->notify_successful_outbound(c);
-            insert_additional_verified(c->peer);
+            insert_additional_verified(c->peer());
         } else
-            global().peerServer->verify_peer(c->peer_endpoint(), c->peer.ipv4);
+            global().peerServer->verify_peer(c->peer_endpoint(), c->peer().ipv4);
     }
     auto ec { eviction_candidate() };
     if (!ec.has_value())
@@ -42,13 +42,13 @@ Conref AddressManager::insert_prepared(const std::shared_ptr<ConnectionBase>& c,
     Conref cr { p.first };
     c->dataiter = cr.iterator();
 
-    auto ip { c->peer.ipv4 };
+    auto ip { c->peer().ipv4 };
     assert(ip.is_localhost() || ipCounter.insert(ip, 1) == 1);
 
-    if (c->inbound) {
+    if (c->inbound()) {
         inboundConnections.push_back(cr);
     } else {
-        outboundEndpoints.push_back(c->peer);
+        outboundEndpoints.push_back(c->peer());
     }
     return cr;
 }
@@ -56,7 +56,7 @@ Conref AddressManager::insert_prepared(const std::shared_ptr<ConnectionBase>& c,
 bool AddressManager::erase(Conref cr)
 {
     ipCounter.erase(cr.peer().ipv4);
-    if (cr->c->inbound) {
+    if (cr->c->inbound()) {
         std::erase(inboundConnections, cr);
     } else {
         std::erase(outboundEndpoints, cr.peer());

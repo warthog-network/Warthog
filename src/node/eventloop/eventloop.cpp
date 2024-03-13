@@ -322,7 +322,7 @@ void Eventloop::handle_event(PeersCb&& cb)
     std::vector<API::Peerinfo> out;
     for (auto cr : connections.initialized()) {
         out.push_back(API::Peerinfo {
-            .endpoint { cr->c->peer },
+            .endpoint { cr->c->peer() },
             .initialized = cr.initialized(),
             .chainstate = cr.chain(),
             .theirSnapshotPriority = cr->theirSnapshotPriority,
