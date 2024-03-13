@@ -67,9 +67,9 @@ public:
     void async_stage_action(stage_operation::Result);
 
     void api_get_peers(PeersCb&& cb);
-    void api_get_hashrate(HashrateCb&& cb);
+    void api_get_hashrate(HashrateCb&& cb, size_t n=100);
     void api_get_hashrate_chart(HashrateChartCb&& cb);
-    void api_get_hashrate_chart(NonzeroHeight from, NonzeroHeight to,HashrateChartCb&& cb);
+    void api_get_hashrate_chart(NonzeroHeight from, NonzeroHeight to, size_t window, HashrateChartCb&& cb);
     void api_inspect(InspectorCb&&);
 
     void start_async_loop();
@@ -198,11 +198,16 @@ private:
         HashrateChartCb cb;
         NonzeroHeight from;
         NonzeroHeight to;
+        size_t window;
+    };
+    struct GetHashrate {
+        HashrateCb cb;
+        size_t n;
     };
     // event queue
     using Event = std::variant<OnRelease, OnProcessConnection,
         StateUpdate, SignedSnapshotCb, PeersCb, stage_operation::Result,
-        OnForwardBlockrep, OnFailedAddressEvent, InspectorCb, HashrateCb, GetHashrateChart,
+        OnForwardBlockrep, OnFailedAddressEvent, InspectorCb, GetHashrate, GetHashrateChart,
         OnPinAddress, OnUnpinAddress, mempool::Log>;
 
 public:
@@ -219,7 +224,7 @@ private:
     void handle_event(OnForwardBlockrep&&);
     void handle_event(OnFailedAddressEvent&&);
     void handle_event(InspectorCb&&);
-    void handle_event(HashrateCb&&);
+    void handle_event(GetHashrate&&);
     void handle_event(GetHashrateChart&&);
     void handle_event(OnPinAddress&&);
     void handle_event(OnUnpinAddress&&);

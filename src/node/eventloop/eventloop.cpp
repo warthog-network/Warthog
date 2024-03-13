@@ -103,14 +103,14 @@ void Eventloop::api_inspect(InspectorCb&& cb)
 {
     defer(std::move(cb));
 }
-void Eventloop::api_get_hashrate(HashrateCb&& cb)
+void Eventloop::api_get_hashrate(HashrateCb&& cb, size_t n)
 {
-    defer(std::move(cb));
+    defer(GetHashrate{std::move(cb),n});
 }
 
-void Eventloop::api_get_hashrate_chart(NonzeroHeight from, NonzeroHeight to, HashrateChartCb&& cb)
+void Eventloop::api_get_hashrate_chart(NonzeroHeight from, NonzeroHeight to, size_t window, HashrateChartCb&& cb)
 {
-    defer(GetHashrateChart { std::move(cb), from, to });
+    defer(GetHashrateChart { std::move(cb), from, to, window});
 }
 
 void Eventloop::async_forward_blockrep(uint64_t conId, std::vector<BodyContainer>&& blocks)
@@ -374,15 +374,16 @@ void Eventloop::handle_event(InspectorCb&& cb)
     cb(*this);
 }
 
-void Eventloop::handle_event(HashrateCb&& cb)
+void Eventloop::handle_event(GetHashrate&& e)
 {
-    cb(API::HashrateInfo {
-        .by100Blocks = consensus().headers().hashrate(100) });
+    e.cb(API::HashrateInfo {
+        .nBlocks = e.n ,
+        .estimate = consensus().headers().hashrate(e.n) });
 }
 
 void Eventloop::handle_event(GetHashrateChart&& e)
 {
-    e.cb(consensus().headers().hashrate_chart(e.from, e.to, 100));
+    e.cb(consensus().headers().hashrate_chart(e.from, e.to, e.window));
 }
 
 void Eventloop::handle_event(OnPinAddress&& e)

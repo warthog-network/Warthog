@@ -107,13 +107,17 @@ void get_txcache(TxcacheCb&& cb)
     global().pcs->api_get_txcache(std::move(cb));
 }
 
+void get_hashrate_n(size_t n, HashrateCb&& cb)
+{
+    global().pel->api_get_hashrate(std::move(cb),n);
+}
 void get_hashrate(HashrateCb&& cb)
 {
     global().pel->api_get_hashrate(std::move(cb));
 }
-void get_hashrate_chart(NonzeroHeight from, NonzeroHeight to, HashrateChartCb&& cb)
+void get_hashrate_chart(NonzeroHeight from, NonzeroHeight to, size_t window, HashrateChartCb&& cb)
 {
-    global().pel->api_get_hashrate_chart(from, to, std::move(cb));
+    global().pel->api_get_hashrate_chart(from, to, window, std::move(cb));
 }
 
 void put_chain_append(MiningTask&& mt, ResultCb f)

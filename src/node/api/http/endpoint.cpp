@@ -136,8 +136,8 @@ void HTTPEndpoint::work()
     get_1("/chain/mine/:account/log", get_chain_mine);
     get("/chain/signed_snapshot", get_signed_snapshot, true);
     get("/chain/txcache", get_txcache);
-    get("/chain/hashrate", get_hashrate);
-    get_2("/chain/hashrate/chart/:from/:to", get_hashrate_chart, true);
+    get_1("/chain/hashrate/:window", get_hashrate_n);
+    get_3("/chain/hashrate/chart/:from/:to/:window", get_hashrate_chart, true);
     post("/chain/append", parse_mining_task, put_chain_append, true);
 
     indexGenerator.section("Account Endpoints");
@@ -253,6 +253,29 @@ void HTTPEndpoint::get_2(std::string pattern, auto asyncfun, bool priv)
                 ParameterParser p1 { req->getParameter(0) };
                 ParameterParser p2 { req->getParameter(1) };
                 asyncfun(p1, p2,
+                    [this, res](auto& data) {
+                        async_reply(res, jsonmsg::serialize(data));
+                    });
+                pendingRequests.insert(res);
+                res->onAborted([this, res]() { on_aborted(res); });
+            } catch (Error e) {
+                send_json(res, jsonmsg::serialize(tl::make_unexpected(e.e)));
+            }
+        });
+}
+void HTTPEndpoint::get_3(std::string pattern, auto asyncfun, bool priv)
+{
+    if (priv && isPublic)
+        return;
+    indexGenerator.get(pattern);
+    app.get(pattern,
+        [this, asyncfun, pattern](auto* res, auto* req) {
+            spdlog::debug("GET {}", req->getUrl());
+            try {
+                ParameterParser p1 { req->getParameter(0) };
+                ParameterParser p2 { req->getParameter(1) };
+                ParameterParser p3 { req->getParameter(2) };
+                asyncfun(p1, p2, p3,
                     [this, res](auto& data) {
                         async_reply(res, jsonmsg::serialize(data));
                     });

@@ -111,7 +111,8 @@ struct OffenseHistory {
     std::vector<TransferTxExchangeMessage> entries;
 };
 struct HashrateInfo {
-    uint64_t by100Blocks;
+    size_t nBlocks;
+    uint64_t estimate;
 };
 
 struct HashrateChartRequest {

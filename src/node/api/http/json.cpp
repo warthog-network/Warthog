@@ -404,7 +404,7 @@ json to_json(const API::Richlist& l)
 json to_json(const API::HashrateInfo& hi)
 {
     return json {
-        { "last100BlocksEstimate", hi.by100Blocks }
+        { "last100BlocksEstimate", hi.estimate }
     };
 }
 

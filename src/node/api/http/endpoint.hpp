@@ -52,6 +52,7 @@ private:
     void get(std::string pattern, auto asyncfun, bool priv = false);
     void get_1(std::string pattern, auto asyncfun, bool priv = false);
     void get_2(std::string pattern, auto asyncfun, bool priv = false);
+    void get_3(std::string pattern, auto asyncfun, bool priv = false);
     void post(std::string pattern, auto parser, auto asyncfun, bool priv = false);
 
     //////////////////////////////
