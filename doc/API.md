@@ -362,6 +362,8 @@ Send transactions in JSON format, returns transaction hash in hex format:
 
 ### `GET /chain/hashrate`
 
+ DEPRECATED IN 0.4.13 for `GET /chain/hashrate/:window`
+
  Show current hashrate  
 
 
@@ -373,6 +375,47 @@ Send transactions in JSON format, returns transaction hash in hex format:
  }
 } 
  ```
+
+### `GET /chain/hashrate/:window`
+
+ Show current hashrate  
+
+```json
+
+{
+ "code": 0,
+ "data": {
+  "N": 100,
+  "lastNBlocksEstimate": 1111171666542
+ }
+}
+
+```
+
+### `GET /chain/hashrate/chart/:from/:to/:window`
+
+```json
+{
+ "code": 0,
+ "data": {
+  "data": [
+   214748416.0,
+   1073742080.0,
+   1.8446744073709552e+19,
+   1038435.2804642166,
+   27531848.205128204,
+   39768225.18518519,
+   214748416.0,
+   16026001.19402985,
+   3767516.0701754387
+  ],
+  "range": {
+   "max": 10,
+   "min": 2
+  }
+ }
+}
+```
 
 ### `POST /chain/append`
 
