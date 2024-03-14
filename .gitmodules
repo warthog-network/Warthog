@@ -1,0 +1,3 @@
+[submodule "doc/docs"]
+	path = doc/docs
+	url = https://github.com/warthog-network/docs/
