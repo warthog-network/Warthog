@@ -59,16 +59,24 @@ void get_connected_connection(ConnectedConnectionCB&& cb)
 void get_round16bit_e8(uint64_t e8, RoundCb cb)
 {
     cb(API::Round16Bit { Funds(e8) });
-};
+}
 
 void get_round16bit_funds(Funds f, RoundCb cb)
 {
     cb(API::Round16Bit { f });
-};
+}
 void get_version(VersionCb cb)
 {
     cb(NodeVersion {});
-};
+}
+
+void get_wallet_new(WalletCb cb){
+    cb(API::Wallet{});
+}
+
+void get_wallet_from_privkey(const PrivKey& pk, WalletCb cb){
+    cb(API::Wallet{pk});
+}
 
 // chain functions
 void get_block_head(HeadCb f)

@@ -147,6 +147,10 @@ struct Round16Bit {
     Funds original;
 };
 
+struct Wallet{
+    PrivKey pk;
+};
+
 
 using OffenseEntry = ::OffenseEntry;
 

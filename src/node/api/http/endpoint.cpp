@@ -40,6 +40,10 @@ struct ParameterParser {
             return { Address { *this } };
         return { AccountId { static_cast<uint64_t>(*this) } };
     }
+    operator PrivKey()
+    {
+        return PrivKey(sv);
+    }
     operator Funds()
     {
         return Funds::throw_parse(sv);
@@ -159,6 +163,8 @@ void HTTPEndpoint::work()
     get_1("/tools/encode16bit/from_e8/:feeE8", get_round16bit_e8);
     get_1("/tools/encode16bit/from_string/:string", get_round16bit_funds);
     get("/tools/version", get_version);
+    get("/tools/wallet/new", get_wallet_new);
+    get_1("/tools/wallet/from_privkey/:privkey", get_wallet_from_privkey);
 
     indexGenerator.section("Debug Endpoints");
     get("/debug/header_download", inspect_eventloop, jsonmsg::header_download, true);

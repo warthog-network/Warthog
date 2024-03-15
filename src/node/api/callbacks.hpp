@@ -10,6 +10,7 @@
 // forward declarations
 class TransferTxExchangeMessage;
 class Hash;
+class PrivKey;
 class TxHash;
 class Grid;
 class NonzeroHeight;
@@ -54,3 +55,4 @@ using HistoryCb = std::function<void(const tl::expected<API::AccountHistory, int
 using RichlistCb = std::function<void(const tl::expected<API::Richlist, int32_t>&)>;
 
 using VersionCb = std::function<void(const tl::expected<NodeVersion, int32_t>&)>;
+using WalletCb = std::function<void(const tl::expected<API::Wallet, int32_t>&)>;

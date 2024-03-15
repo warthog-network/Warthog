@@ -83,7 +83,7 @@ PrivKey::PrivKey()
     } while (!check(keydata.data()));
 }
 
-PrivKey::PrivKey(const std::string key)
+PrivKey::PrivKey(std::string_view key)
 {
     if (!parse_hex(key, keydata) || check(keydata.begin()) == false)
         throw Error(EBADPRIVKEY);

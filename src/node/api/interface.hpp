@@ -34,6 +34,8 @@ void get_connected_connection(ConnectedConnectionCB&& cb);
 void get_round16bit_e8(uint64_t e8, RoundCb cb);
 void get_round16bit_funds(Funds e8, RoundCb cb);
 void get_version(VersionCb cb);
+void get_wallet_new(WalletCb cb);
+void get_wallet_from_privkey(const PrivKey& pk, WalletCb cb);
 
 // chain functions
 void get_block_head(HeadCb cb);

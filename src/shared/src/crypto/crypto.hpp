@@ -42,7 +42,7 @@ private:
 class PrivKey {
 public:
   PrivKey();
-  PrivKey(const std::string);
+  PrivKey(std::string_view);
   PrivKey(const uint8_t *pbegin, const uint8_t *pend);
   std::string to_string() const;
   friend bool operator==(const PrivKey &a, const PrivKey &b);

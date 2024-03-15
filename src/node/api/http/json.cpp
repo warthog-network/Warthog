@@ -401,6 +401,17 @@ json to_json(const API::Richlist& l)
     }
     return a;
 }
+
+nlohmann::json to_json(const API::Wallet& w)
+{
+    auto pubKey { w.pk.pubkey() };
+    return {
+        { "privKey", w.pk.to_string() },
+        { "pubKey", pubKey.to_string() },
+        { "address", pubKey.address().to_string() }
+    };
+}
+
 json to_json(const API::HashrateInfo& hi)
 {
     return json {
