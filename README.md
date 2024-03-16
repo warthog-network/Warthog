@@ -34,13 +34,10 @@ The block chain has the following characteristics:
 
 
 ## 💣 A word of caution
-But beware of bugs: Here be dragons. Almost everything was 
-implemented from scratch. Don't expect this
-software to be rock solid, and don't even expect things to work 
-properly. Use at your own risk. There may be and almost 
-certainly are serious bugs! You have been warned.
+This is new software. Almost everything was 
+implemented from scratch. There may be bugs.
+Use at your own risk.
 
-Have fun with it. Like we had implementing it.
 
 ## 📢 Socials
 
@@ -120,10 +117,9 @@ More detailed information how to set up and run the miner you can find [here](ht
 * Optional: Run the wallet to send funds (wallet requires node running)
 * Good luck and have fun! Use --help the option.
 
-NOTE: We (or some of us) might drop this project any time in case 
-      deep/unfixable bugs or ugly design issues arise. Or without
-      any reason and without prior notice. This is a highly 
-      experimental project.
+NOTE:  This is a highly experimental project not backed by any institution or foundation. 
+ It relies on the work of voluntaries who have no obligation to do work for the project.
+ People can join and leave any time at their will.
 
 ## 📖 Documentation
 * [API Reference](https://www.warthog.network/docs/developers/api/)
