@@ -85,7 +85,7 @@ public:
         int error;
     };
     // for inbound connections
-    ConnectionBase(peerserver::ConnectRequest peer);
+    ConnectionBase(ConnectRequest peer);
     virtual ~ConnectionBase() {};
 
     // can be called from all threads

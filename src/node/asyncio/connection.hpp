@@ -17,9 +17,9 @@ class TCPConnection final : public ConnectionBase, public ConnectionBase::TCPDat
     };
 
 public:
-    TCPConnection(Token, std::shared_ptr<uvw::tcp_handle> handle, const peerserver::ConnectRequest& r, UV_Helper& conman);
+    TCPConnection(Token, std::shared_ptr<uvw::tcp_handle> handle, const ConnectRequest& r, UV_Helper& conman);
     [[nodiscard]] static std::shared_ptr<TCPConnection> make_new(
-        std::shared_ptr<uvw::tcp_handle> handle, const peerserver::ConnectRequest& r, UV_Helper& conman);
+        std::shared_ptr<uvw::tcp_handle> handle, const ConnectRequest& r, UV_Helper& conman);
     TCPConnection(const TCPConnection&) = delete;
     TCPConnection(TCPConnection&&) = delete;
     std::shared_ptr<ConnectionBase> get_shared() override

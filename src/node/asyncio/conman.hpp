@@ -28,9 +28,9 @@ private:
 
     //////////////////////////////
     // Private methods
-    [[nodiscard]] TCPConnection& insert_connection(std::shared_ptr<uvw::tcp_handle>& h, const peerserver::ConnectRequest& r);
+    [[nodiscard]] TCPConnection& insert_connection(std::shared_ptr<uvw::tcp_handle>& h, const ConnectRequest& r);
     void on_wakeup();
-    void connect_internal(const peerserver::ConnectRequest&);
+    void connect_internal(const ConnectRequest&);
 
     // ip counting
     bool count(IPv4);
@@ -49,7 +49,7 @@ public:
     {
         async_add_event(GetPeers { std::move(cb) });
     }
-    void connect(const peerserver::ConnectRequest& cr)
+    void connect(const ConnectRequest& cr)
     {
         async_add_event(Connect { cr });
     }
@@ -86,7 +86,7 @@ private:
     struct GetPeers {
         PeersCB cb;
     };
-    using Connect = peerserver::ConnectRequest;
+    using Connect = ConnectRequest;
     struct Inspect {
         MoveOnlyFunction<void(const UV_Helper&)> callback;
     };

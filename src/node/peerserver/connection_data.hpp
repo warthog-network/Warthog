@@ -23,11 +23,13 @@ private:
 };
 
 class PeerServer;
-namespace peerserver {
-class ConnectionSchedule;
-using duration = std::chrono::steady_clock::duration;
+
+namespace connection_schedule{
+    class ConnectionSchedule;
+}
 
 struct ConnectRequest {
+    using duration = std::chrono::steady_clock::duration;
     friend class ConnectionData;
     static ConnectRequest inbound(EndpointAddress peer)
     {
@@ -50,9 +52,14 @@ private:
     }
 };
 
+namespace peerserver {
+class ConnectionSchedule;
+using duration = std::chrono::steady_clock::duration;
+
+
 class ConnectionData : public EventloopVariables {
     friend class ::PeerServer;
-    friend class ConnectionSchedule;
+    friend class connection_schedule::ConnectionSchedule;
     int64_t logrow = 0;
 
 public:

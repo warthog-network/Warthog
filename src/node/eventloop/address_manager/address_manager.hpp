@@ -1,6 +1,7 @@
 #pragma once
 #include "../types/conndata.hpp"
 #include "asyncio/helpers/per_ip_counter.hpp"
+#include "connection_schedule.hpp"
 #include "expected.hpp"
 #include "flat_address_set.hpp"
 #include "general/tcp_util.hpp"
@@ -117,7 +118,11 @@ public:
 
     // access queued
 
-    [[nodiscard]] std::vector<EndpointAddress> sample_verified(size_t N);
+    [[nodiscard]] std::vector<EndpointAddress> sample_verified(size_t N)
+    {
+        return connectionSchedule.sample_verified(N);
+    }
+
     void garbage_collect();
 
 private:
@@ -138,6 +143,7 @@ private:
     std::vector<EndpointAddress> additionalEndpoints;
     std::vector<EndpointAddress> outboundEndpoints;
     std::vector<Conref> inboundConnections;
+    connection_schedule::ConnectionSchedule connectionSchedule;
 
     mutable Conndatamap conndatamap;
     std::vector<Conref> delayedDelete;

@@ -38,6 +38,7 @@ src= [
   './db/chain_db.cpp',
   './db/peer_db.cpp',
   './eventloop/address_manager/address_manager.cpp',
+  './eventloop/address_manager/connection_schedule.cpp',
   './eventloop/address_manager/flat_address_set.cpp',
   './eventloop/chain_cache.cpp',
   './eventloop/eventloop.cpp',

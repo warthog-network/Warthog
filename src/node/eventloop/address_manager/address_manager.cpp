@@ -113,14 +113,6 @@ auto AddressManager::eviction_candidate() const -> std::optional<EvictionCandida
     return EvictionCandidate { sampled[0] };
 }
 
-std::vector<EndpointAddress> AddressManager::sample_verified(size_t N)
-{
-    // sample from cache
-    std::vector<EndpointAddress> out;
-    std::sample(additionalEndpoints.begin(), additionalEndpoints.end(), std::back_inserter(out),
-        N, std::mt19937 { std::random_device {}() });
-    return out;
-}
 
 // namespace {
 //     // Peerserver: unpin, pin
