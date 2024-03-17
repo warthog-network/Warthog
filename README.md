@@ -52,7 +52,9 @@ Use at your own risk.
 </p>
 
 ## 💱 Where to buy?
-Not listed yet. At the moment only p2p on Discord. 
+- P2P on Discord<br>
+- <a href="https://exbitron.com/">Exbitron exchange</a><br>
+- <a href="https://xeggex.com/market/WART_USDT">Xeggex exchange</a>
 
 
 ## 📦 Component overview
