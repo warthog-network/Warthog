@@ -217,5 +217,12 @@ void BlockGenerator::TransferSection::add_payment(
 BodyContainer generate_body(const ChainDB& db, NonzeroHeight height, const Address& miner, const std::vector<TransferTxExchangeMessage>& payments)
 {
     BlockGenerator bg(db);
-    return bg.gen_block(height, miner, payments);
+    auto body{bg.gen_block(height, miner, payments)};
+    BodyView bv{body.view(height)};
+    // should be valid
+    if (bv.valid()) 
+        return body;
+    
+    // disable transactions as fallback
+    return BlockGenerator(db).gen_block(height, miner, {});
 }
