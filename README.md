@@ -55,6 +55,7 @@ Use at your own risk.
 - P2P on Discord<br>
 - <a href="https://exbitron.com/">Exbitron exchange</a><br>
 - <a href="https://xeggex.com/market/WART_USDT">Xeggex exchange</a>
+- <a href="https://tradeogre.com/exchange/WART-USDT">TradeOgre exchange</a>
 
 
 ## 📦 Component overview
