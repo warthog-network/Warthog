@@ -19,5 +19,6 @@ struct Round16Bit;
 struct PeerinfoConnections;
 struct AccountIdOrAddress;;
 struct Wallet;
+struct Rollback;
 using Transaction = std::variant<RewardTransaction, TransferTransaction>;
 }

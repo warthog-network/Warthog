@@ -341,10 +341,7 @@ auto State::add_stage(const std::vector<Block>& blocks, const Headerchain& hc) -
     if (stage.total_work() > chainstate.headers().total_work()) {
         auto [error, update, apiBlocks] { apply_stage(std::move(transaction)) };
 
-        // publish websocket events
-        for (auto& b : apiBlocks) {
-            http_endpoint().push_event(b);
-        }
+        publish_websocket_events(update, apiBlocks);
 
         if (error.is_error())
             return { { error }, update };
@@ -425,6 +422,27 @@ RollbackResult State::rollback(const Height newlength) const
     };
 }
 
+void State::publish_websocket_events(const std::optional<StateUpdate>& update, const std::vector<API::Block>& apiBlocks)
+{
+    using Fork = state_update::Fork;
+    using RollbackData = state_update::RollbackData;
+    if (update) {
+        auto& u { update->chainstateUpdate };
+        if (std::holds_alternative<Fork>(u)) {
+            auto& l { std::get<Fork>(u).shrinkLength };
+            http_endpoint().push_event(API::Rollback { l });
+        } else if (std::holds_alternative<RollbackData>(u)) {
+            auto& d { std::get<RollbackData>(u).data };
+            if (d.has_value()) {
+                auto& l { d->rollback.shrinkLength };
+                http_endpoint().push_event(API::Rollback { l });
+            }
+        }
+    }
+    for (auto& b : apiBlocks) {
+        http_endpoint().push_event(b);
+    }
+}
 auto State::apply_stage(ChainDBTransaction&& t) -> std::tuple<ChainError, std::optional<StateUpdate>, std::vector<API::Block>>
 {
     assert(!signedSnapshot || signedSnapshot->compatible(stage));

@@ -545,7 +545,14 @@ nlohmann::json to_json(const NodeVersion&)
         { "patch", VERSION_PATCH },
         { "commit", GIT_COMMIT_INFO }
     };
-};
+}
+
+nlohmann::json to_json(const API::Rollback& rb){
+    return json {
+        { "length", rb.length }
+    };
+}
+
 std::string endpoints(const Eventloop& e)
 {
     auto [verified, failed, unverified, pending] = Inspector::endoints(e);

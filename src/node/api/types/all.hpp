@@ -54,6 +54,12 @@ struct Balance {
     AccountId accountId;
     Funds balance;
 };
+
+struct Rollback {
+    static constexpr const char WEBSOCKET_EVENT[] = "Rollback";
+    Height length;
+};
+
 struct Block {
     static constexpr const char WEBSOCKET_EVENT[] = "Block";
     struct Transfer {

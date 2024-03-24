@@ -7,7 +7,7 @@
 #include <thread>
 #include <variant>
 
-using WebsocketEvent = std::variant<API::Block>;
+using WebsocketEvent = std::variant<API::Rollback,API::Block>;
 
 struct Config;
 class IndexGenerator {
@@ -63,6 +63,7 @@ private:
     //////////////////////////////
     // handlers for websocket events
     void handle_event(const API::Block&);
+    void handle_event(const API::Rollback&);
 
     //////////////////////////////
     // variables

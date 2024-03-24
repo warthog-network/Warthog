@@ -30,6 +30,7 @@ nlohmann::json to_json(const OffenseEntry& e);
 nlohmann::json to_json(const std::optional<SignedSnapshot>&);
 nlohmann::json to_json(const chainserver::TransactionIds&);
 nlohmann::json to_json(const API::Round16Bit&);
+nlohmann::json to_json(const API::Rollback&);
 
 template <typename T>
 inline nlohmann::json to_json(const std::vector<T>& e, const auto& map)
