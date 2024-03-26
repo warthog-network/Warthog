@@ -289,6 +289,7 @@ json to_json(const MiningTask& mt)
     auto height { mt.block.height };
     j["header"] = serialize_hex(mt.block.header);
     j["difficulty"] = mt.block.header.target(height, is_testnet()).difficulty();
+    j["merklePrefix"] = serialize_hex(mt.block.body_view().merkle_prefix());
     j["body"] = serialize_hex(mt.block.body.data());
     j["height"] = height;
     j["testnet"] = is_testnet();
