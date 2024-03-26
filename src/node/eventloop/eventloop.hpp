@@ -66,7 +66,7 @@ public:
     void async_shutdown(int32_t reason);
     void async_report_failed_outbound(EndpointAddress);
     void async_stage_action(stage_operation::Result);
-
+    void on_failed_connect(const ConnectRequest& r, Error reason);
     void api_get_peers(PeersCb&& cb);
     void api_get_hashrate(HashrateCb&& cb);
     void api_get_hashrate_chart(HashrateChartCb&& cb);
@@ -185,10 +185,15 @@ private:
         NonzeroHeight from;
         NonzeroHeight to;
     };
+    struct FailedConnect {
+        ConnectRequest connectRequest;
+        int32_t reason;
+    };
     // event queue
     using Event = std::variant<Erase, OnProcessConnection,
         StateUpdate, SignedSnapshotCb, PeersCb, stage_operation::Result,
         OnForwardBlockrep, InspectorCb, HashrateCb, GetHashrateChart,
+        FailedConnect,
         mempool::Log>;
 
 public:
@@ -206,6 +211,7 @@ private:
     void handle_event(InspectorCb&&);
     void handle_event(HashrateCb&&);
     void handle_event(GetHashrateChart&&);
+    void handle_event(FailedConnect&&);
     void handle_event(mempool::Log&&);
 
     // chain updates
@@ -232,8 +238,9 @@ private:
 
     ////////////////////////
     // register sync state
-
     void update_sync_state();
+
+    void set_scheduled_connect_timer();
 
 private: // private data
     //

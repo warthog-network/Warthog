@@ -92,6 +92,10 @@ void Eventloop::async_mempool_update(mempool::Log&& s)
 {
     defer(std::move(s));
 }
+void Eventloop::on_failed_connect(const ConnectRequest& r, Error reason)
+{
+    defer(FailedConnect { r, reason });
+};
 
 void Eventloop::api_get_peers(PeersCb&& cb)
 {
@@ -168,6 +172,7 @@ void Eventloop::work()
     }
     connections.garbage_collect();
     update_sync_state();
+    set_scheduled_connect_timer();
 }
 
 bool Eventloop::check_shutdown()
@@ -373,6 +378,12 @@ void Eventloop::handle_event(HashrateCb&& cb)
 void Eventloop::handle_event(GetHashrateChart&& e)
 {
     e.cb(consensus().headers().hashrate_chart(e.from, e.to, 100));
+}
+void Eventloop::handle_event(FailedConnect&& e)
+{
+    spdlog::warn("Cannot connect to {}: ", e.connectRequest.address.to_string(), Error(e.reason).err_name());
+    connections.outbound_failed(e.connectRequest);
+    // TODO
 }
 
 void Eventloop::handle_event(mempool::Log&& log)
@@ -929,4 +940,13 @@ void Eventloop::update_sync_state()
     if (auto c { syncState.detect_change() }; c) {
         global().chainServer->async_set_synced(c.value());
     }
+}
+void Eventloop::set_scheduled_connect_timer()
+{
+    auto t { connections.pop_scheduled_connect_time() };
+    if (!t)
+        return;
+    auto& tp { *t };
+    timer
+    tp
 }

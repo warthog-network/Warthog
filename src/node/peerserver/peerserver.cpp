@@ -58,27 +58,16 @@ void PeerServer::work()
                 tmpq.pop();
             }
             t.commit();
-            process_timer();
         }
     }
 }
 
-void PeerServer::process_timer()
-{
-    for (auto& r : connectionSchedule.pop_requests())
-        start_request(r);
-}
 
 void PeerServer::start_request(const ConnectRequest& r)
 {
     global().conman->connect(r);
 }
 
-void PeerServer::handle_event(SuccessfulOutbound&& e)
-{
-    e.c->successfulConnection = true;
-    connectionSchedule.connection_established(*e.c);
-}
 void PeerServer::handle_event(VerifyPeer&&)
 {
     // TODO
@@ -148,9 +137,3 @@ void PeerServer::handle_event(Inspect&& e)
     e.cb(*this);
 }
 
-void PeerServer::handle_event(FailedConnect&& fc)
-{
-    spdlog::warn("Cannot connect to {}: ", fc.connectRequest.address.to_string(), Error(fc.reason).err_name());
-    connectionSchedule.outbound_failed(fc.connectRequest);
-    // TODO
-};

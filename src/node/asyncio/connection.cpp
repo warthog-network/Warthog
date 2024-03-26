@@ -11,7 +11,7 @@ uint16_t TCPConnection::listen_port()
     return conman.bindAddress.port;
 };
 
-TCPConnection::TCPConnection(Token, std::shared_ptr<uvw::tcp_handle> handle, const peerserver::ConnectRequest& r, UV_Helper& conman)
+TCPConnection::TCPConnection(Token, std::shared_ptr<uvw::tcp_handle> handle, const ConnectRequest& r, UV_Helper& conman)
     : ConnectionBase(r)
     , conman(conman)
     , tcpHandle(std::move(handle))
@@ -19,7 +19,7 @@ TCPConnection::TCPConnection(Token, std::shared_ptr<uvw::tcp_handle> handle, con
 }
 
 std::shared_ptr<TCPConnection> TCPConnection::make_new(
-    std::shared_ptr<uvw::tcp_handle> handle, const peerserver::ConnectRequest& r, UV_Helper& conman)
+    std::shared_ptr<uvw::tcp_handle> handle, const ConnectRequest& r, UV_Helper& conman)
 {
     return make_shared<TCPConnection>(Token {}, std::move(handle), r, conman);
 }

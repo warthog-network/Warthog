@@ -6,7 +6,7 @@
 #include <vector>
 
 class Timer {
-
+    using time_point = std::chrono::steady_clock::time_point;
 public:
     struct WithConnecitonId {
         uint64_t conId;
@@ -15,30 +15,32 @@ public:
     };
     struct Expire: public WithConnecitonId {
     };
-    struct Req {
-        Request req;
-    };
+    // struct Req {
+    //     Request req;
+    // };
     struct CloseNoReply: public WithConnecitonId {
     };
     struct CloseNoPong: public WithConnecitonId {
     };
-    using Event = std::variant<SendPing, Expire, CloseNoReply,CloseNoPong>;
+
+    struct ScheduledConnect {
+    };
 
 private:
-    using time_point = std::chrono::steady_clock::time_point;
+    using Event = std::variant<SendPing, Expire, CloseNoReply,CloseNoPong, ScheduledConnect>;
     using Ordered = std::multimap<time_point, Event>;
 
 public:
     using iterator = Ordered::iterator;
     // Methods
-
-    template <typename _Rep, typename _Period>
-    auto insert(std::chrono::duration<_Rep,_Period> duration, Event e){
-        auto expires = std::chrono::steady_clock::now() + duration;
-        return insert(expires,e);
-    }
-    auto insert(std::chrono::steady_clock::time_point expires, Event e){
+    
+    auto insert(time_point expires, Event e){
         return ordered.emplace(expires,e);
+    }
+    template <typename _Rep, typename _Period>
+    auto insert(std::chrono::steady_clock::duration duration, Event e){
+        time_point expires { std::chrono::steady_clock::now() + duration};
+        return insert(expires,e);
     }
     void cancel(Timer::iterator iter)
     {

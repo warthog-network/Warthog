@@ -37,9 +37,6 @@ public:
 
 private:
     friend struct Inspector;
-    struct SuccessfulOutbound {
-        std::shared_ptr<ConnectionBase> c;
-    };
     using VerifyPeer = connection_schedule::EndpointAddressItem;
     struct Authenticate {
         std::shared_ptr<ConnectionBase> c;
@@ -78,15 +75,6 @@ public:
     {
         async_event(VerifyPeer { std::move(c), source });
     }
-
-    void notify_successful_outbound(std::shared_ptr<ConnectionBase> c)
-    {
-        async_event(SuccessfulOutbound(std::move(c)));
-    }
-    auto on_failed_connect(const ConnectRequest& r, Error reason)
-    {
-        return async_event(FailedConnect { r, reason });
-    };
 
     bool async_get_banned(banned_callback_t cb)
     {
@@ -140,11 +128,7 @@ private:
     struct Inspect {
         std::function<void(const PeerServer&)> cb;
     };
-    struct FailedConnect {
-        ConnectRequest connectRequest;
-        int32_t reason;
-    };
-    using Event = std::variant<SuccessfulOutbound, VerifyPeer, OnClose, Authenticate, GetOffenses, Unban, banned_callback_t, RegisterPeer, SeenPeer, GetRecentPeers, Inspect, FailedConnect>;
+    using Event = std::variant<VerifyPeer, OnClose, Authenticate, GetOffenses, Unban, banned_callback_t, RegisterPeer, SeenPeer, GetRecentPeers, Inspect>;
     bool async_event(Event e)
     {
         std::unique_lock<std::mutex> l(mutex);
@@ -156,7 +140,6 @@ private:
         return true;
     }
     void work();
-    void process_timer();
     void start_request(const ConnectRequest&);
     void accept_connection();
     void register_close(IPv4 address, uint32_t now, int32_t offense, int64_t rowid);
@@ -166,7 +149,6 @@ private:
     PeerDB& db;
     uint32_t now;
     BanCache bancache;
-    void handle_event(SuccessfulOutbound&&);
     void handle_event(VerifyPeer&&);
     void handle_event(OnClose&&);
     void handle_event(Unban&&);
@@ -177,7 +159,6 @@ private:
     void handle_event(SeenPeer&&);
     void handle_event(GetRecentPeers&&);
     void handle_event(Inspect&&);
-    void handle_event(FailedConnect&&);
 
     ////////////////
     // Mutex protected variables
@@ -188,7 +169,6 @@ private:
     std::queue<Event> events;
     std::condition_variable cv;
 
-    connection_schedule::ConnectionSchedule connectionSchedule;
 
     // worker
     std::thread worker;

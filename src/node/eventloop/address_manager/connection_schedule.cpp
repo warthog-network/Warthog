@@ -2,9 +2,11 @@
 #include <cassert>
 #include <functional>
 #include <random>
-namespace connection_schedule {
+
 using namespace std::chrono;
 using namespace std::chrono_literals;
+
+namespace connection_schedule {
 
 size_t ConnectionLog::consecutive_failures() const
 {
@@ -152,14 +154,14 @@ void EndpointVector::pop_requests(time_point now, std::vector<ConnectRequest>& o
         update_wakeup_time(e.try_pop(now, out));
 }
 
-std::vector<EndpointAddress> EndpointVector::sample(size_t N) const{
+std::vector<EndpointAddress> EndpointVector::sample(size_t N) const
+{
 
     // sample from cache
     std::vector<EndpointAddress> out;
     std::sample(data.begin(), data.end(), std::back_inserter(out),
         N, std::mt19937 { std::random_device {}() });
     return out;
-
 };
 
 EndpointData& EndpointVector::insert(const EndpointAddressItem& i)
@@ -179,6 +181,7 @@ EndpointData* EndpointVector::find(const EndpointAddress& address) const
     if (iter == data.end())
         return nullptr;
     return &*iter;
+}
 }
 
 auto ConnectionSchedule::find(const EndpointAddress& a) const -> std::optional<Found>
@@ -204,8 +207,7 @@ std::optional<ConnectRequest> ConnectionSchedule::insert(EndpointAddressItem ite
         return {};
     } else {
         unverifiedNew.emplace(item);
-        if (auto t { unverifiedNew.timeout() }; t)
-            update_wakeup_time(*t);
+        wakeup_tp.consider(unverifiedNew.timeout());
         return ConnectRequest::outbound(item.address, 0s);
     }
 }
@@ -239,30 +241,29 @@ void ConnectionSchedule::outbound_closed(const peerserver::ConnectionData& c)
     // * outbound connect immediately if different reason
     // * outbound don't connect if disconnected on purpose due to too many connections
 }
-void ConnectionSchedule::outbound_failed(const ConnectionData& c)
+void ConnectionSchedule::outbound_failed(const ConnectRequest& cr)
 {
-    outbound_connection_ended(c.connectRequest, ConnectionState::NOT_CONNECTED);
+    outbound_connection_ended(cr, ConnectionState::NOT_CONNECTED);
+}
+
+auto ConnectionSchedule::pop_wakeup_time() -> std::optional<time_point>
+{
+    return wakeup_tp.pop();
 }
 
 void ConnectionSchedule::outbound_connection_ended(const ConnectRequest& r, ConnectionState state)
 {
     if (auto o { get_context(r, state) })
-        update_wakeup_time(o->item.outbound_connected_ended(o->context));
+        wakeup_tp.consider(o->item.outbound_connected_ended(o->context));
 }
 
-void ConnectionSchedule::update_wakeup_time(const std::optional<time_point>& tp)
-{
-    if (tp && (!wakeup_tp || *tp < wakeup_tp))
-        wakeup_tp = tp;
-}
-
-std::vector<ConnectRequest> ConnectionSchedule::pop_requests()
+std::vector<ConnectRequest> ConnectionSchedule::pop_expired()
 {
     auto now { steady_clock::now() };
-    if (!wakeup_tp || wakeup_tp > now)
+    if (!wakeup_tp.expired())
         return {};
 
-    // pop requests
+    // pop expired requests
     std::vector<ConnectRequest> res;
     verified.pop_requests(now, res);
     unverifiedNew.pop_requests(now, res);
@@ -271,12 +272,13 @@ std::vector<ConnectRequest> ConnectionSchedule::pop_requests()
     refresh_wakeup_time();
     return res;
 }
+
 void ConnectionSchedule::refresh_wakeup_time()
 {
     wakeup_tp.reset();
-    update_wakeup_time(verified.timeout());
-    update_wakeup_time(unverifiedNew.timeout());
-    update_wakeup_time(unverifiedFailed.timeout());
+    wakeup_tp.consider(verified.timeout());
+    wakeup_tp.consider(unverifiedNew.timeout());
+    wakeup_tp.consider(unverifiedFailed.timeout());
 }
 
 auto ConnectionSchedule::get_context(const ConnectRequest& r, ConnectionState cs) -> std::optional<FoundContext>
@@ -296,4 +298,3 @@ auto ConnectionSchedule::get_context(const ConnectRequest& r, ConnectionState cs
     }
     return {};
 };
-}

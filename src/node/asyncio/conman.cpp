@@ -17,7 +17,7 @@ namespace {
 }
 }
 
-TCPConnection& UV_Helper::insert_connection(std::shared_ptr<uvw::tcp_handle>& tcpHandle, const peerserver::ConnectRequest& r)
+TCPConnection& UV_Helper::insert_connection(std::shared_ptr<uvw::tcp_handle>& tcpHandle, const ConnectRequest& r)
 {
     auto con { TCPConnection::make_new(tcpHandle, r, *this) };
     tcpConnections.insert(con);
@@ -55,7 +55,7 @@ UV_Helper::UV_Helper(std::shared_ptr<uvw::loop> loop, PeerServer& ps, const Conf
         assert(server.accept(*tcpHandle) == 0);
         auto endpoint { get_ipv4_endpoint(*tcpHandle) };
         if (endpoint) {
-            auto connectRequest { peerserver::ConnectRequest::inbound(*endpoint) };
+            auto connectRequest { ConnectRequest::inbound(*endpoint) };
             auto connection { insert_connection(tcpHandle, connectRequest).shared_from_this() };
             ps.authenticate(connection);
         }
@@ -122,14 +122,14 @@ void UV_Helper::shutdown(int32_t reason)
         c->close_internal(reason);
 }
 
-void UV_Helper::connect_internal(const peerserver::ConnectRequest& r)
+void UV_Helper::connect_internal(const ConnectRequest& r)
 {
     // connection_log().info("{} connecting ", to_string());// TODO: do connection_log
     auto& loop { listener->parent() };
     auto tcp { loop.resource<uvw::tcp_handle>() };
     auto err { tcp->connect(r.address.sock_addr()) };
     if (err) {
-        global().peerServer->on_failed_connect(r, err);
+        global().core->on_failed_connect(r, Error(err));
         return;
     }
     auto& connection { insert_connection(tcp, r) };

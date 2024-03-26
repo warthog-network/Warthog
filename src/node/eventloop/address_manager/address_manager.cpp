@@ -7,6 +7,11 @@
 
 namespace address_manager {
 
+void AddressManager::outbound_failed(const ConnectRequest& r)
+{
+    connectionSchedule.outbound_failed(r);
+}
+
 std::optional<Conref> AddressManager::find(uint64_t id)
 {
     auto iter = conndatamap.find(id);
@@ -22,7 +27,10 @@ auto AddressManager::prepare_insert(const std::shared_ptr<ConnectionBase>& c) ->
         if (ipCounter.contains(ip))
             return tl::unexpected(EDUPLICATECONNECTION);
         if (!c->inbound()) {
-            global().peerServer->notify_successful_outbound(c);
+
+            c->successfulConnection = true;
+            connectionSchedule.connection_established(*c);
+
             insert_additional_verified(c->peer());
         } else
             global().peerServer->verify_peer(c->peer_endpoint(), c->peer().ipv4);
@@ -73,6 +81,24 @@ void AddressManager::garbage_collect()
     delayedDelete.clear();
 }
 
+void AddressManager::start_scheduled_connections()
+{
+    for (auto& r : connectionSchedule.pop_expired())
+        start_connection(r);
+}
+
+
+std::optional<std::chrono::steady_clock::time_point> AddressManager::pop_scheduled_connect_time()
+{
+    return connectionSchedule.pop_wakeup_time();
+}
+
+void AddressManager::start_connection(const ConnectRequest& r)
+{
+    global().conman->connect(r);
+}
+
+
 void AddressManager::insert_additional_verified(EndpointAddress newAddress)
 {
     std::erase_if(additionalEndpoints, [&](EndpointAddress& ea) -> bool {
@@ -112,7 +138,6 @@ auto AddressManager::eviction_candidate() const -> std::optional<EvictionCandida
     assert(sampled.size() == 1);
     return EvictionCandidate { sampled[0] };
 }
-
 
 // namespace {
 //     // Peerserver: unpin, pin

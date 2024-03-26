@@ -16,6 +16,8 @@ struct Inspector;
 namespace address_manager {
 
 class AddressManager {
+    using time_point = std::chrono::steady_clock::time_point;
+
 public:
     friend struct ::Inspector;
 
@@ -106,6 +108,8 @@ public:
     Initialized initialized() const { return { *this }; }
     All all() const { return { *this }; }
 
+    void outbound_failed(const ConnectRequest& r);
+
     // access by connection Id
     std::optional<Conref> find(uint64_t id);
 
@@ -125,7 +129,12 @@ public:
 
     void garbage_collect();
 
+    void start_scheduled_connections();
+    [[nodiscard]] std::optional<time_point> pop_scheduled_connect_time();
+
 private:
+    void start_connection(const ConnectRequest&);
+
     bool is_own_endpoint(EndpointAddress a);
     void insert_additional_verified(EndpointAddress);
     std::optional<EvictionCandidate> eviction_candidate() const;
@@ -139,11 +148,10 @@ private:
     // VerifiedMap verified;
     // PinnedMap pinned;
 
-    // verifiedCache as vector for fast sampling
     std::vector<EndpointAddress> additionalEndpoints;
     std::vector<EndpointAddress> outboundEndpoints;
     std::vector<Conref> inboundConnections;
-    connection_schedule::ConnectionSchedule connectionSchedule;
+    ConnectionSchedule connectionSchedule;
 
     mutable Conndatamap conndatamap;
     std::vector<Conref> delayedDelete;

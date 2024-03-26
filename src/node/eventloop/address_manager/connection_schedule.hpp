@@ -113,7 +113,6 @@ public:
     EndpointData* move_entry(const EndpointAddress& key, EndpointVector& to);
     std::pair<EndpointData&, bool> emplace(const EndpointAddressItem&);
     void pop_requests(time_point now, std::vector<ConnectRequest>&);
-    bool set_timeout(const EndpointAddress&, time_point tp);
     std::vector<EndpointAddress> sample(size_t N) const;
 
     std::optional<time_point> timeout() const { return wakeup_tp; }
@@ -125,18 +124,56 @@ private:
     mutable std::vector<EndpointData> data;
 };
 
+class WakeupTime {
+public:
+    auto pop()
+    {
+        auto tmp { std::move(popped_tp) };
+        popped_tp.reset();
+        return tmp;
+    }
+    bool expired() const{
+        return wakeup_tp < steady_clock::now();
+    }
+    void reset() {
+        *this ={};
+    }
+
+    auto& val() const {return wakeup_tp;}
+
+    void consider(const std::optional<time_point>& newval)
+    {
+        if (newval.has_value() && (!wakeup_tp.has_value() || *wakeup_tp > *newval)) {
+            wakeup_tp = newval;
+            popped_tp = newval;
+        }
+    }
+
+private:
+    std::optional<time_point> wakeup_tp;
+    std::optional<time_point> popped_tp;
+};
+
+}
+
 class ConnectionSchedule {
     using ConnectionData = peerserver::ConnectionData;
+    using EndpointAddressItem = connection_schedule::EndpointAddressItem;
+    using ConnectionState = connection_schedule::ConnectionState;
+    using time_point = connection_schedule::time_point;
+    using EndpointData = connection_schedule::EndpointData;
+    using EndpointVector = connection_schedule::EndpointVector;
+    using EndpointState = connection_schedule::EndpointState;
+    using ReconnectContext = connection_schedule::ReconnectContext;
 
 public:
     [[nodiscard]] std::optional<ConnectRequest> insert(EndpointAddressItem);
-    [[nodiscard]] std::vector<ConnectRequest> pop_requests();
+    [[nodiscard]] std::vector<ConnectRequest> pop_expired();
     void connection_established(const ConnectionData&);
     void outbound_closed(const ConnectionData&);
-    void outbound_failed(const ConnectionData&);
-    time_point wake_up_time();
-    auto sample_verified(size_t N) const {return verified.sample(N);};
-
+    void outbound_failed(const ConnectRequest&);
+    [[nodiscard]] std::optional<time_point> pop_wakeup_time();
+    auto sample_verified(size_t N) const { return verified.sample(N); };
 
 private:
     void outbound_connection_ended(const ConnectRequest&, ConnectionState state);
@@ -150,13 +187,11 @@ private:
     };
     void refresh_wakeup_time();
     auto get_context(const ConnectRequest&, ConnectionState) -> std::optional<FoundContext>;
-    void update_wakeup_time(const std::optional<time_point>&);
     [[nodiscard]] auto find(const EndpointAddress& a) const -> std::optional<Found>;
     EndpointVector verified;
     EndpointVector unverifiedNew;
     EndpointVector unverifiedFailed;
     size_t totalConnected { 0 };
     std::set<EndpointAddress> pinned;
-    std::optional<time_point> wakeup_tp;
+    connection_schedule::WakeupTime wakeup_tp;
 };
-}
