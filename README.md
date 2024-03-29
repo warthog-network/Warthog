@@ -1,7 +1,7 @@
 [![Docker Build and Release](https://github.com/JulsKawa/Warthog/actions/workflows/docker_build_and_release.yml/badge.svg)](https://github.com/JulsKawa/Warthog/actions/workflows/docker_build_and_release.yml)
 
 WARTHOG REFERENCE IMPLEMENTATION
-Copyright (c) 2023 Pumbaa, Timon & Rafiki
+Copyright (c) 2023 - 2024 Pumbaa, Timon & Rafiki
 <p align="center">
   <img src="doc/img/warthog_logo.png" style="width:300px;"/>
 </p>
@@ -75,7 +75,7 @@ Prebuilt binaries of the node daemon and cli wallet for Linux and Windows can be
 
 Prebuilt binaries of the miner for Linux and HiveOS can be downloaded [here](https://github.com/CoinFuMasterShifu/janusminer/releases)
 
-To compile from source see below or [here](https://github.com/warthog-network/warthog-guide) for a more detailed guide.
+To compile from source see below or [here](https://warthog.network/docs/) for a more detailed guide.
 
 ## 😵‍💫 BUILD INSTRUCTIONS
 
