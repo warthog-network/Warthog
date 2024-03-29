@@ -193,12 +193,12 @@ void Connection::on_message(std::string_view msg)
     size_t lower = 0;
     for (size_t i = 0; i < msg.size(); ++i) {
         if (msg[i] == '\n') {
-            stratumLine += msg.substr(lower, i);
+            stratumLine += msg.substr(lower, i - lower);
             lower = i + 1;
             process_line();
         }
     }
-    stratumLine += msg.substr(lower, msg.size());
+    stratumLine += msg.substr(lower, msg.size() - lower);
 };
 
 void Connection::on_append_result(int64_t stratumId, tl::expected<void, int32_t> result)
