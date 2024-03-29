@@ -24,7 +24,7 @@ struct ParameterParser {
         T res {};
         auto result = std::from_chars(sv.data(), sv.end(), res);
         if (result.ec != std::errc {} || result.ptr != sv.end()) {
-            throw Error(EMALFORMED);
+            throw Error(EINV_ARGS);
         }
         return res;
     }

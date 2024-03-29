@@ -34,6 +34,11 @@ inline std::string serialize_hex(uint32_t v)
 }
 
 bool parse_hex(std::string_view in, uint8_t* out, size_t out_size);
+inline void parse_hex_throw(std::string_view in, uint8_t* out, size_t out_size)
+{
+    if(!parse_hex(in, out, out_size))
+        throw Error(EINV_HEX);
+}
 
 template <size_t N>
 bool parse_hex(std::string_view in, std::array<uint8_t, N>& out)
@@ -41,12 +46,12 @@ bool parse_hex(std::string_view in, std::array<uint8_t, N>& out)
     return parse_hex(in, out.data(), out.size());
 }
 
+
 template <size_t N>
 std::array<uint8_t, N> hex_to_arr(std::string_view in)
 {
     std::array<uint8_t, N> out;
-    if (!parse_hex(in, out.data(), N))
-        throw Error(EMALFORMED);
+    parse_hex_throw(in, out.data(), N);
     return out;
 }
 
@@ -60,7 +65,6 @@ inline std::vector<uint8_t> hex_to_vec(std::string_view in)
 {
     std::vector<uint8_t> out;
     out.resize(in.size() / 2);
-    if (!parse_hex(in, out.data(), in.size() / 2))
-        throw Error(EMALFORMED);
+    parse_hex_throw(in, out.data(), in.size() / 2);
     return out;
 }

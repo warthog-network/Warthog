@@ -21,7 +21,6 @@
 #define ADDITIONAL_ERRNO_MAP(XX)                                        \
     XX(1, EMSGTYPE, "invalid message type")                             \
     XX(2, EMSGLEN, "invalid message length")                            \
-    XX(3, EMALFORMED, "malformed data")                                 \
     XX(4, ECHECKSUM, "bad message checksum")                            \
     XX(5, EMSGFLOOD, "received too many messages")                      \
     XX(6, ENOBATCH, "peer did not provide batch")                       \
@@ -85,6 +84,19 @@
     XX(86, ENOINIT, "first message must be init message")               \
     XX(87, EINVINIT, "only first message can be init message")          \
     XX(88, EFAKEACCID, "fake account id")                               \
+    XX(89, EINV_FUNDS, "malformed funds data")                          \
+    XX(90, EINV_BODY, "malformed body data")                            \
+    XX(91, EINV_PAGE, "invalid page")                                   \
+    XX(92, EINV_PROBE, "invalid probe message")                         \
+    XX(93, EINV_GRID, "invalid grid")                                   \
+    XX(94, EINV_TXREQ, "invalid tx request")                            \
+    XX(95, EINV_ARGS, "invalid API arguments")                          \
+    XX(96, EINV_TXREP, "invalid tx reply")                              \
+    XX(97, EINV_INITGRID, "invalid grid in init message")               \
+    XX(98, EINV_HEADERVEC, "invalid header vector")                     \
+    XX(99, EINV_BLOCKREPSIZE, "invalid block reply size")               \
+    XX(100, EMSGINTEGRITY, "message integrity check failed")            \
+    XX(101, EINV_HEX, "cannot parse hexadecimal input")                 \
     XX(201, EBADNONCE, "cannot parse nonce")                            \
     XX(202, EBADFEE, "invalid fee")                                     \
     XX(203, EINEXACTFEE, "inexact fee not allowed")                     \
@@ -107,7 +119,7 @@ const char* strerror(int32_t code);
 const char* err_name(int32_t code);
 inline bool is_malicious(int32_t code)
 {
-    return code != ECHECKSUM && code > 0 && code < 100 && code != ECHECKSUM;
+    return code != ECHECKSUM && code > 0 && code < 150 && code != ECHECKSUM;
 }
 } // namespace errors
 

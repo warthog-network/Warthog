@@ -332,7 +332,7 @@ auto State::add_stage(const std::vector<Block>& blocks, const Headerchain& hc) -
             break;
         }
         if (!bv.valid()) {
-            err = { EMALFORMED, b.height };
+            err = { EINV_BODY, b.height };
             break;
         }
         db.insert_protect(b);
@@ -525,7 +525,7 @@ auto State::append_mined_block(const Block& b) -> StateUpdate
     if (b.header.merkleroot() != bv.merkle_root(b.height))
         throw Error(EMROOT);
     if (!bv.valid())
-        throw Error(EMALFORMED);
+        throw Error(EINV_BODY);
     if (chainlength() + 1 != b.height)
         throw Error(EBADHEIGHT);
 

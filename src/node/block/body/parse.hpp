@@ -106,10 +106,18 @@ inline TransferView BodyView::get_transfer(size_t i) const
     assert(i < nTransfers);
     return data() + offsetTransfers + i * TransferView::size();
 }
-inline RewardView BodyView::get_reward(uint16_t i) const
+
+inline RewardView BodyView::reward() const
 {
-    assert(i < nRewards);
-    return {data() + offsetRewards + i * RewardView::size(), i};
+    return {data() + offsetReward , 0};
+}
+
+inline Funds BodyView::fee_sum() const
+{
+    Funds sum{0};
+    for (auto t : transfers()) 
+        sum += t.amount();
+    return sum;
 }
 inline AddressView BodyView::get_address(size_t i) const
 {
@@ -122,7 +130,4 @@ inline AddressView BodyView::Addresses::Iterator::operator*() const {
 }
 inline TransferView BodyView::Transfers::Iterator::operator*() const {
     return bv.get_transfer(i);
-}
-inline RewardView BodyView::Rewards::Iterator::operator*() const {
-    return bv.get_reward(i);
 }

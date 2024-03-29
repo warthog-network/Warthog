@@ -1,5 +1,6 @@
 #include "json.hpp"
 #include "api/types/all.hpp"
+#include "block/body/parse.hpp"
 #include "block/header/header_impl.hpp"
 #include "block/header/view.hpp"
 #include "chainserver/transaction_ids.hpp"
@@ -287,10 +288,17 @@ json to_json(const MiningTask& mt)
 {
     json j;
     auto height { mt.block.height };
+    auto bodyView { mt.block.body_view() };
+    auto blockReward { bodyView.reward() };
+    auto totalTxFee { bodyView.fee_sum() };
     j["header"] = serialize_hex(mt.block.header);
     j["difficulty"] = mt.block.header.target(height, is_testnet()).difficulty();
-    j["merklePrefix"] = serialize_hex(mt.block.body_view().merkle_prefix());
+    j["merklePrefix"] = serialize_hex(bodyView.merkle_prefix());
     j["body"] = serialize_hex(mt.block.body.data());
+    j["blockReward"] = blockReward.amount().to_string();
+    j["blockRewardE8"] = blockReward.amount().E8();
+    j["totalTxFee"] = totalTxFee.to_string();
+    j["totalTxFeeE8"] = totalTxFee.E8();
     j["height"] = height;
     j["testnet"] = is_testnet();
     return j;
@@ -548,7 +556,8 @@ nlohmann::json to_json(const NodeVersion&)
     };
 }
 
-nlohmann::json to_json(const API::Rollback& rb){
+nlohmann::json to_json(const API::Rollback& rb)
+{
     return json {
         { "length", rb.length }
     };

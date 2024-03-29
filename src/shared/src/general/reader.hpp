@@ -35,7 +35,7 @@ class Reader {
     {
         auto newpos { pos + bytes };
         if (newpos > end)
-            throw Error(EMALFORMED);
+            throw Error(EMSGINTEGRITY);
         memcpy(out, pos, bytes);
         pos = newpos;
     }
@@ -135,7 +135,7 @@ public:
     {
         pos += nbytes;
         if (pos > end) {
-            throw Error(EMALFORMED);
+            throw Error(EMSGINTEGRITY);
         }
     };
     bool eof() const { return pos == end; }

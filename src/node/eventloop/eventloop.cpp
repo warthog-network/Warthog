@@ -479,12 +479,12 @@ bool Eventloop::insert(Conref c, const InitMsg& data)
     return doRequests;
 }
 
-void Eventloop::close(Conref cr, uint32_t reason)
+void Eventloop::close(Conref cr, Error reason)
 {
     if (!cr->c->eventloop_registered)
         return;
-    cr->c->async_close(reason);
-    erase(cr, reason); // do not consider this connection anymore
+    cr->c->async_close(reason.e);
+    erase(cr, reason.e); // do not consider this connection anymore
 }
 
 void Eventloop::close_by_id(uint64_t conId, int32_t reason)

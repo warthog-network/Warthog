@@ -8,7 +8,7 @@ struct Page {
         : p(page)
     {
         if (p == 0)
-            throw Error(EMALFORMED);
+            throw Error(EINV_PAGE);
     };
     uint32_t val() { return p; }
 

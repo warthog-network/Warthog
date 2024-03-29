@@ -6,7 +6,7 @@
 void PeerChain::initialize(const InitMsg& msg, const StageAndConsensus& sac)
 {
     if (msg.chainLength.complete_batches() != msg.grid.size()) {
-        throw Error(EMALFORMED);
+        throw Error(EINV_INITGRID);
     }
     desc = std::make_shared<Descripted>(
         msg.descriptor,

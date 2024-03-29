@@ -93,7 +93,7 @@ private:
     // Connection related functions
     void erase(Conref cr, int32_t error);
     [[nodiscard]] bool insert(Conref cr, const InitMsg& data); // returns true if requests might be possbile
-    void close(Conref cr, uint32_t reason);
+    void close(Conref cr, Error reason);
     void close_by_id(uint64_t connectionId, int32_t reason);
     void close(const ChainOffender&);
     void close(Conref cr, ChainError);

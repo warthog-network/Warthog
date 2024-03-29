@@ -79,7 +79,7 @@ bool Batch::valid_inner_links()
 Grid::Grid(std::span<const uint8_t> s)
 {
     if (s.size() % 80 != 0)
-        throw Error(EMALFORMED);
+        throw Error(EINV_GRID);
     assign(s.begin().base(), s.end().base());
 }
 

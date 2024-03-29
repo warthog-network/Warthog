@@ -230,7 +230,7 @@ struct Preparation {
 Preparation BlockApplier::Preparer::prepare(const BodyView& bv, const NonzeroHeight height) const
 {
     if (!bv.valid())
-        throw Error(EMALFORMED);
+        throw Error(EINV_BODY);
     // Things to do in this function
     // * check corrupted data (avoid read overflow) OK
     // * sum up payouts OK
@@ -257,7 +257,8 @@ Preparation BlockApplier::Preparer::prepare(const BodyView& bv, const NonzeroHei
 
     // Read reward section
     Funds totalpayout { 0 };
-    for (auto r : bv.rewards()) {
+    {
+        auto r{bv.reward()};
         Funds amount { r.amount() };
         balanceChecker.register_reward(r.account_id(), amount, r.offset);
         totalpayout += amount;
