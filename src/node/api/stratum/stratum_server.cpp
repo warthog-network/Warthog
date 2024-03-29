@@ -307,10 +307,10 @@ void StratumServer::handle_event(SubscriptionFeed&& fe)
 
     // register block
     auto jobId { serialize_hex(fe.t.block.header.hash()) };
-    auto [b_iter, inserted] { ad.blocks.try_emplace(jobId, std::move(fe.t.block)) };
-    if (!inserted)
+    Block* b { ad.add_block(jobId, std::move(fe.t.block)) };
+    if (b == nullptr)
         return;
-    const auto& block { b_iter->second };
+    const auto& block { *b };
 
     // dispatch block
     for (auto* c : ad.connections) {
@@ -411,16 +411,36 @@ void StratumServer::push(Event e)
     async->send();
 }
 
+Block* StratumServer::AddressData::find_block(const std::string& jobId)
+{
+    auto iter { blocks.find(jobId) };
+    if (iter == blocks.end())
+        return nullptr;
+    return &iter->second;
+}
+Block* StratumServer::AddressData::add_block(const std::string& jobId, Block&& b)
+{
+    // delete old blocks when new block is available
+    if (!blocks.empty() && blocks.begin()->second.header.prevhash() != b.header.prevhash()) {
+        blocks.clear();
+    }
+
+    auto [b_iter, inserted] { blocks.try_emplace(jobId, std::move(b)) };
+    if (!inserted)
+        return nullptr;
+    return &b_iter->second;
+}
+
 std::optional<Block> StratumServer::get_block(Address a, std::string jobId)
 {
     auto iter = addressData.find(a);
     assert(iter != addressData.end());
-    const auto& blocks { iter->second.blocks };
-    auto block_iter { blocks.find(jobId) };
-    if (block_iter == blocks.end())
-        return {};
-    return block_iter->second;
+    if (auto b { iter->second.find_block(jobId) }; b != nullptr) {
+        return *b;
+    }
+    return {};
 }
+
 void StratumServer::shutdown()
 {
     push(ShutdownEvent {});

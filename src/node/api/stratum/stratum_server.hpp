@@ -76,7 +76,6 @@ class StratumServer {
         using Subscription = mining_subscription::MiningSubscription;
         bool clean { true };
         std::vector<stratum::Connection*> connections;
-        std::map<std::string, Block> blocks;
         Subscription subscription;
         AddressData(std::function<Subscription()>);
         void clear()
@@ -84,6 +83,10 @@ class StratumServer {
             blocks.clear();
             clean = true;
         }
+        Block* find_block(const std::string& jobId);
+        Block* add_block(const std::string& jobId, Block&& b);
+        private:
+        std::map<std::string, Block> blocks;
     };
     struct SubscriptionFeed {
         Address address;
