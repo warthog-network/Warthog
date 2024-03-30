@@ -90,6 +90,17 @@ std::string serialize(const tl::expected<T, int32_t>& e)
     }.dump(1);
 }
 
+template <typename T>
+std::string serialize(const tl::expected<T, Error>& e)
+{
+    if (!e.has_value())
+        return status(e.error().e);
+    return nlohmann::json {
+        { "code", 0 },
+        { "data", to_json(*e) }
+    }.dump(1);
+}
+
 inline std::string serialize(const tl::unexpected<int> e)
 {
     return status(e.value());

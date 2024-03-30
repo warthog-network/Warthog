@@ -460,8 +460,10 @@ void StratumServer::link_authorized(const Address& a, stratum::Connection* c)
     auto [iter, _] { addressData.try_emplace(a,
         [&]() -> mining_subscription::MiningSubscription {
             return subscribe_chain_mine(a,
-                [a, this](MiningTask&& t) {
-                    return on_mining_task(a, std::move(t));
+                [a, this](tl::expected<MiningTask, Error>&& t) {
+                    if (t.has_value()) {
+                        return on_mining_task(a, std::move(t.value()));
+                    }
                 });
         }) };
     iter->second.connections.push_back(c);

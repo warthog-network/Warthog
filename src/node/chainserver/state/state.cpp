@@ -12,6 +12,7 @@
 #include "db/chain_db.hpp"
 #include "eventloop/types/chainstate.hpp"
 #include "general/hex.hpp"
+#include "general/is_testnet.hpp"
 #include "global/globals.hpp"
 #include "spdlog/spdlog.h"
 #include "transactions/apply_stage.hpp"
@@ -233,11 +234,14 @@ ConsensusSlave State::get_chainstate_concurrent()
     return { signedSnapshot, chainstate.descriptor(), chainstate.headers() };
 }
 
-MiningTask State::mining_task(const Address& a)
+tl::expected<MiningTask,Error> State::mining_task(const Address& a)
 {
+
     auto md = chainstate.mining_data();
 
     NonzeroHeight height { next_height() };
+    if (height.value() < NEWBLOCKSTRUCUTREHEIGHT && !is_testnet()) 
+        return tl::make_unexpected(Error(ENOTSYNCED));
     auto payments { chainstate.mempool().get_payments(400) };
     Funds totalfee { 0 };
     for (auto& p : payments)
@@ -250,7 +254,7 @@ MiningTask State::mining_task(const Address& a)
         spdlog::error("Cannot create mining task, body invalid");
 
     HeaderGenerator hg(md.prevhash, bv, md.target, md.timestamp, height);
-    return { .block {
+    return MiningTask{ .block {
         .height = height,
         .header = hg.serialize(0),
         .body = std::move(body),

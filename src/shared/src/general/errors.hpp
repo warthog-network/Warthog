@@ -102,6 +102,7 @@
     XX(203, EINEXACTFEE, "inexact fee not allowed")                     \
     XX(204, EBADAMOUNT, "invalid amount")                               \
     XX(205, EPARSESIG, "cannot parse signature")                        \
+    XX(206, ENOTSYNCED, "node not synced yet")                          \
     XX(1000, ESIGTERM, "received SIGTERM")                              \
     XX(1001, ESIGHUP, "received SIGHUP")                                \
     XX(1002, ESIGINT, "received SIGINT")                                \
