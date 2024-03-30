@@ -167,32 +167,32 @@ auto State::api_get_latest_txs(size_t N) const -> API::TransactionsByBlocks
         return res;
     auto lookup { db.lookupHistoryRange(lower, upper) };
     assert(lookup.size() == upper - lower);
-    assert(lookup.size() > 0);
+    if (chainlength() != 0) {
+        chainserver::AccountCache cache(db);
+        auto update_tmp = [&](auto id) {
+            auto h { chainstate.history_height(id) };
+            PinFloor pinFloor { PrevHeight(h) };
+            auto header { chainstate.headers()[h] };
+            auto b { API::Block(header, h, chainlength() - h + 1) };
+            auto beginId { chainstate.historyOffset(h) };
+            return std::tuple { pinFloor, beginId, b };
+        };
+        auto tmp { update_tmp(upper - 1) };
 
-    chainserver::AccountCache cache(db);
-    auto update_tmp = [&](auto id) {
-        auto h { chainstate.history_height(id) };
-        PinFloor pinFloor { PrevHeight(h) };
-        auto header { chainstate.headers()[h] };
-        auto b { API::Block(header, h, chainlength() - h + 1) };
-        auto beginId { chainstate.historyOffset(h) };
-        return std::tuple { pinFloor, beginId, b };
-    };
-    auto tmp { update_tmp(upper - 1) };
+        for (size_t i = 0; i < lookup.size(); ++i) {
+            auto& [pinFloor, beginId, block] { tmp };
+            auto id { upper - 1 - i };
+            if (id < beginId) { // start new tmp block
+                res.blocks_reversed.push_back(block);
+                tmp = update_tmp(id);
+            }
 
-    for (size_t i = 0; i < lookup.size(); ++i) {
-        auto& [pinFloor, beginId, block] { tmp };
-        auto id { upper - 1 - i };
-        if (id < beginId) { // start new tmp block
-            res.blocks_reversed.push_back(block);
-            tmp = update_tmp(id);
+            auto& [hash, data] = lookup[lookup.size() - 1 - i];
+            block.push_history(hash, data, cache, pinFloor);
         }
-
-        auto& [hash, data] = lookup[lookup.size() - 1 - i];
-        block.push_history(hash, data, cache, pinFloor);
+        res.count = lookup.size();
+        res.blocks_reversed.push_back(std::get<2>(tmp));
     }
-    res.count = lookup.size();
-    res.blocks_reversed.push_back(std::get<2>(tmp));
     return res;
 }
 
@@ -234,13 +234,13 @@ ConsensusSlave State::get_chainstate_concurrent()
     return { signedSnapshot, chainstate.descriptor(), chainstate.headers() };
 }
 
-tl::expected<MiningTask,Error> State::mining_task(const Address& a)
+tl::expected<MiningTask, Error> State::mining_task(const Address& a)
 {
 
     auto md = chainstate.mining_data();
 
     NonzeroHeight height { next_height() };
-    if (height.value() < NEWBLOCKSTRUCUTREHEIGHT && !is_testnet()) 
+    if (height.value() < NEWBLOCKSTRUCUTREHEIGHT && !is_testnet())
         return tl::make_unexpected(Error(ENOTSYNCED));
     auto payments { chainstate.mempool().get_payments(400) };
     Funds totalfee { 0 };
@@ -254,7 +254,7 @@ tl::expected<MiningTask,Error> State::mining_task(const Address& a)
         spdlog::error("Cannot create mining task, body invalid");
 
     HeaderGenerator hg(md.prevhash, bv, md.target, md.timestamp, height);
-    return MiningTask{ .block {
+    return MiningTask { .block {
         .height = height,
         .header = hg.serialize(0),
         .body = std::move(body),
