@@ -29,6 +29,8 @@ public:
 
     inline Target target(NonzeroHeight h, bool testnet) const;
     bool validPOW(const Hash& h, NonzeroHeight height, bool testnet) const;
+    double janus_number() const;
+    Hash verus_hash() const;
     inline uint32_t version() const;
     inline HashView prevhash() const;
     inline HashView merkleroot() const;

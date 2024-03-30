@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <functional>
 #include <optional>
+#include <string>
 #include <variant>
 #include <vector>
 
@@ -57,3 +58,4 @@ using RichlistCb = std::function<void(const tl::expected<API::Richlist, int32_t>
 
 using VersionCb = std::function<void(const tl::expected<NodeVersion, int32_t>&)>;
 using WalletCb = std::function<void(const tl::expected<API::Wallet, int32_t>&)>;
+using RawCb = std::function<void(const API::Raw&)>;

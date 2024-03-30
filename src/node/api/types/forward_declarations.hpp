@@ -20,5 +20,6 @@ struct PeerinfoConnections;
 struct AccountIdOrAddress;;
 struct Wallet;
 struct Rollback;
+struct Raw;
 using Transaction = std::variant<RewardTransaction, TransferTransaction>;
 }

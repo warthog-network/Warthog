@@ -31,6 +31,7 @@ public:
     inline uint32_t version() const;
     inline TargetV1 target_v1() const;
     inline TargetV2 target_v2() const;
+    inline double janus_number() const;
     inline uint32_t nonce() const;
     void set_nonce(std::array<uint8_t,4>);
     inline Hash hash() const;

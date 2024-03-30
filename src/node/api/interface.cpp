@@ -1,6 +1,7 @@
 #include "interface.hpp"
 #include "api/types/all.hpp"
 #include "asyncio/conman.hpp"
+#include "block/header/header_impl.hpp"
 #include "chainserver/server.hpp"
 #include "eventloop/eventloop.hpp"
 #include "global/globals.hpp"
@@ -70,12 +71,30 @@ void get_version(VersionCb cb)
     cb(NodeVersion {});
 }
 
-void get_wallet_new(WalletCb cb){
-    cb(API::Wallet{});
+void get_wallet_new(WalletCb cb)
+{
+    cb(API::Wallet {});
 }
 
-void get_wallet_from_privkey(const PrivKey& pk, WalletCb cb){
-    cb(API::Wallet{pk});
+void get_wallet_from_privkey(const PrivKey& pk, WalletCb cb)
+{
+    cb(API::Wallet { pk });
+}
+
+void get_janushash_number(std::string_view sv, RawCb cb)
+{
+    Header h;
+    if (!parse_hex(sv, h))
+        cb({ "" });
+
+    auto double_to_string = [](double d) {
+        std::string s;
+        s.resize(35);
+        auto n { std::snprintf(s.data(), s.size(), "%.20e", d) };
+        s.resize(n);
+        return s;
+    };
+    cb({ double_to_string(h.janus_number()) });
 }
 
 // chain functions
@@ -89,7 +108,7 @@ void get_chain_mine(const Address& a, MiningCb f)
 }
 mining_subscription::MiningSubscription subscribe_chain_mine(Address address, mining_subscription::callback_t callback)
 {
-    return global().pcs->api_subscribe_mining(address,std::move(callback));
+    return global().pcs->api_subscribe_mining(address, std::move(callback));
 }
 
 void get_chain_header(API::HeightOrHash hh, HeaderCb f)
@@ -117,7 +136,7 @@ void get_txcache(TxcacheCb&& cb)
 
 void get_hashrate_n(size_t n, HashrateCb&& cb)
 {
-    global().pel->api_get_hashrate(std::move(cb),n);
+    global().pel->api_get_hashrate(std::move(cb), n);
 }
 void get_hashrate(HashrateCb&& cb)
 {

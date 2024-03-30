@@ -64,6 +64,9 @@ struct ParameterParser {
     {
         return Height(static_cast<uint32_t>(*this));
     }
+    operator std::string_view(){
+        return sv;
+    }
     operator Address()
     {
         return Address(sv);
@@ -165,15 +168,16 @@ void HTTPEndpoint::work()
     get("/tools/version", get_version);
     get("/tools/wallet/new", get_wallet_new);
     get_1("/tools/wallet/from_privkey/:privkey", get_wallet_from_privkey);
+    get_1("/tools/janushash_number/:headerhex", get_janushash_number);
 
     indexGenerator.section("Debug Endpoints");
     get("/debug/header_download", inspect_eventloop, jsonmsg::header_download, true);
     app.ws<int>("/ws/chain_delta", {
-                                      .open = [](auto* ws) { 
-                                      ws->subscribe(API::Block::WEBSOCKET_EVENT); 
-                                      ws->subscribe(API::Rollback::WEBSOCKET_EVENT); 
-                                      },
-                                  });
+                                       .open = [](auto* ws) {
+                                           ws->subscribe(API::Block::WEBSOCKET_EVENT);
+                                           ws->subscribe(API::Rollback::WEBSOCKET_EVENT);
+                                       },
+                                   });
     app.listen(bind.ipv4.to_string(), bind.port, std::bind(&HTTPEndpoint::on_listen, this, _1));
     lc.loop->run();
 }
@@ -345,18 +349,19 @@ void HTTPEndpoint::on_event(WebsocketEvent&& e)
 
 void HTTPEndpoint::handle_event(const API::Block& b)
 {
-    auto txt{nlohmann::json{
-        {"type", "blockAppend"},
-        {"data",jsonmsg::to_json(b)}
-    }.dump()};
+    auto txt { nlohmann::json {
+        { "type", "blockAppend" },
+        { "data", jsonmsg::to_json(b) } }
+                   .dump() };
     app.publish(b.WEBSOCKET_EVENT, txt, uWS::OpCode::TEXT);
 }
 
-void HTTPEndpoint::handle_event(const API::Rollback& r){
-    auto txt{nlohmann::json{
-        {"type", "rollback"},
-        {"data", jsonmsg::to_json(r)}
-    }.dump()};
+void HTTPEndpoint::handle_event(const API::Rollback& r)
+{
+    auto txt { nlohmann::json {
+        { "type", "rollback" },
+        { "data", jsonmsg::to_json(r) } }
+                   .dump() };
     app.publish(r.WEBSOCKET_EVENT, txt, uWS::OpCode::TEXT);
 }
 void HTTPEndpoint::send_reply(uWS::HttpResponse<false>* res, const std::string& s)

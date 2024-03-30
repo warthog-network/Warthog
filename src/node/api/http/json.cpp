@@ -563,6 +563,10 @@ nlohmann::json to_json(const API::Rollback& rb)
     };
 }
 
+std::string serialize(const API::Raw& r){
+    return r.s;
+}
+
 std::string endpoints(const Eventloop& e)
 {
     auto [verified, failed, unverified, pending] = Inspector::endoints(e);

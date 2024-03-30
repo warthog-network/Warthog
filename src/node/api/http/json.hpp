@@ -105,6 +105,7 @@ inline std::string serialize(const tl::unexpected<int> e)
 {
     return status(e.value());
 }
+std::string serialize(const API::Raw& r);
 
 template<typename T>
 inline std::string serialize(T&& e){

@@ -157,6 +157,10 @@ struct Wallet{
     PrivKey pk;
 };
 
+struct Raw{
+    std::string s;
+};
+
 
 using OffenseEntry = ::OffenseEntry;
 
