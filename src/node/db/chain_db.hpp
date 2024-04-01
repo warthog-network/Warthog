@@ -73,7 +73,7 @@ struct Column2 : public SQLite::Column {
     {
         auto i { getInt64() };
         if (i < 0)
-            throw std::runtime_error("Database corrupted, expected nonnegative antry");
+            throw std::runtime_error("Database corrupted, expected nonnegative entry");
         return (uint64_t)i;
     }
 };
