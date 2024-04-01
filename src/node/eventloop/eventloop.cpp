@@ -99,18 +99,24 @@ void Eventloop::api_get_peers(PeersCb&& cb)
 {
     defer(std::move(cb));
 }
+
+void Eventloop::api_get_synced(SyncedCb&& cb)
+{
+    defer(std::move(cb));
+}
+
 void Eventloop::api_inspect(InspectorCb&& cb)
 {
     defer(std::move(cb));
 }
 void Eventloop::api_get_hashrate(HashrateCb&& cb, size_t n)
 {
-    defer(GetHashrate{std::move(cb),n});
+    defer(GetHashrate { std::move(cb), n });
 }
 
 void Eventloop::api_get_hashrate_chart(NonzeroHeight from, NonzeroHeight to, size_t window, HashrateChartCb&& cb)
 {
-    defer(GetHashrateChart { std::move(cb), from, to, window});
+    defer(GetHashrateChart { std::move(cb), from, to, window });
 }
 
 void Eventloop::async_forward_blockrep(uint64_t conId, std::vector<BodyContainer>&& blocks)
@@ -336,6 +342,10 @@ void Eventloop::handle_event(PeersCb&& cb)
     cb(out);
 }
 
+void Eventloop::handle_event(SyncedCb&& cb){
+    cb(!blockDownload.is_active());
+}
+
 void Eventloop::handle_event(SignedSnapshotCb&& cb)
 {
     if (signed_snapshot()) {
@@ -377,7 +387,7 @@ void Eventloop::handle_event(InspectorCb&& cb)
 void Eventloop::handle_event(GetHashrate&& e)
 {
     e.cb(API::HashrateInfo {
-        .nBlocks = e.n ,
+        .nBlocks = e.n,
         .estimate = consensus().headers().hashrate(e.n) });
 }
 

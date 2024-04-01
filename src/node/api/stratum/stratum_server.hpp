@@ -90,7 +90,7 @@ class StratumServer {
     };
     struct SubscriptionFeed {
         Address address;
-        MiningTask t;
+        ChainMiningTask t;
     };
     struct ShutdownEvent {
     };
@@ -116,7 +116,7 @@ public:
     ~StratumServer();
     void shutdown();
     void request_mining();
-    void on_mining_task(Address, MiningTask&&);
+    void on_mining_task(Address, ChainMiningTask&&);
     void on_append_result(AppendResult);
 
 private:

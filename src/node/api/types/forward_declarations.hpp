@@ -4,6 +4,8 @@ namespace API {
 struct MempoolEntries;
 struct TransferTransaction;
 struct Head;
+struct ChainHead;
+struct MiningState;
 struct RewardTransaction;
 struct Balance;
 struct HashrateInfo;

@@ -15,7 +15,7 @@ class PrivKey;
 class TxHash;
 class Grid;
 class NonzeroHeight;
-struct MiningTask;
+struct ChainMiningTask;
 struct Error;
 namespace HeaderDownload {
 class Downloader;
@@ -31,6 +31,7 @@ struct NodeVersion {
 class Header;
 
 using PeersCb = std::function<void(const std::vector<API::Peerinfo>&)>;
+using SyncedCb = std::function<void(bool)>;
 using ResultCb = std::function<void(const tl::expected<void, int32_t>&)>;
 using ConnectedConnectionCB = std::function<void(const API::PeerinfoConnections&)>;
 using BalanceCb = std::function<void(const tl::expected<API::Balance, int32_t>&)>;
@@ -39,12 +40,14 @@ using BalanceCb = std::function<void(const tl::expected<API::Balance, int32_t>&)
 using MempoolCb = std::function<void(const tl::expected<API::MempoolEntries, int32_t>&)>;
 using MempoolInsertCb = std::function<void(const tl::expected<TxHash, int32_t>&)>;
 using MempoolTxsCb = std::function<void(std::vector<std::optional<TransferTxExchangeMessage>>&)>;
-using MiningCb = std::function<void(const tl::expected<MiningTask, Error>&)>;
+using ChainMiningCb = std::function<void(const tl::expected<ChainMiningTask, Error>&)>;
+using MiningCb = std::function<void(const tl::expected<API::MiningState, Error>&)>;
 using TxcacheCb = std::function<void(const tl::expected<chainserver::TransactionIds, int32_t>&)>;
 using HashrateCb = std::function<void(const tl::expected<API::HashrateInfo, int32_t>&)>;
 using HashrateChartCb = std::function<void(const tl::expected<API::HashrateChart, int32_t>&)>;
 
 using HeadCb = std::function<void(const tl::expected<API::Head, int32_t>&)>;
+using ChainHeadCb = std::function<void(const tl::expected<API::ChainHead, int32_t>&)>;
 using RoundCb = std::function<void(const tl::expected<API::Round16Bit, int32_t>&)>;
 using HeaderdownloadCb = std::function<void(const HeaderDownload::Downloader&)>;
 using HeaderCb = std::function<void(const tl::expected<std::pair<NonzeroHeight,Header>, int32_t>&)>;

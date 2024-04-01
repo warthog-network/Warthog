@@ -31,7 +31,7 @@ public:
 
     // normal methods
     void garbage_collect();
-    auto mining_task(const Address& a) -> tl::expected<MiningTask,Error>;
+    auto mining_task(const Address& a) -> tl::expected<ChainMiningTask,Error>;
 
     auto append_gentx(const PaymentCreateMessage&) -> std::pair<mempool::Log, TxHash>;
     auto chainlength() const -> Height { return chainstate.headers().length(); }
@@ -64,7 +64,7 @@ public:
     // api getters
     auto api_get_address(AddressView) -> API::Balance;
     auto api_get_address(AccountId) -> API::Balance;
-    auto api_get_head() const -> API::Head;
+    auto api_get_head() const -> API::ChainHead;
     auto api_get_history(Address a, uint64_t beforeId) -> std::optional<API::AccountHistory>;
     auto api_get_richlist(size_t N) -> API::Richlist;
     auto api_get_mempool(size_t) -> API::MempoolEntries;

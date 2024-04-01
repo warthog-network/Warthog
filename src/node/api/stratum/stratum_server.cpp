@@ -445,7 +445,7 @@ void StratumServer::shutdown()
 {
     push(ShutdownEvent {});
 }
-void StratumServer::on_mining_task(Address a, MiningTask&& mt)
+void StratumServer::on_mining_task(Address a, ChainMiningTask&& mt)
 {
     push(SubscriptionFeed { a, std::move(mt) });
 }
@@ -460,7 +460,7 @@ void StratumServer::link_authorized(const Address& a, stratum::Connection* c)
     auto [iter, _] { addressData.try_emplace(a,
         [&]() -> mining_subscription::MiningSubscription {
             return subscribe_chain_mine(a,
-                [a, this](tl::expected<MiningTask, Error>&& t) {
+                [a, this](tl::expected<ChainMiningTask, Error>&& t) {
                     if (t.has_value()) {
                         return on_mining_task(a, std::move(t.value()));
                     }

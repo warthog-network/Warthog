@@ -4,11 +4,11 @@
 #include "nlohmann/json.hpp"
 
 using namespace nlohmann;
-MiningTask parse_mining_task(const std::vector<uint8_t>& s)
+ChainMiningTask parse_mining_task(const std::vector<uint8_t>& s)
 {
     try {
         json parsed = json::parse(s);
-        MiningTask mt {
+        ChainMiningTask mt {
             .block {
                 .height { Height(parsed["height"].get<uint32_t>()).nonzero_throw(EBADHEIGHT) },
                 .header { hex_to_arr<80>(parsed["header"].get<std::string>()) },

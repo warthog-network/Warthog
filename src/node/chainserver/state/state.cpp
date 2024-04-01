@@ -234,7 +234,7 @@ ConsensusSlave State::get_chainstate_concurrent()
     return { signedSnapshot, chainstate.descriptor(), chainstate.headers() };
 }
 
-tl::expected<MiningTask, Error> State::mining_task(const Address& a)
+tl::expected<ChainMiningTask, Error> State::mining_task(const Address& a)
 {
 
     auto md = chainstate.mining_data();
@@ -254,7 +254,7 @@ tl::expected<MiningTask, Error> State::mining_task(const Address& a)
         spdlog::error("Cannot create mining task, body invalid");
 
     HeaderGenerator hg(md.prevhash, bv, md.target, md.timestamp, height);
-    return MiningTask { .block {
+    return ChainMiningTask { .block {
         .height = height,
         .header = hg.serialize(0),
         .body = std::move(body),
@@ -631,11 +631,11 @@ auto State::insert_txs(const TxVec& txs) -> std::pair<std::vector<int32_t>, memp
     return { res, chainstate.pop_mempool_log() };
 }
 
-API::Head State::api_get_head() const
+API::ChainHead State::api_get_head() const
 {
     NonzeroHeight nextHeight { next_height() };
     PinFloor pf { PrevHeight(nextHeight) };
-    return API::Head {
+    return API::ChainHead {
         .signedSnapshot { signedSnapshot },
         .worksum { chainstate.headers().total_work() },
         .nextTarget { chainstate.headers().next_target() },

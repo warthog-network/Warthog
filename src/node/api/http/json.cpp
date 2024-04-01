@@ -265,15 +265,17 @@ json to_json(const TxHash& h)
 
 json to_json(const API::Head& h)
 {
+    auto& ch = h.chainHead;
     json j;
-    j["hash"] = serialize_hex(h.hash);
-    j["height"] = h.height;
-    j["difficulty"] = h.nextTarget.difficulty();
-    j["is_janushash"] = h.nextTarget.is_janushash();
-    j["pinHeight"] = h.pinHeight;
-    j["worksum"] = h.worksum.getdouble();
-    j["worksumHex"] = h.worksum.to_string();
-    j["pinHash"] = serialize_hex(h.pinHash);
+    j["hash"] = serialize_hex(ch.hash);
+    j["synced"] = h.synced;
+    j["height"] = ch.height;
+    j["difficulty"] = ch.nextTarget.difficulty();
+    j["is_janushash"] = ch.nextTarget.is_janushash();
+    j["pinHeight"] = ch.pinHeight;
+    j["worksum"] = ch.worksum.getdouble();
+    j["worksumHex"] = ch.worksum.to_string();
+    j["pinHash"] = serialize_hex(ch.pinHash);
     return j;
 }
 
@@ -284,13 +286,15 @@ json to_json(const std::pair<NonzeroHeight, Header>& h)
     };
 }
 
-json to_json(const MiningTask& mt)
+json to_json(const API::MiningState& ms)
 {
+    auto& mt{ms.miningTask};
     json j;
     auto height { mt.block.height };
     auto bodyView { mt.block.body_view() };
     auto blockReward { bodyView.reward() };
     auto totalTxFee { bodyView.fee_sum() };
+    j["synced"] = ms.synced;
     j["header"] = serialize_hex(mt.block.header);
     j["difficulty"] = mt.block.header.target(height, is_testnet()).difficulty();
     j["merklePrefix"] = serialize_hex(bodyView.merkle_prefix());
@@ -563,7 +567,8 @@ nlohmann::json to_json(const API::Rollback& rb)
     };
 }
 
-std::string serialize(const API::Raw& r){
+std::string serialize(const API::Raw& r)
+{
     return r.s;
 }
 

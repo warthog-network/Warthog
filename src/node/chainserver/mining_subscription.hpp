@@ -8,7 +8,7 @@
 class ChainServer;
 
 namespace mining_subscription {
-using callback_t = std::function<void(tl::expected<MiningTask,Error>&&)>;
+using callback_t = std::function<void(tl::expected<ChainMiningTask,Error>&&)>;
 struct SubscriptionId {
     auto operator<=>(const SubscriptionId&) const = default;
     SubscriptionId();
@@ -32,7 +32,7 @@ class MiningSubscriptions {
 public:
     void subscribe(SubscriptionRequest&&);
     void unsubscribe(SubscriptionId);
-    void dispatch(std::function<tl::expected<MiningTask,Error>(const Address&)> blockGenerator);
+    void dispatch(std::function<tl::expected<ChainMiningTask,Error>(const Address&)> blockGenerator);
 
 private:
     struct Elem {
