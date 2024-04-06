@@ -88,7 +88,7 @@ void ChainServer::api_lookup_latest_txs(LatestTxsCb callback)
     defer_maybe_busy(LookupLatestTxs { std::move(callback) });
 }
 
-void ChainServer::async_get_head(HeadCb callback)
+void ChainServer::async_get_head(ChainHeadCb callback)
 {
     defer_maybe_busy(GetHead { std::move(callback) });
 }
@@ -103,7 +103,7 @@ void ChainServer::api_get_richlist(RichlistCb callback)
 {
     defer_maybe_busy(GetRichlist { std::move(callback) });
 }
-void ChainServer::api_get_mining(const Address& address, MiningCb callback)
+void ChainServer::api_get_mining(const Address& address, ChainMiningCb callback)
 {
     defer_maybe_busy(GetMining { address, std::move(callback) });
 }

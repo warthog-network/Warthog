@@ -15,7 +15,7 @@ nlohmann::json to_json(const TxHash&);
 nlohmann::json to_json(const API::Head&);
 nlohmann::json to_json(const EndpointAddress&);
 nlohmann::json to_json(const std::pair<NonzeroHeight,Header>&);
-nlohmann::json to_json(const MiningTask&);
+nlohmann::json to_json(const API::MiningState&);
 nlohmann::json to_json(const API::MempoolEntries&);
 nlohmann::json to_json(const API::Transaction&);
 nlohmann::json to_json(const API::PeerinfoConnections&);
@@ -23,12 +23,14 @@ nlohmann::json to_json(const API::TransactionsByBlocks&);
 nlohmann::json to_json(const API::Block&);
 nlohmann::json to_json(const API::AccountHistory&);
 nlohmann::json to_json(const API::Richlist&);
+nlohmann::json to_json(const API::Wallet&);
 nlohmann::json to_json(const API::HashrateInfo&);
 nlohmann::json to_json(const API::HashrateChart&);
 nlohmann::json to_json(const OffenseEntry& e);
 nlohmann::json to_json(const std::optional<SignedSnapshot>&);
 nlohmann::json to_json(const chainserver::TransactionIds&);
 nlohmann::json to_json(const API::Round16Bit&);
+nlohmann::json to_json(const API::Rollback&);
 
 template <typename T>
 inline nlohmann::json to_json(const std::vector<T>& e, const auto& map)
@@ -88,10 +90,22 @@ std::string serialize(const tl::expected<T, int32_t>& e)
     }.dump(1);
 }
 
+template <typename T>
+std::string serialize(const tl::expected<T, Error>& e)
+{
+    if (!e.has_value())
+        return status(e.error().e);
+    return nlohmann::json {
+        { "code", 0 },
+        { "data", to_json(*e) }
+    }.dump(1);
+}
+
 inline std::string serialize(const tl::unexpected<int> e)
 {
     return status(e.value());
 }
+std::string serialize(const API::Raw& r);
 
 template<typename T>
 inline std::string serialize(T&& e){

@@ -8,7 +8,7 @@ Funds Funds::throw_parse(std::string_view s){
     if (auto o{Funds::parse(s)}; o.has_value()) {
         return *o;
     }
-    throw Error(EMALFORMED);
+    throw Error(EINV_FUNDS);
 }
 
 void Funds::assert_bounds() const

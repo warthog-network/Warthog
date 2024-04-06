@@ -34,6 +34,9 @@ void get_connected_connection(ConnectedConnectionCB&& cb);
 void get_round16bit_e8(uint64_t e8, RoundCb cb);
 void get_round16bit_funds(Funds e8, RoundCb cb);
 void get_version(VersionCb cb);
+void get_wallet_new(WalletCb cb);
+void get_wallet_from_privkey(const PrivKey& pk, WalletCb cb);
+void get_janushash_number(std::string_view, RawCb cb);
 
 // chain functions
 void get_block_head(HeadCb cb);
@@ -44,9 +47,10 @@ void get_chain_hash(Height height, HashCb cb);
 void get_chain_grid(GridCb cb);
 void get_chain_block(API::HeightOrHash, BlockCb cb);
 void get_txcache(TxcacheCb&& cb);
+void get_hashrate_n(size_t n, HashrateCb&& cb);
 void get_hashrate(HashrateCb&& cb);
-void get_hashrate_chart(NonzeroHeight from, NonzeroHeight to, HashrateChartCb&& cb);
-void put_chain_append(MiningTask&& mt, ResultCb cb);
+void get_hashrate_chart(NonzeroHeight from, NonzeroHeight to, size_t window, HashrateChartCb&& cb);
+void put_chain_append(ChainMiningTask&& mt, ResultCb cb);
 void get_signed_snapshot(Eventloop::SignedSnapshotCb&& cb);
 
 // sync functions

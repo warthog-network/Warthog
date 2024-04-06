@@ -4,11 +4,11 @@
 #include "nlohmann/json.hpp"
 
 using namespace nlohmann;
-MiningTask parse_mining_task(const std::vector<uint8_t>& s)
+ChainMiningTask parse_mining_task(const std::vector<uint8_t>& s)
 {
     try {
         json parsed = json::parse(s);
-        MiningTask mt {
+        ChainMiningTask mt {
             .block {
                 .height { Height(parsed["height"].get<uint32_t>()).nonzero_throw(EBADHEIGHT) },
                 .header { hex_to_arr<80>(parsed["header"].get<std::string>()) },
@@ -19,7 +19,7 @@ MiningTask parse_mining_task(const std::vector<uint8_t>& s)
             throw Error(EBLOCKSIZE);
         return mt;
     } catch (const json::exception& e) {
-        throw Error(EMALFORMED);
+        throw Error(EINV_ARGS);
     }
 }
 
@@ -125,7 +125,7 @@ PaymentCreateMessage parse_payment_create(const std::vector<uint8_t>& s)
         return PaymentCreateMessage(
             extract_pin_height(parsed), extract_nonce_id(parsed), NonceReserved::zero(), extract_fee(parsed), extract_to_addr(parsed), extract_funds(parsed), extract_signature(parsed));
     } catch (const json::exception& e) {
-        throw Error(EMALFORMED);
+        throw Error(EINV_ARGS);
     }
 }
 
@@ -134,5 +134,5 @@ Funds parse_funds(const std::vector<uint8_t>& s)
     std::string str(s.begin(), s.end());
     if (auto o { Funds::parse(str) }; o.has_value())
         return *o;
-    throw Error(EMALFORMED);
+    throw Error(EINV_ARGS);
 };

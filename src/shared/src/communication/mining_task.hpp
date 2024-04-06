@@ -2,6 +2,6 @@
 
 #include "block/block.hpp"
 
-struct MiningTask {
+struct ChainMiningTask {
     Block block;
 };

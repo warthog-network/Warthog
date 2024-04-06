@@ -24,7 +24,7 @@ struct ParameterParser {
         T res {};
         auto result = std::from_chars(sv.data(), sv.end(), res);
         if (result.ec != std::errc {} || result.ptr != sv.end()) {
-            throw Error(EMALFORMED);
+            throw Error(EINV_ARGS);
         }
         return res;
     }
@@ -39,6 +39,10 @@ struct ParameterParser {
         if (sv.length() == 48)
             return { Address { *this } };
         return { AccountId { static_cast<uint64_t>(*this) } };
+    }
+    operator PrivKey()
+    {
+        return PrivKey(sv);
     }
     operator Funds()
     {
@@ -59,6 +63,9 @@ struct ParameterParser {
     operator Height()
     {
         return Height(static_cast<uint32_t>(*this));
+    }
+    operator std::string_view(){
+        return sv;
     }
     operator Address()
     {
@@ -136,8 +143,8 @@ void HTTPEndpoint::work()
     get_1("/chain/mine/:account/log", get_chain_mine);
     get("/chain/signed_snapshot", get_signed_snapshot, true);
     get("/chain/txcache", get_txcache);
-    get("/chain/hashrate", get_hashrate);
-    get_2("/chain/hashrate/chart/:from/:to", get_hashrate_chart, true);
+    get_1("/chain/hashrate/:window", get_hashrate_n);
+    get_3("/chain/hashrate/chart/:from/:to/:window", get_hashrate_chart, true);
     post("/chain/append", parse_mining_task, put_chain_append, true);
 
     indexGenerator.section("Account Endpoints");
@@ -159,12 +166,18 @@ void HTTPEndpoint::work()
     get_1("/tools/encode16bit/from_e8/:feeE8", get_round16bit_e8);
     get_1("/tools/encode16bit/from_string/:string", get_round16bit_funds);
     get("/tools/version", get_version);
+    get("/tools/wallet/new", get_wallet_new);
+    get_1("/tools/wallet/from_privkey/:privkey", get_wallet_from_privkey);
+    get_1("/tools/janushash_number/:headerhex", get_janushash_number);
 
     indexGenerator.section("Debug Endpoints");
     get("/debug/header_download", inspect_eventloop, jsonmsg::header_download, true);
-    app.ws<int>("/ws_sneak_peek", {
-                                      .open = [](auto* ws) { ws->subscribe(API::Block::WEBSOCKET_EVENT); },
-                                  });
+    app.ws<int>("/ws/chain_delta", {
+                                       .open = [](auto* ws) {
+                                           ws->subscribe(API::Block::WEBSOCKET_EVENT);
+                                           ws->subscribe(API::Rollback::WEBSOCKET_EVENT);
+                                       },
+                                   });
     app.listen(bind.ipv4.to_string(), bind.port, std::bind(&HTTPEndpoint::on_listen, this, _1));
     lc.loop->run();
 }
@@ -263,6 +276,29 @@ void HTTPEndpoint::get_2(std::string pattern, auto asyncfun, bool priv)
             }
         });
 }
+void HTTPEndpoint::get_3(std::string pattern, auto asyncfun, bool priv)
+{
+    if (priv && isPublic)
+        return;
+    indexGenerator.get(pattern);
+    app.get(pattern,
+        [this, asyncfun, pattern](auto* res, auto* req) {
+            spdlog::debug("GET {}", req->getUrl());
+            try {
+                ParameterParser p1 { req->getParameter(0) };
+                ParameterParser p2 { req->getParameter(1) };
+                ParameterParser p3 { req->getParameter(2) };
+                asyncfun(p1, p2, p3,
+                    [this, res](auto& data) {
+                        async_reply(res, jsonmsg::serialize(data));
+                    });
+                pendingRequests.insert(res);
+                res->onAborted([this, res]() { on_aborted(res); });
+            } catch (Error e) {
+                send_json(res, jsonmsg::serialize(tl::make_unexpected(e.e)));
+            }
+        });
+}
 
 void HTTPEndpoint::post(std::string pattern, auto parser, auto asyncfun, bool priv)
 {
@@ -313,10 +349,21 @@ void HTTPEndpoint::on_event(WebsocketEvent&& e)
 
 void HTTPEndpoint::handle_event(const API::Block& b)
 {
-    auto txt { jsonmsg::to_json(b).dump() };
+    auto txt { nlohmann::json {
+        { "type", "blockAppend" },
+        { "data", jsonmsg::to_json(b) } }
+                   .dump() };
     app.publish(b.WEBSOCKET_EVENT, txt, uWS::OpCode::TEXT);
 }
 
+void HTTPEndpoint::handle_event(const API::Rollback& r)
+{
+    auto txt { nlohmann::json {
+        { "type", "rollback" },
+        { "data", jsonmsg::to_json(r) } }
+                   .dump() };
+    app.publish(r.WEBSOCKET_EVENT, txt, uWS::OpCode::TEXT);
+}
 void HTTPEndpoint::send_reply(uWS::HttpResponse<false>* res, const std::string& s)
 {
     auto iter = pendingRequests.find(res);

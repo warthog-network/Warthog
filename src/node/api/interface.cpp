@@ -1,6 +1,7 @@
 #include "interface.hpp"
 #include "api/types/all.hpp"
 #include "asyncio/conman.hpp"
+#include "block/header/header_impl.hpp"
 #include "chainserver/server.hpp"
 #include "eventloop/eventloop.hpp"
 #include "global/globals.hpp"
@@ -59,29 +60,176 @@ void get_connected_connection(ConnectedConnectionCB&& cb)
 void get_round16bit_e8(uint64_t e8, RoundCb cb)
 {
     cb(API::Round16Bit { Funds(e8) });
-};
+}
 
 void get_round16bit_funds(Funds f, RoundCb cb)
 {
     cb(API::Round16Bit { f });
-};
+}
 void get_version(VersionCb cb)
 {
     cb(NodeVersion {});
+}
+
+void get_wallet_new(WalletCb cb)
+{
+    cb(API::Wallet {});
+}
+
+void get_wallet_from_privkey(const PrivKey& pk, WalletCb cb)
+{
+    cb(API::Wallet { pk });
+}
+
+void get_janushash_number(std::string_view sv, RawCb cb)
+{
+    // TODO: do header check in different thread
+    Header h;
+    if (!parse_hex(sv, h))
+        cb({ "" });
+
+    auto double_to_string = [](double d) {
+        std::string s;
+        s.resize(35);
+        auto n { std::snprintf(s.data(), s.size(), "%.20e", d) };
+        s.resize(n);
+        return s;
+    };
+    cb({ double_to_string(h.janus_number()) });
+}
+
+namespace {
+struct APIHeadRequest {
+
+    APIHeadRequest(HeadCb cb)
+        : cb(std::move(cb))
+    {
+    }
+    void on(const tl::expected<API::ChainHead, int32_t>&& e)
+    {
+        if (e.has_value()) {
+            on(std::move(e.value()));
+            try_cb();
+        } else {
+            std::lock_guard l(m);
+            if (sent == false) {
+                cb(tl::make_unexpected(e.error()));
+                sent = true;
+            }
+        }
+    }
+    void on(bool set_synced)
+    {
+        synced = set_synced;
+        try_cb();
+    }
+
+private:
+    void on(const API::ChainHead& h)
+    {
+        head = std::move(h);
+    }
+    bool all_set() const { return head.has_value() && synced.has_value(); }
+    void try_cb()
+    {
+        std::lock_guard l(m);
+        if (sent == false && all_set()) {
+            sent = true;
+            cb(
+                API::Head {
+                    .chainHead { std::move(*head) },
+                    .synced = this->synced.value() });
+        }
+    }
+    std::mutex m;
+    bool sent { false };
+    std::optional<API::ChainHead> head;
+    std::optional<bool> synced;
+    HeadCb cb;
 };
+}
 
 // chain functions
 void get_block_head(HeadCb f)
 {
-    global().chainServer->async_get_head(f);
+
+    auto s = std::make_shared<APIHeadRequest>(std::move(f));
+
+    global().core->api_get_synced([s](auto&& ch) {
+        s->on(std::move(ch));
+    });
+    global().chainServer->async_get_head([s = std::move(s)](auto&& ch) {
+        s->on(std::move(ch));
+    });
 }
+
+namespace {
+struct APIMiningRequest {
+
+    APIMiningRequest(MiningCb cb)
+        : cb(std::move(cb))
+    {
+    }
+    void on(const tl::expected<ChainMiningTask, Error>&& e)
+    {
+        if (e.has_value()) {
+            on(std::move(e.value()));
+            try_cb();
+        } else {
+            std::lock_guard l(m);
+            if (sent == false) {
+                cb(tl::make_unexpected(e.error()));
+                sent = true;
+            }
+        }
+    }
+    void on(bool set_synced)
+    {
+        synced = set_synced;
+        try_cb();
+    }
+
+private:
+    void on(const ChainMiningTask& t)
+    {
+        miningTask = std::move(t);
+    }
+    bool all_set() const { return miningTask.has_value() && synced.has_value(); }
+    void try_cb()
+    {
+        std::lock_guard l(m);
+        if (sent == false && all_set()) {
+            sent = true;
+            cb(
+                API::MiningState {
+                    .miningTask { std::move(*miningTask) },
+                    .synced = this->synced.value() });
+        }
+    }
+    std::mutex m;
+    bool sent { false };
+    std::optional<ChainMiningTask> miningTask;
+    std::optional<bool> synced;
+    MiningCb cb;
+};
+}
+
 void get_chain_mine(const Address& a, MiningCb f)
 {
-    global().chainServer->api_get_mining(a, f);
+    auto s = std::make_shared<APIMiningRequest>(std::move(f));
+
+    global().core->api_get_synced([s](auto&& ch) {
+        s->on(std::move(ch));
+    });
+    global().chainServer->api_get_mining(a,
+        [s = std::move(s)](auto&& ch) {
+            s->on(std::move(ch));
+        });
 }
+
 mining_subscription::MiningSubscription subscribe_chain_mine(Address address, mining_subscription::callback_t callback)
 {
-    return global().chainServer->api_subscribe_mining(address,std::move(callback));
+    return global().chainServer->api_subscribe_mining(address, std::move(callback));
 }
 
 void get_chain_header(API::HeightOrHash hh, HeaderCb f)
@@ -107,16 +255,20 @@ void get_txcache(TxcacheCb&& cb)
     global().chainServer->api_get_txcache(std::move(cb));
 }
 
+void get_hashrate_n(size_t n, HashrateCb&& cb)
+{
+    global().core->api_get_hashrate(std::move(cb), n);
+}
 void get_hashrate(HashrateCb&& cb)
 {
     global().core->api_get_hashrate(std::move(cb));
 }
-void get_hashrate_chart(NonzeroHeight from, NonzeroHeight to, HashrateChartCb&& cb)
+void get_hashrate_chart(NonzeroHeight from, NonzeroHeight to, size_t window, HashrateChartCb&& cb)
 {
-    global().core->api_get_hashrate_chart(from, to, std::move(cb));
+    global().core->api_get_hashrate_chart(from, to, window, std::move(cb));
 }
 
-void put_chain_append(MiningTask&& mt, ResultCb f)
+void put_chain_append(ChainMiningTask&& mt, ResultCb f)
 {
     global().chainServer->api_mining_append(std::move(mt.block), f);
 }

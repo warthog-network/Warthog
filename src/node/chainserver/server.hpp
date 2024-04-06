@@ -80,7 +80,7 @@ public:
         RichlistCb callback;
     };
     struct GetHead {
-        HeadCb callback;
+        ChainHeadCb callback;
     };
     struct GetHeader {
         API::HeightOrHash heightOrHash;
@@ -96,7 +96,7 @@ public:
     };
     struct GetMining {
         Address address;
-        MiningCb callback;
+        ChainMiningCb callback;
     };
     using SubscribeMining = mining_subscription::SubscriptionRequest;
     struct UnsubscribeMining {
@@ -181,7 +181,7 @@ public:
     void async_set_synced(bool synced);
 
     void async_put_mempool(std::vector<TransferTxExchangeMessage> txs);
-    void async_get_head(HeadCb callback);
+    void async_get_head(ChainHeadCb callback);
 
     // API methods
     void api_mining_append(Block&&, ResultCb);
@@ -197,7 +197,7 @@ public:
     void api_get_header(API::HeightOrHash, HeaderCb callback);
     void api_get_hash(Height height, HashCb callback);
     void api_get_block(API::HeightOrHash, BlockCb callback);
-    void api_get_mining(const Address& a, MiningCb callback);
+    void api_get_mining(const Address& a, ChainMiningCb callback);
     [[nodiscard]] mining_subscription::MiningSubscription api_subscribe_mining(Address address, mining_subscription::callback_t callback);
     void api_unsubscribe_mining(mining_subscription::SubscriptionId);
     void api_get_txcache(TxcacheCb callback);

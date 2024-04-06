@@ -1,5 +1,6 @@
 #include "json.hpp"
 #include "api/types/all.hpp"
+#include "block/body/parse.hpp"
 #include "block/header/header_impl.hpp"
 #include "block/header/view.hpp"
 #include "chainserver/transaction_ids.hpp"
@@ -95,7 +96,7 @@ struct Inspector {
     //     j["pins"] = pins;
     //     return j.dump(1);
     // }
-};
+}
 
 namespace {
 template <typename T>
@@ -264,15 +265,17 @@ json to_json(const TxHash& h)
 
 json to_json(const API::Head& h)
 {
+    auto& ch = h.chainHead;
     json j;
-    j["hash"] = serialize_hex(h.hash);
-    j["height"] = h.height;
-    j["difficulty"] = h.nextTarget.difficulty();
-    j["is_janushash"] = h.nextTarget.is_janushash();
-    j["pinHeight"] = h.pinHeight;
-    j["worksum"] = h.worksum.getdouble();
-    j["worksumHex"] = h.worksum.to_string();
-    j["pinHash"] = serialize_hex(h.pinHash);
+    j["hash"] = serialize_hex(ch.hash);
+    j["synced"] = h.synced;
+    j["height"] = ch.height;
+    j["difficulty"] = ch.nextTarget.difficulty();
+    j["is_janushash"] = ch.nextTarget.is_janushash();
+    j["pinHeight"] = ch.pinHeight;
+    j["worksum"] = ch.worksum.getdouble();
+    j["worksumHex"] = ch.worksum.to_string();
+    j["pinHash"] = serialize_hex(ch.pinHash);
     return j;
 }
 
@@ -283,13 +286,23 @@ json to_json(const std::pair<NonzeroHeight, Header>& h)
     };
 }
 
-json to_json(const MiningTask& mt)
+json to_json(const API::MiningState& ms)
 {
+    auto& mt { ms.miningTask };
     json j;
     auto height { mt.block.height };
+    auto bodyView { mt.block.body_view() };
+    auto blockReward { bodyView.reward() };
+    auto totalTxFee { bodyView.fee_sum() };
+    j["synced"] = ms.synced;
     j["header"] = serialize_hex(mt.block.header);
     j["difficulty"] = mt.block.header.target(height, is_testnet()).difficulty();
+    j["merklePrefix"] = serialize_hex(bodyView.merkle_prefix());
     j["body"] = serialize_hex(mt.block.body.data());
+    j["blockReward"] = blockReward.amount().to_string();
+    j["blockRewardE8"] = blockReward.amount().E8();
+    j["totalTxFee"] = totalTxFee.to_string();
+    j["totalTxFeeE8"] = totalTxFee.E8();
     j["height"] = height;
     j["testnet"] = is_testnet();
     return j;
@@ -331,7 +344,7 @@ json to_json(const EndpointAddress& ea)
 json to_json(const API::PeerinfoConnections& pc)
 {
     return to_json(pc.v, pc.map);
-};
+}
 
 json to_json(const API::TransactionsByBlocks& txs)
 {
@@ -401,10 +414,22 @@ json to_json(const API::Richlist& l)
     }
     return a;
 }
+
+nlohmann::json to_json(const API::Wallet& w)
+{
+    auto pubKey { w.pk.pubkey() };
+    return {
+        { "privKey", w.pk.to_string() },
+        { "pubKey", pubKey.to_string() },
+        { "address", pubKey.address().to_string() }
+    };
+}
+
 json to_json(const API::HashrateInfo& hi)
 {
     return json {
-        { "last100BlocksEstimate", hi.by100Blocks }
+        { "lastNBlocksEstimate", hi.estimate },
+        { "N", hi.nBlocks }
     };
 }
 
@@ -522,7 +547,7 @@ nlohmann::json to_json(const API::Round16Bit& e)
         { "roundedAmount", c.uncompact().to_string() },
         { "16bit", c.value() }
     };
-};
+}
 
 nlohmann::json to_json(const NodeVersion&)
 {
@@ -533,7 +558,20 @@ nlohmann::json to_json(const NodeVersion&)
         { "patch", VERSION_PATCH },
         { "commit", GIT_COMMIT_INFO }
     };
-};
+}
+
+nlohmann::json to_json(const API::Rollback& rb)
+{
+    return json {
+        { "length", rb.length }
+    };
+}
+
+std::string serialize(const API::Raw& r)
+{
+    return r.s;
+}
+
 // std::string endpoints(const Eventloop& e)
 // {
 //     auto [verified, failed, unverified, pending] = Inspector::endoints(e);

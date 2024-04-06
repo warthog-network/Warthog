@@ -4,6 +4,8 @@ namespace API {
 struct MempoolEntries;
 struct TransferTransaction;
 struct Head;
+struct ChainHead;
+struct MiningState;
 struct RewardTransaction;
 struct Balance;
 struct HashrateInfo;
@@ -18,5 +20,8 @@ struct HeightOrHash;
 struct Round16Bit;
 struct PeerinfoConnections;
 struct AccountIdOrAddress;;
+struct Wallet;
+struct Rollback;
+struct Raw;
 using Transaction = std::variant<RewardTransaction, TransferTransaction>;
 }

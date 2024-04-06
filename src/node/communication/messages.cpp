@@ -293,7 +293,7 @@ auto ProberepMsg::from_reader(Reader& r) -> ProberepMsg
     std::optional<Header> current;
     uint8_t type = r.uint8();
     if (type > 3)
-        throw Error(EMALFORMED);
+        throw Error(EINV_PROBE);
     if ((type & 1) > 0) {
         requested = r.view<HeaderView>();
     }
@@ -438,7 +438,7 @@ auto TxreqMsg::from_reader(Reader& r) -> TxreqMsg
     while (r.remaining() >= TransactionId::bytesize) {
         txids.push_back(r);
         if (txids.size() > MAXENTRIES)
-            throw Error(EMALFORMED);
+            throw Error(EINV_TXREQ);
     }
     return { nonce, std::move(txids) };
 }
@@ -466,7 +466,7 @@ auto TxrepMsg::from_reader(Reader& r) -> TxrepMsg
             txs.push_back({});
         }
         if (txs.size() > TxreqMsg::MAXENTRIES)
-            throw Error(EMALFORMED);
+            throw Error(EINV_TXREP);
     }
     return { nonce, std::move(txs) };
 }

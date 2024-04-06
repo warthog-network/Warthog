@@ -68,9 +68,10 @@ public:
     void async_stage_action(stage_operation::Result);
     void on_failed_connect(const ConnectRequest& r, Error reason);
     void api_get_peers(PeersCb&& cb);
-    void api_get_hashrate(HashrateCb&& cb);
+    void api_get_synced(SyncedCb&& cb);
+    void api_get_hashrate(HashrateCb&& cb, size_t n=100);
     void api_get_hashrate_chart(HashrateChartCb&& cb);
-    void api_get_hashrate_chart(NonzeroHeight from, NonzeroHeight to, HashrateChartCb&& cb);
+    void api_get_hashrate_chart(NonzeroHeight from, NonzeroHeight to, size_t window, HashrateChartCb&& cb);
     void api_inspect(InspectorCb&&);
 
     void start_async_loop();
@@ -94,7 +95,7 @@ private:
     // Connection related functions
     void erase_internal(Conref cr);
     [[nodiscard]] bool insert(Conref cr, const InitMsg& data); // returns true if requests might be possbile
-    void close(Conref cr, uint32_t reason);
+    void close(Conref cr, Error reason);
     void close_by_id(uint64_t connectionId, int32_t reason);
     void close(const ChainOffender&);
     void close(Conref cr, ChainError);
@@ -184,6 +185,11 @@ private:
         HashrateChartCb cb;
         NonzeroHeight from;
         NonzeroHeight to;
+        size_t window;
+    };
+    struct GetHashrate {
+        HashrateCb cb;
+        size_t n;
     };
     struct FailedConnect {
         ConnectRequest connectRequest;
@@ -191,8 +197,8 @@ private:
     };
     // event queue
     using Event = std::variant<Erase, OnProcessConnection,
-        StateUpdate, SignedSnapshotCb, PeersCb, stage_operation::Result,
-        OnForwardBlockrep, InspectorCb, HashrateCb, GetHashrateChart,
+        StateUpdate, SignedSnapshotCb, PeersCb, SyncedCb, stage_operation::Result,
+        OnForwardBlockrep, InspectorCb, GetHashrate, GetHashrateChart,
         FailedConnect,
         mempool::Log>;
 
@@ -204,12 +210,13 @@ private:
     void handle_event(Erase&&);
     void handle_event(OnProcessConnection&&);
     void handle_event(StateUpdate&&);
-    void handle_event(PeersCb&&);
     void handle_event(SignedSnapshotCb&&);
+    void handle_event(PeersCb&&);
+    void handle_event(SyncedCb&&);
     void handle_event(stage_operation::Result&&);
     void handle_event(OnForwardBlockrep&&);
     void handle_event(InspectorCb&&);
-    void handle_event(HashrateCb&&);
+    void handle_event(GetHashrate&&);
     void handle_event(GetHashrateChart&&);
     void handle_event(FailedConnect&&);
     void handle_event(mempool::Log&&);

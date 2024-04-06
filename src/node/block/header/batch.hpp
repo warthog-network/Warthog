@@ -12,7 +12,7 @@ public:
     Headervec(std::span<const uint8_t> s)
     {
         if (s.size() % HeaderView::bytesize)
-            throw Error(EMALFORMED);
+            throw Error(EINV_HEADERVEC);
         if (s.size() > HeaderView::bytesize * HEADERBATCHSIZE)
             throw Error(EBATCHSIZE);
         bytes.assign(s.begin(), s.end());

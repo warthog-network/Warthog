@@ -6,6 +6,7 @@
 #include "block/chain/worksum.hpp"
 #include "block/header/difficulty_declaration.hpp"
 #include "block/header/header.hpp"
+#include "communication/mining_task.hpp"
 #include "crypto/address.hpp"
 #include "db/offense_entry.hpp"
 #include "eventloop/peer_chain.hpp"
@@ -20,7 +21,7 @@ class AccountCache;
 }
 
 namespace API {
-struct Head {
+struct ChainHead {
     std::optional<SignedSnapshot> signedSnapshot;
     Worksum worksum;
     Target nextTarget;
@@ -29,6 +30,17 @@ struct Head {
     Hash pinHash;
     PinHeight pinHeight;
 };
+
+struct MiningState {
+    ChainMiningTask miningTask;
+    bool synced;
+};
+
+struct Head {
+    ChainHead chainHead;
+    bool synced;
+};
+
 struct RewardTransaction {
     Hash txhash;
     Address toAddress;
@@ -54,6 +66,12 @@ struct Balance {
     AccountId accountId;
     Funds balance;
 };
+
+struct Rollback {
+    static constexpr const char WEBSOCKET_EVENT[] = "Rollback";
+    Height length;
+};
+
 struct Block {
     static constexpr const char WEBSOCKET_EVENT[] = "Block";
     struct Transfer {
@@ -111,7 +129,8 @@ struct OffenseHistory {
     std::vector<TransferTxExchangeMessage> entries;
 };
 struct HashrateInfo {
-    uint64_t by100Blocks;
+    size_t nBlocks;
+    uint64_t estimate;
 };
 
 struct HashrateChartRequest {
@@ -144,6 +163,14 @@ struct PeerinfoConnections {
 
 struct Round16Bit {
     Funds original;
+};
+
+struct Wallet{
+    PrivKey pk;
+};
+
+struct Raw{
+    std::string s;
 };
 
 

@@ -44,7 +44,7 @@ inline bool operator<(const CustomFloat& hashproduct, TargetV2 t)
 bool HeaderView::validPOW(const Hash& h, NonzeroHeight height, bool testnet) const
 {
     if (testnet) {
-        auto verusHashV2_1 { verus_hash({ data(), size() }) };
+        auto verusHashV2_1 { verus_hash() };
         auto verusFloat { CustomFloat(verusHashV2_1) };
         auto sha256tFloat { CustomFloat(hashSHA256(h)) };
         constexpr auto c = CustomFloat(-7, 2748779069); // 0.005
@@ -57,8 +57,8 @@ bool HeaderView::validPOW(const Hash& h, NonzeroHeight height, bool testnet) con
         return hashProduct < target_v2();
     }
     if (JANUSENABLED && height.value() > JANUSRETARGETSTART) {
+        auto verusHashV2_1 { verus_hash() };
         if (height.value() > JANUSV2RETARGETSTART) {
-            auto verusHashV2_1 { verus_hash({ data(), size() }) };
             auto verusFloat { CustomFloat(verusHashV2_1) };
             auto sha256tFloat { CustomFloat(hashSHA256(h)) };
             if (height.value() > JANUSV4RETARGETSTART) {
@@ -105,7 +105,6 @@ bool HeaderView::validPOW(const Hash& h, NonzeroHeight height, bool testnet) con
             // hd.digest(triplesha);
             // return verusHashV2_1[0] == 0 && target_v2().compatible(hd);
 
-            auto verusHashV2_1 { verus_hash({ data(), size() }) };
             auto verusFloat { CustomFloat(verusHashV2_1) };
             using namespace std;
             // cout << to_bin(verusHashV2_1) << endl;
@@ -123,4 +122,20 @@ bool HeaderView::validPOW(const Hash& h, NonzeroHeight height, bool testnet) con
     } else {
         return target_v1().compatible(h);
     }
+}
+Hash HeaderView::verus_hash() const
+{
+    return ::verus_hash({ data(), size() });
+}
+
+double HeaderView::janus_number() const
+{
+    CustomFloat verusFloat { verus_hash() };
+    CustomFloat sha256tFloat { hashSHA256(hashSHA256(hashSHA256(data(), size()))) };
+    constexpr auto c = CustomFloat(-7, 2748779069);
+    if (sha256tFloat < c)
+        return 1.0;
+
+    constexpr auto factor { CustomFloat(0, 3006477107) };
+    return (verusFloat * pow(sha256tFloat, factor)).to_double();
 }

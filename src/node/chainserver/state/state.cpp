@@ -12,6 +12,7 @@
 #include "db/chain_db.hpp"
 #include "eventloop/types/chainstate.hpp"
 #include "general/hex.hpp"
+#include "general/is_testnet.hpp"
 #include "global/globals.hpp"
 #include "spdlog/spdlog.h"
 #include "transactions/apply_stage.hpp"
@@ -166,32 +167,32 @@ auto State::api_get_latest_txs(size_t N) const -> API::TransactionsByBlocks
         return res;
     auto lookup { db.lookupHistoryRange(lower, upper) };
     assert(lookup.size() == upper - lower);
-    assert(lookup.size() > 0);
+    if (chainlength() != 0) {
+        chainserver::AccountCache cache(db);
+        auto update_tmp = [&](auto id) {
+            auto h { chainstate.history_height(id) };
+            PinFloor pinFloor { PrevHeight(h) };
+            auto header { chainstate.headers()[h] };
+            auto b { API::Block(header, h, chainlength() - h + 1) };
+            auto beginId { chainstate.historyOffset(h) };
+            return std::tuple { pinFloor, beginId, b };
+        };
+        auto tmp { update_tmp(upper - 1) };
 
-    chainserver::AccountCache cache(db);
-    auto update_tmp = [&](auto id) {
-        auto h { chainstate.history_height(id) };
-        PinFloor pinFloor { PrevHeight(h) };
-        auto header { chainstate.headers()[h] };
-        auto b { API::Block(header, h, chainlength() - h + 1) };
-        auto beginId { chainstate.historyOffset(h) };
-        return std::tuple { pinFloor, beginId, b };
-    };
-    auto tmp { update_tmp(upper - 1) };
+        for (size_t i = 0; i < lookup.size(); ++i) {
+            auto& [pinFloor, beginId, block] { tmp };
+            auto id { upper - 1 - i };
+            if (id < beginId) { // start new tmp block
+                res.blocks_reversed.push_back(block);
+                tmp = update_tmp(id);
+            }
 
-    for (size_t i = 0; i < lookup.size(); ++i) {
-        auto& [pinFloor, beginId, block] { tmp };
-        auto id { upper - 1 - i };
-        if (id < beginId) { // start new tmp block
-            res.blocks_reversed.push_back(block);
-            tmp = update_tmp(id);
+            auto& [hash, data] = lookup[lookup.size() - 1 - i];
+            block.push_history(hash, data, cache, pinFloor);
         }
-
-        auto& [hash, data] = lookup[lookup.size() - 1 - i];
-        block.push_history(hash, data, cache, pinFloor);
+        res.count = lookup.size();
+        res.blocks_reversed.push_back(std::get<2>(tmp));
     }
-    res.count = lookup.size();
-    res.blocks_reversed.push_back(std::get<2>(tmp));
     return res;
 }
 
@@ -233,11 +234,14 @@ ConsensusSlave State::get_chainstate_concurrent()
     return { signedSnapshot, chainstate.descriptor(), chainstate.headers() };
 }
 
-MiningTask State::mining_task(const Address& a)
+tl::expected<ChainMiningTask, Error> State::mining_task(const Address& a)
 {
+
     auto md = chainstate.mining_data();
 
     NonzeroHeight height { next_height() };
+    if (height.value() < NEWBLOCKSTRUCUTREHEIGHT && !is_testnet())
+        return tl::make_unexpected(Error(ENOTSYNCED));
     auto payments { chainstate.mempool().get_payments(400) };
     Funds totalfee { 0 };
     for (auto& p : payments)
@@ -250,7 +254,7 @@ MiningTask State::mining_task(const Address& a)
         spdlog::error("Cannot create mining task, body invalid");
 
     HeaderGenerator hg(md.prevhash, bv, md.target, md.timestamp, height);
-    return { .block {
+    return ChainMiningTask { .block {
         .height = height,
         .header = hg.serialize(0),
         .body = std::move(body),
@@ -332,7 +336,7 @@ auto State::add_stage(const std::vector<Block>& blocks, const Headerchain& hc) -
             break;
         }
         if (!bv.valid()) {
-            err = { EMALFORMED, b.height };
+            err = { EINV_BODY, b.height };
             break;
         }
         db.insert_protect(b);
@@ -341,10 +345,7 @@ auto State::add_stage(const std::vector<Block>& blocks, const Headerchain& hc) -
     if (stage.total_work() > chainstate.headers().total_work()) {
         auto [error, update, apiBlocks] { apply_stage(std::move(transaction)) };
 
-        // publish websocket events
-        for (auto& b : apiBlocks) {
-            http_endpoint().push_event(b);
-        }
+        publish_websocket_events(update, apiBlocks);
 
         if (error.is_error())
             return { { error }, update };
@@ -425,6 +426,27 @@ RollbackResult State::rollback(const Height newlength) const
     };
 }
 
+void State::publish_websocket_events(const std::optional<StateUpdate>& update, const std::vector<API::Block>& apiBlocks)
+{
+    using Fork = state_update::Fork;
+    using RollbackData = state_update::RollbackData;
+    if (update) {
+        auto& u { update->chainstateUpdate };
+        if (std::holds_alternative<Fork>(u)) {
+            auto& l { std::get<Fork>(u).shrinkLength };
+            http_endpoint().push_event(API::Rollback { l });
+        } else if (std::holds_alternative<RollbackData>(u)) {
+            auto& d { std::get<RollbackData>(u).data };
+            if (d.has_value()) {
+                auto& l { d->rollback.shrinkLength };
+                http_endpoint().push_event(API::Rollback { l });
+            }
+        }
+    }
+    for (auto& b : apiBlocks) {
+        http_endpoint().push_event(b);
+    }
+}
 auto State::apply_stage(ChainDBTransaction&& t) -> std::tuple<ChainError, std::optional<StateUpdate>, std::vector<API::Block>>
 {
     assert(!signedSnapshot || signedSnapshot->compatible(stage));
@@ -507,7 +529,7 @@ auto State::append_mined_block(const Block& b) -> StateUpdate
     if (b.header.merkleroot() != bv.merkle_root(b.height))
         throw Error(EMROOT);
     if (!bv.valid())
-        throw Error(EMALFORMED);
+        throw Error(EINV_BODY);
     if (chainlength() + 1 != b.height)
         throw Error(EBADHEIGHT);
 
@@ -609,11 +631,11 @@ auto State::insert_txs(const TxVec& txs) -> std::pair<std::vector<int32_t>, memp
     return { res, chainstate.pop_mempool_log() };
 }
 
-API::Head State::api_get_head() const
+API::ChainHead State::api_get_head() const
 {
     NonzeroHeight nextHeight { next_height() };
     PinFloor pf { PrevHeight(nextHeight) };
-    return API::Head {
+    return API::ChainHead {
         .signedSnapshot { signedSnapshot },
         .worksum { chainstate.headers().total_work() },
         .nextTarget { chainstate.headers().next_target() },

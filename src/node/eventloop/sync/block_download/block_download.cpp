@@ -318,7 +318,7 @@ void Downloader::on_blockreq_reply(Conref cr, BlockrepMsg&& rep, Blockrequest& r
 
     // check for correct length
     if (rep.blocks.size() != req.range.length())
-        throw Error(EMALFORMED);
+        throw Error(EINV_BLOCKREPSIZE);
 
     // discard old replies
     if (req.range.upper < focus.height_begin())
@@ -336,7 +336,7 @@ void Downloader::on_blockreq_reply(Conref cr, BlockrepMsg&& rep, Blockrequest& r
         auto height { req.range.lower + i };
         BodyView bv(rep.blocks[i].view(height));
         if (!bv.valid())
-            throw Error(EMALFORMED);
+            throw Error(EINV_BODY);
         if (bv.merkle_root(height) != headers()[height].merkleroot())
             throw Error(EMROOT);
     }

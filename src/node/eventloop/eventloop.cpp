@@ -101,18 +101,24 @@ void Eventloop::api_get_peers(PeersCb&& cb)
 {
     defer(std::move(cb));
 }
-void Eventloop::api_inspect(InspectorCb&& cb)
-{
-    defer(std::move(cb));
-}
-void Eventloop::api_get_hashrate(HashrateCb&& cb)
+
+void Eventloop::api_get_synced(SyncedCb&& cb)
 {
     defer(std::move(cb));
 }
 
-void Eventloop::api_get_hashrate_chart(NonzeroHeight from, NonzeroHeight to, HashrateChartCb&& cb)
+void Eventloop::api_inspect(InspectorCb&& cb)
 {
-    defer(GetHashrateChart { std::move(cb), from, to });
+    defer(std::move(cb));
+}
+void Eventloop::api_get_hashrate(HashrateCb&& cb, size_t n)
+{
+    defer(GetHashrate { std::move(cb), n });
+}
+
+void Eventloop::api_get_hashrate_chart(NonzeroHeight from, NonzeroHeight to, size_t window, HashrateChartCb&& cb)
+{
+    defer(GetHashrateChart { std::move(cb), from, to, window });
 }
 
 void Eventloop::async_forward_blockrep(uint64_t conId, std::vector<BodyContainer>&& blocks)
@@ -338,6 +344,10 @@ void Eventloop::handle_event(PeersCb&& cb)
     cb(out);
 }
 
+void Eventloop::handle_event(SyncedCb&& cb){
+    cb(!blockDownload.is_active());
+}
+
 void Eventloop::handle_event(SignedSnapshotCb&& cb)
 {
     if (signed_snapshot()) {
@@ -369,15 +379,16 @@ void Eventloop::handle_event(InspectorCb&& cb)
     cb(*this);
 }
 
-void Eventloop::handle_event(HashrateCb&& cb)
+void Eventloop::handle_event(GetHashrate&& e)
 {
-    cb(API::HashrateInfo {
-        .by100Blocks = consensus().headers().hashrate(100) });
+    e.cb(API::HashrateInfo {
+        .nBlocks = e.n,
+        .estimate = consensus().headers().hashrate(e.n) });
 }
 
 void Eventloop::handle_event(GetHashrateChart&& e)
 {
-    e.cb(consensus().headers().hashrate_chart(e.from, e.to, 100));
+    e.cb(consensus().headers().hashrate_chart(e.from, e.to, e.window));
 }
 void Eventloop::handle_event(FailedConnect&& e)
 {
@@ -469,7 +480,7 @@ bool Eventloop::insert(Conref c, const InitMsg& data)
     return doRequests;
 }
 
-void Eventloop::close(Conref cr, uint32_t reason)
+void Eventloop::close(Conref cr, Error reason)
 {
     if (!cr->c->eventloop_registered)
         return;
@@ -947,6 +958,7 @@ void Eventloop::set_scheduled_connect_timer()
     if (!t)
         return;
     auto& tp { *t };
-    timer
-    tp
+    // TODO
+    // timer
+    // tp
 }

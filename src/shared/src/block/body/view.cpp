@@ -26,11 +26,10 @@ BodyView::BodyView(std::span<const uint8_t> s, NonzeroHeight h)
         rd.skip(nAddresses * AddressSize);
 
         // Read reward section
-        nRewards = 1;
-        if (rd.remaining() < RewardSize * nRewards)
+        if (rd.remaining() < RewardSize)
             return;
-        offsetRewards = rd.cursor() - s.data();
-        rd.skip(16 * nRewards);
+        offsetReward = rd.cursor() - s.data();
+        rd.skip(16);
 
         // Read payment section
         if (rd.remaining() != 0) {
@@ -52,11 +51,11 @@ BodyView::BodyView(std::span<const uint8_t> s, NonzeroHeight h)
         rd.skip(nAddresses * AddressSize);
 
         // Read reward section
-        nRewards = rd.uint16();
-        if (rd.remaining() < RewardSize * nRewards + 4)
+        rd.skip(2);
+        if (rd.remaining() < RewardSize + 4)
             return;
-        offsetRewards = rd.cursor() - s.data();
-        rd.skip(16 * nRewards);
+        offsetReward = rd.cursor() - s.data();
+        rd.skip(16);
 
         // Read payment section
         nTransfers = rd.uint32();
@@ -70,16 +69,16 @@ BodyView::BodyView(std::span<const uint8_t> s, NonzeroHeight h)
 
 std::vector<Hash> BodyView::merkle_leaves() const
 {
-    std::vector<Hash> hashes(nAddresses + nRewards + nTransfers);
+    std::vector<Hash> hashes(nAddresses + 1 + nTransfers);
 
     // hash addresses
     size_t idx = 0;
     for (size_t i = 0; i < nAddresses; ++i)
         hashes[idx++] = hashSHA256(s.data() + offsetAddresses + i * AddressSize, AddressSize);
 
-    // hash payouts
-    for (size_t i = 0; i < nRewards; ++i)
-        hashes[idx++] = hashSHA256(data() + offsetRewards + i * RewardSize, RewardSize);
+    // hash rewards
+    for (size_t i = 0; i < 1; ++i)
+        hashes[idx++] = hashSHA256(data() + offsetReward + i * RewardSize, RewardSize);
     // hash payments
     for (size_t i = 0; i < nTransfers; ++i)
         hashes[idx++] = hashSHA256(data() + offsetTransfers + i * TransferSize, TransferSize);

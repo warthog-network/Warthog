@@ -26,8 +26,8 @@ public:
     struct ScheduledConnect {
     };
 
-private:
     using Event = std::variant<SendPing, Expire, CloseNoReply,CloseNoPong, ScheduledConnect>;
+private:
     using Ordered = std::multimap<time_point, Event>;
 
 public:

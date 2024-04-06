@@ -164,7 +164,7 @@ struct VariantParser<std::variant<Types...>> {
         Reader r(v);
         auto res { parse_recursive<Types...>(r) };
         if (!r.eof())
-            throw Error(EMALFORMED);
+            throw Error(EMSGINTEGRITY);
         return res;
     }
 };

@@ -31,9 +31,9 @@ public:
 
     // normal methods
     void garbage_collect();
-    auto mining_task(const Address& a) -> MiningTask;
+    auto mining_task(const Address& a) -> tl::expected<ChainMiningTask,Error>;
 
-    auto append_gentx(const PaymentCreateMessage&) -> std::pair<mempool::Log,TxHash>;
+    auto append_gentx(const PaymentCreateMessage&) -> std::pair<mempool::Log, TxHash>;
     auto chainlength() const -> Height { return chainstate.headers().length(); }
 
     // mempool
@@ -64,7 +64,7 @@ public:
     // api getters
     auto api_get_address(AddressView) -> API::Balance;
     auto api_get_address(AccountId) -> API::Balance;
-    auto api_get_head() const -> API::Head;
+    auto api_get_head() const -> API::ChainHead;
     auto api_get_history(Address a, uint64_t beforeId) -> std::optional<API::AccountHistory>;
     auto api_get_richlist(size_t N) -> API::Richlist;
     auto api_get_mempool(size_t) -> API::MempoolEntries;
@@ -75,6 +75,8 @@ public:
     auto api_tx_cache() const -> const TransactionIds;
 
 private:
+    void publish_websocket_events(const std::optional<StateUpdate>&, const std::vector<API::Block>&);
+
     // delegated getters
     auto api_get_block(Height h) const -> std::optional<API::Block>;
     std::optional<NonzeroHeight> consensus_height(const Hash&) const;

@@ -38,6 +38,10 @@ inline TargetV2 Header::target_v2() const
 {
     return static_cast<HeaderView>(*this).target_v2();
 }
+inline double Header::janus_number() const
+{
+    return static_cast<HeaderView>(*this).janus_number();
+}
 inline uint32_t Header::nonce() const
 {
     return static_cast<HeaderView>(*this).nonce();

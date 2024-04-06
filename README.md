@@ -1,7 +1,7 @@
 [![Docker Build and Release](https://github.com/JulsKawa/Warthog/actions/workflows/docker_build_and_release.yml/badge.svg)](https://github.com/JulsKawa/Warthog/actions/workflows/docker_build_and_release.yml)
 
 WARTHOG REFERENCE IMPLEMENTATION
-Copyright (c) 2023 Pumbaa, Timon & Rafiki
+Copyright (c) 2023 - 2024 Pumbaa, Timon & Rafiki
 <p align="center">
   <img src="doc/img/warthog_logo.png" style="width:300px;"/>
 </p>
@@ -11,8 +11,7 @@ Copyright (c) 2023 Pumbaa, Timon & Rafiki
 Welcome to Warthog!
 
 Warthog is an experimental L1-cryptocurrency implementation without
-specific focus. Don't take this project seriously, it is just 
-our hobby experiment. This project is not a dumb fork of something else. It was developed completely from scratch! 
+specific focus. This project is not a dumb fork of something else. It was developed completely from scratch! 
 
 
 
@@ -35,13 +34,10 @@ The block chain has the following characteristics:
 
 
 ## 💣 A word of caution
-But beware of bugs: Here be dragons. Almost everything was 
-implemented from scratch. Don't expect this
-software to be rock solid, and don't even expect things to work 
-properly. Use at your own risk. There may be and almost 
-certainly are serious bugs! You have been warned.
+This is new software. Almost everything was 
+implemented from scratch. There may be bugs.
+Use at your own risk.
 
-Have fun with it. Like we had implementing it.
 
 ## 📢 Socials
 
@@ -56,7 +52,10 @@ Have fun with it. Like we had implementing it.
 </p>
 
 ## 💱 Where to buy?
-Not listed yet. At the moment only p2p on Discord. 
+- P2P on Discord<br>
+- <a href="https://exbitron.com/">Exbitron exchange</a><br>
+- <a href="https://xeggex.com/market/WART_USDT">Xeggex exchange</a>
+- <a href="https://tradeogre.com/exchange/WART-USDT">TradeOgre exchange</a>
 
 
 ## 📦 Component overview
@@ -76,7 +75,7 @@ Prebuilt binaries of the node daemon and cli wallet for Linux and Windows can be
 
 Prebuilt binaries of the miner for Linux and HiveOS can be downloaded [here](https://github.com/CoinFuMasterShifu/janusminer/releases)
 
-To compile from source see below or [here](https://github.com/warthog-network/warthog-guide) for a more detailed guide.
+To compile from source see below or [here](https://warthog.network/docs/) for a more detailed guide.
 
 ## 😵‍💫 BUILD INSTRUCTIONS
 
@@ -121,17 +120,18 @@ More detailed information how to set up and run the miner you can find [here](ht
 * Optional: Run the wallet to send funds (wallet requires node running)
 * Good luck and have fun! Use --help the option.
 
-NOTE: We (or some of us) might drop this project any time in case 
-      deep/unfixable bugs or ugly design issues arise. Or without
-      any reason and without prior notice. This is a highly 
-      experimental project.
+NOTE:  This is a highly experimental project not backed by any institution or foundation. 
+ It relies on the work of voluntaries who have no obligation to do work for the project.
+ People can join and leave any time at their will.
 
 ## 📖 Documentation
-* [API Reference](./doc/API.md)
-* [Python Integration Guide](./doc/integration_python.md)
-* [Elixir Integration Guide](./doc/integration_elixir.md)
-* [Nodejs Integration Guide](./doc/integration_nodejs.md)
+* [API Reference](https://www.warthog.network/docs/developers/api/)
+* [Wallet Integration Guide](https://www.warthog.network/docs/developers/integrations/wallet-integration/)
+* [Pool Integration Guide](https://www.warthog.network/docs/developers/integrations/pools/)
+* [Miner Integration Guide](https://www.warthog.network/docs/developers/integrations/miners/)
+* [Janushash algorithm](https://www.warthog.network/docs/janushash/interpreting-hashes-as-numbers/). First Proof of Balanced Work mining algorithm in the world.
 
-## ⛏ Upcoming Mining algorithm
- * NEWS: Custom [Janushash algorithm](./doc/janushash.md) in the works. First Proof of Balanced Work mining algorithm in the world.
+## Useful Links
+* [See here](https://www.warthog.network/docs/links/)
+
 
