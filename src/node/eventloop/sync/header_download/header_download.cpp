@@ -98,7 +98,7 @@ void Downloader::release_verifier(Ver_iter vi)
     }
 }
 
-void Downloader::acquire_queued_batch(std::optional<Header> prev, HeaderView hv, Lead_iter li)
+void Downloader::acquire_queued_batch(std::optional<Hash> prev, HeaderView hv, Lead_iter li)
 {
     auto p = queuedBatches.try_emplace(hv);
     auto iter = p.first;
@@ -220,7 +220,7 @@ void Downloader::queue_requests(Lead_iter li)
         if (s.index() == 0)
             acquire_queued_batch({}, d.grid()[s], li);
         else
-            acquire_queued_batch(d.grid()[s - 1], d.grid()[s], li);
+            acquire_queued_batch(d.grid()[s - 1].hash(), d.grid()[s], li);
     }
 }
 

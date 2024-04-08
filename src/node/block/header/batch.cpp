@@ -79,7 +79,7 @@ bool Batch::valid_inner_links()
 Grid::Grid(std::span<const uint8_t> s)
 {
     if (s.size() % 80 != 0)
-        throw Error(EINV_GRID);
+        throw Error(EINV_HEADERGRID);
     assign(s.begin().base(), s.end().base());
 }
 
@@ -93,4 +93,28 @@ bool Grid::valid_checkpoint() const
     auto cp = GridPin::checkpoint();
     return is_testnet() || (!cp)
         || (cp->slot < slot_end() && cp->finalHeader == operator[](cp->slot));
+}
+
+HashGrid HashGrid::from_header_grid(std::span<const uint8_t> s)
+{
+    if (s.size() % 80 != 0)
+        throw Error(EINV_HEADERGRID);
+    std::vector<Hash> hashes;
+    for (auto iter { s.begin() }; iter != s.end(); iter += 80) {
+        auto header { HeaderView(&*iter) };
+        hashes.push_back(header.hash());
+    }
+    return HashGrid { hashes };
+}
+
+HashGrid HashGrid::from_hashes(std::span<const uint8_t> s)
+{
+    if (s.size() % 32 != 0)
+        throw Error(EINV_HASHGRID);
+    std::vector<Hash> hashes;
+    for (auto iter { s.begin() }; iter != s.end(); iter += 32) {
+        auto hash { HashView(&*iter) };
+        hashes.push_back(hash);
+    }
+    return HashGrid { hashes };
 }

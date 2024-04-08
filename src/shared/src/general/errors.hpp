@@ -88,7 +88,7 @@
     XX(90, EINV_BODY, "malformed body data")                            \
     XX(91, EINV_PAGE, "invalid page")                                   \
     XX(92, EINV_PROBE, "invalid probe message")                         \
-    XX(93, EINV_GRID, "invalid grid")                                   \
+    XX(93, EINV_HEADERGRID, "invalid header grid")                      \
     XX(94, EINV_TXREQ, "invalid tx request")                            \
     XX(95, EINV_ARGS, "invalid API arguments")                          \
     XX(96, EINV_TXREP, "invalid tx reply")                              \
@@ -97,6 +97,7 @@
     XX(99, EINV_BLOCKREPSIZE, "invalid block reply size")               \
     XX(100, EMSGINTEGRITY, "message integrity check failed")            \
     XX(101, EINV_HEX, "cannot parse hexadecimal input")                 \
+    XX(102, EINV_HASHGRID, "invalid hash grid")                         \
     XX(201, EBADNONCE, "cannot parse nonce")                            \
     XX(202, EBADFEE, "invalid fee")                                     \
     XX(203, EINEXACTFEE, "inexact fee not allowed")                     \

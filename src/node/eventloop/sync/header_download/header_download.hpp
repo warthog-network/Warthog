@@ -83,7 +83,7 @@ inline bool operator<(const Queued_iter& l1, const Queued_iter& l2)
 }
 
 struct QueueEntry {
-    std::optional<Header> prevHeader;
+    std::optional<Hash> prevHash;
     Queued_iter iter;
 };
 
@@ -143,8 +143,8 @@ private:
             std::optional<ChainPin> pin_prev() const
             {
                 auto& entry = q.ln.queuedIters[i];
-                if (entry.prevHeader) {
-                    return ChainPin { slot().offset(), *entry.prevHeader };
+                if (entry.prevHash) {
+                    return ChainPin { slot().offset(), *entry.prevHash };
                 }
                 return {};
             }
@@ -272,7 +272,7 @@ private:
 
     // queued batch related
     std::map<Header, QueueBatchNode> queuedBatches;
-    void acquire_queued_batch(std::optional<Header>, HeaderView, Lead_iter);
+    void acquire_queued_batch(std::optional<Hash>, HeaderView, Lead_iter);
     void release_first_queued_batch(Lead_iter);
     void shift_queued_batch(Lead_iter);
 

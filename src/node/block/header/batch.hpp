@@ -1,5 +1,6 @@
 #pragma once
 #include "block/chain/pin.hpp"
+#include "crypto/hash.hpp"
 #include "general/errors.hpp"
 #include <span>
 
@@ -216,7 +217,7 @@ public:
     Grid(const Headerchain&, Batchslot begin);
     using Headervec::operator[];
     HeaderView operator[](Batchslot s) const { return Headervec::operator[](s.index()); }
-    Batchslot slot_begin() const
+    static Batchslot slot_begin()
     {
         return Batchslot(0);
     }
@@ -227,9 +228,38 @@ public:
     [[nodiscard]] std::optional<ChainPin> back_pin() const
     {
         if (size() > 0) {
-            return ChainPin { slot_end().offset(), last() };
+            return ChainPin { slot_end().offset(), last().hash() };
         }
         return {};
     }
     bool valid_checkpoint() const;
+};
+
+class HashGrid {
+public:
+    static HashGrid from_header_grid(std::span<const uint8_t> s);
+    static HashGrid from_hashes(std::span<const uint8_t> s);
+    HashGrid(const Headerchain&, Batchslot begin);
+    auto operator[](Batchslot s) const { return data.at(s.index()); }
+    static Batchslot slot_begin()
+    {
+        return Batchslot(0);
+    }
+    Batchslot slot_end() const
+    {
+        return Batchslot(data.size());
+    }
+    size_t size() const { return data.size(); }
+    [[nodiscard]] std::optional<ChainPin> back_pin() const
+    {
+        if (size() > 0) {
+            return ChainPin { slot_end().offset(), data.back() };
+        }
+        return {};
+    }
+    bool valid_checkpoint() const;
+
+private:
+    HashGrid( std::vector<Hash> data):data(std::move(data)){}
+    std::vector<Hash> data;
 };

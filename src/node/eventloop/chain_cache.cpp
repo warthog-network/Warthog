@@ -87,13 +87,13 @@ std::optional<ChaincacheMatch> StageAndConsensus::lookup(std::optional<ChainPin>
     }
     assert(stageHeaders);
     if (stageHeaders->length() > p->height) {
-        auto bh = stageHeaders->get_header(p->height);
-        if (bh && *bh == p->header)
+        auto bh = stageHeaders->get_hash(p->height);
+        if (bh && *bh == p->hash)
             return ChaincacheMatch { T::STAGE, stage_pin() };
     }
     if (consensus.headers().length() > p->height) {
-        auto ch = consensus.headers().get_header(p->height);
-        if (ch && ch == p->header)
+        auto ch = consensus.headers().get_hash(p->height);
+        if (ch && ch == p->hash)
             return ChaincacheMatch { T::CONSENSUS, consensus_pin() };
     }
     return {};
