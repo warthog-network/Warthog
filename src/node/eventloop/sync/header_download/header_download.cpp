@@ -10,7 +10,7 @@
 namespace HeaderDownload {
 
 struct ReqData {
-    HeaderView finalHeader;
+    Hash finalHash;
     QueueEntry queueEntry;
     Batchslot slot;
     std::optional<ChaincacheMatch> cacheMatch;
@@ -98,7 +98,7 @@ void Downloader::release_verifier(Ver_iter vi)
     }
 }
 
-void Downloader::acquire_queued_batch(std::optional<Hash> prev, HeaderView hv, Lead_iter li)
+void Downloader::acquire_queued_batch(std::optional<Hash> prev, HashView hv, Lead_iter li)
 {
     auto p = queuedBatches.try_emplace(hv);
     auto iter = p.first;
@@ -138,7 +138,7 @@ bool Downloader::can_insert_leader(Conref cr)
     bool res = !is_leader(cr)
         && leaderList.size() < maxLeaders // free leader slots
         && d->worksum() > minWork // provides more work
-        && d->grid().valid_checkpoint() // valid checkpoint
+        && d->hash_grid().valid_checkpoint() // valid checkpoint
         && (!id || id != d->descriptor); // no signed pin fail for this descriptor
 
     if (res) {
@@ -170,7 +170,7 @@ bool Downloader::consider_insert_leader(Conref cr)
         return false;
 
     NonzeroSnapshot sn { cr.chain().descripted() };
-    auto o = global().pbr->find_last(sn.descripted->grid(), chains.signed_snapshot());
+    auto o = global().pbr->find_last(sn.descripted->hash_grid(), chains.signed_snapshot());
     if (!o)
         return false;
     auto& pin { *o };
@@ -216,11 +216,11 @@ void Downloader::queue_requests(Lead_iter li)
     auto& d = *li->snapshot.descripted;
     auto ns = li->next_slot();
     auto s = ns + li->queuedIters.size();
-    for (; s < d.grid().slot_end() && s < ns + pendingDepth; ++s) {
+    for (; s < d.hash_grid().slot_end() && s < ns + pendingDepth; ++s) {
         if (s.index() == 0)
-            acquire_queued_batch({}, d.grid()[s], li);
+            acquire_queued_batch({}, d.hash_grid()[s], li);
         else
-            acquire_queued_batch(d.grid()[s - 1].hash(), d.grid()[s], li);
+            acquire_queued_batch(d.hash_grid()[s - 1], d.hash_grid()[s], li);
     }
 }
 
@@ -237,10 +237,10 @@ Conref Downloader::try_send(ConnectionFinder& f, const ReqData& rd)
             // conveniene abbreviations
             auto& pd = data(cr).probeData;
             auto& desc = cr.chain().descripted();
-            const Grid& g = desc->grid();
+            const auto& g = desc->hash_grid();
 
             // ignore this connection if it header not present
-            if (rd.slot >= g.slot_end() || g[rd.slot] != rd.finalHeader)
+            if (rd.slot >= g.slot_end() || g[rd.slot] != rd.finalHash)
                 continue;
 
             // consider updating probe with cacheMatch
@@ -257,7 +257,7 @@ Conref Downloader::try_send(ConnectionFinder& f, const ReqData& rd)
             // consider probe data if applicable
             if (pd && pd->qiter == rd.queueEntry.iter) {
                 auto br { ProbeBalanced::slot_batch_request(*pd, pd->dsc,
-                    rd.slot, rd.finalHeader) };
+                    rd.slot, rd.finalHash) };
                 if (br) {
                     f.s.send(cr, *br);
                     clear_connection_probe(cr);
@@ -265,7 +265,7 @@ Conref Downloader::try_send(ConnectionFinder& f, const ReqData& rd)
                     return cr;
                 }
             } else {
-                Batchrequest br(desc, rd.slot, rd.finalHeader);
+                Batchrequest br(desc, rd.slot, rd.finalHash);
                 f.s.send(cr, br);
                 f.conIndex = index;
                 return cr;
@@ -283,7 +283,7 @@ bool Downloader::try_final_request(Lead_iter li, RequestSender& sender)
     LeaderNode& ln = *li;
     const NonzeroSnapshot& s = ln.snapshot;
     auto& desc = s.descripted;
-    Batchslot descriptedSlot = desc->grid().slot_end();
+    Batchslot descriptedSlot = desc->hash_grid().slot_end();
     assert(descriptedSlot.upper() > desc->chain_length());
     assert(descriptedSlot.offset() <= desc->chain_length());
     Batchslot focusMaxSlot = ln.next_slot() + pendingDepth;
@@ -476,7 +476,7 @@ bool Downloader::advance_verifier(const Ver_iter* vi, const Lead_set& leaders, c
         return false;
     }
     HeaderVerifier& hv { a.value() };
-    auto sharedBatch { global().pbr->share(Batch { b }, (vi ? (*vi)->second.sb : SharedBatch {})) };
+    auto sharedBatch { global().pbr->share(Batch { b }, hv.final_hash(), (vi ? (*vi)->second.sb : SharedBatch {})) };
 
     // update maximizer
     Worksum worksum = sharedBatch.total_work();
@@ -600,7 +600,7 @@ auto Downloader::on_response(Conref cr, Batchrequest&& req, Batch&& res) -> std:
             process_final(li, offenders);
         }
     } else {
-        auto qi = queuedBatches.find(std::get<Header>(req.extra));
+        auto qi = queuedBatches.find(std::get<Hash>(req.extra));
         if (qi != queuedBatches.end() && cr == qi->second.cr) {
             if (!withJobIter)
                 spdlog::error("BUG in {}:{}: withJobIter==false.", __FILE__, __LINE__);

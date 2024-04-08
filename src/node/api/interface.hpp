@@ -44,7 +44,7 @@ void get_chain_mine(const Address& a, MiningCb cb);
 mining_subscription::MiningSubscription subscribe_chain_mine(Address address, mining_subscription::callback_t callback);
 void get_chain_header(API::HeightOrHash, HeaderCb cb);
 void get_chain_hash(Height height, HashCb cb);
-void get_chain_grid(GridCb cb);
+void get_chain_grid(HashGridCb cb);
 void get_chain_block(API::HeightOrHash, BlockCb cb);
 void get_txcache(TxcacheCb&& cb);
 void get_hashrate_n(size_t n, HashrateCb&& cb);

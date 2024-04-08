@@ -8,6 +8,6 @@ struct ChainPin {
 };
 struct GridPin {
     Batchslot slot;
-    HeaderView finalHeader;
+    HashView finalHeader;
     static std::optional<GridPin> checkpoint();
 };

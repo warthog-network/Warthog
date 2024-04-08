@@ -52,7 +52,7 @@ struct Batchrequest : public BatchreqMsg, public IsRequest {
     using Pindata = Headerchain::pin_t;
     std::shared_ptr<Descripted> descripted;
     Batch prefix;
-    using extra_t = std::variant<Header, Worksum>;
+    using extra_t = std::variant<Hash, Worksum>;
     extra_t extra;
 
     bool is_partial_request()
@@ -99,11 +99,11 @@ struct Batchrequest : public BatchreqMsg, public IsRequest {
         , extra(ws)
     {
     }
-    Batchrequest(std::shared_ptr<Descripted> pdescripted, Batchslot slot, HeaderView h)
+    Batchrequest(std::shared_ptr<Descripted> pdescripted, Batchslot slot, HashView h)
         : BatchreqMsg { BatchSelector { pdescripted->descriptor, slot.lower(), HEADERBATCHSIZE } }
         , minReturn(HEADERBATCHSIZE)
         , descripted(std::move(pdescripted))
-        , extra(Header(h))
+        , extra(Hash(h))
     {
     }
 };

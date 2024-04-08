@@ -241,7 +241,7 @@ void get_chain_hash(Height hh, HashCb f)
     global().pcs->api_get_hash(hh, f);
 }
 
-void get_chain_grid(GridCb f)
+void get_chain_grid(HashGridCb f)
 {
     global().pcs->api_get_grid(f);
 }

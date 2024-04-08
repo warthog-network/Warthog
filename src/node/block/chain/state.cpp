@@ -8,7 +8,7 @@ bool Descripted::valid()
         && _grid.slot_end().offset() <= _chainLength);
 }
 
-Descripted::Descripted(Descriptor descriptor, Height chainLength, Worksum worksum, Grid grid)
+Descripted::Descripted(Descriptor descriptor, Height chainLength, Worksum worksum, HashGrid grid)
         : descriptor(descriptor)
         , _chainLength(chainLength)
         , _worksum(worksum)

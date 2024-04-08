@@ -6,7 +6,7 @@
 struct Descripted;
 class HeaderView;
 class Headerchain;
-class Grid;
+class HashGrid;
 
 class ForkHeight {
 
@@ -58,7 +58,7 @@ public:
         }
     };
     ForkRange() {}
-    ForkRange(const Headerchain&, const Grid& g, Batchslot begin = Batchslot(0));
+    ForkRange(const Headerchain&, const HashGrid& g, Batchslot begin = Batchslot(0));
     ForkRange(NonzeroHeight lFork, NonzeroHeight uFork = upper_open)
         : l(lFork)
         , u(uFork)
@@ -94,6 +94,6 @@ public:
 private:
     bool detect_shrink(const Descripted&, const Headerchain&);
     void initialize(Height lFork, Height uFork = upper_open);
-    void grid_match(Batchslot begin, const Grid& g, const Headerchain& ownHeaders);
+    void grid_match(Batchslot begin, const HashGrid& g, const Headerchain& ownHeaders);
     void on_fork(NonzeroHeight forkHeight);
 };

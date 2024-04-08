@@ -11,6 +11,19 @@ public:
     {
         return View::operator==(hv);
     };
+    struct HashComparatorComparator {
+        using arr = std::array<uint8_t, 32>;
+        using is_transparent = std::true_type;
+        bool operator()(const arr& arr1, const arr& arr2) const { return arr1 < arr2; }
+        bool operator()(const arr& arr, HashView hv) const
+        {
+            return memcmp(arr.data(), hv.data(), 32) < 0;
+        }
+        bool operator()(HashView hv, const arr& arr) const
+        {
+            return memcmp(hv.data(), arr.data(), 32) < 0;
+        }
+    };
 };
 
 class Hash : public std::array<uint8_t, 32> {

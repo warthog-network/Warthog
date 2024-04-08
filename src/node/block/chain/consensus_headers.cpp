@@ -289,7 +289,19 @@ ExtendableHeaderchain::ExtendableHeaderchain(
     for (size_t i = 0; i < init.size(); ++i) {
         incompleteBatch = std::move(init[i]);
         if (incompleteBatch.complete()) {
-            finalPin = br.share(std::move(incompleteBatch), finalPin);
+            bool foundHashView { false };
+            if (i + 1 < init.size()) {
+                const Batch& batch { init[i + 1] };
+                if (batch.size() > 0) {
+                    finalPin = br.share(std::move(incompleteBatch),
+                        batch.first().prevhash(), finalPin);
+                    foundHashView = true;
+                }
+            }
+            if (!foundHashView) {
+                finalPin = br.share(std::move(incompleteBatch),
+                    incompleteBatch.last().hash(), finalPin);
+            }
             completeBatches.push_back(finalPin);
             incompleteBatch.clear();
             incompleteHeightOffset = finalPin.upper_height();
@@ -326,7 +338,8 @@ void ExtendableHeaderchain::append(const HeaderVerifier::PreparedAppend& p,
     worksum += checker.next_target();
     incompleteBatch.append(p.hv);
     if (incompleteBatch.complete()) {
-        finalPin = br.share(std::move(incompleteBatch), finalPin, worksum);
+        finalPin = br.share(std::move(incompleteBatch), p.hash,
+            finalPin, worksum);
         completeBatches.push_back(finalPin);
         incompleteBatch.clear();
     }

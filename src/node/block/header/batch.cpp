@@ -88,11 +88,18 @@ Grid::Grid(const Headerchain& hc, Batchslot begin)
 {
 }
 
-bool Grid::valid_checkpoint() const
+bool HashGrid::valid_checkpoint() const
 {
     auto cp = GridPin::checkpoint();
     return is_testnet() || (!cp)
         || (cp->slot < slot_end() && cp->finalHeader == operator[](cp->slot));
+}
+
+HashGrid::HashGrid(const Headerchain& hc, Batchslot begin)
+{
+    for (Batchslot s { begin }; s < Batchslot(hc.complete_batches().size()); ++s) {
+        data.push_back(hc.hash_at(s.upper()));
+    }
 }
 
 HashGrid HashGrid::from_header_grid(std::span<const uint8_t> s)
@@ -117,4 +124,11 @@ HashGrid HashGrid::from_hashes(std::span<const uint8_t> s)
         hashes.push_back(hash);
     }
     return HashGrid { hashes };
+}
+
+void HashGrid::append(Grid g)
+{
+    for (size_t i = 0; i < g.size(); ++i) {
+        data.push_back(g[i].hash());
+    }
 }

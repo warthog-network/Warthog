@@ -137,11 +137,20 @@ json endpoint_json(auto& v)
     return e;
 }
 
-json grid_json(const Grid& g)
+// json grid_json(const Grid& g)
+// {
+//     json out = json::array();
+//     for (auto header : g) {
+//         out.push_back(serialize_hex(header));
+//     }
+//     return out;
+// }
+
+json grid_json(const HashGrid& g)
 {
     json out = json::array();
-    for (auto header : g) {
-        out.push_back(serialize_hex(header));
+    for (auto hash : g) {
+        out.push_back(serialize_hex(hash));
     }
     return out;
 }
@@ -159,7 +168,7 @@ json header_json(const Header& header, NonzeroHeight height)
     h["utc"] = format_utc(header.timestamp());
     h["target"] = serialize_hex(targetBE);
     h["difficulty"] = target.difficulty();
-    h["hash"] = serialize_hex(header.hash());
+    h["hash"] = serialize_hex(blockHash);
     h["pow"] = json {
         { "hashVerus", serialize_hex(verusHash) },
         { "hashSha256t", serialize_hex(sha256tHash) },
@@ -478,7 +487,7 @@ std::string serialize(const std::vector<API::Peerinfo>& connected)
             { "descriptor", item.chainstate.descripted()->descriptor },
             { "worksum", item.chainstate.descripted()->worksum().getdouble() },
             { "worksumHex", item.chainstate.descripted()->worksum().to_string() },
-            { "grid", grid_json(item.chainstate.descripted()->grid()) }
+            { "grid", grid_json(item.chainstate.descripted()->hash_grid()) }
         };
         j.push_back(elem);
     }
@@ -502,7 +511,7 @@ json to_json(const API::Balance& b)
     return j;
 }
 
-json to_json(const Grid& g)
+json to_json(const HashGrid& g)
 {
     json j(json::array());
     for (const auto& h : g) {
