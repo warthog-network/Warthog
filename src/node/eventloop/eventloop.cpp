@@ -344,7 +344,8 @@ void Eventloop::handle_event(PeersCb&& cb)
     cb(out);
 }
 
-void Eventloop::handle_event(SyncedCb&& cb){
+void Eventloop::handle_event(SyncedCb&& cb)
+{
     cb(!blockDownload.is_active());
 }
 
@@ -618,6 +619,11 @@ void Eventloop::handle_connection_timeout(Conref cr, Timer::CloseNoPong&&)
 {
     cr.ping().reset_expired(timer);
     close(cr, ETIMEOUT);
+}
+
+void Eventloop::handle_timeout(Timer::ScheduledConnect&&)
+{
+    // TODO
 }
 
 void Eventloop::handle_connection_timeout(Conref cr, Timer::SendPing&&)
@@ -952,13 +958,18 @@ void Eventloop::update_sync_state()
         global().chainServer->async_set_synced(c.value());
     }
 }
+
 void Eventloop::set_scheduled_connect_timer()
 {
     auto t { connections.pop_scheduled_connect_time() };
     if (!t)
         return;
     auto& tp { *t };
-    // TODO
-    // timer
-    // tp
+
+    if (wakeupTimer) {
+        if ((*wakeupTimer)->first <= tp)
+            return;
+        timer.cancel(*wakeupTimer);
+    }
+    timer.insert(tp, Timer::ScheduledConnect {});
 }

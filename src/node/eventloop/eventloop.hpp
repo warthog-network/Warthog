@@ -160,6 +160,8 @@ private:
     void handle_connection_timeout(Conref, Timer::Expire&&);
     void handle_connection_timeout(Conref, Timer::CloseNoReply&&);
     void handle_connection_timeout(Conref, Timer::CloseNoPong&&);
+    void handle_timeout(Timer::ScheduledConnect&&);
+
     void on_request_expired(Conref cr, const Proberequest&);
     void on_request_expired(Conref cr, const Batchrequest&);
     void on_request_expired(Conref cr, const Blockrequest&);

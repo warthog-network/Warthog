@@ -37,7 +37,6 @@ public:
     auto insert(time_point expires, Event e){
         return ordered.emplace(expires,e);
     }
-    template <typename _Rep, typename _Period>
     auto insert(std::chrono::steady_clock::duration duration, Event e){
         time_point expires { std::chrono::steady_clock::now() + duration};
         return insert(expires,e);

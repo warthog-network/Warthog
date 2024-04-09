@@ -241,6 +241,7 @@ void ConnectionSchedule::outbound_closed(const peerserver::ConnectionData& c)
     // * outbound connect immediately if different reason
     // * outbound don't connect if disconnected on purpose due to too many connections
 }
+
 void ConnectionSchedule::outbound_failed(const ConnectRequest& cr)
 {
     outbound_connection_ended(cr, ConnectionState::NOT_CONNECTED);

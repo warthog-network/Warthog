@@ -96,7 +96,7 @@ struct Inspector {
     //     j["pins"] = pins;
     //     return j.dump(1);
     // }
-}
+};
 
 namespace {
 template <typename T>
