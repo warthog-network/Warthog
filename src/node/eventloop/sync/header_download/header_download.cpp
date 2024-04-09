@@ -224,7 +224,7 @@ void Downloader::queue_requests(Lead_iter li)
     }
 }
 
-Conref Downloader::try_send(ConnectionFinder& f, const ReqData& rd)
+Conref Downloader::try_send(ConnectionFinder& f, std::vector<ChainOffender> offenders, const ReqData& rd)
 { // OK
     uint32_t index = f.conIndex;
     uint32_t bound = connections.size();
@@ -246,7 +246,12 @@ Conref Downloader::try_send(ConnectionFinder& f, const ReqData& rd)
             // consider updating probe with cacheMatch
             if (rd.cacheMatch && (!pd || pd->qiter == rd.queueEntry.iter)) {
                 ForkRange& fr { rd.cacheMatch->fork_range(cr) };
-                fr.on_match(rd.slot.offset());
+                try {
+                    fr.on_match(rd.slot.offset());
+                } catch (const ChainError& e) {
+                    offenders.push_back({ e, cr });
+                    continue;
+                }
                 if (!pd || (pd->fork_range().lower() < fr.lower())) {
                     clear_connection_probe(cr);
                     ProbeData newpd { fr, std::move(rd.cacheMatch->pin) };
@@ -262,7 +267,7 @@ Conref Downloader::try_send(ConnectionFinder& f, const ReqData& rd)
                     f.s.send(cr, *br);
                     clear_connection_probe(cr);
                     f.conIndex = index;
-                    return cr;
+                    return  cr;
                 }
             } else {
                 Batchrequest br(desc, rd.slot, rd.finalHash);
@@ -345,13 +350,14 @@ void Downloader::do_probe_requests(RequestSender s)
     }
 }
 
-void Downloader::do_requests(RequestSender s)
+std::vector<ChainOffender> Downloader::do_requests(RequestSender s)
 {
+    std::vector<ChainOffender> res;
 
     // highest priority for leaders to handle their own probe or final request
     for (Conref cr : connections) {
         if (s.finished())
-            return;
+            return res;
         if (cr.job()
             || !is_leader(cr)
             || try_final_request(data(cr).leaderIter, s))
@@ -362,7 +368,7 @@ void Downloader::do_requests(RequestSender s)
     for (auto& ln : leaderList) {
         for (auto& q : ln.queued()) {
             if (s.finished())
-                return;
+                return res;
             ReqData rd(q);
             if (q.node().has_pending_request())
                 continue;
@@ -371,12 +377,13 @@ void Downloader::do_requests(RequestSender s)
                 // cache for later request pins
                 rd.cacheMatch = chains.lookup(q.pin_prev());
             }
-            if (Conref cr = try_send(cf, rd); cr.valid()) {
+            if (Conref cr = try_send(cf, res, rd); cr.valid()) {
                 q.node().cr = cr;
                 data(cr).jobPtr = &q.node();
             }
         }
     }
+    return res;
 }
 
 void Downloader::on_request_expire(Conref cr, const Batchrequest&)

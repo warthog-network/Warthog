@@ -342,7 +342,8 @@ void Eventloop::handle_event(PeersCb&& cb)
     cb(out);
 }
 
-void Eventloop::handle_event(SyncedCb&& cb){
+void Eventloop::handle_event(SyncedCb&& cb)
+{
     cb(!blockDownload.is_active());
 }
 
@@ -603,7 +604,13 @@ void Eventloop::send_requests(Conref cr, const std::vector<Request>& requests)
 
 void Eventloop::do_requests()
 {
-    headerDownload.do_requests(sender());
+start:
+    auto offenders { headerDownload.do_requests(sender()) };
+    if (offenders.size() > 0) {
+        for (auto& o : offenders)
+            close(o);
+        goto start;
+    }
     blockDownload.do_peer_requests(sender());
     headerDownload.do_probe_requests(sender());
     blockDownload.do_probe_requests(sender());
