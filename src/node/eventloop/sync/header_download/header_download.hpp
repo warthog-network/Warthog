@@ -75,6 +75,7 @@ struct QueueBatchNode {
     std::vector<Conref> probeRefs;
     bool has_pending_request() { return cr.valid(); }
 };
+using Queued_iter = std::map<Header, QueueBatchNode>::iterator;
 inline bool operator<(const Queued_iter& l1, const Queued_iter& l2)
 {
     static_assert(sizeof(uint64_t) == sizeof(l1));
@@ -82,7 +83,7 @@ inline bool operator<(const Queued_iter& l1, const Queued_iter& l2)
 }
 
 struct QueueEntry {
-    std::optional<Hash> prevHash;
+    std::optional<Header> prevHeader;
     Queued_iter iter;
 };
 
@@ -142,8 +143,8 @@ private:
             std::optional<ChainPin> pin_prev() const
             {
                 auto& entry = q.ln.queuedIters[i];
-                if (entry.prevHash) {
-                    return ChainPin { slot().offset(), *entry.prevHash };
+                if (entry.prevHeader) {
+                    return ChainPin { slot().offset(), *entry.prevHeader };
                 }
                 return {};
             }
@@ -270,8 +271,8 @@ private:
     void verify_queued(Queued_iter qi, const Lead_set& leaders, std::vector<Offender>& out);
 
     // queued batch related
-    Queued_map queuedBatches;
-    void acquire_queued_batch(std::optional<Hash>, HashView, Lead_iter);
+    std::map<Header, QueueBatchNode> queuedBatches;
+    void acquire_queued_batch(std::optional<Header>, HeaderView, Lead_iter);
     void release_first_queued_batch(Lead_iter);
     void shift_queued_batch(Lead_iter);
 

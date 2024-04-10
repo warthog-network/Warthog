@@ -1,13 +1,12 @@
 #pragma once
 #include "block/chain/batch_slot.hpp"
 #include "block/header/view.hpp"
-#include "crypto/hash.hpp"
 struct ChainPin {
     Height height;
-    Hash hash;
+    HeaderView header;
 };
 struct GridPin {
     Batchslot slot;
-    HashView finalHeader;
+    HeaderView finalHeader;
     static std::optional<GridPin> checkpoint();
 };

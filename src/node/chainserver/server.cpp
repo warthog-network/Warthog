@@ -68,7 +68,7 @@ void ChainServer::api_get_balance(const API::AccountIdOrAddress& a, BalanceCb ca
     defer_maybe_busy(GetBalance { a, std::move(callback) });
 }
 
-void ChainServer::api_get_grid(HashGridCb callback)
+void ChainServer::api_get_grid(GridCb callback)
 {
     defer_maybe_busy(GetGrid { std::move(callback) });
 }
@@ -229,7 +229,7 @@ void ChainServer::handle_event(MiningAppend&& e)
 
 void ChainServer::handle_event(GetGrid&& e)
 {
-    e.callback(state.get_headers().hash_grid());
+    e.callback(state.get_headers().grid());
 }
 
 void ChainServer::handle_event(GetBalance&& e)

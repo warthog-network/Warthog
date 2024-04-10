@@ -1,6 +1,5 @@
 #pragma once
 #include "block/chain/pin.hpp"
-#include "crypto/hash.hpp"
 #include "general/errors.hpp"
 #include <span>
 
@@ -217,7 +216,7 @@ public:
     Grid(const Headerchain&, Batchslot begin);
     using Headervec::operator[];
     HeaderView operator[](Batchslot s) const { return Headervec::operator[](s.index()); }
-    static Batchslot slot_begin()
+    Batchslot slot_begin() const
     {
         return Batchslot(0);
     }
@@ -228,51 +227,9 @@ public:
     [[nodiscard]] std::optional<ChainPin> back_pin() const
     {
         if (size() > 0) {
-            return ChainPin { slot_end().offset(), last().hash() };
-        }
-        return {};
-    }
-};
-
-class HashGrid {
-public:
-    static HashGrid from_header_grid(std::span<const uint8_t> s);
-    static HashGrid from_hashes(std::span<const uint8_t> s);
-    explicit HashGrid(const Grid& g) { append(g); };
-    HashGrid(const Headerchain&, Batchslot begin);
-    auto operator[](Batchslot s) const { return data.at(s.index()); }
-    HashView operator[](size_t i) const { return data.at(i); }
-    static Batchslot slot_begin()
-    {
-        return Batchslot(0);
-    }
-    Batchslot slot_end() const
-    {
-        return Batchslot(data.size());
-    }
-    auto begin() const { return data.begin(); }
-    auto end() const { return data.end(); }
-    void append(Grid g);
-    void shrink(size_t elements)
-    {
-        assert(size() >= elements);
-        data.erase(data.begin() + elements, data.end());
-    }
-    size_t size() const { return data.size(); }
-    [[nodiscard]] std::optional<ChainPin> back_pin() const
-    {
-        if (size() > 0) {
-            return ChainPin { slot_end().offset(), data.back() };
+            return ChainPin { slot_end().offset(), last() };
         }
         return {};
     }
     bool valid_checkpoint() const;
-
-private:
-    HashGrid(std::vector<Hash> data)
-        : data(std::move(data))
-    {
-    }
-    HashGrid() { }
-    std::vector<Hash> data;
 };

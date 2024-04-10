@@ -67,14 +67,14 @@ public:
         std::shared_ptr<std::shared_ptr<Headerchain>> data;
     };
 
-    struct HashGridView {
-        const Headerchain& hc;
-        HashView operator[](Batchslot s) const { return hc.get_hash(s.upper()).value(); }
-        HashView operator[](size_t i) const { return operator[](Batchslot(i)); }
-        size_t size() const { return hc.complete_batches().size(); }
+    struct GridView {
+        const std::vector<SharedBatchView>& vec;
+        HeaderView operator[](Batchslot s) const { return vec[s.index()].getBatch().last(); }
+        HeaderView operator[](size_t i) const { return vec[i].getBatch().last(); }
+        size_t size() const { return vec.size(); }
         Batchslot slot_end() const { return Batchslot(size()); }
-        HashGridView(const Headerchain& hc)
-            : hc(hc) {};
+        GridView(const std::vector<SharedBatchView>& vec)
+            : vec(vec) {};
     };
     // chain updates
     [[nodiscard]] HeaderchainAppend get_append(Height prevLength) const;
@@ -88,7 +88,7 @@ public:
 
     size_t nonempty_batch_size() const { return completeBatches.size() + (incompleteBatch.size() > 0 ? 1 : 0); }
     Batch get_headers(NonzeroHeight begin, NonzeroHeight end) const;
-    HashGridView hash_grid_view() const { return {*this}; }
+    GridView grid_view() const { return completeBatches; }
     std::optional<HeaderView> get_header(Height) const;
     [[nodiscard]] Height length() const
     {
@@ -103,7 +103,6 @@ public:
     Headerchain& operator=(Headerchain&&) = default;
     const HeaderViewNoHash operator[](NonzeroHeight) const;
     Grid grid(Batchslot begin = Batchslot(0)) const;
-    HashGrid hash_grid(Batchslot begin = Batchslot(0)) const;
     const Batch* operator[](Batchslot bs) const
     {
         size_t index = bs.index();

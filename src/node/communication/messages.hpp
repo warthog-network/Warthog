@@ -56,7 +56,6 @@ struct InitMsg : public MsgCode<0> {
     Grid grid;
 };
 
-
 struct ForkMsg : public MsgCode<1> {
     static constexpr size_t maxSize = 20000;
     static auto from_reader(Reader& r) -> ForkMsg;
@@ -312,18 +311,6 @@ struct LeaderMsg : public MsgCode<16> {
     // data
     SignedSnapshot signedSnapshot;
 };
-
-// struct PreInitMsg : public MsgCode<17> {
-//     PreInitMsg(Reader& r);
-//     static constexpr size_t maxSize = 100000;
-//
-//     // int32_t 
-//     Descriptor descriptor;
-//     SignedSnapshot::Priority sp;
-//     Height chainLength;
-//     Worksum worksum;
-//     Grid grid;
-// };
 
 namespace messages {
 [[nodiscard]] size_t size_bound(uint8_t msgtype);

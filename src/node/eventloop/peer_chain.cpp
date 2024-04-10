@@ -12,10 +12,10 @@ void PeerChain::initialize(const InitMsg& msg, const StageAndConsensus& sac)
         msg.descriptor,
         msg.chainLength,
         msg.worksum,
-        HashGrid(msg.grid));
+        msg.grid);
     auto& d = *desc.get();
-    consensusForkRange = ForkRange { sac.consensus_state().headers(), d.hash_grid() };
-    stageForkRange = ForkRange { sac.stage_headers(), desc->hash_grid() };
+    consensusForkRange = ForkRange { sac.consensus_state().headers(), d.grid() };
+    stageForkRange = ForkRange { sac.stage_headers(), desc->grid() };
     priority = msg.sp;
 }
 
@@ -36,7 +36,7 @@ void PeerChain::on_peer_fork(const ForkMsg& msg, const StageAndConsensus& sac)
         throw Error(EDESCRIPTOR);
     }
 
-    auto newgrid { desc->hash_grid() };
+    auto newgrid { desc->grid() };
     newgrid.shrink((msg.forkHeight - 1).complete_batches());
     newgrid.append(msg.grid);
 
@@ -58,7 +58,7 @@ void PeerChain::on_peer_shrink(const SignedPinRollbackMsg& msg, const StageAndCo
         throw Error(EDESCRIPTOR);
     }
 
-    auto newgrid { desc->hash_grid() };
+    auto newgrid { desc->grid() };
     newgrid.shrink((msg.shrinkLength).complete_batches());
 
     desc = std::make_shared<Descripted>(

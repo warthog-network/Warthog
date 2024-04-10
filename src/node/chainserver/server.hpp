@@ -47,7 +47,7 @@ public:
         MempoolInsertCb callback;
     };
     struct GetGrid {
-        HashGridCb callback;
+        GridCb callback;
     };
     struct GetBalance {
         API::AccountIdOrAddress account;
@@ -188,7 +188,7 @@ public:
     // void api_put_mempool(PaymentCreateMessage, ResultCb cb);
     void api_put_mempool(PaymentCreateMessage, MempoolInsertCb cb);
     void api_get_balance(const API::AccountIdOrAddress& a, BalanceCb callback);
-    void api_get_grid(HashGridCb);
+    void api_get_grid(GridCb);
     void api_get_mempool(MempoolCb callback);
     void api_lookup_tx(const HashView hash, TxCb callback);
     void api_lookup_latest_txs(LatestTxsCb callback);

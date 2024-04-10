@@ -11,7 +11,7 @@ struct Descripted {
     const Descriptor descriptor;
     std::optional<std::chrono::steady_clock::time_point> deprecation_time;
 
-    Descripted(Descriptor descriptor, Height chainLength, Worksum worksum, HashGrid grid);
+    Descripted(Descriptor descriptor, Height chainLength, Worksum worksum, Grid grid);
     void deprecate();
     void append_throw(const AppendMsg& msg); //throws
 
@@ -19,13 +19,13 @@ struct Descripted {
     [[nodiscard]] bool expired() const;
     [[nodiscard]] Height chain_length() const{return _chainLength;}
     [[nodiscard]] const Worksum& worksum() const {return _worksum;}
-    [[nodiscard]] const HashGrid& hash_grid() const {return _grid;}
+    [[nodiscard]] const Grid& grid() const {return _grid;}
 
 
     private:
     bool valid();
     Height _chainLength { 0u };
     Worksum _worksum;
-    HashGrid _grid;
+    Grid _grid;
 };
 

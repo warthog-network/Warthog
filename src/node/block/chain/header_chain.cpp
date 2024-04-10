@@ -291,11 +291,6 @@ Grid Headerchain::grid(Batchslot begin) const
     return { *this, begin };
 }
 
-HashGrid Headerchain::hash_grid(Batchslot begin) const
-{
-    return { *this, begin };
-}
-
 void Headerchain::initialize_worksum()
 {
     assert(Height(completeBatches.size() * HEADERBATCHSIZE) == finalPin.upper_height());

@@ -3,7 +3,7 @@
 struct ProbeData;
 struct ProbeBalanced {
 
-    [[nodiscard]] static std::optional<Batchrequest> slot_batch_request(const ProbeData&, const std::shared_ptr<Descripted>&, Batchslot s, HashView h);
+    [[nodiscard]] static std::optional<Batchrequest> slot_batch_request(const ProbeData&, const std::shared_ptr<Descripted>&, Batchslot s, Header h);
     [[nodiscard]] static std::optional<Batchrequest> final_partial_batch_request(const ProbeData&, const std::shared_ptr<Descripted>&, NonzeroHeight maxLength, Worksum minWork);
     [[nodiscard]] static std::optional<Proberequest> probe_request(const ProbeData&, const std::shared_ptr<Descripted>&, Height maxLength);
 

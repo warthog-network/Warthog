@@ -18,7 +18,7 @@ std::optional<Proberequest> ProbeBalanced::probe_request(const ProbeData& pd, co
     return ProbeBalanced { pd, maxLength }.probe_request(desc);
 }
 
-[[nodiscard]] std::optional<Batchrequest> ProbeBalanced::slot_batch_request(const ProbeData& pd, const std::shared_ptr<Descripted>& desc, Batchslot slot, HashView h)
+[[nodiscard]] std::optional<Batchrequest> ProbeBalanced::slot_batch_request(const ProbeData& pd, const std::shared_ptr<Descripted>& desc, Batchslot slot, Header h)
 {
     auto maxLength = slot.upper();
     ProbeBalanced pb { pd, maxLength };

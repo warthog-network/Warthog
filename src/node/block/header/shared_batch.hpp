@@ -9,7 +9,7 @@ class HeaderVerifier;
 class SignedSnapshot;
 class SharedBatchView {
     friend class BatchRegistry;
-    using Maptype = std::map<Hash, Nodedata, HashView::HashComparatorComparator>;
+    using Maptype = std::map<std::array<uint8_t, 80>, Nodedata, HeaderView::HeaderComparator>;
     using iter_type = Maptype::iterator;
     friend class SharedBatch;
 
@@ -36,7 +36,7 @@ private:
 };
 
 class SharedBatch {
-    using Maptype = std::map<Hash, Nodedata, HashView::HashComparatorComparator>;
+    using Maptype = std::map<std::array<uint8_t, 80>, Nodedata, HeaderView::HeaderComparator>;
     using iter_type = Maptype::iterator;
     friend struct Nodedata;
 
@@ -165,16 +165,16 @@ inline const SharedBatch& SharedBatch::prev() const
 
 class BatchRegistry {
     friend class SharedBatch;
-    using Maptype = std::map<Hash, Nodedata, HashView::HashComparatorComparator>;
+    using Maptype = std::map<std::array<uint8_t, 80>, Nodedata, HeaderView::HeaderComparator>;
 
 public:
     ~BatchRegistry()
     {
         assert(headers.size() == 0);
     }
-    [[nodiscard]] SharedBatch share(Batch&& headerbatch, HashView, const SharedBatch& prev);
-    [[nodiscard]] SharedBatch share(Batch&& headerbatch, HashView, const SharedBatch& prev, Worksum totalWork);
-    std::optional<SharedBatch> find_last(const HashGrid g, const std::optional<SignedSnapshot>&);
+    [[nodiscard]] SharedBatch share(Batch&& headerbatch, const SharedBatch& prev);
+    [[nodiscard]] SharedBatch share(Batch&& headerbatch, const SharedBatch& prev, Worksum totalWork);
+    std::optional<SharedBatch> find_last(const Grid g, const std::optional<SignedSnapshot>&);
     // std::optional<SharedBatch> findLast(const std::vector<Batch>& batches, const std::optional<SignedSnapshot>&);
 
 private: // private methods

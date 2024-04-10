@@ -69,22 +69,23 @@ HeaderVerifier SharedBatch::verifier() const
     return *this;
 }
 
-SharedBatch BatchRegistry::share(Batch&& headerbatch, HashView hash, const SharedBatch& prev)
+SharedBatch BatchRegistry::share(Batch&& headerbatch, const SharedBatch& prev)
 {
     assert(headerbatch.complete());
     Worksum totalWork = prev.total_work() + headerbatch.worksum(prev.upper_height());
-    return share(std::move(headerbatch), hash, prev, totalWork);
+    return share(std::move(headerbatch), prev, totalWork);
 }
 
-SharedBatch BatchRegistry::share(Batch&& headerbatch, HashView hash, const SharedBatch& prev, Worksum totalWork) // TODO: provide key to avoid recomputation by hashing
+SharedBatch BatchRegistry::share(Batch&& headerbatch, const SharedBatch& prev, Worksum totalWork)
 {
     assert(headerbatch.complete());
+    Header key(headerbatch.back());
     std::unique_lock l(m);
-    auto iter = headers.find(hash);
+    auto iter = headers.find(key);
     if (iter == headers.end()) {
         // check prevalid
         return headers.try_emplace(
-                          hash,
+                          key,
                           *this, std::move(headerbatch), totalWork, SharedBatch(prev.data.iter))
             .first;
     } else {
@@ -104,7 +105,7 @@ SharedBatchView BatchRegistry::find_last_template(const T& t)
     while (true) {
         if (b == Batchslot(0))
             return {};
-        HashView hv { t[c] };
+        HeaderView hv = t[c];
         auto iter = headers.find(hv);
         if (iter == headers.end())
             b = c;
@@ -119,7 +120,7 @@ SharedBatchView BatchRegistry::find_last_template(const T& t)
     }
 }
 
-std::optional<SharedBatch> BatchRegistry::find_last(const HashGrid g, const std::optional<SignedSnapshot>& ss)
+std::optional<SharedBatch> BatchRegistry::find_last(const Grid g, const std::optional<SignedSnapshot>& ss)
 {
     std::unique_lock l(m);
     auto res { find_last_template(g) };

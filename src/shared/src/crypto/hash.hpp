@@ -1,6 +1,8 @@
 #pragma once
+#include "general/params.hpp"
 #include "general/view.hpp"
 #include <array>
+#include <cstring>
 
 class Hash;
 class HashView : public View<32> {
@@ -10,19 +12,6 @@ public:
     inline bool operator==(HashView hv) const
     {
         return View::operator==(hv);
-    };
-    struct HashComparatorComparator {
-        using arr = std::array<uint8_t, 32>;
-        using is_transparent = std::true_type;
-        bool operator()(const arr& arr1, const arr& arr2) const { return arr1 < arr2; }
-        bool operator()(const arr& arr, HashView hv) const
-        {
-            return memcmp(arr.data(), hv.data(), 32) < 0;
-        }
-        bool operator()(HashView hv, const arr& arr) const
-        {
-            return memcmp(hv.data(), arr.data(), 32) < 0;
-        }
     };
 };
 
