@@ -246,7 +246,7 @@ void Eventloop::update_chain(Append&& m)
 
 void Eventloop::update_chain(Fork&& fork)
 {
-    auto msg { chains.update_consensus(std::move(fork)) };
+    const auto msg { chains.update_consensus(std::move(fork)) };
     log_chain_length();
     for (auto c : connections.initialized()) {
         try {

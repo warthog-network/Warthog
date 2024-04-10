@@ -22,18 +22,21 @@ std::pair<Height, AppendMsg> ConsensusSlave::apply(Append&& append)
 
 ForkMsg ConsensusSlave::apply(Fork&& fork)
 {
+    assert(descriptor_ + 1 == fork.descriptor);
     descriptor_ = fork.descriptor;
     if (pinGenerator.use_count() > 1) {
         *pinGenerator = std::move(fork.prevChain);
     }
     pinGenerator.reset();
-    auto res { headerchain->apply_fork(std::move(fork)) };
 
     // signed snapshot
     if (fork.signedSnapshot) {
         signedSnapshot = fork.signedSnapshot;
         assert(signedSnapshot->compatible(*headerchain));
     }
+
+    auto res { headerchain->apply_fork(std::move(fork)) };
+
     return res;
 };
 
@@ -46,8 +49,10 @@ auto ConsensusSlave::apply(const RollbackData& rd) -> std::optional<SignedPinRol
 
     // rollback
     if (rd.data) {
-        descriptor_ = rd.data->rollback.descriptor;
-        headerchain->shrink(rd.data->rollback.shrinkLength);
+        auto& rollback { rd.data->rollback };
+        assert(descriptor_ + 1 == rollback.descriptor);
+        descriptor_ = rollback.descriptor;
+        headerchain->shrink(rollback.shrinkLength);
 
         // prevChain
         if (pinGenerator.use_count() > 1) {
@@ -75,8 +80,9 @@ Headerchain::pin_t ConsensusSlave::get_pin() const
     }
     return { pinGenerator };
 };
-const SignedSnapshot::Priority ConsensusSlave::get_signed_snapshot_priority() const { 
-    if (signedSnapshot) 
+const SignedSnapshot::Priority ConsensusSlave::get_signed_snapshot_priority() const
+{
+    if (signedSnapshot)
         return signedSnapshot->priority;
     return {};
 }
