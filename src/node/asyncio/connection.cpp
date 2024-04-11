@@ -312,7 +312,7 @@ void Connection::close(int errcode)
         conman.perIpCounter.erase(peerAddress.ipv4);
     }
 
-    if (errors::is_malicious(errcode)) {
+    if (errors::leads_to_ban(errcode)) {
         if (reconnectSleep) {
             reconnectSleep = 60 * 60; // do not connect for 1 hour
         }
