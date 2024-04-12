@@ -338,7 +338,7 @@ void ExtendableHeaderchain::append(const HeaderVerifier::PreparedAppend& p,
     worksum += checker.next_target();
     incompleteBatch.append(p.hv);
     if (incompleteBatch.complete()) {
-        finalPin = br.share(std::move(incompleteBatch), p.hash,
+        finalPin = br.share(std::move(incompleteBatch), checker.final_hash(),
             finalPin, worksum);
         completeBatches.push_back(finalPin);
         incompleteBatch.clear();
