@@ -11,7 +11,7 @@ public:
     {
         return View::operator==(hv);
     };
-    struct HashComparatorComparator {
+    struct HashComparator {
         using arr = std::array<uint8_t, 32>;
         using is_transparent = std::true_type;
         bool operator()(const arr& arr1, const arr& arr2) const { return arr1 < arr2; }

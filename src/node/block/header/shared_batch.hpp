@@ -9,7 +9,7 @@ class HeaderVerifier;
 class SignedSnapshot;
 class SharedBatchView {
     friend class BatchRegistry;
-    using Maptype = std::map<Hash, Nodedata, HashView::HashComparatorComparator>;
+    using Maptype = std::map<Hash, Nodedata, HashView::HashComparator>;
     using iter_type = Maptype::iterator;
     friend class SharedBatch;
 
@@ -36,7 +36,7 @@ private:
 };
 
 class SharedBatch {
-    using Maptype = std::map<Hash, Nodedata, HashView::HashComparatorComparator>;
+    using Maptype = std::map<Hash, Nodedata, HashView::HashComparator>;
     using iter_type = Maptype::iterator;
     friend struct Nodedata;
 
@@ -165,7 +165,7 @@ inline const SharedBatch& SharedBatch::prev() const
 
 class BatchRegistry {
     friend class SharedBatch;
-    using Maptype = std::map<Hash, Nodedata, HashView::HashComparatorComparator>;
+    using Maptype = std::map<Hash, Nodedata, HashView::HashComparator>;
 
 public:
     ~BatchRegistry()

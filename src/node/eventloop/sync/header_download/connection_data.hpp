@@ -13,7 +13,7 @@ struct LeaderNode;
 using Lead_list = std::list<LeaderNode>;
 using Lead_iter = Lead_list::iterator;
 struct QueueBatchNode;
-using Queued_map = std::map<Hash, QueueBatchNode, HashView::HashComparatorComparator>;
+using Queued_map = std::map<Hash, QueueBatchNode, HashView::HashComparator>;
 using Queued_iter = Queued_map::iterator;
 
 struct ConnectionData {
