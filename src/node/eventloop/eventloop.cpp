@@ -230,7 +230,8 @@ void Eventloop::update_chain(Append&& m)
     log_chain_length();
     for (auto c : connections.all()) {
         try {
-            c->chain.on_consensus_append(chains);
+            if (c.initialized()) 
+                c->chain.on_consensus_append(chains);
         } catch (ChainError e) {
             close(c, e);
         }
@@ -250,7 +251,8 @@ void Eventloop::update_chain(Fork&& fork)
     log_chain_length();
     for (auto c : connections.all()) {
         try {
-            c->chain.on_consensus_fork(msg.forkHeight, chains);
+            if (c.initialized()) 
+                c->chain.on_consensus_fork(msg.forkHeight, chains);
             c.send(msg);
         } catch (ChainError e) {
             close(c, e);
@@ -268,7 +270,8 @@ void Eventloop::update_chain(RollbackData&& rd)
     if (msg) {
         log_chain_length();
         for (auto c : connections.all()) {
-            c->chain.on_consensus_shrink(chains);
+            if (c.initialized()) 
+                c->chain.on_consensus_shrink(chains);
             c.send(*msg);
         }
     }
