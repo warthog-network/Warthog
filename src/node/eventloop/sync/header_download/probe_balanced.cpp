@@ -67,7 +67,7 @@ NonzeroHeight ProbeBalanced::lower(const ProbeData& probeData)
 NonzeroHeight ProbeBalanced::upper(const ProbeData& probeData, Height maxLength)
 {
     assert(maxLength + 1 >= probeData.fork_range().lower());
-    assert(probeData.headers()->length() + 1 >= probeData.fork_range().lower()); // TODO: this fails for some people, must be a bug somewhere
+    assert(probeData.headers()->length() + 1 >= probeData.fork_range().lower());
     auto u { (std::min(probeData.headers()->length(), maxLength) + 1).nonzero_assert() };
     if (auto& fr = probeData.fork_range(); fr.forked() && fr.upper() < u)
         u = fr.upper();
