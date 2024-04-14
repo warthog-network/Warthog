@@ -9,7 +9,7 @@
 #include "block/header/generator.hpp"
 #include "block/header/header_impl.hpp"
 #include "communication/create_payment.hpp"
-#include "db/chain_db.hpp"
+#include "../db/chain_db.hpp"
 #include "eventloop/types/chainstate.hpp"
 #include "general/hex.hpp"
 #include "general/is_testnet.hpp"

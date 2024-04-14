@@ -1,5 +1,5 @@
 #include "generator.hpp"
-#include "db/chain_db.hpp"
+#include "chainserver/db/chain_db.hpp"
 #include "general/is_testnet.hpp"
 #include "spdlog/spdlog.h"
 

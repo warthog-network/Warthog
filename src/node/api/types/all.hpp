@@ -8,7 +8,7 @@
 #include "block/header/header.hpp"
 #include "communication/mining_task.hpp"
 #include "crypto/address.hpp"
-#include "db/offense_entry.hpp"
+#include "peerserver/db/offense_entry.hpp"
 #include "eventloop/peer_chain.hpp"
 #include "general/funds.hpp"
 #include "general/tcp_util.hpp"

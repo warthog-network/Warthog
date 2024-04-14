@@ -4,7 +4,7 @@
 #include "block/body/rollback.hpp"
 #include "block/chain/header_chain.hpp"
 #include "block/chain/history/history.hpp"
-#include "db/chain_db.hpp"
+#include "chainserver/db/chain_db.hpp"
 
 namespace {
 

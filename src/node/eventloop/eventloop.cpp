@@ -33,6 +33,7 @@ Eventloop::Eventloop(PeerServer& ps, ChainServer& cs, const ConfigParams& config
     , headerDownload(chains, consensus().total_work())
     , blockDownload(*this)
 {
+    // spdlog::info("Peers connect size {} ", config.peers.connect.size());
     auto& ss = consensus().get_signed_snapshot();
     spdlog::info("Chain info: length {}, work {}, ", consensus().headers().length().value(), consensus().total_work().getdouble());
     if (ss.has_value()) {

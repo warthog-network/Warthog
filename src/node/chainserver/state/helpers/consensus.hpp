@@ -7,7 +7,7 @@
 #include "block/chain/offsts.hpp"
 #include "block/chain/history/index.hpp"
 #include "mempool/mempool.hpp"
-#include "db/chain/deletion_key.hpp"
+#include "chainserver/db/deletion_key.hpp"
 #include <cstdint>
 
 class ChainDB;

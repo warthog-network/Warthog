@@ -1,6 +1,6 @@
 #include "consensus.hpp"
 #include "communication/create_payment.hpp"
-#include "db/chain_db.hpp"
+#include "chainserver/db/chain_db.hpp"
 #include "global/globals.hpp"
 #include <spdlog/spdlog.h>
 namespace chainserver {

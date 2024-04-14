@@ -1,6 +1,6 @@
 #include "past_chains.hpp"
 #include "consensus.hpp"
-#include "db/chain_db.hpp"
+#include "chainserver/db/chain_db.hpp"
 
 namespace chainserver {
 using namespace std::chrono;

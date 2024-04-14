@@ -4,7 +4,7 @@
 #include "block/block.hpp"
 #include "block/chain/offsts.hpp"
 #include "block/id.hpp"
-#include "chain/deletion_key.hpp"
+#include "deletion_key.hpp"
 #include "chainserver/transaction_ids.hpp"
 #include "general/address_funds.hpp"
 #include "general/filelock/filelock.hpp"
