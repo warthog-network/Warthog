@@ -83,7 +83,7 @@ void get_wallet_from_privkey(const PrivKey& pk, WalletCb cb)
 
 void get_janushash_number(std::string_view sv, RawCb cb)
 {
-    // TODO: do header check in different thread
+    // LATER: do header check in different thread
     Header h;
     if (!parse_hex(sv, h))
         cb({ "" });
