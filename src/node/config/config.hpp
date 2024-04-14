@@ -45,7 +45,7 @@ struct ConfigParams {
     struct Peers {
         bool allowLocalhostIp = false; // do not ignore 127.xxx.xxx.xxx peer node addresses provided by peers
         EndpointVector connect;
-        bool enableBan { false };
+        bool enableBan { true };
     } peers;
     bool localDebug { false };
 

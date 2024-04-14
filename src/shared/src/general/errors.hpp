@@ -96,7 +96,7 @@
     XX(98, EINV_HEADERVEC, "invalid header vector")                     \
     XX(99, EINV_BLOCKREPSIZE, "invalid block reply size")               \
     XX(100, EMSGINTEGRITY, "message integrity check failed")            \
-    XX(101, EINV_HEX, "cannot parse hexadecimal input")                 \
+    XX(200, EINV_HEX, "cannot parse hexadecimal input")                 \
     XX(201, EBADNONCE, "cannot parse nonce")                            \
     XX(202, EBADFEE, "invalid fee")                                     \
     XX(203, EINEXACTFEE, "inexact fee not allowed")                     \
@@ -120,9 +120,22 @@ ADDITIONAL_ERRNO_MAP(ERR_DEFINE)
 namespace errors {
 const char* strerror(int32_t code);
 const char* err_name(int32_t code);
-inline bool is_malicious(int32_t code)
+inline bool leads_to_ban(int32_t code)
 {
-    return code != ECHECKSUM && code > 0 && code < 150 && code != ECHECKSUM;
+    if (code <= 0 || code > 100)
+        return false;
+    switch (code) {
+    case ECHECKSUM:
+        //
+        // We are not sure the following are triggered by evil behavior or bug.
+        // Let's observe for some more time before enable banning on them.
+    case EEMPTY:
+    case EPROBEDESCRIPTOR: 
+        return false;
+    default:
+        return true;
+    }
+    return code != ECHECKSUM && code > 0 && code <= 100;
 }
 } // namespace errors
 

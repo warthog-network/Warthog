@@ -370,6 +370,6 @@ void ChainServer::handle_event(SetSignedPin&& e)
 {
     auto res { state.apply_signed_snapshot(std::move(e.ss)) };
     if (res) {
-        global().core->defer(std::move(*res));
+        global().core->async_state_update(std::move(*res));
     }
 }

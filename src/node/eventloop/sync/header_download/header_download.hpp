@@ -234,7 +234,7 @@ public:
 
     auto leaders_end() { return leaderList.end(); }
 
-    void do_requests(RequestSender);
+    [[nodiscard]] std::vector<ChainOffender> do_requests(RequestSender);
     void do_probe_requests(RequestSender);
 
     void on_request_expire(Conref cr, const Batchrequest& msg);
@@ -249,7 +249,7 @@ private:
 
     void process_final(Lead_iter, std::vector<Offender>& out);
 
-    std::optional<Conref> try_send(ConnectionFinder& cf, const ReqData&);
+    std::optional<Conref> try_send(ConnectionFinder& cf, std::vector<ChainOffender> close, const ReqData&);
     bool try_final_request(Lead_iter, RequestSender& s);
 
     std::vector<ChainOffender> filter_leadermismatch_offenders(std::vector<Offender>);
