@@ -1,4 +1,7 @@
 FROM alpine:3.17.2 AS build
+RUN export DOCKER_CLI_EXPERIMENTAL=enabled
+RUN docker run --rm --privileged docker/binfmt
+RUN docker buildx create --use --name multi-arch-builder
 RUN apk add meson libgcc musl-dev gcc g++ upx
 COPY . /code
 RUN mkdir /build
