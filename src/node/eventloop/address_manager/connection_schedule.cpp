@@ -156,9 +156,8 @@ void EndpointVector::pop_requests(time_point now, std::vector<ConnectRequest>& o
 
 std::vector<EndpointAddress> EndpointVector::sample(size_t N) const
 {
-
-    // sample from cache
     std::vector<EndpointAddress> out;
+    out.reserve(N);
     std::sample(data.begin(), data.end(), std::back_inserter(out),
         N, std::mt19937 { std::random_device {}() });
     return out;
