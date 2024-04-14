@@ -46,5 +46,5 @@ jobs:
               ./build/windows/wart-node-windows.exe
               ./build/wart-node-linux
               ./build/wart-wallet-linux
-              ./build/wart-node-linux-arm64
-              ./build/wart-wallet-linux-arm64
+              ./build/arm64/wart-node-linux-arm64
+              ./build/arm64/wart-wallet-linux-arm64
