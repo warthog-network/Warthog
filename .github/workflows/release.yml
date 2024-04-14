@@ -19,6 +19,9 @@ jobs:
     
         - name: Docker Build
           run: DOCKER_BUILDKIT=1 docker build . -f dockerfiles/build_linux --output build
+          
+        - name: Docker Build
+          run: DOCKER_BUILDKIT=1 docker buildx build --platform linux/arm64 . -f dockerfiles/build_linux_arm64 --output ./build/arm64
     
         - name: Docker Build Windows
           run: DOCKER_BUILDKIT=1 docker build . -f dockerfiles/build_windows --output ./build/windows
