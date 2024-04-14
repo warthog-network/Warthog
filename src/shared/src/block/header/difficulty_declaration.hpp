@@ -6,7 +6,6 @@
 #include <cstdint>
 #include <variant>
 
-// TODO: check latest TargetV1 and TargetV2 modifications
 class Hash;
 struct TargetV1 { // original target with 24 bit digits, 8 bit mantissa
     static constexpr uint32_t HARDESTTARGET_HOST = 0xFF800000u; // maximal target, 232 zeros then one digit 1 and 23 digits 0
@@ -34,10 +33,6 @@ public:
     bool operator==(const TargetV1&) const = default;
 
     uint32_t binary() const { return hton32(data); }
-    // uint8_t& at(size_t index) { return ((uint8_t*)(&data))[index]; }
-    // uint8_t& operator[](size_t index) { return at(index); }
-    // uint8_t at(size_t index) const { return ((uint8_t*)(&data))[index]; }
-    // uint8_t operator[](size_t index) const { return at(index); }
     uint32_t bits24() const;
     uint32_t zeros8() const;
     bool compatible(const Hash& hash) const;
@@ -53,15 +48,18 @@ public:
 };
 
 class HashExponentialDigest;
-struct TargetV2 { // new target with 22 bit digits, 20 bit mantissa to represent hash product even for small factors
-    static constexpr uint32_t MaxTargetHost = 0xe00fffffu; // maximal target, 3*256 zeros then all 22 set to 1
-    // static_assert(MinDiffExponent < 0xe8u);
+constexpr uint32_t make_targetv2_data(uint32_t zeros, uint32_t bytes)
+{
+    return zeros << 22 | (bytes & 0x003FFFFF);
+}
+struct TargetV2 { // new target with 22 bit digits, 10 bit mantissa to represent hash product even for small factors
+    static constexpr uint32_t MaxTargetHost = make_targetv2_data(3 * 256, (1 << 22u) - 1); // maximal target, 3*256 zeros than all 22 set to 1
 
 private:
     uint32_t data;
     void set(uint32_t zeros, uint32_t bytes)
     {
-        data = zeros << 22 | bytes;
+        data = make_targetv2_data(zeros, bytes);
     }
 
     constexpr TargetV2(uint32_t data = 0u);
@@ -74,10 +72,6 @@ public:
     bool operator==(const TargetV2&) const = default;
 
     uint32_t binary() const { return hton32(data); }
-    // uint8_t& at(size_t index) { return ((uint8_t*)(&data))[index]; }
-    // uint8_t& operator[](size_t index) { return at(index); }
-    // uint8_t at(size_t index) const { return ((uint8_t*)(&data))[index]; }
-    // uint8_t operator[](size_t index) const { return at(index); }
     uint32_t bits22() const;
     uint32_t zeros10() const;
     bool compatible(const HashExponentialDigest& digest) const;
