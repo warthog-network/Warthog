@@ -103,6 +103,12 @@ To compile from source see below or [here](https://warthog.network/docs/) for a 
 
 #### Build for Linux
 * Run `DOCKER_BUILDKIT=1 docker build . -f dockerfiles/build_linux --output build` in the repo directory.
+#### Build for Linux (ARM64)
+* Run `export DOCKER_CLI_EXPERIMENTAL=enabled`
+* Run `docker run --rm --privileged docker/binfmt`
+* Run `docker buildx create --use --name multi-arch-builder`
+* Run `DOCKER_BUILDKIT=1 docker buildx build --platform linux/arm64 . -f dockerfiles/build_linux_arm64 --output ./build/arm64` in the repo.
+* ARM64 binaries are located in `./build/arm64` directory.
 #### Build for Windows (cross-compilation on Linux)
 * Run `DOCKER_BUILDKIT=1 docker build . -f dockerfiles/build_windows --output ./build/windows` in the repo.
 * Windows binaries are located in `./build/windows` directory.
