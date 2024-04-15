@@ -1,4 +1,4 @@
-[![Docker Build and Release](https://github.com/JulsKawa/Warthog/actions/workflows/docker_build_and_release.yml/badge.svg)](https://github.com/JulsKawa/Warthog/actions/workflows/docker_build_and_release.yml)
+[![Docker Release](https://github.com/warthog-network/Warthog/actions/workflows/release.yml/badge.svg)](https://github.com/JulsKawa/Warthog/actions/workflows/release.yml)
 
 WARTHOG REFERENCE IMPLEMENTATION
 Copyright (c) 2023 - 2024 Pumbaa, Timon & Rafiki
