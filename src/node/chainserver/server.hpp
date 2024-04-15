@@ -174,6 +174,10 @@ public:
     {
         return std::make_shared<ChainServer>(b, br, snapshotSigner, Token {});
     }
+    void start(){
+        assert(!worker.joinable());
+        worker = std::thread(&ChainServer::workerfun, this);
+    }
     ~ChainServer();
 
     bool is_busy();

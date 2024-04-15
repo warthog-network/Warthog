@@ -1,10 +1,16 @@
 #include "connection_schedule.hpp"
+#include "global/globals.hpp"
+#include "peerserver/peerserver.hpp"
+#include "spdlog/spdlog.h"
 #include <cassert>
 #include <functional>
+#include <future>
 #include <random>
 
 using namespace std::chrono;
 using namespace std::chrono_literals;
+
+using sc = std::chrono::steady_clock;
 
 namespace connection_schedule {
 
@@ -120,12 +126,12 @@ time_point EndpointData::update_timer(const ReconnectContext& c)
     return timer.timeout();
 }
 
-EndpointData* EndpointVector::move_entry(const EndpointAddress& key, EndpointVector& to)
+EndpointData* EndpointVector::move_entry(const EndpointAddress& key, VerifiedVector& to)
 {
     EndpointData* elem = nullptr;
     std::erase_if(data, [&key, &to, &elem](EndpointData& d) {
         if (d.address == key) {
-            to.data.push_back(std::move(d));
+            to.data.push_back(VerifiedEntry { std::move(d), sc::now() });
             elem = &to.data.back();
             return true;
         }
@@ -139,13 +145,25 @@ std::pair<EndpointData&, bool> EndpointVector::emplace(const EndpointAddressItem
     auto p { find(i.address) };
     if (p)
         return { *p, false };
-    EndpointData& e { insert(i) };
+    EndpointData& e { insert(EndpointData { i }) };
     if (auto t { e.timeout() }; t)
         update_wakeup_time(*t);
     return { e, true };
 }
 
-void EndpointVector::pop_requests(time_point now, std::vector<ConnectRequest>& out)
+std::pair<EndpointData&, bool> VerifiedVector::emplace(const EndpointAddressItem& i, tp lastVerified)
+{
+    auto p { find(i.address) };
+    if (p)
+        return { *p, false };
+    EndpointData& e { insert({ i, lastVerified }) };
+    if (auto t { e.timeout() }; t)
+        update_wakeup_time(*t);
+    return { e, true };
+}
+
+template <typename EntryData>
+void EndpointVectorBase<EntryData>::pop_requests(time_point now, std::vector<ConnectRequest>& out)
 {
     if (!wakeup_tp || wakeup_tp > now)
         return;
@@ -154,7 +172,7 @@ void EndpointVector::pop_requests(time_point now, std::vector<ConnectRequest>& o
         update_wakeup_time(e.try_pop(now, out));
 }
 
-std::vector<EndpointAddress> EndpointVector::sample(size_t N) const
+std::vector<EndpointAddress> VerifiedVector::sample(size_t N) const
 {
     std::vector<EndpointAddress> out;
     out.reserve(N);
@@ -163,18 +181,21 @@ std::vector<EndpointAddress> EndpointVector::sample(size_t N) const
     return out;
 };
 
-EndpointData& EndpointVector::insert(const EndpointAddressItem& i)
+template <typename EntryData>
+EndpointData& EndpointVectorBase<EntryData>::insert(EntryData&& ed)
 {
-    return data.emplace_back(i);
+    return data.emplace_back(ed);
 }
 
-void EndpointVector::update_wakeup_time(const std::optional<time_point>& tp)
+template <typename EntryData>
+void EndpointVectorBase<EntryData>::update_wakeup_time(const std::optional<time_point>& tp)
 {
     if (wakeup_tp < tp)
         wakeup_tp = tp;
 }
 
-EndpointData* EndpointVector::find(const EndpointAddress& address) const
+template <typename EntryData>
+EntryData* EndpointVectorBase<EntryData>::find(const EndpointAddress& address) const
 {
     auto iter { std::find_if(data.begin(), data.end(), [&](auto& elem) { return elem.address == address; }) };
     if (iter == data.end())
@@ -186,7 +207,7 @@ EndpointData* EndpointVector::find(const EndpointAddress& address) const
 auto ConnectionSchedule::find(const EndpointAddress& a) const -> std::optional<Found>
 {
     using enum EndpointState;
-    auto p = verified.find(a);
+    EndpointData* p = verified.find(a);
     if (p)
         return Found { *p, VERIFIED };
     if (p = unverifiedNew.find(a); p)
@@ -194,6 +215,36 @@ auto ConnectionSchedule::find(const EndpointAddress& a) const -> std::optional<F
     if (p = unverifiedFailed.find(a); p)
         return Found { *p, UNVERIFIED_FAILED };
     return {};
+}
+
+ConnectionSchedule::ConnectionSchedule(PeerServer& peerServer, const std::vector<EndpointAddress>& pin)
+    : pinned(pin.begin(), pin.end())
+    , peerServer(peerServer)
+{
+    constexpr size_t maxRecent = 100;
+    constexpr connection_schedule::Source startup_source { 0 };
+
+    spdlog::info("Peers connect size {} ", pin.size());
+
+    // get recently seen peers from db
+    std::promise<std::vector<std::pair<EndpointAddress, uint32_t>>> p;
+    auto future { p.get_future() };
+    auto cb = [&p](std::vector<std::pair<EndpointAddress, uint32_t>>&& v) {
+        p.set_value(std::move(v));
+    };
+    peerServer.async_get_recent_peers(std::move(cb), maxRecent);
+
+    // add pinned
+    for (auto& p : pinned)
+        pinned.insert(p);
+
+    auto db_peers = future.get();
+    int64_t nowts = now_timestamp();
+    for (const auto& [a, timestamp] : db_peers) {
+        auto lastVerified = sc::now() - seconds((nowts - int64_t(timestamp)));
+        auto [_, wasInserted] { verified.emplace({ a, startup_source }, lastVerified) };
+        assert(wasInserted);
+    }
 }
 
 std::optional<ConnectRequest> ConnectionSchedule::insert(EndpointAddressItem item)

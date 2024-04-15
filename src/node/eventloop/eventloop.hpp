@@ -48,7 +48,7 @@ class Eventloop {
 
 public:
     friend struct Inspector;
-    Eventloop(PeerServer&, ChainServer& ss, const ConfigParams& config);
+    Eventloop(PeerServer& ps, ChainServer& ss, const ConfigParams& config);
     ~Eventloop();
 
     // API callbacks
@@ -74,7 +74,7 @@ public:
     void api_get_hashrate_chart(NonzeroHeight from, NonzeroHeight to, size_t window, HashrateChartCb&& cb);
     void api_inspect(InspectorCb&&);
 
-    void start_async_loop();
+    void start();
 
 private:
     std::vector<EndpointAddress> get_db_peers(size_t num);

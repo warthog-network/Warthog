@@ -26,6 +26,10 @@ class HTTPEndpoint {
 public:
     static std::optional<HTTPEndpoint> make_public_endpoint(const ConfigParams&);
     HTTPEndpoint(EndpointAddress bind, bool isPublic = false);
+    void start(){
+        assert(!t.joinable());
+        t = std::thread(&HTTPEndpoint::work, this);
+    }
     ~HTTPEndpoint()
     {
         lc.loop->defer(std::bind(&HTTPEndpoint::shutdown, this));

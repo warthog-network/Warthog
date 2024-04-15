@@ -113,6 +113,7 @@ public:
         async_shutdown();
         worker.join();
     }
+    void start();
 
 private:
     struct RegisterPeer {

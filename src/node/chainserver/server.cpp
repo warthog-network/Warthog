@@ -33,7 +33,6 @@ ChainServer::ChainServer(ChainDB& db, BatchRegistry& br, std::optional<SnapshotS
     , batchRegistry(br)
     , state(db, br, snapshotSigner)
 {
-    worker = std::thread(&ChainServer::workerfun, this);
 }
 
 ChainServer::~ChainServer()

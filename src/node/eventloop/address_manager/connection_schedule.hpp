@@ -9,6 +9,7 @@
 #include <vector>
 namespace connection_schedule {
 using Source = IPv4;
+
 using time_point = std::chrono::steady_clock::time_point;
 using duration = std::chrono::steady_clock::duration;
 using steady_clock = std::chrono::steady_clock;
@@ -53,8 +54,12 @@ struct ReconnectContext {
     bool verified() const { return endpointState == EndpointState::VERIFIED; }
 };
 
-class EndpointVector;
+template <typename Elemtype>
+class EndpointVectorBase;
+
 class EndpointData {
+    template <typename T>
+    friend class EndpointVectorBase;
     friend class EndpointVector;
 
 public:
@@ -99,29 +104,64 @@ private:
     EndpointAddress address;
     Timer timer;
     ConnectionLog connectionLog;
+    std::chrono::steady_clock::time_point lastVerified;
     std::set<Source> sources;
     bool pending { false };
     uint32_t connected { 0 };
 };
 
-using Sources = std::map<EndpointAddress, EndpointData>;
 
-class EndpointVector {
+
+class VerifiedEntry : public EndpointData {
+public:
+    using tp = std::chrono::steady_clock::time_point;
+
+    VerifiedEntry(const EndpointAddressItem& i, tp lastVerified)
+        : EndpointData(i)
+        , lastVerified(lastVerified)
+    {
+    }
+
+    VerifiedEntry(const EndpointData& ed, tp lastVerified)
+        : EndpointData(ed)
+        , lastVerified(lastVerified)
+    {
+    }
+    tp lastVerified;
+};
+
+
+class VerifiedVector;
+template <typename EntryData>
+class EndpointVectorBase {
+    friend class EndpointVector;
 
 public:
-    [[nodiscard]] EndpointData* find(const EndpointAddress&) const;
-    EndpointData* move_entry(const EndpointAddress& key, EndpointVector& to);
-    std::pair<EndpointData&, bool> emplace(const EndpointAddressItem&);
+    [[nodiscard]] EntryData* find(const EndpointAddress&) const;
     void pop_requests(time_point now, std::vector<ConnectRequest>&);
-    std::vector<EndpointAddress> sample(size_t N) const;
 
     std::optional<time_point> timeout() const { return wakeup_tp; }
 
-private:
-    EndpointData& insert(const EndpointAddressItem&);
+protected:
+    EndpointData& insert(EntryData&&);
     void update_wakeup_time(const std::optional<time_point>&);
     std::optional<time_point> wakeup_tp;
-    mutable std::vector<EndpointData> data;
+    mutable std::vector<EntryData> data;
+};
+
+class EndpointVector : public EndpointVectorBase<EndpointData> {
+public:
+    EndpointData* move_entry(const EndpointAddress& key, VerifiedVector& to);
+    std::pair<EndpointData&, bool> emplace(const EndpointAddressItem&);
+    using EndpointVectorBase<EndpointData>::EndpointVectorBase;
+};
+
+class VerifiedVector : public EndpointVectorBase<VerifiedEntry> {
+public:
+    using tp = VerifiedEntry::tp;
+    std::pair<EndpointData&, bool> emplace(const EndpointAddressItem&, tp lastVerified);
+    std::vector<EndpointAddress> sample(size_t N) const;
+    using EndpointVectorBase<VerifiedEntry>::EndpointVectorBase;
 };
 
 class WakeupTime {
@@ -132,14 +172,16 @@ public:
         popped_tp.reset();
         return tmp;
     }
-    bool expired() const{
+    bool expired() const
+    {
         return wakeup_tp < steady_clock::now();
     }
-    void reset() {
-        *this ={};
+    void reset()
+    {
+        *this = {};
     }
 
-    auto& val() const {return wakeup_tp;}
+    auto& val() const { return wakeup_tp; }
 
     void consider(const std::optional<time_point>& newval)
     {
@@ -163,10 +205,12 @@ class ConnectionSchedule {
     using time_point = connection_schedule::time_point;
     using EndpointData = connection_schedule::EndpointData;
     using EndpointVector = connection_schedule::EndpointVector;
+    using VerifiedVector = connection_schedule::VerifiedVector;
     using EndpointState = connection_schedule::EndpointState;
     using ReconnectContext = connection_schedule::ReconnectContext;
 
 public:
+    ConnectionSchedule(PeerServer& peerServer, const std::vector<EndpointAddress>& v);
     [[nodiscard]] std::optional<ConnectRequest> insert(EndpointAddressItem);
     [[nodiscard]] std::vector<ConnectRequest> pop_expired();
     void connection_established(const ConnectionData&);
@@ -188,10 +232,11 @@ private:
     void refresh_wakeup_time();
     auto get_context(const ConnectRequest&, ConnectionState) -> std::optional<FoundContext>;
     [[nodiscard]] auto find(const EndpointAddress& a) const -> std::optional<Found>;
-    EndpointVector verified;
+    VerifiedVector verified;
     EndpointVector unverifiedNew;
     EndpointVector unverifiedFailed;
     size_t totalConnected { 0 };
     std::set<EndpointAddress> pinned;
     connection_schedule::WakeupTime wakeup_tp;
+    PeerServer& peerServer;
 };

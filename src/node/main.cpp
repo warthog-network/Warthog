@@ -78,6 +78,9 @@ struct ECC {
     ECC() { ECC_Start(); }
     ~ECC() { ECC_Stop(); }
 };
+struct Starter {
+    Starter(){}
+};
 
 int main(int argc, char** argv)
 {
@@ -123,8 +126,13 @@ int main(int argc, char** argv)
     // setup globals
     global_init(&l, &breg, &ps, &*cs, &cm, &el, &endpoint);
 
-    // running eventloops
-    el.start_async_loop();
+    // spawn new threads
+    ps.start();
+    cs->start();
+    el.start();
+    endpoint.start();
+
+    // running eventloop
     if ((i = l->run( uvw::loop::run_mode::DEFAULT)))
         goto error;
     free_signals();

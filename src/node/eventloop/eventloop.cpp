@@ -29,11 +29,10 @@ Eventloop::Eventloop(PeerServer& ps, ChainServer& cs, const ConfigParams& config
     : stateServer(cs)
     , chains(cs.get_chainstate())
     , mempool(false)
-    // , connections(ps, config.peers.connect) // TODO
+    , connections(ps, config.peers.connect) // TODO
     , headerDownload(chains, consensus().total_work())
     , blockDownload(*this)
 {
-    // spdlog::info("Peers connect size {} ", config.peers.connect.size());
     auto& ss = consensus().get_signed_snapshot();
     spdlog::info("Chain info: length {}, work {}, ", consensus().headers().length().value(), consensus().total_work().getdouble());
     if (ss.has_value()) {
@@ -50,11 +49,10 @@ Eventloop::~Eventloop()
         worker.join(); // worker should already have terminated
     }
 }
-void Eventloop::start_async_loop()
+void Eventloop::start()
 {
-    if (!worker.joinable()) {
-        worker = std::thread(&Eventloop::loop, this);
-    }
+    assert(!worker.joinable());
+    worker = std::thread(&Eventloop::loop, this);
 }
 
 bool Eventloop::defer(Event e)
@@ -135,6 +133,7 @@ bool Eventloop::has_work()
 
 void Eventloop::loop()
 {
+    connections.start();
     while (true) {
         {
             std::unique_lock<std::mutex> ul(mutex);

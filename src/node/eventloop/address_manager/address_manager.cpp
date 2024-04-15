@@ -7,6 +7,15 @@
 
 namespace address_manager {
 
+AddressManager::AddressManager(PeerServer& peerServer, const std::vector<EndpointAddress>& v)
+    : connectionSchedule(peerServer, v)
+{
+}
+
+void AddressManager::start(){
+    start_scheduled_connections();
+};
+
 void AddressManager::outbound_failed(const ConnectRequest& r)
 {
     connectionSchedule.outbound_failed(r);
@@ -87,7 +96,6 @@ void AddressManager::start_scheduled_connections()
         start_connection(r);
 }
 
-
 std::optional<std::chrono::steady_clock::time_point> AddressManager::pop_scheduled_connect_time()
 {
     return connectionSchedule.pop_wakeup_time();
@@ -97,7 +105,6 @@ void AddressManager::start_connection(const ConnectRequest& r)
 {
     global().conman->connect(r);
 }
-
 
 void AddressManager::insert_additional_verified(EndpointAddress newAddress)
 {

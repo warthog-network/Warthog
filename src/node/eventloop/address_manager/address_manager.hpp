@@ -103,6 +103,10 @@ private:
 public:
     //////////////////////////////
     // public methods
+    
+    // constructor
+    AddressManager(PeerServer& peerServer, const std::vector<EndpointAddress>& v);
+    void start();
 
     // for range-based access
     Initialized initialized() const { return { *this }; }

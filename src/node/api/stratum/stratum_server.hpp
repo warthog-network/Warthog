@@ -114,6 +114,7 @@ class StratumServer {
 public:
     StratumServer(EndpointAddress endpointAddress);
     ~StratumServer();
+    void start();
     void shutdown();
     void request_mining();
     void on_mining_task(Address, ChainMiningTask&&);

@@ -18,6 +18,10 @@ PeerServer::PeerServer(PeerDB& db, const ConfigParams& config)
     : db(db)
     , enableBan(config.peers.enableBan)
 {
+}
+
+void PeerServer::start(){
+    assert(!worker.joinable());
     worker = std::thread(&PeerServer::work, this);
 }
 void PeerServer::register_close(IPv4 address, uint32_t now,

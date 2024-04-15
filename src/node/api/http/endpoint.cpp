@@ -196,7 +196,6 @@ HTTPEndpoint::HTTPEndpoint(EndpointAddress bind, bool isPublic)
     , app(lc.loop)
 {
     spdlog::info("RPC {}endpoint is {}.", isPublic ? "public " : "", bind.to_string());
-    t = std::thread(&HTTPEndpoint::work, this);
 }
 
 void HTTPEndpoint::get(std::string pattern, auto asyncfun, auto serializer, bool priv)

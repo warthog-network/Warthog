@@ -395,6 +395,9 @@ StratumServer::StratumServer(EndpointAddress endpointAddress)
         handle_events();
     });
     acceptor(endpointAddress);
+}
+void StratumServer::start(){
+    assert(!t.joinable());
     t = std::thread([&]() { loop->run(); });
 }
 
