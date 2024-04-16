@@ -33,9 +33,8 @@ public:
     void shutdown_join()
     {
         close();
-        if (worker.joinable()) {
+        if (worker.joinable())
             worker.join();
-        }
     }
 
     struct MiningAppend {
@@ -174,7 +173,8 @@ public:
     {
         return std::make_shared<ChainServer>(b, br, snapshotSigner, Token {});
     }
-    void start(){
+    void start()
+    {
         assert(!worker.joinable());
         worker = std::thread(&ChainServer::workerfun, this);
     }

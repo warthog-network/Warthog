@@ -13,6 +13,7 @@ AddressManager::AddressManager(PeerServer& peerServer, const std::vector<Endpoin
 }
 
 void AddressManager::start(){
+    connectionSchedule.start();
     start_scheduled_connections();
 };
 
@@ -29,7 +30,7 @@ std::optional<Conref> AddressManager::find(uint64_t id)
     return ConrefIter { iter };
 }
 
-auto AddressManager::prepare_insert(const std::shared_ptr<ConnectionBase>& c) -> tl::expected<EvictionCandidate, int32_t>
+auto AddressManager::prepare_insert(const std::shared_ptr<ConnectionBase>& c) -> tl::expected<std::optional<EvictionCandidate>, int32_t>
 {
     auto ip { c->peer().ipv4 };
     if (!ip.is_localhost()) {
@@ -44,10 +45,7 @@ auto AddressManager::prepare_insert(const std::shared_ptr<ConnectionBase>& c) ->
         } else
             global().peerServer->verify_peer(c->peer_endpoint(), c->peer().ipv4);
     }
-    auto ec { eviction_candidate() };
-    if (!ec.has_value())
-        return tl::unexpected(EFAILEDEVICTION);
-    return *ec;
+    return eviction_candidate();
 }
 
 Conref AddressManager::insert_prepared(const std::shared_ptr<ConnectionBase>& c, HeaderDownload::Downloader& h, BlockDownload::Downloader& b, Timer& t)
@@ -92,7 +90,8 @@ void AddressManager::garbage_collect()
 
 void AddressManager::start_scheduled_connections()
 {
-    for (auto& r : connectionSchedule.pop_expired())
+    auto popped{connectionSchedule.pop_expired()};
+    for (auto& r : popped)
         start_connection(r);
 }
 

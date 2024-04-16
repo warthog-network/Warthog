@@ -125,7 +125,7 @@ private:
     std::list<std::shared_ptr<stratum::Connection>> connections;
     const std::shared_ptr<uvw::loop> loop;
 
-    std::thread t;
+    std::thread worker;
     std::mutex m;
     std::vector<Event> events;
     const std::shared_ptr<uvw::async_handle> async;

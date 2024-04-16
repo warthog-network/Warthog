@@ -20,8 +20,7 @@ namespace {
 TCPConnection& UV_Helper::insert_connection(std::shared_ptr<uvw::tcp_handle>& tcpHandle, const ConnectRequest& r)
 {
     auto con { TCPConnection::make_new(tcpHandle, r, *this) };
-    tcpConnections.insert(con);
-    auto iter = tcpConnections.begin();
+    auto iter { tcpConnections.insert(con).first };
     tcpHandle->data(con);
     tcpHandle->on<uvw::close_event>([this, iter](const uvw::close_event&, uvw::tcp_handle& client) {
         client.data(nullptr);
@@ -124,7 +123,7 @@ void UV_Helper::shutdown(int32_t reason)
 
 void UV_Helper::connect_internal(const ConnectRequest& r)
 {
-    // connection_log().info("{} connecting ", to_string());// TODO: do connection_log
+    connection_log().info("{} connecting ", r.address.to_string()); // TODO: do connection_log
     auto& loop { listener->parent() };
     auto tcp { loop.resource<uvw::tcp_handle>() };
     auto err { tcp->connect(r.address.sock_addr()) };

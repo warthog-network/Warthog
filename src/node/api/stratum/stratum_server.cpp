@@ -397,14 +397,15 @@ StratumServer::StratumServer(EndpointAddress endpointAddress)
     acceptor(endpointAddress);
 }
 void StratumServer::start(){
-    assert(!t.joinable());
-    t = std::thread([&]() { loop->run(); });
+    assert(!worker.joinable());
+    worker = std::thread([&]() { loop->run(); });
 }
 
 StratumServer::~StratumServer()
 {
     shutdown();
-    t.join();
+    if (worker.joinable()) 
+        worker.join();
 }
 
 void StratumServer::push(Event e)

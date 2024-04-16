@@ -27,13 +27,14 @@ public:
     static std::optional<HTTPEndpoint> make_public_endpoint(const ConfigParams&);
     HTTPEndpoint(EndpointAddress bind, bool isPublic = false);
     void start(){
-        assert(!t.joinable());
-        t = std::thread(&HTTPEndpoint::work, this);
+        assert(!worker.joinable());
+        worker = std::thread(&HTTPEndpoint::work, this);
     }
     ~HTTPEndpoint()
     {
         lc.loop->defer(std::bind(&HTTPEndpoint::shutdown, this));
-        t.join();
+        if (worker.joinable()) 
+            worker.join();
     }
     void push_event(WebsocketEvent e)
     {
@@ -79,5 +80,5 @@ private:
     const uWS::LoopCleaner lc;
     uWS::App app;
     bool bshutdown = false;
-    std::thread t;
+    std::thread worker;
 };

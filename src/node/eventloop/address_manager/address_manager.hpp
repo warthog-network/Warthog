@@ -121,7 +121,7 @@ public:
 
     // erase/insert
     bool erase(Conref); // returns whether is pinned
-    [[nodiscard]] tl::expected<EvictionCandidate, int32_t> prepare_insert(const std::shared_ptr<ConnectionBase>&);
+    [[nodiscard]] tl::expected<std::optional<EvictionCandidate>, int32_t> prepare_insert(const std::shared_ptr<ConnectionBase>&);
     Conref insert_prepared(const std::shared_ptr<ConnectionBase>&, HeaderDownload::Downloader&, BlockDownload::Downloader&, Timer&);
 
     // access queued

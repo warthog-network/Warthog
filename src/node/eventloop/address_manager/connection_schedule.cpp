@@ -221,10 +221,14 @@ ConnectionSchedule::ConnectionSchedule(PeerServer& peerServer, const std::vector
     : pinned(pin.begin(), pin.end())
     , peerServer(peerServer)
 {
+    spdlog::info("Peers connect size {} ", pin.size());
+    for (auto& p : pinned)
+        pinned.insert(p);
+}
+void ConnectionSchedule::start()
+{
     constexpr size_t maxRecent = 100;
     constexpr connection_schedule::Source startup_source { 0 };
-
-    spdlog::info("Peers connect size {} ", pin.size());
 
     // get recently seen peers from db
     std::promise<std::vector<std::pair<EndpointAddress, uint32_t>>> p;
@@ -234,10 +238,6 @@ ConnectionSchedule::ConnectionSchedule(PeerServer& peerServer, const std::vector
     };
     peerServer.async_get_recent_peers(std::move(cb), maxRecent);
 
-    // add pinned
-    for (auto& p : pinned)
-        pinned.insert(p);
-
     auto db_peers = future.get();
     int64_t nowts = now_timestamp();
     for (const auto& [a, timestamp] : db_peers) {
@@ -245,7 +245,7 @@ ConnectionSchedule::ConnectionSchedule(PeerServer& peerServer, const std::vector
         auto [_, wasInserted] { verified.emplace({ a, startup_source }, lastVerified) };
         assert(wasInserted);
     }
-}
+};
 
 std::optional<ConnectRequest> ConnectionSchedule::insert(EndpointAddressItem item)
 {

@@ -29,7 +29,7 @@ Eventloop::Eventloop(PeerServer& ps, ChainServer& cs, const ConfigParams& config
     : stateServer(cs)
     , chains(cs.get_chainstate())
     , mempool(false)
-    , connections(ps, config.peers.connect) // TODO
+    , connections(ps, config.peers.connect)
     , headerDownload(chains, consensus().total_work())
     , blockDownload(*this)
 {
@@ -45,9 +45,8 @@ Eventloop::Eventloop(PeerServer& ps, ChainServer& cs, const ConfigParams& config
 
 Eventloop::~Eventloop()
 {
-    if (worker.joinable()) {
-        worker.join(); // worker should already have terminated
-    }
+    if (worker.joinable()) 
+        worker.join();
 }
 void Eventloop::start()
 {
@@ -525,7 +524,10 @@ void Eventloop::process_connection(std::shared_ptr<ConnectionBase> c)
         auto prepared { connections.prepare_insert(c) };
         if (prepared) {
             log_communication("{} connected", c->to_string());
-            close(prepared.value().evictionCandidate, EEVICTED);
+            if (prepared.value()) {
+                auto& evictionCandidate{(**prepared).evictionCandidate};
+                close(evictionCandidate, EEVICTED);
+            }
             Conref res { connections.insert_prepared(
                 c, headerDownload, blockDownload, timer) };
             send_init(res);

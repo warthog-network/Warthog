@@ -111,7 +111,8 @@ public:
     ~PeerServer()
     {
         async_shutdown();
-        worker.join();
+        if (worker.joinable()) 
+            worker.join();
     }
     void start();
 

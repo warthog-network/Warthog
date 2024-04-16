@@ -211,6 +211,7 @@ class ConnectionSchedule {
 
 public:
     ConnectionSchedule(PeerServer& peerServer, const std::vector<EndpointAddress>& v);
+    void start();
     [[nodiscard]] std::optional<ConnectRequest> insert(EndpointAddressItem);
     [[nodiscard]] std::vector<ConnectRequest> pop_expired();
     void connection_established(const ConnectionData&);
