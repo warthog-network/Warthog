@@ -1,5 +1,5 @@
 #include "eventloop.hpp"
-#include "../asyncio/connection.hpp"
+#include "../asyncio/tcp/connection.hpp"
 #include "address_manager/address_manager_impl.hpp"
 #include "api/types/all.hpp"
 #include "block/chain/header_chain.hpp"
@@ -756,7 +756,7 @@ void Eventloop::handle_msg(Conref cr, PongMsg&& m)
     auto& pingMsg = cr.ping().check(m);
     received_pong_sleep_ping(cr);
     spdlog::debug("{} Received {} addresses", cr.str(), m.addresses.size());
-    // TODO: connections.queue_verification(m.addresses);
+    // connections.verify(m.addresses,cr.);
     spdlog::debug("{} Got {} transaction Ids in pong message", cr.str(), m.txids.size());
 
     // update acknowledged priority

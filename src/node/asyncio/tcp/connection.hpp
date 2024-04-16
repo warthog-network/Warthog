@@ -2,7 +2,7 @@
 #include "communication/buffers/recvbuffer.hpp"
 #include "communication/buffers/sndbuffer.hpp"
 #include "conman.hpp"
-#include "connection_base.hpp"
+#include "../connection_base.hpp"
 #include "eventloop/types/conref_declaration.hpp"
 
 class TCPConnection final : public ConnectionBase, public ConnectionBase::TCPData, public std::enable_shared_from_this<TCPConnection> {

@@ -1,5 +1,5 @@
 #include "address_manager.hpp"
-#include "asyncio/connection.hpp"
+#include "asyncio/tcp/connection.hpp"
 #include "global/globals.hpp"
 #include <algorithm>
 #include <future>
@@ -8,11 +8,13 @@
 namespace address_manager {
 
 AddressManager::AddressManager(PeerServer& peerServer, const std::vector<EndpointAddress>& v)
-    : connectionSchedule(peerServer, v)
+    : peerServer(peerServer)
+    , connectionSchedule(peerServer, v)
 {
 }
 
-void AddressManager::start(){
+void AddressManager::start()
+{
     connectionSchedule.start();
     start_scheduled_connections();
 };
@@ -20,6 +22,12 @@ void AddressManager::start(){
 void AddressManager::outbound_failed(const ConnectRequest& r)
 {
     connectionSchedule.outbound_failed(r);
+}
+
+void AddressManager::verify(std::vector<EndpointAddress> v, IPv4 source)
+{
+    for (auto& ea : v)
+        connectionSchedule.insert({ ea, source });
 }
 
 std::optional<Conref> AddressManager::find(uint64_t id)
@@ -41,9 +49,9 @@ auto AddressManager::prepare_insert(const std::shared_ptr<ConnectionBase>& c) ->
             c->successfulConnection = true;
             connectionSchedule.connection_established(*c);
 
-            insert_additional_verified(c->peer());
+            insert_additional_verified(c->peer()); // TODO: additional_verified necessary?
         } else
-            global().peerServer->verify_peer(c->peer_endpoint(), c->peer().ipv4);
+            connectionSchedule.insert({ c->peer_endpoint(), c->peer().ipv4 });
     }
     return eviction_candidate();
 }
@@ -90,7 +98,7 @@ void AddressManager::garbage_collect()
 
 void AddressManager::start_scheduled_connections()
 {
-    auto popped{connectionSchedule.pop_expired()};
+    auto popped { connectionSchedule.pop_expired() };
     for (auto& r : popped)
         start_connection(r);
 }

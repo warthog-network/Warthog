@@ -113,6 +113,7 @@ public:
     All all() const { return { *this }; }
 
     void outbound_failed(const ConnectRequest& r);
+    void verify(std::vector<EndpointAddress>, IPv4 source);
 
     // access by connection Id
     std::optional<Conref> find(uint64_t id);
@@ -144,13 +145,10 @@ private:
     std::optional<EvictionCandidate> eviction_candidate() const;
 
 private:
+    PeerServer& peerServer;
+
     // data
     FlatAddressSet failedAddresses;
-
-    // maps/sets by EndpointAddress
-    // std::set<EndpointAddress> unverifiedAddresses;
-    // VerifiedMap verified;
-    // PinnedMap pinned;
 
     std::vector<EndpointAddress> additionalEndpoints;
     std::vector<EndpointAddress> outboundEndpoints;

@@ -1,5 +1,5 @@
 #pragma once
-#include "asyncio/connection.hpp"
+#include "asyncio/tcp/connection.hpp"
 #include "conndata.hpp"
 
 inline bool PeerState::erased()

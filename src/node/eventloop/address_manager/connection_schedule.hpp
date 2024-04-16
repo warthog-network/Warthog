@@ -212,11 +212,13 @@ class ConnectionSchedule {
 public:
     ConnectionSchedule(PeerServer& peerServer, const std::vector<EndpointAddress>& v);
     void start();
-    [[nodiscard]] std::optional<ConnectRequest> insert(EndpointAddressItem);
+    std::optional<ConnectRequest> insert(EndpointAddressItem);
     [[nodiscard]] std::vector<ConnectRequest> pop_expired();
     void connection_established(const ConnectionData&);
     void outbound_closed(const ConnectionData&);
     void outbound_failed(const ConnectRequest&);
+    void schedule_verification(EndpointAddress c, IPv4 source);
+
     [[nodiscard]] std::optional<time_point> pop_wakeup_time();
     auto sample_verified(size_t N) const { return verified.sample(N); };
 

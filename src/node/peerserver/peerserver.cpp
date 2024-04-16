@@ -1,6 +1,6 @@
 #include "peerserver.hpp"
-#include "asyncio/conman.hpp"
-#include "asyncio/connection.hpp"
+#include "asyncio/tcp/conman.hpp"
+#include "asyncio/tcp/connection.hpp"
 #include "config/config.hpp"
 #include "connection_data.hpp"
 #include "db/peer_db.hpp"
@@ -82,7 +82,7 @@ void PeerServer::handle_event(OnClose&& o)
 {
     auto ip { o.con->peer().ipv4 };
     register_close(ip, now, o.offense, o.con->logrow);
-};
+}
 
 void PeerServer::handle_event(Unban&& ub)
 {
@@ -90,12 +90,12 @@ void PeerServer::handle_event(Unban&& ub)
     spdlog::info("Reset bans");
     db.reset_bans();
     ub.cb({});
-};
+}
 
 void PeerServer::handle_event(GetOffenses&& go)
 {
     go.cb(db.get_offenses(go.page));
-};
+}
 
 void PeerServer::handle_event(Authenticate&& nc)
 {
