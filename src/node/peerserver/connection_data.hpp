@@ -1,8 +1,8 @@
 #pragma once
-#include "asyncio/connect_request.hpp"
-#include "asyncio/helpers/socket_addr.hpp"
+#include "transport/connect_request.hpp"
+#include "transport/helpers/socket_addr.hpp"
 #include "eventloop/types/conref_declaration.hpp"
-#include "general/tcp_util.hpp"
+#include "transport/tcp/tcp_sockaddr.hpp"
 #include <atomic>
 #include <chrono>
 #include <cstdint>

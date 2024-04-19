@@ -1,6 +1,6 @@
 #pragma once
 
-#include "asyncio/connection_base.hpp"
+#include "transport/connection_base.hpp"
 #include "eventloop/peer_chain.hpp"
 #include "eventloop/sync/block_download/connection_data.hpp"
 #include "eventloop/sync/header_download/connection_data.hpp"

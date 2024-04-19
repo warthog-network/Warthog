@@ -1,5 +1,5 @@
 #include "connection_schedule.hpp"
-#include "asyncio/connect_request.hpp"
+#include "transport/connect_request.hpp"
 #include "global/globals.hpp"
 #include "peerserver/peerserver.hpp"
 #include "spdlog/spdlog.h"

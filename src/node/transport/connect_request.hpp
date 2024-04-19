@@ -1,6 +1,6 @@
 #pragma once
-#include "general/tcp_util.hpp"
-#include "helpers/socket_addr.hpp"
+#include "transport/tcp/tcp_sockaddr.hpp"
+#include "transport/helpers/socket_addr.hpp"
 #include <chrono>
 #include <variant>
 

@@ -9,7 +9,7 @@
 #include "crypto/hash.hpp"
 #include "general/descriptor.hpp"
 #include "general/params.hpp"
-#include "general/tcp_util.hpp"
+#include "transport/tcp/tcp_sockaddr.hpp"
 #include <array>
 #include <chrono>
 #include <cstddef>

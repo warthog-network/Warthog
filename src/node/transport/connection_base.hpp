@@ -2,7 +2,6 @@
 
 #include "communication/buffers/recvbuffer.hpp"
 #include "eventloop/types/conref_declaration.hpp"
-#include "general/tcp_util.hpp"
 #include "peerserver/connection_data.hpp"
 #include <atomic>
 #include <chrono>
@@ -12,7 +11,6 @@
 #include <variant>
 #include <vector>
 class ConnectionBase;
-struct TCPSockaddr;
 namespace uvw {
 class timer_handle;
 }

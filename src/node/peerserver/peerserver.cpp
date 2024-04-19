@@ -1,6 +1,6 @@
 #include "peerserver.hpp"
-#include "asyncio/tcp/conman.hpp"
-#include "asyncio/tcp/connection.hpp"
+#include "transport/tcp/conman.hpp"
+#include "transport/tcp/connection.hpp"
 #include "config/config.hpp"
 #include "connection_data.hpp"
 #include "db/peer_db.hpp"

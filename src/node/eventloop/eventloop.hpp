@@ -2,7 +2,7 @@
 #include "address_manager/address_manager.hpp"
 #include "api/callbacks.hpp"
 #include "api/types/forward_declarations.hpp"
-#include "asyncio/connection_base.hpp"
+#include "transport/connection_base.hpp"
 #include "block/chain/signed_snapshot.hpp"
 #include "chain_cache.hpp"
 #include "chainserver/state/update/update.hpp"

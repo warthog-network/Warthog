@@ -1,9 +1,9 @@
 #pragma once
 
-#include "asyncio/helpers/socket_addr.hpp"
 #include "block/chain/signed_snapshot.hpp"
 #include "expected.hpp"
-#include "general/tcp_util.hpp"
+#include "transport/helpers/socket_addr.hpp"
+#include "transport/tcp/tcp_sockaddr.hpp"
 #include <atomic>
 struct gengetopt_args_info;
 struct EndpointVector : public std::vector<Sockaddr> {

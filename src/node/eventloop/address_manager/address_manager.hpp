@@ -1,10 +1,10 @@
 #pragma once
 #include "../types/conndata.hpp"
-#include "asyncio/helpers/per_ip_counter.hpp"
+#include "transport/helpers/per_ip_counter.hpp"
 #include "connection_schedule.hpp"
 #include "expected.hpp"
 #include "flat_address_set.hpp"
-#include "general/tcp_util.hpp"
+#include "transport/tcp/tcp_sockaddr.hpp"
 #include <chrono>
 #include <map>
 #include <set>

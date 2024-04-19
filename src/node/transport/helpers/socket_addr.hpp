@@ -1,5 +1,5 @@
 #pragma once
-#include "general/tcp_util.hpp"
+#include "../tcp/tcp_sockaddr.hpp"
 #include <variant>
 struct Sockaddr {
     [[nodiscard]] bool is_supported();

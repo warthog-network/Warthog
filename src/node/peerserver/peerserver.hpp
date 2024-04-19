@@ -1,13 +1,13 @@
 #pragma once
 
-#include "asyncio/connection_base.hpp"
+#include "transport/connection_base.hpp"
 #include "ban_cache.hpp"
 #include "db/peer_db.hpp"
 #include "eventloop/address_manager/connection_schedule.hpp"
 #include "expected.hpp"
 #include "general/errors.hpp"
 #include "general/page.hpp"
-#include "general/tcp_util.hpp"
+#include "transport/tcp/tcp_sockaddr.hpp"
 #include "spdlog/spdlog.h"
 #include <bitset>
 #include <condition_variable>
