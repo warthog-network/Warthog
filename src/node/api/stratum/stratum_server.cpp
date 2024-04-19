@@ -237,8 +237,8 @@ void Connection::handle_message(messages::MiningSubmit&& m)
 
 void Connection::send_work(std::string jobId, const Block& block, bool clean)
 {
-    write() << MiningNotify(jobId, block, clean || fresh)
-            << MiningSetDifficulty(block);
+    write() << MiningSetDifficulty(block)
+            << MiningNotify(jobId, block, clean || fresh);
     fresh = false;
 }
 
