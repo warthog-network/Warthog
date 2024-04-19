@@ -106,13 +106,13 @@ class StratumServer {
     void handle_event(ShutdownEvent&&);
     void handle_event(AppendResult&&);
 
-    void acceptor(EndpointAddress endpointAddresss);
+    void acceptor(TCPSockaddr endpointAddresss);
     void link_authorized(const Address&, stratum::Connection*);
     void unlink_authorized(const Address&, stratum::Connection*);
 
     std::optional<Block> get_block(Address,std::string jobId);
 public:
-    StratumServer(EndpointAddress endpointAddress);
+    StratumServer(TCPSockaddr endpointAddress);
     ~StratumServer();
     void start();
     void shutdown();

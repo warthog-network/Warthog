@@ -6,19 +6,18 @@
 #include <cstring>
 #include <stdexcept>
 
-EndpointAddress::EndpointAddress(Reader& r)
+TCPSockaddr::TCPSockaddr(Reader& r)
     : ipv4(r)
     , port(r.uint16())
 {
 }
 
-
-std::string EndpointAddress::to_string() const
+std::string TCPSockaddr::to_string() const
 {
-    return ipv4.to_string() + ":" + std::to_string(port);
+    return "tcp://" + ipv4.to_string() + ":" + std::to_string(port);
 }
 
-sockaddr EndpointAddress::sock_addr() const
+sockaddr TCPSockaddr::sock_addr() const
 {
     sockaddr_in out;
     memset(&out, 0, sizeof(out));
@@ -33,4 +32,3 @@ sockaddr EndpointAddress::sock_addr() const
     memcpy(&out.sin_addr.s_addr, &ntmp, 4);
     return *reinterpret_cast<sockaddr*>(&out);
 }
-

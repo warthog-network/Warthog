@@ -6,15 +6,15 @@ namespace address_manager {
 
 class FlatAddressSet {
     size_t maxAddresses = 500;
-    std::vector<EndpointAddress> vec;
+    std::vector<TCPSockaddr> vec;
 
 public:
-    const std::vector<EndpointAddress>& data() const { return vec; }
+    const std::vector<TCPSockaddr>& data() const { return vec; }
     size_t size() const { return vec.size(); }
     void clear() { vec.clear(); }
     bool full() { return vec.size() < maxAddresses; }
-    bool contains(EndpointAddress a);
-    void insert(EndpointAddress& a);
-    void erase(EndpointAddress a);
+    bool contains(TCPSockaddr a);
+    void insert(TCPSockaddr& a);
+    void erase(TCPSockaddr a);
 };
 }

@@ -64,9 +64,9 @@ public:
     bool async_process(std::shared_ptr<ConnectionBase> c);
     void erase(std::shared_ptr<ConnectionBase> c);
     void async_shutdown(int32_t reason);
-    void async_report_failed_outbound(EndpointAddress);
+    void async_report_failed_outbound(TCPSockaddr);
     void async_stage_action(stage_operation::Result);
-    void on_failed_connect(const ConnectRequest& r, Error reason);
+    void on_failed_connect(const TCPConnectRequest& r, Error reason);
     void api_get_peers(PeersCb&& cb);
     void api_get_synced(SyncedCb&& cb);
     void api_get_hashrate(HashrateCb&& cb, size_t n=100);
@@ -77,7 +77,7 @@ public:
     void start();
 
 private:
-    std::vector<EndpointAddress> get_db_peers(size_t num);
+    std::vector<TCPSockaddr> get_db_peers(size_t num);
     //////////////////////////////
     // Important event loop functions
     void loop();

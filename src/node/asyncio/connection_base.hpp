@@ -1,9 +1,9 @@
 #pragma once
 
-#include "peerserver/connection_data.hpp"
 #include "communication/buffers/recvbuffer.hpp"
 #include "eventloop/types/conref_declaration.hpp"
 #include "general/tcp_util.hpp"
+#include "peerserver/connection_data.hpp"
 #include <atomic>
 #include <chrono>
 #include <memory>
@@ -12,10 +12,11 @@
 #include <variant>
 #include <vector>
 class ConnectionBase;
-struct EndpointAddress;
+struct TCPSockaddr;
 namespace uvw {
 class timer_handle;
 }
+struct Sockaddr;
 
 struct HandshakeState {
     std::array<uint8_t, 24> recvbuf; // 14 bytes for "WARTHOG GRUNT!" and 4
@@ -85,7 +86,7 @@ public:
         int error;
     };
     // for inbound connections
-    ConnectionBase(ConnectRequest peer);
+    ConnectionBase();
     virtual ~ConnectionBase() {};
 
     // can be called from all threads
@@ -93,9 +94,9 @@ public:
     std::string to_string() const;
     uint32_t created_at_timestmap() const { return std::chrono::duration_cast<std::chrono::seconds>(createdAtSystem.time_since_epoch()).count(); }
 
-    // can only be called in eventloop thread because we assume 
-    // state == MessageState 
-    EndpointAddress peer_endpoint() const;
+    // can only be called in eventloop thread because we assume
+    // state == MessageState
+    virtual Sockaddr claimed_peer_addr() const = 0;
 
     virtual void close(int Error) = 0;
     virtual Type type() const = 0;
@@ -105,13 +106,14 @@ public:
 protected:
     // can be called from all threads
     virtual std::shared_ptr<ConnectionBase> get_shared() = 0;
-    virtual uint16_t listen_port() = 0; // TODO conman.bindAddress.port
+    virtual uint16_t listen_port() const = 0; // TODO conman.bindAddress.port
     virtual void async_send(std::unique_ptr<char[]> data, size_t size) = 0;
 
     // callback methods called from transport implementation thread
     void on_close(const CloseState& cs);
     void on_message(std::span<uint8_t>);
     void on_connected();
+    [[nodiscard]] uint16_t asserted_port() const;
 
 private:
     std::span<uint8_t> process_message(std::span<uint8_t> s, std::monostate&);
@@ -125,6 +127,7 @@ private:
 
 private:
     std::variant<std::monostate, HandshakeState, AckState, MessageState> state;
+
 public:
     const uint64_t id;
     const std::chrono::steady_clock::time_point createdAt;

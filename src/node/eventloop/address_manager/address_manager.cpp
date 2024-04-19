@@ -7,7 +7,7 @@
 
 namespace address_manager {
 
-AddressManager::AddressManager(PeerServer& peerServer, const std::vector<EndpointAddress>& v)
+AddressManager::AddressManager(PeerServer& peerServer, const std::vector<Sockaddr>& v)
     : peerServer(peerServer)
     , connectionSchedule(peerServer, v)
 {
@@ -24,10 +24,10 @@ void AddressManager::outbound_failed(const ConnectRequest& r)
     connectionSchedule.outbound_failed(r);
 }
 
-void AddressManager::verify(std::vector<EndpointAddress> v, IPv4 source)
+void AddressManager::verify(std::vector<Sockaddr> v, IPv4 source)
 {
     for (auto& ea : v)
-        connectionSchedule.insert({ ea, source });
+        connectionSchedule.insert(ea, source);
 }
 
 std::optional<Conref> AddressManager::find(uint64_t id)
@@ -40,7 +40,7 @@ std::optional<Conref> AddressManager::find(uint64_t id)
 
 auto AddressManager::prepare_insert(const std::shared_ptr<ConnectionBase>& c) -> tl::expected<std::optional<EvictionCandidate>, int32_t>
 {
-    auto ip { c->peer().ipv4 };
+    auto ip { c->connection_peer_addr().ipv4() };
     if (!ip.is_localhost()) {
         if (ipCounter.contains(ip))
             return tl::unexpected(EDUPLICATECONNECTION);
@@ -49,9 +49,9 @@ auto AddressManager::prepare_insert(const std::shared_ptr<ConnectionBase>& c) ->
             c->successfulConnection = true;
             connectionSchedule.connection_established(*c);
 
-            insert_additional_verified(c->peer()); // TODO: additional_verified necessary?
+            insert_additional_verified(c->connection_peer_addr()); // TODO: additional_verified necessary?
         } else
-            connectionSchedule.insert({ c->peer_endpoint(), c->peer().ipv4 });
+            connectionSchedule.insert(c->claimed_peer_addr(), c->connection_peer_addr().ipv4());
     }
     return eviction_candidate();
 }
@@ -65,20 +65,20 @@ Conref AddressManager::insert_prepared(const std::shared_ptr<ConnectionBase>& c,
     Conref cr { p.first };
     c->dataiter = cr.iterator();
 
-    auto ip { c->peer().ipv4 };
+    auto ip { c->connection_peer_addr().ipv4() };
     assert(ip.is_localhost() || ipCounter.insert(ip, 1) == 1);
 
     if (c->inbound()) {
         inboundConnections.push_back(cr);
     } else {
-        outboundEndpoints.push_back(c->peer());
+        outboundEndpoints.push_back(c->connection_peer_addr());
     }
     return cr;
 }
 
 bool AddressManager::erase(Conref cr)
 {
-    ipCounter.erase(cr.peer().ipv4);
+    ipCounter.erase(cr.peer().ipv4());
     if (cr->c->inbound()) {
         std::erase(inboundConnections, cr);
     } else {
@@ -99,8 +99,12 @@ void AddressManager::garbage_collect()
 void AddressManager::start_scheduled_connections()
 {
     auto popped { connectionSchedule.pop_expired() };
-    for (auto& r : popped)
-        start_connection(r);
+    for (auto& r : popped) {
+        std::visit([&](const auto& address) {
+            start_connection(make_request(address, r.sleptFor));
+        },
+            r.address.data);
+    }
 }
 
 std::optional<std::chrono::steady_clock::time_point> AddressManager::pop_scheduled_connect_time()
@@ -108,19 +112,19 @@ std::optional<std::chrono::steady_clock::time_point> AddressManager::pop_schedul
     return connectionSchedule.pop_wakeup_time();
 }
 
-void AddressManager::start_connection(const ConnectRequest& r)
+void AddressManager::start_connection(const TCPConnectRequest& r)
 {
     global().conman->connect(r);
 }
 
-void AddressManager::insert_additional_verified(EndpointAddress newAddress)
+void AddressManager::insert_additional_verified(Sockaddr newAddress)
 {
-    std::erase_if(additionalEndpoints, [&](EndpointAddress& ea) -> bool {
-        return ea.ipv4 == newAddress.ipv4;
+    std::erase_if(additionalEndpoints, [&](Sockaddr& ea) -> bool {
+        return ea.ipv4() == newAddress.ipv4();
     });
-    if (ipCounter.contains(newAddress.ipv4)) {
+    if (ipCounter.contains(newAddress.ipv4())) {
         for (auto& ea : outboundEndpoints) {
-            if (ea.ipv4 == newAddress.ipv4) {
+            if (ea.ipv4() == newAddress.ipv4()) {
                 ea = newAddress;
                 return;
             }

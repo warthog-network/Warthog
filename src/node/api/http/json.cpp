@@ -100,7 +100,7 @@ struct Inspector {
 
 namespace {
 template <typename T>
-json verified_json(const std::map<EndpointAddress, T>& map)
+json verified_json(const std::map<TCPSockaddr, T>& map)
 {
     using namespace std::chrono;
     auto now = steady_clock::now();
@@ -336,7 +336,7 @@ json to_json(const API::Transaction& tx)
         tx);
 }
 
-json to_json(const EndpointAddress& ea)
+json to_json(const Sockaddr& ea)
 {
     return ea.to_string();
 }
@@ -462,8 +462,8 @@ std::string serialize(const std::vector<API::Peerinfo>& connected)
     for (auto& item : connected) {
         json elem;
         elem["connection"] = json {
-            { "ip", item.endpoint.ipv4.to_string().c_str() },
-            { "port", item.endpoint.port },
+            { "ip", item.endpoint.ipv4().to_string().c_str() },
+            { "port", item.endpoint.port() },
             { "sinceTimestamp", item.since },
             { "sinceUtc", format_utc(item.since) }
         };

@@ -90,7 +90,7 @@ void Eventloop::async_mempool_update(mempool::Log&& s)
 {
     defer(std::move(s));
 }
-void Eventloop::on_failed_connect(const ConnectRequest& r, Error reason)
+void Eventloop::on_failed_connect(const TCPConnectRequest& r, Error reason)
 {
     defer(FailedConnect { r, reason });
 };
@@ -335,7 +335,7 @@ void Eventloop::handle_event(PeersCb&& cb)
     std::vector<API::Peerinfo> out;
     for (auto cr : connections.initialized()) {
         out.push_back(API::Peerinfo {
-            .endpoint { cr->c->peer() },
+            .endpoint { cr->c->connection_peer_addr() },
             .initialized = cr.initialized(),
             .chainstate = cr.chain(),
             .theirSnapshotPriority = cr->theirSnapshotPriority,
@@ -740,7 +740,7 @@ void Eventloop::handle_msg(Conref c, PingMsg&& m)
 {
     log_communication("{} handle ping", c.str());
     size_t nAddr { std::min(uint16_t(20), m.maxAddresses) };
-    auto addresses = connections.sample_verified(nAddr);
+    auto addresses = connections.sample_verified_tcp(nAddr);
     c->ratelimit.ping();
     PongMsg msg(m.nonce, std::move(addresses), mempool.sample(m.maxTransactions));
     spdlog::debug("{} Sending {} addresses", c.str(), msg.addresses.size());

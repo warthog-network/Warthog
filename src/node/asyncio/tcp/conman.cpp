@@ -5,7 +5,7 @@
 #include "uvw.hpp"
 #include <memory>
 namespace {
-[[nodiscard]] std::optional<EndpointAddress> get_ipv4_endpoint(const uvw::tcp_handle& handle)
+[[nodiscard]] std::optional<TCPSockaddr> get_ipv4_endpoint(const uvw::tcp_handle& handle)
 {
     sockaddr_storage storage;
     int alen = sizeof(storage);
@@ -13,11 +13,11 @@ namespace {
     if (storage.ss_family != AF_INET)
         return {};
     sockaddr_in* addr_i4 = (struct sockaddr_in*)&storage;
-    return EndpointAddress(IPv4(ntoh32(uint32_t(addr_i4->sin_addr.s_addr))), addr_i4->sin_port);
+    return TCPSockaddr(IPv4(ntoh32(uint32_t(addr_i4->sin_addr.s_addr))), addr_i4->sin_port);
 }
 }
 
-TCPConnection& UV_Helper::insert_connection(std::shared_ptr<uvw::tcp_handle>& tcpHandle, const ConnectRequest& r)
+TCPConnection& UV_Helper::insert_connection(std::shared_ptr<uvw::tcp_handle>& tcpHandle, const TCPConnectRequest& r)
 {
     auto con { TCPConnection::make_new(tcpHandle, r, *this) };
     auto iter { tcpConnections.insert(con).first };
@@ -54,7 +54,7 @@ UV_Helper::UV_Helper(std::shared_ptr<uvw::loop> loop, PeerServer& ps, const Conf
         assert(server.accept(*tcpHandle) == 0);
         auto endpoint { get_ipv4_endpoint(*tcpHandle) };
         if (endpoint) {
-            auto connectRequest { ConnectRequest::inbound(*endpoint) };
+            auto connectRequest { TCPConnectRequest::inbound(*endpoint) };
             auto connection { insert_connection(tcpHandle, connectRequest).shared_from_this() };
             ps.authenticate(connection);
         }
@@ -90,7 +90,7 @@ void UV_Helper::handle_event(GetPeers&& e)
 {
     std::vector<APIPeerdata> data;
     for (auto c : tcpConnections) {
-        data.push_back({ c->peer(), c->created_at_timestmap() });
+        data.push_back({ c->connection_peer_addr_native(), c->created_at_timestmap() });
     }
     e.cb(std::move(data));
 }
@@ -121,7 +121,7 @@ void UV_Helper::shutdown(int32_t reason)
         c->close_internal(reason);
 }
 
-void UV_Helper::connect_internal(const ConnectRequest& r)
+void UV_Helper::connect_internal(const TCPConnectRequest& r)
 {
     connection_log().info("{} connecting ", r.address.to_string()); // TODO: do connection_log
     auto& loop { listener->parent() };

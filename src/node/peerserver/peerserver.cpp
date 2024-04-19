@@ -20,14 +20,14 @@ PeerServer::PeerServer(PeerDB& db, const ConfigParams& config)
 {
 }
 
-void PeerServer::start(){
+void PeerServer::start()
+{
     assert(!worker.joinable());
     worker = std::thread(&PeerServer::work, this);
 }
 void PeerServer::register_close(IPv4 address, uint32_t now,
     int32_t offense, int64_t rowid)
 {
-
 
     if (errors::leads_to_ban(offense)) {
         uint32_t banuntil = now + bantime(offense);
@@ -69,19 +69,11 @@ void PeerServer::work()
 }
 
 
-void PeerServer::start_request(const ConnectRequest& r)
-{
-    global().conman->connect(r);
-}
-
-void PeerServer::handle_event(VerifyPeer&&)
-{
-    // TODO
-}
 void PeerServer::handle_event(OnClose&& o)
 {
-    auto ip { o.con->peer().ipv4 };
-    register_close(ip, now, o.offense, o.con->logrow);
+    std::visit([this, &o](auto&& socketAddr) -> void {
+        on_close(o, socketAddr);
+    }, o.con->connection_peer_addr().data );
 }
 
 void PeerServer::handle_event(Unban&& ub)
@@ -102,7 +94,7 @@ void PeerServer::handle_event(Authenticate&& nc)
     // return EMAXCONNECTIONS; TODO: handle max connections
     auto& con = *nc.c;
     bool allowed = true;
-    const IPv4& ip = con.peer().ipv4;
+    const IPv4& ip = con.connection_peer_addr().ipv4();
     uint32_t banuntil;
     int32_t offense;
     if (bancache.get(ip, banuntil) || db.get_peer(ip.data, banuntil, offense)) { // found entry
@@ -143,3 +135,8 @@ void PeerServer::handle_event(Inspect&& e)
     e.cb(*this);
 }
 
+void PeerServer::on_close(const OnClose& o, TCPSockaddr addr)
+{
+    auto ip { addr.ipv4 };
+    register_close(ip, now, o.offense, o.con->logrow);
+}

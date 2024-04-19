@@ -109,9 +109,9 @@ template <typename T>
     throw std::runtime_error("Cannot extract configuration value starting at line "s + std::to_string(n.source().begin.line) + ", colum "s + std::to_string(n.source().begin.column) + ".");
 }
 
-EndpointAddress fetch_endpointaddress(toml::node& n)
+TCPSockaddr fetch_endpointaddress(toml::node& n)
 {
-    auto p = EndpointAddress::parse(fetch<std::string>(n));
+    auto p = TCPSockaddr::parse(fetch<std::string>(n));
     if (p) {
         return p.value();
     }
@@ -126,12 +126,12 @@ toml::array& array_ref(toml::node& n)
 }
 EndpointVector parse_endpoints(std::string csv)
 {
-    std::vector<EndpointAddress> out;
+    std::vector<Sockaddr> out;
     std::string::size_type pos = 0;
     while (true) {
         auto end = csv.find(",", pos);
         auto param = csv.substr(pos, end - pos);
-        auto parsed = EndpointAddress::parse(param);
+        auto parsed = TCPSockaddr::parse(param);
         if (!parsed) {
             throw std::runtime_error("Invalid parameter '"s + param + "'."s);
         }
@@ -165,16 +165,16 @@ int ConfigParams::init(const gengetopt_args_info& ai)
         }
     }
     // copy default values
-    std::optional<EndpointAddress> nodeBind;
-    std::optional<EndpointAddress> rpcBind;
-    std::optional<EndpointAddress> publicrpcBind;
-    std::optional<EndpointAddress> stratumBind;
+    std::optional<TCPSockaddr> nodeBind;
+    std::optional<TCPSockaddr> rpcBind;
+    std::optional<TCPSockaddr> publicrpcBind;
+    std::optional<TCPSockaddr> stratumBind;
     node.isolated = ai.isolated_given;
     if (ai.testnet_given) {
         enable_testnet();
     }
     if (ai.enable_public_given) {
-        publicrpcBind = EndpointAddress("0.0.0.0:3001");
+        publicrpcBind = TCPSockaddr("0.0.0.0:3001");
     }
 
     if (is_testnet()) {
@@ -306,7 +306,7 @@ int ConfigParams::init(const gengetopt_args_info& ai)
 
     // Stratum API socket
     if (ai.stratum_given) {
-        auto p = EndpointAddress::parse(ai.stratum_arg);
+        auto p = TCPSockaddr::parse(ai.stratum_arg);
         if (!p) {
             std::cerr << "Bad --stratum option '" << ai.rpc_arg << "'.\n";
             return -1;
@@ -320,7 +320,7 @@ int ConfigParams::init(const gengetopt_args_info& ai)
 
     // JSON RPC socket
     if (ai.rpc_given) {
-        auto p = EndpointAddress::parse(ai.rpc_arg);
+        auto p = TCPSockaddr::parse(ai.rpc_arg);
         if (!p) {
             std::cerr << "Bad --rpc option '" << ai.rpc_arg << "'.\n";
             return -1;
@@ -331,15 +331,15 @@ int ConfigParams::init(const gengetopt_args_info& ai)
             jsonrpc.bind = *rpcBind;
         } else {
             if (is_testnet())
-                jsonrpc.bind = EndpointAddress::parse("127.0.0.1:3100").value();
+                jsonrpc.bind = TCPSockaddr::parse("127.0.0.1:3100").value();
             else
-                jsonrpc.bind = EndpointAddress::parse("127.0.0.1:3000").value();
+                jsonrpc.bind = TCPSockaddr::parse("127.0.0.1:3000").value();
         }
     }
 
     // JSON Public RPC socket
     if (ai.publicrpc_given) {
-        auto p = EndpointAddress::parse(ai.publicrpc_arg);
+        auto p = TCPSockaddr::parse(ai.publicrpc_arg);
         if (!p) {
             std::cerr << "Bad --publicrpc option '" << ai.rpc_arg << "'.\n";
             return -1;
@@ -353,7 +353,7 @@ int ConfigParams::init(const gengetopt_args_info& ai)
 
     // Node socket
     if (ai.bind_given) {
-        auto p = EndpointAddress::parse(ai.bind_arg);
+        auto p = TCPSockaddr::parse(ai.bind_arg);
         if (!p) {
             std::cerr << "Bad --bind option '" << ai.bind_arg << "'.\n";
             return -1;
@@ -364,9 +364,9 @@ int ConfigParams::init(const gengetopt_args_info& ai)
             node.bind = *nodeBind;
         else {
             if (is_testnet())
-                node.bind = EndpointAddress::parse("0.0.0.0:9286").value();
+                node.bind = TCPSockaddr::parse("0.0.0.0:9286").value();
             else
-                node.bind = EndpointAddress::parse("0.0.0.0:9186").value();
+                node.bind = TCPSockaddr::parse("0.0.0.0:9186").value();
         }
     }
     if (ai.connect_given) {

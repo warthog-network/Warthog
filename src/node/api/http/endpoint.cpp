@@ -190,7 +190,7 @@ std::optional<HTTPEndpoint> HTTPEndpoint::make_public_endpoint(const ConfigParam
     return std::optional<HTTPEndpoint> { std::in_place, pAPI->bind, true };
 };
 
-HTTPEndpoint::HTTPEndpoint(EndpointAddress bind, bool isPublic)
+HTTPEndpoint::HTTPEndpoint(TCPSockaddr bind, bool isPublic)
     : bind(bind)
     , isPublic(isPublic)
     , app(lc.loop)

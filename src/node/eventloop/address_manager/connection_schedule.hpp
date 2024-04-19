@@ -14,8 +14,9 @@ using time_point = std::chrono::steady_clock::time_point;
 using duration = std::chrono::steady_clock::duration;
 using steady_clock = std::chrono::steady_clock;
 
-struct EndpointAddressItem {
-    EndpointAddress address;
+template <typename addr_t>
+struct WithSource {
+    addr_t address;
     Source source;
 };
 
@@ -35,7 +36,7 @@ private:
     uint32_t bits { 1 << 5 };
 };
 
-enum class EndpointState {
+enum class SockaddrState {
     VERIFIED, // could connect at least once to this endpoint
     UNVERIFIED_FAILED, // could never connect and at least one failed try
     UNVERIFIED_NEW // never tried to connect yet
@@ -48,39 +49,32 @@ enum class ConnectionState {
 
 struct ReconnectContext {
     duration prevWait;
-    EndpointState endpointState;
+    SockaddrState endpointState;
     ConnectionState connectionState;
     bool pinned;
-    bool verified() const { return endpointState == EndpointState::VERIFIED; }
+    bool verified() const { return endpointState == SockaddrState::VERIFIED; }
 };
 
-template <typename Elemtype>
-class EndpointVectorBase;
+template <typename EntryData, typename addr_t>
+class SockaddrVectorBase;
 
-class EndpointData {
-    template <typename T>
-    friend class EndpointVectorBase;
-    friend class EndpointVector;
+class VectorEntryBase {
 
 public:
-    EndpointData(const EndpointAddressItem& i)
-        : address(i.address)
-        , sources { i.source }
-
+    VectorEntryBase(Source source)
+        : sources { source }
     {
     }
     void add_source(Source);
 
     // returns expiration time point
-    std::optional<time_point> try_pop(time_point, std::vector<ConnectRequest>& out);
     std::optional<time_point> timeout() const;
 
     // connection event callbacks
     void connection_established();
     [[nodiscard]] time_point outbound_connected_ended(const ReconnectContext&);
-    operator EndpointAddress() const { return address; }
 
-private:
+protected:
     [[nodiscard]] time_point update_timer(const ReconnectContext&);
 
     struct Timer {
@@ -101,7 +95,6 @@ private:
         duration _sleepDuration;
         time_point _timeout;
     };
-    EndpointAddress address;
     Timer timer;
     ConnectionLog connectionLog;
     std::chrono::steady_clock::time_point lastVerified;
@@ -110,58 +103,89 @@ private:
     uint32_t connected { 0 };
 };
 
+class SockaddrVector;
 
+template <typename addr_t>
+class VectorEntry : public VectorEntryBase {
+public:
+    template <typename, typename>
+    friend class SockaddrVectorBase;
+    friend class SockaddrVector;
+    std::optional<time_point> try_pop(time_point, std::vector<ConnectRequest>& out);
+    auto sockaddr() const { return address; };
+    VectorEntry(const WithSource<addr_t>& i)
+        : VectorEntryBase(i.source)
+        , address(i.address)
+    {
+    }
+    VectorEntry(VectorEntryBase base, addr_t addr)
+        : VectorEntryBase(std::move(base))
+        , address(std::move(addr))
+    {
+    }
 
-class VerifiedEntry : public EndpointData {
+private:
+    addr_t address;
+};
+
+template <typename addr_t>
+class VerifiedEntry : public VectorEntry<addr_t> {
 public:
     using tp = std::chrono::steady_clock::time_point;
 
-    VerifiedEntry(const EndpointAddressItem& i, tp lastVerified)
-        : EndpointData(i)
+    operator addr_t() const { return this->sockaddr(); }
+    VerifiedEntry(const WithSource<addr_t>& i, tp lastVerified)
+        : VectorEntry<addr_t>(i)
         , lastVerified(lastVerified)
     {
     }
 
-    VerifiedEntry(const EndpointData& ed, tp lastVerified)
-        : EndpointData(ed)
+    VerifiedEntry(VectorEntryBase ed,addr_t addr, tp lastVerified)
+        : VectorEntry<addr_t>(std::move(ed),std::move(addr))
         , lastVerified(lastVerified)
     {
     }
     tp lastVerified;
 };
 
-
+template <typename addr_t>
 class VerifiedVector;
-template <typename EntryData>
-class EndpointVectorBase {
-    friend class EndpointVector;
+
+template <typename T, typename addr_t>
+class SockaddrVectorBase {
+    friend class SockaddrVector;
+    friend class ConnectionSchedule;
 
 public:
-    [[nodiscard]] EntryData* find(const EndpointAddress&) const;
-    void pop_requests(time_point now, std::vector<ConnectRequest>&);
+    using elem_t = T;
 
+    [[nodiscard]] elem_t* find(const addr_t&) const;
+    void pop_requests(time_point now, std::vector<ConnectRequest>&);
     std::optional<time_point> timeout() const { return wakeup_tp; }
+    elem_t& push_back(elem_t);
 
 protected:
-    EndpointData& insert(EntryData&&);
+    VectorEntry<addr_t>& insert(elem_t&&);
     void update_wakeup_time(const std::optional<time_point>&);
     std::optional<time_point> wakeup_tp;
-    mutable std::vector<EntryData> data;
+    mutable std::vector<elem_t> data;
 };
 
-class EndpointVector : public EndpointVectorBase<EndpointData> {
+class SockaddrVector : public SockaddrVectorBase<VectorEntry<Sockaddr>, Sockaddr> {
+
 public:
-    EndpointData* move_entry(const EndpointAddress& key, VerifiedVector& to);
-    std::pair<EndpointData&, bool> emplace(const EndpointAddressItem&);
-    using EndpointVectorBase<EndpointData>::EndpointVectorBase;
+    void erase(const Sockaddr& addr, auto lambda);
+    std::pair<elem_t&, bool> emplace(const WithSource<Sockaddr>&);
+    using SockaddrVectorBase::SockaddrVectorBase;
 };
 
-class VerifiedVector : public EndpointVectorBase<VerifiedEntry> {
+template <typename addr_t>
+class VerifiedVector : public SockaddrVectorBase<VerifiedEntry<addr_t>, addr_t> {
 public:
-    using tp = VerifiedEntry::tp;
-    std::pair<EndpointData&, bool> emplace(const EndpointAddressItem&, tp lastVerified);
-    std::vector<EndpointAddress> sample(size_t N) const;
-    using EndpointVectorBase<VerifiedEntry>::EndpointVectorBase;
+    using tp = typename VerifiedEntry<addr_t>::tp;
+    std::pair<VectorEntry<addr_t>&, bool> emplace(const WithSource<addr_t>&, tp lastVerified);
+    std::vector<addr_t> sample(size_t N) const;
+    using SockaddrVectorBase<VerifiedEntry<addr_t>, addr_t>::SockaddrVectorBase;
 };
 
 class WakeupTime {
@@ -200,46 +224,58 @@ private:
 
 class ConnectionSchedule {
     using ConnectionData = peerserver::ConnectionData;
-    using EndpointAddressItem = connection_schedule::EndpointAddressItem;
+    template <typename addr_t>
+    using WithSource = connection_schedule::WithSource<addr_t>;
     using ConnectionState = connection_schedule::ConnectionState;
     using time_point = connection_schedule::time_point;
-    using EndpointData = connection_schedule::EndpointData;
-    using EndpointVector = connection_schedule::EndpointVector;
-    using VerifiedVector = connection_schedule::VerifiedVector;
-    using EndpointState = connection_schedule::EndpointState;
+    // using VectorEntry = connection_schedule::VectorEntry<Sockaddr>;
+    using VectorEntryBase = connection_schedule::VectorEntryBase;
+    using SockaddrVector = connection_schedule::SockaddrVector;
+    using VerifiedVectorTCP = connection_schedule::VerifiedVector<TCPSockaddr>;
+    using EndpointState = connection_schedule::SockaddrState;
     using ReconnectContext = connection_schedule::ReconnectContext;
+    using Source = connection_schedule::Source;
+    using steady_clock = std::chrono::steady_clock;
 
 public:
-    ConnectionSchedule(PeerServer& peerServer, const std::vector<EndpointAddress>& v);
+    ConnectionSchedule(PeerServer& peerServer, const std::vector<Sockaddr>& v);
     void start();
-    std::optional<ConnectRequest> insert(EndpointAddressItem);
+    std::optional<ConnectRequest> insert(Sockaddr, Source);
     [[nodiscard]] std::vector<ConnectRequest> pop_expired();
     void connection_established(const ConnectionData&);
+    VectorEntryBase* move_entry(SockaddrVector&, const Sockaddr&);
     void outbound_closed(const ConnectionData&);
     void outbound_failed(const ConnectRequest&);
-    void schedule_verification(EndpointAddress c, IPv4 source);
+    void schedule_verification(TCPSockaddr c, IPv4 source);
 
     [[nodiscard]] std::optional<time_point> pop_wakeup_time();
-    auto sample_verified(size_t N) const { return verified.sample(N); };
+    std::vector<TCPSockaddr> sample_verified_tcp(size_t N) const;
 
 private:
+    auto invoke_with_verified(const Sockaddr&, auto lambda) const;
+    auto invoke_with_verified(const Sockaddr&, auto lambda);
+    auto invoke_with_verified(const TCPSockaddr&, auto lambda) const;
+    auto invoke_with_verified(const TCPSockaddr&, auto lambda);
+    auto emplace_verified(const WithSource<Sockaddr>&, steady_clock::time_point lastVerified);
+    VectorEntryBase* find_verified(const Sockaddr&);
+
     void outbound_connection_ended(const ConnectRequest&, ConnectionState state);
     struct Found {
-        EndpointData& item;
+        VectorEntryBase& item;
         EndpointState state;
     };
     struct FoundContext {
-        EndpointData& item;
+        VectorEntryBase& item;
         ReconnectContext context;
     };
     void refresh_wakeup_time();
     auto get_context(const ConnectRequest&, ConnectionState) -> std::optional<FoundContext>;
-    [[nodiscard]] auto find(const EndpointAddress& a) const -> std::optional<Found>;
-    VerifiedVector verified;
-    EndpointVector unverifiedNew;
-    EndpointVector unverifiedFailed;
+    [[nodiscard]] auto find(const Sockaddr& a) const -> std::optional<Found>;
+    VerifiedVectorTCP verified_tcp;
+    SockaddrVector unverifiedNew;
+    SockaddrVector unverifiedFailed;
     size_t totalConnected { 0 };
-    std::set<EndpointAddress> pinned;
+    std::set<Sockaddr> pinned;
     connection_schedule::WakeupTime wakeup_tp;
     PeerServer& peerServer;
 };

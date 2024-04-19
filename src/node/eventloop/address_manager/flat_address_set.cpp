@@ -2,12 +2,12 @@
 #include <algorithm>
 
 namespace address_manager {
-bool FlatAddressSet::contains(EndpointAddress a)
+bool FlatAddressSet::contains(TCPSockaddr a)
 {
     auto iter = std::lower_bound(vec.begin(),vec.end(), a);
     return iter != vec.end() && *iter == a;
 }
-void FlatAddressSet::insert(EndpointAddress& a)
+void FlatAddressSet::insert(TCPSockaddr& a)
 {
     auto iter = std::lower_bound(vec.begin(),vec.end(), a);
     if (iter == vec.end())
@@ -16,7 +16,7 @@ void FlatAddressSet::insert(EndpointAddress& a)
         vec.insert(std::next(iter), a);
     }
 }
-void FlatAddressSet::erase(EndpointAddress a)
+void FlatAddressSet::erase(TCPSockaddr a)
 {
     auto iter = std::lower_bound(vec.begin(),vec.end(), a);
     if (iter != vec.end() && *iter == a) {

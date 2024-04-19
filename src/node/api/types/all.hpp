@@ -1,5 +1,6 @@
 #pragma once
 
+#include "asyncio/helpers/socket_addr.hpp"
 #include "block/body/primitives.hpp"
 #include "block/chain/history/index.hpp"
 #include "block/chain/signed_snapshot.hpp"
@@ -144,7 +145,7 @@ struct HashrateChart {
 };
 
 struct Peerinfo {
-    EndpointAddress endpoint;
+    Sockaddr endpoint;
     bool initialized;
     PeerChain chainstate;
     SignedSnapshot::Priority theirSnapshotPriority;

@@ -25,7 +25,7 @@ private:
 class HTTPEndpoint {
 public:
     static std::optional<HTTPEndpoint> make_public_endpoint(const ConfigParams&);
-    HTTPEndpoint(EndpointAddress bind, bool isPublic = false);
+    HTTPEndpoint(TCPSockaddr bind, bool isPublic = false);
     void start(){
         assert(!worker.joinable());
         worker = std::thread(&HTTPEndpoint::work, this);
@@ -74,7 +74,7 @@ private:
     // variables
     IndexGenerator indexGenerator;
     std::set<uWS::HttpResponse<false>*> pendingRequests;
-    EndpointAddress bind;
+    TCPSockaddr bind;
     bool isPublic;
     us_listen_socket_t* listen_socket = nullptr;
     const uWS::LoopCleaner lc;

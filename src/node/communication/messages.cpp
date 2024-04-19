@@ -199,7 +199,7 @@ auto PongMsg::from_reader(Reader& r) -> PongMsg
 {
     auto nonce { r.uint32() };
     auto nAddresses = r.uint16();
-    std::vector<EndpointAddress> addresses;
+    std::vector<TCPSockaddr> addresses;
     for (size_t i = 0; i < nAddresses; ++i) {
         addresses.push_back({ r });
     }

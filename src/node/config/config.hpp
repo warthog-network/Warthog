@@ -1,20 +1,21 @@
 #pragma once
 
+#include "asyncio/helpers/socket_addr.hpp"
 #include "block/chain/signed_snapshot.hpp"
 #include "expected.hpp"
 #include "general/tcp_util.hpp"
 #include <atomic>
 struct gengetopt_args_info;
-struct EndpointVector : public std::vector<EndpointAddress> {
+struct EndpointVector : public std::vector<Sockaddr> {
     using vector::vector;
-    EndpointVector(std::vector<EndpointAddress> v)
+    EndpointVector(std::vector<Sockaddr> v)
         : vector(std::move(v))
     {
     }
     EndpointVector(std::initializer_list<std::string> l)
     {
         for (auto& s : l) {
-            push_back({ s });
+            push_back(Sockaddr { TCPSockaddr { s } });
         }
     }
 };
@@ -25,20 +26,20 @@ struct ConfigParams {
         std::string peersdb;
     } data;
     struct JSONRPC {
-        EndpointAddress bind { localhost, 3000 };
+        TCPSockaddr bind { localhost, 3000 };
     } jsonrpc;
     struct PublicAPI {
-        EndpointAddress bind;
+        TCPSockaddr bind;
     };
     struct StratumPool {
-        EndpointAddress bind;
+        TCPSockaddr bind;
     };
     std::optional<PublicAPI> publicAPI;
     std::optional<StratumPool> stratumPool;
     struct Node {
-        static constexpr EndpointAddress default_endpoint { localhost, DEFAULT_ENDPOINT_PORT };
+        static constexpr TCPSockaddr default_endpoint { localhost, DEFAULT_ENDPOINT_PORT };
         std::optional<SnapshotSigner> snapshotSigner;
-        EndpointAddress bind { default_endpoint };
+        TCPSockaddr bind { default_endpoint };
         bool isolated { false };
         bool logCommunicationVal { false };
     } node;

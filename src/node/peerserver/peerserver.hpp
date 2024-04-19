@@ -3,11 +3,11 @@
 #include "asyncio/connection_base.hpp"
 #include "ban_cache.hpp"
 #include "db/peer_db.hpp"
+#include "eventloop/address_manager/connection_schedule.hpp"
 #include "expected.hpp"
 #include "general/errors.hpp"
 #include "general/page.hpp"
 #include "general/tcp_util.hpp"
-#include "eventloop/address_manager/connection_schedule.hpp"
 #include "spdlog/spdlog.h"
 #include <bitset>
 #include <condition_variable>
@@ -24,7 +24,6 @@ class UV_Helper;
 struct Inspector;
 struct ConfigParams;
 
-
 class PeerServer {
 public:
     struct OnClose {
@@ -37,7 +36,6 @@ public:
 
 private:
     friend struct Inspector;
-    using VerifyPeer = connection_schedule::EndpointAddressItem;
     struct Authenticate {
         std::shared_ptr<ConnectionBase> c;
     };
@@ -71,10 +69,6 @@ public:
     {
         return async_event(Authenticate { std::move(c) });
     }
-    void verify_peer(EndpointAddress c, IPv4 source)
-    {
-        async_event(VerifyPeer { std::move(c), source });
-    }
 
     bool async_get_banned(banned_callback_t cb)
     {
@@ -88,16 +82,16 @@ public:
     {
         return async_event(GetOffenses { page, std::move(cb) });
     }
-    bool async_register_peer(EndpointAddress a)
+    bool async_register_peer(TCPSockaddr a)
     {
         return async_event(RegisterPeer { a });
     }
-    bool async_seen_peer(EndpointAddress a)
+    bool async_seen_peer(TCPSockaddr a)
     {
         return async_event(SeenPeer { a });
     }
     bool async_get_recent_peers(
-        std::function<void(std::vector<std::pair<EndpointAddress, uint32_t>>&&)>&& cb,
+        std::function<void(std::vector<std::pair<Sockaddr, uint32_t>>&&)>&& cb,
         size_t maxEntries = 100)
     {
         return async_event(GetRecentPeers { std::move(cb), maxEntries });
@@ -111,26 +105,26 @@ public:
     ~PeerServer()
     {
         async_shutdown();
-        if (worker.joinable()) 
+        if (worker.joinable())
             worker.join();
     }
     void start();
 
 private:
     struct RegisterPeer {
-        EndpointAddress a;
+        TCPSockaddr a;
     };
     struct SeenPeer {
-        EndpointAddress a;
+        TCPSockaddr a;
     };
     struct GetRecentPeers {
-        std::function<void(std::vector<std::pair<EndpointAddress, uint32_t>>&&)> cb;
+        std::function<void(std::vector<std::pair<Sockaddr, uint32_t>>&&)> cb;
         size_t maxEntries;
     };
     struct Inspect {
         std::function<void(const PeerServer&)> cb;
     };
-    using Event = std::variant<VerifyPeer, OnClose, Authenticate, GetOffenses, Unban, banned_callback_t, RegisterPeer, SeenPeer, GetRecentPeers, Inspect>;
+    using Event = std::variant<OnClose, Authenticate, GetOffenses, Unban, banned_callback_t, RegisterPeer, SeenPeer, GetRecentPeers, Inspect>;
     bool async_event(Event e)
     {
         std::unique_lock<std::mutex> l(mutex);
@@ -142,7 +136,6 @@ private:
         return true;
     }
     void work();
-    void start_request(const ConnectRequest&);
     void accept_connection();
     void register_close(IPv4 address, uint32_t now, int32_t offense, int64_t rowid);
     ////////////////
@@ -151,7 +144,6 @@ private:
     PeerDB& db;
     uint32_t now;
     BanCache bancache;
-    void handle_event(VerifyPeer&&);
     void handle_event(OnClose&&);
     void handle_event(Unban&&);
     void handle_event(GetOffenses&&);
@@ -162,6 +154,8 @@ private:
     void handle_event(GetRecentPeers&&);
     void handle_event(Inspect&&);
 
+    void on_close(const OnClose&, TCPSockaddr);
+
     ////////////////
     // Mutex protected variables
     std::mutex mutex;
@@ -170,7 +164,6 @@ private:
     bool shutdown = false;
     std::queue<Event> events;
     std::condition_variable cv;
-
 
     // worker
     std::thread worker;

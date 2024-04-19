@@ -105,7 +105,7 @@ public:
     // public methods
     
     // constructor
-    AddressManager(PeerServer& peerServer, const std::vector<EndpointAddress>& v);
+    AddressManager(PeerServer& peerServer, const std::vector<Sockaddr>& v);
     void start();
 
     // for range-based access
@@ -113,7 +113,7 @@ public:
     All all() const { return { *this }; }
 
     void outbound_failed(const ConnectRequest& r);
-    void verify(std::vector<EndpointAddress>, IPv4 source);
+    void verify(std::vector<Sockaddr>, IPv4 source);
 
     // access by connection Id
     std::optional<Conref> find(uint64_t id);
@@ -127,9 +127,9 @@ public:
 
     // access queued
 
-    [[nodiscard]] std::vector<EndpointAddress> sample_verified(size_t N)
+    [[nodiscard]] std::vector<TCPSockaddr> sample_verified_tcp(size_t N)
     {
-        return connectionSchedule.sample_verified(N);
+        return connectionSchedule.sample_verified_tcp(N);
     }
 
     void garbage_collect();
@@ -138,10 +138,10 @@ public:
     [[nodiscard]] std::optional<time_point> pop_scheduled_connect_time();
 
 private:
-    void start_connection(const ConnectRequest&);
+    void start_connection(const TCPConnectRequest&);
 
-    bool is_own_endpoint(EndpointAddress a);
-    void insert_additional_verified(EndpointAddress);
+    bool is_own_endpoint(Sockaddr a);
+    void insert_additional_verified(Sockaddr);
     std::optional<EvictionCandidate> eviction_candidate() const;
 
 private:
@@ -150,8 +150,8 @@ private:
     // data
     FlatAddressSet failedAddresses;
 
-    std::vector<EndpointAddress> additionalEndpoints;
-    std::vector<EndpointAddress> outboundEndpoints;
+    std::vector<Sockaddr> additionalEndpoints;
+    std::vector<Sockaddr> outboundEndpoints;
     std::vector<Conref> inboundConnections;
     ConnectionSchedule connectionSchedule;
 

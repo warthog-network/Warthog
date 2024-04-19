@@ -7,6 +7,7 @@
 #include "general/errors.hpp"
 #include <vector>
 
+struct Sockaddr;
 class PeerDB {
   private:
     // ids to save additional information in tables
@@ -112,9 +113,9 @@ class PeerDB {
         stmtResetBans.exec();
         stmtResetBans.reset();
     }
-    std::vector<std::pair<EndpointAddress,uint32_t>> recent_peers(int64_t maxEntries = 100);
-    void peer_seen(EndpointAddress,uint32_t now);
-    void peer_insert(EndpointAddress);
+    std::vector<std::pair<Sockaddr,uint32_t>> recent_peers(int64_t maxEntries = 100);
+    void peer_seen(TCPSockaddr,uint32_t now);
+    void peer_insert(TCPSockaddr);
 
   private:
     SQLite::Database db;

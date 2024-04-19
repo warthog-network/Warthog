@@ -125,14 +125,14 @@ struct PingMsg : public RandNonce, public MsgCode<4> {
 struct PongMsg : public WithNonce, public MsgCode<5> {
     static constexpr size_t maxSize = 4 + 2 + 6 * 100 + 18 * 1000;
     static PongMsg from_reader(Reader& r);
-    PongMsg(uint32_t nonce, std::vector<EndpointAddress> addresses, std::vector<TxidWithFee> txids)
+    PongMsg(uint32_t nonce, std::vector<TCPSockaddr> addresses, std::vector<TxidWithFee> txids)
         : WithNonce { nonce }
         , addresses(addresses)
         , txids(std::move(txids)) {};
     operator Sndbuffer() const;
 
     Error check(const PingMsg&) const;
-    std::vector<EndpointAddress> addresses;
+    std::vector<TCPSockaddr> addresses;
     std::vector<TxidWithFee> txids;
 };
 

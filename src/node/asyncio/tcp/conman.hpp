@@ -28,9 +28,9 @@ private:
 
     //////////////////////////////
     // Private methods
-    [[nodiscard]] TCPConnection& insert_connection(std::shared_ptr<uvw::tcp_handle>& h, const ConnectRequest& r);
+    [[nodiscard]] TCPConnection& insert_connection(std::shared_ptr<uvw::tcp_handle>& h, const TCPConnectRequest& r);
     void on_wakeup();
-    void connect_internal(const ConnectRequest&);
+    void connect_internal(const TCPConnectRequest&);
 
     // ip counting
     bool count(IPv4);
@@ -40,7 +40,7 @@ private:
 
 public:
     struct APIPeerdata {
-        EndpointAddress address;
+        TCPSockaddr address;
         uint32_t since;
     };
     using PeersCB = MoveOnlyFunction<void(std::vector<APIPeerdata>)>;
@@ -49,7 +49,7 @@ public:
     {
         async_add_event(GetPeers { std::move(cb) });
     }
-    void connect(const ConnectRequest& cr)
+    void connect(const TCPConnectRequest& cr)
     {
         async_add_event(Connect { cr });
     }
@@ -70,11 +70,11 @@ private:
     struct ReconnectTimer {
         UV_Helper* conman;
         uv_timer_t uv_timer;
-        EndpointAddress address;
+        TCPSockaddr address;
         size_t nextReconnectSleep;
         std::list<ReconnectTimer>::iterator iter;
     };
-    const EndpointAddress bindAddress;
+    const TCPSockaddr bindAddress;
     //--------------------------------------
     // data accessed by libuv thread
     PerIpCounter perIpCounter;
@@ -86,7 +86,7 @@ private:
     struct GetPeers {
         PeersCB cb;
     };
-    using Connect = ConnectRequest;
+    using Connect = TCPConnectRequest;
     struct Inspect {
         MoveOnlyFunction<void(const UV_Helper&)> callback;
     };

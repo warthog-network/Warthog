@@ -13,8 +13,8 @@ namespace {
 std::mutex statechangeMutex;
 std::atomic<uint64_t> connectionCounter { 1 }; // global counter of ids
 }
-ConnectionBase::ConnectionBase(ConnectRequest r)
-    : peerserver::Connection(std::move(r))
+ConnectionBase::ConnectionBase()
+    : peerserver::Connection()
     , id(connectionCounter++)
     , createdAt(std::chrono::steady_clock::now())
     , createdAtSystem(std::chrono::system_clock::now())
@@ -23,20 +23,8 @@ ConnectionBase::ConnectionBase(ConnectRequest r)
 
 std::string ConnectionBase::to_string() const
 {
-    return "(" + std::to_string(id) + ")" + (inbound() ? "← " : "→ ") + peer().to_string();
+    return "(" + std::to_string(id) + ")" + (inbound() ? "← " : "→ ") + connection_peer_addr().to_string();
 }
-
-EndpointAddress ConnectionBase::peer_endpoint() const
-{
-    if (inbound()) {
-        // on inbound connection take the port the peer claims to listen on
-        return EndpointAddress { peer().ipv4,
-            std::get<MessageState>(state).handshakeData.port.value() };
-    } else {
-        // on outbound connection the port is the correct peer endpoint port
-        return peer();
-    }
-};
 
 std::vector<Rcvbuffer> ConnectionBase::pop_messages()
 {
@@ -235,4 +223,9 @@ void ConnectionBase::on_connected()
     }
     std::lock_guard l(statechangeMutex);
     state = HandshakeState();
+}
+
+uint16_t ConnectionBase::asserted_port() const
+{
+    return std::get<MessageState>(state).handshakeData.port.value();
 }

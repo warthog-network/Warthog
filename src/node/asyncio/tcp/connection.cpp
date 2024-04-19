@@ -1,4 +1,5 @@
 #include "connection.hpp"
+#include "asyncio/helpers/socket_addr.hpp"
 #include "eventloop/eventloop.hpp"
 #include "general/is_testnet.hpp"
 #include "global/globals.hpp"
@@ -6,20 +7,25 @@
 #include "version.hpp"
 #include <chrono>
 
-uint16_t TCPConnection::listen_port()
+uint16_t TCPConnection::listen_port() const
 {
     return conman.bindAddress.port;
-};
+}
 
-TCPConnection::TCPConnection(Token, std::shared_ptr<uvw::tcp_handle> handle, const ConnectRequest& r, UV_Helper& conman)
-    : ConnectionBase(r)
+ConnectRequest TCPConnection::connect_request() const
+{
+    return connectRequest;
+}
+
+TCPConnection::TCPConnection(Token, std::shared_ptr<uvw::tcp_handle> handle, const TCPConnectRequest& r, UV_Helper& conman)
+    : connectRequest(r)
     , conman(conman)
     , tcpHandle(std::move(handle))
 {
 }
 
 std::shared_ptr<TCPConnection> TCPConnection::make_new(
-    std::shared_ptr<uvw::tcp_handle> handle, const ConnectRequest& r, UV_Helper& conman)
+    std::shared_ptr<uvw::tcp_handle> handle, const TCPConnectRequest& r, UV_Helper& conman)
 {
     return make_shared<TCPConnection>(Token {}, std::move(handle), r, conman);
 }
@@ -70,3 +76,15 @@ void TCPConnection::async_send(std::unique_ptr<char[]> data, size_t size)
         }
     });
 }
+
+Sockaddr TCPConnection::claimed_peer_addr() const
+{
+    if (inbound()) {
+        // on inbound connection take the port the peer claims to listen on
+        return { TCPSockaddr { connection_peer_addr_native().ipv4, asserted_port() } };
+    } else {
+        // on outbound connection the port is the correct peer endpoint port
+        return connection_peer_addr();
+    }
+};
+bool TCPConnection::inbound() const { return false; }

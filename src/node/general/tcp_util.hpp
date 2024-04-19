@@ -5,17 +5,17 @@
 #include <uv.h>
 
 class Reader;
-struct EndpointAddress {
-    EndpointAddress(Reader& r);
-    constexpr EndpointAddress(IPv4 ipv4, uint16_t port)
+struct TCPSockaddr {
+    TCPSockaddr(Reader& r);
+    constexpr TCPSockaddr(IPv4 ipv4, uint16_t port)
         : ipv4(ipv4)
         , port(port)
     {
     }
-    constexpr EndpointAddress(std::string_view);
-    static EndpointAddress from_sql_id(int64_t id)
+    constexpr TCPSockaddr(std::string_view);
+    static TCPSockaddr from_sql_id(int64_t id)
     {
-        return EndpointAddress(
+        return TCPSockaddr(
             IPv4(uint64_t(id & 0x0000FFFFFFFF0000) >> 16),
             uint16_t(0x000000000000FFFF & id));
     };
@@ -23,8 +23,8 @@ struct EndpointAddress {
     {
         return (int64_t(ipv4.data) << 16) + (int64_t(port));
     };
-    auto operator<=>(const EndpointAddress&) const = default;
-    static constexpr std::optional<EndpointAddress> parse(const std::string_view&);
+    auto operator<=>(const TCPSockaddr&) const = default;
+    static constexpr std::optional<TCPSockaddr> parse(const std::string_view&);
     operator sockaddr() const { return sock_addr(); }
     std::string to_string() const;
     sockaddr sock_addr() const;
@@ -56,7 +56,7 @@ constexpr std::optional<uint16_t> parse_port(const std::string_view& s)
     return out;
 }
 
-std::optional<EndpointAddress> constexpr EndpointAddress::parse(const std::string_view& s)
+std::optional<TCPSockaddr> constexpr TCPSockaddr::parse(const std::string_view& s)
 {
     size_t d1 = s.find(":");
     auto ipv4str { s.substr(0, d1) };
@@ -71,13 +71,13 @@ std::optional<EndpointAddress> constexpr EndpointAddress::parse(const std::strin
     if (!port)
         return {};
 
-    return EndpointAddress { ip.value(), port.value() };
+    return TCPSockaddr { ip.value(), port.value() };
 }
 
-constexpr EndpointAddress::EndpointAddress(std::string_view s)
-    : EndpointAddress(
+constexpr TCPSockaddr::TCPSockaddr(std::string_view s)
+    : TCPSockaddr(
         [&] {
-            auto ea { EndpointAddress::parse(s) };
+            auto ea { TCPSockaddr::parse(s) };
             if (ea)
                 return *ea;
             throw std::runtime_error("Cannot parse endpoint address \"" + std::string(s) + "\".");

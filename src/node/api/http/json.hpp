@@ -13,7 +13,7 @@ nlohmann::json to_json(const NodeVersion&);
 nlohmann::json to_json(const Hash&);
 nlohmann::json to_json(const TxHash&);
 nlohmann::json to_json(const API::Head&);
-nlohmann::json to_json(const EndpointAddress&);
+nlohmann::json to_json(const Sockaddr&);
 nlohmann::json to_json(const std::pair<NonzeroHeight,Header>&);
 nlohmann::json to_json(const API::MiningState&);
 nlohmann::json to_json(const API::MempoolEntries&);

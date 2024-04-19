@@ -344,7 +344,7 @@ void StratumServer::handle_events()
     }
 }
 
-void StratumServer::acceptor(EndpointAddress endpointAddress)
+void StratumServer::acceptor(TCPSockaddr endpointAddress)
 {
     std::shared_ptr<uvw::tcp_handle> tcp = loop->resource<uvw::tcp_handle>();
 
@@ -386,7 +386,7 @@ void StratumServer::acceptor(EndpointAddress endpointAddress)
     check_result(tcp->listen());
 }
 
-StratumServer::StratumServer(EndpointAddress endpointAddress)
+StratumServer::StratumServer(TCPSockaddr endpointAddress)
     : loop(uvw::loop::create())
     , async(loop->resource<uvw::async_handle>())
 {

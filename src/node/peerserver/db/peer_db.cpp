@@ -1,4 +1,5 @@
 #include "peer_db.hpp"
+#include "asyncio/helpers/socket_addr.hpp"
 #include "general/now.hpp"
 #include "spdlog/spdlog.h"
 PeerDB::CreateTables::CreateTables(SQLite::Database& db)
@@ -40,27 +41,27 @@ PeerDB::PeerDB(const std::string& path)
     spdlog::info("{} IPs are currently blacklisted.", get_banned_peers().size());
 }
 
-std::vector<std::pair<EndpointAddress, uint32_t>> PeerDB::recent_peers(int64_t maxEntries)
+std::vector<std::pair<Sockaddr, uint32_t>> PeerDB::recent_peers(int64_t maxEntries)
 {
-    std::vector<std::pair<EndpointAddress, uint32_t>> out;
+    std::vector<std::pair<Sockaddr, uint32_t>> out;
     selectRecentPeers.bind(1, maxEntries);
     while (selectRecentPeers.executeStep()) {
         int64_t id = selectRecentPeers.getColumn(0).getInt64();
         uint32_t timestamp = selectRecentPeers.getColumn(1).getInt64();
-        out.push_back({ EndpointAddress::from_sql_id(id), timestamp });
+        out.push_back({ TCPSockaddr::from_sql_id(id), timestamp });
     }
     selectRecentPeers.reset();
     return out;
 };
 
-void PeerDB::peer_seen(EndpointAddress a, uint32_t now)
+void PeerDB::peer_seen(TCPSockaddr a, uint32_t now)
 {
     setlastseen.bind(1, now);
     setlastseen.bind(2, a.to_sql_id());
     setlastseen.exec();
     setlastseen.reset();
 };
-void PeerDB::peer_insert(EndpointAddress a)
+void PeerDB::peer_insert(TCPSockaddr a)
 {
     insertPeer.bind(1, a.to_sql_id());
     insertPeer.exec();

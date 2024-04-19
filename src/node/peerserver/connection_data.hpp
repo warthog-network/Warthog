@@ -1,4 +1,6 @@
 #pragma once
+#include "asyncio/connect_request.hpp"
+#include "asyncio/helpers/socket_addr.hpp"
 #include "eventloop/types/conref_declaration.hpp"
 #include "general/tcp_util.hpp"
 #include <atomic>
@@ -26,38 +28,13 @@ private:
 
 class PeerServer;
 
-namespace connection_schedule{
-    class ConnectionSchedule;
+namespace connection_schedule {
+class ConnectionSchedule;
 }
-
-struct ConnectRequest {
-    using duration = std::chrono::steady_clock::duration;
-    friend class ConnectionData;
-    static ConnectRequest inbound(EndpointAddress peer)
-    {
-        return { std::move(peer), -std::chrono::seconds(1) };
-    }
-    static ConnectRequest outbound(EndpointAddress connectTo, duration sleptFor)
-    {
-        return { std::move(connectTo), sleptFor };
-    }
-    auto inbound() const { return sleptFor.count() < 0; }
-
-    const EndpointAddress address;
-    const duration sleptFor;
-
-private:
-    ConnectRequest(EndpointAddress address, duration sleptFor)
-        : address(std::move(address))
-        , sleptFor(sleptFor)
-    {
-    }
-};
 
 class ConnectionSchedule;
 namespace peerserver {
 using duration = std::chrono::steady_clock::duration;
-
 
 class ConnectionData : public EventloopVariables {
     friend class ::PeerServer;
@@ -70,14 +47,12 @@ public:
     ConnectionData(ConnectionData&&) = delete;
     ConnectionData& operator=(const ConnectionData&) = delete;
     ConnectionData& operator=(ConnectionData&&) = delete;
-    ConnectionData(const ConnectRequest& cr)
-        : connectRequest(cr)
+    ConnectionData()
     {
     }
-    auto inbound() const { return connectRequest.inbound(); }
-    auto peer() const { return connectRequest.address; }
-    const ConnectRequest connectRequest;
-
+    virtual bool inbound() const = 0;
+    virtual Sockaddr connection_peer_addr() const = 0;
+    virtual ConnectRequest connect_request() const = 0;
 };
 
 class Connection : public ConnectionData {
