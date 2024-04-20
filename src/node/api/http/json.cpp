@@ -31,11 +31,6 @@ std::string format_utc(uint32_t timestamp)
 }
 }
 struct Inspector {
-    // static auto endoints(const Eventloop& e)
-    // {
-    //     auto& m = e.connections;
-    //     return std::tuple { &m.verified, &m.failedAddresses.data(), &m.unverifiedAddresses, &m.pendingOutgoing };
-    // }
     static auto& ip_counter(const UV_Helper& c)
     {
         return c.perIpCounter;

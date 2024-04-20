@@ -16,7 +16,6 @@ class UV_Helper {
     friend class TCPConnection;
     friend class Reconnecter;
     friend class PeerServer;
-    struct ReconnectTimer;
     friend struct Inspector;
 
 private:
@@ -68,13 +67,6 @@ public:
     void shutdown(int32_t reason);
 
 private:
-    struct ReconnectTimer {
-        UV_Helper* conman;
-        uv_timer_t uv_timer;
-        TCPSockaddr address;
-        size_t nextReconnectSleep;
-        std::list<ReconnectTimer>::iterator iter;
-    };
     const TCPSockaddr bindAddress;
     //--------------------------------------
     // data accessed by libuv thread
