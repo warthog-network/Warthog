@@ -11,7 +11,8 @@ struct ConfigParams;
 struct Inspector;
 class TCPConnection;
 class PeerServer;
-class UV_Helper {
+
+class TCPConnectionManager {
     static constexpr size_t max_conn_per_ip = 3;
     friend class TCPConnection;
     friend class Reconnecter;
@@ -53,7 +54,7 @@ public:
     {
         async_add_event(Connect { cr });
     }
-    void async_inspect(MoveOnlyFunction<void(const UV_Helper&)>&& cb)
+    void async_inspect(MoveOnlyFunction<void(const TCPConnectionManager&)>&& cb)
     {
         async_add_event(Inspect { std::move(cb) });
     }
@@ -63,7 +64,7 @@ public:
         async_add_event(DeferFunc { std::move(cb) });
     }
 
-    UV_Helper(std::shared_ptr<uvw::loop> l, PeerServer& peerdb, const ConfigParams&);
+    TCPConnectionManager(std::shared_ptr<uvw::loop> l, PeerServer& peerdb, const ConfigParams&);
     void shutdown(int32_t reason);
 
 private:
@@ -81,7 +82,7 @@ private:
     };
     using Connect = TCPConnectRequest;
     struct Inspect {
-        MoveOnlyFunction<void(const UV_Helper&)> callback;
+        MoveOnlyFunction<void(const TCPConnectionManager&)> callback;
     };
     struct DeferFunc {
         MoveOnlyFunction<void()> callback;

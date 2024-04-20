@@ -112,7 +112,7 @@ int main(int argc, char** argv)
         stratumServer.emplace(config().stratumPool->bind);
     }
     Eventloop el(ps, *cs, config());
-    UV_Helper cm(l, ps, config());
+    TCPConnectionManager cm(l, ps, config());
 
     // setup signals
     setup_signals(l->raw());

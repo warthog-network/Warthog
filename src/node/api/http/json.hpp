@@ -133,7 +133,7 @@ std::string serialize(const std::vector<API::Peerinfo>& banned);
 std::string endpoints(const Eventloop&);
 // std::string connect_timers(const Eventloop&);
 std::string header_download(const Eventloop&);
-std::string ip_counter(const UV_Helper&);
+std::string ip_counter(const TCPConnectionManager&);
 
 
 }

@@ -17,7 +17,7 @@ ConnectRequest TCPConnection::connect_request() const
     return connectRequest;
 }
 
-TCPConnection::TCPConnection(Token, std::shared_ptr<uvw::tcp_handle> handle, const TCPConnectRequest& r, UV_Helper& conman)
+TCPConnection::TCPConnection(Token, std::shared_ptr<uvw::tcp_handle> handle, const TCPConnectRequest& r, TCPConnectionManager& conman)
     : connectRequest(r)
     , conman(conman)
     , tcpHandle(std::move(handle))
@@ -25,7 +25,7 @@ TCPConnection::TCPConnection(Token, std::shared_ptr<uvw::tcp_handle> handle, con
 }
 
 std::shared_ptr<TCPConnection> TCPConnection::make_new(
-    std::shared_ptr<uvw::tcp_handle> handle, const TCPConnectRequest& r, UV_Helper& conman)
+    std::shared_ptr<uvw::tcp_handle> handle, const TCPConnectRequest& r, TCPConnectionManager& conman)
 {
     return make_shared<TCPConnection>(Token {}, std::move(handle), r, conman);
 }

@@ -7,7 +7,7 @@
 
 class TCPConnection final : public ConnectionBase, public ConnectionBase::TCPData, public std::enable_shared_from_this<TCPConnection> {
 
-    friend class UV_Helper;
+    friend class TCPConnectionManager;
 
     void async_send(std::unique_ptr<char[]> data, size_t size) override;
     ConnectionBase::Type type() const override { return ConnectionBase::Type::TCP; }
@@ -18,9 +18,9 @@ class TCPConnection final : public ConnectionBase, public ConnectionBase::TCPDat
     };
 
 public:
-    TCPConnection(Token, std::shared_ptr<uvw::tcp_handle> handle, const TCPConnectRequest& r, UV_Helper& conman);
+    TCPConnection(Token, std::shared_ptr<uvw::tcp_handle> handle, const TCPConnectRequest& r, TCPConnectionManager& conman);
     [[nodiscard]] static std::shared_ptr<TCPConnection> make_new(
-        std::shared_ptr<uvw::tcp_handle> handle, const TCPConnectRequest& r, UV_Helper& conman);
+        std::shared_ptr<uvw::tcp_handle> handle, const TCPConnectRequest& r, TCPConnectionManager& conman);
     TCPConnection(const TCPConnection&) = delete;
     TCPConnection(TCPConnection&&) = delete;
     std::shared_ptr<ConnectionBase> get_shared() override
@@ -41,6 +41,6 @@ private:
 
 private:
     const TCPConnectRequest connectRequest;
-    UV_Helper& conman;
+    TCPConnectionManager& conman;
     std::shared_ptr<uvw::tcp_handle> tcpHandle;
 };

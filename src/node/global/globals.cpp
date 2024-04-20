@@ -51,7 +51,7 @@ const Config& config()
     return *globalinstance.conf;
 }
 
-void global_init(std::shared_ptr<uvw::loop>* uv_loop, BatchRegistry* pbr, PeerServer* pps, ChainServer* pcs, UV_Helper* pcm, Eventloop* pel, HTTPEndpoint* httpEndpoint)
+void global_init(std::shared_ptr<uvw::loop>* uv_loop, BatchRegistry* pbr, PeerServer* pps, ChainServer* pcs, TCPConnectionManager* pcm, Eventloop* pel, HTTPEndpoint* httpEndpoint)
 {
     globalinstance.uv_loop = uv_loop;
     globalinstance.batchRegistry = pbr;

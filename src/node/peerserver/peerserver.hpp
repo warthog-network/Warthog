@@ -16,11 +16,8 @@
 #include <queue>
 #include <set>
 #include <thread>
-#include <uv.h>
 #include <variant>
 
-class TCPConnection;
-class UV_Helper;
 struct Inspector;
 struct ConfigParams;
 

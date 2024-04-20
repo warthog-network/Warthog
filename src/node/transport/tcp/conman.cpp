@@ -17,7 +17,7 @@ namespace {
 }
 }
 
-TCPConnection& UV_Helper::insert_connection(std::shared_ptr<uvw::tcp_handle>& tcpHandle, const TCPConnectRequest& r)
+TCPConnection& TCPConnectionManager::insert_connection(std::shared_ptr<uvw::tcp_handle>& tcpHandle, const TCPConnectRequest& r)
 {
     auto con { TCPConnection::make_new(tcpHandle, r, *this) };
     auto iter { tcpConnections.insert(con).first };
@@ -39,7 +39,7 @@ TCPConnection& UV_Helper::insert_connection(std::shared_ptr<uvw::tcp_handle>& tc
     return *con;
 };
 
-UV_Helper::UV_Helper(std::shared_ptr<uvw::loop> loop, PeerServer& ps, const ConfigParams& cfg)
+TCPConnectionManager::TCPConnectionManager(std::shared_ptr<uvw::loop> loop, PeerServer& ps, const ConfigParams& cfg)
     : bindAddress(cfg.node.bind)
 {
     listener = loop->resource<uvw::tcp_handle>();
@@ -72,7 +72,7 @@ UV_Helper::UV_Helper(std::shared_ptr<uvw::loop> loop, PeerServer& ps, const Conf
             "Cannot start connection manager: " + std::string(errors::err_name(i)));
     assert(0 == listener->listen());
 }
-void UV_Helper::on_wakeup()
+void TCPConnectionManager::on_wakeup()
 {
     decltype(events) tmp;
     { // lock for very short time (swap)
@@ -86,7 +86,7 @@ void UV_Helper::on_wakeup()
     }
 }
 
-void UV_Helper::handle_event(GetPeers&& e)
+void TCPConnectionManager::handle_event(GetPeers&& e)
 {
     std::vector<APIPeerdata> data;
     for (auto c : tcpConnections) {
@@ -95,22 +95,22 @@ void UV_Helper::handle_event(GetPeers&& e)
     e.cb(std::move(data));
 }
 
-void UV_Helper::handle_event(Connect&& c)
+void TCPConnectionManager::handle_event(Connect&& c)
 {
     connect_internal(c);
 }
 
-void UV_Helper::handle_event(Inspect&& e)
+void TCPConnectionManager::handle_event(Inspect&& e)
 {
     e.callback(*this);
 }
 
-void UV_Helper::handle_event(DeferFunc&& f)
+void TCPConnectionManager::handle_event(DeferFunc&& f)
 {
     f.callback();
 };
 
-void UV_Helper::shutdown(int32_t reason)
+void TCPConnectionManager::shutdown(int32_t reason)
 {
     if (closing == true)
         return;
@@ -121,7 +121,7 @@ void UV_Helper::shutdown(int32_t reason)
         c->close_internal(reason);
 }
 
-void UV_Helper::connect_internal(const TCPConnectRequest& r)
+void TCPConnectionManager::connect_internal(const TCPConnectRequest& r)
 {
     connection_log().info("{} connecting ", r.address.to_string()); // TODO: do connection_log
     auto& loop { listener->parent() };
