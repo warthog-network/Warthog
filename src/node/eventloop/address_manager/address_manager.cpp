@@ -3,6 +3,7 @@
 #include "global/globals.hpp"
 #include <algorithm>
 #include <future>
+#include "transport/helpers/start_connection.hpp"
 #include <random>
 
 namespace address_manager {
@@ -112,10 +113,6 @@ std::optional<std::chrono::steady_clock::time_point> AddressManager::pop_schedul
     return connectionSchedule.pop_wakeup_time();
 }
 
-void AddressManager::start_connection(const TCPConnectRequest& r)
-{
-    global().conman->connect(r);
-}
 
 void AddressManager::insert_additional_verified(Sockaddr newAddress)
 {

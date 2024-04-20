@@ -90,7 +90,7 @@ void Eventloop::async_mempool_update(mempool::Log&& s)
 {
     defer(std::move(s));
 }
-void Eventloop::on_failed_connect(const TCPConnectRequest& r, Error reason)
+void Eventloop::on_failed_connect(const ConnectRequest& r, Error reason)
 {
     defer(FailedConnect { r, reason });
 };

@@ -66,7 +66,7 @@ public:
     void async_shutdown(int32_t reason);
     void async_report_failed_outbound(TCPSockaddr);
     void async_stage_action(stage_operation::Result);
-    void on_failed_connect(const TCPConnectRequest& r, Error reason);
+    void on_failed_connect(const ConnectRequest& r, Error reason);
     void api_get_peers(PeersCb&& cb);
     void api_get_synced(SyncedCb&& cb);
     void api_get_hashrate(HashrateCb&& cb, size_t n=100);

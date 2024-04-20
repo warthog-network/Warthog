@@ -1,4 +1,5 @@
 #include "connect_request.hpp"
+#include "transport/connect_request.hpp"
 
 TCPConnectRequest make_request(const TCPSockaddr& connectTo, steady_duration sleptFor)
 {

@@ -1,6 +1,7 @@
 #pragma once
 #include "general/move_only_function.hpp"
 #include "../helpers/per_ip_counter.hpp"
+#include "connect_request.hpp"
 #include "peerserver/peerserver.hpp"
 #include "uvw.hpp"
 #include <list>

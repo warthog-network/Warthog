@@ -138,7 +138,6 @@ public:
     [[nodiscard]] std::optional<time_point> pop_scheduled_connect_time();
 
 private:
-    void start_connection(const TCPConnectRequest&);
 
     bool is_own_endpoint(Sockaddr a);
     void insert_additional_verified(Sockaddr);
