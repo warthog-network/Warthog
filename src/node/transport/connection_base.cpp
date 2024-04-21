@@ -217,6 +217,7 @@ void ConnectionBase::on_connected()
     }
     std::lock_guard l(statechangeMutex);
     state = HandshakeState();
+    handshake_timer_start();
 }
 
 uint16_t ConnectionBase::asserted_port() const
