@@ -14,7 +14,7 @@
 #include "stage_state.hpp"
 #include <array>
 namespace HeaderDownload {
-class LeaderInfo;
+struct LeaderInfo;
 }
 
 namespace BlockDownload {
@@ -25,7 +25,7 @@ enum class ServerCall {
 };
 
 class Downloader {
-    friend struct Focus;
+    friend class Focus;
 
 public:
     Downloader(Attorney, size_t windowLength = 10);

@@ -62,7 +62,8 @@ struct FocusNode {
     std::optional<Conref> c; // connection downloading this block batch
     std::vector<Conref> refs;
 };
-struct Focus {
+class Focus {
+    public:
     using FocusMap = std::map<BlockSlot, FocusNode>;
     Focus(const Downloader& dl, size_t windowWidth)
         : downloader(dl)
@@ -87,7 +88,7 @@ struct Focus {
     struct EndIterator {
     };
     class Iterator {
-        friend struct Focus;
+        friend class Focus;
 
     public:
         Iterator& operator++()

@@ -3,7 +3,7 @@
 #include "general/is_testnet.hpp"
 #include "spdlog/spdlog.h"
 
-struct TransferTxExchangeMessage;
+class TransferTxExchangeMessage;
 
 namespace {
 inline uint8_t* bewrite(uint8_t* pos, uint64_t val)
