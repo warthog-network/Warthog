@@ -1129,8 +1129,8 @@ __m128i __verusclmulwithoutreduction64alignedrepeat_port(
 __m128i __verusclmulwithoutreduction64alignedrepeat_sv2_1_port(
     __m128i *randomsource, const __m128i buf[4], uint64_t keyMask,
     __m128i **pMoveScratch) {
-  const __m128i pbuf_copy[4] = {_mm_xor_si128(buf[0], buf[2]),
-                                _mm_xor_si128(buf[1], buf[3]), buf[2], buf[3]};
+  const __m128i pbuf_copy[4] = {_mm_xor_si128_emu(buf[0], buf[2]),
+                                _mm_xor_si128_emu(buf[1], buf[3]), buf[2], buf[3]};
   const __m128i *pbuf;
 
   // divide key mask by 16 from bytes to __m128i
@@ -1401,8 +1401,8 @@ __m128i __verusclmulwithoutreduction64alignedrepeat_sv2_1_port(
 __m128i __verusclmulwithoutreduction64alignedrepeat_sv2_2_port(
     __m128i *randomsource, const __m128i buf[4], uint64_t keyMask,
     __m128i **pMoveScratch) {
-  const __m128i pbuf_copy[4] = {_mm_xor_si128(buf[0], buf[2]),
-                                _mm_xor_si128(buf[1], buf[3]), buf[2], buf[3]};
+  const __m128i pbuf_copy[4] = {_mm_xor_si128_emu(buf[0], buf[2]),
+                                _mm_xor_si128_emu(buf[1], buf[3]), buf[2], buf[3]};
   const __m128i *pbuf;
 
   // divide key mask by 16 from bytes to __m128i

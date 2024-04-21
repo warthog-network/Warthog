@@ -8,8 +8,8 @@
 // #include <asm/hwcap.h>
 // #include <sys/auxv.h>
 #else
-#include <cpuid.h>
-#include <x86intrin.h>
+// #include <cpuid.h>
+// #include <x86intrin.h>
 #endif // !WIN32
 
 // #include "verus_clhash_opt.hpp"
@@ -70,21 +70,22 @@ private:
 };
 bool can_optimize()
 {
-#if defined(__arm__) || defined(__aarch64__)
-    // long hwcaps = getauxval(AT_HWCAP);
-    //
-    // if ((hwcaps & HWCAP_AES) && (hwcaps & HWCAP_PMULL))
-    //     return true;
-    // else
-        return false;
-#else
-    unsigned int eax, ebx, ecx, edx;
-    if (!__get_cpuid(1, &eax, &ebx, &ecx, &edx)) {
-        return false;
-    } else {
-        return ((ecx & (bit_AVX | bit_AES | bit_PCLMUL)) == (bit_AVX | bit_AES | bit_PCLMUL));
-    }
-#endif
+// #if defined(__arm__) || defined(__aarch64__)
+//     // long hwcaps = getauxval(AT_HWCAP);
+//     //
+//     // if ((hwcaps & HWCAP_AES) && (hwcaps & HWCAP_PMULL))
+//     //     return true;
+//     // else
+//         return false;
+// #else
+//     unsigned int eax, ebx, ecx, edx;
+//     if (!__get_cpuid(1, &eax, &ebx, &ecx, &edx)) {
+//         return false;
+//     } else {
+//         return ((ecx & (bit_AVX | bit_AES | bit_PCLMUL)) == (bit_AVX | bit_AES | bit_PCLMUL));
+//     }
+// #endif
+    return false;
 }
 
 VerusHasher::VerusHasher()

@@ -1,7 +1,6 @@
 #pragma once
 
 #include "crypto/hash.hpp"
-#include "u128.h"
 #include <span>
 
 namespace Verus {

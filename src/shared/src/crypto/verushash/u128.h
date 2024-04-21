@@ -2,7 +2,7 @@
 #if defined(__arm__) || defined(__aarch64__)
 #include "crypto/sse2neon.h"
 #else
-#include "immintrin.h"
+#include "xmmintrin.h"
 #endif
 #ifdef _WIN32
 typedef unsigned long long u64;
