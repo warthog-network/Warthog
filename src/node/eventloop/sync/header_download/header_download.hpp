@@ -37,9 +37,9 @@ using Lead_set = std::set<Lead_iter>;
 
 inline bool operator<(const Lead_iter& l1, const Lead_iter& l2)
 {
-    static_assert(sizeof(uint64_t) == sizeof(l1));
-    return *reinterpret_cast<const uint64_t*>(&l1) < *reinterpret_cast<const uint64_t*>(&l2);
+    return &*l1< &*l2;
 }
+
 struct NonzeroSnapshot {
     NonzeroSnapshot(std::shared_ptr<Descripted>);
     std::shared_ptr<Descripted> descripted;
@@ -56,8 +56,7 @@ struct VerifierNode {
 };
 inline bool operator<(const Ver_iter& l1, const Ver_iter& l2)
 {
-    static_assert(sizeof(uint64_t) == sizeof(l1));
-    return *reinterpret_cast<const uint64_t*>(&l1) < *reinterpret_cast<const uint64_t*>(&l2);
+    return &*l1< &*l2;
 }
 struct QueueBatchNode {
     std::optional<Conref> cr;
@@ -70,8 +69,7 @@ struct QueueBatchNode {
 using Queued_iter = std::map<Header, QueueBatchNode>::iterator;
 inline bool operator<(const Queued_iter& l1, const Queued_iter& l2)
 {
-    static_assert(sizeof(uint64_t) == sizeof(l1));
-    return *reinterpret_cast<const uint64_t*>(&l1) < *reinterpret_cast<const uint64_t*>(&l2);
+    return &*l1< &*l2;
 }
 
 struct QueueEntry {
