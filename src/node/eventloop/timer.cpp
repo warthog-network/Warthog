@@ -5,9 +5,9 @@ std::vector<Timer::Event> Timer::pop_expired() {
     const auto now = std::chrono::steady_clock::now();
     std::vector<Timer::Event> res;
     for (auto iter = ordered.begin(); iter != ordered.end();) {
-        if (iter->first > now)
+        if (iter->first.wakeup_tp > now)
             break;
-        res.push_back(iter->second);
+        res.push_back(std::move(iter->second));
         ordered.erase(iter++);
     }
     return res;
@@ -19,5 +19,5 @@ Timer::time_point Timer::next() {
         // this does not work on docker alpine 3.15 (wait_until fires immediately)
         // return time_point::max();
     }
-    return ordered.begin()->first;
+    return ordered.begin()->first.wakeup_tp;
 };

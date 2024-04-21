@@ -27,6 +27,10 @@ public:
     {
         return shared_from_this();
     }
+    std::weak_ptr<ConnectionBase> get_weak() override
+    {
+        return weak_from_this();
+    }
     Sockaddr claimed_peer_addr() const override;
     Sockaddr connection_peer_addr() const override { return { connection_peer_addr_native() }; }
     TCPSockaddr connection_peer_addr_native() const { return connectRequest.address; }

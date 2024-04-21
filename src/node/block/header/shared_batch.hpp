@@ -6,7 +6,7 @@
 class BatchRegistry;
 struct Nodedata;
 class HeaderVerifier;
-class SignedSnapshot;
+struct SignedSnapshot;
 class SharedBatchView {
     friend class BatchRegistry;
     using Maptype = std::map<std::array<uint8_t, 80>, Nodedata, HeaderView::HeaderComparator>;

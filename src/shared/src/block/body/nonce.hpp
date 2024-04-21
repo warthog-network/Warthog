@@ -5,7 +5,7 @@ class Height;
 class NonzeroHeight;
 class PinHeight;
 class Reader;
-class PinFloor;
+struct PinFloor;
 
 template <size_t>
 class ReaderCheck;

@@ -1,7 +1,7 @@
 #pragma once
 #include <map>
 
-struct Conref;
+class Conref;
 namespace mempool {
 struct OrderKey;
 using SubscriptionMap = std::multimap<mempool::OrderKey, Conref>;

@@ -2,7 +2,7 @@
 #include "subscription_declaration.hpp"
 #include "mempool/order_key.hpp"
 
-struct Conref;
+class Conref;
 
 namespace mempool{
 struct Subscription {

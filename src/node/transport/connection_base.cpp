@@ -1,10 +1,10 @@
 #include "connection_base.hpp"
-#include "transport/tcp/conman.hpp"
 #include "communication/buffers/sndbuffer.hpp"
 #include "eventloop/eventloop.hpp"
 #include "general/is_testnet.hpp"
 #include "global/globals.hpp"
 #include "peerserver/peerserver.hpp"
+#include "transport/tcp/conman.hpp"
 #include "uvw.hpp"
 #include "version.hpp"
 #include <chrono>
@@ -36,22 +36,27 @@ void ConnectionBase::handshake_timer_start()
 {
     using namespace std::chrono_literals;
     // start handshake timeout timer on libuv thread
-    global().conman->async_call([con = get_shared()]() {
-        {
-            std::lock_guard l(statechangeMutex);
-            if (std::holds_alternative<HandshakeState>(con->state)) {
-                auto& handshakeState { std::get<HandshakeState>(con->state) };
-                auto timer { (*global().uv_loop)->resource<uvw::timer_handle>() };
-                timer->start(5000ms, 0ms); // timeout for handshake
-                timer->on<uvw::timer_event>([con = std::move(con)](
-                                                auto&, uvw::timer_handle& timer) {
+    global().core->start_timer(
+        { .wakeup { std::chrono::steady_clock::now() + 5000ms },
+            .on_expire {
+                [wcon = get_weak()]() {
+                    auto con { wcon.lock() };
+                    if (!con)
+                        return;
                     con->handshake_timer_expired();
-                    timer.close();
-                });
-                handshakeState.expire_timer = std::move(timer);
+                } },
+            .on_timerstart {
+                [con = get_shared()](TimerElement te) {
+                    std::lock_guard l(statechangeMutex);
+                    if (std::holds_alternative<HandshakeState>(con->state)) {
+                        auto& handshakeState { std::get<HandshakeState>(con->state) };
+                        handshakeState.expire_timer = std::move(te);
+                    }
+                }
+
             }
-        }
-    });
+
+        });
 }
 
 void ConnectionBase::handshake_timer_expired()
@@ -59,7 +64,7 @@ void ConnectionBase::handshake_timer_expired()
     std::lock_guard l(statechangeMutex);
     if (std::holds_alternative<HandshakeState>(state)) {
         close(ETIMEOUT);
-        std::get<HandshakeState>(state).expire_timer->reset();
+        std::get<HandshakeState>(state).expire_timer.reset();
     }
 }
 
@@ -153,17 +158,6 @@ void ConnectionBase::on_close(const CloseState& cs)
     global().core->erase(get_shared());
     // l->async_register_close(peerAddress.ipv4, errcode, logrow); // TODO: logrow
     global().peerServer->async_register_close(get_shared(), cs.error); // TODO: use failed outbound
-}
-
-HandshakeState::~HandshakeState()
-{
-    std::shared_ptr<uvw::timer_handle> t { std::move(expire_timer) };
-    if (t) {
-        // cancel timer on libuv thread
-        global().conman->async_call([t]() {
-            t->close();
-        });
-    }
 }
 
 auto HandshakeState::parse(bool inbound) -> Parsed

@@ -1,5 +1,4 @@
 #include "eventloop.hpp"
-#include "transport/tcp/connection.hpp"
 #include "address_manager/address_manager_impl.hpp"
 #include "api/types/all.hpp"
 #include "block/chain/header_chain.hpp"
@@ -10,6 +9,7 @@
 #include "mempool/order_key.hpp"
 #include "peerserver/peerserver.hpp"
 #include "spdlog/spdlog.h"
+#include "transport/tcp/connection.hpp"
 #include "types/conref_impl.hpp"
 #include "types/peer_requests.hpp"
 #include <algorithm>
@@ -45,7 +45,7 @@ Eventloop::Eventloop(PeerServer& ps, ChainServer& cs, const ConfigParams& config
 
 Eventloop::~Eventloop()
 {
-    if (worker.joinable()) 
+    if (worker.joinable())
         worker.join();
 }
 void Eventloop::start()
@@ -90,10 +90,21 @@ void Eventloop::async_mempool_update(mempool::Log&& s)
 {
     defer(std::move(s));
 }
+
+void Eventloop::start_timer(StartTimer st)
+{
+    defer(std::move(st));
+}
+
+void Eventloop::cancel_timer(const Timer::key_t& k)
+{
+    defer(CancelTimer { k });
+}
+
 void Eventloop::on_failed_connect(const ConnectRequest& r, Error reason)
 {
     defer(FailedConnect { r, reason });
-};
+}
 
 void Eventloop::api_get_peers(PeersCb&& cb)
 {
@@ -231,7 +242,7 @@ void Eventloop::update_chain(Append&& m)
     log_chain_length();
     for (auto c : connections.all()) {
         try {
-            if (c.initialized()) 
+            if (c.initialized())
                 c->chain.on_consensus_append(chains);
         } catch (ChainError e) {
             close(c, e);
@@ -252,7 +263,7 @@ void Eventloop::update_chain(Fork&& fork)
     log_chain_length();
     for (auto c : connections.all()) {
         try {
-            if (c.initialized()) 
+            if (c.initialized())
                 c->chain.on_consensus_fork(msg.forkHeight, chains);
             c.send(msg);
         } catch (ChainError e) {
@@ -271,7 +282,7 @@ void Eventloop::update_chain(RollbackData&& rd)
     if (msg) {
         log_chain_length();
         for (auto c : connections.all()) {
-            if (c.initialized()) 
+            if (c.initialized())
                 c->chain.on_consensus_shrink(chains);
             c.send(*msg);
         }
@@ -445,6 +456,22 @@ void Eventloop::handle_event(mempool::Log&& log)
     }
 }
 
+void Eventloop::handle_event(StartTimer&& st)
+{
+    auto now = std::chrono::steady_clock::now();
+    if (st.wakeup < now) {
+        st.on_expire();
+        return;
+    }
+    auto iter = timer.insert(st.wakeup, Timer::CallFunction(std::move(st.on_expire)));
+    st.on_timerstart({ iter->first });
+}
+
+void Eventloop::handle_event(CancelTimer&& ct)
+{
+    timer.cancel(ct.timer);
+}
+
 void Eventloop::erase_internal(Conref c)
 {
     if (c->c->eventloop_erased)
@@ -525,7 +552,7 @@ void Eventloop::process_connection(std::shared_ptr<ConnectionBase> c)
         if (prepared) {
             log_communication("{} connected", c->to_string());
             if (prepared.value()) {
-                auto& evictionCandidate{(**prepared).evictionCandidate};
+                auto& evictionCandidate { (**prepared).evictionCandidate };
                 close(evictionCandidate, EEVICTED);
             }
             Conref res { connections.insert_prepared(
@@ -635,6 +662,11 @@ void Eventloop::handle_connection_timeout(Conref cr, Timer::CloseNoPong&&)
 void Eventloop::handle_timeout(Timer::ScheduledConnect&&)
 {
     // TODO
+}
+
+void Eventloop::handle_timeout(Timer::CallFunction&& cf)
+{
+    cf.callback();
 }
 
 void Eventloop::handle_connection_timeout(Conref cr, Timer::SendPing&&)
@@ -978,7 +1010,7 @@ void Eventloop::set_scheduled_connect_timer()
     auto& tp { *t };
 
     if (wakeupTimer) {
-        if ((*wakeupTimer)->first <= tp)
+        if ((*wakeupTimer)->first.wakeup_tp <= tp)
             return;
         timer.cancel(*wakeupTimer);
     }

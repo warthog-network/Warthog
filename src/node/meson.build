@@ -36,6 +36,7 @@ src= [
   './eventloop/address_manager/connection_schedule.cpp',
   './eventloop/address_manager/flat_address_set.cpp',
   './eventloop/chain_cache.cpp',
+  './eventloop/timer_element.cpp',
   './eventloop/eventloop.cpp',
   './eventloop/peer_chain.cpp',
   './eventloop/sync/block_download/attorney.cpp',

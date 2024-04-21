@@ -2,17 +2,19 @@
 #include "address_manager/address_manager.hpp"
 #include "api/callbacks.hpp"
 #include "api/types/forward_declarations.hpp"
-#include "transport/connection_base.hpp"
 #include "block/chain/signed_snapshot.hpp"
 #include "chain_cache.hpp"
 #include "chainserver/state/update/update.hpp"
 #include "communication/stage_operation/result.hpp"
 #include "eventloop/timer.hpp"
+#include "general/move_only_function.hpp"
 #include "mempool/mempool.hpp"
 #include "mempool/subscription_declaration.hpp"
 #include "peerserver/peerserver.hpp"
 #include "sync/sync.hpp"
 #include "sync/sync_state.hpp"
+#include "timer_element.hpp"
+#include "transport/connection_base.hpp"
 #include "types/chainstate.hpp"
 #include "types/conndata.hpp"
 #include <condition_variable>
@@ -47,6 +49,11 @@ class Eventloop {
     friend class EndAttorney;
 
 public:
+    struct StartTimer {
+        std::chrono::steady_clock::time_point wakeup;
+        MoveOnlyFunction<void()> on_expire;
+        MoveOnlyFunction<void(TimerElement)> on_timerstart;
+    };
     friend struct Inspector;
     Eventloop(PeerServer& ps, ChainServer& ss, const ConfigParams& config);
     ~Eventloop();
@@ -59,20 +66,22 @@ public:
     // Async functions
     // called by other threads
 
-    void async_state_update(StateUpdate&& s);
-    void async_mempool_update(mempool::Log&& s);
     bool async_process(std::shared_ptr<ConnectionBase> c);
-    void erase(std::shared_ptr<ConnectionBase> c);
-    void async_shutdown(int32_t reason);
-    void async_report_failed_outbound(TCPSockaddr);
-    void async_stage_action(stage_operation::Result);
-    void on_failed_connect(const ConnectRequest& r, Error reason);
-    void api_get_peers(PeersCb&& cb);
-    void api_get_synced(SyncedCb&& cb);
-    void api_get_hashrate(HashrateCb&& cb, size_t n=100);
+    void api_get_hashrate(HashrateCb&& cb, size_t n = 100);
     void api_get_hashrate_chart(HashrateChartCb&& cb);
     void api_get_hashrate_chart(NonzeroHeight from, NonzeroHeight to, size_t window, HashrateChartCb&& cb);
+    void api_get_peers(PeersCb&& cb);
+    void api_get_synced(SyncedCb&& cb);
     void api_inspect(InspectorCb&&);
+    void start_timer(StartTimer);
+    void cancel_timer(const Timer::key_t&);
+    void async_mempool_update(mempool::Log&& s);
+    void async_report_failed_outbound(TCPSockaddr);
+    void async_shutdown(int32_t reason);
+    void async_stage_action(stage_operation::Result);
+    void async_state_update(StateUpdate&& s);
+    void erase(std::shared_ptr<ConnectionBase> c);
+    void on_failed_connect(const ConnectRequest& r, Error reason);
 
     void start();
 
@@ -161,6 +170,7 @@ private:
     void handle_connection_timeout(Conref, Timer::CloseNoReply&&);
     void handle_connection_timeout(Conref, Timer::CloseNoPong&&);
     void handle_timeout(Timer::ScheduledConnect&&);
+    void handle_timeout(Timer::CallFunction&&);
 
     void on_request_expired(Conref cr, const Proberequest&);
     void on_request_expired(Conref cr, const Batchrequest&);
@@ -169,7 +179,6 @@ private:
     ////////////////////////
     // blockdownload result
     void process_blockdownload_stage();
-
 
     ////////////////////////
     // event types
@@ -197,12 +206,16 @@ private:
         ConnectRequest connectRequest;
         int32_t reason;
     };
+    struct CancelTimer {
+        Timer::key_t timer;
+    };
+
     // event queue
     using Event = std::variant<Erase, OnProcessConnection,
         StateUpdate, SignedSnapshotCb, PeersCb, SyncedCb, stage_operation::Result,
         OnForwardBlockrep, InspectorCb, GetHashrate, GetHashrateChart,
         FailedConnect,
-        mempool::Log>;
+        mempool::Log, StartTimer, CancelTimer>;
 
 public:
     bool defer(Event e);
@@ -222,6 +235,8 @@ private:
     void handle_event(GetHashrateChart&&);
     void handle_event(FailedConnect&&);
     void handle_event(mempool::Log&&);
+    void handle_event(StartTimer&&);
+    void handle_event(CancelTimer&&);
 
     // chain updates
     using Append = chainserver::state_update::Append;

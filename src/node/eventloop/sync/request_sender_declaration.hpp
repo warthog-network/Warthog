@@ -3,6 +3,7 @@
 #include<concepts>
 class Eventloop;
 struct IsRequest;
+class Conref;
 class RequestSender {
     public:
         template <typename T>

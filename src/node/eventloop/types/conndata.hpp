@@ -1,11 +1,12 @@
 #pragma once
 
-#include "transport/connection_base.hpp"
 #include "eventloop/peer_chain.hpp"
 #include "eventloop/sync/block_download/connection_data.hpp"
 #include "eventloop/sync/header_download/connection_data.hpp"
 #include "eventloop/timer.hpp"
 #include "mempool/subscription_declaration.hpp"
+#include "peer_requests.hpp"
+#include "transport/connection_base.hpp"
 
 class Timerref {
 public:
@@ -225,7 +226,7 @@ class Attorney;
 }
 
 class PeerState {
-    public:
+public:
     PeerState(std::shared_ptr<ConnectionBase> c, HeaderDownload::Downloader& h, BlockDownload::Downloader& b, Timer& t);
     std::shared_ptr<ConnectionBase> c;
     std::optional<mempool::SubscriptionIter> subscriptionIter;

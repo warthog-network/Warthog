@@ -59,15 +59,17 @@ public:
         async_add_event(Inspect { std::move(cb) });
     }
     // auto& loop() { return tcp->parent(); }
-    void async_call(MoveOnlyFunction<void()>&& cb)
-    {
-        async_add_event(DeferFunc { std::move(cb) });
-    }
 
     TCPConnectionManager(std::shared_ptr<uvw::loop> l, PeerServer& peerdb, const ConfigParams&);
     void shutdown(int32_t reason);
 
 private:
+
+    void async_call(MoveOnlyFunction<void()>&& cb)
+    {
+        async_add_event(DeferFunc { std::move(cb) });
+    }
+
     const TCPSockaddr bindAddress;
     //--------------------------------------
     // data accessed by libuv thread

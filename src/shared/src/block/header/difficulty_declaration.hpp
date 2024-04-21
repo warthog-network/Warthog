@@ -7,7 +7,8 @@
 #include <variant>
 
 class Hash;
-struct TargetV1 { // original target with 24 bit digits, 8 bit mantissa
+class TargetV1 { // original target with 24 bit digits, 8 bit mantissa
+public:
     static constexpr uint32_t HARDESTTARGET_HOST = 0xFF800000u; // maximal target, 232 zeros then one digit 1 and 23 digits 0
     static constexpr uint32_t GENESISTARGET_HOST = (uint32_t(::GENESISDIFFICULTYEXPONENT) << 24) | 0x00FFFFFFu;
     static_assert(GENESISDIFFICULTYEXPONENT < 0xe8u);
@@ -52,7 +53,8 @@ constexpr uint32_t make_targetv2_data(uint32_t zeros, uint32_t bytes)
 {
     return zeros << 22 | (bytes & 0x003FFFFF);
 }
-struct TargetV2 { // new target with 22 bit digits, 10 bit mantissa to represent hash product even for small factors
+class TargetV2 { // new target with 22 bit digits, 10 bit mantissa to represent hash product even for small factors
+public:
     static constexpr uint32_t MaxTargetHost = make_targetv2_data(3 * 256, (1 << 22u) - 1); // maximal target, 3*256 zeros than all 22 set to 1
 
 private:

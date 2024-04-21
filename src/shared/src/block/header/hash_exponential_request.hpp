@@ -3,7 +3,7 @@
 
 #include "crypto/hash.hpp"
 class HashExponentialDigest {
-  friend struct Target;
+  friend class Target;
 
 public:
   uint32_t negExp{0}; // negative exponent of 2
