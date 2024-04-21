@@ -1,5 +1,4 @@
 #include "address_manager.hpp"
-#include "transport/tcp/connection.hpp"
 #include "global/globals.hpp"
 #include <algorithm>
 #include <future>

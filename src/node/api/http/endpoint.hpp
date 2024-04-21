@@ -2,7 +2,7 @@
 #define UWS_NO_ZLIB
 #include "api/types/all.hpp"
 #include "block/block.hpp"
-#include "transport/tcp/tcp_sockaddr.hpp"
+#include "transport/helpers/tcp_sockaddr.hpp"
 #include "uwebsockets/App.h"
 #include <thread>
 #include <variant>

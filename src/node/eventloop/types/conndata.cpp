@@ -1,5 +1,5 @@
 #include "conndata.hpp"
-#include "transport/tcp/connection.hpp"
+#include "communication/buffers/sndbuffer.hpp"
 #include "eventloop/sync/sync.hpp"
 #include "eventloop/types/peer_requests.hpp"
 

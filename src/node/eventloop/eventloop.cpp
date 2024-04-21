@@ -5,11 +5,11 @@
 #include "block/header/batch.hpp"
 #include "block/header/view.hpp"
 #include "chainserver/server.hpp"
+#include "communication/buffers/sndbuffer.hpp"
 #include "global/globals.hpp"
 #include "mempool/order_key.hpp"
 #include "peerserver/peerserver.hpp"
 #include "spdlog/spdlog.h"
-#include "transport/tcp/connection.hpp"
 #include "types/conref_impl.hpp"
 #include "types/peer_requests.hpp"
 #include <algorithm>

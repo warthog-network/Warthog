@@ -1,7 +1,6 @@
 #pragma once
 
 #include "transport/helpers/ipv4.hpp"
-#include "transport/tcp/tcp_sockaddr.hpp"
 #include "peerserver/connection_data.hpp"
 
 #include <chrono>

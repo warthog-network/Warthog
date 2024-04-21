@@ -3,7 +3,7 @@
 #include "block/chain/signed_snapshot.hpp"
 #include "expected.hpp"
 #include "transport/helpers/socket_addr.hpp"
-#include "transport/tcp/tcp_sockaddr.hpp"
+#include "transport/helpers/tcp_sockaddr.hpp"
 #include <atomic>
 struct gengetopt_args_info;
 struct EndpointVector : public std::vector<Sockaddr> {

@@ -2,7 +2,7 @@
 #include "transport/connect_request.hpp"
 #include "transport/helpers/socket_addr.hpp"
 #include "eventloop/types/conref_declaration.hpp"
-#include "transport/tcp/tcp_sockaddr.hpp"
+#include "transport/helpers/tcp_sockaddr.hpp"
 #include <atomic>
 #include <chrono>
 #include <cstdint>

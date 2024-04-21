@@ -1,5 +1,4 @@
 #pragma once
-#include "transport/tcp/connection.hpp"
 #include "conndata.hpp"
 
 inline bool PeerState::erased()

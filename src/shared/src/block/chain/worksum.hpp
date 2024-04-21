@@ -3,8 +3,8 @@
 #include <array>
 #include <limits>
 #include <string>
-class TargetV1;
-class TargetV2;
+struct TargetV1;
+struct TargetV2;
 class Target;
 class Worksum {
 private:

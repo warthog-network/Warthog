@@ -2,7 +2,7 @@
 #include "cmdline/cmdline.hpp"
 #include "general/errors.hpp"
 #include "general/is_testnet.hpp"
-#include "transport/tcp/tcp_sockaddr.hpp"
+#include "transport/helpers/tcp_sockaddr.hpp"
 #include "spdlog/spdlog.h"
 #include "toml++/toml.hpp"
 #include "version.hpp"

@@ -1,6 +1,6 @@
 #pragma once
 #include "../helpers/connect_request_base.hpp"
-#include "tcp_sockaddr.hpp"
+#include "../helpers/tcp_sockaddr.hpp"
 
 struct ConnectRequest;
 struct TCPConnectRequest : public ConnectRequestBase {

@@ -12,7 +12,7 @@
 #include "peerserver/db/offense_entry.hpp"
 #include "eventloop/peer_chain.hpp"
 #include "general/funds.hpp"
-#include "transport/tcp/tcp_sockaddr.hpp"
+#include "transport/helpers/tcp_sockaddr.hpp"
 #include "height_or_hash.hpp"
 #include "accountid_or_address.hpp"
 #include <variant>

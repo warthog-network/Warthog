@@ -51,7 +51,7 @@ src= [
   './eventloop/timer.cpp',
   './eventloop/types/chainstate.cpp',
   './eventloop/types/conndata.cpp',
-  './transport/tcp/tcp_sockaddr.cpp',
+  './transport/helpers/tcp_sockaddr.cpp',
   './global/globals.cpp',
   './mempool/mempool.cpp',
   './mempool/subscription.cpp',

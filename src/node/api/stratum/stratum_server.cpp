@@ -2,7 +2,6 @@
 
 #include "api/interface.hpp"
 #include "block/header/header_impl.hpp"
-#include "transport/tcp/tcp_sockaddr.hpp"
 #include "nlohmann/json.hpp"
 #include <cassert>
 #include <iostream>

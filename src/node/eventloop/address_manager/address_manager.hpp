@@ -3,8 +3,6 @@
 #include "transport/helpers/per_ip_counter.hpp"
 #include "connection_schedule.hpp"
 #include "expected.hpp"
-#include "flat_address_set.hpp"
-#include "transport/tcp/tcp_sockaddr.hpp"
 #include <chrono>
 #include <map>
 #include <set>
@@ -147,7 +145,6 @@ private:
     PeerServer& peerServer;
 
     // data
-    FlatAddressSet failedAddresses;
 
     std::vector<Sockaddr> additionalEndpoints;
     std::vector<Sockaddr> outboundEndpoints;

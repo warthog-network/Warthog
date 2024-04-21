@@ -2,7 +2,7 @@
 #include "SQLiteCpp/SQLiteCpp.h"
 #include "offense_entry.hpp"
 #include "general/page.hpp"
-#include "transport/tcp/tcp_sockaddr.hpp"
+#include "transport/helpers/tcp_sockaddr.hpp"
 #include "general/now.hpp"
 #include "general/errors.hpp"
 #include <vector>
