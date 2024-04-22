@@ -1,3 +1,12 @@
+//     __ _____ _____ _____
+//  __|  |   __|     |   | |  JSON for Modern C++
+// |  |  |__   |  |  | | | |  version 3.11.3
+// |_____|_____|_____|_|___|  https://github.com/nlohmann/json
+//
+// SPDX-FileCopyrightText: 2008-2009 Björn Hoehrmann <bjoern@hoehrmann.de>
+// SPDX-FileCopyrightText: 2013-2023 Niels Lohmann <https://nlohmann.me>
+// SPDX-License-Identifier: MIT
+
 #pragma once
 
 #include <algorithm> // reverse, remove, fill, find, none_of
@@ -10,7 +19,6 @@
 #include <limits> // numeric_limits
 #include <string> // string, char_traits
 #include <iomanip> // setfill, setw
-#include <sstream> // stringstream
 #include <type_traits> // is_same
 #include <utility> // move
 
@@ -20,12 +28,13 @@
 #include <nlohmann/detail/meta/cpp_future.hpp>
 #include <nlohmann/detail/output/binary_writer.hpp>
 #include <nlohmann/detail/output/output_adapters.hpp>
+#include <nlohmann/detail/string_concat.hpp>
 #include <nlohmann/detail/value_t.hpp>
 
-namespace nlohmann
-{
+NLOHMANN_JSON_NAMESPACE_BEGIN
 namespace detail
 {
+
 ///////////////////
 // serialization //
 ///////////////////
@@ -101,11 +110,11 @@ class serializer
               const unsigned int indent_step,
               const unsigned int current_indent = 0)
     {
-        switch (val.m_type)
+        switch (val.m_data.m_type)
         {
             case value_t::object:
             {
-                if (val.m_value.object->empty())
+                if (val.m_data.m_value.object->empty())
                 {
                     o->write_characters("{}", 2);
                     return;
@@ -123,8 +132,8 @@ class serializer
                     }
 
                     // first n-1 elements
-                    auto i = val.m_value.object->cbegin();
-                    for (std::size_t cnt = 0; cnt < val.m_value.object->size() - 1; ++cnt, ++i)
+                    auto i = val.m_data.m_value.object->cbegin();
+                    for (std::size_t cnt = 0; cnt < val.m_data.m_value.object->size() - 1; ++cnt, ++i)
                     {
                         o->write_characters(indent_string.c_str(), new_indent);
                         o->write_character('\"');
@@ -135,8 +144,8 @@ class serializer
                     }
 
                     // last element
-                    JSON_ASSERT(i != val.m_value.object->cend());
-                    JSON_ASSERT(std::next(i) == val.m_value.object->cend());
+                    JSON_ASSERT(i != val.m_data.m_value.object->cend());
+                    JSON_ASSERT(std::next(i) == val.m_data.m_value.object->cend());
                     o->write_characters(indent_string.c_str(), new_indent);
                     o->write_character('\"');
                     dump_escaped(i->first, ensure_ascii);
@@ -152,8 +161,8 @@ class serializer
                     o->write_character('{');
 
                     // first n-1 elements
-                    auto i = val.m_value.object->cbegin();
-                    for (std::size_t cnt = 0; cnt < val.m_value.object->size() - 1; ++cnt, ++i)
+                    auto i = val.m_data.m_value.object->cbegin();
+                    for (std::size_t cnt = 0; cnt < val.m_data.m_value.object->size() - 1; ++cnt, ++i)
                     {
                         o->write_character('\"');
                         dump_escaped(i->first, ensure_ascii);
@@ -163,8 +172,8 @@ class serializer
                     }
 
                     // last element
-                    JSON_ASSERT(i != val.m_value.object->cend());
-                    JSON_ASSERT(std::next(i) == val.m_value.object->cend());
+                    JSON_ASSERT(i != val.m_data.m_value.object->cend());
+                    JSON_ASSERT(std::next(i) == val.m_data.m_value.object->cend());
                     o->write_character('\"');
                     dump_escaped(i->first, ensure_ascii);
                     o->write_characters("\":", 2);
@@ -178,7 +187,7 @@ class serializer
 
             case value_t::array:
             {
-                if (val.m_value.array->empty())
+                if (val.m_data.m_value.array->empty())
                 {
                     o->write_characters("[]", 2);
                     return;
@@ -196,8 +205,8 @@ class serializer
                     }
 
                     // first n-1 elements
-                    for (auto i = val.m_value.array->cbegin();
-                            i != val.m_value.array->cend() - 1; ++i)
+                    for (auto i = val.m_data.m_value.array->cbegin();
+                            i != val.m_data.m_value.array->cend() - 1; ++i)
                     {
                         o->write_characters(indent_string.c_str(), new_indent);
                         dump(*i, true, ensure_ascii, indent_step, new_indent);
@@ -205,9 +214,9 @@ class serializer
                     }
 
                     // last element
-                    JSON_ASSERT(!val.m_value.array->empty());
+                    JSON_ASSERT(!val.m_data.m_value.array->empty());
                     o->write_characters(indent_string.c_str(), new_indent);
-                    dump(val.m_value.array->back(), true, ensure_ascii, indent_step, new_indent);
+                    dump(val.m_data.m_value.array->back(), true, ensure_ascii, indent_step, new_indent);
 
                     o->write_character('\n');
                     o->write_characters(indent_string.c_str(), current_indent);
@@ -218,16 +227,16 @@ class serializer
                     o->write_character('[');
 
                     // first n-1 elements
-                    for (auto i = val.m_value.array->cbegin();
-                            i != val.m_value.array->cend() - 1; ++i)
+                    for (auto i = val.m_data.m_value.array->cbegin();
+                            i != val.m_data.m_value.array->cend() - 1; ++i)
                     {
                         dump(*i, false, ensure_ascii, indent_step, current_indent);
                         o->write_character(',');
                     }
 
                     // last element
-                    JSON_ASSERT(!val.m_value.array->empty());
-                    dump(val.m_value.array->back(), false, ensure_ascii, indent_step, current_indent);
+                    JSON_ASSERT(!val.m_data.m_value.array->empty());
+                    dump(val.m_data.m_value.array->back(), false, ensure_ascii, indent_step, current_indent);
 
                     o->write_character(']');
                 }
@@ -238,7 +247,7 @@ class serializer
             case value_t::string:
             {
                 o->write_character('\"');
-                dump_escaped(*val.m_value.string, ensure_ascii);
+                dump_escaped(*val.m_data.m_value.string, ensure_ascii);
                 o->write_character('\"');
                 return;
             }
@@ -260,24 +269,24 @@ class serializer
 
                     o->write_characters("\"bytes\": [", 10);
 
-                    if (!val.m_value.binary->empty())
+                    if (!val.m_data.m_value.binary->empty())
                     {
-                        for (auto i = val.m_value.binary->cbegin();
-                                i != val.m_value.binary->cend() - 1; ++i)
+                        for (auto i = val.m_data.m_value.binary->cbegin();
+                                i != val.m_data.m_value.binary->cend() - 1; ++i)
                         {
                             dump_integer(*i);
                             o->write_characters(", ", 2);
                         }
-                        dump_integer(val.m_value.binary->back());
+                        dump_integer(val.m_data.m_value.binary->back());
                     }
 
                     o->write_characters("],\n", 3);
                     o->write_characters(indent_string.c_str(), new_indent);
 
                     o->write_characters("\"subtype\": ", 11);
-                    if (val.m_value.binary->has_subtype())
+                    if (val.m_data.m_value.binary->has_subtype())
                     {
-                        dump_integer(val.m_value.binary->subtype());
+                        dump_integer(val.m_data.m_value.binary->subtype());
                     }
                     else
                     {
@@ -291,21 +300,21 @@ class serializer
                 {
                     o->write_characters("{\"bytes\":[", 10);
 
-                    if (!val.m_value.binary->empty())
+                    if (!val.m_data.m_value.binary->empty())
                     {
-                        for (auto i = val.m_value.binary->cbegin();
-                                i != val.m_value.binary->cend() - 1; ++i)
+                        for (auto i = val.m_data.m_value.binary->cbegin();
+                                i != val.m_data.m_value.binary->cend() - 1; ++i)
                         {
                             dump_integer(*i);
                             o->write_character(',');
                         }
-                        dump_integer(val.m_value.binary->back());
+                        dump_integer(val.m_data.m_value.binary->back());
                     }
 
                     o->write_characters("],\"subtype\":", 12);
-                    if (val.m_value.binary->has_subtype())
+                    if (val.m_data.m_value.binary->has_subtype())
                     {
-                        dump_integer(val.m_value.binary->subtype());
+                        dump_integer(val.m_data.m_value.binary->subtype());
                         o->write_character('}');
                     }
                     else
@@ -318,7 +327,7 @@ class serializer
 
             case value_t::boolean:
             {
-                if (val.m_value.boolean)
+                if (val.m_data.m_value.boolean)
                 {
                     o->write_characters("true", 4);
                 }
@@ -331,19 +340,19 @@ class serializer
 
             case value_t::number_integer:
             {
-                dump_integer(val.m_value.number_integer);
+                dump_integer(val.m_data.m_value.number_integer);
                 return;
             }
 
             case value_t::number_unsigned:
             {
-                dump_integer(val.m_value.number_unsigned);
+                dump_integer(val.m_data.m_value.number_unsigned);
                 return;
             }
 
             case value_t::number_float:
             {
-                dump_float(val.m_value.number_float);
+                dump_float(val.m_data.m_value.number_float);
                 return;
             }
 
@@ -501,9 +510,7 @@ class serializer
                     {
                         case error_handler_t::strict:
                         {
-                            std::stringstream ss;
-                            ss << std::uppercase << std::setfill('0') << std::setw(2) << std::hex << (byte | 0);
-                            JSON_THROW(type_error::create(316, "invalid UTF-8 byte at index " + std::to_string(i) + ": 0x" + ss.str(), BasicJsonType()));
+                            JSON_THROW(type_error::create(316, concat("invalid UTF-8 byte at index ", std::to_string(i), ": 0x", hex_bytes(byte | 0)), nullptr));
                         }
 
                         case error_handler_t::ignore:
@@ -595,9 +602,7 @@ class serializer
             {
                 case error_handler_t::strict:
                 {
-                    std::stringstream ss;
-                    ss << std::uppercase << std::setfill('0') << std::setw(2) << std::hex << (static_cast<std::uint8_t>(s.back()) | 0);
-                    JSON_THROW(type_error::create(316, "incomplete UTF-8 string; last byte: 0x" + ss.str(), BasicJsonType()));
+                    JSON_THROW(type_error::create(316, concat("incomplete UTF-8 string; last byte: 0x", hex_bytes(static_cast<std::uint8_t>(s.back() | 0))), nullptr));
                 }
 
                 case error_handler_t::ignore:
@@ -662,6 +667,20 @@ class serializer
             x = x / 10000u;
             n_digits += 4;
         }
+    }
+
+    /*!
+     * @brief convert a byte to a uppercase hex representation
+     * @param[in] byte byte to represent
+     * @return representation ("00".."FF")
+     */
+    static std::string hex_bytes(std::uint8_t byte)
+    {
+        std::string result = "FF";
+        constexpr const char* nibble_to_hex = "0123456789ABCDEF";
+        result[0] = nibble_to_hex[byte / 16];
+        result[1] = nibble_to_hex[byte % 16];
+        return result;
     }
 
     // templates to avoid warnings about useless casts
@@ -907,8 +926,8 @@ class serializer
                 ? (byte & 0x3fu) | (codep << 6u)
                 : (0xFFu >> type) & (byte);
 
-        std::size_t index = 256u + static_cast<size_t>(state) * 16u + static_cast<size_t>(type);
-        JSON_ASSERT(index < 400);
+        const std::size_t index = 256u + static_cast<size_t>(state) * 16u + static_cast<size_t>(type);
+        JSON_ASSERT(index < utf8d.size());
         state = utf8d[index];
         return state;
     }
@@ -964,5 +983,6 @@ class serializer
     /// error_handler how to react on decoding errors
     const error_handler_t error_handler;
 };
+
 }  // namespace detail
-}  // namespace nlohmann
+NLOHMANN_JSON_NAMESPACE_END
