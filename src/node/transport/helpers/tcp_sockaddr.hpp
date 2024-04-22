@@ -2,20 +2,22 @@
 
 #include "transport/helpers/ipv4.hpp"
 #include <stdexcept>
-#include <uv.h>
+#ifndef DISABLE_LIBUV
+struct sockaddr;
+#endif
 
 class Reader;
-struct TCPSockaddr {
-    TCPSockaddr(Reader& r);
-    constexpr TCPSockaddr(IPv4 ipv4, uint16_t port)
+struct TCPSockaddrBase {
+    TCPSockaddrBase(Reader& r);
+    constexpr TCPSockaddrBase(IPv4 ipv4, uint16_t port)
         : ipv4(ipv4)
         , port(port)
     {
     }
-    constexpr TCPSockaddr(std::string_view);
-    static TCPSockaddr from_sql_id(int64_t id)
+    constexpr TCPSockaddrBase(std::string_view);
+    static TCPSockaddrBase from_sql_id(int64_t id)
     {
-        return TCPSockaddr(
+        return TCPSockaddrBase(
             IPv4(uint64_t(id & 0x0000FFFFFFFF0000) >> 16),
             uint16_t(0x000000000000FFFF & id));
     };
@@ -23,11 +25,12 @@ struct TCPSockaddr {
     {
         return (int64_t(ipv4.data) << 16) + (int64_t(port));
     };
-    auto operator<=>(const TCPSockaddr&) const = default;
-    static constexpr std::optional<TCPSockaddr> parse(const std::string_view&);
-    operator sockaddr() const { return sock_addr(); }
-    std::string to_string() const;
+    auto operator<=>(const TCPSockaddrBase&) const = default;
+    static constexpr std::optional<TCPSockaddrBase> parse(const std::string_view&);
+#ifndef DISABLE_LIBUV
+    operator sockaddr() const;
     sockaddr sock_addr() const;
+#endif
 
     IPv4 ipv4;
     uint16_t port = 0;
@@ -56,7 +59,7 @@ constexpr std::optional<uint16_t> parse_port(const std::string_view& s)
     return out;
 }
 
-std::optional<TCPSockaddr> constexpr TCPSockaddr::parse(const std::string_view& s)
+std::optional<TCPSockaddrBase> constexpr TCPSockaddrBase::parse(const std::string_view& s)
 {
     size_t d1 = s.find(":");
     auto ipv4str { s.substr(0, d1) };
@@ -71,14 +74,46 @@ std::optional<TCPSockaddr> constexpr TCPSockaddr::parse(const std::string_view& 
     if (!port)
         return {};
 
-    return TCPSockaddr { ip.value(), port.value() };
+    return TCPSockaddrBase { ip.value(), port.value() };
 }
 
-constexpr TCPSockaddr::TCPSockaddr(std::string_view s)
-    : TCPSockaddr(
+constexpr TCPSockaddrBase::TCPSockaddrBase(std::string_view s)
+    : TCPSockaddrBase(
         [&] {
-            auto ea { TCPSockaddr::parse(s) };
+            auto ea { TCPSockaddrBase::parse(s) };
             if (ea)
                 return *ea;
             throw std::runtime_error("Cannot parse endpoint address \"" + std::string(s) + "\".");
         }()) {};
+
+struct TCPSockaddr: public TCPSockaddrBase {
+    using TCPSockaddrBase::TCPSockaddrBase;
+    TCPSockaddr(TCPSockaddrBase b):TCPSockaddrBase(std::move(b)){}
+    std::string to_string() const;
+    static TCPSockaddr from_sql_id(int64_t id){
+        return {TCPSockaddrBase::from_sql_id(id)};
+    }
+    static constexpr std::optional<TCPSockaddr> parse(const std::string_view& sv){
+        auto p{TCPSockaddrBase::parse(sv)};
+        if (p){
+            return TCPSockaddr(*p);
+        }
+        return {};
+    }
+};
+
+struct WSSockaddr: public TCPSockaddrBase {
+    using TCPSockaddrBase::TCPSockaddrBase;
+    std::string to_string() const;
+    WSSockaddr(TCPSockaddrBase b):TCPSockaddrBase(std::move(b)){}
+    static WSSockaddr from_sql_id(int64_t id){
+        return {TCPSockaddrBase::from_sql_id(id)};
+    }
+    static constexpr std::optional<WSSockaddr> parse(const std::string_view& sv){
+        auto p{TCPSockaddrBase::parse(sv)};
+        if (p){
+            return WSSockaddr(*p);
+        }
+        return {};
+    }
+};

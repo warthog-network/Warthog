@@ -1,5 +1,8 @@
-#include "state.hpp"
-#include "api/http//endpoint.hpp"
+#ifndef DISABLE_LIBUV
+#include "api/http/endpoint.hpp"
+#endif
+
+#include "../db/chain_db.hpp"
 #include "api/types/all.hpp"
 #include "block/body/generator.hpp"
 #include "block/body/parse.hpp"
@@ -9,15 +12,16 @@
 #include "block/header/generator.hpp"
 #include "block/header/header_impl.hpp"
 #include "communication/create_payment.hpp"
-#include "../db/chain_db.hpp"
 #include "eventloop/types/chainstate.hpp"
 #include "general/hex.hpp"
 #include "general/is_testnet.hpp"
 #include "global/globals.hpp"
 #include "spdlog/spdlog.h"
+#include "state.hpp"
 #include "transactions/apply_stage.hpp"
 #include "transactions/block_applier.hpp"
 #include <ranges>
+
 namespace chainserver {
 
 State::State(ChainDB& db, BatchRegistry& br, std::optional<SnapshotSigner> snapshotSigner)
@@ -428,6 +432,7 @@ RollbackResult State::rollback(const Height newlength) const
 
 void State::publish_websocket_events(const std::optional<StateUpdate>& update, const std::vector<API::Block>& apiBlocks)
 {
+#ifndef DISABLE_LIBUV
     using Fork = state_update::Fork;
     using RollbackData = state_update::RollbackData;
     if (update) {
@@ -446,6 +451,7 @@ void State::publish_websocket_events(const std::optional<StateUpdate>& update, c
     for (auto& b : apiBlocks) {
         http_endpoint().push_event(b);
     }
+#endif
 }
 auto State::apply_stage(ChainDBTransaction&& t) -> std::tuple<ChainError, std::optional<StateUpdate>, std::vector<API::Block>>
 {
@@ -547,7 +553,9 @@ auto State::append_mined_block(const Block& b) -> StateUpdate
 
     chainserver::BlockApplier e { db, chainstate.headers(), chainstate.txids(), false };
     auto apiBlock { e.apply_block(bv, b.header, nextHeight, blockId) };
+#ifndef DISABLE_LIBUV
     http_endpoint().push_event(apiBlock);
+#endif
     db.set_consensus_work(chainstate.work_with_new_block());
     transaction.commit();
 

@@ -3,16 +3,32 @@
 #include <variant>
 struct Sockaddr {
     [[nodiscard]] bool is_supported();
-    Sockaddr(TCPSockaddr socketAddr)
-        : data { std::move(socketAddr) }
+#ifndef DISABLE_LIBUV
+    Sockaddr(TCPSockaddr sa)
+        : data { std::move(sa) }
     {
     }
+#else
+    Sockaddr(WSSockaddr sa)
+        : data { std::move(sa) }
+    {
+    }
+#endif
     auto operator<=>(const Sockaddr&) const = default;
-    std::variant<TCPSockaddr> data;
+    std::variant<
+#ifndef DISABLE_LIBUV
+        TCPSockaddr
+#else
+        WSSockaddr
+#endif
+        >
+        data;
     IPv4 ipv4() const;
     uint16_t port() const;
     bool operator==(const Sockaddr&) const = default;
+#ifndef DISABLE_LIBUV
     auto& get_tcp() const { return std::get<TCPSockaddr>(data); }
     auto& get_tcp() { return std::get<TCPSockaddr>(data); }
+#endif
     std::string to_string() const;
 };

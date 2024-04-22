@@ -1,16 +1,20 @@
 #include "ipv4.hpp"
 #include "general/reader.hpp"
+#ifndef DISABLE_LIBUV
 #include "uv.h"
+#endif
 
 IPv4::IPv4(Reader& r)
     : data(r.uint32())
 {
 }
 
+#ifndef DISABLE_LIBUV
 IPv4::IPv4(const sockaddr_in& sin)
     : IPv4(ntoh32(uint32_t(sin.sin_addr.s_addr)))
 {
 }
+#endif
 
 bool IPv4::is_valid(bool allowLocalhost) const
 {

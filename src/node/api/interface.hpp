@@ -63,4 +63,3 @@ void get_account_richlist(RichlistCb cb);
 
 // endpoints function
 void inspect_eventloop(std::function<void(const Eventloop& e)>&&);
-void inspect_conman(std::function<void(const TCPConnectionManager& c)>&&);

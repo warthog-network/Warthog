@@ -6,7 +6,7 @@
 #include <cstring>
 #include <stdexcept>
 
-TCPSockaddr::TCPSockaddr(Reader& r)
+TCPSockaddrBase::TCPSockaddrBase(Reader& r)
     : ipv4(r)
     , port(r.uint16())
 {
@@ -17,7 +17,14 @@ std::string TCPSockaddr::to_string() const
     return "tcp://" + ipv4.to_string() + ":" + std::to_string(port);
 }
 
-sockaddr TCPSockaddr::sock_addr() const
+std::string WSSockaddr::to_string() const
+{
+    return "ws://" + ipv4.to_string() + ":" + std::to_string(port);
+}
+
+#ifndef DISABLE_LIBUV
+#include <uv.h>
+sockaddr TCPSockaddrBase::sock_addr() const
 {
     sockaddr_in out;
     memset(&out, 0, sizeof(out));
@@ -32,3 +39,6 @@ sockaddr TCPSockaddr::sock_addr() const
     memcpy(&out.sin_addr.s_addr, &ntmp, 4);
     return *reinterpret_cast<sockaddr*>(&out);
 }
+
+TCPSockaddrBase::operator sockaddr() const { return sock_addr(); }
+#endif

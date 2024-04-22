@@ -2,7 +2,9 @@ project( 'Warthog', ['c','cpp'],
   version : '0.4.31',
   default_options : ['warning_level=3', 'cpp_std=c++20'])
 
+if not get_option('emscripten')
 libuv_dep = subproject('libuv', default_options : ['warning_level=0', 'werror=false', 'build_tests=false']).get_variable('libuv_dep')
+endif
 sqlite3_dep = subproject('sqlite3',default_options : ['warning_level=0', 'werror=false']).get_variable('sqlite3_dep')
 
 subdir('./thirdparty')

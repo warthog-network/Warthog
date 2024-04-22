@@ -4,7 +4,7 @@
 #include <array>
 #include <string>
 #include <vector>
-struct PinHeight;
+class PinHeight;
 class Endpoint {
     std::string host;
     uint16_t port;

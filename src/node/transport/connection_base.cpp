@@ -5,7 +5,6 @@
 #include "global/globals.hpp"
 #include "peerserver/peerserver.hpp"
 #include "transport/tcp/conman.hpp"
-#include "uvw.hpp"
 #include "version.hpp"
 #include <chrono>
 

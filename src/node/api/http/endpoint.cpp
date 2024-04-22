@@ -153,7 +153,7 @@ void HTTPEndpoint::work()
     get("/account/richlist", get_account_richlist);
 
     indexGenerator.section("Peers Endpoints");
-    get("/peers/ip_count", inspect_conman, jsonmsg::ip_counter);
+    // get("/peers/ip_count", inspect_conman, jsonmsg::ip_counter); // TODO
     get("/peers/banned", get_banned_peers);
     get("/peers/unban", unban_peers, true);
     get_1("/peers/offenses/:page", get_offenses);

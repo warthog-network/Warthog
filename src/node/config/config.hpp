@@ -7,7 +7,7 @@
 #include <atomic>
 struct gengetopt_args_info;
 struct EndpointVector : public std::vector<Sockaddr> {
-    using vector::vector;
+    EndpointVector(){}
     EndpointVector(std::vector<Sockaddr> v)
         : vector(std::move(v))
     {

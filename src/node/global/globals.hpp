@@ -16,23 +16,29 @@ namespace uvw{
 }
 
 struct Global {
-    std::shared_ptr<uvw::loop>* uv_loop;
+#ifndef DISABLE_LIBUV
+    TCPConnectionManager* conman;
+    HTTPEndpoint* httpEndpoint;
+#endif
     ChainServer* chainServer;
     PeerServer* peerServer;
-    TCPConnectionManager* conman;
     Eventloop* core;
     BatchRegistry* batchRegistry;
-    HTTPEndpoint* httpEndpoint;
     std::shared_ptr<spdlog::logger> connLogger;
     std::shared_ptr<spdlog::logger> syncdebugLogger;
     std::optional<Config> conf;
 };
 
 const Global& global();
-HTTPEndpoint& http_endpoint();
 inline spdlog::logger& connection_log() { return *global().connLogger; }
 inline spdlog::logger& syncdebug_log() { return *global().syncdebugLogger; }
 const Config& config();
 int init_config(int argc, char** argv);
-void global_init(std::shared_ptr<uvw::loop>* uv_loop, BatchRegistry* pbr, PeerServer* pps, ChainServer* pcs, TCPConnectionManager* pcm, Eventloop* pel, HTTPEndpoint* httpEndpoint);
 void start_global_services();
+
+#ifndef DISABLE_LIBUV
+HTTPEndpoint& http_endpoint();
+void global_init(BatchRegistry* pbr, PeerServer* pps, ChainServer* pcs, TCPConnectionManager* pcm, Eventloop* pel, HTTPEndpoint* httpEndpoint);
+#else
+void global_init(BatchRegistry* pbr, PeerServer* pps, ChainServer* pcs, Eventloop* pel);
+#endif

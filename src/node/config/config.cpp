@@ -14,13 +14,17 @@
 #include <sys/types.h>
 #include <unistd.h>
 #endif
+#ifdef __linux__
+#include <pwd.h>
+#endif
 
 using namespace std;
 
+
 std::string ConfigParams::get_default_datadir()
 {
-    const char* osBaseDir = nullptr;
 #ifdef __linux__
+    const char* osBaseDir = nullptr;
     if ((osBaseDir = getenv("HOME")) == NULL) {
         osBaseDir = getpwuid(getuid())->pw_dir;
     }
@@ -28,11 +32,13 @@ std::string ConfigParams::get_default_datadir()
         throw std::runtime_error("Cannot determine default data directory.");
     return std::string(osBaseDir) + "/.warthog/";
 #elif _WIN32
+    const char* osBaseDir = nullptr;
     osBaseDir = getenv("LOCALAPPDATA");
     if (osBaseDir == nullptr)
         throw std::runtime_error("Cannot determine default data directory.");
     return std::string(osBaseDir) + "/Warthog/";
 #elif __APPLE__
+    const char* osBaseDir = nullptr;
     if ((osBaseDir = getenv("HOME")) == NULL) {
         osBaseDir = getpwuid(getuid())->pw_dir;
     }
@@ -127,6 +133,7 @@ toml::array& array_ref(toml::node& n)
 EndpointVector parse_endpoints(std::string csv)
 {
     std::vector<Sockaddr> out;
+#ifndef DISABLE_LIBUV
     std::string::size_type pos = 0;
     while (true) {
         auto end = csv.find(",", pos);
@@ -141,6 +148,7 @@ EndpointVector parse_endpoints(std::string csv)
         }
         pos = end + 1;
     }
+#endif
     return out;
 }
 } // namespace
@@ -178,12 +186,12 @@ int ConfigParams::init(const gengetopt_args_info& ai)
     }
 
     if (is_testnet()) {
-        peers.connect = {
+        peers.connect = EndpointVector{
             "193.218.118.57:9286",
             "98.71.18.140:9286"
         };
     } else {
-        peers.connect = {
+        peers.connect = EndpointVector{
             "193.218.118.57:9186",
             "96.41.20.26:9186",
             "89.163.224.253:9186",
@@ -206,6 +214,7 @@ int ConfigParams::init(const gengetopt_args_info& ai)
             return -1;
         }
     } else {
+#ifndef DISABLE_LIBUV
         if (ai.config_given)
             filename = ai.config_arg;
         if (!dmp)
@@ -285,6 +294,7 @@ int ConfigParams::init(const gengetopt_args_info& ai)
             std::cerr << e.what();
             return -1;
         }
+#endif
     }
 
     // DB args

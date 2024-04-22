@@ -66,12 +66,12 @@ void PeerServer::work()
     }
 }
 
-
 void PeerServer::handle_event(OnClose&& o)
 {
     std::visit([this, &o](auto&& socketAddr) -> void {
         on_close(o, socketAddr);
-    }, o.con->connection_peer_addr().data );
+    },
+        o.con->connection_peer_addr().data);
 }
 
 void PeerServer::handle_event(Unban&& ub)
@@ -126,7 +126,18 @@ void PeerServer::handle_event(SeenPeer&& e)
 }
 void PeerServer::handle_event(GetRecentPeers&& e)
 {
-    e.cb(db.recent_peers(e.maxEntries));
+    std::vector<std::pair<Sockaddr, uint32_t>> res;
+
+#ifndef DISABLE_LIBUV
+    // TCP peers
+    for (auto& [addr, lastseen] : db.recent_peers(e.maxEntries))
+        res.push_back({ addr, lastseen });
+#else
+    // WS peers
+    for (auto& [addr, lastseen] : db.recent_ws_peers(e.maxEntries))
+        res.push_back({ addr, lastseen });
+#endif
+    e.cb(std::move(res));
 }
 void PeerServer::handle_event(Inspect&& e)
 {

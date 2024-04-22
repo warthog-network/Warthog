@@ -1,5 +1,11 @@
-src= [
+src_libuv = ['./transport/tcp/conman.cpp',
+  './transport/tcp/connect_request.cpp',
+  './transport/tcp/connection.cpp',
+  './transport/tcp/start_connection.cpp',
   './api/http/endpoint.cpp',
+  ]
+
+src= [
   './api/http/json.cpp',
   './api/http/parse.cpp',
   './api/interface.cpp',
@@ -36,7 +42,6 @@ src= [
   './eventloop/address_manager/connection_schedule.cpp',
   './eventloop/address_manager/flat_address_set.cpp',
   './eventloop/chain_cache.cpp',
-  './eventloop/timer_element.cpp',
   './eventloop/eventloop.cpp',
   './eventloop/peer_chain.cpp',
   './eventloop/sync/block_download/attorney.cpp',
@@ -49,9 +54,9 @@ src= [
   './eventloop/sync/header_download/header_download.cpp',
   './eventloop/sync/header_download/probe_balanced.cpp',
   './eventloop/timer.cpp',
+  './eventloop/timer_element.cpp',
   './eventloop/types/chainstate.cpp',
   './eventloop/types/conndata.cpp',
-  './transport/helpers/tcp_sockaddr.cpp',
   './global/globals.cpp',
   './mempool/mempool.cpp',
   './mempool/subscription.cpp',
@@ -59,23 +64,30 @@ src= [
   './peerserver/ban_cache.cpp',
   './peerserver/db/peer_db.cpp',
   './peerserver/peerserver.cpp',
-  './transport/tcp/connect_request.cpp',
   './transport/connection_base.cpp',
   './transport/helpers/ipv4.cpp',
   './transport/helpers/per_ip_counter.cpp',
   './transport/helpers/socket_addr.cpp',
-  './transport/tcp/start_connection.cpp',
-  './transport/tcp/conman.cpp',
-  './transport/tcp/connection.cpp',
+  './transport/helpers/tcp_sockaddr.cpp',
   src_sqlitecpp,
   src_wh,
 ]
 
-include_thirdparty=[include_trezorcrypto,include_wh,include_secp256k1,include_sqlitecpp, include_spdlog,include_usockets,include_uwebsockets,include_json,include_tomlplusplus, include_tl]
-lib_thirdparty=[libsecp256k1, libusockets]
+
+if get_option('emscripten')
+  deps = [sqlite3_dep]
+  include_thirdparty=[include_trezorcrypto,include_wh,include_secp256k1,include_sqlitecpp, include_spdlog,include_json,include_tomlplusplus, include_tl]
+  lib_thirdparty=[libsecp256k1]
+else
+  src = [src, src_libuv]
+  deps =  [sqlite3_dep,  libuv_dep, uvw_dep]
+  include_thirdparty=[include_trezorcrypto,include_wh,include_secp256k1,include_sqlitecpp, include_spdlog,include_usockets,include_uwebsockets,include_json,include_tomlplusplus, include_tl]
+  lib_thirdparty=[libsecp256k1, libusockets]
+endif
+
 executable('wart-node', vcs_dep, [src,'./main.cpp', src_spdlog],
   include_directories:['./' ,include_thirdparty],
   link_with: lib_thirdparty,
-  dependencies: [sqlite3_dep,libuv_dep,uvw_dep],
+  dependencies: deps,
   install : true)
 

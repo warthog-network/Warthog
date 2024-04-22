@@ -2,6 +2,7 @@
 #include "transport/tcp/conman.hpp"
 #include "general/is_testnet.hpp"
 #include "spdlog/sinks/rotating_file_sink.h"
+#include "spdlog/spdlog.h"
 namespace {
 
 std::string logdir()
@@ -51,22 +52,28 @@ const Config& config()
     return *globalinstance.conf;
 }
 
-void global_init(std::shared_ptr<uvw::loop>* uv_loop, BatchRegistry* pbr, PeerServer* pps, ChainServer* pcs, TCPConnectionManager* pcm, Eventloop* pel, HTTPEndpoint* httpEndpoint)
+#ifndef DISABLE_LIBUV
+HTTPEndpoint& http_endpoint()
 {
-    globalinstance.uv_loop = uv_loop;
+    return *globalinstance.httpEndpoint;
+};
+
+void global_init(BatchRegistry* pbr, PeerServer* pps, ChainServer* pcs, TCPConnectionManager* pcm, Eventloop* pel, HTTPEndpoint* httpEndpoint)
+#else
+void global_init(BatchRegistry* pbr, PeerServer* pps, ChainServer* pcs, Eventloop* pel)
+#endif
+{
+#ifndef DISABLE_LIBUV
+    globalinstance.conman = pcm;
+    globalinstance.httpEndpoint = httpEndpoint;
+#endif
     globalinstance.batchRegistry = pbr;
     globalinstance.peerServer = pps;
-    globalinstance.conman = pcm;
     globalinstance.chainServer = pcs;
     globalinstance.core = pel;
-    globalinstance.httpEndpoint = httpEndpoint;
     globalinstance.connLogger = create_connection_logger();
     ;
     globalinstance.syncdebugLogger = create_syncdebug_logger();
     ;
 };
 
-HTTPEndpoint& http_endpoint()
-{
-    return *globalinstance.httpEndpoint;
-};

@@ -1,4 +1,5 @@
 #pragma once
+#ifndef DISABLE_LIBUV
 #include "general/move_only_function.hpp"
 #include "../helpers/per_ip_counter.hpp"
 #include "connect_request.hpp"
@@ -107,3 +108,4 @@ private:
     void handle_event(Inspect&&);
     void handle_event(DeferFunc&&);
 };
+#endif

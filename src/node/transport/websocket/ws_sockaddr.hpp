@@ -21,9 +21,7 @@ struct WSSockaddr {
     };
     auto operator<=>(const WSSockaddr&) const = default;
     static constexpr std::optional<WSSockaddr> parse(const std::string_view&);
-    operator sockaddr() const { return sock_addr(); }
     std::string to_string() const;
-    sockaddr sock_addr() const;
 
     IPv4 ipv4;
     uint16_t port = 0;

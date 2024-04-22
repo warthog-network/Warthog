@@ -8,11 +8,15 @@
 #include <string>
 #include <string_view>
 class Reader;
+#ifndef DISABLE_LIBUV
 struct sockaddr_in;
+#endif
 
 struct IPv4 {
     IPv4(Reader& r);
+#ifndef DISABLE_LIBUV
     IPv4(const sockaddr_in& sin);
+#endif
     constexpr IPv4(uint32_t data = 0)
         : data(data)
     {

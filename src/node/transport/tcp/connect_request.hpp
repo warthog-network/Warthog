@@ -1,4 +1,5 @@
 #pragma once
+#ifndef DISABLE_LIBUV
 #include "../helpers/connect_request_base.hpp"
 #include "../helpers/tcp_sockaddr.hpp"
 
@@ -23,3 +24,4 @@ private:
 };
 
 TCPConnectRequest make_request(const TCPSockaddr& connectTo, steady_duration sleptFor);
+#endif

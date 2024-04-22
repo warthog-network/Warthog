@@ -1,11 +1,14 @@
 subdir('./secp256k1')
 subdir('./sqlitecpp')
 subdir('./spdlog')
-subdir('./uSockets')
-subdir('./uWebsockets')
 subdir('./json')
 subdir('./tomlplusplus')
 subdir('./trezor-crypto')
 subdir('./cpp-httplib')
 subdir('./tl')
+
+if not get_option('emscripten')
 subdir('./uvw')
+subdir('./uSockets')
+subdir('./uWebsockets')
+endif

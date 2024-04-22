@@ -1,4 +1,5 @@
 #pragma once
+#ifndef DISABLE_LIBUV
 #include "api/types/all.hpp"
 #include "chainserver/mining_subscription.hpp"
 #include "communication/mining_task.hpp"
@@ -130,3 +131,4 @@ private:
     std::vector<Event> events;
     const std::shared_ptr<uvw::async_handle> async;
 };
+#endif /* ifndef  */

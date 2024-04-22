@@ -1,6 +1,3 @@
-#include "api/http/endpoint.hpp"
-#include "api/stratum/stratum_server.hpp"
-#include "transport/tcp/conman.hpp"
 #include "chainserver/db/chain_db.hpp"
 #include "chainserver/server.hpp"
 #include "eventloop/eventloop.hpp"
@@ -8,18 +5,14 @@
 #include "global/globals.hpp"
 #include "peerserver/peerserver.hpp"
 #include "spdlog/spdlog.h"
+
+static void shutdown(int32_t reason);
+
+#ifndef DISABLE_LIBUV
+#include "api/http/endpoint.hpp"
+#include "api/stratum/stratum_server.hpp"
 #include "uvw.hpp"
-
-#include <iostream>
-using namespace std;
-
-static void shutdown(int32_t reason)
-{
-    global().conman->shutdown(reason);
-    global().core->async_shutdown(reason);
-    global().peerServer->async_shutdown();
-}
-
+#include "transport/tcp/conman.hpp"
 static void signal_caller(uv_signal_t* /*handle*/, int signum)
 {
     spdlog::info("Terminating...");
@@ -37,7 +30,6 @@ static void signal_caller(uv_signal_t* /*handle*/, int signum)
     }
 }
 
-#include <string>
 static uv_signal_t sigint, sighup, sigterm;
 void setup_signals(uv_loop_t* l)
 {
@@ -67,7 +59,16 @@ void free_signals()
     uv_close((uv_handle_t*)&sighup, nullptr);
     uv_close((uv_handle_t*)&sigterm, nullptr);
 }
+#endif
 
+static void shutdown(int32_t reason)
+{
+#ifndef DISABLE_LIBUV
+    global().conman->shutdown(reason);
+#endif
+    global().core->async_shutdown(reason);
+    global().peerServer->async_shutdown();
+}
 void initialize_srand()
 {
     using namespace std::chrono;
@@ -79,7 +80,7 @@ struct ECC {
     ~ECC() { ECC_Stop(); }
 };
 struct Starter {
-    Starter(){}
+    Starter() { }
 };
 
 int main(int argc, char** argv)
@@ -95,9 +96,11 @@ int main(int argc, char** argv)
     spdlog::info("Peers database: {}", config().data.peersdb);
 
     // spdlog::flush_on(spdlog::level::debug);
+#ifndef DISABLE_LIBUV
     /////////////////////
     // uv loop
     auto l { uvw::loop::create() };
+#endif
 
     spdlog::debug("Opening peers database \"{}\"", config().data.peersdb);
     PeerDB pdb(config().data.peersdb);
@@ -107,40 +110,53 @@ int main(int argc, char** argv)
     ChainDB db(config().data.chaindb);
     auto cs = ChainServer::make_chain_server(db, breg, config().node.snapshotSigner);
 
+    Eventloop el(ps, *cs, config());
+
+#ifndef DISABLE_LIBUV
     std::optional<StratumServer> stratumServer;
     if (config().stratumPool) {
         stratumServer.emplace(config().stratumPool->bind);
     }
-    Eventloop el(ps, *cs, config());
     TCPConnectionManager cm(l, ps, config());
-
     // setup signals
     setup_signals(l->raw());
-
-    spdlog::debug("Starting libuv loop");
 
     // starting endpoint
     HTTPEndpoint endpoint { config().jsonrpc.bind };
     auto endpointPublic { HTTPEndpoint::make_public_endpoint(config()) };
 
+    global_init(&breg, &ps, &*cs, &cm, &el, &endpoint);
+#else
+    global_init(&breg, &ps, &*cs, &el);
+#endif
+
+
+
     // setup globals
-    global_init(&l, &breg, &ps, &*cs, &cm, &el, &endpoint);
 
     // spawn new threads
     ps.start();
     cs->start();
     el.start();
-    endpoint.start();
 
+#ifdef DISABLE_LIBUV
+    while (true) {
+        sleep(1000);// don't shut down
+    }
+    return 0;
+#else
+    endpoint.start();
+    spdlog::debug("Starting libuv loop");
     // running eventloop
-    if ((i = l->run( uvw::loop::run_mode::DEFAULT)))
+    if ((i = l->run(uvw::loop::run_mode::DEFAULT)))
         goto error;
     free_signals();
-    if ((i = l->run( uvw::loop::run_mode::DEFAULT)))
+    if ((i = l->run(uvw::loop::run_mode::DEFAULT)))
         goto error;
     l->close();
     return 0;
 error:
     spdlog::error("libuv error:", errors::err_name(i));
     return i;
+#endif
 }

@@ -294,11 +294,6 @@ void get_account_richlist(RichlistCb f)
     global().chainServer->api_get_richlist(f);
 }
 
-void inspect_conman(std::function<void(const TCPConnectionManager& e)>&& cb)
-{
-    global().conman->async_inspect(std::move(cb));
-}
-
 void inspect_eventloop(std::function<void(const Eventloop& e)>&& cb)
 {
     global().core->api_inspect(std::move(cb));

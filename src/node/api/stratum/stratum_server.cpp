@@ -1,3 +1,4 @@
+#ifndef DISABLE_LIBUV
 #include "stratum_server.hpp"
 
 #include "api/interface.hpp"
@@ -482,3 +483,4 @@ void StratumServer::unlink_authorized(const Address& a, stratum::Connection* c)
         addressData.erase(iter);
     }
 }
+#endif /* ifndef  */

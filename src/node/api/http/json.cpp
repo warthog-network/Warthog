@@ -31,10 +31,6 @@ std::string format_utc(uint32_t timestamp)
 }
 }
 struct Inspector {
-    static auto& ip_counter(const TCPConnectionManager& c)
-    {
-        return c.perIpCounter;
-    }
     static auto header_download(const Eventloop& e)
     {
         auto& d { e.headerDownload };
@@ -586,16 +582,6 @@ std::string serialize(const API::Raw& r)
 std::string header_download(const Eventloop& e)
 {
     return Inspector::header_download(e);
-}
-
-std::string ip_counter(const TCPConnectionManager& e)
-{
-    auto& ipCounter = Inspector::ip_counter(e);
-    json j = json::object();
-    for (auto& [ip, count] : ipCounter.data()) {
-        j[ip.to_string()] = count;
-    }
-    return j.dump(1);
 }
 
 } // namespace jsonmsg

@@ -1,4 +1,5 @@
 #pragma once
+#ifndef DISABLE_LIBUV
 #define UWS_NO_ZLIB
 #include "api/types/all.hpp"
 #include "block/block.hpp"
@@ -82,3 +83,4 @@ private:
     bool bshutdown = false;
     std::thread worker;
 };
+#endif
