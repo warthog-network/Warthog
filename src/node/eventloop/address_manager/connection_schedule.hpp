@@ -1,7 +1,7 @@
 #pragma once
 
-#include "transport/helpers/ipv4.hpp"
 #include "peerserver/connection_data.hpp"
+#include "transport/helpers/ipv4.hpp"
 
 #include <chrono>
 #include <set>
@@ -139,8 +139,8 @@ public:
     {
     }
 
-    VerifiedEntry(VectorEntryBase ed,addr_t addr, tp lastVerified)
-        : VectorEntry<addr_t>(std::move(ed),std::move(addr))
+    VerifiedEntry(VectorEntryBase ed, addr_t addr, tp lastVerified)
+        : VectorEntry<addr_t>(std::move(ed), std::move(addr))
         , lastVerified(lastVerified)
     {
     }
@@ -227,14 +227,58 @@ class ConnectionSchedule {
     using WithSource = connection_schedule::WithSource<addr_t>;
     using ConnectionState = connection_schedule::ConnectionState;
     using time_point = connection_schedule::time_point;
-    // using VectorEntry = connection_schedule::VectorEntry<Sockaddr>;
     using VectorEntryBase = connection_schedule::VectorEntryBase;
     using SockaddrVector = connection_schedule::SockaddrVector;
-    using VerifiedVectorTCP = connection_schedule::VerifiedVector<TCPSockaddr>;
     using EndpointState = connection_schedule::SockaddrState;
     using ReconnectContext = connection_schedule::ReconnectContext;
     using Source = connection_schedule::Source;
     using steady_clock = std::chrono::steady_clock;
+    template<typename T>
+    using VerifiedVector = connection_schedule::VerifiedVector<T>;
+
+    template <typename T>
+    class VerifiedVectors { };
+
+    template <typename T1, typename... Ts>
+    struct VerifiedVectors<std::variant<T1, Ts...>> : public VerifiedVector<T1>,
+                                       public VerifiedVectors<std::variant<Ts...>> {
+        template <typename T>
+        [[nodiscard]] VerifiedVector<T> & get()
+        {
+            return *this;
+        }
+        void pop_requests(time_point now, std::vector<ConnectRequest>& out){
+            get<T1>().pop_requests(now,out);
+            VerifiedVectors<std::variant<Ts...>>::pop_requests(now,out);
+        }
+        std::optional<time_point> timeout() const { 
+            return std::min(get<T1>().timeout(),
+            VerifiedVectors<std::variant<Ts...>>::timeout());
+        }
+    };
+
+    template <typename T1>
+    struct VerifiedVectors<std::variant<T1>> : public VerifiedVector<T1> {
+    public:
+        template <typename T>
+        [[nodiscard]] const VerifiedVector<T> & get() const
+        {
+            return *this;
+        }
+        template <typename T>
+        [[nodiscard]] VerifiedVector<T> & get()
+        {
+            return *this;
+        }
+        void pop_requests(time_point now, std::vector<ConnectRequest>& out){
+            get<T1>().pop_requests(now,out);
+        }
+        std::optional<time_point> timeout() const { 
+            return get<T1>().timeout();
+        }
+
+    };
+
 
 public:
     ConnectionSchedule(PeerServer& peerServer, const std::vector<Sockaddr>& v);
@@ -253,8 +297,6 @@ public:
 private:
     auto invoke_with_verified(const Sockaddr&, auto lambda) const;
     auto invoke_with_verified(const Sockaddr&, auto lambda);
-    auto invoke_with_verified(const TCPSockaddr&, auto lambda) const;
-    auto invoke_with_verified(const TCPSockaddr&, auto lambda);
     auto emplace_verified(const WithSource<Sockaddr>&, steady_clock::time_point lastVerified);
     VectorEntryBase* find_verified(const Sockaddr&);
 
@@ -270,7 +312,7 @@ private:
     void refresh_wakeup_time();
     auto get_context(const ConnectRequest&, ConnectionState) -> std::optional<FoundContext>;
     [[nodiscard]] auto find(const Sockaddr& a) const -> std::optional<Found>;
-    VerifiedVectorTCP verified_tcp;
+    VerifiedVectors<Sockaddr::variant_t> verified;
     SockaddrVector unverifiedNew;
     SockaddrVector unverifiedFailed;
     size_t totalConnected { 0 };

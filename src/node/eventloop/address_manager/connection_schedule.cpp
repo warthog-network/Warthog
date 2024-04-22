@@ -1,12 +1,13 @@
 #include "connection_schedule.hpp"
-#include "transport/connect_request.hpp"
 #include "global/globals.hpp"
 #include "peerserver/peerserver.hpp"
 #include "spdlog/spdlog.h"
+#include "transport/connect_request.hpp"
 #include <cassert>
 #include <functional>
 #include <future>
 #include <random>
+#include <type_traits>
 
 using namespace std::chrono;
 using namespace std::chrono_literals;
@@ -212,21 +213,11 @@ EntryData* SockaddrVectorBase<EntryData, addr_t>::find(const addr_t& address) co
 }
 }
 
-auto ConnectionSchedule::invoke_with_verified(const TCPSockaddr& a, auto lambda) const
-{
-    return lambda(a, verified_tcp);
-}
-
-auto ConnectionSchedule::invoke_with_verified(const TCPSockaddr& a, auto lambda)
-{
-    return lambda(a, verified_tcp);
-}
-
 auto ConnectionSchedule::invoke_with_verified(const Sockaddr& a, auto lambda)
 {
     return std::visit(
-        [&](const auto& addr) {
-            return invoke_with_verified(addr, lambda);
+        [&]<typename T>(const T& addr) {
+            return lambda(addr, verified.get<std::remove_cvref_t<T>>());
         },
         a.data);
 }
@@ -234,8 +225,8 @@ auto ConnectionSchedule::invoke_with_verified(const Sockaddr& a, auto lambda)
 auto ConnectionSchedule::invoke_with_verified(const Sockaddr& a, auto lambda) const
 {
     return std::visit(
-        [&](const auto& addr) {
-            return invoke_with_verified(addr, lambda);
+        [&]<typename T>(const T& addr) {
+            return lambda(addr, verified.get<std::remove_cvref_t<T>>());
         },
         a.data);
 }
@@ -321,9 +312,8 @@ auto ConnectionSchedule::move_entry(SockaddrVector& ev, const Sockaddr& a) -> Ve
     using elem_t = SockaddrVector::elem_t;
     VectorEntryBase* elem = nullptr;
     ev.erase(a, [&](elem_t&& deleted) {
-        invoke_with_verified(deleted.sockaddr(), [&](const TCPSockaddr& addr, VerifiedVectorTCP& vector) {
-            using elem2_t = VerifiedVectorTCP::elem_t;
-            elem = &vector.push_back(elem2_t { std::move(deleted), addr, sc::now() });
+        invoke_with_verified(deleted.sockaddr(), [&](const TCPSockaddr& addr, VerifiedVector<TCPSockaddr>& vector) {
+            elem = &vector.push_back({ std::move(deleted), addr, sc::now() });
         });
     });
     return elem;
@@ -368,7 +358,7 @@ auto ConnectionSchedule::pop_wakeup_time() -> std::optional<time_point>
 {
     return wakeup_tp.pop();
 }
-std::vector<TCPSockaddr> ConnectionSchedule::sample_verified_tcp(size_t N) const { return verified_tcp.sample(N); };
+std::vector<TCPSockaddr> ConnectionSchedule::sample_verified_tcp(size_t N) const { return verified.get<TCPSockaddr>().sample(N); };
 
 void ConnectionSchedule::outbound_connection_ended(const ConnectRequest& r, ConnectionState state)
 {
@@ -384,7 +374,7 @@ std::vector<ConnectRequest> ConnectionSchedule::pop_expired()
 
     // pop expired requests
     std::vector<ConnectRequest> res;
-    verified_tcp.pop_requests(now, res);
+    verified.pop_requests(now, res);
     unverifiedNew.pop_requests(now, res);
     unverifiedFailed.pop_requests(now, res);
 
@@ -395,7 +385,7 @@ std::vector<ConnectRequest> ConnectionSchedule::pop_expired()
 void ConnectionSchedule::refresh_wakeup_time()
 {
     wakeup_tp.reset();
-    wakeup_tp.consider(verified_tcp.timeout());
+    wakeup_tp.consider(verified.timeout());
     wakeup_tp.consider(unverifiedNew.timeout());
     wakeup_tp.consider(unverifiedFailed.timeout());
 }

@@ -15,19 +15,22 @@ struct Sockaddr {
     }
 #endif
     auto operator<=>(const Sockaddr&) const = default;
-    std::variant<
+    using variant_t = std::variant<
 #ifndef DISABLE_LIBUV
         TCPSockaddr
 #else
         WSSockaddr
 #endif
-        >
-        data;
+        >;
+    variant_t data;
     IPv4 ipv4() const;
     uint16_t port() const;
     bool operator==(const Sockaddr&) const = default;
 #ifndef DISABLE_LIBUV
-    auto& get_tcp() const { return std::get<TCPSockaddr>(data); }
+    auto& get_tcp() const
+    {
+        return std::get<TCPSockaddr>(data);
+    }
     auto& get_tcp() { return std::get<TCPSockaddr>(data); }
 #endif
     std::string to_string() const;
