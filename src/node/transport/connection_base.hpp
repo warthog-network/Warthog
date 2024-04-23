@@ -71,16 +71,6 @@ public:
         Websocket,
         WebRTC
     };
-    struct TCPData {
-        static constexpr Type type { Type::TCP };
-    };
-    struct WebsocketData {
-        static constexpr Type type { Type::Websocket };
-    };
-    struct WebRTCData {
-        static constexpr Type type { Type::WebRTC };
-    };
-    using ConnectionData = std::variant<TCPData, WebsocketData, WebRTCData>;
     struct CloseState {
         int error;
     };

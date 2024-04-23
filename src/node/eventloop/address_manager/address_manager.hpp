@@ -125,9 +125,10 @@ public:
 
     // access queued
 
-    [[nodiscard]] std::vector<TCPSockaddr> sample_verified_tcp(size_t N)
+    template<typename T>
+    [[nodiscard]] std::vector<T> sample_verified(size_t N)
     {
-        return connectionSchedule.sample_verified_tcp(N);
+        return connectionSchedule.sample_verified<T>(N);
     }
 
     void garbage_collect();

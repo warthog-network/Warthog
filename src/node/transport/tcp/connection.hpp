@@ -5,7 +5,7 @@
 #include "conman.hpp"
 #include "eventloop/types/conref_declaration.hpp"
 
-class TCPConnection final : public ConnectionBase, public ConnectionBase::TCPData, public std::enable_shared_from_this<TCPConnection> {
+class TCPConnection final : public ConnectionBase,  public std::enable_shared_from_this<TCPConnection> {
 
     friend class TCPConnectionManager;
 

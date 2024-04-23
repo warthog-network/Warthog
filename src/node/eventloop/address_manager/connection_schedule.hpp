@@ -1,11 +1,9 @@
 #pragma once
-
 #include "peerserver/connection_data.hpp"
 #include "transport/helpers/ipv4.hpp"
-
-#include <chrono>
 #include <set>
 #include <vector>
+
 namespace connection_schedule {
 using Source = IPv4;
 
@@ -243,6 +241,11 @@ class ConnectionSchedule {
     struct VerifiedVectors<std::variant<T1, Ts...>> : public VerifiedVector<T1>,
                                        public VerifiedVectors<std::variant<Ts...>> {
         template <typename T>
+        [[nodiscard]] const VerifiedVector<T> & get() const
+        {
+            return *this;
+        }
+        template <typename T>
         [[nodiscard]] VerifiedVector<T> & get()
         {
             return *this;
@@ -292,7 +295,11 @@ public:
     void schedule_verification(TCPSockaddr c, IPv4 source);
 
     [[nodiscard]] std::optional<time_point> pop_wakeup_time();
-    std::vector<TCPSockaddr> sample_verified_tcp(size_t N) const;
+
+    template<typename T>
+    std::vector<T> sample_verified(size_t N) const{
+        return verified.get<T>().sample(N);
+    }
 
 private:
     auto invoke_with_verified(const Sockaddr&, auto lambda) const;

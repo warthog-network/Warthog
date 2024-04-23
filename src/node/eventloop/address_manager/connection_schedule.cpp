@@ -1,4 +1,4 @@
-#include "connection_schedule.hpp"
+#include "connection_schedule.hxx"
 #include "global/globals.hpp"
 #include "peerserver/peerserver.hpp"
 #include "spdlog/spdlog.h"
@@ -180,16 +180,6 @@ void SockaddrVectorBase<EntryData, addr_t>::pop_requests(time_point now, std::ve
         update_wakeup_time(e.try_pop(now, out));
 }
 
-template <typename addr_t>
-std::vector<addr_t> VerifiedVector<addr_t>::sample(size_t N) const
-{
-    std::vector<addr_t> out;
-    out.reserve(N);
-    std::sample(this->data.begin(), this->data.end(), std::back_inserter(out),
-        N, std::mt19937 { std::random_device {}() });
-    return out;
-};
-
 template <typename EntryData, typename addr_t>
 VectorEntry<addr_t>& SockaddrVectorBase<EntryData, addr_t>::insert(elem_t&& ed)
 {
@@ -234,13 +224,13 @@ auto ConnectionSchedule::invoke_with_verified(const Sockaddr& a, auto lambda) co
 auto ConnectionSchedule::emplace_verified(const WithSource<Sockaddr>& s, steady_clock::time_point lastVerified)
 {
     return invoke_with_verified(s.address, [&](auto& addr, auto& vector) {
-        return vector.emplace({ addr, s.source }, lastVerified);
+        return vector.emplace({ addr, s.source }, lastVerified).second;
     });
 }
 
 auto ConnectionSchedule::find_verified(const Sockaddr& sa) -> VectorEntryBase*
 {
-    return invoke_with_verified(sa, [&](auto& addr, auto& vector) {
+    return invoke_with_verified(sa, [&](auto& addr, auto& vector) -> VectorEntryBase* {
         return vector.find(addr);
     });
 }
@@ -286,7 +276,7 @@ void ConnectionSchedule::start()
     int64_t nowts = now_timestamp();
     for (const auto& [a, timestamp] : db_peers) {
         auto lastVerified = sc::now() - seconds((nowts - int64_t(timestamp)));
-        auto [_, wasInserted] { emplace_verified({ a, startup_source }, lastVerified) };
+        auto wasInserted { emplace_verified({ a, startup_source }, lastVerified) };
         assert(wasInserted);
     }
 };
@@ -312,7 +302,7 @@ auto ConnectionSchedule::move_entry(SockaddrVector& ev, const Sockaddr& a) -> Ve
     using elem_t = SockaddrVector::elem_t;
     VectorEntryBase* elem = nullptr;
     ev.erase(a, [&](elem_t&& deleted) {
-        invoke_with_verified(deleted.sockaddr(), [&](const TCPSockaddr& addr, VerifiedVector<TCPSockaddr>& vector) {
+        invoke_with_verified(deleted.sockaddr(), [&](const auto& addr, auto& vector) {
             elem = &vector.push_back({ std::move(deleted), addr, sc::now() });
         });
     });
@@ -358,7 +348,6 @@ auto ConnectionSchedule::pop_wakeup_time() -> std::optional<time_point>
 {
     return wakeup_tp.pop();
 }
-std::vector<TCPSockaddr> ConnectionSchedule::sample_verified_tcp(size_t N) const { return verified.get<TCPSockaddr>().sample(N); };
 
 void ConnectionSchedule::outbound_connection_ended(const ConnectRequest& r, ConnectionState state)
 {

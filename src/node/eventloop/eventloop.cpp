@@ -1,6 +1,7 @@
 #include "eventloop.hpp"
 #include "address_manager/address_manager_impl.hpp"
 #include "api/types/all.hpp"
+#include "address_manager/connection_schedule.hxx"
 #include "block/chain/header_chain.hpp"
 #include "block/header/batch.hpp"
 #include "block/header/view.hpp"
@@ -772,7 +773,7 @@ void Eventloop::handle_msg(Conref c, PingMsg&& m)
 {
     log_communication("{} handle ping", c.str());
     size_t nAddr { std::min(uint16_t(20), m.maxAddresses) };
-    auto addresses = connections.sample_verified_tcp(nAddr);
+    auto addresses = connections.sample_verified<TCPSockaddr>(nAddr);
     c->ratelimit.ping();
     PongMsg msg(m.nonce, std::move(addresses), mempool.sample(m.maxTransactions));
     spdlog::debug("{} Sending {} addresses", c.str(), msg.addresses.size());

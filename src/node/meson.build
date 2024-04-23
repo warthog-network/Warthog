@@ -2,6 +2,7 @@ src_libuv = ['./transport/tcp/conman.cpp',
   './transport/tcp/connect_request.cpp',
   './transport/tcp/connection.cpp',
   './transport/tcp/start_connection.cpp',
+  './transport/ws/start_connection.cpp',
   './api/http/endpoint.cpp',
   ]
 
@@ -69,6 +70,7 @@ src= [
   './transport/helpers/per_ip_counter.cpp',
   './transport/helpers/socket_addr.cpp',
   './transport/helpers/tcp_sockaddr.cpp',
+  './transport/ws/connect_request.cpp',
   src_sqlitecpp,
   src_wh,
 ]
