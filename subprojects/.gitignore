@@ -1,3 +1,5 @@
 *
 !*.wrap
 !.gitignore
+!/libwebsockets-4.3.3/
+!/libwebsockets-4.3.3/**
