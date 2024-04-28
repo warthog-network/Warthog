@@ -37,7 +37,7 @@ ChainServer::ChainServer(ChainDB& db, BatchRegistry& br, std::optional<SnapshotS
 
 ChainServer::~ChainServer()
 {
-    close();
+    wait_for_shutdown();
 }
 
 void ChainServer::api_mining_append(Block&& block, ResultCb callback)
@@ -157,12 +157,17 @@ void ChainServer::async_set_signed_checkpoint(SignedSnapshot ss)
     defer(SetSignedPin { ss });
 }
 
-void ChainServer::close()
+void ChainServer::shutdown()
 {
     std::unique_lock<std::mutex> ul(mutex);
     closing = true;
     haswork = true;
     cv.notify_one();
+}
+
+void ChainServer::wait_for_shutdown(){
+    if (worker.joinable())
+        worker.join();
 }
 
 void ChainServer::workerfun()

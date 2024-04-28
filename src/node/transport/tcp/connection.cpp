@@ -87,4 +87,6 @@ Sockaddr TCPConnection::claimed_peer_addr() const
         return connection_peer_addr();
     }
 };
-bool TCPConnection::inbound() const { return false; }
+bool TCPConnection::inbound() const { 
+    return connectRequest.inbound();
+}

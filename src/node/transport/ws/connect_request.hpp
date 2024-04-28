@@ -6,7 +6,7 @@
 struct ConnectRequest;
 struct WSConnectRequest : public ConnectRequestBase {
     friend class ConnectionData;
-    static WSConnectRequest inbound(WSSockaddr peer)
+    static WSConnectRequest make_inbound(WSSockaddr peer)
     {
         return { std::move(peer), -std::chrono::seconds(1) };
     }

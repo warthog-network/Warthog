@@ -10,7 +10,6 @@ class TCPConnection final : public ConnectionBase,  public std::enable_shared_fr
     friend class TCPConnectionManager;
 
     void async_send(std::unique_ptr<char[]> data, size_t size) override;
-    ConnectionBase::Type type() const override { return ConnectionBase::Type::TCP; }
     uint16_t listen_port() const override;
     ConnectRequest connect_request() const override;
 

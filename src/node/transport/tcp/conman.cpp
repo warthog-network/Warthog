@@ -54,7 +54,7 @@ TCPConnectionManager::TCPConnectionManager(std::shared_ptr<uvw::loop> loop, Peer
         assert(server.accept(*tcpHandle) == 0);
         auto endpoint { get_ipv4_endpoint(*tcpHandle) };
         if (endpoint) {
-            auto connectRequest { TCPConnectRequest::inbound(*endpoint) };
+            auto connectRequest { TCPConnectRequest::make_inbound(*endpoint) };
             auto connection { insert_connection(tcpHandle, connectRequest).shared_from_this() };
             ps.authenticate(connection);
         }

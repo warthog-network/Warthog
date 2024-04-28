@@ -1,7 +1,7 @@
 #include "eventloop.hpp"
 #include "address_manager/address_manager_impl.hpp"
-#include "api/types/all.hpp"
 #include "address_manager/connection_schedule.hxx"
+#include "api/types/all.hpp"
 #include "block/chain/header_chain.hpp"
 #include "block/header/batch.hpp"
 #include "block/header/view.hpp"
@@ -46,8 +46,7 @@ Eventloop::Eventloop(PeerServer& ps, ChainServer& cs, const ConfigParams& config
 
 Eventloop::~Eventloop()
 {
-    if (worker.joinable())
-        worker.join();
+    wait_for_shutdown();
 }
 void Eventloop::start()
 {
@@ -69,12 +68,17 @@ bool Eventloop::async_process(std::shared_ptr<ConnectionBase> c)
 {
     return defer(OnProcessConnection { std::move(c) });
 }
-void Eventloop::async_shutdown(int32_t reason)
+void Eventloop::shutdown(int32_t reason)
 {
     std::unique_lock<std::mutex> l(mutex);
     haswork = true;
     closeReason = reason;
     cv.notify_one();
+}
+void Eventloop::wait_for_shutdown()
+{
+    if (worker.joinable())
+        worker.join();
 }
 
 void Eventloop::erase(std::shared_ptr<ConnectionBase> c)
@@ -207,8 +211,6 @@ bool Eventloop::check_shutdown()
             continue;
         erase_internal(cr);
     }
-
-    stateServer.shutdown_join();
     return true;
 }
 

@@ -77,7 +77,8 @@ public:
     void cancel_timer(const Timer::key_t&);
     void async_mempool_update(mempool::Log&& s);
     void async_report_failed_outbound(TCPSockaddr);
-    void async_shutdown(int32_t reason);
+    void shutdown(int32_t reason);
+    void wait_for_shutdown();
     void async_stage_action(stage_operation::Result);
     void async_state_update(StateUpdate&& s);
     void erase(std::shared_ptr<ConnectionBase> c);

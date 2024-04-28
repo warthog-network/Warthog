@@ -4,6 +4,7 @@ project( 'Warthog', ['c','cpp'],
 
 if not get_option('emscripten')
 libuv_dep = subproject('libuv', default_options : ['warning_level=0', 'werror=false', 'build_tests=false']).get_variable('libuv_dep')
+libwebsockets_dep = subproject('libwebsockets-4.3.3', default_options:['warning_level=0', 'werror=false','uv=enabled']).get_variable('libwebsockets_dep')
 endif
 sqlite3_dep = subproject('sqlite3',default_options : ['warning_level=0', 'werror=false']).get_variable('sqlite3_dep')
 

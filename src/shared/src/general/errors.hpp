@@ -96,6 +96,8 @@
     XX(98, EINV_HEADERVEC, "invalid header vector")                     \
     XX(99, EINV_BLOCKREPSIZE, "invalid block reply size")               \
     XX(100, EMSGINTEGRITY, "message integrity check failed")            \
+    XX(101, ESTARTWEBSOCK, "Error while starting websocket connection") \
+    XX(102, EWEBSOCK, "Error while in websocket connection")            \
     XX(200, EINV_HEX, "cannot parse hexadecimal input")                 \
     XX(201, EBADNONCE, "cannot parse nonce")                            \
     XX(202, EBADFEE, "invalid fee")                                     \
@@ -129,7 +131,7 @@ inline bool leads_to_ban(int32_t code)
         // We are not sure the following are triggered by evil behavior or bug.
         // Let's observe for some more time before enable banning on them.
     case EEMPTY:
-    case EPROBEDESCRIPTOR: 
+    case EPROBEDESCRIPTOR:
         return false;
     default:
         return true;

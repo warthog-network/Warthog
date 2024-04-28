@@ -54,13 +54,14 @@ public:
             return false;
         return async_event(OnClose { std::move(con), offense });
     }
-    void async_shutdown()
+    void shutdown()
     {
         std::unique_lock<std::mutex> l(mutex);
-        shutdown = true;
+        _shutdown = true;
         hasWork = true;
         cv.notify_one();
     }
+    void wait_for_shutdown();
 
     bool authenticate(std::shared_ptr<ConnectionBase> c)
     {
@@ -101,9 +102,8 @@ public:
     PeerServer(PeerDB& db, const ConfigParams&);
     ~PeerServer()
     {
-        async_shutdown();
-        if (worker.joinable())
-            worker.join();
+        shutdown();
+        wait_for_shutdown();
     }
     void start();
 
@@ -125,7 +125,7 @@ private:
     bool async_event(Event e)
     {
         std::unique_lock<std::mutex> l(mutex);
-        if (shutdown)
+        if (_shutdown)
             return false;
         events.push(std::move(e));
         hasWork = true;
@@ -158,7 +158,7 @@ private:
     std::mutex mutex;
     bool hasWork = false;
     bool enableBan;
-    bool shutdown = false;
+    bool _shutdown = false;
     std::queue<Event> events;
     std::condition_variable cv;
 

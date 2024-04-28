@@ -18,6 +18,10 @@ PeerServer::PeerServer(PeerDB& db, const ConfigParams& config)
 {
 }
 
+void PeerServer::wait_for_shutdown(){
+        if (worker.joinable())
+            worker.join();
+}
 void PeerServer::start()
 {
     assert(!worker.joinable());
@@ -43,7 +47,7 @@ void PeerServer::work()
         decltype(events) tmpq;
         {
             std::unique_lock<std::mutex> l(mutex);
-            if (shutdown)
+            if (_shutdown)
                 return;
             while (!hasWork) {
                 cv.wait(l);

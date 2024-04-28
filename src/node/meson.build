@@ -2,8 +2,15 @@ src_libuv = ['./transport/tcp/conman.cpp',
   './transport/tcp/connect_request.cpp',
   './transport/tcp/connection.cpp',
   './transport/tcp/start_connection.cpp',
-  './transport/ws/start_connection.cpp',
+  './transport/ws/native/start_connection.cpp',
+  './transport/ws/native/conman.cpp',
+  './transport/ws/native/connection.cpp',
+  './transport/ws/native/ws_session.cpp',
   './api/http/endpoint.cpp',
+  ]
+
+src_browser = [
+  './transport/ws/browser/start_connection.cpp',
   ]
 
 src= [
@@ -77,12 +84,13 @@ src= [
 
 
 if get_option('emscripten')
+  src = [src, src_browser]
   deps = [sqlite3_dep]
   include_thirdparty=[include_trezorcrypto,include_wh,include_secp256k1,include_sqlitecpp, include_spdlog,include_json,include_tomlplusplus, include_tl]
   lib_thirdparty=[libsecp256k1]
 else
   src = [src, src_libuv]
-  deps =  [sqlite3_dep,  libuv_dep, uvw_dep]
+  deps =  [sqlite3_dep,  libuv_dep, uvw_dep, libwebsockets_dep ]
   include_thirdparty=[include_trezorcrypto,include_wh,include_secp256k1,include_sqlitecpp, include_spdlog,include_usockets,include_uwebsockets,include_json,include_tomlplusplus, include_tl]
   lib_thirdparty=[libsecp256k1, libusockets]
 endif

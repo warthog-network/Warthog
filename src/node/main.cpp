@@ -5,6 +5,7 @@
 #include "global/globals.hpp"
 #include "peerserver/peerserver.hpp"
 #include "spdlog/spdlog.h"
+#include "transport/ws/native/conman.hpp"
 
 static void shutdown(int32_t reason);
 
@@ -63,11 +64,17 @@ void free_signals()
 
 static void shutdown(int32_t reason)
 {
+    global().core->shutdown(reason);
+    global().chainServer->shutdown();
+    global().peerServer->shutdown();
 #ifndef DISABLE_LIBUV
     global().conman->shutdown(reason);
+    global().wsconman->shutdown(reason);
+    global().wsconman->wait_for_shutdown();
 #endif
-    global().core->async_shutdown(reason);
-    global().peerServer->async_shutdown();
+    global().core->wait_for_shutdown();
+    global().chainServer->wait_for_shutdown();
+    global().peerServer->wait_for_shutdown();
 }
 void initialize_srand()
 {
@@ -118,6 +125,7 @@ int main(int argc, char** argv)
         stratumServer.emplace(config().stratumPool->bind);
     }
     TCPConnectionManager cm(l, ps, config());
+    WSConnectionManager wscm(ps,10001);
     // setup signals
     setup_signals(l->raw());
 
@@ -125,7 +133,7 @@ int main(int argc, char** argv)
     HTTPEndpoint endpoint { config().jsonrpc.bind };
     auto endpointPublic { HTTPEndpoint::make_public_endpoint(config()) };
 
-    global_init(&breg, &ps, &*cs, &cm, &el, &endpoint);
+    global_init(&breg, &ps, &*cs, &cm, &wscm, &el, &endpoint);
 #else
     global_init(&breg, &ps, &*cs, &el);
 #endif
@@ -146,6 +154,7 @@ int main(int argc, char** argv)
     return 0;
 #else
     endpoint.start();
+    wscm.start();
     spdlog::debug("Starting libuv loop");
     // running eventloop
     if ((i = l->run(uvw::loop::run_mode::DEFAULT)))

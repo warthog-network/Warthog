@@ -1,8 +1,8 @@
 #include "globals.hpp"
-#include "transport/tcp/conman.hpp"
 #include "general/is_testnet.hpp"
 #include "spdlog/sinks/rotating_file_sink.h"
 #include "spdlog/spdlog.h"
+#include "transport/tcp/conman.hpp"
 namespace {
 
 std::string logdir()
@@ -58,13 +58,14 @@ HTTPEndpoint& http_endpoint()
     return *globalinstance.httpEndpoint;
 };
 
-void global_init(BatchRegistry* pbr, PeerServer* pps, ChainServer* pcs, TCPConnectionManager* pcm, Eventloop* pel, HTTPEndpoint* httpEndpoint)
+void global_init(BatchRegistry* pbr, PeerServer* pps, ChainServer* pcs, TCPConnectionManager* pcm, WSConnectionManager* wcm, Eventloop* pel, HTTPEndpoint* httpEndpoint)
 #else
 void global_init(BatchRegistry* pbr, PeerServer* pps, ChainServer* pcs, Eventloop* pel)
 #endif
 {
 #ifndef DISABLE_LIBUV
     globalinstance.conman = pcm;
+    globalinstance.wsconman = wcm;
     globalinstance.httpEndpoint = httpEndpoint;
 #endif
     globalinstance.batchRegistry = pbr;
@@ -76,4 +77,3 @@ void global_init(BatchRegistry* pbr, PeerServer* pps, ChainServer* pcs, Eventloo
     globalinstance.syncdebugLogger = create_syncdebug_logger();
     ;
 };
-

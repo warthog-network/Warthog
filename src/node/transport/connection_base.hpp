@@ -66,11 +66,6 @@ struct MessageState : public AckState {
 
 class ConnectionBase : public peerserver::Connection {
 public:
-    enum class Type {
-        TCP,
-        Websocket,
-        WebRTC
-    };
     struct CloseState {
         int error;
     };
@@ -88,7 +83,6 @@ public:
     virtual Sockaddr claimed_peer_addr() const = 0;
 
     virtual void close(int Error) = 0;
-    virtual Type type() const = 0;
     void send(Sndbuffer&& msg);
     [[nodiscard]] std::vector<Rcvbuffer> pop_messages();
 

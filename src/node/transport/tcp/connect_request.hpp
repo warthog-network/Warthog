@@ -6,7 +6,7 @@
 struct ConnectRequest;
 struct TCPConnectRequest : public ConnectRequestBase {
     friend class ConnectionData;
-    static TCPConnectRequest inbound(TCPSockaddr peer)
+    static TCPConnectRequest make_inbound(TCPSockaddr peer)
     {
         return { std::move(peer), -std::chrono::seconds(1) };
     }
