@@ -99,6 +99,7 @@ std::span<uint8_t> ConnectionBase::process_message(std::span<uint8_t> data, Hand
                 send_handshake_ack();
                 std::lock_guard l(statechangeMutex);
                 state.emplace<MessageState>(p.parse(inbound()));
+                global().core->async_process(get_shared());
             }
         }
         return {};

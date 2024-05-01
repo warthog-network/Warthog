@@ -21,6 +21,7 @@
 using namespace std;
 
 
+#ifndef DISABLE_LIBUV
 std::string ConfigParams::get_default_datadir()
 {
 #ifdef __linux__
@@ -49,6 +50,30 @@ std::string ConfigParams::get_default_datadir()
     throw std::runtime_error("Cannot determine default data directory.");
 #endif
 }
+
+#else
+
+#include <emscripten.h>
+#include <emscripten/wasmfs.h>
+#include <unistd.h>
+bool mount_opfs(const char *mountpoint) {
+    cout<<"Mounting opfs: "<<mountpoint<<endl;
+  auto pOpfs = wasmfs_create_opfs_backend();
+  if (!pOpfs)
+    return false;
+  bool exists = access(mountpoint, F_OK) == 0;
+  if (exists)
+      return true;
+
+  const int rc = wasmfs_create_directory(mountpoint, 0777, pOpfs);
+  return rc == 0;
+}
+std::string ConfigParams::get_default_datadir()
+{
+  assert(mount_opfs("/opfs"));
+  return "/opfs/";
+}
+#endif
 
 namespace {
 std::optional<SnapshotSigner> parse_leader_key(std::string privKey)

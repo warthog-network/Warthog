@@ -29,9 +29,14 @@ public:
 private:
     SharedBatchView(iter_type iter)
         : data { .iter = iter } {};
-    union {
+    union { // @Rafiki What is this? Emulate nullable iterator? This is undefined behavior! :( But I think it should work this way because iter will be actually a pointer and non-zero if it points to something useful.
         iter_type iter;
+#ifdef DISABLE_LIBUV
+        uint32_t raw; // emscripten build has 32 bytes iterator size
+#else
         uint64_t raw;
+#endif
+        static_assert(sizeof(iter) == sizeof(raw));
     } data;
 };
 
@@ -39,7 +44,6 @@ class SharedBatch {
     using Maptype = std::map<std::array<uint8_t, 80>, Nodedata, HeaderView::HeaderComparator>;
     using iter_type = Maptype::iterator;
     friend struct Nodedata;
-
 
 public:
     ~SharedBatch();
@@ -58,7 +62,7 @@ public:
     size_t size() const { return view().size(); }
     Height upper_height() const { return view().upper_height(); }
     std::optional<Batchslot> slot() const { return view().slot(); }
-    Batchslot next_slot() const { return slot().value_or(Batchslot(0))+1; }
+    Batchslot next_slot() const { return slot().value_or(Batchslot(0)) + 1; }
     Height lower_height() const { return view().lower_height(); }
     std::optional<HeaderView> getHeader(size_t id) const { return view().getHeader(id); }
     [[nodiscard]] HeaderView operator[](Height h) const { return getHeader(h - lower_height()).value(); }

@@ -7,7 +7,6 @@
 #include <cassert>
 #include <csignal>
 #include <cstring>
-#include <iostream>
 #include <list>
 #include <memory>
 #include <span>
@@ -59,8 +58,9 @@ static int libwebsocket_callback(struct lws* wsi,
         sockaddr_storage sa;
         socklen_t len(sizeof(sa));
         int r(getpeername(fd, (sockaddr*)&sa, &len));
-        if (r != 0 || sa.ss_family != AF_INET)
+        if (r != 0 || sa.ss_family != AF_INET){
             return -1;
+        }
 
         lws_rx_flow_control(wsi, 0);
         // lws_get_peer_addresses()
@@ -122,7 +122,6 @@ void WSConnectionManager::handle_event(Connect&& c)
     auto& cr { c.conreq };
     auto ipstr { cr.address.ipv4.to_string() };
 
-    cout << "Connect_client" << endl;
     struct lws_client_connect_info i;
     memset(&i, 0, sizeof(i));
 
@@ -133,8 +132,8 @@ void WSConnectionManager::handle_event(Connect&& c)
     i.host = i.address;
     i.origin = "";
     i.ssl_connection = 0;
-    i.protocol = "warthog";
-    i.local_protocol_name = "warthog";
+    i.protocol = "binary";
+    i.local_protocol_name = "binary";
 
     auto* p = new std::shared_ptr<WSSession>(WSSession::make_new(false));
     auto& session { *p };
@@ -202,14 +201,14 @@ void WSConnectionManager::wakeup()
 
 namespace {
 const lws_protocols protocols[] = {
-    { "warthog", libwebsocket_callback,
+    { "binary", libwebsocket_callback,
         sizeof(std::shared_ptr<WSSession>), 1024, 0, NULL, 0 },
     LWS_PROTOCOL_LIST_TERM
 };
 const lws_protocol_vhost_options pvo = {
     NULL, /* "next" pvo linked-list */
     nullptr, /* "child" pvo linked-list */
-    "warthog", /* protocol name we belong to on this vhost */
+    "binary", /* protocol name we belong to on this vhost */
     "" /* ignored */
 };
 }
@@ -223,7 +222,6 @@ void WSConnectionManager::create_context()
     struct lws_context_creation_info info;
     memset(&info, 0, sizeof info); /* otherwise uninitialized garbage */
     info.port = startOptions.port;
-    cout << "Port: " << info.port << endl;
     info.protocols = protocols;
     info.pvo = &pvo;
     info.user = this;

@@ -147,6 +147,7 @@ struct Error { // error class for exceptions
     const char* err_name() const { return errors::err_name(e); };
     bool is_error() const { return e != 0; }
     operator bool() const { return is_error(); }
+    operator int() const { return e; }
     int32_t e;
 };
 

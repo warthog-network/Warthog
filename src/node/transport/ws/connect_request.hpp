@@ -1,5 +1,4 @@
 #pragma once
-#ifndef DISABLE_LIBUV
 #include "../helpers/connect_request_base.hpp"
 #include "../helpers/tcp_sockaddr.hpp"
 
@@ -24,4 +23,3 @@ private:
 };
 
 WSConnectRequest make_request(const WSSockaddr& connectTo, steady_duration sleptFor);
-#endif

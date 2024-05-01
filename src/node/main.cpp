@@ -6,10 +6,11 @@
 #include "peerserver/peerserver.hpp"
 #include "spdlog/spdlog.h"
 #include "transport/ws/native/conman.hpp"
+#include "transport/ws/start_connection.hpp"
 
-static void shutdown(int32_t reason);
 
 #ifndef DISABLE_LIBUV
+static void shutdown(int32_t reason);
 #include "api/http/endpoint.hpp"
 #include "api/stratum/stratum_server.hpp"
 #include "uvw.hpp"
@@ -60,7 +61,6 @@ void free_signals()
     uv_close((uv_handle_t*)&sighup, nullptr);
     uv_close((uv_handle_t*)&sigterm, nullptr);
 }
-#endif
 
 static void shutdown(int32_t reason)
 {
@@ -76,6 +76,8 @@ static void shutdown(int32_t reason)
     global().chainServer->wait_for_shutdown();
     global().peerServer->wait_for_shutdown();
 }
+#endif
+
 void initialize_srand()
 {
     using namespace std::chrono;
@@ -146,10 +148,15 @@ int main(int argc, char** argv)
     ps.start();
     cs->start();
     el.start();
+    #ifdef DISABLE_LIBUV
+    auto a{WSSockaddr::parse("127.0.0.1:10001")};
+    WSSockaddr addr{a.value()};
+    start_connection(make_request(addr,std::chrono::seconds(1)));
+    #endif
 
 #ifdef DISABLE_LIBUV
     while (true) {
-        sleep(1000);// don't shut down
+        sleep(1000); // don't shut down
     }
     return 0;
 #else

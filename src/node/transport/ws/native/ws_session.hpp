@@ -50,7 +50,7 @@ private:
     const bool inbound;
     bool closing = false;
     CurrentMsg current;
-    static constexpr size_t chunkSize = 100;
+    static constexpr size_t chunkSize = 1024;
 
 public:
     lws* wsi = nullptr;

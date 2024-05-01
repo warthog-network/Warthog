@@ -1,4 +1,5 @@
-src_libuv = ['./transport/tcp/conman.cpp',
+src_libuv = [
+  './transport/tcp/conman.cpp',
   './transport/tcp/connect_request.cpp',
   './transport/tcp/connection.cpp',
   './transport/tcp/start_connection.cpp',
@@ -11,6 +12,7 @@ src_libuv = ['./transport/tcp/conman.cpp',
 
 src_browser = [
   './transport/ws/browser/start_connection.cpp',
+  './transport/ws/browser/connection.cpp',
   ]
 
 src= [
@@ -95,9 +97,44 @@ else
   lib_thirdparty=[libsecp256k1, libusockets]
 endif
 
+
+if get_option('emscripten')
+executable('wart-node', vcs_dep, [src,'./main.cpp', src_spdlog],
+  include_directories:['./' ,include_thirdparty],
+  link_with: lib_thirdparty,
+  dependencies: deps,
+  cpp_args: ['-fexceptions'],
+  link_args: [
+    '-lwebsocket.js',
+    '-sNO_DISABLE_EXCEPTION_CATCHING', '-sSTACK_SIZE=10mb', '-fexceptions', '-sPROXY_TO_PTHREAD', '-sWASMFS',
+    '-sUSE_CLOSURE_COMPILER=0', '-sIMPORTED_MEMORY',
+    '-sWASM_BIGINT=1', '-sMODULARIZE', '-sDYNAMIC_EXECUTION=0', '-sNO_POLYFILL',
+    '-sSTRICT_JS=0', '-sALLOW_MEMORY_GROWTH', '-sINITIAL_MEMORY=16777216', '-sSTACK_SIZE=2048KB', '-sGLOBAL_BASE=4096', '-sALLOW_TABLE_GROWTH',
+    '-sERROR_ON_UNDEFINED_SYMBOLS=1', '-sENVIRONMENT=web,worker',
+    '-sWASMFS', '-sPTHREAD_POOL_SIZE=1', '-sLLD_REPORT_UNDEFINED', '-sEXPORT_ES6', '-sUSE_ES6_IMPORT_META',
+    ],
+  name_suffix: 'html',
+  install : true)
+
+websocket = executable('websocket', 'websocket.cpp',
+  cpp_args: ['-fexceptions'],
+  link_args:['-fexceptions', '-sPROXY_TO_PTHREAD', '-sWASMFS',
+  '-pthread',
+  '-lwebsocket.js',
+    '-sUSE_CLOSURE_COMPILER=0', '-sIMPORTED_MEMORY', 
+  '-sWASM_BIGINT=1', '-sMODULARIZE', '-sDYNAMIC_EXECUTION=0', '-sNO_POLYFILL', 
+  '-sSTRICT_JS=0', '-sALLOW_MEMORY_GROWTH', '-sINITIAL_MEMORY=16777216', '-sSTACK_SIZE=512KB', '-sGLOBAL_BASE=4096', '-sALLOW_TABLE_GROWTH', 
+  '-sERROR_ON_UNDEFINED_SYMBOLS=1', '-sENVIRONMENT=web,worker', 
+  '-sWASMFS', '-sPTHREAD_POOL_SIZE=1', '-sLLD_REPORT_UNDEFINED', '-sEXPORT_ES6', '-sUSE_ES6_IMPORT_META',
+    ],
+  name_suffix: 'html',
+  install : true)
+else
 executable('wart-node', vcs_dep, [src,'./main.cpp', src_spdlog],
   include_directories:['./' ,include_thirdparty],
   link_with: lib_thirdparty,
   dependencies: deps,
   install : true)
+endif
+
 

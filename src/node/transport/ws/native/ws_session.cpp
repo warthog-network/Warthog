@@ -2,7 +2,6 @@
 #include "spdlog/spdlog.h"
 #include "transport/ws/native/connection.hpp"
 #include <cstring>
-#include <iostream>
 extern "C" {
 #include "libwebsockets.h"
 }

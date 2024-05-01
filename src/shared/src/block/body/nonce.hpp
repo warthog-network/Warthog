@@ -45,7 +45,6 @@ private:
 public:
     static std::optional<PinNonce> make_pin_nonce(NonceId, NonzeroHeight, PinHeight);
     PinNonce(Reader& r);
-    PinNonce(const PinNonce&) = default;
 
     PinHeight pin_height(PinFloor pf) const;
     uint32_t pin_offset() const

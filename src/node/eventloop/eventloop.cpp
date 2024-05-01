@@ -773,6 +773,7 @@ void Eventloop::handle_msg(Conref c, ForkMsg&& m)
 
 void Eventloop::handle_msg(Conref c, PingMsg&& m)
 {
+#ifndef DISABLE_LIBUV // TODO: replace TCPSockaddr by something else for emscrpiten build (no TCP connections available in browsers)
     log_communication("{} handle ping", c.str());
     size_t nAddr { std::min(uint16_t(20), m.maxAddresses) };
     auto addresses = connections.sample_verified<TCPSockaddr>(nAddr);
@@ -783,6 +784,7 @@ void Eventloop::handle_msg(Conref c, PingMsg&& m)
         c->theirSnapshotPriority = m.sp;
     c.send(msg);
     consider_send_snapshot(c);
+#endif
 }
 
 void Eventloop::handle_msg(Conref cr, PongMsg&& m)
