@@ -9,6 +9,7 @@
 #include "crypto/hash.hpp"
 #include "general/descriptor.hpp"
 #include "general/params.hpp"
+#include "message_elements/helper_types.hpp"
 #include "transport/helpers/tcp_sockaddr.hpp"
 #include <array>
 #include <chrono>
@@ -38,10 +39,80 @@ struct RandNonce : public WithNonce {
 namespace {
 struct MessageWriter;
 }
+
 template <uint8_t M>
 struct MsgCode {
     static constexpr uint8_t msgcode { M };
     static MessageWriter gen_msg(size_t len);
+};
+
+// template<size_t i, typename ...T>
+// struct Msg;
+
+template <size_t, typename... T>
+struct MsgI;
+
+template <size_t i, typename T>
+struct MsgI<i, T> {
+
+    template <size_t j>
+    T& get()
+    requires(j == j)
+    {
+        return t;
+    }
+
+    MsgI(T t)
+        : t(std::move(t))
+    {
+    }
+
+    MsgI(Reader& r)
+        : MsgI(T { r })
+    {
+    }
+    T t;
+};
+
+template <size_t i, typename T, typename... Rest>
+struct MsgI<i, T, Rest...> : public MsgI<i + 1, Rest...> {
+    MsgI(T t, Reader& r)
+        : MsgI<i + 1, Rest...>(r)
+        , t(std::move(t))
+    {
+    }
+    MsgI(Reader& r)
+        : MsgI { T(t), r }
+    {
+    }
+
+    template <size_t j>
+    auto& get()
+    {
+        if constexpr (j == i)
+            return t;
+        else
+            return MsgI<i + 1, Rest...>::template get<j>();
+    }
+
+private:
+    T t;
+};
+
+template <typename... Ts>
+using MsgCombine = MsgI<0, Ts...>;
+
+struct InitMsg2 : public MsgCombine<Descriptor, SignedSnapshot::Priority, Height, Worksum, Grid>, public MsgCode<0> {
+    InitMsg2(Reader& r);
+    // using Msg<Descriptor, SignedSnapshot::Priority, Height, Worksum, Grid>::Msg;
+    static constexpr size_t maxSize = 100000;
+    static Sndbuffer serialize_chainstate(const ConsensusSlave&);
+
+    auto& descriptor() { return get<0>(); }
+    auto& sp() { return get<1>(); }
+    auto& chainLength() { return get<2>(); }
+    auto& worksum() { return get<3>(); }
+    auto& grid() { return get<4>(); }
 };
 
 struct InitMsg : public MsgCode<0> {
@@ -58,7 +129,7 @@ struct InitMsg : public MsgCode<0> {
 
 struct ForkMsg : public MsgCode<1> {
     static constexpr size_t maxSize = 20000;
-    static auto from_reader(Reader& r) -> ForkMsg;
+    ForkMsg(Reader& r);
     ForkMsg(Descriptor descriptor, NonzeroHeight chainLength, Worksum worksum, NonzeroHeight forkHeight, Grid grid);
     operator Sndbuffer() const;
 
@@ -71,7 +142,7 @@ struct ForkMsg : public MsgCode<1> {
 
 struct AppendMsg : public MsgCode<2> {
     static constexpr size_t maxSize = 4 + 4 + 32 + 80 * 100;
-    static AppendMsg from_reader(Reader& r);
+    AppendMsg(Reader& r);
     AppendMsg(
         NonzeroHeight newLength,
         Worksum worksum,
@@ -84,7 +155,6 @@ struct AppendMsg : public MsgCode<2> {
 };
 
 struct SignedPinRollbackMsg : public MsgCode<3> {
-    static SignedPinRollbackMsg from_reader(Reader& r);
     SignedPinRollbackMsg(
         SignedSnapshot signedPin,
         Height newLength,
@@ -94,6 +164,7 @@ struct SignedPinRollbackMsg : public MsgCode<3> {
         , shrinkLength(newLength)
         , worksum(std::move(worksum))
         , descriptor(descriptor) {};
+    SignedPinRollbackMsg(Reader& r);
     operator Sndbuffer() const;
 
     SignedSnapshot signedSnapshot;
@@ -115,7 +186,7 @@ struct PingMsg : public RandNonce, public MsgCode<4> {
         , sp(sp)
         , maxAddresses(maxAddresses)
         , maxTransactions(maxTransactions) {};
-    static PingMsg from_reader(Reader& r);
+    PingMsg(Reader& r);
     SignedSnapshot::Priority sp;
     uint16_t maxAddresses;
     uint16_t maxTransactions;
@@ -124,34 +195,22 @@ struct PingMsg : public RandNonce, public MsgCode<4> {
 
 struct PongMsg : public WithNonce, public MsgCode<5> {
     static constexpr size_t maxSize = 4 + 2 + 6 * 100 + 18 * 1000;
-    static PongMsg from_reader(Reader& r);
-    PongMsg(uint32_t nonce, std::vector<TCPSockaddr> addresses, std::vector<TxidWithFee> txids)
+    PongMsg(Reader& r);
+    PongMsg(uint32_t nonce, messages::Vector16<TCPSockaddr> addresses, messages::Vector16<TxidWithFee> txids)
         : WithNonce { nonce }
         , addresses(addresses)
         , txids(std::move(txids)) {};
     operator Sndbuffer() const;
 
     Error check(const PingMsg&) const;
-    std::vector<TCPSockaddr> addresses;
-    std::vector<TxidWithFee> txids;
-};
-
-struct BatchSelector {
-    Descriptor descriptor;
-    NonzeroHeight startHeight;
-    NonzeroHeight end() const { return startHeight + length; }
-    uint16_t length;
-    BatchSelector(Descriptor d, NonzeroHeight s, uint16_t l)
-        : descriptor(d)
-        , startHeight(s)
-        , length(l) {};
-    BatchSelector(Reader& r);
+    messages::Vector16<TCPSockaddr> addresses;
+    messages::Vector16<TxidWithFee> txids;
 };
 
 struct BatchreqMsg : public RandNonce, public MsgCode<6> {
     static constexpr size_t maxSize = 14;
     std::string log_str() const;
-    static BatchreqMsg from_reader(Reader& r);
+    BatchreqMsg(Reader& r);
     BatchreqMsg(BatchSelector selector)
         : selector(selector) {};
     BatchreqMsg(uint32_t nonce, BatchSelector selector)
@@ -169,7 +228,6 @@ struct BatchrepMsg : public WithNonce, public MsgCode<7> {
         , batch(std::move(b))
     {
     }
-    static BatchrepMsg from_reader(Reader& r);
     operator Sndbuffer() const;
 
     Batch batch;
@@ -178,7 +236,7 @@ struct BatchrepMsg : public WithNonce, public MsgCode<7> {
 struct ProbereqMsg : public RandNonce, public MsgCode<8> {
     static constexpr size_t maxSize = 12;
     std::string log_str() const;
-    static ProbereqMsg from_reader(Reader& r);
+    ProbereqMsg(Reader& r);
     ProbereqMsg(Descriptor descriptor, NonzeroHeight height)
         : descriptor(descriptor)
         , height(height)
@@ -186,10 +244,10 @@ struct ProbereqMsg : public RandNonce, public MsgCode<8> {
     }
     operator Sndbuffer() const;
     Descriptor descriptor;
-    NonzeroHeight height;
+    NonzeroHeightParser<EPROBEHEIGHT> height;
 
 private:
-    ProbereqMsg(uint32_t nonce, Descriptor descriptor, NonzeroHeight height)
+    ProbereqMsg(uint32_t nonce, Descriptor descriptor, NonzeroHeightParser<EPROBEHEIGHT> height)
         : RandNonce(nonce)
         , descriptor(descriptor)
         , height(height)
@@ -199,21 +257,24 @@ private:
 
 struct ProberepMsg : public WithNonce, public MsgCode<9> {
     static constexpr size_t maxSize = 189;
-    static ProberepMsg from_reader(Reader& r);
+    ProberepMsg(Reader& r);
     ProberepMsg(uint32_t nonce, uint32_t currentDescriptor)
         : WithNonce { nonce }
         , currentDescriptor(currentDescriptor) {};
     ProberepMsg(uint32_t nonce, uint32_t currentDescriptor,
-        std::optional<Header> req,
-        std::optional<Header> cur)
+        CurrentAndRequested car)
         : WithNonce { nonce }
         , currentDescriptor(currentDescriptor)
-        , requested(std::move(req))
-        , current(std::move(cur)) {};
+        , currentAndRequested(std::move(car))
+    {
+    }
+    auto& current() const { return currentAndRequested.current; }
+    auto& current() { return currentAndRequested.current; }
+    auto& requested() { return currentAndRequested.requested; }
+    auto& requested() const { return currentAndRequested.requested; }
     operator Sndbuffer() const;
     Descriptor currentDescriptor;
-    std::optional<Header> requested;
-    std::optional<Header> current;
+    CurrentAndRequested currentAndRequested;
 };
 
 struct BlockreqMsg : public RandNonce, public MsgCode<10> {
@@ -226,7 +287,7 @@ struct BlockreqMsg : public RandNonce, public MsgCode<10> {
     BlockreqMsg(uint32_t nonce, DescriptedBlockRange range)
         : RandNonce(nonce)
         , range(range) {};
-    static BlockreqMsg from_reader(Reader& r);
+    BlockreqMsg(Reader& r);
     operator Sndbuffer() const;
 
     // data
@@ -237,15 +298,15 @@ struct BlockrepMsg : public WithNonce, public MsgCode<11> {
     static constexpr size_t maxSize = MAXBLOCKBATCHSIZE * (4 + MAXBLOCKSIZE);
 
     // methods
-    static BlockrepMsg from_reader(Reader& r);
-    BlockrepMsg(uint32_t nonce, std::vector<BodyContainer> b)
+    BlockrepMsg(Reader& r);
+    BlockrepMsg(uint32_t nonce, messages::VectorRest<BodyContainer> b)
         : WithNonce { nonce }
         , blocks(std::move(b)) {};
     operator Sndbuffer() const;
     bool empty() const { return blocks.empty(); }
 
     // data
-    std::vector<BodyContainer> blocks;
+    messages::VectorRest<BodyContainer> blocks;
 };
 
 struct TxsubscribeMsg : public RandNonce, public MsgCode<12> {
@@ -254,7 +315,7 @@ struct TxsubscribeMsg : public RandNonce, public MsgCode<12> {
     TxsubscribeMsg(uint32_t nonce, Height upper)
         : RandNonce(nonce)
         , upper(upper) {};
-    static TxsubscribeMsg from_reader(Reader& r);
+    TxsubscribeMsg(Reader& r);
     operator Sndbuffer() const;
     Height upper;
     static constexpr size_t maxSize = 8;
@@ -262,17 +323,17 @@ struct TxsubscribeMsg : public RandNonce, public MsgCode<12> {
 
 struct TxnotifyMsg : public RandNonce, public MsgCode<13> {
     static constexpr size_t MAXENTRIES = 5000;
-    TxnotifyMsg(std::vector<TxidWithFee> txids)
+    TxnotifyMsg(messages::Vector16<TxidWithFee> txids)
         : txids(std::move(txids)) {};
-    TxnotifyMsg(uint32_t nonce, std::vector<TxidWithFee> txids)
+    TxnotifyMsg(uint32_t nonce, messages::Vector16<TxidWithFee> txids)
         : RandNonce(nonce)
         , txids(std::move(txids)) {};
-    static TxnotifyMsg from_reader(Reader& r);
+    TxnotifyMsg(Reader& r);
 
     using send_iter = std::vector<mempool::Entry>::iterator;
     static Sndbuffer direct_send(send_iter begin, send_iter end);
     operator Sndbuffer() const;
-    std::vector<TxidWithFee> txids;
+    messages::Vector16<TxidWithFee> txids;
     static constexpr size_t maxSize = 4 + TxnotifyMsg::MAXENTRIES * TransactionId::bytesize;
 };
 
@@ -280,30 +341,31 @@ struct TxreqMsg : public RandNonce, public MsgCode<14> {
     static constexpr size_t MAXENTRIES = 5000;
     TxreqMsg(std::vector<TransactionId> txids)
         : txids(std::move(txids)) {};
-    TxreqMsg(uint32_t nonce, std::vector<TransactionId> txids)
+    TxreqMsg(uint32_t nonce, messages::VectorRest<TransactionId> txids)
         : RandNonce(nonce)
         , txids(std::move(txids)) {};
-    static TxreqMsg from_reader(Reader& r);
+    TxreqMsg(Reader& r);
     operator Sndbuffer() const;
-    std::vector<TransactionId> txids;
+    messages::VectorRest<TransactionId> txids;
     static constexpr size_t maxSize = 2 + 4 + TxreqMsg::MAXENTRIES * TransactionId::bytesize;
 };
 
 struct TxrepMsg : public RandNonce, public MsgCode<15> {
-    TxrepMsg(std::vector<std::optional<TransferTxExchangeMessage>> txs)
+    using vector_t = messages::VectorRest<messages::Optional<TransferTxExchangeMessage>>;
+    TxrepMsg(vector_t txs)
         : txs(txs) {};
-    TxrepMsg(uint32_t nonce, std::vector<std::optional<TransferTxExchangeMessage>> txs)
+    TxrepMsg(uint32_t nonce, messages::VectorRest<messages::Optional<TransferTxExchangeMessage>> txs)
         : RandNonce(nonce)
         , txs(txs) {};
-    static TxrepMsg from_reader(Reader& r);
-    std::vector<std::optional<TransferTxExchangeMessage>> txs;
+    TxrepMsg(Reader& r);
+    messages::VectorRest<messages::Optional<TransferTxExchangeMessage>> txs;
     operator Sndbuffer() const;
     static constexpr size_t maxSize = 2 + 4 + TxreqMsg::MAXENTRIES * (1 + TransferTxExchangeMessage::bytesize);
 };
 
 struct LeaderMsg : public MsgCode<16> {
     static constexpr size_t maxSize = 4 + 32 + 65;
-    static LeaderMsg from_reader(Reader& r);
+    LeaderMsg(Reader& r);
     LeaderMsg(SignedSnapshot snapshot)
         : signedSnapshot(std::move(snapshot)) {};
     operator Sndbuffer() const;
@@ -312,8 +374,84 @@ struct LeaderMsg : public MsgCode<16> {
     SignedSnapshot signedSnapshot;
 };
 
+struct PingV2Msg : public RandNonce, public MsgCode<17> {
+    static constexpr size_t maxSize = 2000;
+    PingV2Msg(SignedSnapshot::Priority sp, uint16_t maxAddresses = 5, uint16_t maxTransactions = 100)
+        : sp(sp)
+        , maxAddresses(maxAddresses)
+        , maxTransactions(maxTransactions) {};
+
+    PingV2Msg(uint32_t nonce, SignedSnapshot::Priority sp, uint16_t maxAddresses, uint16_t maxTransactions, String16 ownRTC, uint8_t maxUseOwnRTC)
+        : RandNonce(nonce)
+        , sp(sp)
+        , maxAddresses(maxAddresses)
+        , maxTransactions(maxTransactions)
+        , ownRTC(std::move(ownRTC))
+        , maxUseOwnRTC(maxUseOwnRTC)
+    {
+    }
+    PingV2Msg(Reader& r);
+    SignedSnapshot::Priority sp;
+    uint16_t maxAddresses;
+    uint16_t maxTransactions;
+    String16 ownRTC;
+    uint8_t maxUseOwnRTC;
+    operator Sndbuffer() const;
+};
+
+struct RTCInfo : public RandNonce, public MsgCode<18> {
+    static constexpr size_t maxSize = 100000;
+    RTCInfo(uint32_t nonce, RTCPeers rtcPeers)
+        : RandNonce(nonce)
+        , rtcPeers(std::move(rtcPeers))
+    {
+    }
+
+    RTCInfo(Reader& r);
+    RTCPeers rtcPeers;
+    operator Sndbuffer() const;
+};
+
+struct RTCSelect : public RandNonce, public MsgCode<19> {
+    static constexpr size_t maxSize = 100000;
+    RTCSelect(uint32_t nonce, messages::Vector8<uint32_t> selected)
+        : RandNonce(nonce)
+        , selected(std::move(selected))
+    {
+    }
+
+    messages::Vector8<uint32_t> selected;
+
+    RTCSelect(Reader& r);
+    operator Sndbuffer() const;
+};
+
+struct RTCRequestOffer : public RandNonce, public MsgCode<20> {
+    RTCRequestOffer(uint32_t nonce, uint32_t key, String16 offer)
+        : RandNonce(nonce)
+        , key(key)
+        , offer(std::move(offer))
+    {
+    }
+    uint32_t key;
+    String16 offer;
+    RTCRequestOffer(Reader& r);
+    operator Sndbuffer() const;
+};
+
+struct RTCOffer : public RandNonce, public MsgCode<21> {
+};
+
+struct RTCRequestResponse : public RandNonce, public MsgCode<21> {
+};
+
+struct RTCResponse : public RandNonce, public MsgCode<22> {
+};
+
 namespace messages {
 [[nodiscard]] size_t size_bound(uint8_t msgtype);
 
-using Msg = std::variant<InitMsg, ForkMsg, AppendMsg, SignedPinRollbackMsg, PingMsg, PongMsg, BatchreqMsg, BatchrepMsg, ProbereqMsg, ProberepMsg, BlockreqMsg, BlockrepMsg, TxnotifyMsg, TxreqMsg, TxrepMsg, LeaderMsg>;
+using Msg = std::variant<InitMsg, ForkMsg, AppendMsg, SignedPinRollbackMsg, PingMsg, PongMsg, BatchreqMsg, BatchrepMsg, ProbereqMsg, ProberepMsg, BlockreqMsg, BlockrepMsg, TxnotifyMsg, TxreqMsg, TxrepMsg, LeaderMsg
+    // , PingV2Msg, RTCInfo
+    >;
 } // namespace messages

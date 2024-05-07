@@ -1,6 +1,7 @@
 #pragma once
 
 #include "general/with_uint64.hpp"
+#include "general/byte_order.hpp"
 #include "hash.hpp"
 #include "sha2.hpp"
 #include <array>

@@ -1,5 +1,6 @@
 #pragma once
 #include "general/with_uint64.hpp"
+#include <array>
 #include <optional>
 class Height;
 class NonzeroHeight;

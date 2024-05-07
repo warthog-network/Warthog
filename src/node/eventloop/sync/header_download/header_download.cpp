@@ -396,7 +396,7 @@ void Downloader::on_request_expire(Conref cr, const Batchrequest&)
 
 void Downloader::on_proberep(Conref c, const Proberequest& req, const ProberepMsg& rep)
 {
-    if (!rep.requested)
+    if (!rep.requested())
         return;
     auto& dat { data(c) };
 
@@ -404,14 +404,14 @@ void Downloader::on_proberep(Conref c, const Proberequest& req, const ProberepMs
     if (dat.probeData) {
         auto& pin { *dat.probeData };
         if (pin.dsc->descriptor == req.descriptor)
-            pin.match(req.height, *rep.requested);
+            pin.match(req.height, *rep.requested());
     }
 
     // match leader info
     if (is_leader(c)) {
         auto li = data(c).leaderIter;
         if (li->snapshot.descripted->descriptor == req.descriptor)
-            li->probeData.match(req.height, *rep.requested);
+            li->probeData.match(req.height, *rep.requested());
     }
 }
 

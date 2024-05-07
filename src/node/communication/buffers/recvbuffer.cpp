@@ -21,7 +21,7 @@ V check(uint8_t type, Reader& r)
     // variant types must be in order and message codes must be all different
     static_assert(prevcode < T::msgcode);
     if (T::msgcode == type)
-        return T::from_reader(r);
+        return T(r);
     return check<V, T::msgcode, S...>(type, r);
 }
 

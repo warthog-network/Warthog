@@ -6,6 +6,7 @@
 #include "block/header/view_inline.hpp"
 #include "general/hex.hpp"
 #include "general/now.hpp"
+#include "general/writer.hpp"
 #include "sqlite3.h"
 #include <array>
 #include <spdlog/spdlog.h>

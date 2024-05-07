@@ -126,11 +126,11 @@ void Downloader::on_probe_reply(Conref c, const ProbereqMsg& req, const Proberep
     }
     assert((*fdata.descripted()).chain_length() >= req.height);
 
-    if (!rep.requested.has_value()) { // chain info no longer available at peer
+    if (!rep.requested().has_value()) { // chain info no longer available at peer
         forks.pin_current_chain(c);
         return;
     }
-    forks.match(c, headers(), req.height, *rep.requested);
+    forks.match(c, headers(), req.height, *rep.requested());
 }
 
 std::vector<ChainOffender> Downloader::init(std::tuple<HeaderDownload::LeaderInfo, Headerchain> thc) // OK?

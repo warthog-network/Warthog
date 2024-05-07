@@ -114,17 +114,17 @@ PeerchainMatch PeerChain::on_proberep(const ProbereqMsg& req, const ProberepMsg&
         throw ChainError { EPROBEDESCRIPTOR, Height(msg.currentDescriptor.value()+1).nonzero_assert() };
     if (desc->chain_length() < req.height) {
         // should not have msg.current
-        if (msg.current.has_value())
+        if (msg.current().has_value())
             throw ChainError { EBADPROBE, req.height };
         return res;
     }
-    if (!msg.current.has_value())
+    if (!msg.current().has_value())
         throw ChainError { EBADPROBE, req.height };
 
     auto& consensus = sac.consensus_state().headers();
     // check consensus match
     if (consensus.length() >= req.height) {
-        if (consensus[req.height] == *msg.current) {
+        if (consensus[req.height] == *msg.current()) {
             res = CONSENSUSMATCH;
             consensusForkRange.on_match(req.height);
             if (fh <= req.height) {
@@ -139,7 +139,7 @@ PeerchainMatch PeerChain::on_proberep(const ProbereqMsg& req, const ProberepMsg&
 
     // check blockdownload match
     if (sac.stage_headers().length() >= req.height) {
-        if (sac.stage_headers()[req.height] == *msg.current) {
+        if (sac.stage_headers()[req.height] == *msg.current()) {
             res = BLOCKDOWNLOADMATCH;
             stageForkRange.on_match(req.height);
             if (fh <= req.height) {

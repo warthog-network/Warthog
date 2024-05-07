@@ -1,14 +1,22 @@
 #pragma once
 
+#include "general/byte_order.hpp"
+#include "general/view.hpp"
 #include <array>
 #include <cassert>
 #include <cstdint>
 #include <cstring>
+#include <string>
+#include <string_view>
 #include <vector>
-#include "general/view.hpp"
-#include "general/byte_order.hpp"
 
 struct Range {
+    Range(std::string_view sv)
+        : pos((uint8_t*)(&sv[0]))
+        , len(sv.size())
+    {
+    }
+
     Range(const uint8_t* const pos, size_t len)
         : pos(pos)
         , len(len)
@@ -78,6 +86,15 @@ public:
         memcpy(pos, &i, 8);
         pos += 8;
         return *this;
+    }
+
+    Writer& operator<<(const std::string& s)
+    {
+        return operator<<(std::string_view(s));
+    }
+    Writer& operator<<(std::string_view r)
+    {
+        return operator<<(Range(r));
     }
 
     Writer& operator<<(const Range& r)

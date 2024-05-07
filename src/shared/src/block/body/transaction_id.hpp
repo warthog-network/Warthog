@@ -3,12 +3,12 @@
 #include "block/body/nonce.hpp"
 #include "block/chain/height.hpp"
 #include "general/compact_uint.hpp"
-#include "general/reader.hpp"
 #include "general/view.hpp"
 #include <array>
 #include <cstdint>
 class Height;
 class PinHeight;
+class Reader;
 
 struct TransactionId {
     TransactionId(AccountId accountId, PinHeight pinHeight, NonceId nonceId)
@@ -30,4 +30,12 @@ struct TransactionId {
 struct TxidWithFee {
     TransactionId txid;
     CompactUInt fee;
+
+    TxidWithFee(TransactionId txid, CompactUInt fee)
+        : txid(std::move(txid))
+        , fee(std::move(fee))
+    {
+    }
+
+    TxidWithFee(Reader& r);
 };

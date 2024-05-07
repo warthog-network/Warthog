@@ -1,6 +1,7 @@
 #pragma once
 
 #include "block/body/transaction_id.hpp"
+#include "general/reader.hpp"
 #include "block/body/view.hpp"
 #include "crypto/crypto.hpp"
 

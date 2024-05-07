@@ -1,6 +1,7 @@
 #pragma once
 #include "general/errors.hpp"
 #include "general/funds.hpp"
+#include <cassert>
 
 class PinHeight;
 class NonzeroHeight;
@@ -27,23 +28,23 @@ public:
     NonzeroHeight nonzero_assert() const;
     NonzeroHeight nonzero_throw(int Error) const;
     NonzeroHeight one_if_zero() const;
-    Height& operator--()
-    {
-        assert(val > 0);
-        val -= 1;
-        return *this;
-    }
+    // Height& operator--()
+    // {
+    //     assert(val > 0);
+    //     val -= 1;
+    //     return *this;
+    // }
     Height& operator++()
     {
         val += 1;
         return *this;
     }
-    Height& operator-=(uint32_t v)
-    {
-        assert(val >= v);
-        val -= v;
-        return *this;
-    }
+    // Height& operator-=(uint32_t v)
+    // {
+    //     assert(val >= v);
+    //     val -= v;
+    //     return *this;
+    // }
     uint32_t friend operator-(Height h1, Height h2)
     {
         return h1.val - h2.val;
@@ -121,23 +122,23 @@ public:
     {
         return *this == retarget_floor();
     }
-    NonzeroHeight& operator--()
-    {
-        assert(val > 1);
-        val -= 1;
-        return *this;
-    }
+    // NonzeroHeight& operator--()
+    // {
+    //     assert(val > 1);
+    //     val -= 1;
+    //     return *this;
+    // }
     NonzeroHeight& operator++()
     {
         val += 1;
         return *this;
     }
-    NonzeroHeight& operator-=(uint32_t v)
-    {
-        assert(val >= v + 1);
-        val -= v;
-        return *this;
-    }
+    // NonzeroHeight& operator-=(uint32_t v)
+    // {
+    //     assert(val >= v + 1);
+    //     val -= v;
+    //     return *this;
+    // }
     uint32_t friend operator-(NonzeroHeight h1, NonzeroHeight h2)
     {
         return h1.val - h2.val;

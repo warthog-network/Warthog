@@ -2,6 +2,7 @@
 #include "block/body/account_id.hpp"
 #include "general/funds.hpp"
 #include "general/reader.hpp"
+#include "general/writer.hpp"
 
 class RollbackView {
 public:

@@ -213,6 +213,7 @@ private:
 class Grid : public Headervec {
 public:
     Grid(std::span<const uint8_t> s);
+    Grid(Reader &r);
     Grid(const Headerchain&, Batchslot begin);
     using Headervec::operator[];
     HeaderView operator[](Batchslot s) const { return Headervec::operator[](s.index()); }

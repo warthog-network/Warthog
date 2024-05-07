@@ -82,6 +82,10 @@ Grid::Grid(std::span<const uint8_t> s)
         throw Error(EINV_GRID);
     assign(s.begin().base(), s.end().base());
 }
+Grid::Grid(Reader& r)
+    :Grid(r.span())
+{
+}
 
 Grid::Grid(const Headerchain& hc, Batchslot begin)
     : Headervec(last_element_vector(hc, begin))

@@ -9,13 +9,17 @@
 #include "general/reader.hpp"
 #include "general/writer.hpp"
 #include "mempool/entry.hpp"
+#include "message_elements/byte_size.hpp"
+#include "message_elements/helper_types_impl.hpp"
 #include <tuple>
 
 namespace {
 struct MessageWriter {
     MessageWriter(uint8_t msgtype, size_t msglen)
         : sb(msgtype, msglen)
-        , writer(sb.msgdata(), sb.msgdata() + sb.msgsize()) {}
+        , writer(sb.msgdata(), sb.msgdata() + sb.msgsize())
+    {
+    }
     operator Sndbuffer()
     {
         assert(writer.remaining() == 0);
@@ -60,10 +64,6 @@ void throw_if_inconsistent(Height length, Worksum worksum)
 }
 } // namespace
 
-BatchSelector::BatchSelector(Reader& r)
-    : descriptor(r.uint32())
-    , startHeight(Height(r).nonzero_throw(EBATCHHEIGHT))
-    , length(r) {}
 template <uint8_t M>
 MessageWriter MsgCode<M>::gen_msg(size_t len)
 {
@@ -71,13 +71,39 @@ MessageWriter MsgCode<M>::gen_msg(size_t len)
 }
 
 RandNonce::RandNonce()
-    : WithNonce { uint32_t(rand()) } {}
+    : WithNonce { uint32_t(rand()) }
+{
+}
+
+Sndbuffer InitMsg2::serialize_chainstate(const ConsensusSlave& cs)
+{
+    const size_t N = cs.headers().complete_batches().size();
+    size_t len = 4 + 2 + 4 + 4 + 32 + 4 + N * 80;
+    auto& sp { cs.get_signed_snapshot_priority() };
+    auto mw { gen_msg(len) };
+    mw << cs.descriptor()
+       << sp.importance
+       << sp.height
+       << cs.headers().length()
+       << cs.total_work()
+       << (uint32_t)(cs.headers().complete_batches().size() * 80)
+       << Range(cs.grid().raw());
+    return mw;
+}
+InitMsg2::InitMsg2(Reader& r)
+    : MsgCombine<Descriptor, SignedSnapshot::Priority, Height, Worksum, Grid>(r)
+{
+    if (grid().slot_end().upper() <= chainLength())
+        throw Error(EGRIDMISMATCH);
+    throw_if_inconsistent(chainLength(), worksum());
+}
+
 InitMsg::InitMsg(Reader& r)
-    : descriptor(r.uint32())
-    , sp { r.uint16(), Height(r.uint32()) }
-    , chainLength(r.uint32())
-    , worksum(r.worksum())
-    , grid(r.span())
+    : descriptor(r)
+    , sp(r)
+    , chainLength(r)
+    , worksum(r)
+    , grid(r)
 {
     if (grid.slot_end().upper() <= chainLength)
         throw Error(EGRIDMISMATCH);
@@ -109,15 +135,10 @@ ForkMsg::ForkMsg(Descriptor descriptor, NonzeroHeight chainLength, Worksum works
 {
     throw_if_inconsistent(chainLength, worksum);
 }
-auto ForkMsg::from_reader(Reader& r) -> ForkMsg
+
+ForkMsg::ForkMsg(Reader& r)
+    : ForkMsg { r, r, r, r, r }
 {
-    return ForkMsg {
-        r.uint32(),
-        Height(r.uint32()).nonzero_throw(EZEROHEIGHT),
-        r.worksum(),
-        Height(r.uint32()).nonzero_throw(EFORKHEIGHT),
-        r.rest()
-    };
 }
 
 ForkMsg::operator Sndbuffer() const
@@ -137,13 +158,10 @@ AppendMsg::AppendMsg(NonzeroHeight newLength,
 {
     throw_if_inconsistent(newLength, worksum);
 }
-auto AppendMsg::from_reader(Reader& r) -> AppendMsg
+
+AppendMsg::AppendMsg(Reader& r)
+    : AppendMsg { r, r, r }
 {
-    return {
-        r,
-        r.worksum(),
-        r.rest()
-    };
 }
 
 AppendMsg::operator Sndbuffer() const
@@ -154,14 +172,9 @@ AppendMsg::operator Sndbuffer() const
         << grid.raw();
 }
 
-auto SignedPinRollbackMsg::from_reader(Reader& r) -> SignedPinRollbackMsg
+SignedPinRollbackMsg::SignedPinRollbackMsg(Reader& r)
+    : SignedPinRollbackMsg { r, r, r, r }
 {
-    return {
-        r,
-        r,
-        r.worksum(),
-        r.uint32()
-    };
 }
 
 SignedPinRollbackMsg::operator Sndbuffer() const
@@ -173,17 +186,10 @@ SignedPinRollbackMsg::operator Sndbuffer() const
         << descriptor;
 }
 
-auto PingMsg::from_reader(Reader& r) -> PingMsg
+PingMsg::PingMsg(Reader& r)
+    : PingMsg { r, r, r, r }
 {
-    return PingMsg {
-        r.uint32(),
-        r,
-        r.uint16(),
-        r.uint16()
-    };
 }
-// : RandNonce(r.uint32()),
-// sp { r.uint16(), Height(r.uint32()) }, maxAddresses(r.uint16()), maxTransactions(r.uint16()) {};
 
 PingMsg::operator Sndbuffer() const
 {
@@ -195,24 +201,9 @@ PingMsg::operator Sndbuffer() const
         << maxTransactions;
 }
 
-auto PongMsg::from_reader(Reader& r) -> PongMsg
+PongMsg::PongMsg(Reader& r)
+    : PongMsg { r, r, r }
 {
-    auto nonce { r.uint32() };
-    auto nAddresses = r.uint16();
-    std::vector<TCPSockaddr> addresses;
-    for (size_t i = 0; i < nAddresses; ++i) {
-        addresses.push_back({ r });
-    }
-    auto nTransactions { r.uint16() };
-    std::vector<TxidWithFee> txids;
-    for (size_t i = 0; i < nTransactions; ++i) {
-        TransactionId txid { r };
-        CompactUInt fee { r.uint16() };
-        txids.push_back(TxidWithFee { txid, fee });
-    }
-    return {
-        nonce, std::move(addresses), std::move(txids)
-    };
 }
 
 Error PongMsg::check(const PingMsg& m) const
@@ -253,9 +244,9 @@ std::string BatchreqMsg::log_str() const
     return "batchreq [" + std::to_string(selector.startHeight) + "," + std::to_string(selector.startHeight + selector.length - 1) + "]";
 }
 
-auto BatchreqMsg::from_reader(Reader& r) -> BatchreqMsg
+BatchreqMsg::BatchreqMsg(Reader& r)
+    : BatchreqMsg { r, r }
 {
-    return { r.uint32(), r };
 }
 
 BatchreqMsg::operator Sndbuffer() const
@@ -274,9 +265,9 @@ std::string ProbereqMsg::log_str() const
     return "probereq " + std::to_string(descriptor.value()) + "/" + std::to_string(height);
 }
 
-auto ProbereqMsg::from_reader(Reader& r) -> ProbereqMsg
+ProbereqMsg::ProbereqMsg(Reader& r)
+    : ProbereqMsg { r, r, r }
 {
-    return { r.uint32(), r.uint32(), Height(r).nonzero_throw(EPROBEHEIGHT) };
 }
 
 ProbereqMsg::operator Sndbuffer() const
@@ -284,52 +275,20 @@ ProbereqMsg::operator Sndbuffer() const
     return gen_msg(12) << nonce << descriptor << height;
 }
 
-auto ProberepMsg::from_reader(Reader& r) -> ProberepMsg
+ProberepMsg::ProberepMsg(Reader& r)
+    : ProberepMsg { r, r, r }
 {
-    auto nonce = r.uint32();
-    auto currentDescriptor = r.uint32();
-
-    std::optional<Header> requested;
-    std::optional<Header> current;
-    uint8_t type = r.uint8();
-    if (type > 3)
-        throw Error(EINV_PROBE);
-    if ((type & 1) > 0) {
-        requested = r.view<HeaderView>();
-    }
-    if ((type & 2) > 0) {
-        current = r.view<HeaderView>();
-    }
-    return { nonce, currentDescriptor, requested, current };
 }
 
 ProberepMsg::operator Sndbuffer() const
 {
-    size_t slotsize = 0;
-    uint8_t type = 0;
-    if (requested.has_value()) {
-        slotsize += requested.value().byte_size();
-        type += 1;
-    }
-    if (current.has_value()) {
-        slotsize += current.value().byte_size();
-        type += 2;
-    }
-
-    auto w { gen_msg(9 + slotsize) };
-    w << nonce << currentDescriptor << type;
-    if (requested.has_value()) {
-        w << *requested;
-    }
-    if (current.has_value()) {
-        w << *current;
-    }
-    return w;
+    return gen_msg(8 + currentAndRequested.byte_size())
+        << nonce << currentDescriptor << currentAndRequested;
 }
 
-auto BatchrepMsg::from_reader(Reader& r) -> BatchrepMsg
+BatchrepMsg::BatchrepMsg(Reader& r)
+    : BatchrepMsg { r, r.rest() }
 {
-    return { r.uint32(), r.rest() };
 }
 
 BatchrepMsg::operator Sndbuffer() const
@@ -350,20 +309,14 @@ BlockreqMsg::operator Sndbuffer() const
         << range;
 }
 
-auto BlockreqMsg::from_reader(Reader& r) -> BlockreqMsg
+BlockreqMsg::BlockreqMsg(Reader& r)
+    : BlockreqMsg { r, r }
 {
-    return { r.uint32(), r };
 }
 
-auto BlockrepMsg::from_reader(Reader& r) -> BlockrepMsg
+BlockrepMsg::BlockrepMsg(Reader& r)
+    : BlockrepMsg { r, r }
 {
-    // return
-    auto nonce = r.uint32();
-    std::vector<BodyContainer> bodies;
-    while (r.remaining() != 0) {
-        bodies.push_back({ r });
-    }
-    return { nonce, std::move(bodies) };
 }
 
 BlockrepMsg::operator Sndbuffer() const
@@ -380,11 +333,9 @@ BlockrepMsg::operator Sndbuffer() const
     return mw;
 }
 
-auto TxsubscribeMsg::from_reader(Reader& r) -> TxsubscribeMsg
+TxsubscribeMsg::TxsubscribeMsg(Reader& r)
+    : TxsubscribeMsg { r, r }
 {
-    return {
-        r.uint32(), r
-    };
 }
 
 TxsubscribeMsg::operator Sndbuffer() const
@@ -402,18 +353,9 @@ Sndbuffer TxnotifyMsg::direct_send(send_iter begin, send_iter end)
     return mw;
 }
 
-auto TxnotifyMsg::from_reader(Reader& r) -> TxnotifyMsg
+TxnotifyMsg::TxnotifyMsg(Reader& r)
+    : TxnotifyMsg { r, r }
 {
-    auto nonce = r.uint32();
-    auto nTransactions { r.uint16() };
-
-    std::vector<TxidWithFee> txids;
-    for (size_t i = 0; i < nTransactions; ++i) {
-        auto txid { r };
-        CompactUInt fee { r.uint16() };
-        txids.push_back(TxidWithFee { txid, fee });
-    }
-    return { nonce, txids };
 }
 
 TxnotifyMsg::operator Sndbuffer() const
@@ -431,16 +373,11 @@ TxnotifyMsg::operator Sndbuffer() const
     return mw;
 }
 
-auto TxreqMsg::from_reader(Reader& r) -> TxreqMsg
+TxreqMsg::TxreqMsg(Reader& r)
+    : TxreqMsg { r, r }
 {
-    auto nonce = r.uint32();
-    std::vector<TransactionId> txids;
-    while (r.remaining() >= TransactionId::bytesize) {
-        txids.push_back(r);
-        if (txids.size() > MAXENTRIES)
-            throw Error(EINV_TXREQ);
-    }
-    return { nonce, std::move(txids) };
+    if (txids.size() > MAXENTRIES)
+        throw Error(EINV_TXREQ);
 }
 
 TxreqMsg::operator Sndbuffer() const
@@ -454,21 +391,11 @@ TxreqMsg::operator Sndbuffer() const
     return mw;
 }
 
-auto TxrepMsg::from_reader(Reader& r) -> TxrepMsg
+TxrepMsg::TxrepMsg(Reader& r)
+    : TxrepMsg { r, r }
 {
-    auto nonce = r.uint32();
-    std::vector<std::optional<TransferTxExchangeMessage>> txs;
-    while (r.remaining() > 0) {
-        uint8_t indicator = r.uint8();
-        if (indicator) {
-            txs.push_back(TransferTxExchangeMessage { r });
-        } else {
-            txs.push_back({});
-        }
-        if (txs.size() > TxreqMsg::MAXENTRIES)
-            throw Error(EINV_TXREP);
-    }
-    return { nonce, std::move(txs) };
+    if (txs.size() > TxreqMsg::MAXENTRIES)
+        throw Error(EINV_TXREP);
 }
 
 TxrepMsg::operator Sndbuffer() const
@@ -498,9 +425,9 @@ TxrepMsg::operator Sndbuffer() const
     }
     return m;
 }
-auto LeaderMsg::from_reader(Reader& r) -> LeaderMsg
+LeaderMsg::LeaderMsg(Reader& r)
+    : LeaderMsg { SignedSnapshot { r } }
 {
-    return { r };
 }
 
 LeaderMsg::operator Sndbuffer() const
@@ -508,6 +435,59 @@ LeaderMsg::operator Sndbuffer() const
     return gen_msg(signedSnapshot.binary_size)
         << signedSnapshot;
 }
+
+PingV2Msg::PingV2Msg(Reader& r)
+    : PingV2Msg { r, r, r, r, r, r }
+{
+}
+
+PingV2Msg::operator Sndbuffer() const
+{
+    return gen_msg(4 + 2 + 4 + 2 + 2 + ownRTC.byte_size() + 1)
+        << nonce
+        << sp.importance
+        << sp.height
+        << maxAddresses
+        << maxTransactions
+        << ownRTC
+        << maxUseOwnRTC;
+}
+
+RTCInfo::RTCInfo(Reader& r)
+    : RTCInfo { r, r }
+{
+}
+
+RTCInfo::operator Sndbuffer() const
+{
+    return gen_msg(4 + rtcPeers.byte_size())
+        << nonce
+        << rtcPeers;
+}
+
+RTCSelect::RTCSelect(Reader& r)
+    : RTCSelect { r, r }
+{
+}
+
+RTCSelect::operator Sndbuffer() const
+{
+    return gen_msg(4 + selected.bytesize())
+        << nonce
+        << selected;
+}
+
+RTCRequestOffer::RTCRequestOffer(Reader& r)
+    : RTCRequestOffer { r, r, r }
+{
+}
+
+// RTCRequestOffer::operator Sndbuffer() const
+// {
+//     return gen_msg(4 + selected.bytesize())
+//         << nonce
+//         << selected;
+// }
 
 namespace {
 template <uint8_t prevcode>

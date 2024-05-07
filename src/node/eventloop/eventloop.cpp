@@ -677,6 +677,7 @@ void Eventloop::handle_connection_timeout(Conref cr, Timer::SendPing&&)
     cr.ping().timer_expired(timer);
     return send_ping_await_pong(cr);
 }
+
 void Eventloop::handle_connection_timeout(Conref cr, Timer::Expire&&)
 {
     cr.job().restart_expired(timer.insert(
@@ -773,18 +774,38 @@ void Eventloop::handle_msg(Conref c, ForkMsg&& m)
 
 void Eventloop::handle_msg(Conref c, PingMsg&& m)
 {
-#ifndef DISABLE_LIBUV // TODO: replace TCPSockaddr by something else for emscrpiten build (no TCP connections available in browsers)
     log_communication("{} handle ping", c.str());
     size_t nAddr { std::min(uint16_t(20), m.maxAddresses) };
     auto addresses = connections.sample_verified<TCPSockaddr>(nAddr);
     c->ratelimit.ping();
+#ifndef DISABLE_LIBUV // TODO: replace TCPSockaddr by something else for emscrpiten build (no TCP connections available in browsers)
     PongMsg msg(m.nonce, std::move(addresses), mempool.sample(m.maxTransactions));
+#else
+    PongMsg msg(m.nonce, std::move(addresses), {});
+#endif
     spdlog::debug("{} Sending {} addresses", c.str(), msg.addresses.size());
     if (c->theirSnapshotPriority < m.sp)
         c->theirSnapshotPriority = m.sp;
     c.send(msg);
     consider_send_snapshot(c);
+}
+
+void Eventloop::handle_msg(Conref c, PingV2Msg&& m)
+{
+    log_communication("{} handle ping", c.str());
+    size_t nAddr { std::min(uint16_t(20), m.maxAddresses) };
+    auto addresses = connections.sample_verified<TCPSockaddr>(nAddr);
+    c->ratelimit.ping();
+#ifndef DISABLE_LIBUV // TODO: replace TCPSockaddr by something else for emscrpiten build (no TCP connections available in browsers)
+    PongMsg msg(m.nonce, std::move(addresses), mempool.sample(m.maxTransactions));
+#else
+    PongMsg msg(m.nonce, std::move(addresses), {});
 #endif
+    spdlog::debug("{} Sending {} addresses", c.str(), msg.addresses.size());
+    if (c->theirSnapshotPriority < m.sp)
+        c->theirSnapshotPriority = m.sp;
+    c.send(msg);
+    consider_send_snapshot(c);
 }
 
 void Eventloop::handle_msg(Conref cr, PongMsg&& m)
@@ -853,15 +874,15 @@ void Eventloop::handle_msg(Conref cr, ProbereqMsg&& m)
     ProberepMsg rep(m.nonce, consensus().descriptor().value());
     auto h = consensus().headers().get_header(m.height);
     if (h)
-        rep.current = *h;
+        rep.current() = *h;
     if (m.descriptor == consensus().descriptor()) {
         auto h = consensus().headers().get_header(m.height);
         if (h)
-            rep.requested = h;
+            rep.requested() = h;
     } else {
         auto h = stateServer.get_descriptor_header(m.descriptor, m.height);
         if (h)
-            rep.requested = *h;
+            rep.requested() = *h;
     }
     cr.send(rep);
 }
@@ -870,7 +891,7 @@ void Eventloop::handle_msg(Conref cr, ProberepMsg&& rep)
 {
     log_communication("{} handle_proberep", cr.str());
     auto req = cr.job().pop_req(rep, timer, activeRequests);
-    if (!rep.requested.has_value() && !req.descripted->expired()) {
+    if (!rep.requested().has_value() && !req.descripted->expired()) {
         throw ChainError { EEMPTY, req.height };
     }
     cr->chain.on_proberep(req, rep, chains);
@@ -914,7 +935,7 @@ void Eventloop::handle_msg(Conref cr, TxnotifyMsg&& m)
 void Eventloop::handle_msg(Conref cr, TxreqMsg&& m)
 {
     log_communication("{} handle TxreqMsg", cr.str());
-    std::vector<std::optional<TransferTxExchangeMessage>> out;
+    TxrepMsg::vector_t out;
     for (auto& e : m.txids) {
         out.push_back(mempool[e]);
     }
@@ -950,6 +971,19 @@ void Eventloop::handle_msg(Conref cr, LeaderMsg&& msg)
     }
 
     stateServer.async_set_signed_checkpoint(msg.signedSnapshot);
+}
+
+void Eventloop::connect_rtc(Conref c, const std::vector<uint32_t>& rtc_keys)
+{
+    // c->send()
+}
+
+void Eventloop::handle_msg(Conref c, RTCInfo&& msg)
+{
+    std::vector<uint32_t> selectedKeys;
+    for (auto& e : msg.rtcPeers.entries)
+        selectedKeys.push_back(e.key);
+    connect_rtc(c, selectedKeys);
 }
 
 void Eventloop::consider_send_snapshot(Conref c)

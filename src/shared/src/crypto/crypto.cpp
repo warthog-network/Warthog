@@ -2,6 +2,7 @@
 #include "general/errors.hpp"
 #include "general/hex.hpp"
 #include "hasher_sha256.hpp"
+#include "general/writer.hpp"
 #include "ripemd160.hpp"
 
 namespace {

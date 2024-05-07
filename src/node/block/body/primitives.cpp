@@ -1,6 +1,7 @@
 #include "communication/create_payment.hpp"
 #include "crypto/hasher_sha256.hpp"
 #include "mempool/entry.hpp"
+#include "general/writer.hpp"
 #include "parse.hpp"
 
 

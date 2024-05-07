@@ -1,4 +1,5 @@
 #include "with_uint64.hpp"
+#include "general/writer.hpp"
 #include "nlohmann/json.hpp"
 #include "reader.hpp"
 #include <limits>
@@ -27,4 +28,18 @@ IsUint32::operator nlohmann::json() const
 IsUint64::operator nlohmann::json() const
 {
     return nlohmann::json(val);
+};
+
+Writer& operator<<(Writer& w, const IsUint32& v)
+{
+    return w << v.val;
+}
+Writer& operator<<(Writer& w, const IsUint64& v)
+{
+    return w << v.val;
+}
+IsUint64::IsUint64(int64_t w)
+    : val(w)
+{
+    assert(w >= 0);
 };

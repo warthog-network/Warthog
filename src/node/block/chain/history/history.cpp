@@ -1,5 +1,6 @@
 #include "history.hpp"
 #include "block/chain/header_chain.hpp"
+#include "general/writer.hpp"
 
 VerifiedTransfer TransferInternal::verify(const Headerchain& hc, NonzeroHeight height) const
 {

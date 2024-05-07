@@ -9,6 +9,7 @@
 #include "general/address_funds.hpp"
 #include "general/filelock/filelock.hpp"
 #include "api/types/forward_declarations.hpp"
+#include "block/chain/worksum.hpp"
 class ChainDBTransaction;
 class Batch;
 struct SignedSnapshot;

@@ -1,8 +1,13 @@
 #include "compact_uint.hpp"
 #include "general/writer.hpp"
+#include "general/reader.hpp"
 Writer& operator<<(Writer& w, CompactUInt cf){
     return w<<cf.value();
 };
+CompactUInt::CompactUInt(Reader& r)
+    :CompactUInt(r.uint16())
+{
+}
 CompactUInt CompactUInt::compact(Funds f){
     if (f.is_zero())
         return uint16_t(0x0000u);

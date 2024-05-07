@@ -2,6 +2,7 @@
 #include "crypto/hasher_sha256.hpp"
 #include "general/reader.hpp"
 #include "nlohmann/json.hpp"
+#include "general/writer.hpp"
 
 PaymentCreateMessage::PaymentCreateMessage(
     PinHeight pinHeight, const Hash& pinHash,

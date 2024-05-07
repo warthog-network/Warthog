@@ -115,6 +115,7 @@ private:
     // Handling incoming messages
     void dispatch_message(Conref cr, messages::Msg&& rb);
     void handle_msg(Conref cr, PingMsg&&);
+    void handle_msg(Conref cr, PingV2Msg&&);
     void handle_msg(Conref cr, PongMsg&&);
     void handle_msg(Conref cr, BatchreqMsg&&);
     void handle_msg(Conref cr, BatchrepMsg&&);
@@ -130,10 +131,14 @@ private:
     void handle_msg(Conref cr, TxreqMsg&&);
     void handle_msg(Conref cr, TxrepMsg&&);
     void handle_msg(Conref cr, LeaderMsg&&);
+    void handle_msg(Conref cr, RTCInfo&&);
 
     ////////////////////////
     // convenience functions
     void consider_send_snapshot(Conref);
+
+
+    void connect_rtc(Conref c, const std::vector<uint32_t>& rtc_keys);
 
     ////////////////////////
     // assign work to connections
