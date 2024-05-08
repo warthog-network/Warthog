@@ -137,7 +137,7 @@ ForkMsg::ForkMsg(Descriptor descriptor, NonzeroHeight chainLength, Worksum works
 }
 
 ForkMsg::ForkMsg(Reader& r)
-    : ForkMsg { r, r, r, r, r }
+    : ForkMsg { r, r, r, r, r.rest() }
 {
 }
 
@@ -160,7 +160,7 @@ AppendMsg::AppendMsg(NonzeroHeight newLength,
 }
 
 AppendMsg::AppendMsg(Reader& r)
-    : AppendMsg { r, r, r }
+    : AppendMsg { r, r, r.rest() }
 {
 }
 
