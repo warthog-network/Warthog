@@ -61,6 +61,7 @@ class MsgPacker {
         }
 
     public:
+        using Base = Internal;
         template <typename... Args>
         Internal(Args&&... args)
             : B<Is, Ts>(std::forward<Args>(args))...
@@ -101,6 +102,7 @@ template <size_t code, typename... Ts>
 class MsgCombineRequest : public MsgCombine<code, RandNonce, Ts...> {
 public:
     using MsgCombine<code, RandNonce, Ts...>::MsgCombine;
+    using Base = MsgCombineRequest;
 
     template <typename... Args>
     MsgCombineRequest(Args&&... args)
@@ -132,6 +134,7 @@ template <size_t code, typename... Ts>
 class MsgCombineReply : public MsgCombine<code, WithNonce, Ts...> {
 public:
     using MsgCombine<code, WithNonce, Ts...>::MsgCombine;
+    using Base = MsgCombineReply;
 
     static constexpr bool is_reply = true;
     auto nonce() const
