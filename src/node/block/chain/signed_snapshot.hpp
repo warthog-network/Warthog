@@ -20,6 +20,9 @@ public:
         uint16_t importance { 0 };
         Height height { 0 };
         Priority(Reader& r);
+        friend Writer& operator<<(Writer&, const Priority&);
+        
+        static consteval size_t byte_size(){return sizeof(importance) + decltype(height)::byte_size();}
         Priority() {};
         Priority(uint16_t i, Height h)
             : importance(i)
@@ -42,6 +45,7 @@ public:
     [[nodiscard]] bool compatible_inefficient(const HeaderchainSkeleton& hc) const;
 
     static constexpr size_t binary_size { 4 + 32 + 65 };
+    static consteval size_t byte_size(){return binary_size;}
     SignedSnapshot(Reader& r);
 
     auto operator<=>(const SignedSnapshot& rhs) const

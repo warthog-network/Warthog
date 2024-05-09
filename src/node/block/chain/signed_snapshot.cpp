@@ -9,6 +9,10 @@
 #include <array>
 #include <string_view>
 
+Writer& operator<<(Writer& w, const SignedSnapshot::Priority& p){
+    return w<<p.importance<<p.height;
+}
+
 SignedSnapshot::Priority::Priority(Reader& r)
     : Priority({r.uint16(), Height(r)}) {}
 uint16_t SignedSnapshot::get_importance()

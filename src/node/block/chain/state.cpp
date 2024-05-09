@@ -19,12 +19,12 @@ Descripted::Descripted(Descriptor descriptor, Height chainLength, Worksum worksu
         }
 void Descripted::append_throw(const AppendMsg& msg)
 {
-    if (worksum() >= msg.worksum || chain_length() >= msg.newLength) {
+    if (worksum() >= msg.worksum() || chain_length() >= msg.newLength()) {
         throw Error(EAPPEND);
     }
-    _chainLength = msg.newLength;
-    _worksum = msg.worksum;
-    _grid.append(msg.grid);
+    _chainLength = msg.newLength();
+    _worksum = msg.worksum();
+    _grid.append(msg.grid());
     if (!valid()) {
         throw Error(EAPPEND);
     }

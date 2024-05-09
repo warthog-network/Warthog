@@ -3,6 +3,11 @@
 #include "general/writer.hpp"
 #include <cassert>
 
+RandNonce::RandNonce()
+    : WithNonce { uint32_t(rand()) }
+{
+}
+
 size_t RTCPeers::byte_size() const
 {
     size_t sum = 1; // 1 for total number
@@ -73,9 +78,9 @@ Writer& operator<<(Writer& w, const CurrentAndRequested& car)
         type += 2;
 
     w << type;
-    if (car.requested.has_value()) 
+    if (car.requested.has_value())
         w << *car.requested;
-    if (car.current.has_value()) 
+    if (car.current.has_value())
         w << *car.current;
     return w;
 }
@@ -83,13 +88,19 @@ Writer& operator<<(Writer& w, const CurrentAndRequested& car)
 size_t CurrentAndRequested::byte_size() const
 {
     size_t s = 1;
-    if (requested.has_value()) 
+    if (requested.has_value())
         s += requested.value().byte_size();
-    if (current.has_value()) 
+    if (current.has_value())
         s += current.value().byte_size();
     return s;
 }
 
+Writer& operator<<(Writer& w, const BatchSelector& s)
+{
+    return w << s.descriptor
+             << s.startHeight
+             << s.length;
+}
 BatchSelector::BatchSelector(Reader& r)
     : descriptor(r)
     , startHeight(Height(r).nonzero_throw(EBATCHHEIGHT))

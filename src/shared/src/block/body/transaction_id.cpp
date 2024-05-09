@@ -20,3 +20,8 @@ TxidWithFee::TxidWithFee(Reader& r)
     , fee(r)
 {
 }
+
+Writer& operator<<(Writer& w, const TxidWithFee& twf)
+{
+    return w << twf.txid << twf.fee;
+}

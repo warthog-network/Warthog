@@ -48,7 +48,7 @@ struct Blockrequest : public BlockreqMsg, public IsRequest {
 
 struct Batchrequest : public BatchreqMsg, public IsRequest {
     uint16_t minReturn = 0;
-    uint16_t max_return() { return BatchreqMsg::selector.length; }
+    uint16_t max_return() { return BatchreqMsg::selector().length; }
     using Pindata = Headerchain::pin_t;
     std::shared_ptr<Descripted> descripted;
     Batch prefix;

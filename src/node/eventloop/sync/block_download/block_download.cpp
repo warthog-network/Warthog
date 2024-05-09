@@ -121,16 +121,16 @@ void Downloader::on_probe_reply(Conref c, const ProbereqMsg& req, const Proberep
     if (!initialized)
         return;
     auto& fdata = data(c);
-    if (req.descriptor != fdata.descripted()->descriptor) {
+    if (req.descriptor() != fdata.descripted()->descriptor) {
         return;
     }
-    assert((*fdata.descripted()).chain_length() >= req.height);
+    assert((*fdata.descripted()).chain_length() >= req.height());
 
     if (!rep.requested().has_value()) { // chain info no longer available at peer
         forks.pin_current_chain(c);
         return;
     }
-    forks.match(c, headers(), req.height, *rep.requested());
+    forks.match(c, headers(), req.height(), *rep.requested());
 }
 
 std::vector<ChainOffender> Downloader::init(std::tuple<HeaderDownload::LeaderInfo, Headerchain> thc) // OK?
@@ -305,44 +305,44 @@ void Downloader::on_blockreq_reply(Conref cr, BlockrepMsg&& rep, Blockrequest& r
 
     if (rep.empty()) {
         if (!req.descripted->expired()) {
-            throw ChainError { EEMPTY, req.range.lower };
+            throw ChainError { EEMPTY, req.range().lower };
         } else {
             return;
         }
     }
 
     // check for failed requests
-    if (rep.blocks.size() == 0) {
+    if (rep.blocks().size() == 0) {
         throw Error(EEMPTY);
     }
 
     // check for correct length
-    if (rep.blocks.size() != req.range.length())
+    if (rep.blocks().size() != req.range().length())
         throw Error(EINV_BLOCKREPSIZE);
 
     // discard old replies
-    if (req.range.upper < focus.height_begin())
+    if (req.range().upper < focus.height_begin())
         return;
 
     // check hash
-    if (headers().length() < req.range.upper)
+    if (headers().length() < req.range().upper)
         return;
-    if (headers().hash_at(req.range.upper) != req.upperHash)
+    if (headers().hash_at(req.range().upper) != req.upperHash)
         return;
 
     // check merkle roots
-    size_t i0 = (req.range.lower < focus.height_begin() ? focus.height_begin() - req.range.lower : 0);
-    for (size_t i = i0; i < rep.blocks.size(); ++i) {
-        auto height { req.range.lower + i };
-        BodyView bv(rep.blocks[i].view(height));
+    size_t i0 = (req.range().lower < focus.height_begin() ? focus.height_begin() - req.range().lower : 0);
+    for (size_t i = i0; i < rep.blocks().size(); ++i) {
+        auto height { req.range().lower + i };
+        BodyView bv(rep.blocks()[i].view(height));
         if (!bv.valid())
             throw Error(EINV_BODY);
         if (bv.merkle_root(height) != headers()[height].merkleroot())
             throw Error(EMROOT);
     }
 
-    const BlockSlot slot(req.range.lower);
-    focus.set_blocks(slot, req.range.lower, std::move(rep.blocks));
+    const BlockSlot slot(req.range().lower);
+    focus.set_blocks(slot, req.range().lower, std::move(rep.blocks()));
     return;
 }
 

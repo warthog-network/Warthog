@@ -6,6 +6,7 @@
 #include "block/header/batch.hpp"
 #include "block/header/view.hpp"
 #include "chainserver/server.hpp"
+#include "communication/messages_impl.hpp"
 #include "communication/buffers/sndbuffer.hpp"
 #include "global/globals.hpp"
 #include "mempool/order_key.hpp"
@@ -267,7 +268,7 @@ void Eventloop::update_chain(Fork&& fork)
     for (auto c : connections.all()) {
         try {
             if (c.initialized())
-                c->chain.on_consensus_fork(msg.forkHeight, chains);
+                c->chain.on_consensus_fork(msg.forkHeight(), chains);
             c.send(msg);
         } catch (ChainError e) {
             close(c, e);
@@ -775,17 +776,17 @@ void Eventloop::handle_msg(Conref c, ForkMsg&& m)
 void Eventloop::handle_msg(Conref c, PingMsg&& m)
 {
     log_communication("{} handle ping", c.str());
-    size_t nAddr { std::min(uint16_t(20), m.maxAddresses) };
+    size_t nAddr { std::min(uint16_t(20), m.maxAddresses()) };
     auto addresses = connections.sample_verified<TCPSockaddr>(nAddr);
     c->ratelimit.ping();
 #ifndef DISABLE_LIBUV // TODO: replace TCPSockaddr by something else for emscrpiten build (no TCP connections available in browsers)
-    PongMsg msg(m.nonce, std::move(addresses), mempool.sample(m.maxTransactions));
+    PongMsg msg{m.nonce(), std::move(addresses), mempool.sample(m.maxTransactions())};
 #else
     PongMsg msg(m.nonce, std::move(addresses), {});
 #endif
-    spdlog::debug("{} Sending {} addresses", c.str(), msg.addresses.size());
-    if (c->theirSnapshotPriority < m.sp)
-        c->theirSnapshotPriority = m.sp;
+    spdlog::debug("{} Sending {} addresses", c.str(), msg.addresses().size());
+    if (c->theirSnapshotPriority < m.sp())
+        c->theirSnapshotPriority = m.sp();
     c.send(msg);
     consider_send_snapshot(c);
 }
@@ -797,11 +798,11 @@ void Eventloop::handle_msg(Conref c, PingV2Msg&& m)
     auto addresses = connections.sample_verified<TCPSockaddr>(nAddr);
     c->ratelimit.ping();
 #ifndef DISABLE_LIBUV // TODO: replace TCPSockaddr by something else for emscrpiten build (no TCP connections available in browsers)
-    PongMsg msg(m.nonce, std::move(addresses), mempool.sample(m.maxTransactions));
+    PongMsg msg(m.nonce(), std::move(addresses), mempool.sample(m.maxTransactions));
 #else
     PongMsg msg(m.nonce, std::move(addresses), {});
 #endif
-    spdlog::debug("{} Sending {} addresses", c.str(), msg.addresses.size());
+    spdlog::debug("{} Sending {} addresses", c.str(), msg.addresses().size());
     if (c->theirSnapshotPriority < m.sp)
         c->theirSnapshotPriority = m.sp;
     c.send(msg);
@@ -813,25 +814,25 @@ void Eventloop::handle_msg(Conref cr, PongMsg&& m)
     log_communication("{} handle pong", cr.str());
     auto& pingMsg = cr.ping().check(m);
     received_pong_sleep_ping(cr);
-    spdlog::debug("{} Received {} addresses", cr.str(), m.addresses.size());
+    spdlog::debug("{} Received {} addresses", cr.str(), m.addresses().size());
     // connections.verify(m.addresses,cr.);
-    spdlog::debug("{} Got {} transaction Ids in pong message", cr.str(), m.txids.size());
+    spdlog::debug("{} Got {} transaction Ids in pong message", cr.str(), m.txids().size());
 
     // update acknowledged priority
-    if (cr->acknowledgedSnapshotPriority < pingMsg.sp) {
-        cr->acknowledgedSnapshotPriority = pingMsg.sp;
+    if (cr->acknowledgedSnapshotPriority < pingMsg.sp()) {
+        cr->acknowledgedSnapshotPriority = pingMsg.sp();
     }
 
     // request new txids
-    auto txids = mempool.filter_new(m.txids);
+    auto txids = mempool.filter_new(m.txids());
     if (txids.size() > 0)
         cr.send(TxreqMsg(txids));
 }
 
 void Eventloop::handle_msg(Conref cr, BatchreqMsg&& m)
 {
-    log_communication("{} handle batchreq [{},{}]", cr.str(), m.selector.startHeight.value(), (m.selector.startHeight + m.selector.length - 1).value());
-    auto& s = m.selector;
+    log_communication("{} handle batchreq [{},{}]", cr.str(), m.selector().startHeight.value(), (m.selector().startHeight + m.selector().length - 1).value());
+    auto& s = m.selector();
     Batch batch = [&]() {
         if (s.descriptor == consensus().descriptor()) {
             return consensus().headers().get_headers(s.startHeight, s.end());
@@ -840,8 +841,7 @@ void Eventloop::handle_msg(Conref cr, BatchreqMsg&& m)
         }
     }();
 
-    BatchrepMsg rep(m.nonce, std::move(batch));
-    rep.nonce = m.nonce;
+    BatchrepMsg rep(m.nonce(), std::move(batch));
     cr.send(rep);
 }
 
@@ -852,11 +852,11 @@ void Eventloop::handle_msg(Conref cr, BatchrepMsg&& m)
     auto req = cr.job().pop_req(m, timer, activeRequests);
 
     // save batch
-    if (m.batch.size() < req.minReturn || m.batch.size() > req.max_return()) {
-        close(ChainOffender(EBATCHSIZE, req.selector.startHeight, cr.id()));
+    if (m.batch().size() < req.minReturn || m.batch().size() > req.max_return()) {
+        close(ChainOffender(EBATCHSIZE, req.selector().startHeight, cr.id()));
         return;
     }
-    auto offenders = headerDownload.on_response(cr, std::move(req), std::move(m.batch));
+    auto offenders = headerDownload.on_response(cr, std::move(req), std::move(m.batch()));
     for (auto& o : offenders) {
         close(o);
     }
@@ -870,17 +870,17 @@ void Eventloop::handle_msg(Conref cr, BatchrepMsg&& m)
 
 void Eventloop::handle_msg(Conref cr, ProbereqMsg&& m)
 {
-    log_communication("{} handle_probereq d:{}, h:{}", cr.str(), m.descriptor.value(), m.height.value());
-    ProberepMsg rep(m.nonce, consensus().descriptor().value());
-    auto h = consensus().headers().get_header(m.height);
+    log_communication("{} handle_probereq d:{}, h:{}", cr.str(), m.descriptor().value(), m.height().value());
+    ProberepMsg rep(m.nonce(), consensus().descriptor().value());
+    auto h = consensus().headers().get_header(m.height());
     if (h)
         rep.current() = *h;
-    if (m.descriptor == consensus().descriptor()) {
-        auto h = consensus().headers().get_header(m.height);
+    if (m.descriptor() == consensus().descriptor()) {
+        auto h = consensus().headers().get_header(m.height());
         if (h)
             rep.requested() = h;
     } else {
-        auto h = stateServer.get_descriptor_header(m.descriptor, m.height);
+        auto h = stateServer.get_descriptor_header(m.descriptor(), m.height());
         if (h)
             rep.requested() = *h;
     }
@@ -892,7 +892,7 @@ void Eventloop::handle_msg(Conref cr, ProberepMsg&& rep)
     log_communication("{} handle_proberep", cr.str());
     auto req = cr.job().pop_req(rep, timer, activeRequests);
     if (!rep.requested().has_value() && !req.descripted->expired()) {
-        throw ChainError { EEMPTY, req.height };
+        throw ChainError { EEMPTY, req.height() };
     }
     cr->chain.on_proberep(req, rep, chains);
     headerDownload.on_proberep(cr, req, rep);
@@ -904,9 +904,9 @@ void Eventloop::handle_msg(Conref cr, BlockreqMsg&& m)
 {
     using namespace std::placeholders;
     BlockreqMsg req(m);
-    log_communication("{} handle_blockreq [{},{}]", cr.str(), req.range.lower.value(), req.range.upper.value());
-    cr->lastNonce = req.nonce;
-    stateServer.async_get_blocks(req.range, std::bind(&Eventloop::async_forward_blockrep, this, cr.id(), _1));
+    log_communication("{} handle_blockreq [{},{}]", cr.str(), req.range().lower.value(), req.range().upper.value());
+    cr->lastNonce = req.nonce();
+    stateServer.async_get_blocks(req.range(), std::bind(&Eventloop::async_forward_blockrep, this, cr.id(), _1));
 }
 
 void Eventloop::handle_msg(Conref cr, BlockrepMsg&& m)
@@ -926,7 +926,7 @@ void Eventloop::handle_msg(Conref cr, BlockrepMsg&& m)
 void Eventloop::handle_msg(Conref cr, TxnotifyMsg&& m)
 {
     log_communication("{} handle Txnotify", cr.str());
-    auto txids = mempool.filter_new(m.txids);
+    auto txids = mempool.filter_new(m.txids());
     if (txids.size() > 0)
         cr.send(TxreqMsg(txids));
     do_requests();
@@ -936,18 +936,18 @@ void Eventloop::handle_msg(Conref cr, TxreqMsg&& m)
 {
     log_communication("{} handle TxreqMsg", cr.str());
     TxrepMsg::vector_t out;
-    for (auto& e : m.txids) {
+    for (auto& e : m.txids()) {
         out.push_back(mempool[e]);
     }
     if (out.size() > 0)
-        cr.send(TxrepMsg(out));
+        cr.send(TxrepMsg(m.nonce(),out));
 }
 
 void Eventloop::handle_msg(Conref cr, TxrepMsg&& m)
 {
     log_communication("{} handle TxrepMsg", cr.str());
     std::vector<TransferTxExchangeMessage> txs;
-    for (auto& o : m.txs) {
+    for (auto& o : m.txs()) {
         if (o)
             txs.push_back(*o);
     };
@@ -959,18 +959,18 @@ void Eventloop::handle_msg(Conref cr, LeaderMsg&& msg)
 {
     log_communication("{} handle LeaderMsg", cr.str());
     // ban if necessary
-    if (msg.signedSnapshot.priority <= cr->acknowledgedSnapshotPriority) {
+    if (msg.signedSnapshot().priority <= cr->acknowledgedSnapshotPriority) {
         close(cr, ELOWPRIORITY);
         return;
     }
 
     // update knowledge about sender
-    cr->acknowledgedSnapshotPriority = msg.signedSnapshot.priority;
-    if (cr->theirSnapshotPriority < msg.signedSnapshot.priority) {
-        cr->theirSnapshotPriority = msg.signedSnapshot.priority;
+    cr->acknowledgedSnapshotPriority = msg.signedSnapshot().priority;
+    if (cr->theirSnapshotPriority < msg.signedSnapshot().priority) {
+        cr->theirSnapshotPriority = msg.signedSnapshot().priority;
     }
 
-    stateServer.async_set_signed_checkpoint(msg.signedSnapshot);
+    stateServer.async_set_signed_checkpoint(msg.signedSnapshot());
 }
 
 void Eventloop::connect_rtc(Conref c, const std::vector<uint32_t>& rtc_keys)
@@ -1019,9 +1019,9 @@ void Eventloop::cancel_timer(Timer::iterator& ref)
 
 void Eventloop::verify_rollback(Conref cr, const SignedPinRollbackMsg& m)
 {
-    if (cr.chain().descripted()->chain_length() <= m.shrinkLength)
+    if (cr.chain().descripted()->chain_length() <= m.shrinkLength())
         throw Error(EBADROLLBACKLEN);
-    auto& ss = m.signedSnapshot;
+    auto& ss = m.signedSnapshot();
     if (cr.chain().stage_fork_range().lower() > ss.priority.height) {
         if (ss.compatible(chains.stage_headers()))
             throw Error(EBADROLLBACK);

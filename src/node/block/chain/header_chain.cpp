@@ -47,7 +47,7 @@ std::pair<Height, AppendMsg> Headerchain::apply_append(HeaderchainAppend&& updat
     finalPin = std::move(update.finalPin);
     initialize_worksum();
     assert(worksum > prevWorksum);
-    return { h, { length().nonzero_assert(), worksum, grid(batchOffset) } };
+    return { h, AppendMsg( length().nonzero_assert(), worksum, grid(batchOffset) ) };
 }
 
 HeaderchainFork Headerchain::get_fork(NonzeroHeight forkHeight, Descriptor descriptor) const

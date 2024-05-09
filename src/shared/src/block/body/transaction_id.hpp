@@ -16,6 +16,7 @@ struct TransactionId {
         , pinHeight(pinHeight)
         , nonceId(nonceId) {};
     constexpr static size_t bytesize = 16;
+    static consteval size_t byte_size(){return bytesize;}
 
     TransactionId(Reader& r);
     friend Writer& operator<<(Writer&, const TransactionId&);
@@ -36,6 +37,8 @@ struct TxidWithFee {
         , fee(std::move(fee))
     {
     }
+    static consteval size_t byte_size(){return decltype(txid)::byte_size() + decltype(fee)::byte_size();}
+    friend Writer& operator<<(Writer&, const TxidWithFee&);
 
     TxidWithFee(Reader& r);
 };

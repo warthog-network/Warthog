@@ -4,6 +4,7 @@
 #include <span>
 
 class Worksum;
+class Writer;
 class Headerchain;
 class Headervec {
 public:
@@ -112,6 +113,12 @@ public:
         bytes.insert(bytes.end(), b.bytes.begin(), b.bytes.end());
     }
     void clear() { bytes.clear(); }
+    size_t byte_size() const
+    {
+        return bytes.size(); // TODO: check this
+    }
+    friend Writer& operator<<(Writer&, const Headervec&);
+
 
 protected:
     friend class HeaderVecRegistry;
@@ -215,6 +222,7 @@ public:
     Grid(std::span<const uint8_t> s);
     Grid(Reader &r);
     Grid(const Headerchain&, Batchslot begin);
+    friend Writer& operator<<(Writer&, const Grid&);
     using Headervec::operator[];
     HeaderView operator[](Batchslot s) const { return Headervec::operator[](s.index()); }
     Batchslot slot_begin() const

@@ -1,6 +1,7 @@
 #include "tcp_sockaddr.hpp"
 #include "general/byte_order.hpp"
 #include "general/reader.hpp"
+#include "general/writer.hpp"
 #include <array>
 #include <cassert>
 #include <cstring>
@@ -10,6 +11,10 @@ TCPSockaddrBase::TCPSockaddrBase(Reader& r)
     : ipv4(r)
     , port(r.uint16())
 {
+}
+
+Writer& operator<<(Writer& w, const TCPSockaddrBase& addr){
+    return w<<addr.ipv4<<addr.port;
 }
 
 std::string TCPSockaddr::to_string() const

@@ -7,6 +7,7 @@ class Writer;
 struct IsUint32 {
 public:
     IsUint32(Reader& r);
+    static consteval size_t byte_size(){return sizeof(val);}
     // explicit IsUint32(int64_t w);
     // explicit IsUint32(int w)
     //     : IsUint32((int64_t)(w)) {};

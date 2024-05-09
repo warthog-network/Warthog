@@ -16,7 +16,7 @@ public:
     }
     BodyContainer(Reader& r);
     friend Writer& operator<<(Writer&, const BodyContainer&);
-    size_t serialized_size() const { return size() + 4; }
+    size_t byte_size() const { return size() + 4; }
     size_t size() const { return bytes.size(); }
     auto& data() const { return bytes; }
     auto& data() { return bytes; }

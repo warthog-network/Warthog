@@ -32,39 +32,39 @@ void PeerChain::on_peer_fork(const ForkMsg& msg, const StageAndConsensus& sac)
 {
     assert(desc);
     desc->deprecate();
-    if (msg.descriptor != desc->descriptor + 1) {
+    if (msg.descriptor() != desc->descriptor + 1) {
         throw Error(EDESCRIPTOR);
     }
 
     auto newgrid { desc->grid() };
-    newgrid.shrink((msg.forkHeight - 1).complete_batches());
-    newgrid.append(msg.grid);
+    newgrid.shrink((msg.forkHeight() - 1).complete_batches());
+    newgrid.append(msg.grid());
 
     desc = std::make_shared<Descripted>(
-        msg.descriptor,
-        msg.chainLength,
-        msg.worksum,
+        msg.descriptor(),
+        msg.chainLength(),
+        msg.worksum(),
         newgrid);
 
-    consensusForkRange.on_fork(msg.forkHeight, *desc, sac.consensus_state().headers());
-    stageForkRange.on_fork(msg.forkHeight, *desc, sac.stage_headers());
+    consensusForkRange.on_fork(msg.forkHeight(), *desc, sac.consensus_state().headers());
+    stageForkRange.on_fork(msg.forkHeight(), *desc, sac.stage_headers());
 }
 
 void PeerChain::on_peer_shrink(const SignedPinRollbackMsg& msg, const StageAndConsensus& sac)
 {
     assert(desc);
     desc->deprecate();
-    if (msg.descriptor != desc->descriptor + 1) {
+    if (msg.descriptor() != desc->descriptor + 1) {
         throw Error(EDESCRIPTOR);
     }
 
     auto newgrid { desc->grid() };
-    newgrid.shrink((msg.shrinkLength).complete_batches());
+    newgrid.shrink((msg.shrinkLength()).complete_batches());
 
     desc = std::make_shared<Descripted>(
-        msg.descriptor,
-        msg.shrinkLength,
-        msg.worksum,
+        msg.descriptor(),
+        msg.shrinkLength(),
+        msg.worksum(),
         newgrid);
 
     consensusForkRange.on_shrink(*desc, sac.consensus_state().headers());
@@ -110,45 +110,45 @@ PeerchainMatch PeerChain::on_proberep(const ProbereqMsg& req, const ProberepMsg&
     using enum PeerchainMatch;
     PeerchainMatch res { NOMATCH };
     const auto& fh = sac.fork_height();
-    if (msg.currentDescriptor != desc->descriptor)
-        throw ChainError { EPROBEDESCRIPTOR, Height(msg.currentDescriptor.value()+1).nonzero_assert() };
-    if (desc->chain_length() < req.height) {
+    if (msg.currentDescriptor() != desc->descriptor)
+        throw ChainError { EPROBEDESCRIPTOR, Height(msg.currentDescriptor().value() + 1).nonzero_assert() };
+    if (desc->chain_length() < req.height()) {
         // should not have msg.current
         if (msg.current().has_value())
-            throw ChainError { EBADPROBE, req.height };
+            throw ChainError { EBADPROBE, req.height() };
         return res;
     }
     if (!msg.current().has_value())
-        throw ChainError { EBADPROBE, req.height };
+        throw ChainError { EBADPROBE, req.height() };
 
     auto& consensus = sac.consensus_state().headers();
     // check consensus match
-    if (consensus.length() >= req.height) {
-        if (consensus[req.height] == *msg.current()) {
+    if (consensus.length() >= req.height()) {
+        if (consensus[req.height()] == *msg.current()) {
             res = CONSENSUSMATCH;
-            consensusForkRange.on_match(req.height);
-            if (fh <= req.height) {
+            consensusForkRange.on_match(req.height());
+            if (fh <= req.height()) {
                 stageForkRange.on_match(fh.val() - 1);
                 if (fh <= sac.stage_headers().length())
                     stageForkRange.on_mismatch(fh);
             }
         } else {
-            consensusForkRange.on_mismatch(req.height);
+            consensusForkRange.on_mismatch(req.height());
         }
     }
 
     // check blockdownload match
-    if (sac.stage_headers().length() >= req.height) {
-        if (sac.stage_headers()[req.height] == *msg.current()) {
+    if (sac.stage_headers().length() >= req.height()) {
+        if (sac.stage_headers()[req.height()] == *msg.current()) {
             res = BLOCKDOWNLOADMATCH;
-            stageForkRange.on_match(req.height);
-            if (fh <= req.height) {
+            stageForkRange.on_match(req.height());
+            if (fh <= req.height()) {
                 consensusForkRange.on_match(fh.val() - 1);
                 if (fh <= consensus.length())
                     consensusForkRange.on_mismatch(fh);
             }
         } else {
-            stageForkRange.on_mismatch(req.height);
+            stageForkRange.on_mismatch(req.height());
         }
     }
     return res;

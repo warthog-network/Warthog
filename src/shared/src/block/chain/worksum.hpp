@@ -1,6 +1,6 @@
 #pragma once
-#include <cstdint>
 #include <array>
+#include <cstdint>
 #include <limits>
 #include <string>
 class TargetV1;
@@ -9,7 +9,8 @@ class Target;
 class Worksum {
 private:
     static constexpr size_t BITS = 256;
-    static constexpr size_t ELEMENTS = BITS / (8 * 4 /*CHAR_BIT*sizeof(uint32_t)*/);
+    static constexpr size_t BYTES = BITS / 8 /*CHAR_BIT*/;
+    static constexpr size_t ELEMENTS = BYTES / 4; /*sizeof(uint32_t)*/
 
 public:
     using fragments_type = std::array<uint32_t, ELEMENTS>;
@@ -19,7 +20,7 @@ private:
 
 public:
     const std::array<uint32_t, BITS / (8 * 4 /*CHAR_BIT*sizeof(uint32_t)*/)> getFragments() const { return fragments; }
-    static size_t bytesize() { return sizeof(uint32_t) * ELEMENTS; };
+    static size_t byte_size() { return BYTES; };
     static Worksum max()
     {
         Worksum ws;
@@ -32,11 +33,11 @@ public:
     Worksum& operator-=(const Worksum& w);
     Worksum& operator*=(uint32_t factor);
     Worksum& operator+=(const Worksum& w);
-//     Worksum& operator+=(const Target& t);
-// Worksum& Worksum::operator+=(const Target& t)
-// {
-//     return this->operator+=(Worksum(t));
-// }
+    //     Worksum& operator+=(const Target& t);
+    // Worksum& Worksum::operator+=(const Target& t)
+    // {
+    //     return this->operator+=(Worksum(t));
+    // }
     friend Worksum operator+(Worksum w1, const Worksum& w2)
     {
         return w1 += w2;

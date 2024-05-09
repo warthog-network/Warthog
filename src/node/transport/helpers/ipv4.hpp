@@ -8,6 +8,7 @@
 #include <string>
 #include <string_view>
 class Reader;
+class Writer;
 #ifndef DISABLE_LIBUV
 struct sockaddr_in;
 #endif
@@ -21,6 +22,8 @@ struct IPv4 {
         : data(data)
     {
     }
+    friend Writer& operator<<(Writer&, const IPv4&);
+    static consteval size_t byte_size() { return sizeof(data); }
     bool is_valid(bool allowLocalhost = true) const;
     bool is_localhost() const;
     auto operator<=>(const IPv4& rhs) const = default;

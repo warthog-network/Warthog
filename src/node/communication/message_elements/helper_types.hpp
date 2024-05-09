@@ -11,6 +11,20 @@
 class Writer;
 class Reader;
 
+struct WithNonce : public IsUint32 {
+    WithNonce(uint32_t n)
+        : IsUint32(n)
+    {
+    }
+    auto& nonce() const { return val; }
+    auto& nonce() { return val; }
+};
+struct RandNonce : public WithNonce {
+    RandNonce();
+    RandNonce(uint32_t nonce)
+        : WithNonce { nonce } {};
+};
+
 struct String16 {
     String16();
     String16(std::string data);
@@ -47,7 +61,7 @@ struct VectorLentype : public std::vector<T> {
     }
     VectorLentype(Reader&);
     void push_back(T t);
-    size_t bytesize() const;
+    size_t byte_size() const;
 };
 
 template <typename T>
@@ -58,7 +72,7 @@ struct VectorRest : public std::vector<T> {
     {
     }
     VectorRest(Reader&);
-    size_t bytesize() const;
+    size_t byte_size() const;
 };
 
 template <typename T>
@@ -77,6 +91,16 @@ public:
         : std::optional<T>(std::move(o))
     {
     }
+};
+template <typename T>
+class ReadRest : public T {
+public:
+    ReadRest(T t)
+        : T(std::move(t))
+    {
+    }
+    using T::T;
+    ReadRest(Reader& r);
 };
 
 }
@@ -100,6 +124,8 @@ struct BatchSelector {
         , startHeight(s)
         , length(l) {};
     BatchSelector(Reader& r);
+    friend Writer& operator<<(Writer&, const BatchSelector&);
+    static consteval size_t byte_size() { return Descriptor::byte_size() + NonzeroHeight::byte_size() + sizeof(length); }
 };
 
 template <int32_t parseHeightZeroError>

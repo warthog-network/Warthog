@@ -403,15 +403,15 @@ void Downloader::on_proberep(Conref c, const Proberequest& req, const ProberepMs
     // match pin
     if (dat.probeData) {
         auto& pin { *dat.probeData };
-        if (pin.dsc->descriptor == req.descriptor)
-            pin.match(req.height, *rep.requested());
+        if (pin.dsc->descriptor == req.descriptor())
+            pin.match(req.height(), *rep.requested());
     }
 
     // match leader info
     if (is_leader(c)) {
         auto li = data(c).leaderIter;
-        if (li->snapshot.descripted->descriptor == req.descriptor)
-            li->probeData.match(req.height, *rep.requested());
+        if (li->snapshot.descripted->descriptor == req.descriptor())
+            li->probeData.match(req.height(), *rep.requested());
     }
 }
 
@@ -586,7 +586,7 @@ auto Downloader::on_response(Conref cr, Batchrequest&& req, Batch&& res) -> std:
             spdlog::error("BUG in {}:{}: safety check failed.", __FILE__, __LINE__);
     }
 
-    const Batchslot batchSlot { Height { req.selector.startHeight } };
+    const Batchslot batchSlot { Height { req.selector().startHeight } };
 
     auto minWorkSnapshot = minWork;
     std::vector<Offender> offenders;
@@ -598,7 +598,7 @@ auto Downloader::on_response(Conref cr, Batchrequest&& req, Batch&& res) -> std:
             return {};
         auto li = data(cr).leaderIter;
         auto& d_old = *li->snapshot.descripted;
-        if (req.selector.descriptor != d_old.descriptor
+        if (req.selector().descriptor != d_old.descriptor
             || batchSlot != li->final_slot())
             return {};
         li->finalBatch = { std::move(b), std::get<Worksum>(req.extra) };
@@ -615,7 +615,7 @@ auto Downloader::on_response(Conref cr, Batchrequest&& req, Batch&& res) -> std:
         }
 
         if (!b.complete())
-            return { ChainOffender { ChainError(EBATCHSIZE, req.selector.startHeight), cr } };
+            return { ChainOffender { ChainError(EBATCHSIZE, req.selector().startHeight), cr } };
         if (qi == queuedBatches.end())
             return {};
         auto& queued = qi->second;

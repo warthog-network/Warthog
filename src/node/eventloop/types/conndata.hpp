@@ -109,7 +109,7 @@ struct ConnectionJob : public Timerref {
     data_t data_v;
 
     template <typename T>
-    requires std::derived_from<T, WithNonce>
+    // requires T::is_reply // TODO
     auto pop_req(T& rep, Timer& t, size_t& activeRequests)
     {
         using type = typename typemap<T>::type;
@@ -120,7 +120,7 @@ struct ConnectionJob : public Timerref {
         auto out = std::get<type>(data_v);
         assert(!data_v.valueless_by_exception());
         out.unref_active_requests(activeRequests);
-        if (rep.nonce != out.nonce) {
+        if (rep.nonce() != out.nonce()) {
             throw Error(EUNREQUESTED);
         }
         reset_notexpired<type>(t);

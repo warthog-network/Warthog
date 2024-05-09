@@ -1,5 +1,6 @@
 #include "ipv4.hpp"
 #include "general/reader.hpp"
+#include "general/writer.hpp"
 #ifndef DISABLE_LIBUV
 #include "uv.h"
 #endif
@@ -7,6 +8,11 @@
 IPv4::IPv4(Reader& r)
     : data(r.uint32())
 {
+}
+
+Writer& operator<<(Writer& w, const IPv4& ip)
+{
+    return w << ip.data;
 }
 
 #ifndef DISABLE_LIBUV
@@ -32,7 +38,6 @@ bool IPv4::is_localhost() const
 }
 // modified version of libuv's
 // static int inet_pton4(const char *src, unsigned char *dst) {
-
 
 std::string IPv4::to_string() const
 {
