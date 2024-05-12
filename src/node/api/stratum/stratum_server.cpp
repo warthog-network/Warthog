@@ -164,7 +164,7 @@ namespace messages {
     OK SubscribeResponse(const std::array<uint8_t, 4>& extra2prefix, int64_t id)
     {
         auto hexprefix { serialize_hex(extra2prefix) };
-        return { id, nlohmann::json::array({ nlohmann::json::array({ "mining.notify", "" }), extra2prefix, 10 }) };
+        return { id, nlohmann::json::array({ nlohmann::json::array({ "mining.notify", "" }), hexprefix, 10 }) };
     };
 
     using message = std::variant<MiningSubscribe, MiningAuthorize, MiningSubmit>;
