@@ -34,20 +34,21 @@ namespace messages {
         MiningSubmit(int64_t id, nlohmann::json::array_t params)
             : id(id)
             , jobId(params[0].get<std::string>())
-            , extranonce2(hex_to_arr<10>(params[1].get<std::string>()))
+            , extranonce2(hex_to_arr<6>(params[1].get<std::string>()))
             , ntime(hex_to_arr<4>(params[2].get<std::string>()))
             , nonce(hex_to_arr<4>(params[3].get<std::string>()))
         {
         }
-        void apply_to(Block& b) const
+        void apply_to(const std::array<uint8_t, 4>& extra2prefix, Block& b) const
         {
-            std::copy(extranonce2.begin(), extranonce2.end(), b.body.data().begin());
+            std::copy(extra2prefix.begin(), extra2prefix.end(), b.body.data().begin());
+            std::copy(extranonce2.begin(), extranonce2.end(), b.body.data().begin() + 4);
             b.header.set_merkleroot(b.body_view().merkle_root(b.height));
             b.header.set_nonce(nonce);
             b.header.set_timestamp(ntime);
         }
         std::string jobId;
-        std::array<uint8_t, 10> extranonce2;
+        std::array<uint8_t, 6> extranonce2;
         std::array<uint8_t, 4> ntime;
         std::array<uint8_t, 4> nonce;
     };
@@ -160,9 +161,10 @@ namespace messages {
         static StratumError JobNotFound(int64_t id) { return { id, 21, "Job not found"s }; }
     };
 
-    OK SubscribeResponse(int64_t id)
+    OK SubscribeResponse(const std::array<uint8_t, 4>& extra2prefix, int64_t id)
     {
-        return { id, nlohmann::json::array({ nlohmann::json::array({ "mining.notify", "" }), "", 10 }) };
+        auto hexprefix { serialize_hex(extra2prefix) };
+        return { id, nlohmann::json::array({ nlohmann::json::array({ "mining.notify", "" }), extra2prefix, 10 }) };
     };
 
     using message = std::variant<MiningSubscribe, MiningAuthorize, MiningSubmit>;
@@ -188,6 +190,23 @@ namespace messages {
     }
 }
 
+namespace {
+    uint32_t indexCounter { 0 };
+    std::array<uint8_t, 4> next_extra2prefix()
+    {
+        std::array<uint8_t, 4> out;
+        memcpy(out.data(), &indexCounter, 4);
+        indexCounter += 1;
+        return out;
+    }
+}
+
+Connection::Connection(std::shared_ptr<uvw::tcp_handle> newHandle, StratumServer& server)
+    : extra2prefix(next_extra2prefix())
+    , handle(std::move(newHandle))
+    , server(server)
+{
+}
 void Connection::on_message(std::string_view msg)
 {
     size_t lower = 0;
@@ -213,7 +232,7 @@ using namespace stratum::messages;
 
 void Connection::handle_message(messages::MiningSubscribe&& s)
 {
-    write() << SubscribeResponse(s.id);
+    write() << SubscribeResponse(extra2prefix, s.id);
 }
 
 void Connection::handle_message(messages::MiningSubmit&& m)
@@ -228,7 +247,7 @@ void Connection::handle_message(messages::MiningSubmit&& m)
         write() << StratumError::JobNotFound(m.id);
         return;
     }
-    m.apply_to(*b);
+    m.apply_to(extra2prefix, *b);
     put_chain_append({ *b },
         [&, p = shared_from_this(), id = m.id](const tl::expected<void, int32_t>& res) {
             server.on_append_result({ .p = p, .stratumId = id, .result { res } });
