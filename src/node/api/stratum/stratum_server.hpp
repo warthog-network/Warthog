@@ -38,11 +38,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
     friend struct Writer;
 
 public:
-    Connection(std::shared_ptr<uvw::tcp_handle> newHandle, StratumServer& server)
-        : handle(std::move(newHandle))
-        , server(server)
-    {
-    }
+    Connection(std::shared_ptr<uvw::tcp_handle> newHandle, StratumServer& server);
 
     void on_message(std::string_view msg);
     ~Connection();
@@ -63,6 +59,7 @@ private:
         std::string worker;
     };
     bool fresh { true };
+    const std::array<uint8_t,4> extra2prefix;
     std::optional<Authorized> authorized;
     std::string stratumLine;
     std::shared_ptr<uvw::tcp_handle> handle;
