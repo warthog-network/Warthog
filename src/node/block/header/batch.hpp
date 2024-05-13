@@ -115,7 +115,7 @@ public:
     void clear() { bytes.clear(); }
     size_t byte_size() const
     {
-        return bytes.size(); // TODO: check this
+        return bytes.size();
     }
     friend Writer& operator<<(Writer&, const Headervec&);
 

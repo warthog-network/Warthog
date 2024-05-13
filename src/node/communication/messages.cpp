@@ -2,9 +2,8 @@
 #include "communication/buffers/sndbuffer.hpp"
 #include "communication/messages.hpp"
 #include "eventloop/types/chainstate.hpp"
-#include "messages_impl.hpp"
 #include "message_elements/packer_impl.hpp"
-
+#include "messages_impl.hpp"
 
 inline void throw_if_inconsistent(Height length, Worksum worksum)
 {
@@ -14,9 +13,6 @@ inline void throw_if_inconsistent(Height length, Worksum worksum)
         throw Error(EFAKEHEIGHT);
     }
 }
-
-
-
 
 Sndbuffer InitMsg2::serialize_chainstate(const ConsensusSlave& cs)
 {
@@ -86,12 +82,10 @@ std::string BatchreqMsg::log_str() const
     return "batchreq [" + std::to_string(selector().startHeight) + "," + std::to_string(selector().startHeight + selector().length - 1) + "]";
 }
 
-
 std::string ProbereqMsg::log_str() const
 {
     return "probereq " + std::to_string(descriptor().value()) + "/" + std::to_string(height());
 }
-
 
 std::string BlockreqMsg::log_str() const
 {
@@ -122,51 +116,15 @@ TxrepMsg::TxrepMsg(Reader& r)
         throw Error(EINV_TXREP);
 }
 
-
-PingV2Msg::PingV2Msg(Reader& r)
-    : PingV2Msg { r, r, r, r, r, r }
+Error PongV2Msg::check(const PingV2Msg& m) const
 {
-}
-
-PingV2Msg::operator Sndbuffer() const
-{
-    return gen_msg(4 + 2 + 4 + 2 + 2 + ownRTC.byte_size() + 1)
-        << nonce()
-        << sp.importance
-        << sp.height
-        << maxAddresses
-        << maxTransactions
-        << ownRTC
-        << maxUseOwnRTC;
-}
-
-RTCInfo::RTCInfo(Reader& r)
-    : RTCInfo { r, r }
-{
-}
-
-RTCInfo::operator Sndbuffer() const
-{
-    return gen_msg(4 + rtcPeers.byte_size())
-        << nonce()
-        << rtcPeers;
-}
-
-RTCSelect::RTCSelect(Reader& r)
-    : RTCSelect { r, r }
-{
-}
-
-RTCSelect::operator Sndbuffer() const
-{
-    return gen_msg(4 + selected.byte_size())
-        << nonce()
-        << selected;
-}
-
-RTCRequestOffer::RTCRequestOffer(Reader& r)
-    : RTCRequestOffer { r, r, r }
-{
+    if (nonce() != m.nonce())
+        return EUNREQUESTED;
+    if (addresses().size() > m.maxAddresses()
+        || txids().size() > m.maxTransactions()) {
+        return ERESTRICTED;
+    }
+    return 0;
 }
 
 namespace {

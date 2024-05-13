@@ -6,8 +6,8 @@
 #include "block/header/batch.hpp"
 #include "block/header/view.hpp"
 #include "chainserver/server.hpp"
-#include "communication/messages_impl.hpp"
 #include "communication/buffers/sndbuffer.hpp"
+#include "communication/messages_impl.hpp"
 #include "global/globals.hpp"
 #include "mempool/order_key.hpp"
 #include "peerserver/peerserver.hpp"
@@ -590,9 +590,18 @@ void Eventloop::send_ping_await_pong(Conref c)
     auto t = timer.insert(
         (config().localDebug ? 10min : 1min),
         Timer::CloseNoPong { c.id() });
-    PingMsg p(signed_snapshot() ? signed_snapshot()->priority : SignedSnapshot::Priority {});
-    c.ping().await_pong(p, t);
-    c.send(p);
+    if (c->c->protocol_version().v1()) {
+        PingMsg p(signed_snapshot() ? signed_snapshot()->priority : SignedSnapshot::Priority {});
+        c.ping().await_pong(p, t);
+        c.send(p);
+    } else {
+        PingV2Msg p(signed_snapshot() ? signed_snapshot()->priority : SignedSnapshot::Priority {},
+            { .ndiscard = c.rtc().our.pendingOutgoing.schedule_discard() });
+        c.ping().await_pong_v2({ .extraData { c.rtc().our.signalingList.offset_scheduled() },
+                                   .msg = std::move(p) },
+            t);
+        c.send(p);
+    }
 }
 
 void Eventloop::received_pong_sleep_ping(Conref c)
@@ -780,7 +789,7 @@ void Eventloop::handle_msg(Conref c, PingMsg&& m)
     auto addresses = connections.sample_verified<TCPSockaddr>(nAddr);
     c->ratelimit.ping();
 #ifndef DISABLE_LIBUV // TODO: replace TCPSockaddr by something else for emscrpiten build (no TCP connections available in browsers)
-    PongMsg msg{m.nonce(), std::move(addresses), mempool.sample(m.maxTransactions())};
+    PongMsg msg { m.nonce(), std::move(addresses), mempool.sample(m.maxTransactions()) };
 #else
     PongMsg msg(m.nonce, std::move(addresses), {});
 #endif
@@ -793,21 +802,23 @@ void Eventloop::handle_msg(Conref c, PingMsg&& m)
 
 void Eventloop::handle_msg(Conref c, PingV2Msg&& m)
 {
+
     log_communication("{} handle ping", c.str());
-    size_t nAddr { std::min(uint16_t(20), m.maxAddresses) };
+    size_t nAddr { std::min(uint16_t(20), m.maxAddresses()) };
     auto addresses = connections.sample_verified<TCPSockaddr>(nAddr);
     c->ratelimit.ping();
 #ifndef DISABLE_LIBUV // TODO: replace TCPSockaddr by something else for emscrpiten build (no TCP connections available in browsers)
-    PongMsg msg(m.nonce(), std::move(addresses), mempool.sample(m.maxTransactions));
+    PongV2Msg msg { m.nonce(), std::move(addresses), mempool.sample(m.maxTransactions()) };
 #else
-    PongMsg msg(m.nonce, std::move(addresses), {});
+    PongV2Msg msg(m.nonce, std::move(addresses), {});
 #endif
     spdlog::debug("{} Sending {} addresses", c.str(), msg.addresses().size());
-    if (c->theirSnapshotPriority < m.sp)
-        c->theirSnapshotPriority = m.sp;
+    if (c->theirSnapshotPriority < m.sp())
+        c->theirSnapshotPriority = m.sp();
     c.send(msg);
     consider_send_snapshot(c);
-}
+    c.rtc().their.forwardRequests.discard(m.discarded_forward_requests());
+};
 
 void Eventloop::handle_msg(Conref cr, PongMsg&& m)
 {
@@ -827,6 +838,32 @@ void Eventloop::handle_msg(Conref cr, PongMsg&& m)
     auto txids = mempool.filter_new(m.txids());
     if (txids.size() > 0)
         cr.send(TxreqMsg(txids));
+}
+
+void Eventloop::handle_msg(Conref cr, PongV2Msg&& m)
+{
+    log_communication("{} handle pong", cr.str());
+    auto& pingData = cr.ping().check(m);
+    auto& pingMsg = pingData.msg;
+    received_pong_sleep_ping(cr);
+    spdlog::debug("{} Received {} addresses", cr.str(), m.addresses().size());
+    // connections.verify(m.addresses,cr.);
+    spdlog::debug("{} Got {} transaction Ids in pong message", cr.str(), m.txids().size());
+
+    // update acknowledged priority
+    if (cr->acknowledgedSnapshotPriority < pingMsg.sp()) {
+        cr->acknowledgedSnapshotPriority = pingMsg.sp();
+    }
+
+    // request new txids
+    auto txids = mempool.filter_new(m.txids());
+    if (txids.size() > 0)
+        cr.send(TxreqMsg(txids));
+
+    // peer has seen the ping message and we can be sure it must have
+    // acknowledged discarding, we replay.
+    cr.rtc().our.pendingOutgoing.discard(pingMsg.discarded_forward_requests());
+    cr.rtc().our.signalingList.discard_up_to(pingData.extraData.signalingListDiscardIndex);
 }
 
 void Eventloop::handle_msg(Conref cr, BatchreqMsg&& m)
@@ -940,7 +977,7 @@ void Eventloop::handle_msg(Conref cr, TxreqMsg&& m)
         out.push_back(mempool[e]);
     }
     if (out.size() > 0)
-        cr.send(TxrepMsg(m.nonce(),out));
+        cr.send(TxrepMsg(m.nonce(), out));
 }
 
 void Eventloop::handle_msg(Conref cr, TxrepMsg&& m)
@@ -978,12 +1015,122 @@ void Eventloop::connect_rtc(Conref c, const std::vector<uint32_t>& rtc_keys)
     // c->send()
 }
 
-void Eventloop::handle_msg(Conref c, RTCInfo&& msg)
+void Eventloop::send_signaling_list()
 {
-    std::vector<uint32_t> selectedKeys;
-    for (auto& e : msg.rtcPeers.entries)
-        selectedKeys.push_back(e.key);
-    connect_rtc(c, selectedKeys);
+    // build map
+    std::vector<std::pair<Conref, uint64_t>> quotasVec;
+    std::vector<Conref> conrefs;
+    for (auto c : connections.initialized()) {
+        // auto ip { c.peer().ipv4() };
+        auto avail { c.rtc().their.quota.available() };
+        quotasVec.push_back({ c, avail });
+        conrefs.push_back(c);
+    }
+
+    // shuffle connections
+    std::random_device rd;
+    std::mt19937 g(rd());
+    std::ranges::shuffle(conrefs, g);
+
+    // send and save
+    for (auto& c : conrefs) {
+        std::vector<IPv4> ips;
+        std::vector<uint64_t> conIds;
+        for (auto& [c, quota] : quotasVec) {
+            if (quota == 0)
+                continue;
+            quota -= 1;
+            auto ip { c.peer().ipv4() };
+            ips.push_back(ip);
+            conIds.push_back(c.id());
+        }
+        c.rtc().our.signalingList.set(conIds);
+        c.send(RTCSignalingList(std::move(ips)));
+    }
+}
+
+void Eventloop::handle_msg(Conref c, RTCIdentity&& msg)
+{
+    // TODO
+}
+
+void Eventloop::handle_msg(Conref c, RTCQuota&& msg)
+{
+    c.rtc().their.quota.increase_allowed(msg.increase());
+}
+
+void Eventloop::handle_msg(Conref c, RTCSignalingList&& s)
+{
+    const auto& ips { s.ips() };
+    const auto offset {
+        c.rtc().their.signalingList.increment_offset(ips.size())
+    };
+    for (size_t i = 0; i < ips.size(); ++i) {
+        if (!c.rtc().our.pendingOutgoing.can_connect())
+            break;
+
+        auto& ip = s.ips()[i];
+        if (connections.ip_count(ip) > 0)
+            continue;
+
+        uint64_t key { offset + i };
+        // @SHIFU: set up rtc request a
+        std::string rtcOffer;
+        c.send(RTCRequestForwardOffer { key, std::move(rtcOffer) });
+    }
+}
+
+void Eventloop::handle_msg(Conref cr, RTCRequestForwardOffer&& r)
+{
+    auto opt { cr.rtc().our.signalingList.get_con_id(r.key()) };
+    if (!opt)
+        return;
+    auto key { cr.rtc().their.forwardRequests.create() };
+    auto conId { *opt };
+    auto cr_opt { connections.find(conId) };
+    if (!cr_opt)
+        return;
+    auto& cr_dst { *cr_opt };
+    cr_dst.rtc().our.pendingForwards.add(key, cr.id());
+    assert(cr_dst.rtc().their.quota.take_one());
+    cr_dst.send(RTCForwardedOffer { r.offer() });
+}
+
+void Eventloop::handle_msg(Conref cr, RTCForwardedOffer&& f)
+{
+    // check our quota assigned to that peeer
+    if (!cr.rtc().our.quota.take_one())
+        throw Error(ERTCQUOTA);
+
+    // @SHIFU: set up rtc SDP answer
+    std::string rtcAnswer;
+    cr.send(RTCRequestForwardAnswer { std::move(rtcAnswer) });
+}
+
+void Eventloop::handle_msg(Conref cr, RTCRequestForwardAnswer&& r)
+{
+    auto pendingEntry { cr.rtc().our.pendingForwards.pop_first() };
+    if (!pendingEntry)
+        throw Error(ERTCUNREQANS);
+    auto& e { *pendingEntry };
+
+    // TODO: filter answer ICE candidates to only allow UDP on IP cr.peer().ip()
+
+    if (auto o { connections.find(e.fromConId) }; o.has_value()) {
+        Conref& origin { *o };
+        if (origin.rtc().their.forwardRequests.is_accepted_key(e.fromKey)) {
+            origin.send(RTCForwardedAnswer(e.fromKey, std::move(r.answer())));
+        }
+    }
+}
+
+void Eventloop::handle_msg(Conref cr, RTCForwardedAnswer&& a)
+{
+    auto res { cr.rtc().our.pendingOutgoing.get_rtc_con(a.key()) };
+    if (!res.has_value())
+        throw Error(res.error());
+    auto& rtcCon { res.value() };
+    // @Shifu establish connection with rtcCon and a.answer()
 }
 
 void Eventloop::consider_send_snapshot(Conref c)

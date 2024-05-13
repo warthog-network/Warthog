@@ -117,6 +117,7 @@ private:
     void handle_msg(Conref cr, PingMsg&&);
     void handle_msg(Conref cr, PingV2Msg&&);
     void handle_msg(Conref cr, PongMsg&&);
+    void handle_msg(Conref cr, PongV2Msg&&);
     void handle_msg(Conref cr, BatchreqMsg&&);
     void handle_msg(Conref cr, BatchrepMsg&&);
     void handle_msg(Conref cr, ProbereqMsg&&);
@@ -131,14 +132,20 @@ private:
     void handle_msg(Conref cr, TxreqMsg&&);
     void handle_msg(Conref cr, TxrepMsg&&);
     void handle_msg(Conref cr, LeaderMsg&&);
-    void handle_msg(Conref cr, RTCInfo&&);
+    void handle_msg(Conref cr, RTCIdentity&&);
+    void handle_msg(Conref cr, RTCQuota&&);
+    void handle_msg(Conref cr, RTCSignalingList&&);
+    void handle_msg(Conref cr, RTCRequestForwardOffer&&);
+    void handle_msg(Conref cr, RTCForwardedOffer&&);
+    void handle_msg(Conref cr, RTCRequestForwardAnswer&&);
+    void handle_msg(Conref cr, RTCForwardedAnswer&&);
 
     ////////////////////////
     // convenience functions
     void consider_send_snapshot(Conref);
 
-
     void connect_rtc(Conref c, const std::vector<uint32_t>& rtc_keys);
+    void send_signaling_list();
 
     ////////////////////////
     // assign work to connections
@@ -305,6 +312,7 @@ private: // private data
     bool blockdownloadHalted = false;
     std::queue<Event> events;
     std::thread worker; // worker (constructed last)
+
 };
 
 template <typename T>

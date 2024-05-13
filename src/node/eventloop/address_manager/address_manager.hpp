@@ -1,8 +1,8 @@
 #pragma once
 #include "../types/conndata.hpp"
-#include "transport/helpers/per_ip_counter.hpp"
 #include "connection_schedule.hpp"
 #include "expected.hpp"
+#include "transport/helpers/per_ip_counter.hpp"
 #include <chrono>
 #include <map>
 #include <set>
@@ -101,7 +101,7 @@ private:
 public:
     //////////////////////////////
     // public methods
-    
+
     // constructor
     AddressManager(PeerServer& peerServer, const std::vector<Sockaddr>& v);
     void start();
@@ -114,10 +114,11 @@ public:
     void verify(std::vector<Sockaddr>, IPv4 source);
 
     // access by connection Id
-    std::optional<Conref> find(uint64_t id);
+    [[nodiscard]] std::optional<Conref> find(uint64_t id) const;
 
     size_t size() const { return conndatamap.size(); }
 
+    size_t ip_count(IPv4 ip) const { return ipCounter.count(ip); };
     // erase/insert
     bool erase(Conref); // returns whether is pinned
     [[nodiscard]] tl::expected<std::optional<EvictionCandidate>, int32_t> prepare_insert(const std::shared_ptr<ConnectionBase>&);
@@ -125,7 +126,7 @@ public:
 
     // access queued
 
-    template<typename T>
+    template <typename T>
     [[nodiscard]] std::vector<T> sample_verified(size_t N)
     {
         return connectionSchedule.sample_verified<T>(N);
@@ -137,7 +138,6 @@ public:
     [[nodiscard]] std::optional<time_point> pop_scheduled_connect_time();
 
 private:
-
     bool is_own_endpoint(Sockaddr a);
     void insert_additional_verified(Sockaddr);
     std::optional<EvictionCandidate> eviction_candidate() const;

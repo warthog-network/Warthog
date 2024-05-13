@@ -6,6 +6,7 @@
 #include "eventloop/timer.hpp"
 #include "mempool/subscription_declaration.hpp"
 #include "peer_requests.hpp"
+#include "peer_rtc_state.hpp"
 #include "transport/connection_base.hpp"
 
 class Timerref {
@@ -160,21 +161,37 @@ private:
 };
 
 struct Ping : public Timerref {
+    struct PingV2Data {
+        struct ExtraData {
+            ExtraData(uint64_t signalingListDiscardIndex)
+                : signalingListDiscardIndex(signalingListDiscardIndex)
+            {
+            }
+            uint64_t signalingListDiscardIndex;
+        } extraData;
+        PingV2Msg msg;
+    };
     Ping(Timer& end)
         : Timerref(end)
     {
     }
     void await_pong(PingMsg msg, Timer::iterator iter)
     {
-        assert(!data);
-        data = msg;
+        assert(!has_value());
+        data = std::move(msg);
+        timer_iter = iter;
+    }
+    void await_pong_v2(PingV2Data d, Timer::iterator iter)
+    {
+        assert(!has_value());
+        data = std::move(d);
         timer_iter = iter;
     }
     Timer::iterator sleep(Timer::iterator iter)
     {
         auto tmp = timer_iter;
-        assert(data);
-        data.reset();
+        assert(has_value());
+        data = std::monostate();
         timer_iter = iter;
         return tmp;
     }
@@ -182,18 +199,30 @@ struct Ping : public Timerref {
     {
         timer_iter = timer.end();
     }
-    PingMsg& check(const PongMsg& m)
+    auto& check(const PongV2Msg& m)
     {
-        if (!data)
+        if (!std::holds_alternative<PingV2Data>(data))
             throw Error(EUNREQUESTED);
-        auto e = m.check(*data);
+        auto& d { std::get<PingV2Data>(data) };
+        auto e = m.check(d.msg);
         if (e)
             throw e;
-        return *data;
+        return d;
+    }
+    PingMsg& check(const PongMsg& m)
+    {
+        if (!std::holds_alternative<PingMsg>(data))
+            throw Error(EUNREQUESTED);
+        auto& d { std::get<PingMsg>(data) };
+        auto e = m.check(d);
+        if (e)
+            throw e;
+        return d;
     }
 
 private:
-    std::optional<PingMsg> data;
+    bool has_value() const { return !std::holds_alternative<std::monostate>(data); }
+    std::variant<std::monostate, PingMsg, PingV2Data> data;
 };
 
 struct Ratelimit {
@@ -233,6 +262,7 @@ public:
     ConnectionJob job;
     Height txSubscription { 0 };
     Ratelimit ratelimit;
+    PeerRTCState rtcState;
     SignedSnapshot::Priority acknowledgedSnapshotPriority;
     SignedSnapshot::Priority theirSnapshotPriority;
     uint32_t lastNonce;
@@ -252,14 +282,16 @@ private:
 };
 
 inline bool Conref::operator==(const Conref& cr) const { return iter == cr.iter; }
-const PeerChain& Conref::chain() const { return iter->second.chain; }
-PeerChain& Conref::chain() { return iter->second.chain; }
-auto& Conref::job() { return iter->second.job; }
-auto& Conref::job() const { return iter->second.job; }
-auto Conref::peer() const { return iter->second.c->connection_peer_addr(); }
-auto& Conref::ping() { return iter->second.ping; }
-auto Conref::operator->() { return &(iter->second); }
-bool Conref::initialized() { return !iter->second.job.waiting_for_init(); }
+inline const PeerChain& Conref::chain() const { return iter->second.chain; }
+inline PeerChain& Conref::chain() { return iter->second.chain; }
+inline auto& Conref::job() { return iter->second.job; }
+inline auto& Conref::job() const { return iter->second.job; }
+inline auto& Conref::rtc() { return iter->second.rtcState; }
+inline auto Conref::peer() const { return iter->second.c->connection_peer_addr(); }
+inline auto& Conref::ping() { return iter->second.ping; }
+inline auto Conref::operator->() { return &(iter->second); }
+inline bool Conref::initialized() const { return !iter->second.job.waiting_for_init(); }
+inline bool Conref::is_native() const { return iter->second.c->is_native(); }
 inline uint64_t Conref::id() const
 {
     return iter->first;

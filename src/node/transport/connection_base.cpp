@@ -172,7 +172,7 @@ auto HandshakeState::parse(bool inbound) -> Parsed
     uint32_t tmp;
     memcpy(&tmp, recvbuf.data() + 14, 4);
     Parsed p {
-        .version = hton32(tmp),
+        .version { hton32(tmp) },
         .port {}
     };
     if (inbound) {
@@ -191,7 +191,7 @@ void ConnectionBase::send_handshake()
     } else {
         memcpy(data, (inbound() ? HandshakeState::accept_grunt : HandshakeState::connect_grunt), 14);
     }
-    uint32_t nver = hton32(version);
+    uint32_t nver = hton32(NODE_VERSION);
     memcpy(data + 14, &nver, 4);
     memset(data + 18, 0, 4);
     if (!inbound()) {
@@ -223,4 +223,9 @@ void ConnectionBase::on_connected()
 uint16_t ConnectionBase::asserted_port() const
 {
     return std::get<MessageState>(state).handshakeData.port.value();
+}
+
+ProtocolVersion ConnectionBase::protocol_version() const
+{
+    return std::get<MessageState>(state).handshakeData.version;
 }

@@ -5,7 +5,7 @@
 #include "conman.hpp"
 #include "eventloop/types/conref_declaration.hpp"
 
-class TCPConnection final : public ConnectionBase,  public std::enable_shared_from_this<TCPConnection> {
+class TCPConnection final : public ConnectionBase, public std::enable_shared_from_this<TCPConnection> {
 
     friend class TCPConnectionManager;
 
@@ -22,6 +22,7 @@ public:
         std::shared_ptr<uvw::tcp_handle> handle, const TCPConnectRequest& r, TCPConnectionManager& conman);
     TCPConnection(const TCPConnection&) = delete;
     TCPConnection(TCPConnection&&) = delete;
+    virtual bool is_native() const override { return true; }
     std::shared_ptr<ConnectionBase> get_shared() override
     {
         return shared_from_this();

@@ -1,8 +1,9 @@
 #pragma once
 
 #include "communication/buffers/recvbuffer.hpp"
-#include "eventloop/types/conref_declaration.hpp"
 #include "eventloop/timer_element.hpp"
+#include "communication/version.hpp"
+#include "eventloop/types/conref_declaration.hpp"
 #include "peerserver/connection_data.hpp"
 #include <atomic>
 #include <chrono>
@@ -18,7 +19,7 @@ class timer_handle;
 struct Sockaddr;
 
 struct HandshakeState {
-    
+
     std::array<uint8_t, 24> recvbuf; // 14 bytes for "WARTHOG GRUNT!" and 4
                                      // bytes for version + 4 extra bytes
                                      // (in case of outbound: + 2 bytes for
@@ -29,18 +30,13 @@ struct HandshakeState {
     static constexpr const char accept_grunt[] = "WARTHOG GRUNT!";
     static constexpr const char connect_grunt_testnet[] = "TESTNET GRUNT?";
     static constexpr const char accept_grunt_testnet[] = "TESTNET GRUNT!";
-    struct Success {
-        uint32_t version;
-        uint16_t port;
-        std::span<uint8_t> rest;
-    };
     auto data() { return recvbuf.data(); }
     size_t size(bool inbound) { return (inbound ? 24 : 22); }
     size_t remaining(bool inbound) { return size(inbound) - pos; }
     uint8_t pos = 0;
     bool handshakesent = false;
     struct Parsed {
-        uint32_t version;
+        ProtocolVersion version;
         std::optional<uint16_t> port;
     };
     Parsed parse(bool inboound);
@@ -75,6 +71,7 @@ public:
 
     // can be called from all threads
     auto created_at() const { return createdAtSystem; }
+    [[nodiscard]] virtual bool is_native() const { return false; }
     std::string to_string() const;
     uint32_t created_at_timestmap() const { return std::chrono::duration_cast<std::chrono::seconds>(createdAtSystem.time_since_epoch()).count(); }
 
@@ -85,12 +82,13 @@ public:
     virtual void close(int Error) = 0;
     void send(Sndbuffer&& msg);
     [[nodiscard]] std::vector<Rcvbuffer> pop_messages();
+    [[nodiscard]] ProtocolVersion protocol_version() const;
 
 protected:
     // can be called from all threads
     virtual std::shared_ptr<ConnectionBase> get_shared() = 0;
     virtual std::weak_ptr<ConnectionBase> get_weak() = 0;
-    virtual uint16_t listen_port() const = 0; // TODO conman.bindAddress.port
+    virtual uint16_t listen_port() const = 0; 
     virtual void async_send(std::unique_ptr<char[]> data, size_t size) = 0;
 
     // callback methods called from transport implementation thread

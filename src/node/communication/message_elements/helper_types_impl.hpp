@@ -71,7 +71,7 @@ template <typename T>
 inline size_t Optional<T>::byte_size() const
 {
     if (this->has_value())
-        return 1 + ::byte_size(*this);
+        return 1 + ::byte_size(**this);
     return 1;
 }
 

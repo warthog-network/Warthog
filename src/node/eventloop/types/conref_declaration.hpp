@@ -14,15 +14,17 @@ class Conref {
 
 public:
     bool operator==(const Conref&) const;
-    inline const PeerChain& chain() const;
-    inline PeerChain& chain();
-    inline bool closed();
-    inline auto& job();
-    inline auto peer() const;
-    inline auto& job() const;
-    inline auto& ping();
-    inline auto operator->();
-    inline bool initialized();
+    [[nodiscard]] const PeerChain& chain() const;
+    [[nodiscard]] PeerChain& chain();
+    [[nodiscard]] bool closed();
+    [[nodiscard]] auto& job();
+    [[nodiscard]] auto& job() const;
+    [[nodiscard]] auto peer() const;
+    [[nodiscard]] auto& rtc();
+    [[nodiscard]] auto& ping();
+    [[nodiscard]] auto operator->();
+    [[nodiscard]] bool initialized() const;
+    [[nodiscard]] bool is_native() const;
     void send(Sndbuffer);
     Conref(Coniter iter)
         : iter(iter)

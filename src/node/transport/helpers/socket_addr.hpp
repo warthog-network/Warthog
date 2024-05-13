@@ -21,8 +21,8 @@ struct Sockaddr {
 #endif
         WSSockaddr>;
     variant_t data;
-    IPv4 ipv4() const;
-    uint16_t port() const;
+    [[nodiscard]] IPv4 ipv4() const;
+    [[nodiscard]] uint16_t port() const;
     bool operator==(const Sockaddr&) const = default;
     std::string to_string() const;
 };

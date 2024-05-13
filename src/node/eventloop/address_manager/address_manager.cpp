@@ -1,8 +1,8 @@
 #include "address_manager.hpp"
 #include "global/globals.hpp"
+#include "transport/helpers/start_connection.hpp"
 #include <algorithm>
 #include <future>
-#include "transport/helpers/start_connection.hpp"
 #include <random>
 
 namespace address_manager {
@@ -30,7 +30,7 @@ void AddressManager::verify(std::vector<Sockaddr> v, IPv4 source)
         connectionSchedule.insert(ea, source);
 }
 
-std::optional<Conref> AddressManager::find(uint64_t id)
+std::optional<Conref> AddressManager::find(uint64_t id) const
 {
     auto iter = conndatamap.find(id);
     if (iter == conndatamap.end())
@@ -111,7 +111,6 @@ std::optional<std::chrono::steady_clock::time_point> AddressManager::pop_schedul
 {
     return connectionSchedule.pop_wakeup_time();
 }
-
 
 void AddressManager::insert_additional_verified(Sockaddr newAddress)
 {

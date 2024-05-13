@@ -98,6 +98,13 @@
     XX(100, EMSGINTEGRITY, "message integrity check failed")            \
     XX(101, ESTARTWEBSOCK, "Error while starting websocket connection") \
     XX(102, EWEBSOCK, "Error while in websocket connection")            \
+    XX(103, ERTCINVFWDRQ, "Invalid RTC forward request")               \
+    XX(104, ERTCDUPFWDRQ, "Duplicate RTC forward request")              \
+    XX(105, ERTCNOTFOUND, "Invalid RTC key")                            \
+    XX(106, ERTCDUPLICATE, "Duplicate use of RTC key")                  \
+    XX(107, ERTCQUOTA, "RTC quota exceeded")                            \
+    XX(108, ERTCUNREQANS, "Received unrequested RTC SDP answer")        \
+    XX(109, ERTCDISCARDFWD, "Invalid forward request discard")          \
     XX(200, EINV_HEX, "cannot parse hexadecimal input")                 \
     XX(201, EBADNONCE, "cannot parse nonce")                            \
     XX(202, EBADFEE, "invalid fee")                                     \
