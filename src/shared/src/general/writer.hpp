@@ -6,6 +6,7 @@
 #include <cassert>
 #include <cstdint>
 #include <cstring>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -77,6 +78,15 @@ public:
         memcpy(pos, &i, 4);
         pos += 4;
         return *this;
+    }
+
+    template <typename T>
+    Writer& operator<<(const std::optional<T>& o)
+    {
+        if (o)
+            return *this << uint8_t(1) << *o;
+        else
+            return *this << uint8_t(0);
     }
 
     Writer& operator<<(uint64_t i)

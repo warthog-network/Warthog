@@ -127,6 +127,7 @@ Error PongV2Msg::check(const PingV2Msg& m) const
     return 0;
 }
 
+
 namespace {
 template <uint8_t prevcode>
 size_t size_bound(uint8_t)

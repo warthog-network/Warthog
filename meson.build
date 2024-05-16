@@ -12,6 +12,39 @@ libmbedtls_dep = subproject('mbedtls', default_options : ['warning_level=0', 'we
 usrsctp_dep = subproject('usrsctp', default_options : ['warning_level=0', 'werror=false']).get_variable('usrsctp_dep')
 plog_dep = subproject('plog', default_options : ['warning_level=0', 'werror=false']).get_variable('plog_dep')
 libdatachannel_dep = subproject('libdatachannel', default_options : ['warning_level=0', 'werror=false']).get_variable('libdatachannel_dep')
+
+exe = executable('rtc_server', 'rtc_server.cpp',
+  dependencies: [
+    json_dep,
+    libdatachannel_dep,
+    ],
+  install : true)
+exe = executable('rtc_client', 'rtc_client.cpp',
+  dependencies: [
+    json_dep,
+    libdatachannel_dep,
+    ],
+  install : true)
+else
+libdatachannel_dep = subproject('datachannel-wasm', default_options : ['warning_level=0', 'werror=false']).get_variable('libdatachannelwasm_dep')
+exe = executable('rtc_server', 'rtc_server.cpp',
+  dependencies: [
+    libdatachannel_dep,
+    json_dep,
+    ],
+  link_args:[
+    '-pthread',
+    '-sNO_DISABLE_EXCEPTION_CATCHING',
+    # '-sSTACK_SIZE=10mb', 
+    '-fexceptions', '-sPROXY_TO_PTHREAD',
+    # '-sUSE_CLOSURE_COMPILER=0', '-sIMPORTED_MEMORY',
+    # '-sWASM_BIGINT=1', '-sMODULARIZE', '-sDYNAMIC_EXECUTION=0', '-sNO_POLYFILL',
+    # '-sSTRICT_JS=0', '-sALLOW_MEMORY_GROWTH', '-sINITIAL_MEMORY=16777216', '-sSTACK_SIZE=2048KB', '-sGLOBAL_BASE=4096', '-sALLOW_TABLE_GROWTH',
+    # '-sERROR_ON_UNDEFINED_SYMBOLS=1', '-sENVIRONMENT=web,worker',
+    # '-sWASMFS', '-sPTHREAD_POOL_SIZE=1', '-sLLD_REPORT_UNDEFINED', '-sEXPORT_ES6', '-sUSE_ES6_IMPORT_META'
+    ],
+  name_suffix: 'html',
+  install : true)
 endif
 sqlite3_dep = subproject('sqlite3',default_options : ['warning_level=0', 'werror=false']).get_variable('sqlite3_dep')
 

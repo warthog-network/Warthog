@@ -32,6 +32,7 @@ class Rcvbuffer;
 class Reader;
 class Eventprocessor;
 class EndAttorney;
+class IP;
 struct ConfigParams;
 
 struct ForkMsg;
@@ -43,19 +44,22 @@ namespace BlockDownload {
 class Attorney;
 }
 
-class Eventloop {
+class Eventloop final : public std::enable_shared_from_this<Eventloop> {
     using StateUpdate = chainserver::state_update::StateUpdate;
     friend class BlockDownload::Attorney;
     friend class EndAttorney;
 
+    struct Token { };
+
 public:
+    Eventloop(Token, PeerServer& ps, ChainServer& ss, const ConfigParams& config);
     struct StartTimer {
         std::chrono::steady_clock::time_point wakeup;
         MoveOnlyFunction<void()> on_expire;
         MoveOnlyFunction<void(TimerElement)> on_timerstart;
     };
     friend struct Inspector;
-    Eventloop(PeerServer& ps, ChainServer& ss, const ConfigParams& config);
+    static std::shared_ptr<Eventloop> create(PeerServer& ps, ChainServer& ss, const ConfigParams& config);
     ~Eventloop();
 
     // API callbacks
@@ -228,7 +232,7 @@ private:
         StateUpdate, SignedSnapshotCb, PeersCb, SyncedCb, stage_operation::Result,
         OnForwardBlockrep, InspectorCb, GetHashrate, GetHashrateChart,
         FailedConnect,
-        mempool::Log, StartTimer, CancelTimer>;
+        mempool::Log, StartTimer, CancelTimer, IdentityIps>;
 
 public:
     bool defer(Event e);
@@ -250,6 +254,7 @@ private:
     void handle_event(mempool::Log&&);
     void handle_event(StartTimer&&);
     void handle_event(CancelTimer&&);
+    void handle_event(IdentityIps&&);
 
     // chain updates
     using Append = chainserver::state_update::Append;
@@ -301,6 +306,7 @@ private: // private data
     BlockDownload::Downloader blockDownload;
     mempool::SubscriptionMap mempoolSubscriptions;
     SyncState syncState;
+    std::optional<IdentityIps> rtcIPs;
 
     ////////////////////////////
     // mutex protected varibales
@@ -312,7 +318,6 @@ private: // private data
     bool blockdownloadHalted = false;
     std::queue<Event> events;
     std::thread worker; // worker (constructed last)
-
 };
 
 template <typename T>

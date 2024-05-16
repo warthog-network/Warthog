@@ -12,6 +12,7 @@
 #include "mempool/order_key.hpp"
 #include "peerserver/peerserver.hpp"
 #include "spdlog/spdlog.h"
+#include "transport/webrtc/sdp_util.hpp"
 #include "types/conref_impl.hpp"
 #include "types/peer_requests.hpp"
 #include <algorithm>
@@ -27,7 +28,7 @@ inline void log_communication(spdlog::format_string_t<Args...> fmt, Args&&... ar
 }
 
 using namespace std::chrono_literals;
-Eventloop::Eventloop(PeerServer& ps, ChainServer& cs, const ConfigParams& config)
+Eventloop::Eventloop(Token, PeerServer& ps, ChainServer& cs, const ConfigParams& config)
     : stateServer(cs)
     , chains(cs.get_chainstate())
     , mempool(false)
@@ -43,6 +44,10 @@ Eventloop::Eventloop(PeerServer& ps, ChainServer& cs, const ConfigParams& config
     } else {
         spdlog::info("Chain snapshot not present");
     }
+}
+std::shared_ptr<Eventloop> Eventloop::create(PeerServer& ps, ChainServer& ss, const ConfigParams& config)
+{
+    return std::make_shared<Eventloop>(Token {}, ps, ss, config);
 }
 
 Eventloop::~Eventloop()
@@ -149,6 +154,14 @@ bool Eventloop::has_work()
 
 void Eventloop::loop()
 {
+    fetch_id([w = weak_from_this()](auto ips) {
+        IdentityIps id;
+        for (IP& ip : ips)
+            id.assign(ip);
+        if (auto p { w.lock() })
+            p->defer(std::move(id));
+    });
+
     connections.start();
     while (true) {
         {
@@ -476,6 +489,17 @@ void Eventloop::handle_event(CancelTimer&& ct)
     timer.cancel(ct.timer);
 }
 
+void Eventloop::handle_event(IdentityIps&& ips)
+{
+    assert(rtcIPs.has_value() == false);
+    for (auto cr : connections.initialized()) {
+        if (cr.version().v2()) {
+            cr.send(RTCIdentity(ips));
+        }
+    }
+    rtcIPs = std::move(ips);
+}
+
 void Eventloop::erase_internal(Conref c)
 {
     if (c->c->eventloop_erased)
@@ -509,6 +533,8 @@ bool Eventloop::insert(Conref c, const InitMsg& data)
     blockDownload.insert(c);
     // c->c->
     spdlog::info("Connected to {} peers (new peer {})", headerDownload.size(), c.peer().to_string());
+    if (rtcIPs)
+        c.send(RTCIdentity(*rtcIPs));
     send_ping_await_pong(c);
     // LATER: return whether doRequests is necessary;
     return doRequests;
@@ -1051,7 +1077,7 @@ void Eventloop::send_signaling_list()
 
 void Eventloop::handle_msg(Conref c, RTCIdentity&& msg)
 {
-    // TODO
+    c.rtc().their.identity.set(msg.ips());
 }
 
 void Eventloop::handle_msg(Conref c, RTCQuota&& msg)

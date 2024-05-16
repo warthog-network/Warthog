@@ -1,7 +1,9 @@
 #pragma once
 #include "api/callbacks.hpp"
 #include "general/errors.hpp"
-#include "transport/helpers/ipv4.hpp"
+
+#include "transport/helpers/ip.hpp"
+#include "transport/webrtc/sdp_util.hpp"
 #include <cassert>
 #include <chrono>
 #include <cstdint>
@@ -262,11 +264,42 @@ private:
     uint64_t indexOffset { 0 };
 };
 
+struct Identity {
+public:
+    void set(IdentityIps id)
+    {
+        if (rtcIdentity.has_value())
+            throw Error(ERTCDUPLICATEID);
+        rtcIdentity = id;
+    }
+    auto& get() const { return rtcIdentity; }
+    std::optional<IPv6> verified_ip6() const
+    {
+        if (verifiedIpv6 && rtcIdentity)
+            return rtcIdentity->get_ip6();
+        return std::nullopt;
+    }
+    
+    std::optional<IPv4> verified_ip4() const
+    {
+        if (verifiedIpv4 && rtcIdentity)
+            return rtcIdentity->get_ip4();
+        return std::nullopt;
+    }
+
+
+private:
+    std::optional<IdentityIps> rtcIdentity;
+    bool verifiedIpv4 { false };
+    bool verifiedIpv6 { false };
+};
+
 struct PeerRTCState {
     struct {
         Quota quota;
         ForwardRequestState forwardRequests;
         SignalingCounter signalingList;
+        Identity identity;
     } their;
     struct {
         Quota quota;

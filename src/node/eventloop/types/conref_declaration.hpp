@@ -23,6 +23,7 @@ public:
     [[nodiscard]] auto& rtc();
     [[nodiscard]] auto& ping();
     [[nodiscard]] auto operator->();
+    [[nodiscard]] auto version() const;
     [[nodiscard]] bool initialized() const;
     [[nodiscard]] bool is_native() const;
     void send(Sndbuffer);

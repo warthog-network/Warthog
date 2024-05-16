@@ -68,6 +68,7 @@ src= [
   './eventloop/timer_element.cpp',
   './eventloop/types/chainstate.cpp',
   './eventloop/types/conndata.cpp',
+  './eventloop/types/peer_rtc_state.cpp',
   './general/descriptor.cpp',
   './global/globals.cpp',
   './mempool/mempool.cpp',
@@ -78,24 +79,27 @@ src= [
   './peerserver/peerserver.cpp',
   './transport/connection_base.cpp',
   './transport/helpers/ipv4.cpp',
+  './transport/helpers/ipv6.cpp',
+  './transport/helpers/ip.cpp',
   './transport/helpers/per_ip_counter.cpp',
   './transport/helpers/socket_addr.cpp',
   './transport/helpers/tcp_sockaddr.cpp',
+  './transport/webrtc/sdp_util.cpp',
   './transport/ws/connect_request.cpp',
   src_sqlitecpp,
   src_wh,
 ]
 
 
+deps = [json_dep, libdatachannel_dep, sqlite3_dep]
 if get_option('emscripten')
   src = [src, src_browser]
-  deps = [sqlite3_dep]
-  include_thirdparty=[include_trezorcrypto,include_wh,include_secp256k1,include_sqlitecpp, include_spdlog,include_json,include_tomlplusplus, include_tl]
+  include_thirdparty=[include_trezorcrypto,include_wh,include_secp256k1,include_sqlitecpp, include_spdlog,include_tomlplusplus, include_tl]
   lib_thirdparty=[libsecp256k1]
 else
   src = [src, src_libuv]
-  deps =  [sqlite3_dep,  libuv_dep, uvw_dep, libwebsockets_dep ]
-  include_thirdparty=[include_trezorcrypto,include_wh,include_secp256k1,include_sqlitecpp, include_spdlog,include_usockets,include_uwebsockets,include_json,include_tomlplusplus, include_tl]
+  deps =  [deps, sqlite3_dep,  libuv_dep, uvw_dep, libwebsockets_dep ]
+  include_thirdparty=[include_trezorcrypto,include_wh,include_secp256k1,include_sqlitecpp, include_spdlog,include_usockets,include_uwebsockets,include_tomlplusplus, include_tl]
   lib_thirdparty=[libsecp256k1, libusockets]
 endif
 
@@ -132,6 +136,13 @@ websocket = executable('websocket', 'websocket.cpp',
   name_suffix: 'html',
   install : true)
 else
+executable('client', vcs_dep, [src,'./rtc_client.cpp', src_spdlog,
+  ],
+  include_directories:['./' ,include_thirdparty,
+    ],
+  link_with: lib_thirdparty,
+  dependencies: deps,
+  install : true)
 executable('wart-node', vcs_dep, [src,'./main.cpp', src_spdlog],
   include_directories:['./' ,include_thirdparty],
   link_with: lib_thirdparty,

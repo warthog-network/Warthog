@@ -1,7 +1,6 @@
+deps = [json_dep]
 if not get_option('emscripten')
-deps = libuv_dep
-else
-deps = []
+deps = [deps, libuv_dep]
 endif
 
 executable('wart-wallet', vcs_dep, 
@@ -12,7 +11,7 @@ executable('wart-wallet', vcs_dep,
     src_wh, 
     src_spdlog
 ],
-include_directories : [include_secp256k1,include_wh,include_json, include_httplib, include_spdlog],
+include_directories : [include_secp256k1,include_wh, include_httplib, include_spdlog],
 link_with: libsecp256k1, 
 dependencies: deps,
 install : true)

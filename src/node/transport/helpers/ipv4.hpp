@@ -26,6 +26,7 @@ struct IPv4 {
     static consteval size_t byte_size() { return sizeof(data); }
     bool is_valid(bool allowLocalhost = true) const;
     bool is_localhost() const;
+    static consteval size_t bytes_size(){return 4;}
     auto operator<=>(const IPv4& rhs) const = default;
     static constexpr std::optional<IPv4> parse(const std::string_view&);
     constexpr IPv4(const std::string_view& s)

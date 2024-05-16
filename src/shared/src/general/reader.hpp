@@ -107,6 +107,14 @@ public:
     {
         return view<N>();
     }
+
+    template <typename T>
+    operator std::optional<T>()
+    {
+        if (uint8()) 
+            return T{*this};
+        return {};
+    }
     template <typename T, size_t N = T::size()>
     requires std::derived_from<T, View<N>>
     [[nodiscard]] T view()
@@ -127,7 +135,8 @@ public:
         }
         return Worksum(arr);
     }
-    operator Worksum(){
+    operator Worksum()
+    {
         return worksum();
     }
     std::span<const uint8_t> take_span(size_t len)

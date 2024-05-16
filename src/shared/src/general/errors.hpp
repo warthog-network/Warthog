@@ -105,6 +105,8 @@
     XX(107, ERTCQUOTA, "RTC quota exceeded")                            \
     XX(108, ERTCUNREQANS, "Received unrequested RTC SDP answer")        \
     XX(109, ERTCDISCARDFWD, "Invalid forward request discard")          \
+    XX(110, ERTCID, "Invalid RTC id list")          \
+    XX(111, ERTCDUPLICATEID, "Duplicate RTC id")          \
     XX(200, EINV_HEX, "cannot parse hexadecimal input")                 \
     XX(201, EBADNONCE, "cannot parse nonce")                            \
     XX(202, EBADFEE, "invalid fee")                                     \

@@ -8,13 +8,12 @@
 #include "transport/ws/native/conman.hpp"
 #include "transport/ws/start_connection.hpp"
 
-
 #ifndef DISABLE_LIBUV
 static void shutdown(int32_t reason);
 #include "api/http/endpoint.hpp"
 #include "api/stratum/stratum_server.hpp"
-#include "uvw.hpp"
 #include "transport/tcp/conman.hpp"
+#include "uvw.hpp"
 static void signal_caller(uv_signal_t* /*handle*/, int signum)
 {
     spdlog::info("Terminating...");
@@ -119,7 +118,7 @@ int main(int argc, char** argv)
     ChainDB db(config().data.chaindb);
     auto cs = ChainServer::make_chain_server(db, breg, config().node.snapshotSigner);
 
-    Eventloop el(ps, *cs, config());
+    auto el { Eventloop::create(ps, *cs, config()) };
 
 #ifndef DISABLE_LIBUV
     std::optional<StratumServer> stratumServer;
@@ -127,7 +126,7 @@ int main(int argc, char** argv)
         stratumServer.emplace(config().stratumPool->bind);
     }
     TCPConnectionManager cm(l, ps, config());
-    WSConnectionManager wscm(ps,10001);
+    WSConnectionManager wscm(ps, 10001);
     // setup signals
     setup_signals(l->raw());
 
@@ -135,24 +134,22 @@ int main(int argc, char** argv)
     HTTPEndpoint endpoint { config().jsonrpc.bind };
     auto endpointPublic { HTTPEndpoint::make_public_endpoint(config()) };
 
-    global_init(&breg, &ps, &*cs, &cm, &wscm, &el, &endpoint);
+    global_init(&breg, &ps, &*cs, &cm, &wscm, el.get(), &endpoint);
 #else
     global_init(&breg, &ps, &*cs, &el);
 #endif
-
-
 
     // setup globals
 
     // spawn new threads
     ps.start();
     cs->start();
-    el.start();
-    #ifdef DISABLE_LIBUV
-    auto a{WSSockaddr::parse("127.0.0.1:10001")};
-    WSSockaddr addr{a.value()};
-    start_connection(make_request(addr,std::chrono::seconds(1)));
-    #endif
+    el->start();
+#ifdef DISABLE_LIBUV
+    auto a { WSSockaddr::parse("127.0.0.1:10001") };
+    WSSockaddr addr { a.value() };
+    start_connection(make_request(addr, std::chrono::seconds(1)));
+#endif
 
 #ifdef DISABLE_LIBUV
     while (true) {

@@ -1,7 +1,6 @@
 subdir('./secp256k1')
 subdir('./sqlitecpp')
 subdir('./spdlog')
-subdir('./json')
 subdir('./tomlplusplus')
 subdir('./trezor-crypto')
 subdir('./cpp-httplib')

@@ -11,7 +11,9 @@
 #include "general/params.hpp"
 #include "message_elements/helper_types.hpp"
 #include "message_elements/packer.hpp"
+#include "transport/helpers/ip.hpp"
 #include "transport/helpers/tcp_sockaddr.hpp"
+#include "transport/webrtc/sdp_util.hpp"
 #include <variant>
 
 class Reader;
@@ -202,11 +204,11 @@ struct LeaderMsg : public MsgCombine<16, SignedSnapshot> {
     [[nodiscard]] const SignedSnapshot& signedSnapshot() const { return get<0>(); }
 };
 
-struct RTCIdentity : public MsgCombineRequest<18, String16> {
-    static constexpr size_t maxSize = 100000;
+struct RTCIdentity : public MsgCombineRequest<18, IdentityIps> {
+    static constexpr size_t maxSize = 1000;
     using Base::Base;
 
-    [[nodiscard]] auto& identity() const { return get<0>(); }
+    [[nodiscard]] auto& ips() const { return get<0>(); }
 };
 
 struct RTCQuota : public MsgCombine<19, uint8_t> {
