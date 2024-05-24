@@ -62,31 +62,80 @@ void foreach_line(std::string_view sdp, T&& callback)
         callback(line);
     }
 }
+template <typename callback_t>
+requires std::is_invocable_v<callback_t, std::string_view>
+[[nodiscard]] std::string filter_line(std::string_view sdp, callback_t good_line)
+{
+    std::string out;
+    out.reserve(sdp.size());
+    foreach_line(sdp, [&](std::string_view line) {
+        if (good_line(line))
+            out += line;
+    });
+    return out;
+}
 
 }
 
-FilteredSDP SDPFilter::filter() const
+namespace sdp_filter {
+
+// std::string filter_line(std::string_view sdp)
+// {
+//     std::string out;
+//     out.reserve(sdp.size());
+//     foreach_line(sdp, [&out](std::string_view line) {
+//         auto c { udp_candidate_ip(line) };
+//         if (!c.candidate || c.udp_ip) {
+//             out += line;
+//         }
+//     });
+//     return out;
+// }
+
+std::vector<IP> udp_ips(std::string_view sdp)
 {
-    std::string out;
-    out.reserve(dsc.size());
-    foreach_line(dsc, [&out](std::string_view line) {
+    std::vector<IP> out;
+    foreach_line(sdp, [&out](std::string_view line) {
         auto c { udp_candidate_ip(line) };
-        if (!c.candidate || c.udp_ip) {
-            out += line;
+        if (c.udp_ip) {
+            if (auto ip { IP::parse(*c.udp_ip) })
+                out.push_back({ *ip });
         }
     });
     return out;
 }
 
-std::vector<IP> SDPFilter::udp_ips() const
+std::optional<IP> load_ip(std::string_view sdp)
+{
+    auto ips { udp_ips(sdp) };
+    if (ips.size() != 1)
+        return {};
+    return ips.front();
+}
+
+std::optional<std::string> only_udp_ip(const IP& ip, std::string_view sdp)
 {
     std::vector<IP> out;
-    foreach_line(dsc, [&out](std::string_view line) {
+    return filter_line(sdp, [&ip](std::string_view line) -> bool {
         auto c { udp_candidate_ip(line) };
-        if (auto ip { c.udp_ip })
-            out.push_back({ *ip });
+        if (!c.candidate)
+            return true;
+        if (!c.udp_ip)
+            return false;
+        return IP::parse(*c.udp_ip) == ip;
     });
-    return out;
+}
+}
+
+OneIpSdp::OneIpSdp(std::string s)
+    : sdpString(std::move(s))
+    , _ip([&]() {
+        auto ip { sdp_filter::load_ip(sdpString) };
+        if (!ip.has_value())
+            throw Error(ERTCUNIQUEIP);
+        return *ip;
+    }())
+{
 }
 
 size_t IdentityIps::byte_size() const

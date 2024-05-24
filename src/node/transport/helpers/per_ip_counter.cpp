@@ -1,7 +1,7 @@
 #include "per_ip_counter.hpp"
 #include <cassert>
 
-bool PerIpCounter::insert(IPv4 ip, size_t max)
+bool PerIpCounter::insert(IP ip, size_t max)
 {
     size_t& count = counts.try_emplace(ip, 0).first->second;
     if (count >= max)
@@ -9,7 +9,7 @@ bool PerIpCounter::insert(IPv4 ip, size_t max)
     count += 1;
     return true;
 }
-void PerIpCounter::erase(IPv4 ip)
+void PerIpCounter::erase(IP ip)
 {
     auto iter = counts.find(ip);
     if (iter == counts.end()) {
@@ -23,7 +23,7 @@ void PerIpCounter::erase(IPv4 ip)
     }
 }
 
-size_t PerIpCounter::count(IPv4 ip) const
+size_t PerIpCounter::count(const IP& ip) const
 {
     auto iter = counts.find(ip);
     if (iter == counts.end())

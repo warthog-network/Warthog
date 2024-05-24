@@ -94,16 +94,13 @@ private:
         auto end() const { return End {}; }
         bool empty() { return begin() == end(); };
     };
-    struct EvictionCandidate {
-        Conref evictionCandidate;
-    };
 
 public:
     //////////////////////////////
     // public methods
 
     // constructor
-    AddressManager(PeerServer& peerServer, const std::vector<Sockaddr>& v);
+    AddressManager(PeerServer& peerServer, const std::vector<TCPSockaddr>& v);
     void start();
 
     // for range-based access
@@ -111,25 +108,38 @@ public:
     All all() const { return { *this }; }
 
     void outbound_failed(const ConnectRequest& r);
-    void verify(std::vector<Sockaddr>, IPv4 source);
+    void verify(std::vector<TCPSockaddr>, IPv4 source); // TODO call this function
 
     // access by connection Id
     [[nodiscard]] std::optional<Conref> find(uint64_t id) const;
 
     size_t size() const { return conndatamap.size(); }
 
-    size_t ip_count(IPv4 ip) const { return ipCounter.count(ip); };
+    size_t ip_count(const IP& ip) const { return ipCounter.count(ip); };
     // erase/insert
     bool erase(Conref); // returns whether is pinned
-    [[nodiscard]] tl::expected<std::optional<EvictionCandidate>, int32_t> prepare_insert(const std::shared_ptr<ConnectionBase>&);
-    Conref insert_prepared(const std::shared_ptr<ConnectionBase>&, HeaderDownload::Downloader&, BlockDownload::Downloader&, Timer&);
+    // [[nodiscard]] tl::expected<std::optional<Conref>, int32_t> prepare_insert(const ConnectionBase::ConnectionVariant&);
+    // Conref insert_prepared(const std::shared_ptr<ConnectionBase>&, HeaderDownload::Downloader&, BlockDownload::Downloader&, Timer&);
+
+    struct InsertData {
+        ConnectionBase::ConnectionVariant& convar;
+        HeaderDownload::Downloader& headerDownload;
+        BlockDownload::Downloader& blockDownload;
+        Timer& timer;
+        std::function<void(Conref evictionCandidate)> evict_cb;
+    };
+    auto insert(InsertData) -> tl::expected<Conref, int32_t>;
 
     // access queued
 
-    template <typename T>
-    [[nodiscard]] std::vector<T> sample_verified(size_t N)
+    // template <typename T>
+    // [[nodiscard]] std::vector<T> sample_verified(size_t N)
+    // {
+    //     return connectionSchedule.sample_verified<T>(N);
+    // }
+    auto sample_verified(size_t N)
     {
-        return connectionSchedule.sample_verified<T>(N);
+        return connectionSchedule.sample_verified(N);
     }
 
     void garbage_collect();
@@ -138,16 +148,17 @@ public:
     [[nodiscard]] std::optional<time_point> pop_scheduled_connect_time();
 
 private:
+    // [[nodiscard]] tl::expected<std::optional<Conref>, int32_t> prepare_insert(const std::shared_ptr<TCPConnection>&);
+    // [[nodiscard]] tl::expected<std::optional<Conref>, int32_t> prepare_insert(const std::shared_ptr<WSConnection>&);
+    // [[nodiscard]] tl::expected<std::optional<Conref>, int32_t> prepare_insert(const std::shared_ptr<RTCConnection>&);
     bool is_own_endpoint(Sockaddr a);
-    void insert_additional_verified(Sockaddr);
-    std::optional<EvictionCandidate> eviction_candidate() const;
+    std::optional<Conref> eviction_candidate() const;
 
 private:
     PeerServer& peerServer;
 
     // data
 
-    std::vector<Sockaddr> additionalEndpoints;
     std::vector<Sockaddr> outboundEndpoints;
     std::vector<Conref> inboundConnections;
     ConnectionSchedule connectionSchedule;

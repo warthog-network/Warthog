@@ -1,14 +1,13 @@
 #pragma once
 
-#include "transport/connection_base.hpp"
 #include "ban_cache.hpp"
 #include "db/peer_db.hpp"
 #include "eventloop/address_manager/connection_schedule.hpp"
 #include "expected.hpp"
 #include "general/errors.hpp"
 #include "general/page.hpp"
-#include "transport/helpers/tcp_sockaddr.hpp"
 #include "spdlog/spdlog.h"
+#include "transport/connection_base.hpp"
 #include <bitset>
 #include <condition_variable>
 #include <cstdint>
@@ -34,7 +33,7 @@ public:
 private:
     friend struct Inspector;
     struct Authenticate {
-        std::shared_ptr<ConnectionBase> c;
+        std::shared_ptr<IPv4Connection> c;
     };
     struct Unban {
         result_callback_t cb;
@@ -63,7 +62,7 @@ public:
     }
     void wait_for_shutdown();
 
-    bool authenticate(std::shared_ptr<ConnectionBase> c)
+    bool authenticate(std::shared_ptr<IPv4Connection> c)
     {
         return async_event(Authenticate { std::move(c) });
     }
@@ -89,7 +88,7 @@ public:
         return async_event(SeenPeer { a });
     }
     bool async_get_recent_peers(
-        std::function<void(std::vector<std::pair<Sockaddr, uint32_t>>&&)>&& cb,
+        std::function<void(std::vector<std::pair<TCPSockaddr, uint32_t>>&&)>&& cb,
         size_t maxEntries = 100)
     {
         return async_event(GetRecentPeers { std::move(cb), maxEntries });
@@ -115,7 +114,7 @@ private:
         TCPSockaddr a;
     };
     struct GetRecentPeers {
-        std::function<void(std::vector<std::pair<Sockaddr, uint32_t>>&&)> cb;
+        std::function<void(std::vector<std::pair<TCPSockaddr, uint32_t>>&&)> cb;
         size_t maxEntries;
     };
     struct Inspect {
@@ -151,7 +150,8 @@ private:
     void handle_event(GetRecentPeers&&);
     void handle_event(Inspect&&);
 
-    void on_close(const OnClose&, TCPSockaddr);
+    void on_close(const OnClose&, const TCPSockaddr&);
+    void on_close(const OnClose&, const WebRTCSockaddr&);
 
     ////////////////
     // Mutex protected variables

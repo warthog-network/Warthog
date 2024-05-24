@@ -90,7 +90,7 @@ void TCPConnectionManager::handle_event(GetPeers&& e)
 {
     std::vector<APIPeerdata> data;
     for (auto c : tcpConnections) {
-        data.push_back({ c->connection_peer_addr_native(), c->created_at_timestmap() });
+        data.push_back({ c->peer_addr_native(), c->created_at_timestmap() });
     }
     e.cb(std::move(data));
 }

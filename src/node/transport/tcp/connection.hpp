@@ -5,13 +5,13 @@
 #include "conman.hpp"
 #include "eventloop/types/conref_declaration.hpp"
 
-class TCPConnection final : public ConnectionBase, public std::enable_shared_from_this<TCPConnection> {
+class TCPConnection final : public IPv4Connection, public std::enable_shared_from_this<TCPConnection> {
 
     friend class TCPConnectionManager;
 
     void async_send(std::unique_ptr<char[]> data, size_t size) override;
     uint16_t listen_port() const override;
-    ConnectRequest connect_request() const override;
+    std::optional<ConnectRequest> connect_request() const override;
 
     struct Token {
     };
@@ -27,13 +27,22 @@ public:
     {
         return shared_from_this();
     }
+    virtual ConnectionVariant get_shared_variant() override
+    {
+        return shared_from_this();
+    }
     std::weak_ptr<ConnectionBase> get_weak() override
     {
         return weak_from_this();
     }
-    Sockaddr claimed_peer_addr() const override;
-    Sockaddr connection_peer_addr() const override { return { connection_peer_addr_native() }; }
-    TCPSockaddr connection_peer_addr_native() const { return connectRequest.address; }
+
+    IPv4 peer_ipv4() const override
+    {
+        return peer_addr_native().ip;
+    }
+    TCPSockaddr claimed_peer_addr() const;
+    Sockaddr peer_addr() const override { return { peer_addr_native() }; }
+    TCPSockaddr peer_addr_native() const { return connectRequest.address; }
     bool inbound() const override;
 
 private:

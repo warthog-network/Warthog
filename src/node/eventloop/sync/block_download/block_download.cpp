@@ -210,7 +210,7 @@ void Downloader::do_probe_requests(RequestSender rs)
         if (c.job())
             continue;
         if (!data(c).has_fork_data()) {
-            spdlog::error("Peer {} has_fork_data == false", c->c->connection_peer_addr().to_string());
+            spdlog::error("Peer {} has_fork_data == false", c.peer().to_string());
         }
         const auto& fr { data(c).fork_range() };
         auto a { data(c).fork_iter()->first };

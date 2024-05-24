@@ -7,6 +7,7 @@
 #include "chainserver/state/update/update.hpp"
 #include "communication/stage_operation/result.hpp"
 #include "eventloop/timer.hpp"
+#include "eventloop/types/rtc_state.hpp"
 #include "general/move_only_function.hpp"
 #include "mempool/mempool.hpp"
 #include "mempool/subscription_declaration.hpp"
@@ -15,6 +16,7 @@
 #include "sync/sync_state.hpp"
 #include "timer_element.hpp"
 #include "transport/connection_base.hpp"
+#include "transport/webrtc/registry.hpp"
 #include "types/chainstate.hpp"
 #include "types/conndata.hpp"
 #include <condition_variable>
@@ -27,7 +29,11 @@
 
 #include <algorithm>
 
+class RTCPendingOutgoing;
+class RTCPendingIncoming;
 class TCPConnection;
+class WSConnection;
+class RTCConnection;
 class Rcvbuffer;
 class Reader;
 class Eventprocessor;
@@ -50,6 +56,31 @@ class Eventloop final : public std::enable_shared_from_this<Eventloop> {
     friend class EndAttorney;
 
     struct Token { };
+    struct GeneratedVerificationSdpOffer {
+        std::weak_ptr<RTCConnection> con;
+        uint64_t peerId;
+        uint64_t verificationKey;
+        std::string sdp;
+    };
+    struct GeneratedVerificationSdpAnswer {
+        IP ownIp;
+        std::weak_ptr<RTCConnection> con;
+        uint64_t originConId;
+        std::string sdp;
+    };
+    struct GeneratedSdpOffer {
+        std::weak_ptr<RTCConnection> con;
+        uint64_t signalingServerId;
+        uint64_t signalingListKey;
+        std::string sdp;
+    };
+    struct GeneratedSdpAnswer {
+        IP ownIp;
+        std::weak_ptr<RTCConnection> con;
+        uint64_t signalingServerId;
+        size_t key;
+        std::string sdp;
+    };
 
 public:
     Eventloop(Token, PeerServer& ps, ChainServer& ss, const ConfigParams& config);
@@ -71,6 +102,7 @@ public:
     // called by other threads
 
     bool async_process(std::shared_ptr<ConnectionBase> c);
+    bool async_register(ConnectionBase::ConnectionVariant con);
     void api_get_hashrate(HashrateCb&& cb, size_t n = 100);
     void api_get_hashrate_chart(HashrateChartCb&& cb);
     void api_get_hashrate_chart(NonzeroHeight from, NonzeroHeight to, size_t window, HashrateChartCb&& cb);
@@ -85,6 +117,7 @@ public:
     void wait_for_shutdown();
     void async_stage_action(stage_operation::Result);
     void async_state_update(StateUpdate&& s);
+
     void erase(std::shared_ptr<ConnectionBase> c);
     void on_failed_connect(const ConnectRequest& r, Error reason);
 
@@ -143,12 +176,15 @@ private:
     void handle_msg(Conref cr, RTCForwardedOffer&&);
     void handle_msg(Conref cr, RTCRequestForwardAnswer&&);
     void handle_msg(Conref cr, RTCForwardedAnswer&&);
+    void handle_msg(Conref cr, RTCForwardOfferDenied&&);
+    void handle_msg(Conref cr, RTCVerificationOffer&&);
+    void handle_msg(Conref cr, RTCVerificationAnswer&&);
+
 
     ////////////////////////
     // convenience functions
     void consider_send_snapshot(Conref);
 
-    void connect_rtc(Conref c, const std::vector<uint32_t>& rtc_keys);
     void send_signaling_list();
 
     ////////////////////////
@@ -202,6 +238,9 @@ private:
     struct Erase {
         std::shared_ptr<ConnectionBase> c;
     };
+    struct RegisterConnection {
+        ConnectionBase::ConnectionVariant convar;
+    };
     struct OnProcessConnection {
         std::shared_ptr<ConnectionBase> c;
     };
@@ -228,11 +267,11 @@ private:
     };
 
     // event queue
-    using Event = std::variant<Erase, OnProcessConnection,
+    using Event = std::variant<Erase, RegisterConnection, OnProcessConnection,
         StateUpdate, SignedSnapshotCb, PeersCb, SyncedCb, stage_operation::Result,
         OnForwardBlockrep, InspectorCb, GetHashrate, GetHashrateChart,
         FailedConnect,
-        mempool::Log, StartTimer, CancelTimer, IdentityIps>;
+        mempool::Log, StartTimer, CancelTimer, IdentityIps, GeneratedVerificationSdpOffer, GeneratedVerificationSdpAnswer, GeneratedSdpOffer, GeneratedSdpAnswer>;
 
 public:
     bool defer(Event e);
@@ -240,6 +279,7 @@ public:
 private:
     // event handlers
     void handle_event(Erase&&);
+    void handle_event(RegisterConnection&&);
     void handle_event(OnProcessConnection&&);
     void handle_event(StateUpdate&&);
     void handle_event(SignedSnapshotCb&&);
@@ -255,6 +295,10 @@ private:
     void handle_event(StartTimer&&);
     void handle_event(CancelTimer&&);
     void handle_event(IdentityIps&&);
+    void handle_event(GeneratedVerificationSdpOffer&&);
+    void handle_event(GeneratedVerificationSdpAnswer&&);
+    void handle_event(GeneratedSdpOffer&&);
+    void handle_event(GeneratedSdpAnswer&&);
 
     // chain updates
     using Append = chainserver::state_update::Append;
@@ -306,7 +350,8 @@ private: // private data
     BlockDownload::Downloader blockDownload;
     mempool::SubscriptionMap mempoolSubscriptions;
     SyncState syncState;
-    std::optional<IdentityIps> rtcIPs;
+
+    RTCState rtc;
 
     ////////////////////////////
     // mutex protected varibales

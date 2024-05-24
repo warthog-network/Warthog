@@ -120,7 +120,7 @@ void WSConnectionManager::handle_event(Shutdown&&)
 void WSConnectionManager::handle_event(Connect&& c)
 {
     auto& cr { c.conreq };
-    auto ipstr { cr.address.ipv4.to_string() };
+    auto ipstr { cr.address.ip.to_string() };
 
     struct lws_client_connect_info i;
     memset(&i, 0, sizeof(i));

@@ -5,6 +5,9 @@
 #include "global/globals.hpp"
 #include "peerserver/peerserver.hpp"
 #include "transport/tcp/conman.hpp"
+#include "transport/tcp/connection.hpp"
+#include "transport/webrtc/connection.hpp"
+#include "transport/ws/connection.hpp"
 #include "version.hpp"
 #include <chrono>
 
@@ -20,9 +23,23 @@ ConnectionBase::ConnectionBase()
 {
 }
 
+const ConnectionBase* ConnectionBase::ConnectionVariant::base() const
+{
+    return visit([](auto& p) -> const ConnectionBase* {
+        return p.get();
+    });
+}
+
+ConnectionBase* ConnectionBase::ConnectionVariant::base()
+{
+    return visit([](auto& p) -> ConnectionBase* {
+        return p.get();
+    });
+}
+
 std::string ConnectionBase::to_string() const
 {
-    return "(" + std::to_string(id) + ")" + (inbound() ? "← " : "→ ") + connection_peer_addr().to_string();
+    return "(" + std::to_string(id) + ")" + (inbound() ? "IN" : "OUT") + peer_addr().to_string();
 }
 
 std::vector<Rcvbuffer> ConnectionBase::pop_messages()
@@ -99,7 +116,7 @@ std::span<uint8_t> ConnectionBase::process_message(std::span<uint8_t> data, Hand
                 send_handshake_ack();
                 std::lock_guard l(statechangeMutex);
                 state.emplace<MessageState>(p.parse(inbound()));
-                global().core->async_process(get_shared());
+                global().core->async_register(get_shared_variant());
             }
         }
         return {};

@@ -1,9 +1,15 @@
 #include "ipv6.hpp"
 #include "general/reader.hpp"
+#include "general/writer.hpp"
 
 IPv6::IPv6(Reader& r)
     : data(r.view<16>())
 {
+}
+
+Writer& operator<<(Writer& w, const IPv6& ip)
+{
+    return w << Range(ip.data);
 }
 
 std::string IPv6::to_string() const

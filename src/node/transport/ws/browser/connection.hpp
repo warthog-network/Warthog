@@ -6,14 +6,16 @@
 class WSSession;
 class WSConnectionManager;
 
-class WSConnection final : public std::enable_shared_from_this<WSConnection>, public ConnectionBase {
+
+class WSConnection final : public IPv4Connection, public std::enable_shared_from_this<WSConnection> {
     void async_send(std::unique_ptr<char[]> data, size_t size) override;
     uint16_t listen_port() const override;
-    ConnectRequest connect_request() const override;
-    struct CreationToken {};
+    std::optional<ConnectRequest> connect_request() const override;
+    struct CreationToken { };
 
     friend void start_connection(const WSConnectRequest& r);
     friend class WSSession;
+
 public:
     WSConnection(CreationToken, const WSConnectRequest& r, EmscriptenWSConnection&&);
 
@@ -24,14 +26,22 @@ public:
     {
         return shared_from_this();
     }
+    ConnectionVariant get_shared_variant() override
+    {
+        return shared_from_this();
+    }
     std::weak_ptr<ConnectionBase> get_weak() override
     {
         return weak_from_this();
     }
 
-    Sockaddr connection_peer_addr() const override { return { connection_peer_addr_native() }; }
+    IPv4 peer_ipv4() const override
+    {
+        return connection_peer_addr_native().ip;
+    }
+
+    Sockaddr peer_addr() const override { return { connection_peer_addr_native() }; }
     WSSockaddr connection_peer_addr_native() const { return connectRequest.address; }
-    Sockaddr claimed_peer_addr() const override;
     bool inbound() const override;
 
 private:

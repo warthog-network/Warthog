@@ -6,16 +6,16 @@
 #include "transport/helpers/tcp_sockaddr.hpp"
 #include <atomic>
 struct gengetopt_args_info;
-struct EndpointVector : public std::vector<Sockaddr> {
+struct EndpointVector : public std::vector<TCPSockaddr> {
     EndpointVector(){}
-    EndpointVector(std::vector<Sockaddr> v)
+    EndpointVector(std::vector<TCPSockaddr> v)
         : vector(std::move(v))
     {
     }
     EndpointVector(std::initializer_list<std::string> l)
     {
         for (auto& s : l) {
-            push_back(Sockaddr { TCPSockaddr { s } });
+            push_back(TCPSockaddr { s } );
         }
     }
 };

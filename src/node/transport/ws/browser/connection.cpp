@@ -44,20 +44,9 @@ uint16_t WSConnection::listen_port() const
     return 0;
 }
 
-ConnectRequest WSConnection::connect_request() const
+std::optional<ConnectRequest> WSConnection::connect_request() const
 {
     return connectRequest;
-}
-
-Sockaddr WSConnection::claimed_peer_addr() const
-{
-    if (inbound()) {
-        // on inbound connection take the port the peer claims to listen on
-        return { WSSockaddr { connection_peer_addr_native().ipv4, asserted_port() } };
-    } else {
-        // on outbound connection the port is the correct peer endpoint port
-        return connection_peer_addr();
-    }
 }
 
 bool WSConnection::inbound() const

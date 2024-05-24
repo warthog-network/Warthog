@@ -453,7 +453,7 @@ std::string serialize(const std::vector<API::Peerinfo>& connected)
     for (auto& item : connected) {
         json elem;
         elem["connection"] = json {
-            { "ip", item.endpoint.ipv4().to_string().c_str() },
+            { "ip", item.endpoint.ip().to_string().c_str() },
             { "port", item.endpoint.port() },
             { "sinceTimestamp", item.since },
             { "sinceUtc", format_utc(item.since) }

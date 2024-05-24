@@ -1,22 +1,30 @@
 #pragma once
-
 #include "general/byte_order.hpp"
+#include "ip_type.hpp"
 #include <array>
 #include <compare>
 #include <optional>
 #include <stdexcept>
 #include <string>
 class Reader;
+class Writer;
 
-struct IPv6 {
+class IPv6 {
+public:
+    constexpr static auto type() { return IpType::v6; }
     IPv6(Reader& r);
     constexpr IPv6(std::array<uint8_t, 16> data)
         : data(data)
     {
     }
+    friend Writer& operator<<(Writer&, const IPv6&);
     auto operator<=>(const IPv6& rhs) const = default;
     static constexpr std::optional<IPv6> parse(const std::string_view&);
     static consteval size_t byte_size() { return 16; }
+    bool is_localhost() const
+    {
+        return data == decltype(data) { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 };
+    }
 
     constexpr IPv6(const std::string_view& s)
         : IPv6(

@@ -5,6 +5,7 @@
 #include "general/errors.hpp"
 #include "view.hpp"
 #include <span>
+#include <optional>
 #include <vector>
 
 // inline funcitons for access

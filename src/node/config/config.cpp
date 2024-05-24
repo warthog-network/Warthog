@@ -157,7 +157,7 @@ toml::array& array_ref(toml::node& n)
 }
 EndpointVector parse_endpoints(std::string csv)
 {
-    std::vector<Sockaddr> out;
+    std::vector<TCPSockaddr> out;
 #ifndef DISABLE_LIBUV
     std::string::size_type pos = 0;
     while (true) {

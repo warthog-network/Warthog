@@ -1,6 +1,6 @@
 #pragma once
 
-#include "transport/helpers/ipv4.hpp"
+#include "transport/helpers/ip.hpp"
 #include <stdexcept>
 #ifndef DISABLE_LIBUV
 struct sockaddr;
@@ -12,7 +12,7 @@ struct TCPSockaddrBase {
     friend Writer& operator<<(Writer&, const TCPSockaddrBase&);
     static consteval size_t byte_size() { return IPv4::byte_size() + sizeof(port); }
     constexpr TCPSockaddrBase(IPv4 ipv4, uint16_t port)
-        : ipv4(ipv4)
+        : ip(ipv4)
         , port(port)
     {
     }
@@ -25,7 +25,7 @@ struct TCPSockaddrBase {
     };
     int64_t to_sql_id()
     {
-        return (int64_t(ipv4.data) << 16) + (int64_t(port));
+        return (int64_t(ip.data) << 16) + (int64_t(port));
     };
     auto operator<=>(const TCPSockaddrBase&) const = default;
     static constexpr std::optional<TCPSockaddrBase> parse(const std::string_view&);
@@ -34,7 +34,7 @@ struct TCPSockaddrBase {
     sockaddr sock_addr() const;
 #endif
 
-    IPv4 ipv4;
+    IPv4 ip;
     uint16_t port = 0;
 };
 

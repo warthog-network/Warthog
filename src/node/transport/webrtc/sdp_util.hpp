@@ -4,34 +4,28 @@
 #include <string>
 #include <vector>
 
-class SDPFilter;
 class Reader;
 class Writer;
-class FilteredSDP {
+
+namespace sdp_filter {
+
+[[nodiscard]] std::vector<IP> udp_ips(std::string_view);
+[[nodiscard]] std::optional<IP> load_ip(std::string_view);
+[[nodiscard]] std::optional<std::string> only_udp_ip(const IP&, std::string_view);
+
+}
+
+
+class OneIpSdp {
 public:
-    operator const std::string&() const { return dsc; }
-    const std::string& to_string() { return *this; }
+    OneIpSdp(std::string s);
+    [[nodiscard]] auto sdp() const { return sdpString; }
+    [[nodiscard]] auto ip() const { return _ip; }
 
 private:
-    friend class SDPFilter;
-    FilteredSDP(std::string s)
-        : dsc(std::move(s))
-    {
-    }
-    std::string dsc;
-};
-
-class SDPFilter {
-public:
-    SDPFilter(std::string s)
-        : dsc(std::move(s))
-    {
-    }
-    FilteredSDP filter() const;
-    std::vector<IP> udp_ips() const;
-
-private:
-    std::string dsc;
+    static IP gen_ip();
+    std::string sdpString;
+    IP _ip;
 };
 
 template <typename callback_t>
@@ -46,8 +40,8 @@ void fetch_id(callback_t cb, bool stun = false)
     pc->onGatheringStateChange(
         [pc, on_result = std::move(cb)](rtc::PeerConnection::GatheringState state) mutable {
             if (state == rtc::PeerConnection::GatheringState::Complete) {
-                SDPFilter sdp(pc->localDescription().value());
-                on_result(sdp.udp_ips());
+                std::string sdp(pc->localDescription().value());
+                on_result(sdp_filter::udp_ips(sdp));
             }
         });
     auto dc { pc->createDataChannel("") };
@@ -61,10 +55,10 @@ struct IdentityIps {
     auto& get_ip6() const { return ipv6; };
     auto& get_ip4() const { return ipv4; };
 
+    size_t byte_size() const;
 private:
     void assign(IPv4 ip) { ipv4 = std::move(ip); }
     void assign(IPv6 ip) { ipv6 = std::move(ip); }
-    size_t byte_size() const;
     std::optional<IPv4> ipv4;
     std::optional<IPv6> ipv6;
 };

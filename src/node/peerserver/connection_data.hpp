@@ -51,13 +51,12 @@ public:
     {
     }
     virtual bool inbound() const = 0;
-    virtual Sockaddr connection_peer_addr() const = 0;
-    virtual ConnectRequest connect_request() const = 0;
+    virtual Sockaddr peer_addr() const = 0;
+    virtual std::optional<ConnectRequest> connect_request() const = 0;
 };
 
 class Connection : public ConnectionData {
     friend class ::PeerServer;
-    virtual void start_read() = 0;
 
 public:
     using ConnectionData::ConnectionData;

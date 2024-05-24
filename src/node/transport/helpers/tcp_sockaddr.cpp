@@ -8,23 +8,23 @@
 #include <stdexcept>
 
 TCPSockaddrBase::TCPSockaddrBase(Reader& r)
-    : ipv4(r)
+    : ip(r)
     , port(r.uint16())
 {
 }
 
 Writer& operator<<(Writer& w, const TCPSockaddrBase& addr){
-    return w<<addr.ipv4<<addr.port;
+    return w<<addr.ip<<addr.port;
 }
 
 std::string TCPSockaddr::to_string() const
 {
-    return "tcp://" + ipv4.to_string() + ":" + std::to_string(port);
+    return "tcp://" + ip.to_string() + ":" + std::to_string(port);
 }
 
 std::string WSSockaddr::to_string() const
 {
-    return "ws://" + ipv4.to_string() + ":" + std::to_string(port);
+    return "ws://" + ip.to_string() + ":" + std::to_string(port);
 }
 
 #ifndef DISABLE_LIBUV
@@ -38,7 +38,7 @@ sockaddr TCPSockaddrBase::sock_addr() const
 #ifdef SIN6_LEN
     out.sin_len = sizeof(out);
 #endif
-    uint32_t ntmp = hton32(ipv4.data);
+    uint32_t ntmp = hton32(ip.data);
 
     static_assert(sizeof(struct in_addr) == 4);
     memcpy(&out.sin_addr.s_addr, &ntmp, 4);

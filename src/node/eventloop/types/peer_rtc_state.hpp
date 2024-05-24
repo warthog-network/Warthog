@@ -10,10 +10,13 @@
 #include <deque>
 #include <map>
 #include <optional>
+#include <type_traits>
 #include <vector>
 
+class RTCConnection;
 namespace rtc_state {
 using namespace std::chrono;
+using std::optional;
 
 class Offered {
     struct elem_t {
@@ -50,15 +53,14 @@ private:
 
 class Quota {
 public:
-    uint64_t available() const { return allowed - used; }
-    [[nodiscard]] bool take_one()
+    size_t available() const { return allowed - used; }
+    [[nodiscard]] auto take_one()
     {
         if (available() < 1) {
             used = allowed;
-            return false;
+            throw Error(ERTCQUOTA_FO);
         }
-        used += 1;
-        return true;
+        return used += 1;
     }
 
     void increase_allowed(uint8_t add)
@@ -67,28 +69,29 @@ public:
     }
 
 private:
-    uint64_t used { 0 };
-    uint64_t allowed { 0 };
+    size_t used { 0 };
+    size_t allowed { 0 };
 };
 
 class SignalingLists {
 public:
-    [[nodiscard]] auto set(const std::vector<uint64_t>& conIds)
+    void set(const std::vector<std::pair<uint64_t, IP>>& conIds)
     {
         offsetScheduled = offset + entries.size();
         entries.reserve(entries.size() + conIds.size());
-        for (auto& conId : conIds) {
-            entries.push_back({ conId });
+        for (auto& [conId, ip] : conIds) {
+            entries.push_back({ conId, ip });
         }
     }
+
     [[nodiscard]] std::optional<uint64_t> get_con_id(uint64_t key)
     {
         uint64_t i { key - offset };
         if (i >= entries.size())
-            throw Error(ERTCINVFWDRQ);
+            throw Error(EINV_RTCOFFER);
         auto& e { entries[i] };
         if (e.used)
-            throw Error(ERTCDUPFWDRQ);
+            throw Error(EDUP_RTCOFFER);
         e.used = true;
 
         if (key < offsetScheduled)
@@ -110,12 +113,13 @@ public:
 
 private:
     struct Entry {
-        Entry(uint64_t conId)
+        Entry(uint64_t conId, IP ip)
             : conId(conId)
+            , ip(std::move(ip))
         {
         }
-
         uint64_t conId;
+        IP ip;
         bool used { false };
     };
     uint64_t offset { 0 };
@@ -126,35 +130,64 @@ private:
 class PendingForwards {
 public:
     struct Entry {
+        IP ip;
         uint32_t fromKey;
         uint64_t fromConId;
     };
-    void add(uint32_t fromKey, uint64_t fromConId)
+    struct VecEntry {
+        VecEntry(Entry e)
+            : entry(std::move(e))
+            , insertedAt(steady_clock::now())
+        {
+        }
+        Entry entry;
+        steady_clock::time_point insertedAt;
+        bool used { false };
+    };
+    void add(IP ip, uint32_t fromKey, uint64_t fromConId)
     {
-        entries.push_back({ fromKey, fromConId });
+        entries.push_back(Entry { ip, fromKey, fromConId });
     }
-    [[nodiscard]] std::optional<Entry> pop_first()
+    [[nodiscard]] Entry get(size_t key)
     {
-        if (entries.size() == 0)
-            return {};
-        Entry res { std::move(entries.front()) };
-        offset += 1;
-        entries.erase(entries.begin());
+        auto index { key - offset };
+        if (index >= entries.size())
+            throw Error(ERTCINV_RFA);
+        auto& ve { entries[index] };
+        if (ve.used)
+            throw Error(ERTCDUP_RFA);
+        ve.used = true;
+        return std::move(ve.entry);
+    }
+
+    template <typename unused_cb_t>
+    requires std::is_invocable_v<unused_cb_t, const Entry&>
+    optional<steady_clock::time_point> prune(const unused_cb_t& unusedCb)
+    {
+        optional<steady_clock::time_point> res;
+        auto iter = entries.begin();
+        for (;; ++iter) {
+            if (iter == entries.end())
+                break;
+            if (iter->used == false) {
+                unusedCb(iter->entry);
+                res = iter->insertedAt;
+                break;
+            }
+        }
+        entries.erase(entries.begin(), iter);
         return res;
     }
-    bool all_handled(size_t endOffset) const
-    {
-        return endOffset <= offset;
-    }
+
     size_t end_offset() const { return offset + entries.size(); }
 
 private:
     size_t offset { 0 };
-    std::vector<Entry> entries;
+    std::vector<VecEntry> entries;
 };
 
 struct PendingOutgoing {
-    using webrtc_con_t = void*;
+    using webrtc_con_t = std::weak_ptr<RTCConnection>;
     struct Entry {
         webrtc_con_t con;
         Entry(webrtc_con_t con)
@@ -168,10 +201,9 @@ struct PendingOutgoing {
     };
 
 public:
-    [[nodiscard]] uint32_t register_connection(webrtc_con_t con)
+    void insert(webrtc_con_t con)
     {
         entries.push_back({ std::move(con) });
-        return offset + uint32_t(entries.size() - 1);
     }
     void discard(uint32_t n)
     {
@@ -205,14 +237,14 @@ public:
     {
         return entries.size();
     }
-    [[nodiscard]] tl::expected<webrtc_con_t, int32_t> get_rtc_con(uint32_t key)
+    [[nodiscard]] const webrtc_con_t& get_rtc_con(uint32_t key)
     {
         uint32_t i { key - offset };
         if (i >= entries.size())
-            return tl::make_unexpected(ERTCNOTFOUND);
+            throw Error(ERTCINV_FA);
         auto& e { entries[i] };
         if (e.used)
-            return tl::make_unexpected(ERTCDUPLICATE);
+            throw Error(ERTCDUP_FA);
         e.used = true;
         return e.con;
     }
@@ -237,7 +269,7 @@ public:
     void discard(uint32_t n)
     {
         if (end - begin < n)
-            throw Error(ERTCDISCARDFWD);
+            throw Error(ERTCDISCARD_FA);
         begin += n;
     }
     [[nodiscard]] uint32_t create() { return end++; }
@@ -253,15 +285,21 @@ private:
 
 class SignalingCounter {
 public:
-    [[nodiscard]] auto increment_offset(uint64_t v)
+    [[nodiscard]] auto set_new_list_size(uint64_t newSize)
     {
-        auto tmp { indexOffset };
-        indexOffset += v;
-        return tmp;
+        indexOffset += size;
+        size = newSize;
+        return indexOffset;
+    }
+
+    [[nodiscard]] bool covers(uint64_t index) const
+    {
+        return (index - indexOffset) < size;
     }
 
 private:
     uint64_t indexOffset { 0 };
+    uint64_t size { 0 };
 };
 
 struct Identity {
@@ -269,29 +307,67 @@ public:
     void set(IdentityIps id)
     {
         if (rtcIdentity.has_value())
-            throw Error(ERTCDUPLICATEID);
+            throw Error(ERTCDUP_ID);
         rtcIdentity = id;
     }
     auto& get() const { return rtcIdentity; }
-    std::optional<IPv6> verified_ip6() const
+    bool ip_is_verified(IP ip) const
     {
-        if (verifiedIpv6 && rtcIdentity)
-            return rtcIdentity->get_ip6();
-        return std::nullopt;
-    }
-    
-    std::optional<IPv4> verified_ip4() const
-    {
-        if (verifiedIpv4 && rtcIdentity)
-            return rtcIdentity->get_ip4();
-        return std::nullopt;
+        if (!rtcIdentity)
+            return false;
+        if (ip.is_v4()) {
+            if (auto& ip4 { rtcIdentity->get_ip4() })
+                return ip == IP { *ip4 };
+        } else {
+            assert(ip.is_v6());
+            if (auto& ip6 { rtcIdentity->get_ip6() })
+                return ip == IP { *ip6 };
+        }
+        return false;
     }
 
+    const IPv6* verified_ip6() const
+    {
+        if (verifiedIpv6 && rtcIdentity) {
+            auto& ip { rtcIdentity->get_ip6() };
+            if (ip)
+                return &*ip;
+        }
+        return nullptr;
+    }
+    const IPv4* verified_ip4() const
+    {
+        if (verifiedIpv4 && rtcIdentity) {
+            auto& ip { rtcIdentity->get_ip4() };
+            if (ip)
+                return &*ip;
+        }
+        return nullptr;
+    }
 
 private:
     std::optional<IdentityIps> rtcIdentity;
-    bool verifiedIpv4 { false };
-    bool verifiedIpv6 { false };
+    bool verifiedIpv4 { true }; // TODO switch to false and verify later
+    bool verifiedIpv6 { true };
+};
+
+class PendingVerification {
+public:
+    struct Entry {
+        std::weak_ptr<RTCConnection> con;
+    };
+
+    void set(std::weak_ptr<RTCConnection> con)
+    {
+        assert(entry.has_value() == false);
+        entry = { std::move(con) };
+    }
+    void insert(uint64_t conId);
+    bool has_value() const { return entry.has_value(); }
+    auto& value() { return entry.value(); }
+
+private:
+    std::optional<Entry> entry;
 };
 
 struct PeerRTCState {
@@ -305,6 +381,7 @@ struct PeerRTCState {
         Quota quota;
         PendingForwards pendingForwards;
         PendingOutgoing pendingOutgoing;
+        PendingVerification pendingVerification;
         SignalingLists signalingList;
     } our;
 };

@@ -1,6 +1,7 @@
 #include "connection_schedule.hxx"
 #include "global/globals.hpp"
 #include "peerserver/peerserver.hpp"
+#include "transport/tcp/connection.hpp"
 #include "spdlog/spdlog.h"
 #include "transport/connect_request.hpp"
 #include <cassert>
@@ -129,7 +130,7 @@ time_point VectorEntryBase::update_timer(const ReconnectContext& c)
     return timer.timeout();
 }
 
-void SockaddrVector::erase(const Sockaddr& a, auto lambda)
+void SockaddrVector::erase(const TCPSockaddr& a, auto lambda)
 {
     std::erase_if(data, [&a, &lambda](elem_t& d) {
         if (d.address == a) {
@@ -140,7 +141,7 @@ void SockaddrVector::erase(const Sockaddr& a, auto lambda)
     });
 }
 
-auto SockaddrVector::emplace(const WithSource<Sockaddr>& i) -> std::pair<elem_t&, bool>
+auto SockaddrVector::emplace(const WithSource<TCPSockaddr>& i) -> std::pair<elem_t&, bool>
 {
     auto p { find(i.address) };
     if (p)
@@ -203,45 +204,38 @@ EntryData* SockaddrVectorBase<EntryData, addr_t>::find(const addr_t& address) co
 }
 }
 
-auto ConnectionSchedule::invoke_with_verified(const Sockaddr& a, auto lambda)
+// auto ConnectionSchedule::invoke_with_verified(const TCPSockaddr& a, auto lambda)
+// {
+//     return std::visit(
+//         [&]<typename T>(const T& addr) {
+//             return lambda(addr, verified);
+//         },
+//         a.data);
+// }
+//
+// auto ConnectionSchedule::invoke_with_verified(const TCPSockaddr& a, auto lambda) const
+// {
+//     return std::visit(
+//         [&]<typename T>(const T& addr) {
+//             return lambda(addr, verified.get<std::remove_cvref_t<T>>());
+//         },
+//         a.data);
+// }
+
+auto ConnectionSchedule::emplace_verified(const WithSource<TCPSockaddr>& s, steady_clock::time_point lastVerified)
 {
-    return std::visit(
-        [&]<typename T>(const T& addr) {
-            return lambda(addr, verified.get<std::remove_cvref_t<T>>());
-        },
-        a.data);
+    return verified.emplace({s.address,s.source},lastVerified).second;
 }
 
-auto ConnectionSchedule::invoke_with_verified(const Sockaddr& a, auto lambda) const
+auto ConnectionSchedule::find_verified(const TCPSockaddr& sa) -> VectorEntryBase*
 {
-    return std::visit(
-        [&]<typename T>(const T& addr) {
-            return lambda(addr, verified.get<std::remove_cvref_t<T>>());
-        },
-        a.data);
+    return verified.find(sa);
 }
 
-auto ConnectionSchedule::emplace_verified(const WithSource<Sockaddr>& s, steady_clock::time_point lastVerified)
-{
-    return invoke_with_verified(s.address, [&](auto& addr, auto& vector) {
-        return vector.emplace({ addr, s.source }, lastVerified).second;
-    });
-}
-
-auto ConnectionSchedule::find_verified(const Sockaddr& sa) -> VectorEntryBase*
-{
-    return invoke_with_verified(sa, [&](auto& addr, auto& vector) -> VectorEntryBase* {
-        return vector.find(addr);
-    });
-}
-
-auto ConnectionSchedule::find(const Sockaddr& a) const -> std::optional<Found>
+auto ConnectionSchedule::find(const TCPSockaddr& a) const -> std::optional<Found>
 {
     using enum EndpointState;
-    VectorEntryBase* p = invoke_with_verified(a, [](auto& addr, auto& vec) -> VectorEntryBase* {
-        // return nullptr;
-        return vec.find(addr);
-    });
+    VectorEntryBase* p{verified.find(a)};
     if (p)
         return Found { *p, VERIFIED };
     if (p = unverifiedNew.find(a); p)
@@ -251,7 +245,7 @@ auto ConnectionSchedule::find(const Sockaddr& a) const -> std::optional<Found>
     return {};
 }
 
-ConnectionSchedule::ConnectionSchedule(PeerServer& peerServer, const std::vector<Sockaddr>& pin)
+ConnectionSchedule::ConnectionSchedule(PeerServer& peerServer, const std::vector<TCPSockaddr>& pin)
     : pinned(pin.begin(), pin.end())
     , peerServer(peerServer)
 {
@@ -265,9 +259,9 @@ void ConnectionSchedule::start()
     constexpr connection_schedule::Source startup_source { 0 };
 
     // get recently seen peers from db
-    std::promise<std::vector<std::pair<Sockaddr, uint32_t>>> p;
+    std::promise<std::vector<std::pair<TCPSockaddr, uint32_t>>> p;
     auto future { p.get_future() };
-    auto cb = [&p](std::vector<std::pair<Sockaddr, uint32_t>>&& v) {
+    auto cb = [&p](std::vector<std::pair<TCPSockaddr, uint32_t>>&& v) {
         p.set_value(std::move(v));
     };
     peerServer.async_get_recent_peers(std::move(cb), maxRecent);
@@ -281,7 +275,7 @@ void ConnectionSchedule::start()
     }
 };
 
-std::optional<ConnectRequest> ConnectionSchedule::insert(Sockaddr addr, Source src)
+std::optional<ConnectRequest> ConnectionSchedule::insert(TCPSockaddr addr, Source src)
 {
     auto o { find(addr) };
     if (o.has_value()) {
@@ -296,24 +290,22 @@ std::optional<ConnectRequest> ConnectionSchedule::insert(Sockaddr addr, Source s
     }
 }
 
-auto ConnectionSchedule::move_entry(SockaddrVector& ev, const Sockaddr& a) -> VectorEntryBase*
+auto ConnectionSchedule::move_entry(SockaddrVector& ev, const TCPSockaddr& addr) -> VectorEntryBase*
 {
 
     using elem_t = SockaddrVector::elem_t;
     VectorEntryBase* elem = nullptr;
-    ev.erase(a, [&](elem_t&& deleted) {
-        invoke_with_verified(deleted.sockaddr(), [&](const auto& addr, auto& vector) {
-            elem = &vector.push_back({ std::move(deleted), addr, sc::now() });
-        });
+    ev.erase(addr, [&](elem_t&& deleted) {
+            elem = &verified.push_back({ std::move(deleted), addr, sc::now() });
     });
     return elem;
 }
 
-void ConnectionSchedule::connection_established(const peerserver::ConnectionData& c)
+void ConnectionSchedule::connection_established(const TCPConnection& c)
 { // OK
     if (c.inbound())
         return;
-    const Sockaddr& ea { c.connection_peer_addr() };
+    const TCPSockaddr& ea { c.peer_addr_native() };
     VectorEntryBase* p { move_entry(unverifiedNew, ea) };
     if (!p)
         p = move_entry(unverifiedFailed, ea);
@@ -328,7 +320,8 @@ void ConnectionSchedule::outbound_closed(const peerserver::ConnectionData& c)
 {
     using enum ConnectionState;
     auto state { c.successfulConnection ? INITIALIZED : UNINITIALIZED };
-    outbound_connection_ended(c.connect_request(), state);
+    if (auto r{c.connect_request()}) 
+        outbound_connection_ended(*r, state);
 
     // TODO: make sure prune does not discard pending entries
 

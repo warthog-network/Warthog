@@ -7,14 +7,17 @@ std::string Sockaddr::to_string() const
     },
         data);
 }
-IPv4 Sockaddr::ipv4() const{
-    return std::visit([](auto& sockAddr) {
-        return sockAddr.ipv4;
+
+IP Sockaddr::ip() const
+{
+    return std::visit([](auto& sockAddr) -> IP {
+        return sockAddr.ip;
     },
         data);
 }
 
-uint16_t Sockaddr::port() const{
+uint16_t Sockaddr::port() const
+{
     return std::visit([](auto& sockAddr) {
         return sockAddr.port;
     },

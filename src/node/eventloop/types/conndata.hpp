@@ -287,7 +287,7 @@ inline PeerChain& Conref::chain() { return iter->second.chain; }
 inline auto& Conref::job() { return iter->second.job; }
 inline auto& Conref::job() const { return iter->second.job; }
 inline auto& Conref::rtc() { return iter->second.rtcState; }
-inline auto Conref::peer() const { return iter->second.c->connection_peer_addr(); }
+inline auto Conref::peer() const { return iter->second.c->peer_addr(); }
 inline auto& Conref::ping() { return iter->second.ping; }
 inline auto Conref::operator->() { return &(iter->second); }
 inline auto Conref::version() const{ return iter->second.c->protocol_version();}

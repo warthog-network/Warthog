@@ -168,11 +168,11 @@ protected:
     mutable std::vector<elem_t> data;
 };
 
-class SockaddrVector : public SockaddrVectorBase<VectorEntry<Sockaddr>, Sockaddr> {
+class SockaddrVector : public SockaddrVectorBase<VectorEntry<TCPSockaddr>, TCPSockaddr> {
 
 public:
-    void erase(const Sockaddr& addr, auto lambda);
-    std::pair<elem_t&, bool> emplace(const WithSource<Sockaddr>&);
+    void erase(const TCPSockaddr& addr, auto lambda);
+    std::pair<elem_t&, bool> emplace(const WithSource<TCPSockaddr>&);
     using SockaddrVectorBase::SockaddrVectorBase;
 };
 
@@ -284,28 +284,31 @@ class ConnectionSchedule {
 
 
 public:
-    ConnectionSchedule(PeerServer& peerServer, const std::vector<Sockaddr>& v);
+    ConnectionSchedule(PeerServer& peerServer, const std::vector<TCPSockaddr>& v);
     void start();
-    std::optional<ConnectRequest> insert(Sockaddr, Source);
+    std::optional<ConnectRequest> insert(TCPSockaddr, Source);
     [[nodiscard]] std::vector<ConnectRequest> pop_expired();
-    void connection_established(const ConnectionData&);
-    VectorEntryBase* move_entry(SockaddrVector&, const Sockaddr&);
+    void connection_established(const TCPConnection&);
+    VectorEntryBase* move_entry(SockaddrVector&, const TCPSockaddr&);
     void outbound_closed(const ConnectionData&);
     void outbound_failed(const ConnectRequest&);
     void schedule_verification(TCPSockaddr c, IPv4 source);
 
     [[nodiscard]] std::optional<time_point> pop_wakeup_time();
 
-    template<typename T>
-    std::vector<T> sample_verified(size_t N) const{
-        return verified.get<T>().sample(N);
+    std::vector<TCPSockaddr> sample_verified(size_t N) const{
+        return verified.sample(N);
     }
+    // template<typename T>
+    // std::vector<T> sample_verified(size_t N) const{
+    //     return verified.get<T>().sample(N);
+    // }
 
 private:
-    auto invoke_with_verified(const Sockaddr&, auto lambda) const;
-    auto invoke_with_verified(const Sockaddr&, auto lambda);
-    auto emplace_verified(const WithSource<Sockaddr>&, steady_clock::time_point lastVerified);
-    VectorEntryBase* find_verified(const Sockaddr&);
+    // auto invoke_with_verified(const TCPSockaddr&, auto lambda) const;
+    // auto invoke_with_verified(const TCPSockaddr&, auto lambda);
+    auto emplace_verified(const WithSource<TCPSockaddr>&, steady_clock::time_point lastVerified);
+    VectorEntryBase* find_verified(const TCPSockaddr&);
 
     void outbound_connection_ended(const ConnectRequest&, ConnectionState state);
     struct Found {
@@ -318,12 +321,12 @@ private:
     };
     void refresh_wakeup_time();
     auto get_context(const ConnectRequest&, ConnectionState) -> std::optional<FoundContext>;
-    [[nodiscard]] auto find(const Sockaddr& a) const -> std::optional<Found>;
-    VerifiedVectors<Sockaddr::variant_t> verified;
+    [[nodiscard]] auto find(const TCPSockaddr& a) const -> std::optional<Found>;
+    VerifiedVector<TCPSockaddr> verified;
     SockaddrVector unverifiedNew;
     SockaddrVector unverifiedFailed;
     size_t totalConnected { 0 };
-    std::set<Sockaddr> pinned;
+    std::set<TCPSockaddr> pinned;
     connection_schedule::WakeupTime wakeup_tp;
     PeerServer& peerServer;
 };

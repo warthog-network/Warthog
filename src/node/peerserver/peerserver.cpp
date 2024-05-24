@@ -18,9 +18,10 @@ PeerServer::PeerServer(PeerDB& db, const ConfigParams& config)
 {
 }
 
-void PeerServer::wait_for_shutdown(){
-        if (worker.joinable())
-            worker.join();
+void PeerServer::wait_for_shutdown()
+{
+    if (worker.joinable())
+        worker.join();
 }
 void PeerServer::start()
 {
@@ -72,10 +73,10 @@ void PeerServer::work()
 
 void PeerServer::handle_event(OnClose&& o)
 {
-    std::visit([this, &o](auto&& socketAddr) -> void {
-        on_close(o, socketAddr);
-    },
-        o.con->connection_peer_addr().data);
+    o.con->peer_addr().visit(
+        [this, &o](auto&& socketAddr) -> void {
+            on_close(o, socketAddr);
+        });
 }
 
 void PeerServer::handle_event(Unban&& ub)
@@ -96,7 +97,7 @@ void PeerServer::handle_event(Authenticate&& nc)
     // return EMAXCONNECTIONS; TODO: handle max connections
     auto& con = *nc.c;
     bool allowed = true;
-    const IPv4& ip = con.connection_peer_addr().ipv4();
+    const IPv4& ip = con.peer_ipv4();
     uint32_t banuntil;
     int32_t offense;
     if (bancache.get(ip, banuntil) || db.get_peer(ip.data, banuntil, offense)) { // found entry
@@ -130,7 +131,7 @@ void PeerServer::handle_event(SeenPeer&& e)
 }
 void PeerServer::handle_event(GetRecentPeers&& e)
 {
-    std::vector<std::pair<Sockaddr, uint32_t>> res;
+    std::vector<std::pair<TCPSockaddr, uint32_t>> res;
 
 #ifndef DISABLE_LIBUV
     // TCP peers
@@ -148,8 +149,12 @@ void PeerServer::handle_event(Inspect&& e)
     e.cb(*this);
 }
 
-void PeerServer::on_close(const OnClose& o, TCPSockaddr addr)
+void PeerServer::on_close(const OnClose& o, const TCPSockaddr& addr)
 {
-    auto ip { addr.ipv4 };
+    auto ip { addr.ip };
     register_close(ip, now, o.offense, o.con->logrow);
+}
+void PeerServer::on_close(const OnClose&, const WebRTCSockaddr&)
+{
+    // do nothing
 }

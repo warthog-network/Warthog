@@ -12,7 +12,7 @@ uint16_t TCPConnection::listen_port() const
     return conman.bindAddress.port;
 }
 
-ConnectRequest TCPConnection::connect_request() const
+std::optional<ConnectRequest> TCPConnection::connect_request() const
 {
     return connectRequest;
 }
@@ -58,7 +58,7 @@ void TCPConnection::close_internal(int errcode)
     if (tcpHandle->closing())
         return;
     tcpHandle->close();
-    connection_log().info("{} closed: {} ({})",
+    connection_log().info("a{}b closed: {} ({})",
         to_string(), errors::err_name(errcode), errors::strerror(errcode));
     on_close({
         .error = errcode,
@@ -77,14 +77,14 @@ void TCPConnection::async_send(std::unique_ptr<char[]> data, size_t size)
     });
 }
 
-Sockaddr TCPConnection::claimed_peer_addr() const
+TCPSockaddr TCPConnection::claimed_peer_addr() const
 {
     if (inbound()) {
         // on inbound connection take the port the peer claims to listen on
-        return { TCPSockaddr { connection_peer_addr_native().ipv4, asserted_port() } };
+        return { TCPSockaddr { peer_addr_native().ip, asserted_port() } };
     } else {
         // on outbound connection the port is the correct peer endpoint port
-        return connection_peer_addr();
+        return peer_addr_native();
     }
 };
 bool TCPConnection::inbound() const { 

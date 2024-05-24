@@ -1,8 +1,8 @@
 #pragma once
 
 #include "communication/buffers/recvbuffer.hpp"
-#include "eventloop/timer_element.hpp"
 #include "communication/version.hpp"
+#include "eventloop/timer_element.hpp"
 #include "eventloop/types/conref_declaration.hpp"
 #include "peerserver/connection_data.hpp"
 #include <atomic>
@@ -13,6 +13,9 @@
 #include <variant>
 #include <vector>
 class ConnectionBase;
+class TCPConnection;
+class WSConnection;
+class RTCConnection;
 namespace uvw {
 class timer_handle;
 }
@@ -62,6 +65,25 @@ struct MessageState : public AckState {
 
 class ConnectionBase : public peerserver::Connection {
 public:
+    using variant_t = std::variant<
+        std::shared_ptr<TCPConnection>,
+        std::shared_ptr<WSConnection>,
+        std::shared_ptr<RTCConnection>>;
+    struct ConnectionVariant : public variant_t {
+        using variant_t::variant;
+        [[nodiscard]] ConnectionBase* base();
+        [[nodiscard]] const ConnectionBase* base() const;
+        bool is_tcp() const { return std::holds_alternative<std::shared_ptr<TCPConnection>>(*this); }
+        auto& get_tcp() { return std::get<std::shared_ptr<TCPConnection>>(*this); }
+        auto visit(auto lambda) const
+        {
+            return std::visit(lambda, *this);
+        }
+        auto visit(auto lambda)
+        {
+            return std::visit(lambda, *this);
+        }
+    };
     struct CloseState {
         int error;
     };
@@ -77,18 +99,19 @@ public:
 
     // can only be called in eventloop thread because we assume
     // state == MessageState
-    virtual Sockaddr claimed_peer_addr() const = 0;
 
     virtual void close(int Error) = 0;
     void send(Sndbuffer&& msg);
     [[nodiscard]] std::vector<Rcvbuffer> pop_messages();
     [[nodiscard]] ProtocolVersion protocol_version() const;
 
+    virtual std::shared_ptr<ConnectionBase> get_shared() = 0;
+
 protected:
     // can be called from all threads
-    virtual std::shared_ptr<ConnectionBase> get_shared() = 0;
+    virtual ConnectionVariant get_shared_variant() = 0;
     virtual std::weak_ptr<ConnectionBase> get_weak() = 0;
-    virtual uint16_t listen_port() const = 0; 
+    virtual uint16_t listen_port() const = 0;
     virtual void async_send(std::unique_ptr<char[]> data, size_t size) = 0;
 
     // callback methods called from transport implementation thread
@@ -114,4 +137,11 @@ public:
     const uint64_t id;
     const std::chrono::steady_clock::time_point createdAt;
     const std::chrono::system_clock::time_point createdAtSystem;
+};
+
+class IPv4Connection : public ConnectionBase {
+public:
+    using ConnectionBase::ConnectionBase;
+    virtual IPv4 peer_ipv4() const = 0;
+    virtual void start_read() = 0;
 };

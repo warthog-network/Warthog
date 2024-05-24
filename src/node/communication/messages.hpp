@@ -218,7 +218,7 @@ struct RTCQuota : public MsgCombine<19, uint8_t> {
     [[nodiscard]] uint8_t increase() const { return get<0>(); }
 };
 
-struct RTCSignalingList : public MsgCombine<20, messages::Vector8<IPv4>> {
+struct RTCSignalingList : public MsgCombine<20, messages::Vector8<IP>> {
     static constexpr size_t maxSize = 100000;
     using Base::Base;
 
@@ -229,7 +229,7 @@ struct RTCRequestForwardOffer : public MsgCombine<21, uint64_t, String16> {
     static constexpr size_t maxSize = 10;
     using Base::Base;
 
-    [[nodiscard]] const auto& key() const { return get<0>(); };
+    [[nodiscard]] const auto& signaling_list_key() const { return get<0>(); };
     [[nodiscard]] const std::string& offer() const { return get<1>().data; };
 };
 
@@ -237,26 +237,50 @@ struct RTCForwardedOffer : public MsgCombine<22, String16> {
     static constexpr size_t maxSize = 100000;
     using Base::Base;
 
-    [[nodiscard]] const String16& offer() const { return get<0>(); }
+    [[nodiscard]] const std::string& offer() const { return get<0>().data; }
 };
 
-struct RTCRequestForwardAnswer : public MsgCombine<23, String16> {
+struct RTCRequestForwardAnswer : public MsgCombine<23, String16, uint64_t> {
     static constexpr size_t maxSize = 100000;
     using Base::Base;
 
     [[nodiscard]] const String16& answer() const { return get<0>(); }
     [[nodiscard]] String16& answer() { return get<0>(); }
+    [[nodiscard]] auto& key() { return get<1>(); }
 };
 
-struct RTCForwardedAnswer : public MsgCombine<24, uint32_t, String16> {
+struct RTCForwardOfferDenied : public MsgCombine<24, uint32_t, uint8_t> {
+    static constexpr size_t maxSize = 100000;
+    using Base::Base;
+
+    [[nodiscard]] auto key() const { return get<0>(); }
+    [[nodiscard]] auto reason() const { return get<1>(); }
+};
+
+struct RTCForwardedAnswer : public MsgCombine<25, uint32_t, String16> {
     static constexpr size_t maxSize = 100000;
     using Base::Base;
 
     [[nodiscard]] uint32_t key() const { return get<0>(); }
-    [[nodiscard]] const String16& answer() const { return get<1>(); }
+    [[nodiscard]] const std::string& answer() const { return get<1>().data; }
 };
 
-struct PingV2Msg : public MsgCombineRequest<25, SignedSnapshot::Priority, uint16_t, uint16_t, uint32_t> {
+struct RTCVerificationOffer : public MsgCombine<26, IP, String16> {
+    static constexpr size_t maxSize = 100000;
+    using Base::Base;
+
+    [[nodiscard]] const auto& ip() const { return get<0>(); }
+    [[nodiscard]] const std::string& offer() const { return get<1>().data; }
+};
+
+struct RTCVerificationAnswer : public MsgCombine<27, String16> {
+    static constexpr size_t maxSize = 100000;
+    using Base::Base;
+
+    [[nodiscard]] const std::string& answer() const { return get<0>().data; }
+};
+
+struct PingV2Msg : public MsgCombineRequest<28, SignedSnapshot::Priority, uint16_t, uint16_t, uint32_t> {
     static constexpr size_t maxSize = 40; //
     using Base::Base;
     struct Options {
@@ -276,7 +300,7 @@ struct PingV2Msg : public MsgCombineRequest<25, SignedSnapshot::Priority, uint16
     // [[nodiscard]] const uint32_t& minForwardKey() const { return get<3>(); }
 };
 
-struct PongV2Msg : public MsgCombineReply<26, messages::Vector16<TCPSockaddr>, messages::Vector16<TxidWithFee>> {
+struct PongV2Msg : public MsgCombineReply<29, messages::Vector16<TCPSockaddr>, messages::Vector16<TxidWithFee>> {
     static constexpr size_t maxSize = 4 + 2 + 6 * 100 + 18 * 1000;
     using Base::Base;
     PongV2Msg(uint32_t nonce, messages::Vector16<TCPSockaddr> addresses, messages::Vector16<TxidWithFee> txids)
@@ -292,5 +316,5 @@ struct PongV2Msg : public MsgCombineReply<26, messages::Vector16<TCPSockaddr>, m
 namespace messages {
 [[nodiscard]] size_t size_bound(uint8_t msgtype);
 
-using Msg = std::variant<InitMsg, ForkMsg, AppendMsg, SignedPinRollbackMsg, PingMsg, PongMsg, BatchreqMsg, BatchrepMsg, ProbereqMsg, ProberepMsg, BlockreqMsg, BlockrepMsg, TxnotifyMsg, TxreqMsg, TxrepMsg, LeaderMsg, RTCIdentity, RTCQuota, RTCSignalingList, RTCRequestForwardOffer, RTCForwardedOffer, RTCRequestForwardAnswer, RTCForwardedAnswer, PingV2Msg, PongV2Msg>;
+using Msg = std::variant<InitMsg, ForkMsg, AppendMsg, SignedPinRollbackMsg, PingMsg, PongMsg, BatchreqMsg, BatchrepMsg, ProbereqMsg, ProberepMsg, BlockreqMsg, BlockrepMsg, TxnotifyMsg, TxreqMsg, TxrepMsg, LeaderMsg, RTCIdentity, RTCQuota, RTCSignalingList, RTCRequestForwardOffer, RTCForwardedOffer, RTCRequestForwardAnswer, RTCForwardOfferDenied, RTCForwardedAnswer, RTCVerificationOffer, RTCVerificationAnswer, PingV2Msg, PongV2Msg>;
 } // namespace messages

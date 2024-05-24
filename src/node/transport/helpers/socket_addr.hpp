@@ -1,4 +1,5 @@
 #pragma once
+#include "../webrtc/webrtc_sockaddr.hpp"
 #include "tcp_sockaddr.hpp"
 #include <variant>
 struct Sockaddr {
@@ -10,6 +11,10 @@ struct Sockaddr {
     }
 #else
 #endif
+    Sockaddr(WebRTCSockaddr sa)
+        : data { std::move(sa) }
+    {
+    }
     Sockaddr(WSSockaddr sa)
         : data { std::move(sa) }
     {
@@ -19,9 +24,18 @@ struct Sockaddr {
 #ifndef DISABLE_LIBUV
         TCPSockaddr,
 #endif
-        WSSockaddr>;
+        WSSockaddr,
+        WebRTCSockaddr>;
+    auto visit(auto lambda) const
+    {
+        return std::visit(lambda, data);
+    }
+    auto visit(auto lambda)
+    {
+        return std::visit(lambda, data);
+    }
     variant_t data;
-    [[nodiscard]] IPv4 ipv4() const;
+    [[nodiscard]] IP ip() const;
     [[nodiscard]] uint16_t port() const;
     bool operator==(const Sockaddr&) const = default;
     std::string to_string() const;
