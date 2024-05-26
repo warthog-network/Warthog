@@ -5,7 +5,9 @@
 #include "global/globals.hpp"
 #include "peerserver/peerserver.hpp"
 #include "transport/tcp/conman.hpp"
+#ifndef DISABLE_LIBUV
 #include "transport/tcp/connection.hpp"
+#endif
 #include "transport/webrtc/connection.hpp"
 #include "transport/ws/connection.hpp"
 #include "version.hpp"

@@ -20,7 +20,7 @@ public:
     friend Writer& operator<<(Writer&, const IPv6&);
     auto operator<=>(const IPv6& rhs) const = default;
     static constexpr std::optional<IPv6> parse(const std::string_view&);
-    static consteval size_t byte_size() { return 16; }
+    static constexpr size_t byte_size() { return 16; }
     bool is_localhost() const
     {
         return data == decltype(data) { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 };

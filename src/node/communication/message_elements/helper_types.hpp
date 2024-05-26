@@ -55,6 +55,7 @@ namespace messages {
 template <typename T, typename len_t>
 struct VectorLentype : public std::vector<T> {
     static constexpr size_t maxlen = len_t(-1);
+    VectorLentype() {}
     VectorLentype(std::vector<T> v)
         : std::vector<T>(std::move(v))
     {
@@ -125,7 +126,7 @@ struct BatchSelector {
         , length(l) {};
     BatchSelector(Reader& r);
     friend Writer& operator<<(Writer&, const BatchSelector&);
-    static consteval size_t byte_size() { return Descriptor::byte_size() + NonzeroHeight::byte_size() + sizeof(length); }
+    static constexpr size_t byte_size() { return Descriptor::byte_size() + NonzeroHeight::byte_size() + sizeof(length); }
 };
 
 template <int32_t parseHeightZeroError>

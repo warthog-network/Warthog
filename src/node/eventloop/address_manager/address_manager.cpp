@@ -1,7 +1,9 @@
 #include "address_manager.hpp"
 #include "global/globals.hpp"
 #include "transport/helpers/start_connection.hpp"
+#ifndef DISABLE_LIBUV
 #include "transport/tcp/connection.hpp"
+#endif
 #include <algorithm>
 #include <future>
 #include <random>
@@ -46,6 +48,7 @@ auto AddressManager::insert(InsertData id) -> tl::expected<Conref, int32_t>
     if (!ip.is_localhost()) {
         if (ipCounter.contains(ip))
             return tl::unexpected(EDUPLICATECONNECTION);
+#ifndef DISABLE_LIBUV
         if (id.convar.is_tcp()) {
             auto& tcp_con { id.convar.get_tcp() };
             auto ipv4 { tcp_con->peer_ipv4() };
@@ -56,6 +59,7 @@ auto AddressManager::insert(InsertData id) -> tl::expected<Conref, int32_t>
             } else
                 connectionSchedule.insert(tcp_con->claimed_peer_addr(), ipv4);
         }
+#endif
     }
 
     if (auto c { eviction_candidate() })

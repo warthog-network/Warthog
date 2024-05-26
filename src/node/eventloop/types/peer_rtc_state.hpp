@@ -102,7 +102,7 @@ public:
 
     void discard_up_to(uint64_t offsetEnd)
     {
-        size_t n { offsetEnd - offset };
+        size_t n ( offsetEnd - offset );
         assert(n <= entries.size());
         entries.erase(entries.begin(), entries.begin() + n);
         offset = offsetEnd;

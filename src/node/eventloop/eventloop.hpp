@@ -59,7 +59,6 @@ class Eventloop final : public std::enable_shared_from_this<Eventloop> {
     struct GeneratedVerificationSdpOffer {
         std::weak_ptr<RTCConnection> con;
         uint64_t peerId;
-        uint64_t verificationKey;
         std::string sdp;
     };
     struct GeneratedVerificationSdpAnswer {

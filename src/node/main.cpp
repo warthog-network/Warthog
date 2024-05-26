@@ -136,7 +136,7 @@ int main(int argc, char** argv)
 
     global_init(&breg, &ps, &*cs, &cm, &wscm, el.get(), &endpoint);
 #else
-    global_init(&breg, &ps, &*cs, &el);
+    global_init(&breg, &ps, &*cs, el.get());
 #endif
 
     // setup globals

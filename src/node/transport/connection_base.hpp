@@ -66,15 +66,19 @@ struct MessageState : public AckState {
 class ConnectionBase : public peerserver::Connection {
 public:
     using variant_t = std::variant<
+#ifndef DISABLE_LIBUV
         std::shared_ptr<TCPConnection>,
+#endif
         std::shared_ptr<WSConnection>,
         std::shared_ptr<RTCConnection>>;
     struct ConnectionVariant : public variant_t {
         using variant_t::variant;
         [[nodiscard]] ConnectionBase* base();
         [[nodiscard]] const ConnectionBase* base() const;
+#ifndef DISABLE_LIBUV
         bool is_tcp() const { return std::holds_alternative<std::shared_ptr<TCPConnection>>(*this); }
         auto& get_tcp() { return std::get<std::shared_ptr<TCPConnection>>(*this); }
+#endif
         auto visit(auto lambda) const
         {
             return std::visit(lambda, *this);

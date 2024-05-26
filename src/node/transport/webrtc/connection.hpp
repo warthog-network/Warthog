@@ -62,13 +62,15 @@ public:
     [[nodiscard]] std::optional<Error> set_sdp_answer(OneIpSdp);
 
 private:
-    void start_read_internal();
 
     void set_error(int error);
+    void if_not_closed(auto lambda);
     void notify_closed();
-    void init(sdp_callback_t sdpCallback);
-    void set_data_channel(std::shared_ptr<rtc::DataChannel>);
+    void set_data_channel_proxied(std::shared_ptr<rtc::DataChannel>);
     bool closed() { return errcode != 0; }
+private: // maybe proxied functions
+    void init_proxied(sdp_callback_t&& sdpCallback);
+    void send_proxied(std::string);
 
 private:
     bool isInbound;
@@ -81,7 +83,8 @@ private:
 
     variant_t data;
     std::shared_ptr<rtc::DataChannel> dc;
-    std::shared_ptr<rtc::PeerConnection> pc;
-    std::mutex errcodeMutex;
+
+    std::recursive_mutex errcodeMutex;
     int errcode { 0 };
+    std::unique_ptr<rtc::PeerConnection> pc;
 };

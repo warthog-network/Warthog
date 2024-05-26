@@ -107,7 +107,7 @@
     XX(108, ERTCQUOTA_FO, "RTC quota for forwarded offers exceeded")               \
     XX(110, ERTCDUP_ID, "Duplicate RTC id")                                        \
     XX(111, ERTCFAILED, "WebRTC connection failed")                                \
-    XX(112, ERTCCHANNEL, "WebRTC channel error")                                   \
+    XX(112, ERTCCHANNEL_ERROR, "WebRTC channel error")                             \
     XX(113, ERTCCLOSED, "WebRTC connection was closed")                            \
     XX(114, ERTCTEXT, "Text over RTC is not supported")                            \
     XX(115, ERTCUNIQUEIP, "WebRTC SDP ip is not unique")                           \
@@ -126,8 +126,9 @@
     XX(204, EWEBSOCK, "Error while in websocket connection")                       \
     XX(205, ERTCOWNIP, "Own announced IP not present in ")                         \
     XX(206, ERTCFWDREJECT, "WebRTC forward rejected")                              \
-    XX(207, ERTCNOPEER, "WebRTC verification peer already closed")                 \
-    XX(208, ERTCNOIP, "Cannot select own WebRTC ip")                               \
+    XX(207, ERTCCHANNEL_CLOSED, "WebRTC datachannel closed")                       \
+    XX(208, ERTCNOPEER, "WebRTC verification peer already closed")                 \
+    XX(209, ERTCNOIP, "Cannot select own WebRTC ip")                               \
     /*300 - 399: API triggered errors*/                                            \
     XX(300, EINV_HEX, "cannot parse hexadecimal input")                            \
     XX(301, EBADNONCE, "cannot parse nonce")                                       \

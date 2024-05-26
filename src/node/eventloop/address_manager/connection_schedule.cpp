@@ -1,9 +1,11 @@
 #include "connection_schedule.hxx"
-#include "global/globals.hpp"
+// #include "global/globals.hpp"
 #include "peerserver/peerserver.hpp"
-#include "transport/tcp/connection.hpp"
 #include "spdlog/spdlog.h"
 #include "transport/connect_request.hpp"
+#ifndef DISABLE_LIBUV
+// #include "transport/tcp/connection.hpp"
+#endif
 #include <cassert>
 #include <functional>
 #include <future>
@@ -130,27 +132,6 @@ time_point VectorEntryBase::update_timer(const ReconnectContext& c)
     return timer.timeout();
 }
 
-void SockaddrVector::erase(const TCPSockaddr& a, auto lambda)
-{
-    std::erase_if(data, [&a, &lambda](elem_t& d) {
-        if (d.address == a) {
-            lambda(std::move(d));
-            return true;
-        }
-        return false;
-    });
-}
-
-auto SockaddrVector::emplace(const WithSource<TCPSockaddr>& i) -> std::pair<elem_t&, bool>
-{
-    auto p { find(i.address) };
-    if (p)
-        return { *p, false };
-    elem_t& e { insert(elem_t { i }) };
-    if (auto t { e.timeout() }; t)
-        update_wakeup_time(*t);
-    return { e, true };
-}
 
 template <typename addr_t>
 std::pair<VectorEntry<addr_t>&, bool> VerifiedVector<addr_t>::emplace(const WithSource<addr_t>& i, tp lastVerified)
@@ -204,27 +185,13 @@ EntryData* SockaddrVectorBase<EntryData, addr_t>::find(const addr_t& address) co
 }
 }
 
-// auto ConnectionSchedule::invoke_with_verified(const TCPSockaddr& a, auto lambda)
-// {
-//     return std::visit(
-//         [&]<typename T>(const T& addr) {
-//             return lambda(addr, verified);
-//         },
-//         a.data);
-// }
-//
-// auto ConnectionSchedule::invoke_with_verified(const TCPSockaddr& a, auto lambda) const
-// {
-//     return std::visit(
-//         [&]<typename T>(const T& addr) {
-//             return lambda(addr, verified.get<std::remove_cvref_t<T>>());
-//         },
-//         a.data);
-// }
-
-auto ConnectionSchedule::emplace_verified(const WithSource<TCPSockaddr>& s, steady_clock::time_point lastVerified)
+ConnectionSchedule::ConnectionSchedule(PeerServer& peerServer, const std::vector<TCPSockaddr>& pin)
+    : pinned(pin.begin(), pin.end())
+    , peerServer(peerServer)
 {
-    return verified.emplace({s.address,s.source},lastVerified).second;
+    spdlog::info("Peers connect size {} ", pin.size());
+    for (auto& p : pinned)
+        pinned.insert(p);
 }
 
 auto ConnectionSchedule::find_verified(const TCPSockaddr& sa) -> VectorEntryBase*
@@ -245,14 +212,6 @@ auto ConnectionSchedule::find(const TCPSockaddr& a) const -> std::optional<Found
     return {};
 }
 
-ConnectionSchedule::ConnectionSchedule(PeerServer& peerServer, const std::vector<TCPSockaddr>& pin)
-    : pinned(pin.begin(), pin.end())
-    , peerServer(peerServer)
-{
-    spdlog::info("Peers connect size {} ", pin.size());
-    for (auto& p : pinned)
-        pinned.insert(p);
-}
 void ConnectionSchedule::start()
 {
     constexpr size_t maxRecent = 100;
@@ -268,12 +227,41 @@ void ConnectionSchedule::start()
 
     auto db_peers = future.get();
     int64_t nowts = now_timestamp();
+#ifndef DISABLE_LIBUV
     for (const auto& [a, timestamp] : db_peers) {
         auto lastVerified = sc::now() - seconds((nowts - int64_t(timestamp)));
         auto wasInserted { emplace_verified({ a, startup_source }, lastVerified) };
         assert(wasInserted);
     }
+#endif
 };
+
+// auto ConnectionSchedule::invoke_with_verified(const TCPSockaddr& a, auto lambda)
+// {
+//     return std::visit(
+//         [&]<typename T>(const T& addr) {
+//             return lambda(addr, verified);
+//         },
+//         a.data);
+// }
+//
+// auto ConnectionSchedule::invoke_with_verified(const TCPSockaddr& a, auto lambda) const
+// {
+//     return std::visit(
+//         [&]<typename T>(const T& addr) {
+//             return lambda(addr, verified.get<std::remove_cvref_t<T>>());
+//         },
+//         a.data);
+// }
+
+#ifndef DISABLE_LIBUV
+auto ConnectionSchedule::emplace_verified(const WithSource<TCPSockaddr>& s, steady_clock::time_point lastVerified)
+{
+    return verified.emplace({s.address,s.source},lastVerified).second;
+}
+
+
+
 
 std::optional<ConnectRequest> ConnectionSchedule::insert(TCPSockaddr addr, Source src)
 {
@@ -303,6 +291,7 @@ auto ConnectionSchedule::move_entry(SockaddrVector& ev, const TCPSockaddr& addr)
 
 void ConnectionSchedule::connection_established(const TCPConnection& c)
 { // OK
+  s
     if (c.inbound())
         return;
     const TCPSockaddr& ea { c.peer_addr_native() };
@@ -315,6 +304,28 @@ void ConnectionSchedule::connection_established(const TCPConnection& c)
         return;
     p->connection_established();
 }
+void SockaddrVector::erase(const TCPSockaddr& a, auto lambda)
+{
+    std::erase_if(data, [&a, &lambda](elem_t& d) {
+        if (d.address == a) {
+            lambda(std::move(d));
+            return true;
+        }
+        return false;
+    });
+}
+
+auto SockaddrVector::emplace(const WithSource<TCPSockaddr>& i) -> std::pair<elem_t&, bool>
+{
+    auto p { find(i.address) };
+    if (p)
+        return { *p, false };
+    elem_t& e { insert(elem_t { i }) };
+    if (auto t { e.timeout() }; t)
+        update_wakeup_time(*t);
+    return { e, true };
+}
+#endif
 
 void ConnectionSchedule::outbound_closed(const peerserver::ConnectionData& c)
 {

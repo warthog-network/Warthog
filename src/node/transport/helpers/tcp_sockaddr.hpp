@@ -10,7 +10,7 @@ class Reader;
 struct TCPSockaddrBase {
     TCPSockaddrBase(Reader& r);
     friend Writer& operator<<(Writer&, const TCPSockaddrBase&);
-    static consteval size_t byte_size() { return IPv4::byte_size() + sizeof(port); }
+    static constexpr size_t byte_size() { return IPv4::byte_size() + sizeof(port); }
     constexpr TCPSockaddrBase(IPv4 ipv4, uint16_t port)
         : ip(ipv4)
         , port(port)

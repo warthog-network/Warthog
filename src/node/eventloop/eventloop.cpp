@@ -947,7 +947,7 @@ void Eventloop::handle_msg(Conref c, PingMsg&& m)
 #ifndef DISABLE_LIBUV // TODO: replace TCPSockaddr by something else for emscrpiten build (no TCP connections available in browsers)
     PongMsg msg { m.nonce(), std::move(addresses), mempool.sample(m.maxTransactions()) };
 #else
-    PongMsg msg(m.nonce, std::move(addresses), {});
+    PongMsg msg(m.nonce(), std::move(addresses), {});
 #endif
     spdlog::debug("{} Sending {} addresses", c.str(), msg.addresses().size());
     if (c->theirSnapshotPriority < m.sp())
@@ -966,7 +966,7 @@ void Eventloop::handle_msg(Conref c, PingV2Msg&& m)
 #ifndef DISABLE_LIBUV // TODO: replace TCPSockaddr by something else for emscrpiten build (no TCP connections available in browsers)
     PongV2Msg msg { m.nonce(), std::move(addresses), mempool.sample(m.maxTransactions()) };
 #else
-    PongV2Msg msg(m.nonce, std::move(addresses), {});
+    PongV2Msg msg(m.nonce(), std::move(addresses), {});
 #endif
     spdlog::debug("{} Sending {} addresses", c.str(), msg.addresses().size());
     if (c->theirSnapshotPriority < m.sp())
@@ -1236,7 +1236,6 @@ void Eventloop::handle_msg(Conref c, RTCIdentity&& msg)
                     .sdp { std::move(sdp) } });
             },
             ip) };
-        // c.rtc().our.pendingVerifications.insert(newCon->id);
     };
 
     // TODO: start verification queued
