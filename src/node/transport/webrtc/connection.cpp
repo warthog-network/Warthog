@@ -38,7 +38,7 @@ void RTCConnection::async_send(std::unique_ptr<char[]> data, size_t size)
         p->send_proxied(std::move(msg));
     });
 #else
-    send(std::move(msg));
+    send_proxied(std::move(msg));
 #endif
 }
 
@@ -54,7 +54,7 @@ std::shared_ptr<RTCConnection> RTCConnection::connect_new(std::weak_ptr<Eventloo
         });
 #else
     p->init_proxied(std::move(cb));
-    p->set_data_channel(p->pc->createDataChannel("warthog"));
+    p->set_data_channel_proxied(p->pc->createDataChannel("warthog"));
 #endif
     return p;
 }
@@ -158,10 +158,9 @@ std::optional<Error> RTCConnection::set_sdp_answer(OneIpSdp sdp)
             });
         });
 #else
-    if_no_error([this, &sdp]() {
+    if_not_closed([this, &sdp]() {
         pc->setRemoteDescription({ sdp.sdp(), rtc::Description::Type::Answer });
     });
-    pc->setRemoteDescription({ sdp.sdp(), rtc::Description::Type::Answer });
 #endif
     return {};
 }

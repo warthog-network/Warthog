@@ -4,7 +4,7 @@
 #include "spdlog/spdlog.h"
 #include "transport/connect_request.hpp"
 #ifndef DISABLE_LIBUV
-// #include "transport/tcp/connection.hpp"
+#include "transport/tcp/connection.hpp"
 #endif
 #include <cassert>
 #include <functional>
@@ -212,29 +212,6 @@ auto ConnectionSchedule::find(const TCPSockaddr& a) const -> std::optional<Found
     return {};
 }
 
-void ConnectionSchedule::start()
-{
-    constexpr size_t maxRecent = 100;
-    constexpr connection_schedule::Source startup_source { 0 };
-
-    // get recently seen peers from db
-    std::promise<std::vector<std::pair<TCPSockaddr, uint32_t>>> p;
-    auto future { p.get_future() };
-    auto cb = [&p](std::vector<std::pair<TCPSockaddr, uint32_t>>&& v) {
-        p.set_value(std::move(v));
-    };
-    peerServer.async_get_recent_peers(std::move(cb), maxRecent);
-
-    auto db_peers = future.get();
-    int64_t nowts = now_timestamp();
-#ifndef DISABLE_LIBUV
-    for (const auto& [a, timestamp] : db_peers) {
-        auto lastVerified = sc::now() - seconds((nowts - int64_t(timestamp)));
-        auto wasInserted { emplace_verified({ a, startup_source }, lastVerified) };
-        assert(wasInserted);
-    }
-#endif
-};
 
 // auto ConnectionSchedule::invoke_with_verified(const TCPSockaddr& a, auto lambda)
 // {
@@ -291,7 +268,7 @@ auto ConnectionSchedule::move_entry(SockaddrVector& ev, const TCPSockaddr& addr)
 
 void ConnectionSchedule::connection_established(const TCPConnection& c)
 { // OK
-  s
+  
     if (c.inbound())
         return;
     const TCPSockaddr& ea { c.peer_addr_native() };
@@ -304,6 +281,7 @@ void ConnectionSchedule::connection_established(const TCPConnection& c)
         return;
     p->connection_established();
 }
+namespace connection_schedule {
 void SockaddrVector::erase(const TCPSockaddr& a, auto lambda)
 {
     std::erase_if(data, [&a, &lambda](elem_t& d) {
@@ -325,7 +303,32 @@ auto SockaddrVector::emplace(const WithSource<TCPSockaddr>& i) -> std::pair<elem
         update_wakeup_time(*t);
     return { e, true };
 }
+}
 #endif
+
+void ConnectionSchedule::start()
+{
+    constexpr size_t maxRecent = 100;
+    constexpr connection_schedule::Source startup_source { 0 };
+
+    // get recently seen peers from db
+    std::promise<std::vector<std::pair<TCPSockaddr, uint32_t>>> p;
+    auto future { p.get_future() };
+    auto cb = [&p](std::vector<std::pair<TCPSockaddr, uint32_t>>&& v) {
+        p.set_value(std::move(v));
+    };
+    peerServer.async_get_recent_peers(std::move(cb), maxRecent);
+
+    auto db_peers = future.get();
+    int64_t nowts = now_timestamp();
+#ifndef DISABLE_LIBUV
+    for (const auto& [a, timestamp] : db_peers) {
+        auto lastVerified = sc::now() - seconds((nowts - int64_t(timestamp)));
+        auto wasInserted { emplace_verified({ a, startup_source }, lastVerified) };
+        assert(wasInserted);
+    }
+#endif
+};
 
 void ConnectionSchedule::outbound_closed(const peerserver::ConnectionData& c)
 {
