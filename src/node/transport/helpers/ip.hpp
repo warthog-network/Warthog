@@ -19,11 +19,15 @@ public:
             return ip.to_string();
         });
     }
-    bool is_localhost() const
+    bool is_loopback() const
     {
         return visit([](auto ip) {
-            return ip.is_localhost();
+            return ip.is_loopback();
         });
+    }
+    bool is_routable() const
+    {
+        return visit([](auto ip) { return ip.is_routable(); });
     }
 
     operator std::string() const { return to_string(); }

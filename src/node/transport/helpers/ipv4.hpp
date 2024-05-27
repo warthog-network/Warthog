@@ -26,11 +26,21 @@ struct IPv4 {
     constexpr static auto type() { return IpType::v4; }
     friend Writer& operator<<(Writer&, const IPv4&);
     static constexpr size_t byte_size() { return sizeof(data); }
-    bool is_valid(bool allowLocalhost = true) const;
-    bool is_localhost() const;
+    bool is_valid() const;
+    bool is_loopback() const;
+    bool is_rfc1918() const; // IPv4 private networks (10.0.0.0/8, 192.168.0.0/16, 172.16.0.0/12)
+    bool is_rfc2544() const; // IPv4 inter-network communications (198.18.0.0/15)
+    bool is_rfc6598() const; // IPv4 ISP-level NAT (100.64.0.0/10)
+    bool is_rfc5737() const; // IPv4 documentation addresses (192.0.2.0/24, 198.51.100.0/24, 203.0.113.0/24)
+    bool is_rfc3927() const; // IPv4 autoconfig (169.254.0.0/16)
+    bool is_routable() const;
     static constexpr size_t bytes_size() { return 4; }
     auto operator<=>(const IPv4& rhs) const = default;
     static constexpr std::optional<IPv4> parse(const std::string_view&);
+    uint8_t at0() const { return data >> 24; }
+    uint8_t at1() const { return 0xFF & (data >> 16); }
+    uint8_t at2() const { return 0xFF & (data >> 8); }
+    uint8_t at3() const { return 0xFF & data; }
     constexpr IPv4(const std::string_view& s)
         : IPv4(
             [&] {

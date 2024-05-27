@@ -149,10 +149,15 @@ IdentityIps::IdentityIps(Reader& r)
 {
 }
 
-void IdentityIps::assign(IP ip)
+bool IdentityIps::assign_if_routable(IP ip)
 {
-    ip.visit([&](auto ip) { assign(ip); });
-};
+    if (ip.is_routable()) {
+        ip.visit([&](auto ip) {return assign(ip); });
+        return true;
+    }
+    return false;
+}
+
 
 Writer& operator<<(Writer& w, const IdentityIps& id)
 {

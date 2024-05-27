@@ -45,6 +45,11 @@ public:
     {
         return shared_from_this();
     }
+
+    template <typename callback_t>
+    requires std::is_invocable_v<callback_t, std::vector<IP>>
+    static void fetch_id(callback_t cb, bool stun = false);
+
     virtual ConnectionVariant get_shared_variant() override
     {
         return shared_from_this();
@@ -62,12 +67,12 @@ public:
     [[nodiscard]] std::optional<Error> set_sdp_answer(OneIpSdp);
 
 private:
-
     void set_error(int error);
     void if_not_closed(auto lambda);
     void notify_closed();
     void set_data_channel_proxied(std::shared_ptr<rtc::DataChannel>);
     bool closed() { return errcode != 0; }
+
 private: // maybe proxied functions
     void init_proxied(sdp_callback_t&& sdpCallback);
     void send_proxied(std::string);

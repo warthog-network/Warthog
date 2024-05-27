@@ -131,6 +131,7 @@ std::span<uint8_t> ConnectionBase::process_message(std::span<uint8_t> s, AckStat
 {
     std::lock_guard l(statechangeMutex);
     state.emplace<MessageState>(as);
+    global().core->async_register(get_shared_variant());
     return { s.begin() + 1, s.end() }; // skip 1 byte
 }
 

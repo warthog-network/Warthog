@@ -15,14 +15,15 @@ struct RTCState {
             auto& v { ips->get_ip4() };
             if (v)
                 return *v;
-            return {};
-        } break;
+            break;
+        }
         case IpType::v6: {
             auto& v { ips->get_ip6() };
             if (v)
                 return *v;
-            return {};
+            break;
         }
         }
+        return {};
     };
 };

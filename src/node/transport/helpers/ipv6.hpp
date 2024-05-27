@@ -21,10 +21,30 @@ public:
     auto operator<=>(const IPv6& rhs) const = default;
     static constexpr std::optional<IPv6> parse(const std::string_view&);
     static constexpr size_t byte_size() { return 16; }
-    bool is_localhost() const
+    bool is_loopback() const
     {
         return data == decltype(data) { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 };
     }
+    template<std::size_t N>
+        requires (N<=16)
+    [[nodiscard]] bool has_prefix(const uint8_t(&)[N]) const;
+    template <size_t i>
+    requires(i < 16)
+    uint8_t at() const
+    {
+        return data[i];
+    }
+    bool is_valid() const;
+    bool is_rfc3849() const; // IPv6 documentation address (2001:0DB8::/32)
+    bool is_rfc3964() const; // IPv6 6to4 tunnelling (2002::/16)
+    bool is_rfc4193() const; // IPv6 unique local (FC00::/7)
+    bool is_rfc4380() const; // IPv6 Teredo tunnelling (2001::/32)
+    bool is_rfc4843() const; // IPv6 ORCHID (deprecated) (2001:10::/28)
+    bool is_rfc7343() const; // IPv6 ORCHIDv2 (2001:20::/28)
+    bool is_rfc4862() const; // IPv6 autoconfig (FE80::/64)
+    bool is_rfc6052() const; // IPv6 well-known prefix for IPv4-embedded address (64:FF9B::/96)
+    bool is_rfc6145() const; // IPv6 IPv4-translated address (::FFFF:0:0:0/96) (actually defined in RFC2765)
+    bool is_routable() const;
 
     constexpr IPv6(const std::string_view& s)
         : IPv6(

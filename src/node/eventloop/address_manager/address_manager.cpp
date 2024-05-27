@@ -45,7 +45,7 @@ auto AddressManager::insert(InsertData id) -> tl::expected<Conref, int32_t>
 {
     auto c { id.convar.base() };
     auto ip { c->peer_addr().ip() };
-    if (!ip.is_localhost()) {
+    if (!ip.is_loopback()) {
         if (ipCounter.contains(ip))
             return tl::unexpected(EDUPLICATECONNECTION);
 #ifndef DISABLE_LIBUV
@@ -71,7 +71,7 @@ auto AddressManager::insert(InsertData id) -> tl::expected<Conref, int32_t>
     Conref cr { p.first };
     c->dataiter = cr.iterator();
 
-    assert(ip.is_localhost() || ipCounter.insert(ip, 1) == 1);
+    assert(ip.is_loopback() || ipCounter.insert(ip, 1) == 1);
 
     if (c->inbound()) {
         inboundConnections.push_back(cr);
@@ -232,7 +232,7 @@ auto AddressManager::eviction_candidate() const -> std::optional<Conref>
 //         || verified.contains(a)
 //         || failedAddresses.contains(a)
 //         || is_own_endpoint(a)
-//         || !a.ipv4.is_valid(config().peers.allowLocalhostIp))
+//         || !(a.ipv4.is_routable() || (config().peers.allowLocalhostIp && a.ipv4.is_loopback()))
 //         return;
 //
 //     unverifiedAddresses.insert(a);

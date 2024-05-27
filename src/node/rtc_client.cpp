@@ -4,6 +4,7 @@
 #include "transport/helpers/ip.hpp"
 
 #include "transport/helpers/ipv4.hpp"
+#include "transport/webrtc/connection.hxx"
 #include "transport/helpers/ipv6.hpp"
 #include <chrono>
 #include <iostream>
@@ -27,7 +28,7 @@ using namespace std;
 
 int main()
 {
-    fetch_id([](const std::vector<IP>& ips) {
+    RTCConnection::fetch_id([](const std::vector<IP>& ips) {
         for (auto& ip : ips) {
             std::cout << "ip: " << ip.to_string() << endl;
         }

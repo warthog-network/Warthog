@@ -1,19 +1,11 @@
-#include "connection.hpp"
+#include "connection.hxx"
 #include "eventloop/eventloop.hpp"
 #include "webrtc_sockaddr.hpp"
 #ifdef DISABLE_LIBUV
-#include <emscripten/proxying.h>
-#include <emscripten/threading.h>
-namespace {
-auto& proxying_queue()
+emscripten::ProxyingQueue& proxying_queue()
 {
     static emscripten::ProxyingQueue q;
     return q;
-}
-void proxy_to_main_runtime(auto cb)
-{
-    proxying_queue().proxyAsync(emscripten_main_runtime_thread_id(), std::move(cb));
-}
 }
 #endif
 
@@ -185,11 +177,8 @@ void RTCConnection::set_error(int error)
 
 void RTCConnection::init_proxied(sdp_callback_t&& sdpCallback)
 {
-    rtc::Configuration config {
-        .iceServers {
-            // { "stun:stun.l.google.com:19302" }
-        }
-    };
+    rtc::Configuration config;
+    // config.iceServers.push_back({ "stun:stun.l.google.com:19302" });
 
     std::lock_guard l { errcodeMutex };
     pc = std::make_unique<rtc::PeerConnection>(config);

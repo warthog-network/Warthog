@@ -1,5 +1,6 @@
 #include "ipv4.hpp"
 #include "general/reader.hpp"
+#include "netinet/in.h"
 #include "general/writer.hpp"
 #ifndef DISABLE_LIBUV
 #include "uv.h"
@@ -22,20 +23,41 @@ IPv4::IPv4(const sockaddr_in& sin)
 }
 #endif
 
-bool IPv4::is_valid(bool allowLocalhost) const
+bool IPv4::is_valid() const{
+    return data != INADDR_ANY && data != INADDR_NONE;
+}
+bool IPv4::is_loopback() const
 {
-    uint32_t ndata = hton32(data);
-    uint8_t* pdata = reinterpret_cast<uint8_t*>(&ndata);
-    return data != 0 // ignore 0.0.0.0
-        && (allowLocalhost || pdata[0] != 127)
-        && pdata[0] != 192 // ignore 192.xxx.xxx.xxx
-        && !(pdata[0] == 169 && pdata[1] == 254); // ignore 192.xxx.xxx.xxx
+    return at0() == 127;
 }
 
-bool IPv4::is_localhost() const
+bool IPv4::is_rfc1918() const
 {
-    return data == (127 << 24) + 1;
+    // RFC1918
+    return at0() == 10 || (at0() == 192 && at1() == 168) || (at0() == 172 && at1() >= 16 && at1() <= 31);
 }
+bool IPv4::is_rfc2544() const
+{
+    return at0() == 198 && (at1() == 18 || at1() == 19);
+}
+bool IPv4::is_rfc6598() const
+{
+    return at0() == 100 && at1() >= 64 && at1() <= 127;
+}
+bool IPv4::is_rfc5737() const
+{
+    return (at0() == 192 && at1() == 0 && at2() == 2) || (at0() == 198 && at1() == 51 && at2() == 100) || (at0() == 203 && at1() == 0 && at2() == 113);
+}
+bool IPv4::is_rfc3927() const
+{
+    return at0() == 169 && at1() == 254;
+}
+
+bool IPv4::is_routable() const
+{
+    return is_valid() && !(is_rfc1918() || is_rfc2544() || is_rfc3927() || is_rfc6598() || is_rfc5737() || is_loopback());
+}
+
 // modified version of libuv's
 // static int inet_pton4(const char *src, unsigned char *dst) {
 
