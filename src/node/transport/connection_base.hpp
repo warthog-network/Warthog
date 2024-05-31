@@ -79,6 +79,8 @@ public:
         bool is_tcp() const { return std::holds_alternative<std::shared_ptr<TCPConnection>>(*this); }
         auto& get_tcp() { return std::get<std::shared_ptr<TCPConnection>>(*this); }
 #endif
+        bool is_rtc() const { return std::holds_alternative<std::shared_ptr<RTCConnection>>(*this); }
+        auto& get_rtc() { return std::get<std::shared_ptr<RTCConnection>>(*this); }
         auto visit(auto lambda) const
         {
             return std::visit(lambda, *this);

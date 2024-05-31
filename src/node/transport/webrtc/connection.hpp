@@ -1,8 +1,8 @@
 #pragma once
 #include "../connection_base.hpp"
-#include "communication/buffers/recvbuffer.hpp"
-#include "communication/buffers/sndbuffer.hpp"
 #include "eventloop/types/conref_declaration.hpp"
+#include "eventloop/types/rtc/registry_type.hpp"
+#include <list>
 #include <memory>
 
 class Eventloop;
@@ -10,9 +10,22 @@ class Eventloop;
 namespace rtc {
 class DataChannel;
 class PeerConnection;
+
 }
 
-class RTCConnection final : public ConnectionBase, public std::enable_shared_from_this<RTCConnection> {
+namespace rtc_state {
+class Connections;
+
+// RTC state related data stored in each connection
+class RTCConnectionData {
+    friend class Connections;
+
+private:
+    registry_t::iterator rtcRegistryIter;
+};
+}
+
+class RTCConnection final : public ConnectionBase, public std::enable_shared_from_this<RTCConnection>, public rtc_state::RTCConnectionData {
 
     struct OutPending {
     };
@@ -35,9 +48,18 @@ class RTCConnection final : public ConnectionBase, public std::enable_shared_fro
     };
 
 public:
-    [[nodiscard]] static std::shared_ptr<RTCConnection> connect_new(std::weak_ptr<Eventloop>, sdp_callback_t cb, const IP&);
-    [[nodiscard]] static std::shared_ptr<RTCConnection> accept_new(std::weak_ptr<Eventloop> eventloop, sdp_callback_t cb, OneIpSdp sdp);
-    RTCConnection(bool isInbound, std::weak_ptr<Eventloop>, IP ip, variant_t data);
+    [[nodiscard]] static std::shared_ptr<RTCConnection> connect_new(Eventloop&, sdp_callback_t cb, const IP&, uint64_t verificationConId = 0);
+    // feeler connection;
+    [[nodiscard]] static std::shared_ptr<RTCConnection> connect_new_verification(Eventloop& e, sdp_callback_t cb, const IP& ip, uint64_t verificationConId)
+    {
+        return connect_new(e, std::move(cb), ip, verificationConId);
+    }
+    [[nodiscard]] static std::shared_ptr<RTCConnection> accept_new(Eventloop& eventloop, sdp_callback_t cb, OneIpSdp sdp, uint64_t verificationConId = 0);
+    [[nodiscard]] static std::shared_ptr<RTCConnection> accept_new_verification(Eventloop& e, sdp_callback_t cb, OneIpSdp sdp, uint64_t verificationConId)
+    {
+        return accept_new(e, std::move(cb), std::move(sdp), verificationConId);
+    }
+    RTCConnection(bool isInbound, uint64_t verificationConId, std::weak_ptr<Eventloop>, IP ip, variant_t data);
     RTCConnection(const RTCConnection&) = delete;
     RTCConnection(RTCConnection&&) = delete;
     virtual bool is_native() const override { return true; }
@@ -47,7 +69,7 @@ public:
     }
 
     template <typename callback_t>
-    requires std::is_invocable_v<callback_t, std::vector<IP>>
+    requires std::is_invocable_v<callback_t, IdentityIps&&>
     static void fetch_id(callback_t cb, bool stun = false);
 
     virtual ConnectionVariant get_shared_variant() override
@@ -65,9 +87,10 @@ public:
 
     void close(int errcode) override;
     [[nodiscard]] std::optional<Error> set_sdp_answer(OneIpSdp);
+    [[nodiscard]] auto& verification_con_id() { return verificationConId; }
 
 private:
-    void set_error(int error);
+    [[nodiscard]] bool set_error(int error);
     void if_not_closed(auto lambda);
     void notify_closed();
     void set_data_channel_proxied(std::shared_ptr<rtc::DataChannel>);
@@ -75,14 +98,11 @@ private:
 
 private: // maybe proxied functions
     void init_proxied(sdp_callback_t&& sdpCallback);
-    void send_proxied(std::string);
+    void send_proxied(std::vector<std::byte>&&);
 
 private:
     bool isInbound;
-
-public:
-    bool closeAfterConnected { false }; // close connection after verification
-private:
+    uint64_t verificationConId { 0 }; // Nonzero specifies connection id of peer this RTC connection is verifying.
     WebRTCSockaddr sockAddr;
     std::weak_ptr<Eventloop> eventloop;
 

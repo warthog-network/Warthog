@@ -7,7 +7,7 @@
 #include "chainserver/state/update/update.hpp"
 #include "communication/stage_operation/result.hpp"
 #include "eventloop/timer.hpp"
-#include "eventloop/types/rtc_state.hpp"
+#include "eventloop/types/rtc/rtc_state.hpp"
 #include "general/move_only_function.hpp"
 #include "mempool/mempool.hpp"
 #include "mempool/subscription_declaration.hpp"
@@ -16,7 +16,6 @@
 #include "sync/sync_state.hpp"
 #include "timer_element.hpp"
 #include "transport/connection_base.hpp"
-#include "transport/webrtc/registry.hpp"
 #include "types/chainstate.hpp"
 #include "types/conndata.hpp"
 #include <condition_variable>
@@ -50,7 +49,13 @@ namespace BlockDownload {
 class Attorney;
 }
 
-class Eventloop final : public std::enable_shared_from_this<Eventloop> {
+class RTCData {
+    friend class RTCConnection;
+
+protected:
+    RTCState rtc;
+};
+class Eventloop final : public std::enable_shared_from_this<Eventloop>, public RTCData {
     using StateUpdate = chainserver::state_update::StateUpdate;
     friend class BlockDownload::Attorney;
     friend class EndAttorney;
@@ -116,6 +121,7 @@ public:
     void wait_for_shutdown();
     void async_stage_action(stage_operation::Result);
     void async_state_update(StateUpdate&& s);
+    void notify_closed_rtc(std::shared_ptr<RTCConnection> rtc);
 
     void erase(std::shared_ptr<ConnectionBase> c);
     void on_failed_connect(const ConnectRequest& r, Error reason);
@@ -179,12 +185,11 @@ private:
     void handle_msg(Conref cr, RTCVerificationOffer&&);
     void handle_msg(Conref cr, RTCVerificationAnswer&&);
 
-
     ////////////////////////
     // convenience functions
     void consider_send_snapshot(Conref);
 
-    void send_signaling_list();
+    void send_schedule_signaling_lists();
 
     ////////////////////////
     // assign work to connections
@@ -199,6 +204,10 @@ private:
     friend class RequestSender;
     RequestSender sender() { return RequestSender(*this); };
     void send_init(Conref cr);
+
+    /////////////////////////////
+    /// RTC verification
+    void try_verify_rtc_identities();
 
     ////////////////////////
     // Handling timeout events
@@ -223,6 +232,7 @@ private:
     void handle_connection_timeout(Conref, Timer::CloseNoPong&&);
     void handle_timeout(Timer::ScheduledConnect&&);
     void handle_timeout(Timer::CallFunction&&);
+    void handle_timeout(Timer::SendIdentityIps&&);
 
     void on_request_expired(Conref cr, const Proberequest&);
     void on_request_expired(Conref cr, const Batchrequest&);
@@ -264,13 +274,16 @@ private:
     struct CancelTimer {
         Timer::key_t timer;
     };
+    struct RTCClosed { // RTC connection closed
+        std::shared_ptr<RTCConnection> con;
+    };
 
     // event queue
     using Event = std::variant<Erase, RegisterConnection, OnProcessConnection,
         StateUpdate, SignedSnapshotCb, PeersCb, SyncedCb, stage_operation::Result,
         OnForwardBlockrep, InspectorCb, GetHashrate, GetHashrateChart,
         FailedConnect,
-        mempool::Log, StartTimer, CancelTimer, IdentityIps, GeneratedVerificationSdpOffer, GeneratedVerificationSdpAnswer, GeneratedSdpOffer, GeneratedSdpAnswer>;
+        mempool::Log, StartTimer, CancelTimer, RTCClosed, IdentityIps, GeneratedVerificationSdpOffer, GeneratedVerificationSdpAnswer, GeneratedSdpOffer, GeneratedSdpAnswer>;
 
 public:
     bool defer(Event e);
@@ -293,6 +306,7 @@ private:
     void handle_event(mempool::Log&&);
     void handle_event(StartTimer&&);
     void handle_event(CancelTimer&&);
+    void handle_event(RTCClosed&&);
     void handle_event(IdentityIps&&);
     void handle_event(GeneratedVerificationSdpOffer&&);
     void handle_event(GeneratedVerificationSdpAnswer&&);
@@ -320,6 +334,7 @@ private:
     ////////////////////////
     // convenience functions
     const ConsensusSlave& consensus() { return chains.consensus_state(); }
+    tl::expected<Conref, int32_t> try_register(RegisterConnection&&);
 
     ////////////////////////
     // register sync state
@@ -349,8 +364,6 @@ private: // private data
     BlockDownload::Downloader blockDownload;
     mempool::SubscriptionMap mempoolSubscriptions;
     SyncState syncState;
-
-    RTCState rtc;
 
     ////////////////////////////
     // mutex protected varibales

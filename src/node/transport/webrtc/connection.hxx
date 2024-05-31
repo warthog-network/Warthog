@@ -1,5 +1,6 @@
 #pragma once
 #include "connection.hpp"
+#include "rtc/rtc.hpp"
 #ifdef DISABLE_LIBUV
 #include <emscripten/proxying.h>
 #include <emscripten/threading.h>
@@ -13,7 +14,7 @@ inline void proxy_to_main_runtime(auto cb)
 #endif
 
 template <typename callback_t>
-requires std::is_invocable_v<callback_t, std::vector<IP>>
+requires std::is_invocable_v<callback_t, IdentityIps&&>
 void RTCConnection::fetch_id(callback_t cb, bool stun)
 {
 #ifdef DISABLE_LIBUV
@@ -28,7 +29,7 @@ void RTCConnection::fetch_id(callback_t cb, bool stun)
             [pc, on_result = std::move(cb)](rtc::PeerConnection::GatheringState state) mutable {
                 if (state == rtc::PeerConnection::GatheringState::Complete) {
                     std::string sdp(pc->localDescription().value());
-                    on_result(sdp_filter::udp_ips(sdp));
+                    on_result(IdentityIps::from_sdp(sdp));
                     pc.reset();
                 }
             });

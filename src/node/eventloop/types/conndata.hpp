@@ -6,7 +6,7 @@
 #include "eventloop/timer.hpp"
 #include "mempool/subscription_declaration.hpp"
 #include "peer_requests.hpp"
-#include "peer_rtc_state.hpp"
+#include "rtc/peer_rtc_state.hpp"
 #include "transport/connection_base.hpp"
 
 class Timerref {

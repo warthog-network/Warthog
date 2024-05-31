@@ -105,7 +105,6 @@ int main(int argc, char** argv)
 
     // spdlog::flush_on(spdlog::level::debug);
 #ifndef DISABLE_LIBUV
-    /////////////////////
     // uv loop
     auto l { uvw::loop::create() };
 #endif

@@ -79,6 +79,7 @@ requires std::is_invocable_v<callback_t, std::string_view>
 
 namespace sdp_filter {
 
+
 // std::string filter_line(std::string_view sdp)
 // {
 //     std::string out;
@@ -116,14 +117,22 @@ std::optional<IP> load_ip(std::string_view sdp)
 std::optional<std::string> only_udp_ip(const IP& ip, std::string_view sdp)
 {
     std::vector<IP> out;
-    return filter_line(sdp, [&ip](std::string_view line) -> bool {
+    bool found { false };
+    auto filtered { filter_line(sdp, [&ip, &found](std::string_view line) -> bool {
         auto c { udp_candidate_ip(line) };
         if (!c.candidate)
             return true;
         if (!c.udp_ip)
             return false;
-        return IP::parse(*c.udp_ip) == ip;
-    });
+        if (IP::parse(*c.udp_ip) == ip) {
+            found = true;
+            return true;
+        }
+        return false;
+    }) };
+    if (found)
+        return filtered;
+    return {};
 }
 }
 
@@ -138,26 +147,34 @@ OneIpSdp::OneIpSdp(std::string s)
 {
 }
 
+IdentityIps IdentityIps::from_sdp(const std::string& sdp)
+{
+    auto ips{sdp_filter::udp_ips(sdp)};
+    IdentityIps id;
+    for (IP& ip : ips)
+        id.assign_if_routable(ip);
+    return id;
+}
+
 size_t IdentityIps::byte_size() const
 {
     return ::byte_size(ipv4) + ::byte_size(ipv6);
 }
 
 IdentityIps::IdentityIps(Reader& r)
-    : ipv4(r)
-    , ipv6(r)
+    : ipv4 { r.optional() }
+    , ipv6 { r.optional() }
 {
 }
 
 bool IdentityIps::assign_if_routable(IP ip)
 {
     if (ip.is_routable()) {
-        ip.visit([&](auto ip) {return assign(ip); });
+        ip.visit([&](auto ip) { return assign(ip); });
         return true;
     }
     return false;
 }
-
 
 Writer& operator<<(Writer& w, const IdentityIps& id)
 {

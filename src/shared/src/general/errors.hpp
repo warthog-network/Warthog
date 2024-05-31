@@ -129,6 +129,7 @@
     XX(207, ERTCCHANNEL_CLOSED, "WebRTC datachannel closed")                       \
     XX(208, ERTCNOPEER, "WebRTC verification peer already closed")                 \
     XX(209, ERTCNOIP, "Cannot select own WebRTC ip")                               \
+    XX(210, ERTCFEELER, "Normal feeler connection shutdown")                       \
     /*300 - 399: API triggered errors*/                                            \
     XX(300, EINV_HEX, "cannot parse hexadecimal input")                            \
     XX(301, EBADNONCE, "cannot parse nonce")                                       \

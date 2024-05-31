@@ -155,6 +155,11 @@ void Eventloop::async_forward_blockrep(uint64_t conId, std::vector<BodyContainer
     defer(OnForwardBlockrep { conId, std::move(blocks) });
 }
 
+void Eventloop::notify_closed_rtc(std::shared_ptr<RTCConnection> rtc)
+{
+    defer(RTCClosed { std::move(rtc) });
+}
+
 bool Eventloop::has_work()
 {
     auto now = std::chrono::steady_clock::now();
@@ -163,12 +168,9 @@ bool Eventloop::has_work()
 
 void Eventloop::loop()
 {
-    RTCConnection::fetch_id([w = weak_from_this()](auto ips) {
-        IdentityIps id;
-        for (IP& ip : ips)
-            id.assign_if_routable(ip);
+    RTCConnection::fetch_id([w = weak_from_this()](IdentityIps&& ips) {
         if (auto p { w.lock() })
-            p->defer(std::move(id));
+            p->defer(std::move(ips));
     },
         true);
 
@@ -248,21 +250,12 @@ void Eventloop::handle_event(Erase&& m)
 
 void Eventloop::handle_event(RegisterConnection&& m)
 {
-    auto c { m.convar.base() };
-    c->eventloop_registered = true;
-
-    auto r { connections.insert({ .convar { m.convar },
-        .headerDownload { headerDownload },
-        .blockDownload { blockDownload },
-        .timer { timer },
-        .evict_cb {
-            [this](Conref evictionCandidate) {
-                close(evictionCandidate, EEVICTED);
-            } } }) };
+    auto r { try_register(std::move(m)) };
 
     if (r.has_value()) {
         send_init(r.value());
     } else {
+        auto c { m.convar.base() };
         c->close(r.error());
         c->eventloop_erased = true;
     }
@@ -521,6 +514,18 @@ void Eventloop::handle_event(CancelTimer&& ct)
     timer.cancel(ct.timer);
 }
 
+void Eventloop::handle_event(RTCClosed&& ct)
+{
+    if (auto conId { ct.con->verification_con_id() }; conId != 0) { // conId id verified in this RTC connection
+        if (auto con { connections.find(conId) }) {
+            rtc.verificationSchedule.add(*con);
+            con->rtc().our.pendingVerification.done();
+        }
+    }
+    rtc.connections.erase(ct.con);
+    try_verify_rtc_identities();
+}
+
 void Eventloop::handle_event(IdentityIps&& ips)
 {
     spdlog::info("Webrtc identity IPv4: {}", ips.get_ip4() ? ips.get_ip4().value().to_string() : "N/A");
@@ -529,10 +534,17 @@ void Eventloop::handle_event(IdentityIps&& ips)
     assert(rtc.ips.has_value() == false);
     for (auto cr : connections.initialized()) {
         if (cr.version().v2()) {
+            spdlog::info("Sending own identity");
             cr.send(RTCIdentity(ips));
         }
     }
     rtc.ips = std::move(ips);
+
+    send_schedule_signaling_lists();
+    for (auto c : connections.initialized()) {
+        rtc.verificationSchedule.add(c);
+    }
+    try_verify_rtc_identities();
 }
 
 void Eventloop::handle_event(GeneratedVerificationSdpAnswer&& m)
@@ -557,6 +569,7 @@ void Eventloop::handle_event(GeneratedVerificationSdpAnswer&& m)
     }
     auto& sdp = *filtered;
 
+    spdlog::info("send RTCVerificationAnswer, ip: {}", m.ownIp.to_string());
     originCon.send(RTCVerificationAnswer { sdp });
 }
 void Eventloop::handle_event(GeneratedSdpAnswer&& m)
@@ -598,25 +611,18 @@ void Eventloop::handle_event(GeneratedVerificationSdpOffer&& m)
     }
     auto& c { o.value() };
     const auto& verifyIp { rtcCon.peer_addr().ip() };
-    auto ips { sdp_filter::udp_ips(m.sdp) };
 
-    auto t { verifyIp.type() };
-    std::optional<IP> selected;
-    for (auto& ip : ips) {
-        if (ip.type() == t) {
-            selected = ip;
-            break;
-        }
-    }
+    auto ips { IdentityIps::from_sdp(m.sdp) };
+
+    std::optional<IP> selected{ ips.get_ip_with_type(verifyIp.type())};
     if (!selected.has_value()) {
         rtcCon.close(ERTCNOPEER);
         return;
     }
 
-    spdlog::info("GeneratedVerificationSdpOffer: Found {} ips, selecting {}", ips.size(), selected->to_string());
+    spdlog::info("GeneratedVerificationSdpOffer: with IP {}", selected->to_string());
     auto filtered { sdp_filter::only_udp_ip(*selected, m.sdp) };
     assert(filtered.has_value());
-    c.rtc().our.pendingVerification.set(std::move(m.con));
     c.send(RTCVerificationOffer { verifyIp, filtered.value() });
 }
 
@@ -661,6 +667,7 @@ void Eventloop::erase_internal(Conref c)
     }
     if (blockDownload.erase(c))
         coordinate_sync();
+    rtc.erase(c);
     connections.erase(c.iterator());
     if (doRequests) {
         do_requests();
@@ -676,8 +683,11 @@ bool Eventloop::insert(Conref c, const InitMsg& data)
     blockDownload.insert(c);
     // c->c->
     spdlog::info("Connected to {} peers (new peer {})", headerDownload.size(), c.peer().to_string());
-    if (rtc.ips && c.version().v2())
+    if (rtc.ips && c.version().v2()) {
+        spdlog::info("Sending own identity");
         c.send(RTCIdentity(*rtc.ips));
+    } else
+        spdlog::info("NOT sending own identity");
     send_ping_await_pong(c);
     // LATER: return whether doRequests is necessary;
     return doRequests;
@@ -685,6 +695,7 @@ bool Eventloop::insert(Conref c, const InitMsg& data)
 
 void Eventloop::close(Conref cr, Error reason)
 {
+    spdlog::info("close {}: {}", cr.peer().to_string(), reason.err_name());
     if (!cr->c->eventloop_registered)
         return;
     cr->c->close(reason);
@@ -840,6 +851,11 @@ void Eventloop::handle_timeout(Timer::ScheduledConnect&&)
 void Eventloop::handle_timeout(Timer::CallFunction&& cf)
 {
     cf.callback();
+}
+
+void Eventloop::handle_timeout(Timer::SendIdentityIps&&)
+{
+    send_schedule_signaling_lists();
 }
 
 void Eventloop::handle_connection_timeout(Conref cr, Timer::SendPing&&)
@@ -1170,16 +1186,19 @@ void Eventloop::handle_msg(Conref cr, LeaderMsg&& msg)
     stateServer.async_set_signed_checkpoint(msg.signedSnapshot());
 }
 
-void Eventloop::send_signaling_list()
+void Eventloop::send_schedule_signaling_lists()
 {
     // build map
     std::vector<std::pair<Conref, size_t>> quotasVec;
     std::vector<Conref> conrefs;
     for (auto c : connections.initialized()) {
+        if (c.version().v1())
+            continue;
         auto avail { c.rtc().their.quota.available() };
         quotasVec.push_back({ c, avail });
         conrefs.push_back(c);
     }
+    spdlog::info("send_schedule_signaling_lists to {} peers", conrefs.size());
 
     // shuffle connections
     std::random_device rd;
@@ -1191,8 +1210,6 @@ void Eventloop::send_signaling_list()
 
     // send and save
     for (auto& c : conrefs) {
-        if (c.version().v1())
-            continue;
         auto& identity { c.rtc().their.identity };
         auto v4 { identity.verified_ip4() };
         auto v6 { identity.verified_ip6() };
@@ -1225,28 +1242,17 @@ void Eventloop::send_signaling_list()
         c.rtc().our.signalingList.set(conIds);
         c.send(RTCSignalingList(std::move(ips)));
     }
+    timer.insert(1min, Timer::SendIdentityIps {});
 }
 
 void Eventloop::handle_msg(Conref c, RTCIdentity&& msg)
 {
+    spdlog::info("Received rtc identity");
+    // TODO: restrict number of identity messages
     c.rtc().their.identity.set(msg.ips());
-    auto start_verification = [&](IP ip) {
-        auto newCon { RTCConnection::connect_new(
-            weak_from_this(),
-            [this, peerId = c.id()](RTCConnection& con, std::string sdp) {
-                defer(GeneratedVerificationSdpOffer {
-                    .con { con.weak_from_this() },
-                    .peerId = peerId,
-                    .sdp { std::move(sdp) } });
-            },
-            ip) };
-    };
 
-    // TODO: start verification queued
-    if (auto ip { msg.ips().get_ip4() })
-        start_verification(*ip);
-    if (auto ip { msg.ips().get_ip6() })
-        start_verification(*ip);
+    rtc.verificationSchedule.add(c);
+    try_verify_rtc_identities();
 }
 
 void Eventloop::handle_msg(Conref c, RTCQuota&& msg)
@@ -1256,6 +1262,7 @@ void Eventloop::handle_msg(Conref c, RTCQuota&& msg)
 
 void Eventloop::handle_msg(Conref c, RTCSignalingList&& s)
 {
+    spdlog::warn("Received RTCSignalingList");
     const auto& ips { s.ips() };
     const auto offset {
         c.rtc().their.signalingList.set_new_list_size(ips.size())
@@ -1269,16 +1276,17 @@ void Eventloop::handle_msg(Conref c, RTCSignalingList&& s)
             continue;
 
         uint64_t signalingListKey { offset + i };
-        RTCConnection::connect_new(
-            weak_from_this(),
-            [&, id = c.id(), signalingListKey](RTCConnection& con, std::string sdp) {
-                defer(GeneratedSdpOffer {
-                    .con { con.weak_from_this() },
-                    .signalingServerId = id,
-                    .signalingListKey = signalingListKey,
-                    .sdp { std::move(sdp) } });
-            },
-            ip);
+        rtc.connections.insert(
+            RTCConnection::connect_new(
+                *this,
+                [&, id = c.id(), signalingListKey](RTCConnection& con, std::string sdp) {
+                    defer(GeneratedSdpOffer {
+                        .con { con.weak_from_this() },
+                        .signalingServerId = id,
+                        .signalingListKey = signalingListKey,
+                        .sdp { std::move(sdp) } });
+                },
+                ip));
     }
 }
 
@@ -1315,19 +1323,19 @@ void Eventloop::handle_msg(Conref cr, RTCForwardedOffer&& m)
     if (!ownIp)
         throw Error(ERTCWRONGIP_FO);
     // TODO: authenticate also RTCConnections
-    auto con { RTCConnection::accept_new(
-        weak_from_this(), [w = weak_from_this(), id = cr.id(), key, ownIp = *ownIp](RTCConnection& con, std::string sdp) {
-            if (auto e { w.lock() }; e) {
-                e->defer(GeneratedSdpAnswer {
-                    .ownIp { ownIp },
-                    .con { con.weak_from_this() },
-                    .signalingServerId = id,
-                    .key = key,
-                    .sdp { std::move(sdp) } });
-            }
-        },
-        std::move(oneIpSdp)) };
-    con->closeAfterConnected = true;
+    rtc.connections.insert(
+        RTCConnection::accept_new(
+            *this, [w = weak_from_this(), id = cr.id(), key, ownIp = *ownIp](RTCConnection& con, std::string sdp) {
+                if (auto e { w.lock() }; e) {
+                    e->defer(GeneratedSdpAnswer {
+                        .ownIp { ownIp },
+                        .con { con.weak_from_this() },
+                        .signalingServerId = id,
+                        .key = key,
+                        .sdp { std::move(sdp) } });
+                }
+            },
+            std::move(oneIpSdp)));
 }
 
 void Eventloop::handle_msg(Conref cr, RTCVerificationOffer&& m)
@@ -1335,19 +1343,19 @@ void Eventloop::handle_msg(Conref cr, RTCVerificationOffer&& m)
     OneIpSdp oneIpSdp { std::move(m.offer()) };
     // TODO: check m.ip() ip was indeed offered before by us as identity
     // TODO: rate limit this function
-    auto con { RTCConnection::accept_new(
-        weak_from_this(), [w = weak_from_this(), ip = m.ip(), id = cr.id()](RTCConnection& con, std::string sdp) {
-            if (auto e { w.lock() }; e) {
-                // TODO: make to always reply to cr
-                e->defer(GeneratedVerificationSdpAnswer {
-                    .ownIp { ip },
-                    .con { con.weak_from_this() },
-                    .originConId = id,
-                    .sdp { std::move(sdp) } });
-            }
-        },
-        std::move(oneIpSdp)) };
-    con->closeAfterConnected = true;
+    rtc.connections.insert(
+        RTCConnection::accept_new_verification(
+            *this, [w = weak_from_this(), ip = m.ip(), id = cr.id()](RTCConnection& con, std::string sdp) {
+                if (auto e { w.lock() }; e) {
+                    // TODO: make to always reply to cr
+                    e->defer(GeneratedVerificationSdpAnswer {
+                        .ownIp { ip },
+                        .con { con.weak_from_this() },
+                        .originConId = id,
+                        .sdp { std::move(sdp) } });
+                }
+            },
+            std::move(oneIpSdp), cr.id()));
 }
 
 void Eventloop::handle_msg(Conref cr, RTCRequestForwardAnswer&& r)
@@ -1388,17 +1396,45 @@ void Eventloop::handle_msg(Conref cr, RTCForwardedAnswer&& a)
 
 void Eventloop::handle_msg(Conref cr, RTCVerificationAnswer&& m)
 {
-    spdlog::info("Received RTCVerificationAnswer");
+    spdlog::info("received RTCVerificationAnswer");
+    // TODO:
+    // - clear pending on main connection close
+    // - callback on connection fail
     auto& pv { cr.rtc().our.pendingVerification };
     if (!pv.has_value())
         throw Error(ERTCUNEXP_VA);
-    auto rtcCon { pv.value().con.lock() };
-    if (!rtcCon)
-        return;
+    const auto& rtcCon { pv.value().con };
     OneIpSdp ois { m.answer() };
     if (auto e { rtcCon->set_sdp_answer(ois) })
         throw Error(*e);
-    spdlog::info("RTCVerificationAnswer complete");
+}
+
+void Eventloop::try_verify_rtc_identities()
+{
+    spdlog::info("try_verify_rtc_identities {}", rtc.connections.can_insert_feeler());
+    if (rtc.verificationSchedule.empty())
+        return;
+    while (rtc.connections.can_insert_feeler()) {
+        auto p { rtc.ips->pattern() };
+        spdlog::info("checkpoint A {}, {}", p.ipv4, p.ipv6);
+        auto o { rtc.verificationSchedule.pop(p) };
+        bool b { o.has_value() };
+        if (!b)
+            return;
+        spdlog::info("checkpoint B");
+        auto& [c, ip] = *o;
+        auto newCon { RTCConnection::connect_new_verification(
+            *this,
+            [this, peerId = c.id()](RTCConnection& con, std::string sdp) {
+                defer(GeneratedVerificationSdpOffer {
+                    .con { con.weak_from_this() },
+                    .peerId = peerId,
+                    .sdp { std::move(sdp) } });
+            },
+            ip, c.id()) };
+        rtc.connections.insert(newCon);
+        c.rtc().our.pendingVerification.start(std::move(newCon));
+    }
 }
 
 void Eventloop::consider_send_snapshot(Conref c)
@@ -1446,6 +1482,33 @@ void Eventloop::verify_rollback(Conref cr, const SignedPinRollbackMsg& m)
     }
 }
 
+tl::expected<Conref, int32_t> Eventloop::try_register(RegisterConnection&& m)
+{
+    auto c { m.convar.base() };
+    c->eventloop_registered = true;
+
+    if (m.convar.is_rtc()) {
+        auto& conId { m.convar.get_rtc()->verification_con_id() };
+        if (conId != 0) { // conId id verified in this RTC connection
+            if (auto o { connections.find(conId) }) {
+                auto& parent = *o;
+                parent.rtc().their.identity.set_verified(c->peer_addr().ip());
+                spdlog::info("verified RTC ip {} for {}", c->peer_addr().ip().to_string(), parent.peer().to_string());
+            }
+            conId = 0;
+            return tl::make_unexpected(ERTCFEELER);
+        }
+    }
+
+    return connections.insert({ .convar { m.convar },
+        .headerDownload { headerDownload },
+        .blockDownload { blockDownload },
+        .timer { timer },
+        .evict_cb {
+            [this](Conref evictionCandidate) {
+                close(evictionCandidate, EEVICTED);
+            } } });
+}
 void Eventloop::update_sync_state()
 {
     syncState.set_has_connections(!connections.initialized().empty());

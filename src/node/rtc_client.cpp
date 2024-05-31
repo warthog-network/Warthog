@@ -28,10 +28,8 @@ using namespace std;
 
 int main()
 {
-    RTCConnection::fetch_id([](const std::vector<IP>& ips) {
-        for (auto& ip : ips) {
-            std::cout << "ip: " << ip.to_string() << endl;
-        }
+    RTCConnection::fetch_id([](const IdentityIps& ips) {
+            // std::cout << "ip: " << ips.get_ip4.to_string() << endl;
     }, false);
 
     sleep_for(1000s);

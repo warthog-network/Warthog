@@ -1,5 +1,5 @@
 FROM alpine:3.17.2 AS build
-RUN apk add meson libgcc musl-dev gcc g++ upx
+RUN apk add meson libgcc musl-dev gcc g++ upx linux-headers
 COPY . /code
 RUN mkdir /build
 WORKDIR /code

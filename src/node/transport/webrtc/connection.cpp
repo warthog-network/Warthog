@@ -22,11 +22,11 @@ void RTCConnection::if_not_closed(auto lambda)
 
 void RTCConnection::async_send(std::unique_ptr<char[]> data, size_t size)
 {
-    std::string msg;
+    std::vector<std::byte> msg;
     msg.resize(size);
-    std::copy(data.get(), data.get() + size, msg.begin());
+    memcpy(msg.data(), data.get(), size);
 #ifdef DISABLE_LIBUV
-    proxy_to_main_runtime([p = shared_from_this(), msg = std::move(msg)]() {
+    proxy_to_main_runtime([p = shared_from_this(), msg = std::move(msg)]() mutable {
         p->send_proxied(std::move(msg));
     });
 #else
@@ -34,10 +34,11 @@ void RTCConnection::async_send(std::unique_ptr<char[]> data, size_t size)
 #endif
 }
 
-std::shared_ptr<RTCConnection> RTCConnection::connect_new(std::weak_ptr<Eventloop> eventloop, sdp_callback_t cb, const IP& ip)
+std::shared_ptr<RTCConnection> RTCConnection::connect_new(Eventloop& eventloop, sdp_callback_t cb, const IP& ip, uint64_t verificationConId)
 {
+    // TODO: count active rtc connections
     spdlog::info("RTC connect_new with ip {}", ip.to_string());
-    auto p { std::make_shared<RTCConnection>(false, std::move(eventloop), ip, OutPending()) };
+    auto p { std::make_shared<RTCConnection>(false, verificationConId, eventloop.weak_from_this(), ip, OutPending()) };
 #ifdef DISABLE_LIBUV
     proxy_to_main_runtime(
         [p, cb = std::move(cb)]() mutable {
@@ -51,10 +52,10 @@ std::shared_ptr<RTCConnection> RTCConnection::connect_new(std::weak_ptr<Eventloo
     return p;
 }
 
-std::shared_ptr<RTCConnection> RTCConnection::accept_new(std::weak_ptr<Eventloop> eventloop, sdp_callback_t cb, OneIpSdp sdp)
+std::shared_ptr<RTCConnection> RTCConnection::accept_new(Eventloop& eventloop, sdp_callback_t cb, OneIpSdp sdp, uint64_t verificationConId)
 {
-    spdlog::info("RTC connect_new with ip {}", sdp.ip().to_string());
-    auto p { std::make_shared<RTCConnection>(true, std::move(eventloop), sdp.ip(), Default()) };
+    spdlog::info("RTC accept_new with ip {}", sdp.ip().to_string());
+    auto p { std::make_shared<RTCConnection>(true, verificationConId, eventloop.weak_from_this(), sdp.ip(), Default()) };
 #ifdef DISABLE_LIBUV
     proxy_to_main_runtime(
         [p, cb = std::move(cb), sdp = std::move(sdp)]() mutable {
@@ -80,8 +81,9 @@ std::shared_ptr<RTCConnection> RTCConnection::accept_new(std::weak_ptr<Eventloop
     return p;
 }
 
-RTCConnection::RTCConnection(bool isInbound, std::weak_ptr<Eventloop> eventloop, IP ip, variant_t data)
+RTCConnection::RTCConnection(bool isInbound, uint64_t verificationConId, std::weak_ptr<Eventloop> eventloop, IP ip, variant_t data)
     : isInbound(isInbound)
+    , verificationConId(verificationConId)
     , sockAddr { std::move(ip) }
     , eventloop(std::move(eventloop))
     , data(std::move(data))
@@ -94,9 +96,14 @@ void RTCConnection::set_data_channel_proxied(std::shared_ptr<rtc::DataChannel> n
     dc = std::move(newdc);
     std::cout << "New data channel" << std::endl;
 
-    dc->onOpen([&]() {
-        std::cout << "Datachannel OPEN" << std::endl;
-        on_connected();
+    dc->onOpen([&, opened = false]() mutable {
+        if (opened == false) { // for some reason in firefox browsers
+                               // this is called multiple times
+                               // so we need to make sure this only acts once.
+            opened = true;
+            std::cout << "Datachannel OPEN " << this << std::endl;
+            on_connected();
+        }
     });
     dc->onMessage([&](rtc::message_variant msg) {
         if (closed())
@@ -121,13 +128,14 @@ void RTCConnection::set_data_channel_proxied(std::shared_ptr<rtc::DataChannel> n
 
 void RTCConnection::close(int errcode)
 {
-    set_error(errcode);
+    if (!set_error(errcode))
+        return;
+    spdlog::info("Close rtc connection {}", errcode);
 #ifdef DISABLE_LIBUV
     proxy_to_main_runtime([p = shared_from_this()]() {
         p->pc.reset(); // triggers destructor
     });
 #else
-    pc->close();
     pc.reset(); // triggers destructor
 #endif
 }
@@ -159,17 +167,25 @@ std::optional<Error> RTCConnection::set_sdp_answer(OneIpSdp sdp)
 
 void RTCConnection::notify_closed()
 {
-    set_error(ERTCCLOSED);
+    std::lock_guard l(errcodeMutex);
+    if (errcode == 0) {
+        errcode = ERTCCLOSED;
+    }
     on_close({
         .error = errcode,
     });
+    if (auto e { eventloop.lock() })
+        e->notify_closed_rtc(shared_from_this());
 }
 
-void RTCConnection::set_error(int error)
+bool RTCConnection::set_error(int error)
 {
     std::lock_guard l(errcodeMutex);
-    if (errcode == 0)
+    if (errcode == 0) {
         errcode = error; // TODO: on_error(errcode) in destructor
+        return true;
+    }
+    return false;
 }
 
 //////////////////////////////
@@ -178,7 +194,7 @@ void RTCConnection::set_error(int error)
 void RTCConnection::init_proxied(sdp_callback_t&& sdpCallback)
 {
     rtc::Configuration config;
-    // config.iceServers.push_back({ "stun:stun.l.google.com:19302" });
+    config.iceServers.push_back({ "stun:stun.l.google.com:19302" });
 
     std::lock_guard l { errcodeMutex };
     pc = std::make_unique<rtc::PeerConnection>(config);
@@ -208,7 +224,7 @@ void RTCConnection::init_proxied(sdp_callback_t&& sdpCallback)
         });
 }
 
-void RTCConnection::send_proxied(std::string msg)
+void RTCConnection::send_proxied(std::vector<std::byte>&& msg)
 {
     {
         std::lock_guard l(errcodeMutex);

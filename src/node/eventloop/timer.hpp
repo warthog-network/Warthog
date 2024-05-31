@@ -23,10 +23,13 @@ public:
     struct ScheduledConnect {
     };
 
+    struct SendIdentityIps {
+    };
+
     struct CallFunction {
         MoveOnlyFunction<void()> callback;
     };
-    using Event = std::variant<SendPing, Expire, CloseNoReply, CloseNoPong, ScheduledConnect, CallFunction>;
+    using Event = std::variant<SendPing, Expire, CloseNoReply, CloseNoPong, ScheduledConnect, SendIdentityIps, CallFunction>;
 
 private:
 public:

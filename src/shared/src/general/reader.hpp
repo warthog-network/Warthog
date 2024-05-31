@@ -4,8 +4,8 @@
 #include "general/byte_order.hpp"
 #include "general/errors.hpp"
 #include "view.hpp"
-#include <span>
 #include <optional>
+#include <span>
 #include <vector>
 
 // inline funcitons for access
@@ -109,13 +109,17 @@ public:
         return view<N>();
     }
 
-    template <typename T>
-    operator std::optional<T>()
-    {
-        if (uint8()) 
-            return T{*this};
-        return {};
-    }
+    struct Optional {
+        Reader& r;
+        template <typename T>
+        operator std::optional<T>()
+        {
+            if (r.uint8())
+                return T { r };
+            return {};
+        }
+    };
+    Optional optional() { return { *this }; }
     template <typename T, size_t N = T::size()>
     requires std::derived_from<T, View<N>>
     [[nodiscard]] T view()

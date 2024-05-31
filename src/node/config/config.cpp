@@ -2,9 +2,9 @@
 #include "cmdline/cmdline.hpp"
 #include "general/errors.hpp"
 #include "general/is_testnet.hpp"
-#include "transport/helpers/tcp_sockaddr.hpp"
 #include "spdlog/spdlog.h"
 #include "toml++/toml.hpp"
+#include "transport/helpers/tcp_sockaddr.hpp"
 #include "version.hpp"
 #include <filesystem>
 #include <iostream>
@@ -19,7 +19,6 @@
 #endif
 
 using namespace std;
-
 
 #ifndef DISABLE_LIBUV
 std::string ConfigParams::get_default_datadir()
@@ -56,22 +55,22 @@ std::string ConfigParams::get_default_datadir()
 #include <emscripten.h>
 #include <emscripten/wasmfs.h>
 #include <unistd.h>
-bool mount_opfs(const char *mountpoint) {
-    cout<<"Mounting opfs: "<<mountpoint<<endl;
-  auto pOpfs = wasmfs_create_opfs_backend();
-  if (!pOpfs)
-    return false;
-  bool exists = access(mountpoint, F_OK) == 0;
-  if (exists)
-      return true;
+bool ConfigParams::mount_opfs(const char* mountpoint)
+{
+    spdlog::info("Mounting OPFS at {}", mountpoint);
+    auto pOpfs = wasmfs_create_opfs_backend();
+    if (!pOpfs)
+        return false;
+    bool exists = access(mountpoint, F_OK) == 0;
+    if (exists)
+        return true;
 
-  const int rc = wasmfs_create_directory(mountpoint, 0777, pOpfs);
-  return rc == 0;
+    const int rc = wasmfs_create_directory(mountpoint, 0777, pOpfs);
+    return rc == 0;
 }
 std::string ConfigParams::get_default_datadir()
 {
-  assert(mount_opfs("/opfs"));
-  return "/opfs/";
+    return "/opfs/";
 }
 #endif
 
@@ -180,12 +179,15 @@ EndpointVector parse_endpoints(std::string csv)
 
 int ConfigParams::init(const gengetopt_args_info& ai)
 {
-    const auto defaultDataDir { get_default_datadir() };
     bool dmp(ai.dump_config_given);
     if (!dmp)
         spdlog::info("Warthog Node v{}.{}.{} ", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
 
-    // Log
+        // Log
+#ifdef DISABLE_LIBUV
+    assert(ConfigParams::mount_opfs("/opfs"));
+#endif
+    const auto defaultDataDir { get_default_datadir() };
     if (ai.debug_given)
         spdlog::set_level(spdlog::level::debug);
 
@@ -211,12 +213,12 @@ int ConfigParams::init(const gengetopt_args_info& ai)
     }
 
     if (is_testnet()) {
-        peers.connect = EndpointVector{
+        peers.connect = EndpointVector {
             "193.218.118.57:9286",
             "98.71.18.140:9286"
         };
     } else {
-        peers.connect = EndpointVector{
+        peers.connect = EndpointVector {
             "193.218.118.57:9186",
             "96.41.20.26:9186",
             "89.163.224.253:9186",

@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <deque>
 #include <map>
+#include <memory>
 #include <optional>
 #include <type_traits>
 #include <vector>
@@ -16,6 +17,7 @@
 class RTCConnection;
 namespace rtc_state {
 using namespace std::chrono;
+class VerificationSchedule;
 using std::optional;
 
 class Offered {
@@ -102,7 +104,7 @@ public:
 
     void discard_up_to(uint64_t offsetEnd)
     {
-        size_t n ( offsetEnd - offset );
+        size_t n(offsetEnd - offset);
         assert(n <= entries.size());
         entries.erase(entries.begin(), entries.begin() + n);
         offset = offsetEnd;
@@ -304,65 +306,87 @@ private:
 
 struct Identity {
 public:
+    template <typename ip_type>
+    struct IpEntry {
+        ip_type ip;
+        bool verified { false };
+        bool verificationTried { false };
+        IpEntry(ip_type ip)
+            : ip(std::move(ip))
+        {
+        }
+    };
+    bool empty() const { return fresh; }
     void set(IdentityIps id)
     {
-        if (rtcIdentity.has_value())
+        if (!fresh)
             throw Error(ERTCDUP_ID);
-        rtcIdentity = id;
+        fresh = false;
+        if (id.get_ip4())
+            ipv4 = IpEntry<IPv4>(*id.get_ip4());
+        if (id.get_ip6())
+            ipv6 = IpEntry<IPv6>(*id.get_ip6());
     }
-    auto& get() const { return rtcIdentity; }
+
+    [[nodiscard]] std::optional<IP> pop_unverified(IdentityIps::Pattern p)
+    {
+        if (p.ipv4 && ipv4 && ipv4->verificationTried == false) {
+            ipv4->verificationTried = true;
+            return ipv4->ip;
+        }
+        if (p.ipv6 && ipv6 && ipv6->verificationTried == false) {
+            ipv6->verificationTried = true;
+            return ipv6->ip;
+        }
+        return {};
+    }
+    void set_verified(IP ip)
+    {
+        if (ipv4->ip == ip)
+            ipv4->verified = true;
+        else if (ipv6->ip == ip)
+            ipv6->verified = true;
+    }
+
     bool ip_is_verified(IP ip) const
     {
-        if (!rtcIdentity)
-            return false;
-        if (ip.is_v4()) {
-            if (auto& ip4 { rtcIdentity->get_ip4() })
-                return ip == IP { *ip4 };
-        } else {
-            assert(ip.is_v6());
-            if (auto& ip6 { rtcIdentity->get_ip6() })
-                return ip == IP { *ip6 };
-        }
+        if (ipv4->ip == ip)
+            return ipv4->verified;
+        if (ipv6->ip == ip)
+            return ipv6->verified;
         return false;
     }
 
-    const IPv6* verified_ip6() const
-    {
-        if (verifiedIpv6 && rtcIdentity) {
-            auto& ip { rtcIdentity->get_ip6() };
-            if (ip)
-                return &*ip;
-        }
-        return nullptr;
-    }
     const IPv4* verified_ip4() const
     {
-        if (verifiedIpv4 && rtcIdentity) {
-            auto& ip { rtcIdentity->get_ip4() };
-            if (ip)
-                return &*ip;
-        }
-        return nullptr;
+        return (ipv4 && ipv4->verified ? &ipv4->ip : nullptr);
+    }
+    const IPv6* verified_ip6() const
+    {
+        return (ipv6 && ipv6->verified ? &ipv6->ip : nullptr);
     }
 
 private:
-    std::optional<IdentityIps> rtcIdentity;
-    bool verifiedIpv4 { true }; // TODO switch to false and verify later
-    bool verifiedIpv6 { true };
+    std::optional<IpEntry<IPv4>> ipv4;
+    std::optional<IpEntry<IPv6>> ipv6;
+    bool fresh { true };
 };
 
 class PendingVerification {
 public:
     struct Entry {
-        std::weak_ptr<RTCConnection> con;
+        std::shared_ptr<RTCConnection> con;
     };
 
-    void set(std::weak_ptr<RTCConnection> con)
+    void start(std::shared_ptr<RTCConnection> con)
     {
         assert(entry.has_value() == false);
         entry = { std::move(con) };
     }
-    void insert(uint64_t conId);
+    void done()
+    {
+        entry.reset();
+    }
     bool has_value() const { return entry.has_value(); }
     auto& value() { return entry.value(); }
 
@@ -370,7 +394,14 @@ private:
     std::optional<Entry> entry;
 };
 
-struct PeerRTCState {
+class VerificationScheduleData {
+    friend class VerificationSchedule;
+
+private:
+    bool verificationScheduled { false };
+};
+
+struct PeerRTCState : public VerificationScheduleData {
     struct {
         Quota quota;
         ForwardRequestState forwardRequests;

@@ -21,6 +21,7 @@ struct EndpointVector : public std::vector<TCPSockaddr> {
 };
 struct ConfigParams {
     static constexpr IPv4 localhost { "127.0.0.1" };
+    static bool mount_opfs(const char* mountpoint);
     struct Data {
         std::string chaindb;
         std::string peersdb;

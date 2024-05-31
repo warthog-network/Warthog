@@ -1,5 +1,4 @@
 #pragma once
-#include "rtc/rtc.hpp"
 #include "transport/helpers/ip.hpp"
 #include <string>
 #include <vector>
@@ -27,14 +26,31 @@ private:
     IP _ip;
 };
 
-
 struct IdentityIps {
     IdentityIps(Reader& r);
     IdentityIps() {};
     friend Writer& operator<<(Writer&, const IdentityIps&);
     bool assign_if_routable(IP);
-    auto& get_ip6() const { return ipv6; };
+    [[nodiscard]] static IdentityIps from_sdp(const std::string& sdp);
     auto& get_ip4() const { return ipv4; };
+    auto& get_ip6() const { return ipv6; };
+    std::optional<IP> get_ip_with_type(IpType t)const {
+        using enum IpType;
+        if (t==v4){
+            if (auto ip{get_ip4()}) 
+                return *ip;
+        }else{ // t==v6
+            if (auto ip{get_ip6()}) 
+                return *ip;
+        }
+        return {};
+    }
+    struct Pattern {
+        bool ipv4;
+        bool ipv6;
+    };
+    [[nodiscard]] Pattern pattern() const { return { ipv4.has_value(), ipv6.has_value() }; }
+    [[nodiscard]] bool has_value() const { return ipv4.has_value() || ipv6.has_value(); }
 
     size_t byte_size() const;
 
