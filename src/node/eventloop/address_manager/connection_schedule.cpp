@@ -1,4 +1,3 @@
-#include "connection_schedule.hxx"
 // #include "global/globals.hpp"
 #include "peerserver/peerserver.hpp"
 #include "spdlog/spdlog.h"
@@ -6,6 +5,7 @@
 #ifndef DISABLE_LIBUV
 #include "transport/tcp/connection.hpp"
 #endif
+#include <algorithm>
 #include <cassert>
 #include <functional>
 #include <future>
@@ -50,13 +50,12 @@ void ConnectionLog::log_success()
     bits = (((bits >> 4) | 0x00000001) << 5) | active;
 }
 
-void VectorEntryBase::add_source(Source s)
+void VectorEntry::add_source(Source s)
 {
     sources.insert(s);
 }
 
-template <typename addr_t>
-std::optional<time_point> VectorEntry<addr_t>::try_pop(time_point now, std::vector<ConnectRequest>& out)
+std::optional<time_point> VectorEntry::activate_if_expired(time_point now, std::vector<ConnectRequest>& out)
 {
     if (pending == true)
         return {};
@@ -68,21 +67,21 @@ std::optional<time_point> VectorEntry<addr_t>::try_pop(time_point now, std::vect
     return {};
 }
 
-std::optional<time_point> VectorEntryBase::timeout() const
+std::optional<time_point> VectorEntry::timeout() const
 {
     if (pending == true)
         return {};
     return timer.timeout();
 }
 
-void VectorEntryBase::connection_established()
+void VectorEntry::connection_established()
 {
     pending = false;
     connected += 1;
     connectionLog.log_success();
 }
 
-time_point VectorEntryBase::outbound_connected_ended(const ReconnectContext& c)
+time_point VectorEntry::outbound_connected_ended(const ReconnectContext& c)
 {
     assert(pending);
     pending = false;
@@ -97,7 +96,7 @@ time_point VectorEntryBase::outbound_connected_ended(const ReconnectContext& c)
     return update_timer(c);
 }
 
-time_point VectorEntryBase::update_timer(const ReconnectContext& c)
+time_point VectorEntry::update_timer(const ReconnectContext& c)
 {
     const bool verified { c.endpointState == SockaddrState::VERIFIED };
     auto consecutiveFailures { connectionLog.consecutive_failures() };
@@ -132,51 +131,58 @@ time_point VectorEntryBase::update_timer(const ReconnectContext& c)
     return timer.timeout();
 }
 
-
-template <typename addr_t>
-std::pair<VectorEntry<addr_t>&, bool> VerifiedVector<addr_t>::emplace(const WithSource<addr_t>& i, tp lastVerified)
+std::pair<VectorEntry&, bool> VerifiedVector::emplace(const TCPWithSource& i, tp lastVerified)
 {
     auto p { this->find(i.address) };
     if (p)
         return { *p, false };
-    VectorEntry<addr_t>& e { this->insert(VerifiedEntry<addr_t> { i, lastVerified }) };
+    VectorEntry& e { this->insert(VerifiedEntry { i, lastVerified }) };
     if (auto t { e.timeout() }; t)
         this->update_wakeup_time(*t);
     return { e, true };
 }
 
-template <typename EntryData, typename addr_t>
-auto SockaddrVectorBase<EntryData, addr_t>::push_back(elem_t e) -> elem_t&
+std::vector<TCPSockaddr> connection_schedule::VerifiedVector::sample(size_t N) const
+{
+    std::vector<TCPSockaddr> out;
+    out.reserve(N);
+    std::sample(this->data.begin(), this->data.end(), std::back_inserter(out),
+        N, std::mt19937 { std::random_device {}() });
+    return out;
+}
+
+template <typename T>
+auto SockaddrVectorBase<T>::push_back(elem_t e) -> elem_t&
 {
     data.push_back(std::move(e));
     return data.back();
 }
 
-template <typename EntryData, typename addr_t>
-void SockaddrVectorBase<EntryData, addr_t>::pop_requests(time_point now, std::vector<ConnectRequest>& out)
+template <typename T>
+void SockaddrVectorBase<T>::expired_into(time_point now, std::vector<ConnectRequest>& out)
 {
     if (!wakeup_tp || wakeup_tp > now)
         return;
     wakeup_tp.reset();
     for (auto& e : data)
-        update_wakeup_time(e.try_pop(now, out));
+        update_wakeup_time(e.activate_if_expired(now, out));
 }
 
-template <typename EntryData, typename addr_t>
-VectorEntry<addr_t>& SockaddrVectorBase<EntryData, addr_t>::insert(elem_t&& ed)
+template <typename T>
+VectorEntry& SockaddrVectorBase<T>::insert(elem_t&& ed)
 {
     return data.emplace_back(ed);
 }
 
-template <typename EntryData, typename addr_t>
-void SockaddrVectorBase<EntryData, addr_t>::update_wakeup_time(const std::optional<time_point>& tp)
+template <typename T>
+void SockaddrVectorBase<T>::update_wakeup_time(const std::optional<time_point>& tp)
 {
-    if (wakeup_tp < tp)
+    if (tp && (!wakeup_tp || wakeup_tp > tp))
         wakeup_tp = tp;
 }
 
-template <typename EntryData, typename addr_t>
-EntryData* SockaddrVectorBase<EntryData, addr_t>::find(const addr_t& address) const
+template <typename T>
+auto SockaddrVectorBase<T>::find(const TCPSockaddr& address) const -> elem_t*
 {
     auto iter { std::find_if(data.begin(), data.end(), [&](auto& elem) { return elem.address == address; }) };
     if (iter == data.end())
@@ -191,10 +197,10 @@ ConnectionSchedule::ConnectionSchedule(PeerServer& peerServer, const std::vector
 {
     spdlog::info("Peers connect size {} ", pin.size());
     for (auto& p : pinned)
-        pinned.insert(p);
+        unverifiedNew.emplace(TCPWithSource({ p }));
 }
 
-auto ConnectionSchedule::find_verified(const TCPSockaddr& sa) -> VectorEntryBase*
+auto ConnectionSchedule::find_verified(const TCPSockaddr& sa) -> VectorEntry*
 {
     return verified.find(sa);
 }
@@ -202,7 +208,7 @@ auto ConnectionSchedule::find_verified(const TCPSockaddr& sa) -> VectorEntryBase
 auto ConnectionSchedule::find(const TCPSockaddr& a) const -> std::optional<Found>
 {
     using enum EndpointState;
-    VectorEntryBase* p{verified.find(a)};
+    VectorEntry* p { verified.find(a) };
     if (p)
         return Found { *p, VERIFIED };
     if (p = unverifiedNew.find(a); p)
@@ -211,7 +217,6 @@ auto ConnectionSchedule::find(const TCPSockaddr& a) const -> std::optional<Found
         return Found { *p, UNVERIFIED_FAILED };
     return {};
 }
-
 
 // auto ConnectionSchedule::invoke_with_verified(const TCPSockaddr& a, auto lambda)
 // {
@@ -232,13 +237,10 @@ auto ConnectionSchedule::find(const TCPSockaddr& a) const -> std::optional<Found
 // }
 
 #ifndef DISABLE_LIBUV
-auto ConnectionSchedule::emplace_verified(const WithSource<TCPSockaddr>& s, steady_clock::time_point lastVerified)
+auto ConnectionSchedule::emplace_verified(const TCPWithSource& s, steady_clock::time_point lastVerified)
 {
-    return verified.emplace({s.address,s.source},lastVerified).second;
+    return verified.emplace(s, lastVerified).second;
 }
-
-
-
 
 std::optional<ConnectRequest> ConnectionSchedule::insert(TCPSockaddr addr, Source src)
 {
@@ -255,32 +257,33 @@ std::optional<ConnectRequest> ConnectionSchedule::insert(TCPSockaddr addr, Sourc
     }
 }
 
-auto ConnectionSchedule::move_entry(SockaddrVector& ev, const TCPSockaddr& addr) -> VectorEntryBase*
+auto ConnectionSchedule::verify_from(SockaddrVector& ev, const TCPSockaddr& addr) -> VectorEntry*
 {
 
     using elem_t = SockaddrVector::elem_t;
-    VectorEntryBase* elem = nullptr;
+    VectorEntry* elem = nullptr;
+
     ev.erase(addr, [&](elem_t&& deleted) {
-            elem = &verified.push_back({ std::move(deleted), addr, sc::now() });
+        elem = &verified.push_back({ std::move(deleted), sc::now() });
     });
     return elem;
 }
 
 void ConnectionSchedule::connection_established(const TCPConnection& c)
-{ // OK
-  
+{
     if (c.inbound())
         return;
     const TCPSockaddr& ea { c.peer_addr_native() };
-    VectorEntryBase* p { move_entry(unverifiedNew, ea) };
+    VectorEntry* p { verify_from(unverifiedNew, ea) };
     if (!p)
-        p = move_entry(unverifiedFailed, ea);
+        p = verify_from(unverifiedFailed, ea);
     if (!p)
         p = find_verified(ea);
     if (!p)
         return;
     p->connection_established();
 }
+
 namespace connection_schedule {
 void SockaddrVector::erase(const TCPSockaddr& a, auto lambda)
 {
@@ -334,7 +337,7 @@ void ConnectionSchedule::outbound_closed(const peerserver::ConnectionData& c)
 {
     using enum ConnectionState;
     auto state { c.successfulConnection ? INITIALIZED : UNINITIALIZED };
-    if (auto r{c.connect_request()}) 
+    if (auto r { c.connect_request() })
         outbound_connection_ended(*r, state);
 
     // TODO: make sure prune does not discard pending entries
@@ -370,9 +373,9 @@ std::vector<ConnectRequest> ConnectionSchedule::pop_expired()
 
     // pop expired requests
     std::vector<ConnectRequest> res;
-    verified.pop_requests(now, res);
-    unverifiedNew.pop_requests(now, res);
-    unverifiedFailed.pop_requests(now, res);
+    verified.expired_into(now, res);
+    unverifiedNew.expired_into(now, res);
+    unverifiedFailed.expired_into(now, res);
 
     refresh_wakeup_time();
     return res;

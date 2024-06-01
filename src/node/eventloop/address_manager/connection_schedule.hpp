@@ -14,8 +14,14 @@ using steady_clock = std::chrono::steady_clock;
 template <typename addr_t>
 struct WithSource {
     addr_t address;
-    Source source;
+    std::optional<Source> source;
+    explicit WithSource(addr_t addr)
+        : address(std::move(addr)) {};
+    WithSource(addr_t addr, Source source)
+        : address(std::move(addr))
+        , source(std::move(source)) {};
 };
+using TCPWithSource = WithSource<TCPSockaddr>;
 
 // data structure to encode success of recent connection tries
 class ConnectionLog {
@@ -52,15 +58,23 @@ struct ReconnectContext {
     bool verified() const { return endpointState == SockaddrState::VERIFIED; }
 };
 
-template <typename EntryData, typename addr_t>
+template <typename T>
 class SockaddrVectorBase;
 
-class VectorEntryBase {
-
+class SockaddrVector;
+class VectorEntry {
 public:
-    VectorEntryBase(Source source)
-        : sources { source }
+    template <typename T>
+    friend class SockaddrVectorBase;
+    friend class SockaddrVector;
+    std::optional<time_point> activate_if_expired(time_point, std::vector<ConnectRequest>& out);
+    auto sockaddr() const { return address; };
+    VectorEntry(const TCPWithSource& i)
+        : address(i.address)
     {
+        if (i.source.has_value()) {
+            sources.insert(*i.source);
+        }
     }
     void add_source(Source);
 
@@ -98,57 +112,30 @@ protected:
     std::set<Source> sources;
     bool pending { false };
     uint32_t connected { 0 };
+    TCPSockaddr address;
 };
 
-class SockaddrVector;
-
-template <typename addr_t>
-class VectorEntry : public VectorEntryBase {
-public:
-    template <typename, typename>
-    friend class SockaddrVectorBase;
-    friend class SockaddrVector;
-    std::optional<time_point> try_pop(time_point, std::vector<ConnectRequest>& out);
-    auto sockaddr() const { return address; };
-    VectorEntry(const WithSource<addr_t>& i)
-        : VectorEntryBase(i.source)
-        , address(i.address)
-    {
-    }
-    VectorEntry(VectorEntryBase base, addr_t addr)
-        : VectorEntryBase(std::move(base))
-        , address(std::move(addr))
-    {
-    }
-
-private:
-    addr_t address;
-};
-
-template <typename addr_t>
-class VerifiedEntry : public VectorEntry<addr_t> {
+class VerifiedEntry : public VectorEntry {
 public:
     using tp = std::chrono::steady_clock::time_point;
 
-    operator addr_t() const { return this->sockaddr(); }
-    VerifiedEntry(const WithSource<addr_t>& i, tp lastVerified)
-        : VectorEntry<addr_t>(i)
+    operator TCPSockaddr() const { return this->sockaddr(); }
+    VerifiedEntry(VectorEntry e, tp lastVerified)
+        : VectorEntry(std::move(e))
         , lastVerified(lastVerified)
     {
     }
-
-    VerifiedEntry(VectorEntryBase ed, addr_t addr, tp lastVerified)
-        : VectorEntry<addr_t>(std::move(ed), std::move(addr))
+    VerifiedEntry(const WithSource<TCPSockaddr>& i, tp lastVerified)
+        : VectorEntry(i)
         , lastVerified(lastVerified)
     {
     }
     tp lastVerified;
 };
 
-template <typename addr_t>
 class VerifiedVector;
 
-template <typename T, typename addr_t>
+template <typename T>
 class SockaddrVectorBase {
     friend class SockaddrVector;
     friend class ConnectionSchedule;
@@ -156,19 +143,19 @@ class SockaddrVectorBase {
 public:
     using elem_t = T;
 
-    [[nodiscard]] elem_t* find(const addr_t&) const;
-    void pop_requests(time_point now, std::vector<ConnectRequest>&);
+    [[nodiscard]] elem_t* find(const TCPSockaddr&) const;
+    void expired_into(time_point now, std::vector<ConnectRequest>&);
     std::optional<time_point> timeout() const { return wakeup_tp; }
     elem_t& push_back(elem_t);
 
 protected:
-    VectorEntry<addr_t>& insert(elem_t&&);
+    VectorEntry& insert(elem_t&&);
     void update_wakeup_time(const std::optional<time_point>&);
     std::optional<time_point> wakeup_tp;
     mutable std::vector<elem_t> data;
 };
 
-class SockaddrVector : public SockaddrVectorBase<VectorEntry<TCPSockaddr>, TCPSockaddr> {
+class SockaddrVector : public SockaddrVectorBase<VectorEntry> {
 
 public:
     void erase(const TCPSockaddr& addr, auto lambda);
@@ -176,13 +163,12 @@ public:
     using SockaddrVectorBase::SockaddrVectorBase;
 };
 
-template <typename addr_t>
-class VerifiedVector : public SockaddrVectorBase<VerifiedEntry<addr_t>, addr_t> {
+class VerifiedVector : public SockaddrVectorBase<VerifiedEntry> {
 public:
-    using tp = typename VerifiedEntry<addr_t>::tp;
-    std::pair<VectorEntry<addr_t>&, bool> emplace(const WithSource<addr_t>&, tp lastVerified);
-    std::vector<addr_t> sample(size_t N) const;
-    using SockaddrVectorBase<VerifiedEntry<addr_t>, addr_t>::SockaddrVectorBase;
+    using tp = typename VerifiedEntry::tp;
+    std::pair<VectorEntry&, bool> emplace(const TCPWithSource&, tp lastVerified);
+    std::vector<TCPSockaddr> sample(size_t N) const;
+    using SockaddrVectorBase::SockaddrVectorBase;
 };
 
 class WakeupTime {
@@ -221,67 +207,16 @@ private:
 
 class ConnectionSchedule {
     using ConnectionData = peerserver::ConnectionData;
-    template <typename addr_t>
-    using WithSource = connection_schedule::WithSource<addr_t>;
+    using TCPWithSource = connection_schedule::TCPWithSource;
     using ConnectionState = connection_schedule::ConnectionState;
     using time_point = connection_schedule::time_point;
-    using VectorEntryBase = connection_schedule::VectorEntryBase;
+    using VectorEntry = connection_schedule::VectorEntry;
     using SockaddrVector = connection_schedule::SockaddrVector;
     using EndpointState = connection_schedule::SockaddrState;
     using ReconnectContext = connection_schedule::ReconnectContext;
     using Source = connection_schedule::Source;
     using steady_clock = std::chrono::steady_clock;
-    template<typename T>
-    using VerifiedVector = connection_schedule::VerifiedVector<T>;
-
-    template <typename T>
-    class VerifiedVectors { };
-
-    template <typename T1, typename... Ts>
-    struct VerifiedVectors<std::variant<T1, Ts...>> : public VerifiedVector<T1>,
-                                       public VerifiedVectors<std::variant<Ts...>> {
-        template <typename T>
-        [[nodiscard]] const VerifiedVector<T> & get() const
-        {
-            return *this;
-        }
-        template <typename T>
-        [[nodiscard]] VerifiedVector<T> & get()
-        {
-            return *this;
-        }
-        void pop_requests(time_point now, std::vector<ConnectRequest>& out){
-            get<T1>().pop_requests(now,out);
-            VerifiedVectors<std::variant<Ts...>>::pop_requests(now,out);
-        }
-        std::optional<time_point> timeout() const { 
-            return std::min(get<T1>().timeout(),
-            VerifiedVectors<std::variant<Ts...>>::timeout());
-        }
-    };
-
-    template <typename T1>
-    struct VerifiedVectors<std::variant<T1>> : public VerifiedVector<T1> {
-    public:
-        template <typename T>
-        [[nodiscard]] const VerifiedVector<T> & get() const
-        {
-            return *this;
-        }
-        template <typename T>
-        [[nodiscard]] VerifiedVector<T> & get()
-        {
-            return *this;
-        }
-        void pop_requests(time_point now, std::vector<ConnectRequest>& out){
-            get<T1>().pop_requests(now,out);
-        }
-        std::optional<time_point> timeout() const { 
-            return get<T1>().timeout();
-        }
-
-    };
-
+    using VerifiedVector = connection_schedule::VerifiedVector;
 
 public:
     ConnectionSchedule(PeerServer& peerServer, const std::vector<TCPSockaddr>& v);
@@ -289,14 +224,15 @@ public:
     std::optional<ConnectRequest> insert(TCPSockaddr, Source);
     [[nodiscard]] std::vector<ConnectRequest> pop_expired();
     void connection_established(const TCPConnection&);
-    VectorEntryBase* move_entry(SockaddrVector&, const TCPSockaddr&);
+    VectorEntry* verify_from(SockaddrVector&, const TCPSockaddr&);
     void outbound_closed(const ConnectionData&);
     void outbound_failed(const ConnectRequest&);
     void schedule_verification(TCPSockaddr c, IPv4 source);
 
     [[nodiscard]] std::optional<time_point> pop_wakeup_time();
 
-    std::vector<TCPSockaddr> sample_verified(size_t N) const{
+    std::vector<TCPSockaddr> sample_verified(size_t N) const
+    {
         return verified.sample(N);
     }
     // template<typename T>
@@ -307,22 +243,22 @@ public:
 private:
     // auto invoke_with_verified(const TCPSockaddr&, auto lambda) const;
     // auto invoke_with_verified(const TCPSockaddr&, auto lambda);
-    auto emplace_verified(const WithSource<TCPSockaddr>&, steady_clock::time_point lastVerified);
-    VectorEntryBase* find_verified(const TCPSockaddr&);
+    auto emplace_verified(const TCPWithSource&, steady_clock::time_point lastVerified);
+    VectorEntry* find_verified(const TCPSockaddr&);
 
     void outbound_connection_ended(const ConnectRequest&, ConnectionState state);
     struct Found {
-        VectorEntryBase& item;
+        VectorEntry& item;
         EndpointState state;
     };
     struct FoundContext {
-        VectorEntryBase& item;
+        VectorEntry& item;
         ReconnectContext context;
     };
     void refresh_wakeup_time();
     auto get_context(const ConnectRequest&, ConnectionState) -> std::optional<FoundContext>;
     [[nodiscard]] auto find(const TCPSockaddr& a) const -> std::optional<Found>;
-    VerifiedVector<TCPSockaddr> verified;
+    VerifiedVector verified;
     SockaddrVector unverifiedNew;
     SockaddrVector unverifiedFailed;
     size_t totalConnected { 0 };

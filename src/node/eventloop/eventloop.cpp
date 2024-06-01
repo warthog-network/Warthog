@@ -1,6 +1,6 @@
 #include "eventloop.hpp"
 #include "address_manager/address_manager_impl.hpp"
-#include "address_manager/connection_schedule.hxx"
+#include "address_manager/connection_schedule.hpp"
 #include "api/types/all.hpp"
 #include "block/chain/header_chain.hpp"
 #include "block/header/batch.hpp"
@@ -845,7 +845,7 @@ void Eventloop::handle_connection_timeout(Conref cr, Timer::CloseNoPong&&)
 
 void Eventloop::handle_timeout(Timer::ScheduledConnect&&)
 {
-    // TODO
+    connections.start_scheduled_connections();
 }
 
 void Eventloop::handle_timeout(Timer::CallFunction&& cf)
@@ -1412,7 +1412,7 @@ void Eventloop::handle_msg(Conref cr, RTCVerificationAnswer&& m)
 void Eventloop::try_verify_rtc_identities()
 {
     spdlog::info("try_verify_rtc_identities {}", rtc.connections.can_insert_feeler());
-    if (rtc.verificationSchedule.empty())
+    if (rtc.verificationSchedule.empty() || rtc.ips->has_value()==false)
         return;
     while (rtc.connections.can_insert_feeler()) {
         auto p { rtc.ips->pattern() };
