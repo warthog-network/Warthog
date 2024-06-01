@@ -79,7 +79,6 @@ requires std::is_invocable_v<callback_t, std::string_view>
 
 namespace sdp_filter {
 
-
 // std::string filter_line(std::string_view sdp)
 // {
 //     std::string out;
@@ -109,9 +108,14 @@ std::vector<IP> udp_ips(std::string_view sdp)
 std::optional<IP> load_ip(std::string_view sdp)
 {
     auto ips { udp_ips(sdp) };
-    if (ips.size() != 1)
+    if (ips.size() == 0)
         return {};
-    return ips.front();
+    auto ip { ips[0] };
+    for (size_t i = 1; i < ips.size(); ++i) {
+        if (ip != ips[i])
+            return {};
+    }
+    return ip;
 }
 
 std::optional<std::string> only_udp_ip(const IP& ip, std::string_view sdp)
@@ -149,7 +153,7 @@ OneIpSdp::OneIpSdp(std::string s)
 
 IdentityIps IdentityIps::from_sdp(const std::string& sdp)
 {
-    auto ips{sdp_filter::udp_ips(sdp)};
+    auto ips { sdp_filter::udp_ips(sdp) };
     IdentityIps id;
     for (IP& ip : ips)
         id.assign_if_routable(ip);
