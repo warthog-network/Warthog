@@ -95,18 +95,27 @@ struct CmdlineParsed {
             return {};
         return CmdlineParsed { ai };
     }
+    CmdlineParsed(const CmdlineParsed&) = delete;
+    CmdlineParsed(CmdlineParsed&& other)
+        :ai(other.ai)
+    {
+        other.deleteOnDestruction = false;
+    };
     ~CmdlineParsed()
     {
-        cmdline_parser_free(&ai);
+        if (deleteOnDestruction) {
+            cmdline_parser_free(&ai);
+        }
     }
     auto& value() const { return ai; }
 
 private:
-    CmdlineParsed(gengetopt_args_info ai)
-        : ai(ai)
+    CmdlineParsed(gengetopt_args_info& ai0)
+        : ai(ai0)
     {
     }
 
+    bool deleteOnDestruction { true };
     gengetopt_args_info ai;
 };
 }
