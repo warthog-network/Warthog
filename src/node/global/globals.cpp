@@ -73,7 +73,7 @@ void global_init(BatchRegistry* pbr, PeerServer* pps, ChainServer* pcs, Eventloo
     globalinstance.chainServer = pcs;
     globalinstance.core = pel;
     globalinstance.connLogger = create_connection_logger();
-    ;
     globalinstance.syncdebugLogger = create_syncdebug_logger();
-    ;
 };
+
+std::atomic<bool> shutdownSignal { false };

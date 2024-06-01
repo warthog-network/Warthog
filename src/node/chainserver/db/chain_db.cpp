@@ -2,6 +2,7 @@
 #include "api/types/all.hpp"
 #include "block/body/parse.hpp"
 #include "block/chain/header_chain.hpp"
+#include "global/globals.hpp"
 #include "block/header/header_impl.hpp"
 #include "block/header/view_inline.hpp"
 #include "general/hex.hpp"
@@ -517,6 +518,9 @@ chainserver::TransactionIds ChainDB::fetch_tx_ids(Height height) const
     if (ids.size() != end - begin)
         throw std::runtime_error("Cannot load block ids.");
     for (size_t i = 0; i < end - begin; ++i) {
+        if (i & 15 == 0 && shutdownSignal) {
+            throw std::runtime_error("Shutdown initiated");
+        }
         Height height = begin + i;
         auto id = ids[i];
         auto b = get_block(id);

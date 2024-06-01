@@ -63,6 +63,7 @@ void free_signals()
 
 static void shutdown(int32_t reason)
 {
+    shutdownSignal.store(true);
     global().core->shutdown(reason);
     global().chainServer->shutdown();
     global().peerServer->shutdown();
