@@ -50,7 +50,6 @@ void VerificationSchedule::erase(Conref c)
 
 std::optional<Conref> VerificationSchedule::pop_front()
 {
-    spdlog::info("Checkpoint AA1");
     if (offset >= queue.size())
         return {};
     Conref res { queue[offset] };
@@ -64,7 +63,6 @@ std::optional<Conref> VerificationSchedule::pop_front()
 auto VerificationSchedule::pop(IdentityIps::Pattern p) -> std::optional<PopResult>
 {
     while (auto o { pop_front() }) {
-        spdlog::info("Checkpoint AA2");
         auto& c { *o };
         if (auto ip { c.rtc().their.identity.pop_unverified(p) }) {
             return PopResult { c, *ip };

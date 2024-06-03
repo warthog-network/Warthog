@@ -1416,12 +1416,10 @@ void Eventloop::try_verify_rtc_identities()
         return;
     while (rtc.connections.can_insert_feeler()) {
         auto p { rtc.ips->pattern() };
-        spdlog::info("checkpoint A {}, {}", p.ipv4, p.ipv6);
         auto o { rtc.verificationSchedule.pop(p) };
         bool b { o.has_value() };
         if (!b)
             return;
-        spdlog::info("checkpoint B");
         auto& [c, ip] = *o;
         auto newCon { RTCConnection::connect_new_verification(
             *this,
