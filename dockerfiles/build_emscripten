@@ -1,0 +1,20 @@
+FROM emscripten/emsdk:3.1.60 AS build
+RUN pip install meson ninja
+COPY . /code
+WORKDIR /code
+RUN --mount=type=cache,target=/build_emscripten2 meson setup /build_emscripten2 --cross-file=crosscompile/emscripten.txt --default-library static --buildtype=release
+WORKDIR /build_emscripten2
+RUN  --mount=type=cache,target=/build_emscripten2 ninja
+RUN mkdir /result
+RUN --mount=type=cache,target=/build_emscripten2 cp /build_emscripten2/src/node/wart-node.html /result
+RUN --mount=type=cache,target=/build_emscripten2 cp /build_emscripten2/src/node/wart-node.js /result
+RUN --mount=type=cache,target=/build_emscripten2 cp /build_emscripten2/src/node/wart-node.wasm /result
+RUN --mount=type=cache,target=/build_emscripten2 cp /build_emscripten2/src/node/wart-node.worker.mjs /result
+
+FROM scratch AS export-stage
+COPY --from=build /result ./wasm
+# COPY --from=build install/usr/local/bin/wart-wallet ./wart-wallet-linux
+
+VOLUME ["/warthog/.warthog"]
+ENTRYPOINT ["./wart-node-linux", "--chain-db=/warthog/.warthog/chain.db", "--peers-db=/warthog/.warthog/peers.db"]
+EXPOSE 9186 3000
