@@ -2,7 +2,6 @@
 #include "address_manager.hpp"
 #include "eventloop/types/conndata_impl.hpp"
 
-namespace address_manager {
 inline void AddressManager::All::Iterator::find_next()
 {
     while (true) {
@@ -18,5 +17,4 @@ inline void AddressManager::Initialized::Iterator::find_next()
             break;
         ++iter;
     }
-}
 }

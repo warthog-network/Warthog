@@ -5,6 +5,12 @@
 #include <vector>
 
 namespace connection_schedule {
+
+struct InitArg {
+    PeerServer& peerServer;
+    const std::vector<TCPSockaddr>& pin;
+};
+
 using Source = IPv4;
 
 using time_point = std::chrono::steady_clock::time_point;
@@ -219,7 +225,8 @@ class ConnectionSchedule {
     using VerifiedVector = connection_schedule::VerifiedVector;
 
 public:
-    ConnectionSchedule(PeerServer& peerServer, const std::vector<TCPSockaddr>& v);
+    ConnectionSchedule(connection_schedule::InitArg);
+
     void start();
     std::optional<ConnectRequest> insert(TCPSockaddr, Source);
     [[nodiscard]] std::vector<ConnectRequest> pop_expired();

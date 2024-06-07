@@ -349,7 +349,7 @@ private: // private data
     StageAndConsensus chains;
     mempool::Mempool mempool; // copy of chainserver mempool
 
-    address_manager::AddressManager connections;
+    AddressManager connections;
 
     Timer timer;
     std::optional<Timer::iterator> wakeupTimer;

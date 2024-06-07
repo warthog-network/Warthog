@@ -191,14 +191,19 @@ auto SockaddrVectorBase<T>::find(const TCPSockaddr& address) const -> elem_t*
 }
 }
 
-ConnectionSchedule::ConnectionSchedule(PeerServer& peerServer, const std::vector<TCPSockaddr>& pin)
-    : pinned(pin.begin(), pin.end())
-    , peerServer(peerServer)
+ConnectionSchedule::ConnectionSchedule(connection_schedule::InitArg ia)
+    : peerServer(ia.peerServer)
+#ifndef DISABLE_LIBUV
+    , pinned(ia.pin.begin(), ia.pin.end())
 {
-    spdlog::info("Peers connect size {} ", pin.size());
+    spdlog::info("Peers connect size {} ", ia.pin.size());
     for (auto& p : pinned)
         unverifiedNew.emplace(TCPWithSource({ p }));
 }
+#else
+{
+}
+#endif
 
 auto ConnectionSchedule::find_verified(const TCPSockaddr& sa) -> VectorEntry*
 {

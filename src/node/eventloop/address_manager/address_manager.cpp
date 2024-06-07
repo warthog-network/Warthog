@@ -8,11 +8,9 @@
 #include <future>
 #include <random>
 
-namespace address_manager {
 
-AddressManager::AddressManager(PeerServer& peerServer, const std::vector<TCPSockaddr>& v)
-    : peerServer(peerServer)
-    , connectionSchedule(peerServer, v)
+AddressManager::AddressManager(connection_schedule::InitArg ia)
+    : connectionSchedule(std::move(ia))
 {
 }
 
@@ -237,4 +235,3 @@ auto AddressManager::eviction_candidate() const -> std::optional<Conref>
 //
 //     unverifiedAddresses.insert(a);
 // }
-}

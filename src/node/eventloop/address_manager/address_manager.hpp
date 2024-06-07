@@ -11,13 +11,13 @@ class Conref;
 class TCPConnection;
 struct Inspector;
 
-namespace address_manager {
 
 class AddressManager {
     using time_point = std::chrono::steady_clock::time_point;
 
 public:
     friend struct ::Inspector;
+    using InitArg = connection_schedule::InitArg;
 
 private:
     class ConrefIter : public Coniter {
@@ -100,7 +100,7 @@ public:
     // public methods
 
     // constructor
-    AddressManager(PeerServer& peerServer, const std::vector<TCPSockaddr>& v);
+    AddressManager(connection_schedule::InitArg);
     void start();
 
     // for range-based access
@@ -155,8 +155,6 @@ private:
     std::optional<Conref> eviction_candidate() const;
 
 private:
-    PeerServer& peerServer;
-
     // data
 
     std::vector<Sockaddr> outboundEndpoints;
@@ -167,4 +165,3 @@ private:
     std::vector<Conref> delayedDelete;
     PerIpCounter ipCounter;
 };
-}

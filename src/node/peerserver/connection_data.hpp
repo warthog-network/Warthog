@@ -1,22 +1,20 @@
 #pragma once
+#include "eventloop/types/conref_declaration.hpp"
 #include "transport/connect_request.hpp"
 #include "transport/helpers/socket_addr.hpp"
-#include "eventloop/types/conref_declaration.hpp"
 #include "transport/helpers/tcp_sockaddr.hpp"
 #include <atomic>
 #include <chrono>
 #include <cstdint>
 #include <optional>
 
-namespace address_manager {
 class AddressManager;
-}
 class EventloopVariables {
     friend class Eventloop;
     friend class Conref;
     friend class ConnectionSchedule;
     friend class PeerState;
-    friend class address_manager::AddressManager;
+    friend class AddressManager;
     bool failed_to_connect() const { return !eventloop_registered; }
 
 private:
