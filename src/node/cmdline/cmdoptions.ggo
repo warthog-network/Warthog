@@ -14,9 +14,13 @@ option "temporary" - "Use temporary database (for testing purposes, do not use i
 option "testnet" - "Enable testnet" optional
 
 section "Data file options"
-option "chain-db" - "specify chain data file" details="Defaults to ~/.warthog/chain.db3 in Linux, %LOCALAPPDATA%/Warthog/chain.db3 on Windows.'" optional string 
+option "chain-db" - "specify chain data file" details="Defaults to ~/.warthog/chain.db3 in Linux, %LOCALAPPDATA%/Warthog/chain.db3 on Windows." optional string 
 option "peers-db" - "specify data file" details="Defaults to ~/.warthog/peers.db3 in Linux, %LOCALAPPDATA%/Warthog/peers.db3 on Windows"optional string 
 
+section "Websocket server options"
+option "ws-port" - "Websocket port" details="Public websocket nodes support communication over websocket" optional int
+option "ws-tls-cert" - "TLS certificate file for public websocket endpoint" details="Defaults to 'ws.cert'" optional string 
+option "ws-tls-key" - "TLS private key file for public websocket endpoint" details="Defaults to 'ws.key'" optional string 
 
 
 section "Logging options"

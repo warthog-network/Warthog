@@ -518,7 +518,7 @@ chainserver::TransactionIds ChainDB::fetch_tx_ids(Height height) const
     if (ids.size() != end - begin)
         throw std::runtime_error("Cannot load block ids.");
     for (size_t i = 0; i < end - begin; ++i) {
-        if (i & 15 == 0 && shutdownSignal) {
+        if ((i & 15) == 0 && shutdownSignal) {
             throw std::runtime_error("Shutdown initiated");
         }
         Height height = begin + i;

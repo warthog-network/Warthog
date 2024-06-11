@@ -55,6 +55,15 @@ struct gengetopt_args_info
   char * peers_db_arg;	/**< @brief specify data file.  */
   char * peers_db_orig;	/**< @brief specify data file original value given at command line.  */
   const char *peers_db_help; /**< @brief specify data file help description.  */
+  int ws_port_arg;	/**< @brief Websocket port.  */
+  char * ws_port_orig;	/**< @brief Websocket port original value given at command line.  */
+  const char *ws_port_help; /**< @brief Websocket port help description.  */
+  char * ws_tls_cert_arg;	/**< @brief TLS certificate file for public websocket endpoint.  */
+  char * ws_tls_cert_orig;	/**< @brief TLS certificate file for public websocket endpoint original value given at command line.  */
+  const char *ws_tls_cert_help; /**< @brief TLS certificate file for public websocket endpoint help description.  */
+  char * ws_tls_key_arg;	/**< @brief TLS private key file for public websocket endpoint.  */
+  char * ws_tls_key_orig;	/**< @brief TLS private key file for public websocket endpoint original value given at command line.  */
+  const char *ws_tls_key_help; /**< @brief TLS private key file for public websocket endpoint help description.  */
   const char *debug_help; /**< @brief Enable debug messages help description.  */
   char * rpc_arg;	/**< @brief JSON RPC endpoint socket, defaults to \"127.0.0.1:3000\" for main net and \"127.0.0.1:3100\" for test net.  */
   char * rpc_orig;	/**< @brief JSON RPC endpoint socket, defaults to \"127.0.0.1:3000\" for main net and \"127.0.0.1:3100\" for test net original value given at command line.  */
@@ -82,6 +91,9 @@ struct gengetopt_args_info
   unsigned int testnet_given ;	/**< @brief Whether testnet was given.  */
   unsigned int chain_db_given ;	/**< @brief Whether chain-db was given.  */
   unsigned int peers_db_given ;	/**< @brief Whether peers-db was given.  */
+  unsigned int ws_port_given ;	/**< @brief Whether ws-port was given.  */
+  unsigned int ws_tls_cert_given ;	/**< @brief Whether ws-tls-cert was given.  */
+  unsigned int ws_tls_key_given ;	/**< @brief Whether ws-tls-key was given.  */
   unsigned int debug_given ;	/**< @brief Whether debug was given.  */
   unsigned int rpc_given ;	/**< @brief Whether rpc was given.  */
   unsigned int publicrpc_given ;	/**< @brief Whether publicrpc was given.  */

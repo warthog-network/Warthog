@@ -97,7 +97,7 @@ struct CmdlineParsed {
     }
     CmdlineParsed(const CmdlineParsed&) = delete;
     CmdlineParsed(CmdlineParsed&& other)
-        :ai(other.ai)
+        : ai(other.ai)
     {
         other.deleteOnDestruction = false;
     };
@@ -417,6 +417,20 @@ int ConfigParams::init(const gengetopt_args_info& ai)
     }
     if (ai.connect_given) {
         peers.connect = parse_endpoints(ai.connect_arg);
+    }
+
+    if (ai.ws_port_given) {
+        auto parse_port = [](int port) ->uint16_t{
+            if (port < 0 || port > std::numeric_limits<uint16_t>::max()) {
+                throw std::runtime_error("Invalid port '" + std::to_string(port) + "'");
+            }
+            return port;
+        };
+        websocketServer.port = parse_port(ai.ws_port_arg) ;
+        if (ai.ws_tls_key_given) 
+            websocketServer.keyfile = ai.ws_tls_key_arg;
+        if (ai.ws_tls_cert_given) 
+            websocketServer.certfile = ai.ws_tls_cert_arg;
     }
 
     if (dmp) {

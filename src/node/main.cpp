@@ -126,7 +126,7 @@ int main(int argc, char** argv)
         stratumServer.emplace(config().stratumPool->bind);
     }
     TCPConnectionManager cm(l, ps, config());
-    WSConnectionManager wscm(ps, 10001);
+    WSConnectionManager wscm(ps, config().websocketServer);
     // setup signals
     setup_signals(l->raw());
 

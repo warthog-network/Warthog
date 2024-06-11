@@ -1,6 +1,7 @@
 #pragma once
 
 #include "block/chain/signed_snapshot.hpp"
+#include "types.hpp"
 #include "expected.hpp"
 #include "transport/helpers/socket_addr.hpp"
 #include "transport/helpers/tcp_sockaddr.hpp"
@@ -37,6 +38,7 @@ struct ConfigParams {
     };
     std::optional<PublicAPI> publicAPI;
     std::optional<StratumPool> stratumPool;
+    WebsocketServerConfig websocketServer; 
     struct Node {
         static constexpr TCPSockaddr default_endpoint { localhost, DEFAULT_ENDPOINT_PORT };
         std::optional<SnapshotSigner> snapshotSigner;
