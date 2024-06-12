@@ -28,6 +28,7 @@ public:
     {
         return HashView(data());
     }
+    std::string hex_string() const;
     Hash(HashView hv)
     {
         memcpy(data(), hv.data(), 32);
@@ -40,7 +41,7 @@ public:
 
 inline bool operator==(const Hash& h, const HashView& hv)
 {
-    return  (HashView(h) == hv);
+    return (HashView(h) == hv);
 };
 inline bool operator==(const HashView& hv, const Hash& h)
 {

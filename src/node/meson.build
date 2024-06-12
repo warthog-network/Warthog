@@ -13,12 +13,15 @@ src_libuv = [
 src_browser = [
   './transport/ws/browser/start_connection.cpp',
   './transport/ws/browser/connection.cpp',
+  './config/browser.cpp',
+  './api/wasm/api.cpp',
   ]
 
 src= [
   './api/http/json.cpp',
   './api/http/parse.cpp',
   './api/interface.cpp',
+  './api/realtime.cpp',
   './api/stratum/stratum_server.cpp',
   './api/types/all.cpp',
   './block/body/generator.cpp',
@@ -108,12 +111,8 @@ endif
 
 
 if get_option('emscripten')
-executable('wart-node', vcs_dep, [src,'./main.cpp', src_spdlog],
-  include_directories:['./' ,include_thirdparty],
-  link_with: lib_thirdparty,
-  dependencies: deps,
-  cpp_args: ['-fexceptions'],
-  link_args: [
+
+link_args = [
     '-lwebsocket.js',
     '-sNO_DISABLE_EXCEPTION_CATCHING', '-sSTACK_SIZE=10mb', '-fexceptions', '-sPROXY_TO_PTHREAD', '-sWASMFS',
     '-sUSE_CLOSURE_COMPILER=0', '-sIMPORTED_MEMORY',
@@ -121,8 +120,17 @@ executable('wart-node', vcs_dep, [src,'./main.cpp', src_spdlog],
     '-sSTRICT_JS=0', '-sALLOW_MEMORY_GROWTH', '-sINITIAL_MEMORY=16777216', '-sSTACK_SIZE=2048KB', '-sGLOBAL_BASE=4096', '-sALLOW_TABLE_GROWTH',
     '-sERROR_ON_UNDEFINED_SYMBOLS=1', '-sENVIRONMENT=web,worker',
     '-sWASMFS', '-sPTHREAD_POOL_SIZE=1', '-sLLD_REPORT_UNDEFINED', '-sEXPORT_ES6', '-sUSE_ES6_IMPORT_META',
-    ],
-  name_suffix: 'html',
+  ]
+foreach file : files('./api/wasm/api.js')
+    link_args +=[  '--js-library='+ file.full_path()]
+endforeach
+
+executable('wart-node', vcs_dep, [src,'./main.cpp', src_spdlog],
+  include_directories:['./' ,include_thirdparty],
+  link_with: lib_thirdparty,
+  dependencies: deps,
+  cpp_args: ['-fexceptions'],
+  link_args: link_args,
   install : true)
 
 websocket = executable('websocket', 'websocket.cpp',

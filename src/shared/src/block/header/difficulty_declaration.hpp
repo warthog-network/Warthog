@@ -99,6 +99,7 @@ public:
     {
         return std::visit([&](auto& t) { return t.difficulty(); }, t);
     }
+    std::string hex_string() const;
     auto binary() const
     {
         return std::visit([&](auto& t) { return t.binary(); }, t);

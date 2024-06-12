@@ -1,3 +1,4 @@
+#include "api/realtime.hpp"
 #include "chainserver/db/chain_db.hpp"
 #include "chainserver/server.hpp"
 #include "eventloop/eventloop.hpp"
@@ -8,7 +9,9 @@
 #include "transport/ws/native/conman.hpp"
 #include "transport/ws/start_connection.hpp"
 
-#ifndef DISABLE_LIBUV
+#ifdef DISABLE_LIBUV
+#include "config/browser.hpp"
+#else
 static void shutdown(int32_t reason);
 #include "api/http/endpoint.hpp"
 #include "api/stratum/stratum_server.hpp"
@@ -146,9 +149,18 @@ int main(int argc, char** argv)
     cs->start();
     el->start();
 #ifdef DISABLE_LIBUV
-    auto a { WSSockaddr::parse("127.0.0.1:10001") };
-    WSSockaddr addr { a.value() };
-    start_connection(make_request(addr, std::chrono::seconds(1)));
+    auto wsPeers { ws_peers() };
+    wsPeers.push_back("127.0.0.1:10001");
+    spdlog::info("WS Peer size: {}", wsPeers.size());
+
+    for (auto& p : wsPeers) {
+        spdlog::info("WS Peer: {}", p);
+        auto a { WSSockaddr::parse(p) };
+        if (a) {
+            WSSockaddr addr { a.value() };
+            start_connection(make_request(addr, std::chrono::seconds(1)));
+        }
+    }
 #endif
 
 #ifdef DISABLE_LIBUV

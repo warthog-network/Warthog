@@ -39,4 +39,5 @@ struct Sockaddr {
     [[nodiscard]] uint16_t port() const;
     bool operator==(const Sockaddr&) const = default;
     std::string to_string() const;
+    std::string_view type_str() const;
 };

@@ -44,6 +44,10 @@ std::string ConnectionBase::to_string() const
     return "(" + std::to_string(id) + ")" + (inbound() ? "IN" : "OUT") + peer_addr().to_string();
 }
 
+std::string_view ConnectionBase::type_str() const{
+    return peer_addr().type_str();
+}
+
 std::vector<Rcvbuffer> ConnectionBase::pop_messages()
 {
     std::lock_guard l(statechangeMutex);

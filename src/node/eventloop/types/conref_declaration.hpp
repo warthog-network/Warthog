@@ -8,6 +8,7 @@ class TCPConnection;
 class Sndbuffer;
 using Conndatamap = std::map<uint64_t, PeerState>;
 using Coniter = Conndatamap::iterator;
+class ConnectionBase;
 
 class Conref {
     Coniter iter;
@@ -31,6 +32,7 @@ public:
         : iter(iter)
     {
     }
+    operator const ConnectionBase& ();
     Coniter iterator() { return iter; };
     uint64_t id() const;
     std::string str() const;

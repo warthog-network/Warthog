@@ -21,7 +21,7 @@ class Sndbuffer;
 class ConsensusSlave;
 namespace mempool {
 struct EntryValue;
-using Entry = std::pair<TransactionId, EntryValue>;
+class Entry;
 }
 
 struct InitMsg2 : public MsgCombine<0, Descriptor, SignedSnapshot::Priority, Height, Worksum, Grid> {

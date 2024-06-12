@@ -2,6 +2,7 @@
 #include "connection.hpp"
 #include "emscripten.h"
 #include "eventloop/eventloop.hpp"
+#include "global/emscripten_proxy.hpp"
 #include "global/globals.hpp"
 #include <emscripten/proxying.h>
 #include <emscripten/threading.h>
@@ -10,14 +11,12 @@ using namespace std;
 
 void start_connection(const WSConnectRequest& r)
 {
-    auto pq { new emscripten::ProxyingQueue };
-    pq->proxyAsync(emscripten_main_runtime_thread_id(), [pq, r]() {
+    proxy_to_main_runtime([r]() {
         auto p { WSConnection::make_new(r) };
         if (!p) {
             cout << "Websocket connection failed" << endl;
             global().core->on_failed_connect(r, Error(ESTARTWEBSOCK));
         }
         p->start_read();
-        delete pq;
     });
 }

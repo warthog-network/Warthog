@@ -97,7 +97,7 @@ Sndbuffer TxnotifyMsg::direct_send(send_iter begin, send_iter end)
     auto mw { gen_msg(4 + (end - begin) * TransactionId::bytesize) };
     mw << RandNonce().nonce();
     for (auto iter = begin; iter != end; ++iter) {
-        mw << iter->first;
+        mw << iter->transaction_id();
     }
     return mw;
 }

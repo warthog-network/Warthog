@@ -28,7 +28,7 @@ std::optional<IP> RTCState::get_ip(IpType t) const
 void VerificationSchedule::add(Conref c)
 {
     auto& rtc { c.rtc() };
-    if (rtc.verificationScheduled || rtc.their.identity.empty())
+    if (rtc.verificationScheduled || rtc.their.identity.empty() || rtc.our.pendingVerification.has_value())
         return;
     rtc.verificationScheduled = true;
     queue.push_back(c);

@@ -240,6 +240,8 @@ private:
     void handle_event(PutMempoolBatch&&);
     void handle_event(SetSignedPin&&);
 
+    void emit_chain_state_event();
+
     std::condition_variable cv;
     ChainDB& db;
     BatchRegistry& batchRegistry;

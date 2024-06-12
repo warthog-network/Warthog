@@ -29,6 +29,11 @@ auto create_syncdebug_logger()
 
 }
 
+#ifdef DISABLE_LIBUV
+#include "emscripten/proxying.h"
+emscripten::ProxyingQueue globalProxyingQueue;
+#endif
+
 namespace {
 Global globalinstance;
 }

@@ -1,6 +1,7 @@
 #include "eventloop.hpp"
 #include "address_manager/address_manager_impl.hpp"
 #include "address_manager/connection_schedule.hpp"
+#include "api/realtime.hpp"
 #include "api/types/all.hpp"
 #include "block/chain/header_chain.hpp"
 #include "block/header/batch.hpp"
@@ -466,9 +467,9 @@ void Eventloop::handle_event(mempool::Log&& log)
     }
     std::sort(entries.begin(), entries.end(),
         [](const mempool::Entry& e1, const mempool::Entry& e2) {
-            if (e1.second.transactionHeight == e2.second.transactionHeight)
-                return e1.first < e2.first;
-            return e1.second.transactionHeight < e2.second.transactionHeight;
+            if (e1.transaction_height() == e2.transaction_height())
+                return e1.transaction_id() < e2.transaction_id();
+            return e1.transaction_height() < e2.transaction_height();
         });
 
     // construct subscription bounds per connection
@@ -477,7 +478,7 @@ void Eventloop::handle_event(mempool::Log&& log)
     auto miter = mempoolSubscriptions.cbegin();
     if (mempoolSubscriptions.size() > 0) {
         while (eiter != entries.end()) {
-            while (!(eiter->second.transactionHeight < miter->first.transactionHeight)) {
+            while (!(eiter->transaction_height() < miter->first.transactionHeight)) {
                 bounds.push_back({ eiter, miter->second });
                 ++miter;
                 if (miter == mempoolSubscriptions.cend())
@@ -518,8 +519,8 @@ void Eventloop::handle_event(RTCClosed&& ct)
 {
     if (auto conId { ct.con->verification_con_id() }; conId != 0) { // conId id verified in this RTC connection
         if (auto con { connections.find(conId) }) {
-            rtc.verificationSchedule.add(*con);
             con->rtc().our.pendingVerification.done();
+            rtc.verificationSchedule.add(*con);
         }
     }
     rtc.connections.erase(ct.con);
@@ -662,6 +663,7 @@ void Eventloop::erase_internal(Conref c)
         timer.cancel(c.job().timer());
     }
     if (headerDownload.erase(c) && !closeReason) {
+        realtime_api::on_disconnect(headerDownload.size(), c.id());
         // TODO: add log
         // spdlog::info("Connected to {} peers (closed connection to {}, reason: {})", headerDownload.size(), c->c->peer_endpoint().to_string(), Error(error).err_name());
     }
@@ -681,7 +683,7 @@ bool Eventloop::insert(Conref c, const InitMsg& data)
     c->chain.initialize(data, chains);
     headerDownload.insert(c);
     blockDownload.insert(c);
-    // c->c->
+    realtime_api::on_connect(headerDownload.size(), c);
     spdlog::info("Connected to {} peers (new peer {})", headerDownload.size(), c.peer().to_string());
     if (rtc.ips && c.version().v2()) {
         spdlog::info("Sending own identity");

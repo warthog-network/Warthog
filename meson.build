@@ -43,7 +43,7 @@ exe = executable('rtc_server', 'rtc_server.cpp',
     # '-sERROR_ON_UNDEFINED_SYMBOLS=1', '-sENVIRONMENT=web,worker',
     # '-sWASMFS', '-sPTHREAD_POOL_SIZE=1', '-sLLD_REPORT_UNDEFINED', '-sEXPORT_ES6', '-sUSE_ES6_IMPORT_META'
     ],
-  name_suffix: 'html',
+  # name_suffix: 'html',
   install : true)
 endif
 sqlite3_dep = subproject('sqlite3',default_options : ['warning_level=0', 'werror=false']).get_variable('sqlite3_dep')

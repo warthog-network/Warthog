@@ -1,10 +1,10 @@
 #include "server.hpp"
+#include "api/realtime.hpp"
 #include "api/types/all.hpp"
 #include "block/header/header_impl.hpp"
 #include "eventloop/eventloop.hpp"
 #include "general/hex.hpp"
 #include "global/globals.hpp"
-#include "spdlog/spdlog.h"
 
 bool ChainServer::is_busy()
 
@@ -33,6 +33,7 @@ ChainServer::ChainServer(ChainDB& db, BatchRegistry& br, std::optional<SnapshotS
     , batchRegistry(br)
     , state(db, br, snapshotSigner)
 {
+    emit_chain_state_event();
 }
 
 ChainServer::~ChainServer()
@@ -165,7 +166,8 @@ void ChainServer::shutdown()
     cv.notify_one();
 }
 
-void ChainServer::wait_for_shutdown(){
+void ChainServer::wait_for_shutdown()
+{
     if (worker.joinable())
         worker.join();
 }
@@ -220,6 +222,7 @@ void ChainServer::handle_event(MiningAppend&& e)
 {
     try {
         auto res = state.append_mined_block(e.block);
+        emit_chain_state_event();
         global().core->async_state_update(std::move(res));
         spdlog::info("Accepted new block #{}", state.chainlength().value());
         e.callback({});
@@ -253,6 +256,13 @@ void ChainServer::handle_event(LookupTxids&& e)
     std::transform(e.txids.begin(), e.txids.end(), std::back_inserter(out),
         [&](auto txid) { return state.get_mempool_tx(txid); });
     e.callback(out);
+}
+
+void ChainServer::emit_chain_state_event()
+{
+    realtime_api::on_chain({ .length { state.chainlength() },
+        .target { state.get_headers().next_target() },
+        .totalWork { state.get_headers().total_work() } });
 }
 
 template <typename T>
@@ -346,6 +356,7 @@ void ChainServer::handle_event(stage_operation::StageAddOperation&& r)
 {
     auto [stageAddResult, delta] { state.add_stage(r.blocks, r.headers) };
     if (delta) {
+        emit_chain_state_event();
         global().core->async_state_update(std::move(*delta));
         dispatch_mining_subscriptions();
     }

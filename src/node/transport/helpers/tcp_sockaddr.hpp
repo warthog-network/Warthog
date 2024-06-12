@@ -95,6 +95,10 @@ struct TCPSockaddr : public TCPSockaddrBase {
     {
     }
     std::string to_string() const;
+    std::string_view type_str() const
+    {
+        return "TCP";
+    }
     static TCPSockaddr from_sql_id(int64_t id)
     {
         return { TCPSockaddrBase::from_sql_id(id) };
@@ -115,6 +119,10 @@ struct WSSockaddr : public TCPSockaddrBase {
     WSSockaddr(TCPSockaddrBase b)
         : TCPSockaddrBase(std::move(b))
     {
+    }
+    std::string_view type_str() const
+    {
+        return "WS";
     }
     static WSSockaddr from_sql_id(int64_t id)
     {

@@ -19,6 +19,7 @@ struct TransactionId {
     static consteval size_t byte_size(){return bytesize;}
 
     TransactionId(Reader& r);
+    std::string hex_string() const;
     friend Writer& operator<<(Writer&, const TransactionId&);
     auto operator<=>(const TransactionId& rhs) const = default;
     auto operator<=>(AccountId aid) const { return accountId <=> aid; }

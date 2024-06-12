@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="en-us">
+</head>
+
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="./output.css" rel="stylesheet">
+    <title>Warthog Browser Node</title>
+    <style>
+.emscripten { padding-right: 0; margin-left: auto; margin-right: auto; display: block; }
+div.emscripten { text-align: center; }
+div.emscripten_border { border: 1px solid black; }
+
+#emscripten_logo {
+  display: inline-block;
+  margin: 0;
+  padding: 6px;
+  width: 265px;
+}
+
+.spinner {
+  height: 30px;
+  width: 30px;
+  margin: 0;
+  margin-top: 20px;
+  margin-left: 20px;
+  display: inline-block;
+  vertical-align: top;
+
+  -webkit-animation: rotation .8s linear infinite;
+  -moz-animation: rotation .8s linear infinite;
+  -o-animation: rotation .8s linear infinite;
+  animation: rotation 0.8s linear infinite;
+
+  border-left: 5px solid rgb(235, 235, 235);
+  border-right: 5px solid rgb(235, 235, 235);
+  border-bottom: 5px solid rgb(235, 235, 235);
+  border-top: 5px solid rgb(120, 120, 120);
+
+  border-radius: 100%;
+  background-color: rgb(189, 215, 46);
+}
+
+@-webkit-keyframes rotation {
+  from {-webkit-transform: rotate(0deg);}
+  to {-webkit-transform: rotate(360deg);}
+}
+@-moz-keyframes rotation {
+  from {-moz-transform: rotate(0deg);}
+  to {-moz-transform: rotate(360deg);}
+}
+@-o-keyframes rotation {
+  from {-o-transform: rotate(0deg);}
+  to {-o-transform: rotate(360deg);}
+}
+@keyframes rotation {
+  from {transform: rotate(0deg);}
+  to {transform: rotate(360deg);}
+}
+
+#status {
+  display: inline-block;
+  vertical-align: top;
+  margin-top: 30px;
+  margin-left: 20px;
+  font-weight: bold;
+  color: rgb(120, 120, 120);
+}
+
+#progress {
+  height: 20px;
+  width: 300px;
+}
+
+</style>
+  </head>
+  <body>
+<div class="min-h-full">
+  <main>
+    <div class="mx-auto max-w-7xl py-6 sm:px-6 lg:px-8">
+      <div class="spinner" id='spinner'></div>
+      <div class="emscripten" id="status">Downloading...</div>
+      <div class="emscripten">
+        <progress value="0" max="100" id="progress" hidden=1></progress>
+      </div>
+  
+      <div class="shadow px-4 my-4 sm:px-6 lg:px-8">
+          <p class="font-bold text-4xl my-2">Warthog Browser Node</p>
+      </div>
+      <div class="shadow px-4 my-4 sm:px-6 lg:px-8">
+          <p class="my-2">Console</p>
+      <textarea class="min-w-full font-mono bg-black leading-none text-slate-50 shadow" id="output" rows="8"></textarea>
+      </div>
+      <div class="shadow px-4 my-4 sm:px-6 lg:px-8">
+          <p class="my-2" >Chain (<span id="length">0</span>): <span id="totalWork">0 h</span> &commat; <span id="difficulty">0 h</span> per block</p>
+      </div>
+      <div class="shadow px-4 my-4 sm:px-6 lg:px-8">
+          <p class="my-2" >Peers (<span id="npeers">0</span>)</p>
+          <table class="font-mono tracking-wide m-1 p-2">
+              <thead>
+                  <tr>
+                      <th class = "m-1 p-2">In</th>
+                      <th class = "m-1 p-2">Type</th>
+                      <th class = "m-1 p-2">Address</th>
+                      <th class = "m-1 p-2"p>Since</th>
+                  </tr>
+              </thead>
+              <tbody id='peersTable'>
+              </tbody>
+          </table>
+      </div>
+      <div class="shadow px-4 my-4 sm:px-6 lg:px-8">
+          <p class="my-2">Mempool (<span id="nmempool">0</span>)</p>
+          <table class="font-mono tracking-wide m-1 p-2">
+              <thead>
+                  <tr>
+                      <th class = "m-1 p-2">From</th>
+                      <th class = "m-1 p-2">To</th>
+                      <th class = "m-1 p-2">Amount</th>
+                      <th class = "m-1 p-2"p>Fee</th>
+                      <th class = "m-1 p-2"p>TxHash</th>
+                  </tr>
+              </thead>
+              <tbody id='mempoolTable'>
+              </tbody>
+          </table>
+      </div>
+    </div>
+  </main>
+</div>
+
+    <script type='text/javascript'>
+      var statusElement = document.getElementById('status');
+      var progressElement = document.getElementById('progress');
+      var spinnerElement = document.getElementById('spinner');
+      var npeersElement = document.getElementById('npeers');
+      var peersTableElement = document.getElementById('peersTable');
+      var lengthElement = document.getElementById('length');
+      var difficultyElement = document.getElementById('difficulty');
+      var totalWorkElement = document.getElementById('totalWork');
+      var nmempoolElement = document.getElementById('nmempool');
+      var mempooolTableElement = document.getElementById('mempoolTable');
+      function format_hash (N){
+          var i=0
+          while (N >= 1000 && i <= 10){
+              N /= 1000
+              i += 1;
+          }
+          return N.toFixed(2) +' '+ (['h', 'kh', 'Mh', 'Gh', 'Th', 'Ph', 'Eh', 'Zh', 'Yh', 'Rh', 'Qh'][i])
+      } 
+      var Module = {
+          onChain: event => {
+              lengthElement.innerHTML = event.length;
+              difficultyElement.innerHTML = format_hash(event.difficulty);
+              totalWorkElement.innerHTML = format_hash(event.worksum);
+          },
+          onConnect: event =>{
+              npeersElement.innerHTML = event.total;
+
+              // insert row 
+              var row = peersTableElement.insertRow(0);
+              row.id = 'con-'+event.id
+              var cell0 = row.insertCell(0);
+              cell0.innerHTML = event.inbound;
+              row.insertCell(1).innerHTML = event.type;
+              row.insertCell(2).innerHTML = event.address;
+              row.insertCell(3).innerHTML = event.since;
+          },
+          onDisconnect: event => {
+              npeersElement.innerHTML = event.total;
+              var rowId = 'con-' + event.id
+              document.getElementById(rowId).remove();
+          },
+
+          onMempoolAdd: event => {
+              console.log(event)
+              // still need to erase old entry if it exists
+              nmempoolElement.innerHTML = event.total;
+              var rowId = 'mempool-' + event.id
+              var elem = document.getElementById(rowId);
+              if( elem != null){
+                  elem.remove();
+              }
+
+              // insert row 
+              var row = mempooolTableElement.insertRow(0);
+              row.id = rowId
+              row.insertCell(0).innerHTML = event.fromAddress;
+              row.insertCell(1).innerHTML = event.toAddress;
+              row.insertCell(2).innerHTML = event.amount;
+              row.insertCell(3).innerHTML = event.fee;
+              row.insertCell(4).innerHTML = event.txHash;
+          },
+          onMempoolErase: event => {
+              nmempoolElement.innerHTML = event.total;
+              var rowId = 'mempool-' + event.id
+              var elem = document.getElementById(rowId);
+              if( elem != null){
+                  elem.remove();
+              }
+          },
+          preRun: module => {
+              module.ENV.WS_PEERS = 'world';
+          },
+        print: (function() {
+          var element = document.getElementById('output');
+          if (element) element.value = ''; // clear browser cache
+          return function(text) {
+            if (arguments.length > 1) text = Array.prototype.slice.call(arguments).join(' ');
+            // These replacements are necessary if you render to raw HTML
+            //text = text.replace(/&/g, "&amp;");
+            //text = text.replace(/</g, "&lt;");
+            //text = text.replace(/>/g, "&gt;");
+            //text = text.replace('\n', '<br>', 'g');
+            console.log(text);
+            if (element) {
+              element.value += text + "\n";
+              element.scrollTop = element.scrollHeight; // focus on bottom
+            }
+          };
+        })(),
+        setStatus: (text) => {
+          if (!Module.setStatus.last) Module.setStatus.last = { time: Date.now(), text: '' };
+          if (text === Module.setStatus.last.text) return;
+          var m = text.match(/([^(]+)\((\d+(\.\d+)?)\/(\d+)\)/);
+          var now = Date.now();
+          if (m && now - Module.setStatus.last.time < 30) return; // if this is a progress update, skip it if too soon
+          Module.setStatus.last.time = now;
+          Module.setStatus.last.text = text;
+          if (m) {
+            text = m[1];
+            progressElement.value = parseInt(m[2])*100;
+            progressElement.max = parseInt(m[4])*100;
+            progressElement.hidden = false;
+            spinnerElement.hidden = false;
+          } else {
+            progressElement.value = null;
+            progressElement.max = null;
+            progressElement.hidden = true;
+            if (!text) spinnerElement.style.display = 'none';
+          }
+          statusElement.innerHTML = text;
+        },
+        totalDependencies: 0,
+        monitorRunDependencies: (left) => {
+          this.totalDependencies = Math.max(this.totalDependencies, left);
+          Module.setStatus(left ? 'Preparing... (' + (this.totalDependencies-left) + '/' + this.totalDependencies + ')' : 'All downloads complete.');
+        }
+      };
+      Module.setStatus('Downloading...');
+      window.onerror = (event) => {
+        // TODO: do not warn on ok events like simulating an infinite loop or exitStatus
+        Module.setStatus('Exception thrown, see JavaScript console');
+        spinnerElement.style.display = 'none';
+        Module.setStatus = (text) => {
+          if (text) console.error('[post-exception status] ' + text);
+        };
+      };
+    </script>
+    
+        <script type="module">
+          import initModule from "./wart-node.js";
+          initModule(Module);
+        </script>
+        
+  </body>
+</html>

@@ -2,15 +2,10 @@
 #include "connection.hpp"
 #include "rtc/rtc.hpp"
 #ifdef DISABLE_LIBUV
-#include <emscripten/proxying.h>
-#include <emscripten/threading.h>
+#include "global/emscripten_proxy.hpp"
 #endif
 #ifdef DISABLE_LIBUV
-emscripten::ProxyingQueue& proxying_queue();
-inline void proxy_to_main_runtime(auto cb)
-{
-    proxying_queue().proxyAsync(emscripten_main_runtime_thread_id(), std::move(cb));
-}
+
 #endif
 
 template <typename callback_t>

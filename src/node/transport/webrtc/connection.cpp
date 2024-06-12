@@ -2,11 +2,6 @@
 #include "eventloop/eventloop.hpp"
 #include "webrtc_sockaddr.hpp"
 #ifdef DISABLE_LIBUV
-emscripten::ProxyingQueue& proxying_queue()
-{
-    static emscripten::ProxyingQueue q;
-    return q;
-}
 #endif
 
 void RTCConnection::if_not_closed(auto lambda)

@@ -3,6 +3,7 @@
 #include "crypto/hash.hpp"
 #include "difficulty_declaration.hpp"
 #include "general/byte_order.hpp"
+#include "general/hex.hpp"
 #include "general/params.hpp"
 #include "general/reader.hpp"
 #include "spdlog/spdlog.h"
@@ -211,4 +212,8 @@ inline bool TargetV2::compatible(const HashExponentialDigest& digest) const
         return true;
     auto bits32 { bits22() << 10 };
     return digest.data < bits32;
+}
+
+inline std::string Target::hex_string() const{
+    return serialize_hex(binary());
 }
