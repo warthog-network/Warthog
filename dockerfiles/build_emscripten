@@ -6,8 +6,8 @@ RUN --mount=type=cache,target=/build_emscripten2 meson setup /build_emscripten2 
 WORKDIR /build_emscripten2
 RUN  --mount=type=cache,target=/build_emscripten2 ninja
 RUN mkdir /result
-RUN --mount=type=cache,target=/build_emscripten2 cp /build_emscripten2/src/node/wart-node.html /result
-RUN --mount=type=cache,target=/build_emscripten2 cp /build_emscripten2/src/node/wart-node.js /result
+# RUN --mount=type=cache,target=/build_emscripten2 cp /build_emscripten2/src/node/wart-node.html /result
+# RUN --mount=type=cache,target=/build_emscripten2 cp /build_emscripten2/src/node/wart-node.js /result
 RUN --mount=type=cache,target=/build_emscripten2 cp /build_emscripten2/src/node/wart-node.wasm /result
 RUN --mount=type=cache,target=/build_emscripten2 cp /build_emscripten2/src/node/wart-node.worker.mjs /result
 
