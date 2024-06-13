@@ -1,6 +1,7 @@
 #pragma once
 #include "general/params.hpp"
 #include "general/view.hpp"
+#include <string>
 #include <array>
 #include <cstring>
 

@@ -177,7 +177,7 @@ Hash VerusHasher::finalize()
 
     // run verusclhash on the buffer
     uint64_t intermediate { hk.apply_verusclhash(
-        curBuf,  verusclhash_sv2_1_port) };
+        curBuf,  verusclhash_sv2_2_port) };
     // fill buffer to the end with the result
     FillExtra(&intermediate);
 
