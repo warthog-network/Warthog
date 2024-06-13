@@ -1,6 +1,9 @@
 name: cloudflare
 on:
     workflow_dispatch:
+    push:
+        branches:
+            - network_refactor
 
       
 jobs:
@@ -24,6 +27,6 @@ jobs:
           with:
             apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
             accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-            command: pages deploy ./build/wasm --project-name=warthog
+            command: pages deploy ./browser-website/src --project-name=warthog
 
       
