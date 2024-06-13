@@ -1,19 +1,24 @@
 #include "conman.hpp"
+#include "config/types.hpp"
 #include "eventloop/eventloop.hpp"
 #include "global/globals.hpp"
-#include "libwebsockets.h"
 #include "transport/ws/native/connection.hpp"
 #include "ws_session.hpp"
 #include <cassert>
 #include <csignal>
 #include <cstring>
+#include <filesystem>
 #include <list>
 #include <memory>
 #include <span>
+
+extern "C" {
+#include "libwebsockets.h"
+}
 using namespace std;
-WSConnectionManager::WSConnectionManager(PeerServer& peerServer, uint16_t port)
+WSConnectionManager::WSConnectionManager(PeerServer& peerServer, WebsocketServerConfig cfg)
     : peerServer(peerServer)
-    , startOptions { port }
+    , config { std::move(cfg) }
 {
 }
 
@@ -22,7 +27,8 @@ WSConnectionManager::~WSConnectionManager()
     wait_for_shutdown();
 }
 
-void WSConnectionManager::wait_for_shutdown(){
+void WSConnectionManager::wait_for_shutdown()
+{
     if (worker.joinable()) {
         worker.join();
     }
@@ -31,7 +37,6 @@ void WSConnectionManager::start()
 {
     worker = std::thread([&]() { work(); });
 }
-
 
 static int libwebsocket_callback(struct lws* wsi,
     lws_callback_reasons reason,
@@ -58,7 +63,7 @@ static int libwebsocket_callback(struct lws* wsi,
         sockaddr_storage sa;
         socklen_t len(sizeof(sa));
         int r(getpeername(fd, (sockaddr*)&sa, &len));
-        if (r != 0 || sa.ss_family != AF_INET){
+        if (r != 0 || sa.ss_family != AF_INET) {
             return -1;
         }
 
@@ -110,7 +115,6 @@ static int libwebsocket_callback(struct lws* wsi,
 
     return 0;
 }
-
 
 void WSConnectionManager::handle_event(Shutdown&&)
 {
@@ -215,18 +219,34 @@ const lws_protocol_vhost_options pvo = {
 
 void WSConnectionManager::create_context()
 {
+
     int logs = 0; // LLL_USER | LLL_ERR | LLL_WARN | LLL_NOTICE;
 
     lws_set_log_level(logs, NULL);
 
     struct lws_context_creation_info info;
     memset(&info, 0, sizeof info); /* otherwise uninitialized garbage */
-    info.port = startOptions.port;
+    info.port = config.port;
     info.protocols = protocols;
     info.pvo = &pvo;
     info.user = this;
     info.pt_serv_buf_size = 32 * 1024;
     info.options = LWS_SERVER_OPTION_VALIDATE_UTF8 | LWS_SERVER_OPTION_HTTP_HEADERS_SECURITY_BEST_PRACTICES_ENFORCE;
+
+    auto assert_file = [](const std::string& fname) -> bool {
+        if (std::filesystem::exists(fname))
+            return true;
+        spdlog::warn("File '{}' does not exist, disabling TLS for websocket", fname);
+        return false;
+    };
+
+    if (assert_file(config.certfile) && assert_file(config.keyfile)) {
+        spdlog::info("Using websocket TLS certificate file '{}'", config.certfile);
+        spdlog::info("Using websocket TLS private key file '{}'", config.keyfile);
+        info.options |= LWS_SERVER_OPTION_DO_SSL_GLOBAL_INIT;
+        info.ssl_cert_filepath = config.certfile.c_str();
+        info.ssl_private_key_filepath = config.keyfile.c_str();
+    }
 
     std::lock_guard l(m);
     assert(context == nullptr);
@@ -237,20 +257,22 @@ void WSConnectionManager::create_context()
 
 void WSConnectionManager::work()
 {
-    spdlog::info("Starting websocket endpoint on port {}", startOptions.port);
-    create_context();
-    while (true) {
-        assert(lws_service(context, 0) >= 0);
-        process_events();
-        if (_shutdown) {
-            break;
+    if (config.port != 0) {
+        spdlog::info("Starting websocket endpoint on port {}", config.port);
+        create_context();
+        while (true) {
+            assert(lws_service(context, 0) >= 0);
+            process_events();
+            if (_shutdown) {
+                break;
+            }
         }
+        // for (auto *p : sessions) {
+        //     (*p)->on_close(EWEBSOCK);
+        //     delete p;
+        // }
+        // sessions.clear();
+        lws_context_destroy(context);
     }
-    // for (auto *p : sessions) {
-    //     (*p)->on_close(EWEBSOCK);
-    //     delete p;
-    // }
-    // sessions.clear();
-    lws_context_destroy(context);
     context = nullptr;
 }

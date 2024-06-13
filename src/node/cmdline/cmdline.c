@@ -48,9 +48,16 @@ const char *gengetopt_args_info_detailed_help[] = {
   "      --testnet              Enable testnet",
   "\nData file options:",
   "      --chain-db=STRING      specify chain data file",
-  "  Defaults to ~/.warthog/chain.db3 in Linux, %LOCALAPPDATA%/Warthog/chain.db3\n  on Windows.'",
+  "  Defaults to ~/.warthog/chain.db3 in Linux, %LOCALAPPDATA%/Warthog/chain.db3\n  on Windows.",
   "      --peers-db=STRING      specify data file",
   "  Defaults to ~/.warthog/peers.db3 in Linux, %LOCALAPPDATA%/Warthog/peers.db3\n  on Windows",
+  "\nWebsocket server options:",
+  "      --ws-port=INT          Websocket port",
+  "  Public websocket nodes support communication over websocket",
+  "      --ws-tls-cert=STRING   TLS certificate file for public websocket endpoint",
+  "  Defaults to 'ws.cert'",
+  "      --ws-tls-key=STRING    TLS private key file for public websocket endpoint",
+  "  Defaults to 'ws.key'",
   "\nLogging options:",
   "  -d, --debug                Enable debug messages",
   "\nJSON RPC endpoint options:",
@@ -83,23 +90,28 @@ init_help_array(void)
   gengetopt_args_info_help[11] = gengetopt_args_info_detailed_help[15];
   gengetopt_args_info_help[12] = gengetopt_args_info_detailed_help[17];
   gengetopt_args_info_help[13] = gengetopt_args_info_detailed_help[18];
-  gengetopt_args_info_help[14] = gengetopt_args_info_detailed_help[19];
-  gengetopt_args_info_help[15] = gengetopt_args_info_detailed_help[20];
-  gengetopt_args_info_help[16] = gengetopt_args_info_detailed_help[21];
-  gengetopt_args_info_help[17] = gengetopt_args_info_detailed_help[22];
-  gengetopt_args_info_help[18] = gengetopt_args_info_detailed_help[23];
-  gengetopt_args_info_help[19] = gengetopt_args_info_detailed_help[24];
-  gengetopt_args_info_help[20] = gengetopt_args_info_detailed_help[25];
-  gengetopt_args_info_help[21] = gengetopt_args_info_detailed_help[26];
-  gengetopt_args_info_help[22] = gengetopt_args_info_detailed_help[27];
-  gengetopt_args_info_help[23] = 0; 
+  gengetopt_args_info_help[14] = gengetopt_args_info_detailed_help[20];
+  gengetopt_args_info_help[15] = gengetopt_args_info_detailed_help[22];
+  gengetopt_args_info_help[16] = gengetopt_args_info_detailed_help[24];
+  gengetopt_args_info_help[17] = gengetopt_args_info_detailed_help[25];
+  gengetopt_args_info_help[18] = gengetopt_args_info_detailed_help[26];
+  gengetopt_args_info_help[19] = gengetopt_args_info_detailed_help[27];
+  gengetopt_args_info_help[20] = gengetopt_args_info_detailed_help[28];
+  gengetopt_args_info_help[21] = gengetopt_args_info_detailed_help[29];
+  gengetopt_args_info_help[22] = gengetopt_args_info_detailed_help[30];
+  gengetopt_args_info_help[23] = gengetopt_args_info_detailed_help[31];
+  gengetopt_args_info_help[24] = gengetopt_args_info_detailed_help[32];
+  gengetopt_args_info_help[25] = gengetopt_args_info_detailed_help[33];
+  gengetopt_args_info_help[26] = gengetopt_args_info_detailed_help[34];
+  gengetopt_args_info_help[27] = 0; 
   
 }
 
-const char *gengetopt_args_info_help[24];
+const char *gengetopt_args_info_help[28];
 
 typedef enum {ARG_NO
   , ARG_STRING
+  , ARG_INT
 } cmdline_parser_arg_type;
 
 static
@@ -128,6 +140,9 @@ void clear_given (struct gengetopt_args_info *args_info)
   args_info->testnet_given = 0 ;
   args_info->chain_db_given = 0 ;
   args_info->peers_db_given = 0 ;
+  args_info->ws_port_given = 0 ;
+  args_info->ws_tls_cert_given = 0 ;
+  args_info->ws_tls_key_given = 0 ;
   args_info->debug_given = 0 ;
   args_info->rpc_given = 0 ;
   args_info->publicrpc_given = 0 ;
@@ -150,6 +165,11 @@ void clear_args (struct gengetopt_args_info *args_info)
   args_info->chain_db_orig = NULL;
   args_info->peers_db_arg = NULL;
   args_info->peers_db_orig = NULL;
+  args_info->ws_port_orig = NULL;
+  args_info->ws_tls_cert_arg = NULL;
+  args_info->ws_tls_cert_orig = NULL;
+  args_info->ws_tls_key_arg = NULL;
+  args_info->ws_tls_key_orig = NULL;
   args_info->rpc_arg = NULL;
   args_info->rpc_orig = NULL;
   args_info->publicrpc_arg = NULL;
@@ -176,14 +196,17 @@ void init_args_info(struct gengetopt_args_info *args_info)
   args_info->testnet_help = gengetopt_args_info_detailed_help[11] ;
   args_info->chain_db_help = gengetopt_args_info_detailed_help[13] ;
   args_info->peers_db_help = gengetopt_args_info_detailed_help[15] ;
-  args_info->debug_help = gengetopt_args_info_detailed_help[18] ;
-  args_info->rpc_help = gengetopt_args_info_detailed_help[20] ;
-  args_info->publicrpc_help = gengetopt_args_info_detailed_help[21] ;
-  args_info->stratum_help = gengetopt_args_info_detailed_help[22] ;
-  args_info->enable_public_help = gengetopt_args_info_detailed_help[23] ;
-  args_info->config_help = gengetopt_args_info_detailed_help[25] ;
-  args_info->test_help = gengetopt_args_info_detailed_help[26] ;
-  args_info->dump_config_help = gengetopt_args_info_detailed_help[27] ;
+  args_info->ws_port_help = gengetopt_args_info_detailed_help[18] ;
+  args_info->ws_tls_cert_help = gengetopt_args_info_detailed_help[20] ;
+  args_info->ws_tls_key_help = gengetopt_args_info_detailed_help[22] ;
+  args_info->debug_help = gengetopt_args_info_detailed_help[25] ;
+  args_info->rpc_help = gengetopt_args_info_detailed_help[27] ;
+  args_info->publicrpc_help = gengetopt_args_info_detailed_help[28] ;
+  args_info->stratum_help = gengetopt_args_info_detailed_help[29] ;
+  args_info->enable_public_help = gengetopt_args_info_detailed_help[30] ;
+  args_info->config_help = gengetopt_args_info_detailed_help[32] ;
+  args_info->test_help = gengetopt_args_info_detailed_help[33] ;
+  args_info->dump_config_help = gengetopt_args_info_detailed_help[34] ;
   
 }
 
@@ -290,6 +313,11 @@ cmdline_parser_release (struct gengetopt_args_info *args_info)
   free_string_field (&(args_info->chain_db_orig));
   free_string_field (&(args_info->peers_db_arg));
   free_string_field (&(args_info->peers_db_orig));
+  free_string_field (&(args_info->ws_port_orig));
+  free_string_field (&(args_info->ws_tls_cert_arg));
+  free_string_field (&(args_info->ws_tls_cert_orig));
+  free_string_field (&(args_info->ws_tls_key_arg));
+  free_string_field (&(args_info->ws_tls_key_orig));
   free_string_field (&(args_info->rpc_arg));
   free_string_field (&(args_info->rpc_orig));
   free_string_field (&(args_info->publicrpc_arg));
@@ -348,6 +376,12 @@ cmdline_parser_dump(FILE *outfile, struct gengetopt_args_info *args_info)
     write_into_file(outfile, "chain-db", args_info->chain_db_orig, 0);
   if (args_info->peers_db_given)
     write_into_file(outfile, "peers-db", args_info->peers_db_orig, 0);
+  if (args_info->ws_port_given)
+    write_into_file(outfile, "ws-port", args_info->ws_port_orig, 0);
+  if (args_info->ws_tls_cert_given)
+    write_into_file(outfile, "ws-tls-cert", args_info->ws_tls_cert_orig, 0);
+  if (args_info->ws_tls_key_given)
+    write_into_file(outfile, "ws-tls-key", args_info->ws_tls_key_orig, 0);
   if (args_info->debug_given)
     write_into_file(outfile, "debug", 0, 0 );
   if (args_info->rpc_given)
@@ -530,6 +564,9 @@ int update_arg(void *field, char **orig_field,
     val = possible_values[found];
 
   switch(arg_type) {
+  case ARG_INT:
+    if (val) *((int *)field) = strtol (val, &stop_char, 0);
+    break;
   case ARG_STRING:
     if (val) {
       string_field = (char **)field;
@@ -542,8 +579,18 @@ int update_arg(void *field, char **orig_field,
     break;
   };
 
-	FIX_UNUSED(stop_char);
-	
+  /* check numeric conversion */
+  switch(arg_type) {
+  case ARG_INT:
+    if (val && !(stop_char && *stop_char == '\0')) {
+      fprintf(stderr, "%s: invalid numeric value: %s\n", package_name, val);
+      return 1; /* failure */
+    }
+    break;
+  default:
+    ;
+  };
+
   /* store the original value */
   switch(arg_type) {
   case ARG_NO:
@@ -617,6 +664,9 @@ cmdline_parser_internal (
         { "testnet",	0, NULL, 0 },
         { "chain-db",	1, NULL, 0 },
         { "peers-db",	1, NULL, 0 },
+        { "ws-port",	1, NULL, 0 },
+        { "ws-tls-cert",	1, NULL, 0 },
+        { "ws-tls-key",	1, NULL, 0 },
         { "debug",	0, NULL, 'd' },
         { "rpc",	1, NULL, 'r' },
         { "publicrpc",	1, NULL, 0 },
@@ -790,6 +840,48 @@ cmdline_parser_internal (
                 &(local_args_info.peers_db_given), optarg, 0, 0, ARG_STRING,
                 check_ambiguity, override, 0, 0,
                 "peers-db", '-',
+                additional_error))
+              goto failure;
+          
+          }
+          /* Websocket port.  */
+          else if (strcmp (long_options[option_index].name, "ws-port") == 0)
+          {
+          
+          
+            if (update_arg( (void *)&(args_info->ws_port_arg), 
+                 &(args_info->ws_port_orig), &(args_info->ws_port_given),
+                &(local_args_info.ws_port_given), optarg, 0, 0, ARG_INT,
+                check_ambiguity, override, 0, 0,
+                "ws-port", '-',
+                additional_error))
+              goto failure;
+          
+          }
+          /* TLS certificate file for public websocket endpoint.  */
+          else if (strcmp (long_options[option_index].name, "ws-tls-cert") == 0)
+          {
+          
+          
+            if (update_arg( (void *)&(args_info->ws_tls_cert_arg), 
+                 &(args_info->ws_tls_cert_orig), &(args_info->ws_tls_cert_given),
+                &(local_args_info.ws_tls_cert_given), optarg, 0, 0, ARG_STRING,
+                check_ambiguity, override, 0, 0,
+                "ws-tls-cert", '-',
+                additional_error))
+              goto failure;
+          
+          }
+          /* TLS private key file for public websocket endpoint.  */
+          else if (strcmp (long_options[option_index].name, "ws-tls-key") == 0)
+          {
+          
+          
+            if (update_arg( (void *)&(args_info->ws_tls_key_arg), 
+                 &(args_info->ws_tls_key_orig), &(args_info->ws_tls_key_given),
+                &(local_args_info.ws_tls_key_given), optarg, 0, 0, ARG_STRING,
+                check_ambiguity, override, 0, 0,
+                "ws-tls-key", '-',
                 additional_error))
               goto failure;
           

@@ -2,6 +2,7 @@
 
 #ifndef DISABLE_LIBUV
 #define UWS_NO_ZLIB
+#include "config.hpp"
 #include "api/types/all.hpp"
 #include "block/block.hpp"
 #include "transport/helpers/tcp_sockaddr.hpp"
@@ -45,12 +46,12 @@ public:
     {
         push_event(Close { std::move(p), reason });
     }
-    WSConnectionManager(PeerServer& peerServer, uint16_t port);
+    WSConnectionManager(PeerServer& peerServer, WebsocketServerConfig);
     ~WSConnectionManager();
     void start();
     void shutdown(int32_t reason)
     {
-        push_event(Shutdown {reason});
+        push_event(Shutdown { reason });
     }
     void wait_for_shutdown();
     void connect(WSConnectRequest r) { push_event(Connect { std::move(r) }); }
@@ -78,8 +79,10 @@ private:
     };
 
     PeerServer& peerServer;
+
 public:
-    const StartOptions startOptions;
+    const WebsocketServerConfig config;
+
 private:
     std::mutex m;
     struct lws_context* context = nullptr;

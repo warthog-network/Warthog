@@ -21,7 +21,7 @@ void WSConnection::async_send(std::unique_ptr<char[]> data, size_t size)
 
 uint16_t WSConnection::listen_port() const
 {
-    return conman.startOptions.port;
+    return conman.config.port;
 }
 
 std::optional<ConnectRequest> WSConnection::connect_request() const

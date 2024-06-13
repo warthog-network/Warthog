@@ -60,8 +60,8 @@ cdata.set('LWS_WITH_SYS_STATE', true)
 cdata.set('LWS_WITH_SYS_FAULT_INJECTION', false)
 cdata.set('LWS_WITH_SYS_METRICS', false)
 
-cdata.set('LWS_WITH_SECURE_STREAMS', false)
-cdata.set('LWS_WITH_SECURE_STREAMS_CPP', false)
+cdata.set('LWS_WITH_SECURE_STREAMS', true)
+cdata.set('LWS_WITH_SECURE_STREAMS_CPP', true)
 cdata.set('LWS_WITH_SECURE_STREAMS_PROXY_API', false)
 cdata.set('LWS_WITH_SECURE_STREAMS_SYS_AUTH_API_AMAZON_COM', false)
 cdata.set('LWS_WITH_SECURE_STREAMS_STATIC_POLICY_ONLY', false)
@@ -106,6 +106,14 @@ cdata.set('LWS_HAS_INTPTR_T', cc.has_type('intptr_t', prefix: '#include <stdint.
 cdata.set('LWS_HAVE_SUSECONDS_T', cc.has_type('suseconds_t', prefix: '#include <sys/types.h>'))
 cdata.set('LWS_HAVE_RTA_PREF', cc.has_header_symbol('linux/rtnetlink.h', 'RTA_PREF'))
 cdata.set('LWS_WITH_UNIX_SOCK', not cc.has_header('afunix.h'))
+
+cdata.set('LWS_HAVE_HMAC_CTX_new', true)
+cdata.set('LWS_WITH_MBEDTLS', true)
+cdata.set('LWS_HAVE_MBEDTLS_NET_SOCKETS', true)
+cdata.set('LWS_HAVE_MBEDTLS_SSL_NEW_SESSION_TICKET', true)
+cdata.set('LWS_WITH_TLS', true)
+cdata.set('LWS_HAVE_mbedtls_ssl_conf_alpn_protocols', true)
+cdata.set('LWS_HAVE_mbedtls_ssl_get_alpn_protocol', true)
 
 functions = [
   'atoll',
@@ -245,7 +253,7 @@ privcfile = configure_file(
 )
 
 incdirs = []
-incdirs += include_directories('include', 'lib', 'lib/core', 'lib/event-libs', 'lib/system/metrics')
+incdirs += include_directories('include', 'lib', 'lib/core', 'lib/event-libs', 'lib/system/metrics', 'lib/tls/', './lib/tls/mbedtls/wrapper/include', './lib/tls/mbedtls/wrapper/include/internal', './lib/tls/mbedtls/wrapper/include/platform')
 
 sources = files(
   'lib/core/alloc.c',
@@ -276,21 +284,21 @@ sources = files(
   #  'lib/tls/mbedtls/lws-genec.c',
   #  'lib/tls/mbedtls/lws-genhash.c',
   #  'lib/tls/mbedtls/lws-genrsa.c',
-  #  'lib/tls/mbedtls/mbedtls-client.c',
-  #  'lib/tls/mbedtls/mbedtls-extensions.c',
-  #  'lib/tls/mbedtls/mbedtls-server.c',
+    'lib/tls/mbedtls/mbedtls-client.c',
+    'lib/tls/mbedtls/mbedtls-extensions.c',
+    'lib/tls/mbedtls/mbedtls-server.c',
   #  'lib/tls/mbedtls/mbedtls-session.c',
-  #  'lib/tls/mbedtls/mbedtls-ssl.c',
-  #  'lib/tls/mbedtls/mbedtls-tls.c',
-  #  'lib/tls/mbedtls/mbedtls-x509.c',
-  #  'lib/tls/mbedtls/wrapper/library/ssl_cert.c',
-  #  'lib/tls/mbedtls/wrapper/library/ssl_lib.c',
-  #  'lib/tls/mbedtls/wrapper/library/ssl_methods.c',
-  #  'lib/tls/mbedtls/wrapper/library/ssl_pkey.c',
+    'lib/tls/mbedtls/mbedtls-ssl.c',
+    'lib/tls/mbedtls/mbedtls-tls.c',
+    'lib/tls/mbedtls/mbedtls-x509.c',
+    'lib/tls/mbedtls/wrapper/library/ssl_cert.c',
+    'lib/tls/mbedtls/wrapper/library/ssl_lib.c',
+    'lib/tls/mbedtls/wrapper/library/ssl_methods.c',
+    'lib/tls/mbedtls/wrapper/library/ssl_pkey.c',
   #  'lib/tls/mbedtls/wrapper/library/ssl_stack.c',
-  #  'lib/tls/mbedtls/wrapper/library/ssl_x509.c',
-  #  'lib/tls/mbedtls/wrapper/platform/ssl_pm.c',
-  #  'lib/tls/mbedtls/wrapper/platform/ssl_port.c',
+    'lib/tls/mbedtls/wrapper/library/ssl_x509.c',
+    'lib/tls/mbedtls/wrapper/platform/ssl_pm.c',
+    'lib/tls/mbedtls/wrapper/platform/ssl_port.c',
   #  'lib/tls/openssl/lws-genaes.c',
   #  'lib/tls/openssl/lws-gencrypto.c',
   #  'lib/tls/openssl/lws-genec.c',
@@ -302,12 +310,12 @@ sources = files(
   #  'lib/tls/openssl/openssl-ssl.c',
   #  'lib/tls/openssl/openssl-tls.c',
   #  'lib/tls/openssl/openssl-x509.c',
-  #  'lib/tls/tls-client.c',
-  #  'lib/tls/tls-jit-trust.c',
-  #  'lib/tls/tls-network.c',
-  #  'lib/tls/tls-server.c',
-  #  'lib/tls/tls-sessions.c',
-  #  'lib/tls/tls.c',
+  'lib/tls/tls-client.c',
+  # 'lib/tls/tls-jit-trust.c',
+  'lib/tls/tls-network.c',
+  'lib/tls/tls-server.c',
+  # 'lib/tls/tls-sessions.c',
+  'lib/tls/tls.c',
 )
 
 if cdata.get('LWS_WITH_DRIVERS')
@@ -786,11 +794,13 @@ if not cdata.get('LWS_NO_DAEMONIZE') and host_machine.system() != 'windows'
   sources += files('lib/misc/daemonize.c')
 endif
 
+mbedtls_dep = subproject('mbedtls', default_options : ['warning_level=0', 'werror=false']).get_variable('libmbedtls_dep')
+
 libwebsockets = library(
   'websockets',
   sources,
   include_directories: incdirs,
-  dependencies: [brotli_dep, zlib_dep, event_dep, ev_dep, uv_dep, glib_dep, mount_dep, sqlite_dep, dbus_dep, thread_dep, dl_dep, windows_dep],
+  dependencies: [mbedtls_dep, brotli_dep, zlib_dep, event_dep, ev_dep, uv_dep, glib_dep, mount_dep, sqlite_dep, dbus_dep, thread_dep, dl_dep, windows_dep],
 )
 
 depinc = include_directories('include')
