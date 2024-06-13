@@ -20,7 +20,7 @@ jobs:
           run : DOCKER_BUILDKIT=1 docker build . --file dockerfiles/run_tests --progress plain
     
         - name: Docker Build
-          run: DOCKER_BUILDKIT=1 docker build . -f dockerfiles/build_emscripten --output build
+          run: DOCKER_BUILDKIT=1 docker build . -f dockerfiles/build_emscripten --output browser-website/src
     
         - name: Deploy
           uses: cloudflare/wrangler-action@v3
