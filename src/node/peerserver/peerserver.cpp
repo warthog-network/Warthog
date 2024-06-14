@@ -32,7 +32,8 @@ void PeerServer::register_close(IPv4 address, uint32_t now,
     int32_t offense, int64_t rowid)
 {
 
-    if (errors::leads_to_ban(offense)) {
+    if (!address.is_loopback()  // don't ban localhost
+            && errors::leads_to_ban(offense)) {
         uint32_t banuntil = now + bantime(offense);
         db.set_ban(address, banuntil, offense);
         db.insert_offense(address, offense);

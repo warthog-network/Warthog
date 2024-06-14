@@ -1,4 +1,4 @@
-#include "conman.hpp"
+#include "ws_conman.hpp"
 #include "config/types.hpp"
 #include "eventloop/eventloop.hpp"
 #include "global/globals.hpp"
@@ -14,6 +14,36 @@
 
 extern "C" {
 #include "libwebsockets.h"
+}
+namespace {
+
+std::optional<IP> forwarded_for(lws* wsi)
+{
+    if (int i { lws_hdr_total_length(wsi, WSI_TOKEN_X_FORWARDED_FOR) }; i >= 0) {
+        size_t len(i);
+        std::string ip;
+        ip.resize(len + 1);
+        assert(lws_hdr_copy(wsi, ip.data(), ip.size(), WSI_TOKEN_X_FORWARDED_FOR) != -1);
+        ip.resize(len);
+        return IP::parse(ip);
+    }
+    return {};
+}
+std::optional<std::pair<IPv4, uint16_t>> peer_ipv4_port(lws* wsi)
+{
+    auto fd { lws_get_socket_fd(wsi) };
+    // lws_get_peer_addresses()
+    assert(fd > 0);
+    sockaddr_storage sa;
+    socklen_t len(sizeof(sa));
+    int r(getpeername(fd, (sockaddr*)&sa, &len));
+    if (r != 0 || sa.ss_family != AF_INET) {
+        return {};
+    }
+    // lws_get_peer_addresses()
+    sockaddr_in* addr_i4 = (struct sockaddr_in*)&sa;
+    return std::pair<IPv4, uint16_t> { IPv4(ntoh32(uint32_t(addr_i4->sin_addr.s_addr))), addr_i4->sin_port };
+}
 }
 using namespace std;
 WSConnectionManager::WSConnectionManager(PeerServer& peerServer, WebsocketServerConfig cfg)
@@ -53,24 +83,34 @@ static int libwebsocket_callback(struct lws* wsi,
           };
 
     switch (reason) {
-
     case LWS_CALLBACK_FILTER_NETWORK_CONNECTION:
         break;
     case LWS_CALLBACK_SERVER_NEW_CLIENT_INSTANTIATED: { // called on incoming
-        auto fd { lws_get_socket_fd(wsi) };
-        // lws_get_peer_addresses()
-        assert(fd > 0);
-        sockaddr_storage sa;
-        socklen_t len(sizeof(sa));
-        int r(getpeername(fd, (sockaddr*)&sa, &len));
-        if (r != 0 || sa.ss_family != AF_INET) {
-            return -1;
-        }
+    } break;
+    case LWS_CALLBACK_WSI_CREATE:
+        break;
+    case LWS_CALLBACK_PROTOCOL_INIT:
+        break;
 
+    case LWS_CALLBACK_FILTER_HTTP_CONNECTION: 
+        return -1; // Do not allow plain HTTP
+    case LWS_CALLBACK_HTTP_CONFIRM_UPGRADE:
+        {
         lws_rx_flow_control(wsi, 0);
-        // lws_get_peer_addresses()
-        sockaddr_in* addr_i4 = (struct sockaddr_in*)&sa;
-        WSSockaddr wsaddr(IPv4(ntoh32(uint32_t(addr_i4->sin_addr.s_addr))), addr_i4->sin_port);
+        auto ipv4port = peer_ipv4_port(wsi);
+        if (!ipv4port) // cannot extract peer info
+            return -1;
+        auto fIp { forwarded_for(wsi) };
+        auto& cm { conman() };
+        IPv4 ip { ipv4port->first };
+        if (cm.config.useForwardedFor) {
+            if (!fIp || !fIp->is_v4())
+                return -1;
+            ip = fIp->get_v4(); // overwrite with real IP
+        }
+        spdlog::info("Incoming websocket connection from IP: {}", ip.to_string());
+
+        WSSockaddr wsaddr(ip, ipv4port->second);
         auto p {
             new std::shared_ptr<WSSession>(WSSession::make_new(false, wsi))
         };
@@ -78,16 +118,12 @@ static int libwebsocket_callback(struct lws* wsi,
         auto& session { *p };
         session->connection = WSConnection::make_new(session, WSConnectRequest::make_inbound(wsaddr), conman());
         global().peerServer->authenticate(session->connection);
-    } break;
-    case LWS_CALLBACK_WSI_CREATE:
-        break;
-    case LWS_CALLBACK_PROTOCOL_INIT:
-        break;
-
-    case LWS_CALLBACK_ESTABLISHED:
-    case LWS_CALLBACK_CLIENT_ESTABLISHED:
         psession()->on_connected();
         lws_callback_on_writable(wsi);
+        break;
+    }
+    case LWS_CALLBACK_ESTABLISHED:
+    case LWS_CALLBACK_CLIENT_ESTABLISHED:
         break;
 
     case LWS_CALLBACK_SERVER_WRITEABLE:

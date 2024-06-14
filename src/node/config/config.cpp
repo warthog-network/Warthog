@@ -420,17 +420,19 @@ int ConfigParams::init(const gengetopt_args_info& ai)
     }
 
     if (ai.ws_port_given) {
-        auto parse_port = [](int port) ->uint16_t{
+        auto parse_port = [](int port) -> uint16_t {
             if (port < 0 || port > std::numeric_limits<uint16_t>::max()) {
                 throw std::runtime_error("Invalid port '" + std::to_string(port) + "'");
             }
             return port;
         };
-        websocketServer.port = parse_port(ai.ws_port_arg) ;
-        if (ai.ws_tls_key_given) 
+        websocketServer.port = parse_port(ai.ws_port_arg);
+        if (ai.ws_tls_key_given)
             websocketServer.keyfile = ai.ws_tls_key_arg;
-        if (ai.ws_tls_cert_given) 
+        if (ai.ws_tls_cert_given)
             websocketServer.certfile = ai.ws_tls_cert_arg;
+        if (ai.ws_x_forwarded_for_given)
+            websocketServer.useForwardedFor = true;
     }
 
     if (dmp) {

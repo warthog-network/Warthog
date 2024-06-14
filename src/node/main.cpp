@@ -6,7 +6,7 @@
 #include "global/globals.hpp"
 #include "peerserver/peerserver.hpp"
 #include "spdlog/spdlog.h"
-#include "transport/ws/native/conman.hpp"
+#include "transport/ws/native/ws_conman.hpp"
 #include "transport/ws/start_connection.hpp"
 
 #ifdef DISABLE_LIBUV

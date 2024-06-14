@@ -4,7 +4,7 @@ src_libuv = [
   './transport/tcp/connection.cpp',
   './transport/tcp/start_connection.cpp',
   './transport/ws/native/start_connection.cpp',
-  './transport/ws/native/conman.cpp',
+  './transport/ws/native/ws_conman.cpp',
   './transport/ws/native/connection.cpp',
   './transport/ws/native/ws_session.cpp',
   './api/http/endpoint.cpp',
