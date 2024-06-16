@@ -16,7 +16,7 @@ std::vector<std::string> ws_peers()
             if (i > i0 + 1) {
                 res.push_back({ s + i0, i - i0 });
             }
-            i0 = i;
+            i0 = i+1;
         }
     }
     if (i > i0 + 1)

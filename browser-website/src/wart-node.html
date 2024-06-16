@@ -203,7 +203,7 @@ div.emscripten_border { border: 1px solid black; }
           },
           preRun: module => { 
 //            list of websocket peers separated by semicolon
-              module.ENV.WS_PEERS = 'wss://node2.warthog.network;wss://node2.warthog.network';
+              module.ENV.WS_PEERS = 'wss://node1.warthog.network/ws;wss://node2.warthog.network/ws';
           },
         print: (function() {
           var element = document.getElementById('output');
