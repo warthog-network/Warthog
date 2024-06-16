@@ -1,15 +1,16 @@
 #pragma once
 
-#include "../connect_request.hpp"
+#ifndef DISABLE_LIBUV
+#include "connect_request.hpp"
 #include "transport/connection_base.hpp"
 
 class WSSession;
 class WSConnectionManager;
 
-class WSConnection final : public IPv4Connection, public std::enable_shared_from_this<WSConnection> {
+class WSConnection final : public AuthenticatableConnection, public std::enable_shared_from_this<WSConnection> {
     void async_send(std::unique_ptr<char[]> data, size_t size) override;
     uint16_t listen_port() const override;
-    std::optional<ConnectRequest> connect_request() const override;
+    std::optional<ConnectRequest> connect_request() const override { return {}; }
     struct CreationToken { };
 
     friend class WSSession;
@@ -34,7 +35,7 @@ public:
         return weak_from_this();
     }
 
-    IPv4 peer_ipv4() const override { return connection_peer_addr_native().ip; }
+    IPv4 peer_ipv4() const override { return connection_peer_addr_native()._ip; }
     Sockaddr peer_addr() const override { return { connection_peer_addr_native() }; }
     WSSockaddr connection_peer_addr_native() const { return connectRequest.address; }
     bool inbound() const override;
@@ -47,3 +48,4 @@ private:
     const WSConnectRequest connectRequest;
     WSConnectionManager& conman;
 };
+#endif

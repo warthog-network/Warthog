@@ -401,7 +401,7 @@ void StratumServer::acceptor(TCPSockaddr endpointAddress)
     };
 
     ;
-    check_result(tcp->bind(endpointAddress.ip.to_string(), endpointAddress.port));
+    check_result(tcp->bind(endpointAddress._ip.to_string(), endpointAddress.port()));
     check_result(tcp->listen());
 }
 

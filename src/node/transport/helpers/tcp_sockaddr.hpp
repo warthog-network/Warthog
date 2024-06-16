@@ -10,10 +10,10 @@ class Reader;
 struct TCPSockaddrBase {
     TCPSockaddrBase(Reader& r);
     friend Writer& operator<<(Writer&, const TCPSockaddrBase&);
-    static constexpr size_t byte_size() { return IPv4::byte_size() + sizeof(port); }
+    static constexpr size_t byte_size() { return IPv4::byte_size() + sizeof(_port); }
     constexpr TCPSockaddrBase(IPv4 ipv4, uint16_t port)
-        : ip(ipv4)
-        , port(port)
+        : _ip(ipv4)
+        , _port(port)
     {
     }
     constexpr TCPSockaddrBase(std::string_view);
@@ -25,7 +25,7 @@ struct TCPSockaddrBase {
     };
     int64_t to_sql_id()
     {
-        return (int64_t(ip.data) << 16) + (int64_t(port));
+        return (int64_t(_ip.data) << 16) + (int64_t(_port));
     };
     auto operator<=>(const TCPSockaddrBase&) const = default;
     static constexpr std::optional<TCPSockaddrBase> parse(const std::string_view&);
@@ -34,8 +34,13 @@ struct TCPSockaddrBase {
     sockaddr sock_addr() const;
 #endif
 
-    IPv4 ip;
-    uint16_t port = 0;
+    auto& ip() const
+    {
+        return _ip;
+    }
+    auto port() const {return _port;}
+    IPv4 _ip;
+    uint16_t _port = 0;
 };
 
 constexpr std::optional<uint16_t> parse_port(const std::string_view& s)

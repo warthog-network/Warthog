@@ -1,17 +1,16 @@
 #include "connection.hpp"
-std::shared_ptr<WSConnection> WSConnection::make_new(const WSConnectRequest& r)
+bool WSConnection::connect(const WSBrowserConnectRequest& r)
 {
-    std::string url { r.address.to_string() + "/" };
-    auto emsCon { EmscriptenWSConnection::make_new(url) };
+    auto emsCon { EmscriptenWSConnection::make_new(r.address.url) };
     if (!emsCon.has_value())
-        return {};
+        return false;
 
     auto p { std::make_shared<WSConnection>(CreationToken {}, r, std::move(*emsCon)) };
-    p->self = p;
+    p->self = std::move(p);
 
-    return p;
+    return true;
 }
-WSConnection::WSConnection(CreationToken, const WSConnectRequest& r, EmscriptenWSConnection&& emscon)
+WSConnection::WSConnection(CreationToken, const WSBrowserConnectRequest& r, EmscriptenWSConnection&& emscon)
     : connectRequest(r)
     , emscriptenConnection(std::move(emscon))
 {
@@ -46,7 +45,7 @@ uint16_t WSConnection::listen_port() const
 
 std::optional<ConnectRequest> WSConnection::connect_request() const
 {
-    return connectRequest;
+    return ConnectRequest{connectRequest};
 }
 
 bool WSConnection::inbound() const
@@ -98,6 +97,3 @@ int WSConnection::on_message(EmscriptenWSConnection::Message msg)
     return 0;
 }
 
-void WSConnection::start_read()
-{
-}

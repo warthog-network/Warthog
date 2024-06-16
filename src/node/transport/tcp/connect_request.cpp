@@ -1,12 +1,9 @@
 #include "connect_request.hpp"
-#include "transport/connect_request.hpp"
+#include "global/globals.hpp"
+#include "transport/tcp/conman.hpp"
 
-TCPConnectRequest make_request(const TCPSockaddr& connectTo, steady_duration sleptFor)
+void TCPConnectRequest::connect()
 {
-    return { std::move(connectTo), sleptFor };
+    global().conman->connect(*this);
 }
 
-TCPConnectRequest::operator ConnectRequest() const
-{
-    return { address, sleptFor };
-}

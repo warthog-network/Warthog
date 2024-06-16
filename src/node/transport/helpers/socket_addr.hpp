@@ -1,6 +1,11 @@
 #pragma once
 #include "../webrtc/webrtc_sockaddr.hpp"
 #include "tcp_sockaddr.hpp"
+
+#ifdef DISABLE_LIBUV
+#include "transport/ws/browser/ws_urladdr.hpp"
+#endif
+
 #include <variant>
 struct Sockaddr {
     [[nodiscard]] bool is_supported();
@@ -9,13 +14,17 @@ struct Sockaddr {
         : data { std::move(sa) }
     {
     }
-#else
-#endif
-    Sockaddr(WebRTCSockaddr sa)
+    Sockaddr(WSSockaddr sa)
         : data { std::move(sa) }
     {
     }
-    Sockaddr(WSSockaddr sa)
+#else
+    Sockaddr(WSUrladdr sa)
+        : data { std::move(sa) }
+    {
+    }
+#endif
+    Sockaddr(WebRTCSockaddr sa)
         : data { std::move(sa) }
     {
     }
@@ -23,8 +32,10 @@ struct Sockaddr {
     using variant_t = std::variant<
 #ifndef DISABLE_LIBUV
         TCPSockaddr,
-#endif
         WSSockaddr,
+#else
+        WSUrladdr,
+#endif
         WebRTCSockaddr>;
     auto visit(auto lambda) const
     {
@@ -35,7 +46,7 @@ struct Sockaddr {
         return std::visit(lambda, data);
     }
     variant_t data;
-    [[nodiscard]] IP ip() const;
+    [[nodiscard]] std::optional<IP> ip() const;
     [[nodiscard]] uint16_t port() const;
     bool operator==(const Sockaddr&) const = default;
     std::string to_string() const;

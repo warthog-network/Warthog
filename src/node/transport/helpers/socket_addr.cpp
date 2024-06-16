@@ -12,10 +12,10 @@ std::string_view Sockaddr::type_str() const{
     });
 }
 
-IP Sockaddr::ip() const
+std::optional<IP> Sockaddr::ip() const
 {
-    return std::visit([](auto& sockAddr) -> IP {
-        return sockAddr.ip;
+    return std::visit([](auto& sockAddr) -> std::optional<IP> {
+        return sockAddr.ip();
     },
         data);
 }
@@ -23,7 +23,7 @@ IP Sockaddr::ip() const
 uint16_t Sockaddr::port() const
 {
     return std::visit([](auto& sockAddr) {
-        return sockAddr.port;
+        return sockAddr.port();
     },
         data);
 }

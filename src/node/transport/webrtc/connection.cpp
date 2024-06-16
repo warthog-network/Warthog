@@ -141,7 +141,7 @@ std::optional<Error> RTCConnection::set_sdp_answer(OneIpSdp sdp)
     // TODO update port;
     spdlog::info("Setting remote description for ip {}", sdp.ip().to_string());
     assert(std::holds_alternative<OutPending>(data));
-    if (sdp.ip() != sockAddr.ip) {
+    if (sdp.ip() != sockAddr._ip) {
         return Error(ERTCIP_FA);
     }
     data = Default {};

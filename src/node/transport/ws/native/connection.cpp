@@ -24,10 +24,6 @@ uint16_t WSConnection::listen_port() const
     return conman.config.port;
 }
 
-std::optional<ConnectRequest> WSConnection::connect_request() const
-{
-    return connectRequest;
-}
 
 bool WSConnection::inbound() const{
     return connectRequest.inbound();

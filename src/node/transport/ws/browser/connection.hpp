@@ -1,4 +1,5 @@
-#include "../connect_request.hpp"
+#include "connect_request.hpp"
+#include "ws_urladdr.hpp"
 #include "transport/connection_base.hpp"
 #include "transport/ws/browser/emscripten_wsconnection.hpp"
 #include <list>
@@ -7,19 +8,19 @@ class WSSession;
 class WSConnectionManager;
 
 
-class WSConnection final : public IPv4Connection, public std::enable_shared_from_this<WSConnection> {
+class WSConnection final : public ConnectionBase, public std::enable_shared_from_this<WSConnection> {
     void async_send(std::unique_ptr<char[]> data, size_t size) override;
     uint16_t listen_port() const override;
     std::optional<ConnectRequest> connect_request() const override;
     struct CreationToken { };
 
-    friend void start_connection(const WSConnectRequest& r);
+    friend void start_connection(const WSUrladdr& r);
     friend class WSSession;
 
 public:
-    WSConnection(CreationToken, const WSConnectRequest& r, EmscriptenWSConnection&&);
+    WSConnection(CreationToken, const WSBrowserConnectRequest& r, EmscriptenWSConnection&&);
 
-    [[nodiscard]] static std::shared_ptr<WSConnection> make_new(const WSConnectRequest& r);
+    [[nodiscard]] static bool connect(const WSBrowserConnectRequest& r);
     WSConnection(const WSConnection&) = delete;
     WSConnection(WSConnection&&) = delete;
     std::shared_ptr<ConnectionBase> get_shared() override
@@ -35,13 +36,8 @@ public:
         return weak_from_this();
     }
 
-    IPv4 peer_ipv4() const override
-    {
-        return connection_peer_addr_native().ip;
-    }
-
+    auto& connection_peer_addr_native() const { return connectRequest.address; }
     Sockaddr peer_addr() const override { return { connection_peer_addr_native() }; }
-    WSSockaddr connection_peer_addr_native() const { return connectRequest.address; }
     bool inbound() const override;
 
 private:
@@ -49,11 +45,10 @@ private:
     int on_error();
     int on_close(EmscriptenWSConnection::CloseInfo);
     int on_message(EmscriptenWSConnection::Message);
-    void start_read() override;
     void close(int reason) override;
     void notify_closed(int32_t reason);
 
-    const WSConnectRequest connectRequest;
+    const WSBrowserConnectRequest connectRequest;
     EmscriptenWSConnection emscriptenConnection;
     std::shared_ptr<WSConnection> self;
 

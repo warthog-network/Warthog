@@ -452,12 +452,17 @@ std::string serialize(const std::vector<API::Peerinfo>& connected)
     json j = json::array();
     for (auto& item : connected) {
         json elem;
-        elem["connection"] = json {
-            { "ip", item.endpoint.ip().to_string().c_str() },
+        auto conn = json {
             { "port", item.endpoint.port() },
             { "sinceTimestamp", item.since },
             { "sinceUtc", format_utc(item.since) }
         };
+        if (auto ip { item.endpoint.ip() }; ip.has_value())
+            conn["ip"] = ip->to_string();
+        else
+            conn["ip"] = nullptr;
+        elem["connection"] = conn;
+
         elem["leaderPriority"] = json {
             { "ack", json { { "importance", item.acknowledgedSnapshotPriority.importance }, { "height", item.acknowledgedSnapshotPriority.height } } },
             { "theirs", json { { "importance", item.theirSnapshotPriority.importance }, { "height", item.theirSnapshotPriority.height } } }

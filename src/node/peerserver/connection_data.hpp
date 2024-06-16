@@ -12,7 +12,7 @@ class AddressManager;
 class EventloopVariables {
     friend class Eventloop;
     friend class Conref;
-    friend class ConnectionSchedule;
+    friend class TCPConnectionSchedule;
     friend class PeerState;
     friend class AddressManager;
     bool failed_to_connect() const { return !eventloop_registered; }
@@ -30,13 +30,13 @@ namespace connection_schedule {
 class ConnectionSchedule;
 }
 
-class ConnectionSchedule;
+class TCPConnectionSchedule;
 namespace peerserver {
 using duration = std::chrono::steady_clock::duration;
 
 class ConnectionData : public EventloopVariables {
     friend class ::PeerServer;
-    friend class ::ConnectionSchedule;
+    friend class ::TCPConnectionSchedule;
     int64_t logrow = 0;
 
 public:

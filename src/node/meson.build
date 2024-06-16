@@ -1,20 +1,20 @@
 src_libuv = [
+  './api/http/endpoint.cpp',
+  './eventloop/address_manager/tcp_connections.cpp',
   './transport/tcp/conman.cpp',
   './transport/tcp/connect_request.cpp',
   './transport/tcp/connection.cpp',
-  './transport/tcp/start_connection.cpp',
-  './transport/ws/native/start_connection.cpp',
   './transport/ws/native/ws_conman.cpp',
   './transport/ws/native/connection.cpp',
   './transport/ws/native/ws_session.cpp',
-  './api/http/endpoint.cpp',
   ]
 
 src_browser = [
-  './transport/ws/browser/start_connection.cpp',
-  './transport/ws/browser/connection.cpp',
-  './config/browser.cpp',
   './api/wasm/api.cpp',
+  './config/browser.cpp',
+  './transport/ws/browser/connect_request.cpp',
+  './transport/ws/browser/connection.cpp',
+  './transport/ws/browser/ws_urladdr.cpp',
   ]
 
 src= [
@@ -53,7 +53,6 @@ src= [
   './communication/messages.cpp',
   './config/config.cpp',
   './eventloop/address_manager/address_manager.cpp',
-  './eventloop/address_manager/connection_schedule.cpp',
   './eventloop/address_manager/flat_address_set.cpp',
   './eventloop/chain_cache.cpp',
   './eventloop/eventloop.cpp',
@@ -91,7 +90,6 @@ src= [
   './transport/webrtc/connection.cpp',
   './transport/webrtc/sdp_util.cpp',
   './transport/webrtc/webrtc_sockaddr.cpp',
-  './transport/ws/connect_request.cpp',
   src_sqlitecpp,
   src_wh,
 ]

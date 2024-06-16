@@ -178,7 +178,7 @@ void HTTPEndpoint::work()
                                            ws->subscribe(API::Rollback::WEBSOCKET_EVENT);
                                        },
                                    });
-    app.listen(bind.ip.to_string(), bind.port, std::bind(&HTTPEndpoint::on_listen, this, _1));
+    app.listen(bind.ip().to_string(), bind.port(), std::bind(&HTTPEndpoint::on_listen, this, _1));
     lc.loop->run();
 }
 

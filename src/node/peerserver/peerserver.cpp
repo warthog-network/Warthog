@@ -4,6 +4,7 @@
 #include "db/peer_db.hpp"
 #include "general/now.hpp"
 #include "global/globals.hpp"
+#include "spdlog/spdlog.h"
 
 namespace {
 uint32_t bantime(int32_t /*offense*/)
@@ -150,12 +151,20 @@ void PeerServer::handle_event(Inspect&& e)
     e.cb(*this);
 }
 
-void PeerServer::on_close(const OnClose& o, const TCPSockaddr& addr)
-{
-    auto ip { addr.ip };
-    register_close(ip, now, o.offense, o.con->logrow);
-}
 void PeerServer::on_close(const OnClose&, const WebRTCSockaddr&)
 {
     // do nothing
 }
+
+#ifndef DISABLE_LIBUV
+void PeerServer::on_close(const OnClose& o, const TCPSockaddr& addr)
+{
+    auto ip { addr._ip };
+    register_close(ip, now, o.offense, o.con->logrow);
+}
+#else
+void PeerServer::on_close(const OnClose&, const WSUrladdr&)
+{
+    // TODO
+}
+#endif

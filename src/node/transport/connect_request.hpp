@@ -1,8 +1,9 @@
 #pragma once
 
-#include "transport/helpers/socket_addr.hpp"
-#include "helpers/connect_request_base.hpp"
-struct ConnectRequest {
-    const TCPSockaddr address;
-    const steady_duration sleptFor;
-};
+#ifndef DISABLE_LIBUV
+#include "transport/tcp/connect_request.hpp"
+using ConnectRequest = TCPConnectRequest;
+#else
+#include "transport/ws/browser/connect_request.hpp"
+using ConnectRequest = WSBrowserConnectRequest;
+#endif

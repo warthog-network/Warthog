@@ -157,35 +157,35 @@ void WSConnectionManager::handle_event(Shutdown&&)
     _shutdown = true;
 }
 
-void WSConnectionManager::handle_event(Connect&& c)
-{
-    auto& cr { c.conreq };
-    auto ipstr { cr.address.ip.to_string() };
-
-    struct lws_client_connect_info i;
-    memset(&i, 0, sizeof(i));
-
-    i.context = context;
-    i.port = cr.address.port;
-    i.address = ipstr.c_str();
-    i.path = "/";
-    i.host = i.address;
-    i.origin = "";
-    i.ssl_connection = 0;
-    i.protocol = "binary";
-    i.local_protocol_name = "binary";
-
-    auto* p = new std::shared_ptr<WSSession>(WSSession::make_new(false));
-    auto& session { *p };
-    i.pwsi = &(session->wsi);
-    i.opaque_user_data = p;
-
-    if (!lws_client_connect_via_info(&i)) {
-        global().core->on_failed_connect(c.conreq, Error(ESTARTWEBSOCK));
-        return;
-    }
-    session->connection = WSConnection::make_new(session, c.conreq, *this);
-};
+// void WSConnectionManager::handle_event(Connect&& c)
+// {
+//     auto& cr { c.conreq };
+//     auto ipstr { cr.address.ip().to_string() };
+//
+//     struct lws_client_connect_info i;
+//     memset(&i, 0, sizeof(i));
+//
+//     i.context = context;
+//     i.port = cr.address.port();
+//     i.address = ipstr.c_str();
+//     i.path = "/";
+//     i.host = i.address;
+//     i.origin = "";
+//     i.ssl_connection = 0;
+//     i.protocol = "binary";
+//     i.local_protocol_name = "binary";
+//
+//     auto* p = new std::shared_ptr<WSSession>(WSSession::make_new(false));
+//     auto& session { *p };
+//     i.pwsi = &(session->wsi);
+//     i.opaque_user_data = p;
+//
+//     if (!lws_client_connect_via_info(&i)) {
+//         global().core->on_failed_connect(c.conreq, Error(ESTARTWEBSOCK));
+//         return;
+//     }
+//     session->connection = WSConnection::make_new(session, c.conreq, *this);
+// };
 
 void WSConnectionManager::handle_event(Send&& s)
 {

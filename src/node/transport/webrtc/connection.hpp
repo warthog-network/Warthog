@@ -81,6 +81,7 @@ public:
         return weak_from_this();
     }
     Sockaddr peer_addr() const override { return { sockAddr }; }
+    auto& native_peer_addr() const { return sockAddr ; }
     // RTCSockaddr connection_peer_addr_native() const ;
     // { return connectRequest.address; }
     bool inbound() const override { return isInbound; };

@@ -1,6 +1,5 @@
 #include "eventloop.hpp"
 #include "address_manager/address_manager_impl.hpp"
-#include "address_manager/connection_schedule.hpp"
 #include "api/realtime.hpp"
 #include "api/types/all.hpp"
 #include "block/chain/header_chain.hpp"
@@ -35,7 +34,11 @@ Eventloop::Eventloop(Token, PeerServer& ps, ChainServer& cs, const ConfigParams&
     : stateServer(cs)
     , chains(cs.get_chainstate())
     , mempool(false)
+#ifndef DISABLE_LIBUV
     , connections({ ps, config.peers.connect })
+#else
+    , connections({ ps })
+#endif
     , headerDownload(chains, consensus().total_work())
     , blockDownload(*this)
 {
@@ -611,7 +614,7 @@ void Eventloop::handle_event(GeneratedVerificationSdpOffer&& m)
         return;
     }
     auto& c { o.value() };
-    const auto& verifyIp { rtcCon.peer_addr().ip() };
+    const auto& verifyIp { rtcCon.native_peer_addr().ip() };
 
     auto ips { IdentityIps::from_sdp(m.sdp) };
 
@@ -963,15 +966,15 @@ void Eventloop::handle_msg(Conref c, ForkMsg&& m)
 void Eventloop::handle_msg(Conref c, PingMsg&& m)
 {
     log_communication("{} handle ping", c.str());
-    size_t nAddr { std::min(uint16_t(20), m.maxAddresses()) };
-    auto addresses = connections.sample_verified(nAddr);
     c->ratelimit.ping();
 #ifndef DISABLE_LIBUV // TODO: replace TCPSockaddr by something else for emscrpiten build (no TCP connections available in browsers)
+    size_t nAddr { std::min(uint16_t(20), m.maxAddresses()) };
+    auto addresses = connections.sample_verified_tcp(nAddr);
     PongMsg msg { m.nonce(), std::move(addresses), mempool.sample(m.maxTransactions()) };
-#else
-    PongMsg msg(m.nonce(), std::move(addresses), {});
-#endif
     spdlog::debug("{} Sending {} addresses", c.str(), msg.addresses().size());
+#else
+    PongMsg msg(m.nonce(), {}, {});
+#endif
     if (c->theirSnapshotPriority < m.sp())
         c->theirSnapshotPriority = m.sp();
     c.send(msg);
@@ -982,13 +985,13 @@ void Eventloop::handle_msg(Conref c, PingV2Msg&& m)
 {
 
     log_communication("{} handle ping", c.str());
-    size_t nAddr { std::min(uint16_t(20), m.maxAddresses()) };
-    auto addresses = connections.sample_verified(nAddr);
     c->ratelimit.ping();
 #ifndef DISABLE_LIBUV // TODO: replace TCPSockaddr by something else for emscrpiten build (no TCP connections available in browsers)
+    size_t nAddr { std::min(uint16_t(20), m.maxAddresses()) };
+    auto addresses = connections.sample_verified_tcp(nAddr);
     PongV2Msg msg { m.nonce(), std::move(addresses), mempool.sample(m.maxTransactions()) };
 #else
-    PongV2Msg msg(m.nonce(), std::move(addresses), {});
+    PongV2Msg msg(m.nonce(), {}, {});
 #endif
     spdlog::debug("{} Sending {} addresses", c.str(), msg.addresses().size());
     if (c->theirSnapshotPriority < m.sp())
@@ -1488,12 +1491,14 @@ tl::expected<Conref, int32_t> Eventloop::try_register(RegisterConnection&& m)
     c->eventloop_registered = true;
 
     if (m.convar.is_rtc()) {
+        auto& c { m.convar.get_rtc() };
         auto& conId { m.convar.get_rtc()->verification_con_id() };
         if (conId != 0) { // conId id verified in this RTC connection
             if (auto o { connections.find(conId) }) {
+                auto ip { c->native_peer_addr().ip() };
                 auto& parent = *o;
-                parent.rtc().their.identity.set_verified(c->peer_addr().ip());
-                spdlog::info("verified RTC ip {} for {}", c->peer_addr().ip().to_string(), parent.peer().to_string());
+                parent.rtc().their.identity.set_verified(ip);
+                spdlog::info("verified RTC ip {} for {}", ip.to_string(), parent.peer().to_string());
             }
             conId = 0;
             return tl::make_unexpected(ERTCFEELER);

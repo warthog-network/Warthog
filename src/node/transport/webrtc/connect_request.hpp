@@ -2,7 +2,6 @@
 #include "../helpers/connect_request_base.hpp"
 #include "../helpers/tcp_sockaddr.hpp"
 
-struct ConnectRequest;
 struct WebRTCConnectRequest : public ConnectRequestBase {
     friend class ConnectionData;
     static WebRTCConnectRequest make_inbound(WSSockaddr peer)
@@ -12,7 +11,6 @@ struct WebRTCConnectRequest : public ConnectRequestBase {
     friend WebRTCConnectRequest make_request(const WSSockaddr& connectTo, steady_duration sleptFor);
 
     const WSSockaddr address;
-    operator ConnectRequest() const;
 
 private:
     WebRTCConnectRequest(WSSockaddr address, steady_duration sleptFor)

@@ -1,21 +1,10 @@
 #pragma once
-
 #include "ban_cache.hpp"
 #include "db/peer_db.hpp"
-#include "eventloop/address_manager/connection_schedule.hpp"
 #include "expected.hpp"
-#include "general/errors.hpp"
-#include "general/page.hpp"
-#include "spdlog/spdlog.h"
 #include "transport/connection_base.hpp"
-#include <bitset>
-#include <condition_variable>
-#include <cstdint>
-#include <mutex>
-#include <queue>
-#include <set>
 #include <thread>
-#include <variant>
+#include <condition_variable>
 
 struct Inspector;
 struct ConfigParams;
@@ -33,7 +22,8 @@ public:
 private:
     friend struct Inspector;
     struct Authenticate {
-        std::shared_ptr<IPv4Connection> c;
+        // std::variant<std::shared_ptr<TCPConnection>, std::shared_ptr<WS
+        std::shared_ptr<AuthenticatableConnection> c;
     };
     struct Unban {
         result_callback_t cb;
@@ -62,7 +52,7 @@ public:
     }
     void wait_for_shutdown();
 
-    bool authenticate(std::shared_ptr<IPv4Connection> c)
+    bool authenticate(std::shared_ptr<AuthenticatableConnection> c)
     {
         return async_event(Authenticate { std::move(c) });
     }
@@ -150,8 +140,12 @@ private:
     void handle_event(GetRecentPeers&&);
     void handle_event(Inspect&&);
 
-    void on_close(const OnClose&, const TCPSockaddr&);
     void on_close(const OnClose&, const WebRTCSockaddr&);
+#ifndef DISABLE_LIBUV
+    void on_close(const OnClose&, const TCPSockaddr&);
+#else
+    void on_close(const OnClose&, const WSUrladdr&);
+#endif
 
     ////////////////
     // Mutex protected variables

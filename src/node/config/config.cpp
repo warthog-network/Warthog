@@ -221,6 +221,7 @@ int ConfigParams::init(const gengetopt_args_info& ai)
         publicrpcBind = TCPSockaddr("0.0.0.0:3001");
     }
 
+#ifndef DISABLE_LIBUV
     if (is_testnet()) {
         peers.connect = EndpointVector {
             "193.218.118.57:9286",
@@ -240,6 +241,7 @@ int ConfigParams::init(const gengetopt_args_info& ai)
             "15.235.162.190:9186",
         };
     }
+#endif
 
     std::string filename = is_testnet() ? "testnet_config.toml" : "config.toml";
     if (!ai.config_given && !std::filesystem::exists(filename)) {
@@ -415,9 +417,11 @@ int ConfigParams::init(const gengetopt_args_info& ai)
                 node.bind = TCPSockaddr::parse("0.0.0.0:9186").value();
         }
     }
+#ifndef DISABLE_LIBUV
     if (ai.connect_given) {
         peers.connect = parse_endpoints(ai.connect_arg);
     }
+#endif
 
     if (ai.ws_port_given) {
         auto parse_port = [](int port) -> uint16_t {
@@ -450,9 +454,11 @@ std::string ConfigParams::dump()
                                     });
 
     toml::array connect;
+#ifndef DISABLE_LIBUV
     for (auto ea : peers.connect) {
         connect.push_back(ea.to_string());
     }
+#endif
     tbl.insert_or_assign("stratum",
         toml::table {
             { "bind", stratumPool ? stratumPool->bind.to_string() : ""s },

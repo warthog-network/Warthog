@@ -1,15 +1,13 @@
 #pragma once
 #include "peerserver/connection_data.hpp"
+#include "init_arg.hpp"
 #include "transport/helpers/ipv4.hpp"
 #include <set>
 #include <vector>
 
-namespace connection_schedule {
+struct TCPConnectRequest;
 
-struct InitArg {
-    PeerServer& peerServer;
-    const std::vector<TCPSockaddr>& pin;
-};
+namespace connection_schedule {
 
 using Source = IPv4;
 
@@ -67,13 +65,14 @@ struct ReconnectContext {
 template <typename T>
 class SockaddrVectorBase;
 
+
 class SockaddrVector;
 class VectorEntry {
 public:
     template <typename T>
     friend class SockaddrVectorBase;
     friend class SockaddrVector;
-    std::optional<time_point> activate_if_expired(time_point, std::vector<ConnectRequest>& out);
+    std::optional<time_point> make_expired_pending(time_point, std::vector<ConnectRequest>& outpending);
     auto sockaddr() const { return address; };
     VectorEntry(const TCPWithSource& i)
         : address(i.address)
@@ -150,7 +149,7 @@ public:
     using elem_t = T;
 
     [[nodiscard]] elem_t* find(const TCPSockaddr&) const;
-    void expired_into(time_point now, std::vector<ConnectRequest>&);
+    void take_expired(time_point now, std::vector<ConnectRequest>&);
     std::optional<time_point> timeout() const { return wakeup_tp; }
     elem_t& push_back(elem_t);
 
@@ -175,6 +174,9 @@ public:
     std::pair<VectorEntry&, bool> emplace(const TCPWithSource&, tp lastVerified);
     std::vector<TCPSockaddr> sample(size_t N) const;
     using SockaddrVectorBase::SockaddrVectorBase;
+};
+class TCPSchedule{
+
 };
 
 class WakeupTime {
@@ -211,7 +213,8 @@ private:
 
 }
 
-class ConnectionSchedule {
+class TCPConnectionSchedule {
+    using InitArg = address_manager::InitArg;
     using ConnectionData = peerserver::ConnectionData;
     using TCPWithSource = connection_schedule::TCPWithSource;
     using ConnectionState = connection_schedule::ConnectionState;
@@ -225,13 +228,12 @@ class ConnectionSchedule {
     using VerifiedVector = connection_schedule::VerifiedVector;
 
 public:
-    ConnectionSchedule(connection_schedule::InitArg);
+    TCPConnectionSchedule(InitArg);
 
     void start();
     std::optional<ConnectRequest> insert(TCPSockaddr, Source);
-    [[nodiscard]] std::vector<ConnectRequest> pop_expired();
-    void connection_established(const TCPConnection&);
-    VectorEntry* verify_from(SockaddrVector&, const TCPSockaddr&);
+    [[nodiscard]] std::vector<TCPConnectRequest> pop_expired();
+    void on_established(const TCPConnection&);
     void outbound_closed(const ConnectionData&);
     void outbound_failed(const ConnectRequest&);
     void schedule_verification(TCPSockaddr c, IPv4 source);
@@ -242,15 +244,9 @@ public:
     {
         return verified.sample(N);
     }
-    // template<typename T>
-    // std::vector<T> sample_verified(size_t N) const{
-    //     return verified.get<T>().sample(N);
-    // }
-
 private:
-    // auto invoke_with_verified(const TCPSockaddr&, auto lambda) const;
-    // auto invoke_with_verified(const TCPSockaddr&, auto lambda);
     auto emplace_verified(const TCPWithSource&, steady_clock::time_point lastVerified);
+    VectorEntry* verify_from(SockaddrVector&, const TCPSockaddr&);
     VectorEntry* find_verified(const TCPSockaddr&);
 
     void outbound_connection_ended(const ConnectRequest&, ConnectionState state);
@@ -263,13 +259,15 @@ private:
         ReconnectContext context;
     };
     void refresh_wakeup_time();
-    auto get_context(const ConnectRequest&, ConnectionState) -> std::optional<FoundContext>;
+#ifndef DISABLE_LIBUV
+    auto get_context(const TCPConnectRequest&, ConnectionState) -> std::optional<FoundContext>;
+#endif
     [[nodiscard]] auto find(const TCPSockaddr& a) const -> std::optional<Found>;
     VerifiedVector verified;
     SockaddrVector unverifiedNew;
     SockaddrVector unverifiedFailed;
     size_t totalConnected { 0 };
+    PeerServer& peerServer;
     std::set<TCPSockaddr> pinned;
     connection_schedule::WakeupTime wakeup_tp;
-    PeerServer& peerServer;
 };

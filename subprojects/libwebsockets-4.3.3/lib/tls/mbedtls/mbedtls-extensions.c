@@ -54,6 +54,10 @@
 #include <mbedtls/oid.h>
 #include <mbedtls/x509.h>
 
+// add declaration from mbedtls library
+int mbedtls_x509_get_name(unsigned char **p, const unsigned char *end,
+                          mbedtls_x509_name *cur);
+
 /*
  * This section from mbedtls oid.c
  */

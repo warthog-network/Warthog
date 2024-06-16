@@ -226,7 +226,7 @@ static inline struct psa_key_derivation_s psa_key_derivation_operation_init(
 struct psa_key_production_parameters_s {
     /* Future versions may add other fields in this structure. */
     uint32_t flags;
-    uint8_t data[];
+    uint8_t* data;
 };
 
 /** The default production parameters for key generation or key derivation.

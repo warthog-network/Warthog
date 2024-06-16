@@ -5,7 +5,7 @@
 #include "conman.hpp"
 #include "eventloop/types/conref_declaration.hpp"
 
-class TCPConnection final : public IPv4Connection, public std::enable_shared_from_this<TCPConnection> {
+class TCPConnection final : public AuthenticatableConnection, public std::enable_shared_from_this<TCPConnection> {
 
     friend class TCPConnectionManager;
 
@@ -38,7 +38,7 @@ public:
 
     IPv4 peer_ipv4() const override
     {
-        return peer_addr_native().ip;
+        return peer_addr_native().ip();
     }
     TCPSockaddr claimed_peer_addr() const;
     Sockaddr peer_addr() const override { return { peer_addr_native() }; }
