@@ -134,6 +134,23 @@ div.emscripten_border { border: 1px solid black; }
     <script src="//cdn.jsdelivr.net/npm/eruda"></script>
     <script>eruda.init();</script>
     <script type='text/javascript'>
+      // Create a reference for the Wake Lock.
+      let wakeLock = null;
+      const requestWakeLock = async () => {
+          try {
+              console.log("Trying to create wakeLock to prevent devices from dimming or locking the screen")
+              wakeLock = await navigator.wakeLock.request();
+              console.log("Created wakeLock successfully")
+              wakeLock.addEventListener('release', () => {
+                  console.log('Screen Wake Lock released:', wakeLock.released);
+              });
+              console.log('Screen Wake Lock released:', wakeLock.released);
+          } catch (err) {
+              console.log("Could not create wakeLock: ", err.message)
+          }
+      };
+      requestWakeLock();
+
       var statusElement = document.getElementById('status');
       var progressElement = document.getElementById('progress');
       var spinnerElement = document.getElementById('spinner');
