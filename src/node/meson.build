@@ -112,7 +112,7 @@ if get_option('emscripten')
 
 link_args = [
     '-lwebsocket.js',
-    '-sNO_DISABLE_EXCEPTION_CATCHING', '-sSTACK_SIZE=4mb', '-fexceptions', '-sPROXY_TO_PTHREAD', '-sWASMFS',
+    '-sNO_DISABLE_EXCEPTION_CATCHING', '-sSTACK_SIZE=4mb', '-sMAXIMUM_MEMORY=512mb', '-fexceptions', '-sPROXY_TO_PTHREAD', '-sWASMFS',
     '-sUSE_CLOSURE_COMPILER=0', '-sIMPORTED_MEMORY',
     '-sWASM_BIGINT=1', '-sMODULARIZE', '-sDYNAMIC_EXECUTION=0', '-sNO_POLYFILL',
     '-sSTRICT_JS=0', '-sALLOW_MEMORY_GROWTH', '-sINITIAL_MEMORY=8388608', '-sGLOBAL_BASE=4096', '-sALLOW_TABLE_GROWTH',
