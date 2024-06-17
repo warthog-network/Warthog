@@ -58,8 +58,8 @@ const char *gengetopt_args_info_detailed_help[] = {
   "  Defaults to 'ws.cert'",
   "      --ws-tls-key=STRING    TLS private key file for public websocket endpoint",
   "  Defaults to 'ws.key'",
-  "      --ws-x-forwarded-for   Honor 'X-Forwarded-For' header to determine peer\n                               IP. Intended use for reverse-proxies.",
-  "  By default the node uses the connection's peer IP for limits and bans.\n  However, when behind a reverse proxy the real peer's IP must be determined\n  using 'X-Forwarded-For' header.",
+  "      --ws-proxied           Bind to loopback interface and honor\n                               'X-Forwarded-For' header to determine peer IP.\n                               Intended use for reverse-proxies.",
+  "  By default the node uses the connection's peer IP for limits and bans.\n  However, when behind a reverse proxy the real peer's IP must be determined\n  using 'X-Forwarded-For' header. Furthermore only websocket connections from\n  localhost are accepted.",
   "\nLogging options:",
   "  -d, --debug                Enable debug messages",
   "\nJSON RPC endpoint options:",
@@ -146,7 +146,7 @@ void clear_given (struct gengetopt_args_info *args_info)
   args_info->ws_port_given = 0 ;
   args_info->ws_tls_cert_given = 0 ;
   args_info->ws_tls_key_given = 0 ;
-  args_info->ws_x_forwarded_for_given = 0 ;
+  args_info->ws_proxied_given = 0 ;
   args_info->debug_given = 0 ;
   args_info->rpc_given = 0 ;
   args_info->publicrpc_given = 0 ;
@@ -203,7 +203,7 @@ void init_args_info(struct gengetopt_args_info *args_info)
   args_info->ws_port_help = gengetopt_args_info_detailed_help[18] ;
   args_info->ws_tls_cert_help = gengetopt_args_info_detailed_help[20] ;
   args_info->ws_tls_key_help = gengetopt_args_info_detailed_help[22] ;
-  args_info->ws_x_forwarded_for_help = gengetopt_args_info_detailed_help[24] ;
+  args_info->ws_proxied_help = gengetopt_args_info_detailed_help[24] ;
   args_info->debug_help = gengetopt_args_info_detailed_help[27] ;
   args_info->rpc_help = gengetopt_args_info_detailed_help[29] ;
   args_info->publicrpc_help = gengetopt_args_info_detailed_help[30] ;
@@ -387,8 +387,8 @@ cmdline_parser_dump(FILE *outfile, struct gengetopt_args_info *args_info)
     write_into_file(outfile, "ws-tls-cert", args_info->ws_tls_cert_orig, 0);
   if (args_info->ws_tls_key_given)
     write_into_file(outfile, "ws-tls-key", args_info->ws_tls_key_orig, 0);
-  if (args_info->ws_x_forwarded_for_given)
-    write_into_file(outfile, "ws-x-forwarded-for", 0, 0 );
+  if (args_info->ws_proxied_given)
+    write_into_file(outfile, "ws-proxied", 0, 0 );
   if (args_info->debug_given)
     write_into_file(outfile, "debug", 0, 0 );
   if (args_info->rpc_given)
@@ -674,7 +674,7 @@ cmdline_parser_internal (
         { "ws-port",	1, NULL, 0 },
         { "ws-tls-cert",	1, NULL, 0 },
         { "ws-tls-key",	1, NULL, 0 },
-        { "ws-x-forwarded-for",	0, NULL, 0 },
+        { "ws-proxied",	0, NULL, 0 },
         { "debug",	0, NULL, 'd' },
         { "rpc",	1, NULL, 'r' },
         { "publicrpc",	1, NULL, 0 },
@@ -894,16 +894,16 @@ cmdline_parser_internal (
               goto failure;
           
           }
-          /* Honor 'X-Forwarded-For' header to determine peer IP. Intended use for reverse-proxies..  */
-          else if (strcmp (long_options[option_index].name, "ws-x-forwarded-for") == 0)
+          /* Bind to loopback interface and honor 'X-Forwarded-For' header to determine peer IP. Intended use for reverse-proxies..  */
+          else if (strcmp (long_options[option_index].name, "ws-proxied") == 0)
           {
           
           
             if (update_arg( 0 , 
-                 0 , &(args_info->ws_x_forwarded_for_given),
-                &(local_args_info.ws_x_forwarded_for_given), optarg, 0, 0, ARG_NO,
+                 0 , &(args_info->ws_proxied_given),
+                &(local_args_info.ws_proxied_given), optarg, 0, 0, ARG_NO,
                 check_ambiguity, override, 0, 0,
-                "ws-x-forwarded-for", '-',
+                "ws-proxied", '-',
                 additional_error))
               goto failure;
           

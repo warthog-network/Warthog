@@ -92,18 +92,17 @@ static int libwebsocket_callback(struct lws* wsi,
     case LWS_CALLBACK_PROTOCOL_INIT:
         break;
 
-    case LWS_CALLBACK_FILTER_HTTP_CONNECTION: 
+    case LWS_CALLBACK_FILTER_HTTP_CONNECTION:
         return -1; // Do not allow plain HTTP
-    case LWS_CALLBACK_HTTP_CONFIRM_UPGRADE:
-        {
+    case LWS_CALLBACK_HTTP_CONFIRM_UPGRADE: {
         lws_rx_flow_control(wsi, 0);
         auto ipv4port = peer_ipv4_port(wsi);
         if (!ipv4port) // cannot extract peer info
             return -1;
-        auto fIp { forwarded_for(wsi) };
         auto& cm { conman() };
         IPv4 ip { ipv4port->first };
-        if (cm.config.useForwardedFor) {
+        if (cm.config.useProxy) {
+            auto fIp { forwarded_for(wsi) };
             if (!fIp || !fIp->is_v4())
                 return -1;
             ip = fIp->get_v4(); // overwrite with real IP
@@ -263,6 +262,8 @@ void WSConnectionManager::create_context()
     struct lws_context_creation_info info;
     memset(&info, 0, sizeof info); /* otherwise uninitialized garbage */
     info.port = config.port;
+    if (config.useProxy)
+        info.iface = "lo";
     info.protocols = protocols;
     info.pvo = &pvo;
     info.user = this;
