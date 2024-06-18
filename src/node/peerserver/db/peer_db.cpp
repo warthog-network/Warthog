@@ -8,7 +8,7 @@ PeerDB::CreateTables::CreateTables(SQLite::Database& db)
     db.exec("CREATE TABLE IF NOT EXISTS \"bans\" ( `ip` INTEGER NOT NULL, "
             "`ban_until` INTEGER NOT NULL DEFAULT 0, `offense` INTEGER "
             "NOT NULL, PRIMARY KEY(`ip`) )");
-    db.exec("CREATE TABLE IF NOT EXISTS `connection_log` ( `peer` INTEGER NOT NULL, "
+    db.exec("CREATE TABLE IF NOT EXISTS `connection_log` ( `peer` INTEGER NOT NULL, `inbound` INTEGER NOT NULL, "
             "`begin` INTEGER NOT NULL, `end` INTEGER DEFAULT NULL, "
             "`code` INTEGER DEFAULT NULL )");
     db.exec("CREATE TABLE IF NOT EXISTS `refuse_log` ( `peer` INTEGER NOT NULL, `timestamp` INTEGER NOT NULL )");
@@ -38,9 +38,9 @@ PeerDB::PeerDB(const std::string& path)
 
     , peerget(db, "SELECT `ban_until`, `offense` FROM `bans` WHERE `ip`=?")
     , peergetBanned(db, "SELECT `ip`,`ban_until`, `offense` FROM `bans` WHERE `ban_until`>?")
-    , connectset(db, "INSERT INTO `connection_log` (`peer`,`begin`) VALUES "
-                     "(?,?)")
-    , disconnectset(db, "UPDATE `connection_log` SET `end`=?, `code`=? WHERE ROWID=?")
+    , connection_log_insert(db, "INSERT INTO `connection_log` (`peer`, `inbound`, `begin`) VALUES "
+                     "(?,?,?)")
+    , connection_log_update(db, "UPDATE `connection_log` SET `end`=?, `code`=? WHERE ROWID=?")
     , refuseinsert(db, "INSERT INTO `refuse_log` (`peer`,`timestamp`) VALUES (?,?)")
 {
     spdlog::info("{} IPs are currently blacklisted.", get_banned_peers().size());

@@ -149,6 +149,5 @@ public:
 class AuthenticatableConnection : public ConnectionBase {
 public:
     using ConnectionBase::ConnectionBase;
-    virtual IPv4 peer_ipv4() const = 0;
     virtual void start_read() = 0;
 };

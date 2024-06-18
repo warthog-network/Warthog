@@ -346,7 +346,7 @@ int ConfigParams::init(const gengetopt_args_info& ai)
         data.peersdb = ai.peers_db_arg;
     else {
         if (data.peersdb.empty()) {
-            data.peersdb = defaultDataDir + (is_testnet() ? "testnet_peers.db3" : "peers.db3");
+            data.peersdb = defaultDataDir + (is_testnet() ? "testnet_peers.db3" : "peers_v2.db3");
         }
     }
     if (ai.temporary_given)

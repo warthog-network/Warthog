@@ -29,20 +29,6 @@ void PeerServer::start()
     assert(!worker.joinable());
     worker = std::thread(&PeerServer::work, this);
 }
-void PeerServer::register_close(IPv4 address, uint32_t now,
-    int32_t offense, int64_t rowid)
-{
-
-    if (!address.is_loopback()  // don't ban localhost
-            && errors::leads_to_ban(offense)) {
-        uint32_t banuntil = now + bantime(offense);
-        db.set_ban(address, banuntil, offense);
-        db.insert_offense(address, offense);
-        bancache.set(address, banuntil);
-    }
-    if (rowid >= 0)
-        db.insert_disconnect(rowid, now, offense);
-}
 
 void PeerServer::work()
 {
@@ -94,28 +80,40 @@ void PeerServer::handle_event(GetOffenses&& go)
     go.cb(db.get_offenses(go.page));
 }
 
-void PeerServer::handle_event(Authenticate&& nc)
+void PeerServer::handle_event(AuthenticateInbound&& nc)
 {
     // return EMAXCONNECTIONS; TODO: handle max connections
     auto& con = *nc.c;
-    bool allowed = true;
-    const IPv4& ip = con.peer_ipv4();
-    uint32_t banuntil;
-    int32_t offense;
-    if (bancache.get(ip, banuntil) || db.get_peer(ip.data, banuntil, offense)) { // found entry
-        if (enableBan == true && banuntil > now) {
-            allowed = false;
-            db.insert_refuse(ip, now);
+    auto& ip = nc.ip;
+    if (!config().allowedInboundTransports.allowed(nc.ip, nc.transportType)) {
+        db.insert_refuse(ip, now);
+        con.close(EREFUSED);
+        return;
+    }
+    auto bannedUntil = [this, &ip]() -> std::optional<uint32_t> {
+        if (auto res { bancache.get(ip) }) {
+            return res->banUntil;
         }
+        if (auto res { db.get_peer(ip) }) {
+            return res->banUntil;
+        }
+        return {};
+    }();
+    if (enableBan && bannedUntil && *bannedUntil > now) {
+
+        db.insert_refuse(ip, now);
+        con.close(EREFUSED);
     } else {
         db.insert_peer(ip);
-    };
-    if (allowed) {
-        con.logrow = db.insert_connect(ip.data, now);
+        con.logrow = db.insert_connect(ip, true, now);
         con.start_read();
-    } else {
-        con.close(EREFUSED);
     }
+}
+
+void PeerServer::handle_event(LogOutboundIPv4&& nc)
+{
+    auto& con = *nc.c;
+    con.logrow = db.insert_connect(nc.ip, false, now);
 }
 
 void PeerServer::handle_event(banned_callback_t&& cb)
@@ -151,8 +149,9 @@ void PeerServer::handle_event(Inspect&& e)
     e.cb(*this);
 }
 
-void PeerServer::on_close(const OnClose&, const WebRTCSockaddr&)
+void PeerServer::on_close(const OnClose&, const WebRTCSockaddr& addr)
 {
+    // addr._ip
     // do nothing
 }
 
@@ -160,11 +159,21 @@ void PeerServer::on_close(const OnClose&, const WebRTCSockaddr&)
 void PeerServer::on_close(const OnClose& o, const TCPSockaddr& addr)
 {
     auto ip { addr._ip };
-    register_close(ip, now, o.offense, o.con->logrow);
+    auto offense { o.offense };
+    if (!ip.is_loopback() // don't ban localhost
+        && errors::leads_to_ban(offense)) {
+        uint32_t banuntil = now + bantime(offense);
+        db.set_ban(ip, banuntil, offense);
+        db.insert_offense(ip, offense);
+        bancache.set(ip, banuntil);
+    }
+    if (o.con->logrow >= 0)
+        db.insert_disconnect(o.con->logrow, now, offense);
 }
 #else
-void PeerServer::on_close(const OnClose&, const WSUrladdr&)
+void PeerServer::on_close(const OnClose& o, const WSUrladdr&)
 {
+    regi
     // TODO
 }
 #endif

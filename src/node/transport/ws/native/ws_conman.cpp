@@ -116,7 +116,7 @@ static int libwebsocket_callback(struct lws* wsi,
         lws_set_opaque_user_data(wsi, p);
         auto& session { *p };
         session->connection = WSConnection::make_new(session, WSConnectRequest::make_inbound(wsaddr), conman());
-        global().peerServer->authenticate(session->connection);
+        global().peerServer->authenticate_inbound(ip, TransportType::Websocket, session->connection);
         psession()->on_connected();
         lws_callback_on_writable(wsi);
         break;

@@ -3,8 +3,9 @@
 #include "db/peer_db.hpp"
 #include "expected.hpp"
 #include "transport/connection_base.hpp"
-#include <thread>
+#include "transport/helpers/transport_types.hpp"
 #include <condition_variable>
+#include <thread>
 
 struct Inspector;
 struct ConfigParams;
@@ -21,7 +22,13 @@ public:
 
 private:
     friend struct Inspector;
-    struct Authenticate {
+    struct LogOutboundIPv4 {
+        IPv4 ip;
+        std::shared_ptr<ConnectionBase> c;
+    };
+    struct AuthenticateInbound {
+        IP ip;
+        TransportType transportType;
         // std::variant<std::shared_ptr<TCPConnection>, std::shared_ptr<WS
         std::shared_ptr<AuthenticatableConnection> c;
     };
@@ -52,9 +59,13 @@ public:
     }
     void wait_for_shutdown();
 
-    bool authenticate(std::shared_ptr<AuthenticatableConnection> c)
+    bool log_outbound(IPv4 ip, std::shared_ptr<ConnectionBase> c)
     {
-        return async_event(Authenticate { std::move(c) });
+        return async_event(LogOutboundIPv4 { std::move(ip), std::move(c) });
+    }
+    bool authenticate_inbound(IP ip, TransportType type, std::shared_ptr<AuthenticatableConnection> c)
+    {
+        return async_event(AuthenticateInbound { std::move(ip), type, std::move(c) });
     }
 
     bool async_get_banned(banned_callback_t cb)
@@ -110,7 +121,7 @@ private:
     struct Inspect {
         std::function<void(const PeerServer&)> cb;
     };
-    using Event = std::variant<OnClose, Authenticate, GetOffenses, Unban, banned_callback_t, RegisterPeer, SeenPeer, GetRecentPeers, Inspect>;
+    using Event = std::variant<OnClose, LogOutboundIPv4, AuthenticateInbound, GetOffenses, Unban, banned_callback_t, RegisterPeer, SeenPeer, GetRecentPeers, Inspect>;
     bool async_event(Event e)
     {
         std::unique_lock<std::mutex> l(mutex);
@@ -123,7 +134,6 @@ private:
     }
     void work();
     void accept_connection();
-    void register_close(IPv4 address, uint32_t now, int32_t offense, int64_t rowid);
     ////////////////
     //
     // private variables
@@ -133,7 +143,8 @@ private:
     void handle_event(OnClose&&);
     void handle_event(Unban&&);
     void handle_event(GetOffenses&&);
-    void handle_event(Authenticate&&);
+    void handle_event(AuthenticateInbound&&);
+    void handle_event(LogOutboundIPv4&&);
     void handle_event(banned_callback_t&&);
     void handle_event(RegisterPeer&&);
     void handle_event(SeenPeer&&);

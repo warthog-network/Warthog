@@ -22,7 +22,6 @@ void AddressManager::start()
     start_scheduled_connections();
 };
 
-
 #ifndef DISABLE_LIBUV
 void AddressManager::verify(std::vector<TCPSockaddr> v, IPv4 source)
 {
@@ -41,7 +40,8 @@ void AddressManager::start_scheduled_connections()
 }
 #else
 
-void AddressManager::outbound_failed(const WSBrowserConnectRequest&){
+void AddressManager::outbound_failed(const WSBrowserConnectRequest&)
+{
     // TODO
 }
 void AddressManager::start_scheduled_connections()
@@ -68,7 +68,7 @@ auto AddressManager::insert(InsertData id) -> tl::expected<Conref, int32_t>
 #ifndef DISABLE_LIBUV
         if (id.convar.is_tcp()) {
             auto& tcp_con { id.convar.get_tcp() };
-            auto ipv4 { tcp_con->peer_ipv4() };
+            auto ipv4 { tcp_con->peer_addr_native().ip() };
             if (!c->inbound()) {
                 c->successfulConnection = true;
                 tcpConnectionSchedule.on_established(*tcp_con);
@@ -98,7 +98,6 @@ auto AddressManager::insert(InsertData id) -> tl::expected<Conref, int32_t>
     return cr;
 }
 
-
 bool AddressManager::erase(Conref cr)
 {
     auto ip { cr.peer().ip() };
@@ -120,7 +119,6 @@ void AddressManager::garbage_collect()
     }
     delayedDelete.clear();
 }
-
 
 std::optional<std::chrono::steady_clock::time_point> AddressManager::pop_scheduled_connect_time()
 {

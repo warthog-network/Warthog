@@ -36,10 +36,6 @@ public:
         return weak_from_this();
     }
 
-    IPv4 peer_ipv4() const override
-    {
-        return peer_addr_native().ip();
-    }
     TCPSockaddr claimed_peer_addr() const;
     Sockaddr peer_addr() const override { return { peer_addr_native() }; }
     TCPSockaddr peer_addr_native() const { return connectRequest.address; }

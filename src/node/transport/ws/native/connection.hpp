@@ -35,7 +35,6 @@ public:
         return weak_from_this();
     }
 
-    IPv4 peer_ipv4() const override { return connection_peer_addr_native()._ip; }
     Sockaddr peer_addr() const override { return { connection_peer_addr_native() }; }
     WSSockaddr connection_peer_addr_native() const { return connectRequest.address; }
     bool inbound() const override;

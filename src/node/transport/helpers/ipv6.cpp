@@ -2,6 +2,11 @@
 #include "general/reader.hpp"
 #include "general/writer.hpp"
 
+auto IPv6::block48_view() const -> Block48View
+{
+    return { std::span<const uint8_t, 6> { data.begin(), data.begin() + 6 } };
+}
+
 template <std::size_t N>
 requires(N <= 16)
 bool IPv6::has_prefix(const uint8_t (&cmp)[N]) const

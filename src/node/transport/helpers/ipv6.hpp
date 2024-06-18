@@ -4,6 +4,7 @@
 #include <array>
 #include <compare>
 #include <optional>
+#include <span>
 #include <stdexcept>
 #include <string>
 class Reader;
@@ -11,8 +12,18 @@ class Writer;
 
 class IPv6 {
 public:
+    struct Block48View : public std::span<const uint8_t, 6> { // view class for representing /48 block
+        Block48View(std::span<const uint8_t, 6> s)
+            :std::span<const uint8_t, 6>(std::move(s)){}
+    };
+
     constexpr static auto type() { return IpType::v6; }
     IPv6(Reader& r);
+    Block48View block48_view() const;
+    constexpr IPv6(std::span<uint8_t, 16> s)
+    {
+        std::copy(s.begin(), s.end(), data.begin());
+    }
     constexpr IPv6(std::array<uint8_t, 16> data)
         : data(data)
     {
@@ -25,9 +36,9 @@ public:
     {
         return data == decltype(data) { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 };
     }
-    template<std::size_t N>
-        requires (N<=16)
-    [[nodiscard]] bool has_prefix(const uint8_t(&)[N]) const;
+    template <std::size_t N>
+    requires(N <= 16)
+    [[nodiscard]] bool has_prefix(const uint8_t (&)[N]) const;
     template <size_t i>
     requires(i < 16)
     uint8_t at() const
