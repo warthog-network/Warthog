@@ -1,4 +1,5 @@
 #include "config.hpp"
+#include "browser.hpp"
 #include "cmdline/cmdline.hpp"
 #include "general/errors.hpp"
 #include "general/is_testnet.hpp"
@@ -420,6 +421,21 @@ int ConfigParams::init(const gengetopt_args_info& ai)
 #ifndef DISABLE_LIBUV
     if (ai.connect_given) {
         peers.connect = parse_endpoints(ai.connect_arg);
+    }
+#else
+    auto wsPeers { ws_peers() };
+    spdlog::info("Websocket default peer list ({}):", wsPeers.size());
+
+    size_t i = 1;
+    for (auto& p : wsPeers) {
+        auto a { WSUrladdr::parse(p) };
+        if (a) {
+            spdlog::info("Adding websocket peer {}: {}", i, p);
+            peers.connect.push_back(*a);
+        } else {
+            spdlog::warn("Failed parsing Websocket peer {}: {}", i, p);
+        }
+        i += 1;
     }
 #endif
 

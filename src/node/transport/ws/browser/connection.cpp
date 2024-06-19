@@ -1,7 +1,7 @@
 #include "connection.hpp"
 bool WSConnection::connect(const WSBrowserConnectRequest& r)
 {
-    auto emsCon { EmscriptenWSConnection::make_new(r.address.url) };
+    auto emsCon { EmscriptenWSConnection::make_new(r.address().url) };
     if (!emsCon.has_value())
         return false;
 

@@ -5,7 +5,6 @@ std::vector<std::string> ws_peers()
 {
     std::vector<std::string> res;
     auto s { getenv("WS_PEERS") };
-    cout << "WS_PEERS: " << s << endl;
     const size_t N = strlen(s);
     if (!s)
         return {};

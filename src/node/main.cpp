@@ -147,18 +147,6 @@ int main(int argc, char** argv)
     ps.start();
     cs->start();
     el->start();
-#ifdef DISABLE_LIBUV
-    auto wsPeers { ws_peers() };
-    spdlog::info("WS Peer size: {}", wsPeers.size());
-
-    for (auto& p : wsPeers) {
-        spdlog::info("WS Peer: {}", p);
-        auto a { WSUrladdr::parse(p) };
-        if (a) {
-            WSBrowserConnectRequest::make_outbound(*a).connect();
-        }
-    }
-#endif
 
 #ifdef DISABLE_LIBUV
     while (true) {

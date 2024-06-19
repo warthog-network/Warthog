@@ -327,12 +327,11 @@ void TCPConnectionSchedule::start()
     }
 };
 
-void TCPConnectionSchedule::outbound_closed(const peerserver::ConnectionData& c)
+void TCPConnectionSchedule::outbound_closed(const TCPConnectRequest& r, bool success, int32_t /*reason*/)
 {
     using enum ConnectionState;
-    auto state { c.successfulConnection ? INITIALIZED : UNINITIALIZED };
-    if (auto r { c.connect_request() })
-        outbound_connection_ended(*r, state);
+    auto state { success ? INITIALIZED : UNINITIALIZED };
+    outbound_connection_ended(r, state);
 
     // TODO: make sure prune does not discard pending entries
 
@@ -343,7 +342,7 @@ void TCPConnectionSchedule::outbound_closed(const peerserver::ConnectionData& c)
     // * outbound don't connect if disconnected on purpose due to too many connections
 }
 
-void TCPConnectionSchedule::outbound_failed(const ConnectRequest& cr)
+void TCPConnectionSchedule::outbound_failed(const TCPConnectRequest& cr)
 {
     outbound_connection_ended(cr, ConnectionState::NOT_CONNECTED);
 }
@@ -355,13 +354,19 @@ auto TCPConnectionSchedule::pop_wakeup_time() -> std::optional<time_point>
 
 void TCPConnectionSchedule::outbound_connection_ended(const ConnectRequest& r, ConnectionState state)
 {
+    // TODO: check wait time logic
     if (auto o { get_context(r, state) })
         wakeup_tp.consider(o->item.outbound_connected_ended(o->context));
 }
 
-std::vector<TCPConnectRequest> TCPConnectionSchedule::pop_expired()
+void TCPConnectionSchedule::connect_expired()
 {
-    auto now { steady_clock::now() };
+    for (auto& r : pop_expired())
+        r.connect();
+}
+
+std::vector<TCPConnectRequest> TCPConnectionSchedule::pop_expired(time_point now)
+{
     if (!wakeup_tp.expired())
         return {};
 
@@ -385,7 +390,7 @@ void TCPConnectionSchedule::refresh_wakeup_time()
 
 auto TCPConnectionSchedule::get_context(const TCPConnectRequest& r, ConnectionState cs) -> std::optional<FoundContext>
 {
-    if (auto p { find(r.address) }; p) {
+    if (auto p { find(r.address()) }; p) {
         if (cs == ConnectionState::INITIALIZED)
             assert(p->state == EndpointState::VERIFIED);
 
@@ -395,7 +400,7 @@ auto TCPConnectionSchedule::get_context(const TCPConnectRequest& r, ConnectionSt
                 .prevWait { r.sleptFor },
                 .endpointState = p->state,
                 .connectionState = cs,
-                .pinned = pinned.contains(r.address) }
+                .pinned = pinned.contains(r.address()) }
         };
     }
     return {};

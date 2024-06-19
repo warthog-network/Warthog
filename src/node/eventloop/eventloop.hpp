@@ -125,6 +125,7 @@ public:
 
     void erase(std::shared_ptr<ConnectionBase> c);
     void on_failed_connect(const ConnectRequest& r, Error reason);
+    void on_outbound_closed(std::shared_ptr<ConnectionBase>, int32_t reason);
 
     void start();
 
@@ -247,6 +248,7 @@ private:
     struct Erase {
         std::shared_ptr<ConnectionBase> c;
     };
+    using OutboundClosed = AddressManager::OutboundClosed;
     struct RegisterConnection {
         ConnectionBase::ConnectionVariant convar;
     };
@@ -279,7 +281,7 @@ private:
     };
 
     // event queue
-    using Event = std::variant<Erase, RegisterConnection, OnProcessConnection,
+    using Event = std::variant<Erase, OutboundClosed, RegisterConnection, OnProcessConnection,
         StateUpdate, SignedSnapshotCb, PeersCb, SyncedCb, stage_operation::Result,
         OnForwardBlockrep, InspectorCb, GetHashrate, GetHashrateChart,
         FailedConnect,
@@ -291,6 +293,7 @@ public:
 private:
     // event handlers
     void handle_event(Erase&&);
+    void handle_event(OutboundClosed&&);
     void handle_event(RegisterConnection&&);
     void handle_event(OnProcessConnection&&);
     void handle_event(StateUpdate&&);

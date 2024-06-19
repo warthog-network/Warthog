@@ -3,12 +3,14 @@
 #include "global/emscripten_proxy.hpp"
 #include "spdlog/spdlog.h"
 
-void WSBrowserConnectRequest::connect()
+void WSBrowserConnectRequest::connect() const
 {
     proxy_to_main_runtime([req = *this]() {
         if (!WSConnection::connect(req)) {
-            spdlog::warn("Cannot establish websocket connection to {}", req.address.to_string());
+            spdlog::warn("Cannot establish websocket connection to {}", req.address().to_string());
             // global().core->on_failed_connect(r, Error(ESTARTWEBSOCK)); // TODO: restart connect request later
+        }else{
+            spdlog::info("Trying to establish websocket connection to {}", req.address().to_string());
         }
     });
 }

@@ -11,7 +11,7 @@ using nlohmann::json;
 namespace api = wasm_api;
 #else
 namespace api {
-void on_connect_count(size_t N)
+void on_connect_count(size_t)
 {
 }
 void on_connect(json)

@@ -78,6 +78,8 @@ struct ConfigParams {
         bool allowLocalhostIp = false; // do not ignore 127.xxx.xxx.xxx peer node addresses provided by peers
 #ifndef DISABLE_LIBUV
         EndpointVector connect;
+#else
+        std::vector<WSUrladdr> connect;
 #endif
         bool enableBan { true };
     } peers;

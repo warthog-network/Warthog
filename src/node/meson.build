@@ -12,6 +12,7 @@ src_libuv = [
 src_browser = [
   './api/wasm/api.cpp',
   './config/browser.cpp',
+  './eventloop/address_manager/websocket_outbound_schedule.cpp',
   './transport/ws/browser/connect_request.cpp',
   './transport/ws/browser/connection.cpp',
   './transport/ws/browser/ws_urladdr.cpp',

@@ -5,18 +5,18 @@
 
 struct WSBrowserConnectRequest : public ConnectRequestBase {
     friend class ConnectionData;
-    [[nodiscard]] static WSBrowserConnectRequest make_outbound(WSUrladdr peer, steady_duration sleptFor=std::chrono::seconds(0))
+    [[nodiscard]] static WSBrowserConnectRequest make_outbound(WSUrladdr peer, steady_duration sleptFor = std::chrono::seconds(0))
     {
         return { std::move(peer), sleptFor };
     }
-    void connect();
-
-    const WSUrladdr address;
+    void connect() const;
+    auto& address() const { return _address; }
 
 private:
+    WSUrladdr _address;
     WSBrowserConnectRequest(WSUrladdr address, steady_duration sleptFor)
         : ConnectRequestBase(sleptFor)
-        , address(std::move(address))
+        , _address(std::move(address))
     {
     }
 };

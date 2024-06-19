@@ -13,13 +13,14 @@ struct TCPConnectRequest : public ConnectRequestBase {
         return {std::move(connectTo), sleptFor};
     }
 
-    const TCPSockaddr address;
     void connect();
+    auto& address() const { return _address;}
 
 private:
+    TCPSockaddr _address;
     TCPConnectRequest(TCPSockaddr address, steady_duration sleptFor)
         : ConnectRequestBase(sleptFor)
-        , address(std::move(address))
+        , _address(std::move(address))
     {
     }
 };

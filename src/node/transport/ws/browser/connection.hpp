@@ -36,7 +36,7 @@ public:
         return weak_from_this();
     }
 
-    auto& connection_peer_addr_native() const { return connectRequest.address; }
+    auto& connection_peer_addr_native() const { return connectRequest.address(); }
     Sockaddr peer_addr() const override { return { connection_peer_addr_native() }; }
     bool inbound() const override;
 

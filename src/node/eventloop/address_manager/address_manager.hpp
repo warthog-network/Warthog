@@ -1,6 +1,8 @@
 #pragma once
 #ifndef DISABLE_LIBUV
 #include "tcp_connections.hpp"
+#else
+#include "websocket_outbound_schedule.hpp"
 #endif
 
 #include "init_arg.hpp"
@@ -20,6 +22,11 @@ class AddressManager {
 public:
     friend struct ::Inspector;
     using InitArg = address_manager::InitArg;
+    struct OutboundClosed {
+        OutboundClosed( std::shared_ptr<ConnectionBase> c, int32_t reason);
+        std::shared_ptr<ConnectionBase> c;
+        int32_t reason;
+    };
 private:
     class ConrefIter : public Coniter {
     public:
@@ -109,6 +116,7 @@ public:
     All all() const { return { *this }; }
 
     void outbound_failed(const ConnectRequest& r);
+    void outbound_closed(OutboundClosed);
     void verify(std::vector<TCPSockaddr>, IPv4 source); // TODO call this function
     [[nodiscard]] std::optional<Conref> find(uint64_t id) const;
     size_t size() const { return conndatamap.size(); }
@@ -140,11 +148,19 @@ private:
     bool is_own_endpoint(Sockaddr a);
     std::optional<Conref> eviction_candidate() const;
 
+#ifndef DISABLE_LIBUV
+    void outbound_connect_request_closed(const TCPConnectRequest&, bool success, int32_t reason);
+#else
+    void outbound_connect_request_closed(const WSBrowserConnectRequest&, bool success, int32_t reason);
+#endif
+
 private:
     std::vector<Sockaddr> outboundEndpoints;
     std::vector<Conref> inboundConnections;
 #ifndef DISABLE_LIBUV
     TCPConnectionSchedule tcpConnectionSchedule;
+#else 
+    WSConnectionSchedule wsConnectionSchedule;
 #endif
 
     mutable Conndatamap conndatamap;

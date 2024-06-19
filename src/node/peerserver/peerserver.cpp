@@ -173,7 +173,6 @@ void PeerServer::on_close(const OnClose& o, const TCPSockaddr& addr)
 #else
 void PeerServer::on_close(const OnClose& o, const WSUrladdr&)
 {
-    regi
     // TODO
 }
 #endif

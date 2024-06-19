@@ -12,7 +12,15 @@ class WSUrladdr {
     }
 
 public:
-    auto operator<=>(const WSUrladdr&) const = default;
+    auto operator==(const WSUrladdr& addr) const
+    {
+        return url == addr.url;
+    }
+    auto operator<=>(const WSUrladdr& addr) const
+    {
+        return url <=> addr.url;
+    }
+
     std::string to_string() const { return url; }
     std::string_view type_str() const
     {

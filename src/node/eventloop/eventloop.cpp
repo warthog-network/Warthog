@@ -37,7 +37,7 @@ Eventloop::Eventloop(Token, PeerServer& ps, ChainServer& cs, const ConfigParams&
 #ifndef DISABLE_LIBUV
     , connections({ ps, config.peers.connect })
 #else
-    , connections({ ps })
+    , connections({ ps, config.peers.connect})
 #endif
     , headerDownload(chains, consensus().total_work())
     , blockDownload(*this)
@@ -103,6 +103,11 @@ void Eventloop::wait_for_shutdown()
 void Eventloop::erase(std::shared_ptr<ConnectionBase> c)
 {
     defer(Erase { std::move(c) });
+}
+
+void Eventloop::on_outbound_closed(std::shared_ptr<ConnectionBase> c, int32_t reason)
+{
+    defer(OutboundClosed { std::move(c), reason });
 }
 
 void Eventloop::async_state_update(StateUpdate&& s)
@@ -250,6 +255,11 @@ void Eventloop::handle_event(Erase&& m)
     bool registered { m.c->eventloop_registered };
     if ((!erased) && registered)
         erase_internal(m.c->dataiter);
+}
+
+void Eventloop::handle_event(OutboundClosed&& e)
+{
+    connections.outbound_closed(std::move(e));
 }
 
 void Eventloop::handle_event(RegisterConnection&& m)
@@ -452,7 +462,7 @@ void Eventloop::handle_event(GetHashrateChart&& e)
 }
 void Eventloop::handle_event(FailedConnect&& e)
 {
-    spdlog::warn("Cannot connect to {}: ", e.connectRequest.address.to_string(), Error(e.reason).err_name());
+    spdlog::warn("Cannot connect to {}: ", e.connectRequest.address().to_string(), Error(e.reason).err_name());
     connections.outbound_failed(e.connectRequest);
     // TODO
 }

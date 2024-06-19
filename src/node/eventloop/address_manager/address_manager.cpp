@@ -7,9 +7,19 @@
 #include <future>
 #include <random>
 
-AddressManager::AddressManager(InitArg ia)
+AddressManager::OutboundClosed::OutboundClosed(std::shared_ptr<ConnectionBase> c, int32_t reason)
+    : c(std::move(c))
+    , reason(reason)
+{
+    assert(!this->c->inbound());
+}
+
 #ifndef DISABLE_LIBUV
+AddressManager::AddressManager(InitArg ia)
     : tcpConnectionSchedule(std::move(ia))
+#else
+AddressManager::AddressManager(InitArg ia)
+    : wsConnectionSchedule(std::move(ia))
 #endif
 {
 }
@@ -22,6 +32,22 @@ void AddressManager::start()
     start_scheduled_connections();
 };
 
+void AddressManager::outbound_closed(OutboundClosed e)
+{
+    if (auto cr { e.c->connect_request() }) {
+        outbound_connect_request_closed(*cr, e.c->successfulConnection, e.reason);
+    }
+}
+
+void AddressManager::start_scheduled_connections()
+{
+#ifndef DISABLE_LIBUV
+    tcpConnectionSchedule.connect_expired();
+#else
+    wsConnectionSchedule.connect_expired();
+#endif
+}
+
 #ifndef DISABLE_LIBUV
 void AddressManager::verify(std::vector<TCPSockaddr> v, IPv4 source)
 {
@@ -29,24 +55,26 @@ void AddressManager::verify(std::vector<TCPSockaddr> v, IPv4 source)
         tcpConnectionSchedule.insert(ea, source);
 }
 
-void AddressManager::outbound_failed(const ConnectRequest& r)
+void AddressManager::outbound_connect_request_closed(const TCPConnectRequest& r, bool success, int32_t reason)
+{
+    tcpConnectionSchedule.outbound_closed(r, success, reason);
+}
+
+void AddressManager::outbound_failed(const TCPConnectRequest& r)
 {
     tcpConnectionSchedule.outbound_failed(r);
 }
-void AddressManager::start_scheduled_connections()
-{
-    for (auto& r : tcpConnectionSchedule.pop_expired())
-        r.connect();
-}
+
 #else
 
-void AddressManager::outbound_failed(const WSBrowserConnectRequest&)
+void AddressManager::outbound_connect_request_closed(const WSBrowserConnectRequest& r, bool success, int32_t reason)
 {
-    // TODO
+    wsConnectionSchedule.outbound_closed(r, success, reason);
 }
-void AddressManager::start_scheduled_connections()
+
+void AddressManager::outbound_failed(const WSBrowserConnectRequest& r)
 {
-    // TODO
+    wsConnectionSchedule.outbound_failed(r);
 }
 #endif
 
@@ -70,7 +98,7 @@ auto AddressManager::insert(InsertData id) -> tl::expected<Conref, int32_t>
             auto& tcp_con { id.convar.get_tcp() };
             auto ipv4 { tcp_con->peer_addr_native().ip() };
             if (!c->inbound()) {
-                c->successfulConnection = true;
+                c->successfulConnection = true; // TODO implement successful connection also for other types (not only tcp)
                 tcpConnectionSchedule.on_established(*tcp_con);
                 // insert_additional_verified(c->connection_peer_addr()); // TODO: additional_verified necessary?
             } else
@@ -125,7 +153,7 @@ std::optional<std::chrono::steady_clock::time_point> AddressManager::pop_schedul
 #ifndef DISABLE_LIBUV
     return tcpConnectionSchedule.pop_wakeup_time();
 #else
-    return {}; // TODO
+    return wsConnectionSchedule.pop_wakeup_time();
 #endif
 }
 

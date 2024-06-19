@@ -98,16 +98,16 @@ void TCPConnectionManager::handle_event(GetPeers&& e)
 void TCPConnectionManager::handle_event(Connect&& c)
 {
     TCPConnectRequest& r { c };
-    connection_log().info("{} connecting ", r.address.to_string()); // TODO: do connection_log
+    connection_log().info("{} connecting ", r.address().to_string()); // TODO: do connection_log
     auto& loop { listener->parent() };
     auto tcp { loop.resource<uvw::tcp_handle>() };
-    auto err { tcp->connect(r.address.sock_addr()) };
+    auto err { tcp->connect(r.address().sock_addr()) };
     if (err) {
         global().core->on_failed_connect(r, Error(err));
         return;
     }
     auto& connection { insert_connection(tcp, r) };
-    global().peerServer->log_outbound(c.address.ip(), connection.shared_from_this());
+    global().peerServer->log_outbound(c.address().ip(), connection.shared_from_this());
     connection.start_read();
 }
 

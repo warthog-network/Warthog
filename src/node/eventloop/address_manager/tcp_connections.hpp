@@ -2,6 +2,7 @@
 #include "peerserver/connection_data.hpp"
 #include "init_arg.hpp"
 #include "transport/helpers/ipv4.hpp"
+#include "wakeup_time.hpp"
 #include <set>
 #include <vector>
 
@@ -179,37 +180,6 @@ class TCPSchedule{
 
 };
 
-class WakeupTime {
-public:
-    auto pop()
-    {
-        auto tmp { std::move(popped_tp) };
-        popped_tp.reset();
-        return tmp;
-    }
-    bool expired() const
-    {
-        return wakeup_tp < steady_clock::now();
-    }
-    void reset()
-    {
-        *this = {};
-    }
-
-    auto& val() const { return wakeup_tp; }
-
-    void consider(const std::optional<time_point>& newval)
-    {
-        if (newval.has_value() && (!wakeup_tp.has_value() || *wakeup_tp > *newval)) {
-            wakeup_tp = newval;
-            popped_tp = newval;
-        }
-    }
-
-private:
-    std::optional<time_point> wakeup_tp;
-    std::optional<time_point> popped_tp;
-};
 
 }
 
@@ -232,10 +202,10 @@ public:
 
     void start();
     std::optional<ConnectRequest> insert(TCPSockaddr, Source);
-    [[nodiscard]] std::vector<TCPConnectRequest> pop_expired();
+    void connect_expired();
     void on_established(const TCPConnection&);
-    void outbound_closed(const ConnectionData&);
-    void outbound_failed(const ConnectRequest&);
+    void outbound_closed(const TCPConnectRequest&, bool success, int32_t reason);
+    void outbound_failed(const TCPConnectRequest&);
     void schedule_verification(TCPSockaddr c, IPv4 source);
 
     [[nodiscard]] std::optional<time_point> pop_wakeup_time();
@@ -245,6 +215,7 @@ public:
         return verified.sample(N);
     }
 private:
+    [[nodiscard]] std::vector<TCPConnectRequest> pop_expired(time_point now = steady_clock::now());
     auto emplace_verified(const TCPWithSource&, steady_clock::time_point lastVerified);
     VectorEntry* verify_from(SockaddrVector&, const TCPSockaddr&);
     VectorEntry* find_verified(const TCPSockaddr&);
