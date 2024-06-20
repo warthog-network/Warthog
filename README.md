@@ -8,10 +8,28 @@ Copyright (c) 2023 - 2024 Pumbaa, Timon & Rafiki
 
 # 🐗 Warthog Reference Implementation
 
-Welcome to Warthog!
 
-Warthog is an experimental L1-cryptocurrency implementation without
-specific focus. This project is not a dumb fork of something else. It was developed completely from scratch! 
+Warthog is an experimental innovative cryptocurrency (a *fresh* rewrite, no fork!!), which tries to push the boundaries of what is possible in the crypto-industry.
+As a small team of volunteers and crypto enthusiasts we are creatively developing Warthog with major features the world has not seen before:
+
+- **Thread-based sync model**: Unlike traditional cryptocurrencies where blocks are identified and downloaded by their hash we have implemented a thread-based approach. Technically, a block chain with possible forks is a tree, and by implementing a branch-aware sync algorithm, we can address blocks by height and branch. This shrinks byte size of communication messages and also improves latency for distributing new blocks which is one of the reasons why sync time in Warthog is faster than in other cryptocurrencies. Furthermore nodes are aware of the sync state of peers. To the best of our knowledge Warthog is the first cryptocurrency to implement this approach.
+
+- **Crypto Research** Proof of Balanced Work (by CoinFuMasterShifu):
+    Proof of Balanced Work (PoBW) is a novel technique invented by CoinFuMasterShifu to combine different hash functions in a balanced way. For efficient mining, one cannot ignore any of the combined algorithms, all must be mined and their hashrates determine the combined hashrate. There is a scientific research paper on general PoBW here: https://raw.githubusercontent.com/CoinFuMasterShifu/ProofOfBalancedWork/main/PoBW.pdf
+
+- **Janushash PoBW mining algorithm**:
+    Warthog's Janushash mining algorithm combines two algorithms, namely Sha256t and Verushash v2.1 (will soon switch to v2.2). Efficient mining this combination requires a GPU and a CPU. This implies that mainly APUs are used for mining while existing GPU farms or CPU farms are out of the game. The implication of this cannot be overestimated as this brings mining in Warthog closer to Satoshi's original dream "One computer, one vote" than any other cryptocurrency: Firstly, APUs are pretty cheap and widely available such that everyone can participate in mining and secondly, no CPU botnet, nor any GPU farm will suddenly appear and disrupt prices or diminish people's mining revenue.
+
+- **Browser-based nodes** (by CoinFuMasterShifu), work in progress:
+    Warthog is the first cryptocurrency with nodes that can run entirely in the browser. This is a big achievement since it lowers the boundary of setting up a node as low as opening a website, which is even possible on smartphones, and it also improves decentralization as these are full nodes. Warthog achieves this by using bleeding edge technology (WASM FS using OPFS supported by recent browsers and SQLite's recently added support to work with OPFS).
+
+## Roadmap
+
+- **WebRTC communication between browser nodes**:
+    WebRTC is a technology which allows direct communication between browsers after connection is established with the help of a server. We aim to set up several official nodes which assist in establishing direct peer to peer WebRTC connections to other nodes which then can themselves assist in establishing additional WebRTC connections without using the official nodes' help. This will allow for a smartphone peer-to-peer network of full nodes within the browser contributing to decentralization and network resilience.
+
+- **Asset support and hard-coded DeFi**: Warthog will support a tailored DeFi implementation which allows to create and place assets. Direct custom tailored hard-coded DeFi implementation has several advantages over indirect smart contract based approaches: Firstly, the attack surface is much lower (DeFi platforms based on smart contracts are often hacked with funds being stolen) and secondly, the whole database architecture can be designed such that transactions will be more space-efficient and better native support for assets and orders can be offered which lowers adoption barrier and might allow for more convenience features to list all owned assets directly using node API. Furthermore new features like crowd-funding new assets with fair proportional distribution, creating new assets with balance distribution copied from other assets, paying dividends to all holders of some assets are possible when using tailored hard-coded design. Finally, end users will benefit from clear standardization of native DeFi support as a first-class-citizen since obscure and unfair practices (like increase of supply and additional toke-specific fees for trading) as used by most scam or pump-and-dump projects will not be possible.
+
 
 
 
@@ -56,7 +74,7 @@ Use at your own risk.
 - <a href="https://exbitron.com/">Exbitron exchange</a><br>
 - <a href="https://xeggex.com/market/WART_USDT">Xeggex exchange</a>
 - <a href="https://tradeogre.com/exchange/WART-USDT">TradeOgre exchange</a>
-
+- <a href="https://www.caldera.trade/get-started">Caldera OTC bot</a>
 
 ## 📦 Component overview
 
