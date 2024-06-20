@@ -130,7 +130,7 @@ To compile from source see below or [here](https://warthog.network/docs/) for a 
 
 ## ▶️ USAGE
 * Run the node (use some restarter in case it crashes) <br />
-One line example to run the node: `screen -dmS wart_node bash -c "while true; do wart-node-linux ; done"` <br />
+One line example to run the node: `screen -dmS wart_node bash -c "while true; do ./wart-node-linux ; done"` <br />
 Use `screen -r wart_node` to see its output and CTRL+A+D to detach from the screen session. <br />
 Note: You should run node with  `--rpc=0.0.0.0:3000` to accept remote connections from your other rigs. <br />
 * Run the miner (miner requires node running). 
