@@ -1,14 +1,15 @@
 #pragma once
 #include "block/header/header.hpp"
+#include "block/header/pow_version.hpp"
 #include "block/header/view_inline.hpp"
 
 inline Target Header::target(NonzeroHeight h, bool testnet) const
 {
     return static_cast<HeaderView>(*this).target(h, testnet);
 }
-inline bool Header::validPOW(const Hash& h, NonzeroHeight height, bool testnet) const
+inline bool Header::validPOW(const Hash& h, POWVersion v) const
 {
-    return static_cast<HeaderView>(*this).validPOW(h, height,testnet);
+    return static_cast<HeaderView>(*this).validPOW(h, v);
 }
 inline HashView Header::prevhash() const
 {

@@ -14,6 +14,7 @@ src_wh=[
     './src/block/header/generator.cpp',
     './src/block/header/header.cpp',
     './src/block/header/view.cpp',
+    './src/block/header/pow_version.cpp',
     './src/communication/create_payment.cpp',
     './src/crypto/address.cpp',
     './src/crypto/crypto.cpp',

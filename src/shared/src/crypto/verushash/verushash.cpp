@@ -76,7 +76,7 @@ bool can_optimize()
     // if ((hwcaps & HWCAP_AES) && (hwcaps & HWCAP_PMULL))
     //     return true;
     // else
-        return false;
+    return false;
 #else
     unsigned int eax, ebx, ecx, edx;
     if (!__get_cpuid(1, &eax, &ebx, &ecx, &edx)) {
@@ -164,7 +164,7 @@ HashKey::HashKey(HashView seed,
     apply_seed(seed, haraka256Function);
 }
 
-Hash VerusHasher::finalize()
+Hash VerusHasher::finalize(bool useV2_2)
 {
     // fill buffer to the end with the beginning of it to prevent any
     // foreknowledge of bits that may contain zero
@@ -172,11 +172,11 @@ Hash VerusHasher::finalize()
 
     // gen new key with what is last in buffer
 
-    HashKey hk(curBuf,  haraka256_port);
+    HashKey hk(curBuf, haraka256_port);
 
     // run verusclhash on the buffer
     uint64_t intermediate { hk.apply_verusclhash(
-        curBuf,  verusclhash_sv2_1_port) };
+        curBuf, useV2_2 ? verusclhash_sv2_2_port : verusclhash_sv2_1_port) };
     // fill buffer to the end with the result
     FillExtra(&intermediate);
 
@@ -185,7 +185,7 @@ Hash VerusHasher::finalize()
     constexpr uint64_t mask16 = keyMask >> 4;
 
     haraka512_port_keyed(out.data(), curBuf,
-            (const u128*)hk.key_data() + (intermediate & mask16));
+        (const u128*)hk.key_data() + (intermediate & mask16));
 
     return out;
 };

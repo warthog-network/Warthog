@@ -41,96 +41,147 @@ inline bool operator<(const CustomFloat& hashproduct, TargetV2 t)
     return "0b_" + s;
 }
 
-bool HeaderView::validPOW(const Hash& h, NonzeroHeight height, bool testnet) const
+template <>
+bool HeaderView::validPOW<POWVersion::Janus6>(const Hash& h) const
 {
-    if (testnet) {
-        auto verusHashV2_1 { verus_hash() };
-        auto verusFloat { CustomFloat(verusHashV2_1) };
-        auto sha256tFloat { CustomFloat(hashSHA256(h)) };
+    auto verusFloat { CustomFloat(verus2_1_hash()) };
+    auto sha256tFloat { CustomFloat(hashSHA256(h)) };
+    constexpr auto c = CustomFloat(-7, 2748779069); // 0.005
+    if (sha256tFloat < c) {
+        sha256tFloat = c;
+    }
+    constexpr auto factor { CustomFloat(0, 3006477107) };
+    auto hashProduct { verusFloat * pow(sha256tFloat, factor) };
+    return hashProduct < target_v2();
+}
+
+template <>
+bool HeaderView::validPOW<POWVersion::Janus7>(const Hash& h) const
+{
+    auto verusFloat { CustomFloat(verus2_1_hash()) };
+    auto sha256tFloat { CustomFloat(hashSHA256(h)) };
+    {
         constexpr auto c = CustomFloat(-7, 2748779069); // 0.005
         if (sha256tFloat < c) {
-            // we will adjust that if better miner is available
-            sha256tFloat = c;
+            return false;
         }
-        constexpr auto factor { CustomFloat(0, 3006477107) }; // = 0.7 <-- this can be decreased if necessary
-        auto hashProduct { verusFloat * pow(sha256tFloat, factor) };
-        return hashProduct < target_v2();
     }
-    if (JANUSENABLED && height.value() > JANUSRETARGETSTART) {
-        auto verusHashV2_1 { verus_hash() };
-        if (height.value() > JANUSV2RETARGETSTART) {
-            auto verusFloat { CustomFloat(verusHashV2_1) };
-            auto sha256tFloat { CustomFloat(hashSHA256(h)) };
-            if (height.value() > JANUSV4RETARGETSTART) {
-
-                if (height.value() > JANUSV6RETARGETSTART) {
-                    constexpr auto c = CustomFloat(-7, 2748779069); // 0.005
-                    if (sha256tFloat < c) {
-                        if (height.value() > JANUSV7RETARGETSTART)
-                            return false;
-                        else
-                            sha256tFloat = c;
-                    }
-                }
-
-                if (height.value() > JANUSV5RETARGETSTART) {
-                    // temporary fix against unfair mining
-                    // better GPU hashrate will also give more candidatess that pass through this threshold
-                    // for verushash computation.
-                    constexpr auto c = CustomFloat(-9, 3306097748); // CustomFloat::from_double(0.0015034391929775724)
-                    if (sha256tFloat < c)
-                        return false;
-                }
-
-                if (!(verusHashV2_1 < CustomFloat(-33, 3785965345))) {
-                    // reject verushash with log_e less than -23
-                    return false;
-                }
-
-            } else if (height.value() > JANUSV3RETARGETSTART) {
-                if (!(verusHashV2_1 < CustomFloat(-30, 3496838790))) {
-                    // reject verushash with log_e less than -21
-                    return false;
-                }
-            }
-            constexpr auto factor { CustomFloat(0, 3006477107) }; // = 0.7 <-- this can be decreased if necessary
-            auto hashProduct { verusFloat * pow(sha256tFloat, factor) };
-            return verusHashV2_1[0] == 0 && (hashProduct < target_v2());
-
-        } else { // Old Janushash
-            // HashExponentialDigest hd; // prepare hash product of  Proof of Balanced work with two algos: verus + 3xsha256
-            // auto verusHashV2_1 { verus_hash({ data(), size() }) };
-            // hd.digest(verusHashV2_1);
-            // auto triplesha { hashSHA256(h) };
-            // hd.digest(triplesha);
-            // return verusHashV2_1[0] == 0 && target_v2().compatible(hd);
-
-            auto verusFloat { CustomFloat(verusHashV2_1) };
-            using namespace std;
-            // cout << to_bin(verusHashV2_1) << endl;
-            auto sha256tFloat { CustomFloat(hashSHA256(h)) };
-            auto hashProduct { verusFloat * sha256tFloat };
-            if (height.value() > JANUSV5RETARGETSTART) {
-                // honest miners will be with 90% in a band around threshold, too good hashes are unlikely.
-                // Here we reject best 10% of too good hashes, 90% of normally mined blocks will pass through.
-                // This is to avoid unfair mining.
-                if (hashProduct * CustomFloat(4, 2684354560) < target_v2())
-                    return false;
-            }
-            return verusHashV2_1[0] == 0 && (hashProduct < target_v2());
-        }
-    } else {
-        return target_v1().compatible(h);
-    }
+    constexpr auto factor { CustomFloat(0, 3006477107) };
+    auto hashProduct { verusFloat * pow(sha256tFloat, factor) };
+    return hashProduct < target_v2();
 }
-Hash HeaderView::verus_hash() const
+
+template <>
+bool HeaderView::validPOW<POWVersion::Original>(const Hash& h) const
 {
-    return ::verus_hash({ data(), size() });
+    return target_v1().compatible(h);
+}
+
+template <>
+bool HeaderView::validPOW<POWVersion::Janus1>(const Hash& h) const
+{
+    auto verusHash { verus2_1_hash() };
+    auto verusFloat { CustomFloat(verusHash) };
+    auto sha256tFloat { CustomFloat(hashSHA256(h)) };
+    auto hashProduct { verusFloat * sha256tFloat };
+    return verusHash[0] == 0 && (hashProduct < target_v2());
+}
+
+template <>
+bool HeaderView::validPOW<POWVersion::Janus2>(const Hash& h) const
+{
+    auto verusHash { verus2_1_hash() };
+    auto verusFloat { CustomFloat(verusHash) };
+    auto sha256tFloat { CustomFloat(hashSHA256(h)) };
+    constexpr auto factor { CustomFloat(0, 3006477107) }; // = 0.7 <-- this can be decreased if necessary
+    auto hashProduct { verusFloat * pow(sha256tFloat, factor) };
+    return verusHash[0] == 0 && (hashProduct < target_v2());
+}
+
+template <>
+bool HeaderView::validPOW<POWVersion::Janus3>(const Hash& h) const
+{
+    auto verusHash { verus2_1_hash() };
+    auto verusFloat { CustomFloat(verusHash) };
+    auto sha256tFloat { CustomFloat(hashSHA256(h)) };
+    constexpr auto factor { CustomFloat(0, 3006477107) };
+    auto hashProduct { verusFloat * pow(sha256tFloat, factor) };
+    if (!(verusHash < CustomFloat(-30, 3496838790))) {
+        // reject verushash with log_e not less than -21
+        return false;
+    }
+    return verusHash[0] == 0 && (hashProduct < target_v2());
+}
+
+template <>
+bool HeaderView::validPOW<POWVersion::Janus4>(const Hash& h) const
+{
+    auto verusHash { verus2_1_hash() };
+    auto verusFloat { CustomFloat(verusHash) };
+    auto sha256tFloat { CustomFloat(hashSHA256(h)) };
+    constexpr auto factor { CustomFloat(0, 3006477107) };
+    auto hashProduct { verusFloat * pow(sha256tFloat, factor) };
+    if (!(verusHash < CustomFloat(-33, 3785965345))) {
+        // reject verushash with log_e not less than -23
+        return false;
+    }
+    return verusHash[0] == 0 && (hashProduct < target_v2());
+}
+
+template <>
+bool HeaderView::validPOW<POWVersion::Janus5>(const Hash& h) const
+{
+    auto verusHash { verus2_1_hash() };
+    auto verusFloat { CustomFloat(verusHash) };
+    auto sha256tFloat { CustomFloat(hashSHA256(h)) };
+    constexpr auto factor { CustomFloat(0, 3006477107) };
+    auto hashProduct { verusFloat * pow(sha256tFloat, factor) };
+    if (!(verusHash < CustomFloat(-33, 3785965345))) {
+        // reject verushash with log_e less than -23
+        return false;
+    }
+    constexpr auto c = CustomFloat(-9, 3306097748); // CustomFloat::from_double(0.0015034391929775724)
+    if (sha256tFloat < c)
+        return false;
+    return verusHash[0] == 0 && (hashProduct < target_v2());
+}
+
+template <>
+bool HeaderView::validPOW<POWVersion::Janus8>(const Hash& h) const
+{
+    auto verusFloat { CustomFloat(verus2_2_hash()) };
+    auto sha256tFloat { CustomFloat(hashSHA256(h)) };
+    {
+        constexpr auto c = CustomFloat(-7, 2748779069); // 0.005
+        if (sha256tFloat < c) {
+            return false;
+        }
+    }
+    constexpr auto factor { CustomFloat(0, 3006477107) };
+    auto hashProduct { verusFloat * pow(sha256tFloat, factor) };
+    return hashProduct < target_v2();
+}
+
+bool HeaderView::validPOW(const Hash& h, POWVersion version) const
+{
+    return version.visit([this, &h](auto version) -> bool {
+        return validPOW<std::remove_cv_t<decltype(version)>>(h);
+    });
+}
+
+Hash HeaderView::verus2_1_hash() const
+{
+    return ::verus_hash_v2_1({ data(), size() });
+}
+
+Hash HeaderView::verus2_2_hash() const
+{
+    return ::verus_hash_v2_2({ data(), size() });
 }
 
 double HeaderView::janus_number() const
 {
-    CustomFloat verusFloat { verus_hash() };
+    CustomFloat verusFloat { verus2_1_hash() };
     CustomFloat sha256tFloat { hashSHA256(hashSHA256(hashSHA256(data(), size()))) };
     constexpr auto c = CustomFloat(-7, 2748779069);
     if (sha256tFloat < c)

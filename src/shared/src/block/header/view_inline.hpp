@@ -30,7 +30,7 @@ inline uint32_t HeaderView::timestamp() const
 
 inline Target HeaderView::target(NonzeroHeight h, bool testnet) const
 {
-    if (testnet || (JANUSENABLED && h.value() > JANUSRETARGETSTART))
+    if (testnet || (h.value() > JANUSV1RETARGETSTART))
         return target_v2();
     return target_v1();
 }

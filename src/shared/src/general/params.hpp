@@ -64,13 +64,13 @@ inline constexpr uint32_t retarget_floor(uint32_t height)
 /////////////
 // Janushash Start
 /////////////
-constexpr bool JANUSENABLED = true;
-constexpr uint32_t JANUSRETARGETSTART = retarget_floor(745200);
+constexpr uint32_t JANUSV1RETARGETSTART = retarget_floor(745200);
 constexpr uint32_t JANUSV2RETARGETSTART = retarget_floor(769680);
 constexpr uint32_t JANUSV3RETARGETSTART = retarget_floor(776880);
 constexpr uint32_t JANUSV4RETARGETSTART = retarget_floor(809280);
 constexpr uint32_t JANUSV5RETARGETSTART = 855000;
 constexpr uint32_t JANUSV6RETARGETSTART = 879500;
 constexpr uint32_t JANUSV7RETARGETSTART = 987000;
+constexpr uint32_t JANUSV8BLOCKV3START = 10000000;
 constexpr uint32_t NEWMERKLEROOT = 900000;
 constexpr uint32_t NEWBLOCKSTRUCUTREHEIGHT = 981500;

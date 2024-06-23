@@ -10,6 +10,9 @@
 uint64_t verusclhash_sv2_1_port(void *random, const unsigned char buf[64],
                                 uint64_t keyMask, __m128i **pMoveScratch);
 
+uint64_t verusclhash_sv2_2_port(void *random, const unsigned char buf[64],
+                                uint64_t keyMask, __m128i **pMoveScratch);
+
 void haraka512_port(unsigned char *out, const unsigned char *in);
 
 /* Implementation of Haraka-512 */

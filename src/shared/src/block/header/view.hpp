@@ -4,6 +4,8 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include "pow_version.hpp"
+#include <optional>
 class HeaderGenerator;
 class HashView;
 class TargetV1;
@@ -13,9 +15,11 @@ class Hash;
 class NonzeroHeight;
 class Header;
 
+
 class HeaderView : public View<80> {
     friend class HeaderGenerator;
     friend class Header;
+
 public:
     static constexpr size_t offset_prevhash = 0ul;
     static constexpr size_t offset_target = 32ul;
@@ -26,11 +30,13 @@ public:
     static constexpr size_t bytesize = 80ul;
     using View::View;
 
-
     inline Target target(NonzeroHeight h, bool testnet) const;
-    bool validPOW(const Hash& h, NonzeroHeight height, bool testnet) const;
+
+    bool validPOW(const Hash& h, POWVersion v) const;
+
     double janus_number() const;
-    Hash verus_hash() const;
+    Hash verus2_1_hash() const;
+    Hash verus2_2_hash() const;
     inline uint32_t version() const;
     inline HashView prevhash() const;
     inline HashView merkleroot() const;
@@ -52,8 +58,12 @@ public:
             return memcmp(hv.data(), arr.data(), 80) < 0;
         }
     };
+
+private:
+    template <typename T>
+    bool validPOW(const Hash& h) const;
+
 private:
     TargetV1 target_v1() const;
     TargetV2 target_v2() const;
 };
-
