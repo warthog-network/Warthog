@@ -181,7 +181,7 @@ Hash HeaderView::verus2_2_hash() const
 
 double HeaderView::janus_number() const
 {
-    CustomFloat verusFloat { verus2_1_hash() };
+    CustomFloat verusFloat { version() == 2 ? verus2_1_hash() : verus2_2_hash() };
     CustomFloat sha256tFloat { hashSHA256(hashSHA256(hashSHA256(data(), size()))) };
     constexpr auto c = CustomFloat(-7, 2748779069);
     if (sha256tFloat < c)
