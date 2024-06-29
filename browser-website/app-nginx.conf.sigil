@@ -14,11 +14,7 @@ http {
   server {
     listen {{ $.PORT }};
     server_name  _;
-    {{ if ne $.NGINX_ROOT "" }}
-      root /app/www/{{ $.NGINX_ROOT }};
-    {{ else }}
-      root /app/www;
-    {{ end }}
+    root /app/www/src;
     index index.html;
     port_in_redirect off;
 
