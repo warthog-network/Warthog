@@ -100,11 +100,10 @@ void PeerServer::handle_event(AuthenticateInbound&& nc)
         return {};
     }();
     if (enableBan && bannedUntil && *bannedUntil > now) {
-
         db.insert_refuse(ip, now);
         con.close(EREFUSED);
     } else {
-        db.insert_peer(ip);
+        db.insert_clear_ban(ip);
         con.logrow = db.insert_connect(ip, true, now);
         con.start_read();
     }

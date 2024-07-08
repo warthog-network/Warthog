@@ -51,31 +51,31 @@ public:
         peerset.exec();
         peerset.reset();
     }
-    void insert_peer(IP ip)
+    void insert_clear_ban(IP ip)
     {
         if (ip.is_v4()) {
-            peerinsert.bind(1, ip.get_v4().data);
+            insertClearBan.bind(1, ip.get_v4().data);
         } else {
             auto block48 { ip.get_v6().block48_view() };
             peerset.bindNoCopy(1, block48.data(), block48.size());
         }
-        peerinsert.exec();
-        peerinsert.reset();
+        insertClearBan.exec();
+        insertClearBan.reset();
     }
 
     std::vector<BanEntry> get_banned_peers()
     {
         std::vector<BanEntry> res;
         uint32_t t = now_timestamp();
-        peergetBanned.bind(1, t);
-        while (peergetBanned.executeStep()) {
-            auto ip { get_ip(peergetBanned.getColumn(0)) };
-            uint32_t banuntil = peergetBanned.getColumn(1).getInt64();
-            int32_t offense = peergetBanned.getColumn(2).getInt64();
+        selectCurrentBans.bind(1, t);
+        while (selectCurrentBans.executeStep()) {
+            auto ip { get_ip(selectCurrentBans.getColumn(0)) };
+            uint32_t banuntil = selectCurrentBans.getColumn(1).getInt64();
+            int32_t offense = selectCurrentBans.getColumn(2).getInt64();
             BanEntry e(ip, banuntil, offense);
             res.push_back(e);
         }
-        peergetBanned.reset();
+        selectCurrentBans.reset();
         return res;
     }
 
@@ -88,17 +88,17 @@ public:
     {
         std::optional<GetPeerResult> res;
         if (ip.is_v4()) {
-            peerget.bind(1, ip.get_v4().data);
+            selectBan.bind(1, ip.get_v4().data);
         } else {
             auto v { ip.get_v6().block48_view() };
-            peerget.bindNoCopy(1, v.data(), v.size());
+            selectBan.bindNoCopy(1, v.data(), v.size());
         }
-        if (peerget.executeStep()) {
+        if (selectBan.executeStep()) {
             res.emplace(GetPeerResult {
-                .banUntil = uint32_t(peerget.getColumn(0).getInt64()),
-                .offense = peerget.getColumn(1).getInt() });
+                .banUntil = uint32_t(selectBan.getColumn(0).getInt64()),
+                .offense = selectBan.getColumn(1).getInt() });
         }
-        peerget.reset();
+        selectBan.reset();
         return res;
     }
 
@@ -196,12 +196,12 @@ private:
     SQLite::Statement set_ws_lastseen;
     SQLite::Statement selectRecentPeers;
     SQLite::Statement selectRecentWsPeers;
-    SQLite::Statement peerinsert;
+    SQLite::Statement insertClearBan;
     SQLite::Statement peerset;
 
     SQLite::Statement stmtResetBans;
-    SQLite::Statement peerget;
-    SQLite::Statement peergetBanned;
+    SQLite::Statement selectBan;
+    SQLite::Statement selectCurrentBans;
     SQLite::Statement connection_log_insert;
     SQLite::Statement connection_log_update;
     SQLite::Statement refuseinsert;

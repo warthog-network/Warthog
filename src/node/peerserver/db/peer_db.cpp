@@ -31,13 +31,13 @@ PeerDB::PeerDB(const std::string& path)
     , selectRecentPeers(db, "SELECT `ipport`, `lastseen` FROM `peers` ORDER BY `lastseen` DESC LIMIT ?")
     , selectRecentWsPeers(db, "SELECT `ipport`, `lastseen` FROM `ws_peers` ORDER BY `lastseen` DESC LIMIT ?")
 
-    , peerinsert(db, "INSERT INTO `bans` (`ip`,`ban_until`,`offense`) VALUES "
+    , insertClearBan(db, "INSERT OR IGNORE INTO `bans` (`ip`,`ban_until`,`offense`) VALUES "
                      "(?,0,0)")
     , peerset(db, "UPDATE `bans` SET `ban_until`=?, `offense`=? WHERE `ip`=?")
     , stmtResetBans(db, "UPDATE `bans` SET `ban_until`=0, `offense`=0")
 
-    , peerget(db, "SELECT `ban_until`, `offense` FROM `bans` WHERE `ip`=?")
-    , peergetBanned(db, "SELECT `ip`,`ban_until`, `offense` FROM `bans` WHERE `ban_until`>?")
+    , selectBan(db, "SELECT `ban_until`, `offense` FROM `bans` WHERE `ip`=?")
+    , selectCurrentBans(db, "SELECT `ip`,`ban_until`, `offense` FROM `bans` WHERE `ban_until`>?")
     , connection_log_insert(db, "INSERT INTO `connection_log` (`peer`, `inbound`, `begin`) VALUES "
                      "(?,?,?)")
     , connection_log_update(db, "UPDATE `connection_log` SET `end`=?, `code`=? WHERE ROWID=?")
