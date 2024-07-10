@@ -4,18 +4,18 @@ std::optional<POWVersion> POWVersion::from_params(NonzeroHeight height, uint32_t
     if (testnet) {
         if (height.value() <= 2) {
             return POWVersion { Janus7 {} };
-        }else{
+        } else {
             return POWVersion { Janus8 {} };
         }
     } else { // main net
         if (height.value() <= JANUSV1RETARGETSTART) {
             return POWVersion { Original {} };
-        } else {
+        } else { // height > JANUSV1RETARGETSTART
             if (height.value() > JANUSV8BLOCKV3START) {
                 if (version != 3)
                     return {};
                 return POWVersion { Janus8 {} };
-            } else { // height > JANUSV1RETARGETSTART
+            } else { // height <= JANUSV8RETARGETSTART
                 if (version != 2)
                     return {};
                 if (height.value() > JANUSV8BLOCKV3START) {
