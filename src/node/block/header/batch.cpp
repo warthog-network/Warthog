@@ -45,7 +45,7 @@ Worksum Batch::worksum(const Height offset, uint32_t maxElements) const
         auto header = get_header(rel_upper);
         assert(header);
         Worksum w(header->target(h, is_testnet()));
-        static_assert(::retarget_floor(JANUSRETARGETSTART) == JANUSRETARGETSTART); // this is required for this factor computation to be correct
+        static_assert(::retarget_floor(JANUSV1RETARGETSTART) == JANUSV1RETARGETSTART); // this is required for this factor computation to be correct
         Height rf = (offset + rel_upper).retarget_floor();
         uint32_t factor;
         if (rf == Height(1)) {

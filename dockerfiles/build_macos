@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-ARG OSXCROSS_VERSION=latest
+ARG OSXCROSS_VERSION=13.1-r0
 FROM --platform=$BUILDPLATFORM crazymax/osxcross:${OSXCROSS_VERSION}-alpine AS osxcross
 
 FROM alpine as build

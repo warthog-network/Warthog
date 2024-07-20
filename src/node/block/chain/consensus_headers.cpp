@@ -22,8 +22,8 @@ HeaderVerifier::HeaderVerifier(const SharedBatch& b)
 
     timeValidator.clear();
     bool override = false;
-    if (JANUSENABLED && !is_testnet()) {
-        if (length == JANUSRETARGETSTART) {
+    if (!is_testnet()) {
+        if (length == JANUSV1RETARGETSTART) {
             override = true;
             nextTarget = TargetV2::initial();
         }
@@ -99,12 +99,12 @@ void HeaderVerifier::append(NonzeroHeight newlength, const PreparedAppend& p)
 
     // adjust next Target
     const Height upperHeight = newlength.retarget_floor();
-    static_assert(::retarget_floor(JANUSRETARGETSTART) == JANUSRETARGETSTART);
+    static_assert(::retarget_floor(JANUSV1RETARGETSTART) == JANUSV1RETARGETSTART);
     using namespace std;
     if (upperHeight == newlength) { // need retarget
         bool override = false;
-        if (JANUSENABLED && !is_testnet()) {
-            if (length == JANUSRETARGETSTART) {
+        if (!is_testnet()) {
+            if (length == JANUSV1RETARGETSTART) {
                 override = true;
                 nextTarget = TargetV2::initial();
             }
@@ -139,9 +139,9 @@ auto HeaderVerifier::prepare_append(const std::optional<SignedSnapshot>& sp, Hea
         return tl::make_unexpected(EHEADERLINK);
 
     // // Check version
-    if (JANUSENABLED && (height().value() >= JANUSRETARGETSTART)) {
-        if (hv.version() != 2) // For some reason some people mined with custom miner, and changed version ?!? so only stick to it after the mining alg change.
-            return tl::make_unexpected(EBLOCKVERSION);
+    auto powVersion { POWVersion::from_params(appendHeight, hv.version(), is_testnet()) };
+    if (!powVersion) {
+        return tl::make_unexpected(EBLOCKVERSION);
     }
 
     // Check difficulty
@@ -149,7 +149,7 @@ auto HeaderVerifier::prepare_append(const std::optional<SignedSnapshot>& sp, Hea
         return tl::make_unexpected(EDIFFICULTY);
 
     // Check POW
-    if (!hv.validPOW(hash, appendHeight, is_testnet())) {
+    if (!hv.validPOW(hash, *powVersion)) {
         return tl::make_unexpected(EPOW);
     }
 
@@ -209,7 +209,7 @@ void HeaderVerifier::initialize(const Headerchain& hc,
     // initialize target
     //////////////////////////////
     Height upperHeight = length.retarget_floor();
-    static_assert(JANUSRETARGETSTART > 1);
+    static_assert(JANUSV1RETARGETSTART > 1);
     if (length == 0) {
         if (is_testnet()) {
             nextTarget = TargetV2::genesis_testnet();
@@ -225,8 +225,8 @@ void HeaderVerifier::initialize(const Headerchain& hc,
 
         // assign nextTarget
         bool override = false;
-        if (JANUSENABLED && !is_testnet()) {
-            if (length == JANUSRETARGETSTART) {
+        if (!is_testnet()) {
+            if (length == JANUSV1RETARGETSTART) {
                 override = true;
                 nextTarget = TargetV2::initial();
             }

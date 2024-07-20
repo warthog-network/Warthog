@@ -139,10 +139,15 @@ json grid_json(const Grid& g)
 
 json header_json(const Header& header, NonzeroHeight height)
 {
-    auto verusHash { verus_hash(header) };
+    auto version { header.version() };
+    const bool testnet { is_testnet() };
+    auto powVersion { POWVersion::from_params(height, version, testnet) };
+    assert(powVersion.has_value());
+    bool verusV2_2 { powVersion->uses_verus_2_2() };
+    auto verusHash { verusV2_2 ? verus_hash_v2_2(header) : verus_hash_v2_1(header) };
     auto blockHash { header.hash() };
     auto sha256tHash { hashSHA256(blockHash) };
-    auto target { header.target(height, is_testnet()) };
+    auto target { header.target(height, testnet) };
     uint32_t targetBE = hton32(target.binary());
     json h;
     h["raw"] = serialize_hex(header.data(), header.size());
@@ -152,6 +157,7 @@ json header_json(const Header& header, NonzeroHeight height)
     h["difficulty"] = target.difficulty();
     h["hash"] = serialize_hex(header.hash());
     h["pow"] = json {
+        { "verusV2.2", verusV2_2 },
         { "hashVerus", serialize_hex(verusHash) },
         { "hashSha256t", serialize_hex(sha256tHash) },
         { "floatVerus", CustomFloat(verusHash).to_double() },
@@ -160,7 +166,7 @@ json header_json(const Header& header, NonzeroHeight height)
     h["merkleroot"] = serialize_hex(header.merkleroot());
     h["nonce"] = serialize_hex(header.nonce());
     h["prevHash"] = serialize_hex(header.prevhash());
-    h["version"] = serialize_hex(header.version());
+    h["version"] = serialize_hex(version);
     return h;
 }
 
