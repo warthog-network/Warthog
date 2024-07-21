@@ -27,6 +27,7 @@ public:
 
     NonzeroHeight nonzero_assert() const;
     NonzeroHeight nonzero_throw(int Error) const;
+    NonzeroHeight nonzero_throw(std::string) const;
     NonzeroHeight one_if_zero() const;
     // Height& operator--()
     // {
@@ -87,7 +88,6 @@ public:
         return h1.val == h;
     }
 };
-
 
 class NonzeroHeight : public IsUint32 {
     friend struct Batchslot;
@@ -188,7 +188,8 @@ class PrevHeight : public Height {
 public:
     explicit PrevHeight(NonzeroHeight h)
         : Height(h - 1)
-    {}
+    {
+    }
 };
 
 inline NonzeroHeight Height::nonzero_assert() const
@@ -200,6 +201,14 @@ inline NonzeroHeight Height::nonzero_throw(int error) const
 {
     if (val == 0) {
         throw Error(error);
+    }
+    return nonzero_assert();
+}
+
+inline NonzeroHeight Height::nonzero_throw(std::string error) const
+{
+    if (val == 0) {
+        throw std::runtime_error(error);
     }
     return nonzero_assert();
 }

@@ -1,15 +1,15 @@
 #pragma once
 
 #include "SQLiteCpp/SQLiteCpp.h"
+#include "api/types/forward_declarations.hpp"
 #include "block/block.hpp"
 #include "block/chain/offsts.hpp"
+#include "block/chain/worksum.hpp"
 #include "block/id.hpp"
-#include "deletion_key.hpp"
 #include "chainserver/transaction_ids.hpp"
+#include "deletion_key.hpp"
 #include "general/address_funds.hpp"
 #include "general/filelock/filelock.hpp"
-#include "api/types/forward_declarations.hpp"
-#include "block/chain/worksum.hpp"
 class ChainDBTransaction;
 class Batch;
 struct SignedSnapshot;
@@ -21,6 +21,10 @@ struct RawUndo : public std::vector<uint8_t> {
 
 struct Column2 : public SQLite::Column {
 
+    operator Hash() const
+    {
+        return { get_array<32>() };
+    }
     operator Height() const
     {
         int64_t h = getInt64();
@@ -30,8 +34,16 @@ struct Column2 : public SQLite::Column {
         }
         return Height(h);
     }
+    operator HistoryId() const
+    {
+        int64_t h = getInt64();
+        if (h <= 0) {
+            throw std::runtime_error("Database corrupted. HistoryId not positive.");
+        }
+        return HistoryId { uint64_t(h) };
+    }
     template <size_t size>
-    operator std::array<uint8_t, size>()
+    std::array<uint8_t, size> get_array() const
     {
         std::array<uint8_t, size> res;
         if (getBytes() != size)
@@ -40,37 +52,56 @@ struct Column2 : public SQLite::Column {
         memcpy(res.data(), getBlob(), size);
         return res;
     }
-    operator std::vector<uint8_t>()
+
+    std::vector<uint8_t> get_vector() const
     {
         std::vector<uint8_t> res(getBytes());
         memcpy(res.data(), getBlob(), getBytes());
         return res;
     }
-    operator int64_t()
+    operator std::vector<uint8_t>() const
+    {
+        return get_vector();
+    }
+    operator Address() const
+    {
+        return get_array<20>();
+    }
+    operator BodyContainer() const
+    {
+        return { std::vector<uint8_t>(*this) };
+    }
+    operator Header() const
+    {
+        return get_array<80>();
+        ;
+    }
+    operator NonzeroHeight() const
+    {
+        Height h { *this };
+        return h.nonzero_throw("Database corrupted, block has height 0");
+    }
+    operator int64_t() const
     {
         return getInt64();
     }
-    operator HistoryId()
-    {
-        return HistoryId(int64_t(getInt64()));
-    }
-    operator AccountId()
+    operator AccountId() const
     {
         return AccountId(int64_t(getInt64()));
     }
-    operator IsUint64()
+    operator IsUint64() const
     {
         return IsUint64(int64_t(getInt64()));
     }
-    operator BlockId()
+    operator BlockId() const
     {
         return BlockId(getInt64());
     }
-    operator Funds()
+    operator Funds() const
     {
         return Funds(int64_t(getInt64()));
     }
-    operator uint64_t()
+    operator uint64_t() const
     {
         auto i { getInt64() };
         if (i < 0)
@@ -111,7 +142,7 @@ struct Statement2 : public SQLite::Statement {
     };
     void bind(const int index, uint64_t id)
     {
-        assert(id< std::numeric_limits<uint64_t>::max());
+        assert(id < std::numeric_limits<uint64_t>::max());
         SQLite::Statement::bind(index, (int64_t)id);
     };
     void bind(const int index, IsUint64 id)
@@ -142,26 +173,31 @@ struct Statement2 : public SQLite::Statement {
         recursive_bind<1>(std::forward<Types>(types)...);
         auto nchanged = exec();
         reset();
-        assert(nchanged >=0);
+        assert(nchanged >= 0);
         return nchanged;
     }
 
     // private:
     struct Row {
-        template <typename T>
-        T get(int index)
+        Column2 operator[](int index) const
         {
             value_assert();
             return st.getColumn(index);
         }
 
+        template <typename T>
+        T get(int index)
+        {
+            return operator[](index);
+        }
+
         template <size_t N>
-        std::array<uint8_t, N> get_array(int index)
+        std::array<uint8_t, N> get_array(int index) const
         {
             value_assert();
             return st.getColumn(index);
         }
-        std::vector<uint8_t> get_vector(int index)
+        std::vector<uint8_t> get_vector(int index) const
         {
             value_assert();
             return st.getColumn(index);
@@ -174,10 +210,18 @@ struct Statement2 : public SQLite::Statement {
                 return {};
             return get<T>(0);
         }
-        bool has_value() { return hasValue; }
+        bool has_value() const { return hasValue; }
+        auto process(auto lambda) const
+        {
+            using ret_t = std::remove_cvref_t<decltype(lambda(*this))>;
+            std::optional<ret_t> r;
+            if (has_value())
+                r = lambda(*this);
+            return r;
+        }
 
     private:
-        void value_assert()
+        void value_assert() const
         {
             if (!hasValue) {
                 throw std::runtime_error(
@@ -321,8 +365,6 @@ public:
     // BELOW METHODS REQUIRED FOR INDEXING NODES
     std::optional<AccountFunds> lookup_address(const AddressView address) const; // for indexing nodes
     std::vector<std::tuple<HistoryId, Hash, std::vector<uint8_t>>> lookup_history_100_desc(AccountId account_id, int64_t beforeId);
-
-
 
 private:
     [[nodiscard]] bool schedule_exists(BlockId dk);
