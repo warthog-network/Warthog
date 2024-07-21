@@ -26,7 +26,7 @@ public:
     [[nodiscard]] auto operator->();
     [[nodiscard]] auto version() const;
     [[nodiscard]] bool initialized() const;
-    [[nodiscard]] bool is_native() const;
+    [[nodiscard]] bool is_tcp() const;
     void send(Sndbuffer);
     Conref(Coniter iter)
         : iter(iter)

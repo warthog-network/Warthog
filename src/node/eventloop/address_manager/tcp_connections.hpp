@@ -44,23 +44,23 @@ private:
     uint32_t bits { 1 << 5 };
 };
 
-enum class SockaddrState {
+enum class VerificationState {
     VERIFIED, // could connect at least once to this endpoint
     UNVERIFIED_FAILED, // could never connect and at least one failed try
     UNVERIFIED_NEW // never tried to connect yet
 };
 enum class ConnectionState {
     NOT_CONNECTED, // connection failed early
-    UNINITIALIZED, // connection was closed before init message
-    INITIALIZED // connection was closed after init message
+    CONNECTED_UNINITIALIZED, // connection was closed before init message
+    CONNECTED_INITIALIZED // connection was closed after init message
 };
 
 struct ReconnectContext {
     duration prevWait;
-    SockaddrState endpointState;
+    VerificationState endpointState;
     ConnectionState connectionState;
     bool pinned;
-    bool verified() const { return endpointState == SockaddrState::VERIFIED; }
+    bool verified() const { return endpointState == VerificationState::VERIFIED; }
 };
 
 template <typename T>
@@ -85,7 +85,7 @@ public:
     void add_source(Source);
 
     // returns expiration time point
-    std::optional<time_point> timeout() const;
+    std::optional<time_point> wakeup_time() const;
 
     // connection event callbacks
     void connection_established();
@@ -96,12 +96,12 @@ protected:
 
     struct Timer {
         auto sleep_duration() const { return _sleepDuration; }
-        auto timeout() const { return _timeout; }
-        bool expired(time_point tp) const { return _timeout < tp; }
+        auto wakeup_time() const { return _wakeupTime; }
+        bool expired_at(time_point tp) const { return _wakeupTime < tp; }
         void set(duration d)
         {
             _sleepDuration = d;
-            _timeout = steady_clock::now() + d;
+            _wakeupTime = steady_clock::now() + d;
         }
         Timer()
         { // new timers wake up immediately
@@ -110,14 +110,13 @@ protected:
 
     private:
         duration _sleepDuration;
-        time_point _timeout;
+        time_point _wakeupTime;
     };
     Timer timer;
     ConnectionLog connectionLog;
     std::chrono::steady_clock::time_point lastVerified;
     std::set<Source> sources;
-    bool pending { false };
-    uint32_t connected { 0 };
+    bool active{false};
     TCPSockaddr address;
 };
 
@@ -191,7 +190,7 @@ class TCPConnectionSchedule {
     using time_point = connection_schedule::time_point;
     using VectorEntry = connection_schedule::VectorEntry;
     using SockaddrVector = connection_schedule::SockaddrVector;
-    using EndpointState = connection_schedule::SockaddrState;
+    using VerificationState = connection_schedule::VerificationState;
     using ReconnectContext = connection_schedule::ReconnectContext;
     using Source = connection_schedule::Source;
     using steady_clock = std::chrono::steady_clock;
@@ -203,10 +202,9 @@ public:
     void start();
     std::optional<ConnectRequest> insert(TCPSockaddr, Source);
     void connect_expired();
-    void on_established(const TCPConnection&);
+    void outbound_established(const TCPConnection&);
     void outbound_closed(const TCPConnectRequest&, bool success, int32_t reason);
     void outbound_failed(const TCPConnectRequest&);
-    void schedule_verification(TCPSockaddr c, IPv4 source);
 
     [[nodiscard]] std::optional<time_point> pop_wakeup_time();
 
@@ -217,16 +215,16 @@ public:
 private:
     [[nodiscard]] std::vector<TCPConnectRequest> pop_expired(time_point now = steady_clock::now());
     auto emplace_verified(const TCPWithSource&, steady_clock::time_point lastVerified);
-    VectorEntry* verify_from(SockaddrVector&, const TCPSockaddr&);
+    VectorEntry* move_to_verified(SockaddrVector&, const TCPSockaddr&);
     VectorEntry* find_verified(const TCPSockaddr&);
 
     void outbound_connection_ended(const ConnectRequest&, ConnectionState state);
     struct Found {
-        VectorEntry& item;
-        EndpointState state;
+        VectorEntry& match;
+        VerificationState verificationState;
     };
     struct FoundContext {
-        VectorEntry& item;
+        VectorEntry& match;
         ReconnectContext context;
     };
     void refresh_wakeup_time();

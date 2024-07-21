@@ -189,6 +189,7 @@ private:
     ////////////////////////
     // convenience functions
     void consider_send_snapshot(Conref);
+    void on_received_addresses(Conref cr, const messages::Vector16<TCPSockaddr>&);
 
     void send_schedule_signaling_lists();
 
@@ -248,7 +249,7 @@ private:
     struct Erase {
         std::shared_ptr<ConnectionBase> c;
     };
-    using OutboundClosed = AddressManager::OutboundClosed;
+    using OutboundClosed = AddressManager::OutboundClosedEvent;
     struct RegisterConnection {
         ConnectionBase::ConnectionVariant convar;
     };

@@ -62,7 +62,6 @@ public:
     RTCConnection(bool isInbound, uint64_t verificationConId, std::weak_ptr<Eventloop>, IP ip, variant_t data);
     RTCConnection(const RTCConnection&) = delete;
     RTCConnection(RTCConnection&&) = delete;
-    virtual bool is_native() const override { return true; }
     std::shared_ptr<ConnectionBase> get_shared() override
     {
         return shared_from_this();

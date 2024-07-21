@@ -22,7 +22,7 @@ public:
         std::shared_ptr<uvw::tcp_handle> handle, const TCPConnectRequest& r, TCPConnectionManager& conman);
     TCPConnection(const TCPConnection&) = delete;
     TCPConnection(TCPConnection&&) = delete;
-    virtual bool is_native() const override { return true; }
+    virtual bool is_tcp() const override { return true; }
     std::shared_ptr<ConnectionBase> get_shared() override
     {
         return shared_from_this();

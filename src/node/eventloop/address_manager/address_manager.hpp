@@ -22,8 +22,8 @@ class AddressManager {
 public:
     friend struct ::Inspector;
     using InitArg = address_manager::InitArg;
-    struct OutboundClosed {
-        OutboundClosed( std::shared_ptr<ConnectionBase> c, int32_t reason);
+    struct OutboundClosedEvent {
+        OutboundClosedEvent( std::shared_ptr<ConnectionBase> c, int32_t reason);
         std::shared_ptr<ConnectionBase> c;
         int32_t reason;
     };
@@ -32,7 +32,7 @@ private:
     public:
         Conref operator*() { return Conref { *this }; }
     };
-    struct All {
+    struct AllRange {
         const AddressManager& ref;
         struct End {
         };
@@ -67,7 +67,7 @@ private:
         auto end() const { return End {}; }
         bool empty() { return begin() == end(); };
     };
-    struct Initialized {
+    struct InitializedRange {
         const AddressManager& ref;
         struct End {
         };
@@ -112,11 +112,12 @@ public:
     void start();
 
     // for range-based access
-    Initialized initialized() const { return { *this }; }
-    All all() const { return { *this }; }
+    InitializedRange initialized() const { return { *this }; }
+    AllRange all() const { return { *this }; }
 
     void outbound_failed(const ConnectRequest& r);
-    void outbound_closed(OutboundClosed);
+    void outbound_closed(OutboundClosedEvent);
+
     void verify(std::vector<TCPSockaddr>, IPv4 source); // TODO call this function
     [[nodiscard]] std::optional<Conref> find(uint64_t id) const;
     size_t size() const { return conndatamap.size(); }
@@ -149,9 +150,6 @@ private:
     std::optional<Conref> eviction_candidate() const;
 
 #ifndef DISABLE_LIBUV
-    void outbound_connect_request_closed(const TCPConnectRequest&, bool success, int32_t reason);
-#else
-    void outbound_connect_request_closed(const WSBrowserConnectRequest&, bool success, int32_t reason);
 #endif
 
 private:

@@ -37,7 +37,7 @@ Eventloop::Eventloop(Token, PeerServer& ps, ChainServer& cs, const ConfigParams&
 #ifndef DISABLE_LIBUV
     , connections({ ps, config.peers.connect })
 #else
-    , connections({ ps, config.peers.connect})
+    , connections({ ps, config.peers.connect })
 #endif
     , headerDownload(chains, consensus().total_work())
     , blockDownload(*this)
@@ -776,13 +776,20 @@ void Eventloop::send_ping_await_pong(Conref c)
     auto t = timer.insert(
         (config().localDebug ? 10min : 1min),
         Timer::CloseNoPong { c.id() });
+
+    uint16_t maxTCPAddressess { 0 };
+#ifndef DISABLE_LIBUV
+    if (c.is_tcp())
+        maxTCPAddressess = 5; // only accept TCP addresses from TCP peers and only if we are TCP node ourselves
+#endif
+
     if (c.version().v1()) {
-        PingMsg p(signed_snapshot() ? signed_snapshot()->priority : SignedSnapshot::Priority {});
+        PingMsg p(signed_snapshot() ? signed_snapshot()->priority : SignedSnapshot::Priority {}, maxTCPAddressess);
         c.ping().await_pong(p, t);
         c.send(p);
     } else {
         PingV2Msg p(signed_snapshot() ? signed_snapshot()->priority : SignedSnapshot::Priority {},
-            { .ndiscard = c.rtc().our.pendingOutgoing.schedule_discard() });
+            { .maxAddresses = maxTCPAddressess, .ndiscard = c.rtc().our.pendingOutgoing.schedule_discard() });
         c.ping().await_pong_v2({ .extraData { c.rtc().our.signalingList.offset_scheduled() },
                                    .msg = std::move(p) },
             t);
@@ -979,7 +986,9 @@ void Eventloop::handle_msg(Conref c, PingMsg&& m)
     c->ratelimit.ping();
 #ifndef DISABLE_LIBUV // TODO: replace TCPSockaddr by something else for emscrpiten build (no TCP connections available in browsers)
     size_t nAddr { std::min(uint16_t(20), m.maxAddresses()) };
-    auto addresses = connections.sample_verified_tcp(nAddr);
+    if (!c.is_tcp())
+        nAddr = 0;
+    auto addresses { connections.sample_verified_tcp(nAddr) };
     PongMsg msg { m.nonce(), std::move(addresses), mempool.sample(m.maxTransactions()) };
     spdlog::debug("{} Sending {} addresses", c.str(), msg.addresses().size());
 #else
@@ -998,6 +1007,8 @@ void Eventloop::handle_msg(Conref c, PingV2Msg&& m)
     c->ratelimit.ping();
 #ifndef DISABLE_LIBUV // TODO: replace TCPSockaddr by something else for emscrpiten build (no TCP connections available in browsers)
     size_t nAddr { std::min(uint16_t(20), m.maxAddresses()) };
+    if (!c.is_tcp())
+        nAddr = 0;
     auto addresses = connections.sample_verified_tcp(nAddr);
     PongV2Msg msg { m.nonce(), std::move(addresses), mempool.sample(m.maxTransactions()) };
 #else
@@ -1011,13 +1022,23 @@ void Eventloop::handle_msg(Conref c, PingV2Msg&& m)
     c.rtc().their.forwardRequests.discard(m.discarded_forward_requests());
 };
 
+void Eventloop::on_received_addresses(Conref cr, const messages::Vector16<TCPSockaddr>& addresses){
+    // only process received addresses when we are a native node (not browser nodes)
+#ifndef DISABLE_LIBUV 
+    if (auto ip{cr.peer().ip()}; ip.has_value() && cr.is_tcp()) {
+        spdlog::debug("{} Received {} addresses", cr.str(), addresses.size());
+        if (ip->is_v4()) 
+            connections.verify(addresses, ip->get_v4());
+    }
+#endif
+}
+
 void Eventloop::handle_msg(Conref cr, PongMsg&& m)
 {
     log_communication("{} handle pong", cr.str());
     auto& pingMsg = cr.ping().check(m);
+    on_received_addresses(cr,m.addresses());
     received_pong_sleep_ping(cr);
-    spdlog::debug("{} Received {} addresses", cr.str(), m.addresses().size());
-    // connections.verify(m.addresses,cr.);
     spdlog::debug("{} Got {} transaction Ids in pong message", cr.str(), m.txids().size());
 
     // update acknowledged priority
@@ -1036,9 +1057,8 @@ void Eventloop::handle_msg(Conref cr, PongV2Msg&& m)
     log_communication("{} handle pong", cr.str());
     auto& pingData = cr.ping().check(m);
     auto& pingMsg = pingData.msg;
+    on_received_addresses(cr,m.addresses());
     received_pong_sleep_ping(cr);
-    spdlog::debug("{} Received {} addresses", cr.str(), m.addresses().size());
-    // connections.verify(m.addresses,cr.);
     spdlog::debug("{} Got {} transaction Ids in pong message", cr.str(), m.txids().size());
 
     // update acknowledged priority

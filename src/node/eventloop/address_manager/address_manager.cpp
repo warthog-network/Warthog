@@ -7,7 +7,7 @@
 #include <future>
 #include <random>
 
-AddressManager::OutboundClosed::OutboundClosed(std::shared_ptr<ConnectionBase> c, int32_t reason)
+AddressManager::OutboundClosedEvent::OutboundClosedEvent(std::shared_ptr<ConnectionBase> c, int32_t reason)
     : c(std::move(c))
     , reason(reason)
 {
@@ -32,10 +32,16 @@ void AddressManager::start()
     start_scheduled_connections();
 };
 
-void AddressManager::outbound_closed(OutboundClosed e)
+void AddressManager::outbound_closed(OutboundClosedEvent e)
 {
+    bool success { e.c->successfulConnection };
+    auto reason { e.reason };
     if (auto cr { e.c->connect_request() }) {
-        outbound_connect_request_closed(*cr, e.c->successfulConnection, e.reason);
+#ifndef DISABLE_LIBUV
+        tcpConnectionSchedule.outbound_closed(*cr, success, reason);
+#else
+        wsConnectionSchedule.outbound_closed(*cr, success, reason);
+#endif
     }
 }
 
@@ -55,22 +61,14 @@ void AddressManager::verify(std::vector<TCPSockaddr> v, IPv4 source)
         tcpConnectionSchedule.insert(ea, source);
 }
 
-void AddressManager::outbound_connect_request_closed(const TCPConnectRequest& r, bool success, int32_t reason)
-{
-    tcpConnectionSchedule.outbound_closed(r, success, reason);
-}
-
 void AddressManager::outbound_failed(const TCPConnectRequest& r)
 {
     tcpConnectionSchedule.outbound_failed(r);
 }
 
+
 #else
 
-void AddressManager::outbound_connect_request_closed(const WSBrowserConnectRequest& r, bool success, int32_t reason)
-{
-    wsConnectionSchedule.outbound_closed(r, success, reason);
-}
 
 void AddressManager::outbound_failed(const WSBrowserConnectRequest& r)
 {
@@ -93,13 +91,14 @@ auto AddressManager::insert(InsertData id) -> tl::expected<Conref, int32_t>
     if (ip && !ip->is_loopback()) {
         if (ipCounter.contains(*ip))
             return tl::unexpected(EDUPLICATECONNECTION);
+        if (!c->inbound()) 
+            c->successfulConnection = true;
 #ifndef DISABLE_LIBUV
         if (id.convar.is_tcp()) {
             auto& tcp_con { id.convar.get_tcp() };
             auto ipv4 { tcp_con->peer_addr_native().ip() };
             if (!c->inbound()) {
-                c->successfulConnection = true; // TODO implement successful connection also for other types (not only tcp)
-                tcpConnectionSchedule.on_established(*tcp_con);
+                tcpConnectionSchedule.outbound_established(*tcp_con);
                 // insert_additional_verified(c->connection_peer_addr()); // TODO: additional_verified necessary?
             } else
                 tcpConnectionSchedule.insert(tcp_con->claimed_peer_addr(), ipv4);

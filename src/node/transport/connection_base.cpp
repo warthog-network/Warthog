@@ -107,6 +107,7 @@ std::span<uint8_t> ConnectionBase::process_message(std::span<uint8_t>, std::mono
 {
     assert(false); // this should not happen because on_connected should be called first
 }
+
 std::span<uint8_t> ConnectionBase::process_message(std::span<uint8_t> data, HandshakeState& p)
 {
     auto r { p.remaining(inbound()) };

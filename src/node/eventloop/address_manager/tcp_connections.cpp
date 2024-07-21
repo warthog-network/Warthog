@@ -55,48 +55,47 @@ void VectorEntry::add_source(Source s)
 
 std::optional<time_point> VectorEntry::make_expired_pending(time_point now, std::vector<ConnectRequest>& outpending)
 {
-    if (pending == true)
+    if (active)
         return {};
-    if (!timer.expired(now))
-        return timer.timeout();
+    if (!timer.expired_at(now))
+        return timer.wakeup_time();
 
-    pending = true;
+    active = true;
     outpending.push_back(TCPConnectRequest::make_outbound(address, timer.sleep_duration()));
     return {};
 }
 
-std::optional<time_point> VectorEntry::timeout() const
+std::optional<time_point> VectorEntry::wakeup_time() const
 {
-    if (pending == true)
+    if (active)
         return {};
-    return timer.timeout();
+    return timer.wakeup_time();
 }
 
 void VectorEntry::connection_established()
 {
-    pending = false;
-    connected += 1;
     connectionLog.log_success();
 }
 
 time_point VectorEntry::outbound_connected_ended(const ReconnectContext& c)
 {
-    assert(pending);
-    pending = false;
-    if (c.connectionState == ConnectionState::NOT_CONNECTED) {
-        connectionLog.log_failure();
-    } else {
-        assert(connected > 0);
-        connected -= 1;
-        if (c.connectionState == ConnectionState::UNINITIALIZED)
+    assert(active);
+        using enum ConnectionState;
+        switch (c.connectionState) {
+        case NOT_CONNECTED:
+        case CONNECTED_UNINITIALIZED:
             connectionLog.log_failure();
-    }
+            break;
+        case CONNECTED_INITIALIZED:
+            break;
+        }
+    active = false;
     return update_timer(c);
 }
 
 time_point VectorEntry::update_timer(const ReconnectContext& c)
 {
-    const bool verified { c.endpointState == SockaddrState::VERIFIED };
+    const bool verified { c.endpointState == VerificationState::VERIFIED };
     auto consecutiveFailures { connectionLog.consecutive_failures() };
     auto wait = std::invoke([&]() -> duration {
         // if everything went well, plan do regular check of peer
@@ -126,7 +125,7 @@ time_point VectorEntry::update_timer(const ReconnectContext& c)
             return std::min(d, duration { 30min });
     });
     timer.set(wait);
-    return timer.timeout();
+    return timer.wakeup_time();
 }
 
 std::pair<VectorEntry&, bool> VerifiedVector::emplace(const TCPWithSource& i, tp lastVerified)
@@ -135,7 +134,7 @@ std::pair<VectorEntry&, bool> VerifiedVector::emplace(const TCPWithSource& i, tp
     if (p)
         return { *p, false };
     VectorEntry& e { this->insert(VerifiedEntry { i, lastVerified }) };
-    if (auto t { e.timeout() }; t)
+    if (auto t { e.wakeup_time() }; t)
         this->update_wakeup_time(*t);
     return { e, true };
 }
@@ -205,7 +204,7 @@ auto TCPConnectionSchedule::find_verified(const TCPSockaddr& sa) -> VectorEntry*
 
 auto TCPConnectionSchedule::find(const TCPSockaddr& a) const -> std::optional<Found>
 {
-    using enum EndpointState;
+    using enum VerificationState;
     VectorEntry* p { verified.find(a) };
     if (p)
         return Found { *p, VERIFIED };
@@ -244,8 +243,8 @@ std::optional<ConnectRequest> TCPConnectionSchedule::insert(TCPSockaddr addr, So
     auto o { find(addr) };
     if (o.has_value()) {
         // only track sources of addresses that are not verified
-        if (o->state != EndpointState::VERIFIED)
-            o->item.add_source(src);
+        if (o->verificationState != VerificationState::VERIFIED)
+            o->match.add_source(src);
         return {};
     } else {
         unverifiedNew.emplace({ addr, src }); // TODO: check if unverified is cleared at some point
@@ -254,7 +253,7 @@ std::optional<ConnectRequest> TCPConnectionSchedule::insert(TCPSockaddr addr, So
     }
 }
 
-auto TCPConnectionSchedule::verify_from(SockaddrVector& ev, const TCPSockaddr& addr) -> VectorEntry*
+auto TCPConnectionSchedule::move_to_verified(SockaddrVector& ev, const TCPSockaddr& addr) -> VectorEntry*
 {
 
     using elem_t = SockaddrVector::elem_t;
@@ -266,14 +265,14 @@ auto TCPConnectionSchedule::verify_from(SockaddrVector& ev, const TCPSockaddr& a
     return elem;
 }
 
-void TCPConnectionSchedule::on_established(const TCPConnection& c)
+void TCPConnectionSchedule::outbound_established(const TCPConnection& c)
 {
     if (c.inbound())
         return;
     const TCPSockaddr& ea { c.peer_addr_native() };
-    VectorEntry* p { verify_from(unverifiedNew, ea) };
+    VectorEntry* p { move_to_verified(unverifiedNew, ea) };
     if (!p)
-        p = verify_from(unverifiedFailed, ea);
+        p = move_to_verified(unverifiedFailed, ea);
     if (!p)
         p = find_verified(ea);
     if (!p)
@@ -299,7 +298,7 @@ auto SockaddrVector::emplace(const WithSource<TCPSockaddr>& i) -> std::pair<elem
     if (p)
         return { *p, false };
     elem_t& e { insert(elem_t { i }) };
-    if (auto t { e.timeout() }; t)
+    if (auto t { e.wakeup_time() }; t)
         update_wakeup_time(*t);
     return { e, true };
 }
@@ -330,10 +329,10 @@ void TCPConnectionSchedule::start()
 void TCPConnectionSchedule::outbound_closed(const TCPConnectRequest& r, bool success, int32_t /*reason*/)
 {
     using enum ConnectionState;
-    auto state { success ? INITIALIZED : UNINITIALIZED };
+    auto state { success ? CONNECTED_INITIALIZED : CONNECTED_UNINITIALIZED };
     outbound_connection_ended(r, state);
 
-    // TODO: make sure prune does not discard pending entries
+    // TODO: make sure prune does not discard active entries
 
     // reconnect?
     // * reconnect immediately if pinned
@@ -356,7 +355,7 @@ void TCPConnectionSchedule::outbound_connection_ended(const ConnectRequest& r, C
 {
     // TODO: check wait time logic
     if (auto o { get_context(r, state) })
-        wakeup_tp.consider(o->item.outbound_connected_ended(o->context));
+        wakeup_tp.consider(o->match.outbound_connected_ended(o->context));
 }
 
 void TCPConnectionSchedule::connect_expired()
@@ -391,14 +390,14 @@ void TCPConnectionSchedule::refresh_wakeup_time()
 auto TCPConnectionSchedule::get_context(const TCPConnectRequest& r, ConnectionState cs) -> std::optional<FoundContext>
 {
     if (auto p { find(r.address()) }; p) {
-        if (cs == ConnectionState::INITIALIZED)
-            assert(p->state == EndpointState::VERIFIED);
+        if (cs == ConnectionState::CONNECTED_INITIALIZED)
+            assert(p->verificationState == VerificationState::VERIFIED);
 
         return FoundContext {
-            p->item,
+            p->match,
             ReconnectContext {
                 .prevWait { r.sleptFor },
-                .endpointState = p->state,
+                .endpointState = p->verificationState,
                 .connectionState = cs,
                 .pinned = pinned.contains(r.address()) }
         };

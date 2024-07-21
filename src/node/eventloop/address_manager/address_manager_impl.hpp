@@ -2,7 +2,7 @@
 #include "address_manager.hpp"
 #include "eventloop/types/conndata_impl.hpp"
 
-inline void AddressManager::All::Iterator::find_next()
+inline void AddressManager::AllRange::Iterator::find_next()
 {
     while (true) {
         if (iter == ref.conndatamap.end() || !iter->second.erased())
@@ -10,7 +10,7 @@ inline void AddressManager::All::Iterator::find_next()
         ++iter;
     }
 }
-inline void AddressManager::Initialized::Iterator::find_next()
+inline void AddressManager::InitializedRange::Iterator::find_next()
 {
     while (true) {
         if (iter == ref.conndatamap.end() || ((!iter->second.erased()) && (*iter).initialized()))
