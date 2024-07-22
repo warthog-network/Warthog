@@ -2,12 +2,12 @@
 #include "api/types/all.hpp"
 #include "block/body/parse.hpp"
 #include "block/chain/header_chain.hpp"
-#include "global/globals.hpp"
 #include "block/header/header_impl.hpp"
 #include "block/header/view_inline.hpp"
 #include "general/hex.hpp"
 #include "general/now.hpp"
 #include "general/writer.hpp"
+#include "global/globals.hpp"
 #include "sqlite3.h"
 #include <array>
 #include <spdlog/spdlog.h>
@@ -15,7 +15,7 @@
 ChainDB::Cache ChainDB::Cache::init(SQLite::Database& db)
 {
     auto maxStateId = AccountId(int64_t(db.execAndGet("SELECT coalesce(max(ROWID),0) FROM `State`")
-                                    .getInt64()));
+                                            .getInt64()));
 
     int64_t hid = db.execAndGet("SELECT coalesce(max(id)+1,1) FROM History")
                       .getInt64();
@@ -23,7 +23,7 @@ ChainDB::Cache ChainDB::Cache::init(SQLite::Database& db)
         throw std::runtime_error("Database corrupted, negative history id.");
     return {
         .maxStateId { maxStateId },
-        .nextHistoryId = HistoryId{uint64_t(hid)},
+        .nextHistoryId = HistoryId { uint64_t(hid) },
         .deletionKey { 2 }
     };
 }
@@ -146,7 +146,7 @@ Worksum ChainDB::get_consensus_work() const
     if (!o.has_value()) {
         throw std::runtime_error("Database corrupted. No worksum entry");
     }
-    return o.get<std::array<uint8_t, 32>>(0);
+    return o.get_array<32>(0);
 }
 void ChainDB::set_consensus_work(const Worksum& ws)
 {
@@ -182,7 +182,7 @@ std::vector<BlockId> ChainDB::consensus_block_ids(Height begin,
     assert(end >= begin);
     std::vector<BlockId> out;
     stmtConsensusSelectRange.for_each([&](Statement2::Row& r) {
-        out.push_back(BlockId(r.get<int64_t>(0)));
+        out.push_back(r[0]);
     },
         begin, end);
     return out;
@@ -240,14 +240,10 @@ std::optional<Block> ChainDB::get_block(BlockId id) const
     auto o { stmtBlockById.one(id) };
     if (!o.has_value())
         return {};
-    Height h { o.get<Height>(0) };
-    if (h == 0) {
-        throw std::runtime_error("Database corrupted, block has height 0");
-    }
     return Block {
-        .height = h.nonzero_assert(),
-        .header = o.get_array<80>(1),
-        .body = o.get_vector(2)
+        .height = o[0],
+        .header = o[1],
+        .body = o[2]
     };
 }
 
@@ -256,16 +252,12 @@ std::optional<std::pair<BlockId, Block>> ChainDB::get_block(HashView hash) const
     auto o = stmtBlockByHash.one(hash);
     if (!o.has_value())
         return {};
-    Height h { o.get<Height>(0) };
-    if (h == 0) {
-        throw std::runtime_error("Database corrupted, block has height 0");
-    }
     return std::pair<BlockId, Block> {
-        o.get<BlockId>(0),
+        o[0],
         Block {
-            .height = h.nonzero_assert(),
-            .header = o.get_array<80>(2),
-            .body = o.get_vector(3) }
+            .height = o[1],
+            .header = o[2],
+            .body = o[3] }
     };
 }
 
@@ -288,14 +280,7 @@ std::pair<BlockId, bool> ChainDB::insert_protect(const Block& b)
 std::optional<std::tuple<Header, RawBody, RawUndo>>
 ChainDB::get_block_undo(BlockId id) const
 {
-    auto a = stmtBlockGetUndo.one(id);
-    if (!a.has_value())
-        return {};
-    return std::tuple<Header, RawBody, RawUndo> {
-        a.get_array<80>(0),
-        { a.get_vector(1) },
-        { a.get_vector(2) }
-    };
+    return stmtBlockGetUndo.one(id).process([](auto& a) { return std::tuple<Header, RawBody, RawUndo> { a[0], { a.get_vector(1) }, { a.get_vector(2) } }; });
 }
 
 void ChainDB::set_block_undo(BlockId id, const std::vector<uint8_t>& undo)
@@ -349,8 +334,7 @@ ChainDB::getBadblocks() const
 {
     std::vector<std::pair<Height, Header>> res;
     stmtBadblockGet.for_each([&](Statement2::Row& r) {
-        res.push_back({ r.get<Height>(0),
-            r.get_array<80>(1) });
+        res.push_back({ r[0], r[1] });
     });
     return res;
 }
@@ -368,31 +352,26 @@ void ChainDB::delete_history_from(NonzeroHeight h)
     assert(nextHistoryId >= 0);
     stmtHistoryDeleteFrom.run(nextHistoryId);
     stmtAccountHistoryDeleteFrom.run(nextHistoryId);
-    cache.nextHistoryId = HistoryId{nextHistoryId};
+    cache.nextHistoryId = HistoryId { nextHistoryId };
 }
 
 std::optional<std::pair<std::vector<uint8_t>, HistoryId>> ChainDB::lookup_history(const HashView hash)
 {
-    auto o = stmtHistoryLookup.one(hash);
-    if (!o.has_value())
-        return {};
-    auto index { HistoryId{o.get<int64_t>(0)} };
-    assert(index > HistoryId{0});
-    return std::pair {
-        o.get_vector(1),
-        index
-    };
+    return stmtHistoryLookup.one(hash).process([](auto& o) {
+        return std::pair<std::vector<uint8_t>, HistoryId> {
+            o[1],
+            o[0]
+        };
+    });
 }
 
 std::vector<std::pair<Hash, std::vector<uint8_t>>> ChainDB::lookupHistoryRange(HistoryId lower, HistoryId upper)
 {
     std::vector<std::pair<Hash, std::vector<uint8_t>>> out;
     int64_t l = lower.value();
-    int64_t u = (upper == HistoryId{0} ? std::numeric_limits<int64_t>::max() : upper.value());
+    int64_t u = (upper == HistoryId { 0 } ? std::numeric_limits<int64_t>::max() : upper.value());
     stmtHistoryLookupRange.for_each([&](Statement2::Row& r) {
-        out.push_back(
-            { r.get_array<32>(0),
-                r.get_vector(1) });
+        out.push_back({ r[0], r[1] });
     },
         l, u);
     return out;
@@ -405,13 +384,9 @@ void ChainDB::insertAccountHistory(AccountId accountId, HistoryId historyId)
 
 std::optional<AccountFunds> ChainDB::lookup_address(const AddressView address) const
 {
-    auto p = stmtAddressLookup.one(address);
-    if (!p.has_value())
-        return {};
-    return AccountFunds{
-        p.get<AccountId>(0),
-        p.get<Funds>(1)
-    };
+    return stmtAddressLookup.one(address).process([](auto& p) {
+        return AccountFunds { p[0], p[1] };
+    });
 }
 
 std::vector<std::tuple<HistoryId, Hash, std::vector<uint8_t>>> ChainDB::lookup_history_100_desc(
@@ -420,9 +395,7 @@ std::vector<std::tuple<HistoryId, Hash, std::vector<uint8_t>>> ChainDB::lookup_h
     std::vector<std::tuple<HistoryId, Hash, std::vector<uint8_t>>> out;
     stmtHistoryById.for_each(
         [&](Statement2::Row& row) {
-            out.push_back({ HistoryId{row.get<uint64_t>(0)},
-                row.get_array<32>(1),
-                row.get_vector(2) });
+            out.push_back({ row[0], row[1], row[2] });
         },
         accountId, beforeId);
     return out;
@@ -439,22 +412,16 @@ AddressFunds ChainDB::fetch_account(AccountId id) const
 
 std::optional<AddressFunds> ChainDB::lookup_account(AccountId id) const
 {
-    auto o { stmtAccountLookup.one(id) };
-    if (!o.has_value())
-        return {};
-    return AddressFunds {
-        .address = o.get_array<20>(0),
-        .funds = o.get<Funds>(1)
-    };
+    return stmtAccountLookup.one(id).process([](auto& o) {
+        return AddressFunds { o[0], o[1] };
+    });
 }
 
 API::Richlist ChainDB::lookup_richlist(uint32_t N) const
 {
     API::Richlist out;
     stmtRichlistLookup.for_each([&](Statement2::Row& r) {
-        out.entries.push_back(
-            { Address { r.get_array<20>(0) },
-                r.get<Funds>(1) });
+        out.entries.push_back({ r[0], r[1] });
     },
         N);
     return out;
@@ -467,14 +434,9 @@ std::optional<BlockId> ChainDB::lookup_block_id(const HashView hash) const
 
 std::optional<NonzeroHeight> ChainDB::lookup_block_height(const HashView hash) const
 {
-    auto o { stmtBlockHeightSelect.one(hash) };
-    if (!o.has_value())
-        return {};
-    auto h{o.get<Height>(0)};
-    if (h == 0) {
-        throw std::runtime_error("Database corrupted, block " +serialize_hex(hash) + " has invalid height 0.");
-    }
-    return h.nonzero_assert();
+    return stmtBlockHeightSelect.one(hash).process([](auto& r) {
+        return NonzeroHeight { r[0] };
+    });
 }
 
 void ChainDB::delete_bad_block(HashView blockhash)
@@ -485,7 +447,7 @@ void ChainDB::delete_bad_block(HashView blockhash)
             serialize_hex(blockhash));
         return;
     }
-    BlockId id { o.get<BlockId>(0) };
+    BlockId id { o[0] };
     stmtBlockDelete.run(id);
     stmtScheduleDelete2.run(id);
 }
