@@ -190,6 +190,10 @@ int32_t Mempool::insert_tx(const TransferTxExchangeMessage& pm,
     auto balanceIter = balanceEntries.try_emplace(pm.from_id(), af).first;
     auto& e { balanceIter->second };
 
+    if (pm.amount.overflow())
+        return EBALANCE;
+    if (pm.fee().overflow())
+        return EBALANCE;
     const Funds spend = pm.spend();
     if (spend.overflow())
         return EBALANCE;
