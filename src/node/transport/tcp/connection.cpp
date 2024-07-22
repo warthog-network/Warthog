@@ -58,7 +58,7 @@ void TCPConnection::close_internal(int errcode)
     if (tcpHandle->closing())
         return;
     tcpHandle->close();
-    connection_log().info("a{}b closed: {} ({})",
+    connection_log().info("{} closed: {} ({})",
         to_string(), errors::err_name(errcode), errors::strerror(errcode));
     on_close({
         .error = errcode,

@@ -181,7 +181,7 @@ void ConnectionBase::send(Sndbuffer&& msg)
 
 void ConnectionBase::on_close(const CloseState& cs)
 {
-    global().core->erase(get_shared());
+    global().core->erase(get_shared(), cs.error);
     // l->async_register_close(peerAddress.ipv4, errcode, logrow); // TODO: logrow
     global().peerServer->async_register_close(get_shared(), cs.error); // TODO: use failed outbound
     if (!inbound())

@@ -100,9 +100,9 @@ void Eventloop::wait_for_shutdown()
         worker.join();
 }
 
-void Eventloop::erase(std::shared_ptr<ConnectionBase> c)
+void Eventloop::erase(std::shared_ptr<ConnectionBase> c, Error reason)
 {
-    defer(Erase { std::move(c) });
+    defer(Erase { std::move(c), reason });
 }
 
 void Eventloop::on_outbound_closed(std::shared_ptr<ConnectionBase> c, int32_t reason)
@@ -244,7 +244,7 @@ bool Eventloop::check_shutdown()
     for (auto cr : connections.all()) {
         if (cr->erased())
             continue;
-        erase_internal(cr);
+        erase_internal(cr, Error(closeReason));
     }
     return true;
 }
@@ -254,7 +254,7 @@ void Eventloop::handle_event(Erase&& m)
     bool erased { m.c->eventloop_erased };
     bool registered { m.c->eventloop_registered };
     if ((!erased) && registered)
-        erase_internal(m.c->dataiter);
+        erase_internal(m.c->dataiter, m.reason);
 }
 
 void Eventloop::handle_event(OutboundClosed&& e)
@@ -462,9 +462,8 @@ void Eventloop::handle_event(GetHashrateChart&& e)
 }
 void Eventloop::handle_event(FailedConnect&& e)
 {
-    spdlog::warn("Cannot connect to {}: ", e.connectRequest.address().to_string(), Error(e.reason).err_name());
+    spdlog::warn("Cannot connect to {}: {}", e.connectRequest.address().to_string(), Error(e.reason).err_name());
     connections.outbound_failed(e.connectRequest);
-    // TODO
 }
 
 void Eventloop::handle_event(mempool::Log&& log)
@@ -663,7 +662,7 @@ void Eventloop::handle_event(GeneratedSdpOffer&& m)
     }
 }
 
-void Eventloop::erase_internal(Conref c)
+void Eventloop::erase_internal(Conref c, Error error)
 {
     if (c->c->eventloop_erased)
         return;
@@ -676,9 +675,8 @@ void Eventloop::erase_internal(Conref c)
         timer.cancel(c.job().timer());
     }
     if (headerDownload.erase(c) && !closeReason) {
+        spdlog::info("Connected to {} peers (closed connection to {}, reason: {})", headerDownload.size(), c.peer().to_string(), Error(error).err_name());
         realtime_api::on_disconnect(headerDownload.size(), c.id());
-        // TODO: add log
-        // spdlog::info("Connected to {} peers (closed connection to {}, reason: {})", headerDownload.size(), c->c->peer_endpoint().to_string(), Error(error).err_name());
     }
     if (blockDownload.erase(c))
         coordinate_sync();
@@ -714,7 +712,7 @@ void Eventloop::close(Conref cr, Error reason)
     if (!cr->c->eventloop_registered)
         return;
     cr->c->close(reason);
-    erase_internal(cr); // do not consider this connection anymore
+    erase_internal(cr, reason); // do not consider this connection anymore
 }
 
 void Eventloop::close_by_id(uint64_t conId, int32_t reason)

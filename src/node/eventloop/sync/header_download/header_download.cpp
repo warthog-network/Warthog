@@ -654,7 +654,8 @@ bool Downloader::has_data() const
 
 bool Downloader::erase(Conref cr)
 {
-    bool erased = std::erase(connections, cr);
+    if(! std::erase(connections, cr))
+        return false;
 
     clear_connection_probe(cr);
     if (maximizer.has_value() && std::get<0>(maximizer.value()).cr == cr)
@@ -668,7 +669,7 @@ bool Downloader::erase(Conref cr)
         data(cr).jobPtr->cr.reset();
         data(cr).jobPtr = nullptr;
     }
-    return erased;
+    return true;
 }
 
 void Downloader::select_leaders()

@@ -116,14 +116,13 @@ public:
     void start_timer(StartTimer);
     void cancel_timer(const Timer::key_t&);
     void async_mempool_update(mempool::Log&& s);
-    void async_report_failed_outbound(TCPSockaddr);
     void shutdown(int32_t reason);
     void wait_for_shutdown();
     void async_stage_action(stage_operation::Result);
     void async_state_update(StateUpdate&& s);
     void notify_closed_rtc(std::shared_ptr<RTCConnection> rtc);
 
-    void erase(std::shared_ptr<ConnectionBase> c);
+    void erase(std::shared_ptr<ConnectionBase> c, Error);
     void on_failed_connect(const ConnectRequest& r, Error reason);
     void on_outbound_closed(std::shared_ptr<ConnectionBase>, int32_t reason);
 
@@ -146,7 +145,7 @@ private:
 
     //////////////////////////////
     // Connection related functions
-    void erase_internal(Conref cr);
+    void erase_internal(Conref cr, Error);
     [[nodiscard]] bool insert(Conref cr, const InitMsg& data); // returns true if requests might be possbile
     void close(Conref cr, Error reason);
     void close_by_id(uint64_t connectionId, int32_t reason);
@@ -248,6 +247,7 @@ private:
     // event types
     struct Erase {
         std::shared_ptr<ConnectionBase> c;
+        Error reason;
     };
     using OutboundClosed = AddressManager::OutboundClosedEvent;
     struct RegisterConnection {

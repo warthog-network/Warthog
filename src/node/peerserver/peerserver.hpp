@@ -44,8 +44,6 @@ private:
 public:
     bool async_register_close(std::shared_ptr<peerserver::ConnectionData> con, int32_t offense)
     {
-        // TODO:
-        // global().core->async_report_failed_outbound(peerAddress);
         if (offense == EREFUSED)
             return false;
         return async_event(OnClose { std::move(con), offense });

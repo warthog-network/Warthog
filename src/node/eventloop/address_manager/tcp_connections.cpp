@@ -195,6 +195,7 @@ TCPConnectionSchedule::TCPConnectionSchedule(InitArg ia)
     spdlog::info("Peers connect size {} ", ia.pin.size());
     for (auto& p : pinned)
         unverifiedNew.emplace(TCPWithSource({ p }));
+    wakeup_tp.consider(unverifiedNew.timeout());
 }
 
 auto TCPConnectionSchedule::find_verified(const TCPSockaddr& sa) -> VectorEntry*
