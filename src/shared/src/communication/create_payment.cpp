@@ -26,6 +26,7 @@ PaymentCreateMessage::PaymentCreateMessage(ReaderCheck<bytesize> r)
     , amount(Funds::from_value_throw(r.r))
     , signature(r.r)
 {
+    r.assert_read_bytes();
 }
 
 Writer& operator<<(Writer& w, const PaymentCreateMessage& m)

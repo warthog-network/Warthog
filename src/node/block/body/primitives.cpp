@@ -66,5 +66,6 @@ TransferTxExchangeMessage::TransferTxExchangeMessage(ReaderCheck<bytesize> r)
     , amount(Funds::from_value_throw(r.r.uint64()))
     , signature(r.r.view<65>())
 {
+    r.assert_read_bytes();
 }
 

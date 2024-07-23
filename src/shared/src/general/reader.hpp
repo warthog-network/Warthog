@@ -169,7 +169,7 @@ public:
     {
         return { r };
     }
-    ~ReaderCheck()
+    void assert_read_bytes()
     {
         assert(r.cursor() == beginPos + N);
     }
