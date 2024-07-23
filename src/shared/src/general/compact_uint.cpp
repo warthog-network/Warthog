@@ -5,7 +5,7 @@ Writer& operator<<(Writer& w, CompactUInt cf){
     return w<<cf.value();
 };
 CompactUInt::CompactUInt(Reader& r)
-    :CompactUInt(r.uint16())
+    :CompactUInt(from_value_throw(r.uint16()))
 {
 }
 CompactUInt CompactUInt::compact(Funds f){
