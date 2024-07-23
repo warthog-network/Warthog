@@ -234,8 +234,7 @@ TxHash Chainstate::insert_tx(const TransferTxExchangeMessage& pm)
     if (!p)
         throw Error(ENOTFOUND);
     TransactionHeight th(pm.pin_height(), account_height(pm.from_id()));
-    if (auto e { _mempool.insert_tx(pm, th, txHash, *p) }; e != 0)
-        throw Error(e);
+     _mempool.insert_tx_throw(pm, th, txHash, *p);
     return txHash;
 }
 
@@ -262,8 +261,7 @@ TxHash Chainstate::insert_tx(const PaymentCreateMessage& m)
     if (txids().contains(pm.txid))
         throw Error(ENONCE);
     TransactionHeight th(pinHeight, account_height(accountId));
-    if (auto e { _mempool.insert_tx(pm, th, txHash, af) }; e != 0)
-        throw Error(e);
+    _mempool.insert_tx_throw(pm, th, txHash, af);
     return txHash;
 }
 

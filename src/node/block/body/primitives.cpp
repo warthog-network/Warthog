@@ -28,7 +28,7 @@ TxHash TransferTxExchangeMessage::txhash(HashView pinHash) const
         << pin_height()
         << txid.nonceId
         << reserved
-        << compactFee
+        << compactFee.uncompact()
         << toAddr
         << amount);
 }
@@ -36,9 +36,9 @@ TxHash TransferTxExchangeMessage::txhash(HashView pinHash) const
 TransferTxExchangeMessage::TransferTxExchangeMessage(TransferView t, PinHeight ph, AddressView toAddr)
     : txid(t.txid(ph))
     , reserved(t.pin_nonce().reserved)
-    , compactFee(t.compact_fee())
+    , compactFee(t.compact_fee_trow())
     , toAddr(toAddr)
-    , amount(t.amount())
+    , amount(t.amount_throw())
     , signature(t.signature()) {}
 
 TransferTxExchangeMessage::TransferTxExchangeMessage(AccountId fromId, const PaymentCreateMessage& pcm)
@@ -62,10 +62,11 @@ TransferTxExchangeMessage::TransferTxExchangeMessage(const TransactionId& txid, 
 TransferTxExchangeMessage::TransferTxExchangeMessage(ReaderCheck<bytesize> r)
     : txid(r.r)
     , reserved(r.r.view<3>())
-    , compactFee(r.r.uint16())
+    , compactFee(CompactUInt::from_value_throw(r.r.uint16()))
     , toAddr(r.r.view<AddressView>())
-    , amount(r.r.uint64())
+    , amount(Funds::from_value_throw(r.r.uint64()))
     , signature(r.r.view<65>())
 {
+    r.assert_read_bytes();
 }
 

@@ -15,18 +15,18 @@ auto Txmap::by_fee_inc(AccountId id) -> std::vector<iterator>
     return iterators;
 };
 
-void ByFee::insert(iter_t iter)
+void ByFeeDesc::insert(iter_t iter)
 {
     auto pos = std::lower_bound(data.begin(), data.end(), iter, [](iter_t i1, iter_t i2) { return i1->second.fee > i2->second.fee; });
     data.insert(pos, iter);
 }
 
-size_t ByFee::erase(iter_t iter)
+size_t ByFeeDesc::erase(iter_t iter)
 {
     return std::erase(data, iter);
 }
 
-auto ByFee::sample(size_t n, size_t k) const -> std::vector<iter_t>
+auto ByFeeDesc::sample(size_t n, size_t k) const -> std::vector<iter_t>
 {
     n = std::min(n, data.size());
     k = std::min(n, k);

@@ -16,13 +16,13 @@ bool BalanceEntry::set_avail(Funds amount)
 void BalanceEntry::lock(Funds amount)
 {
     assert(amount <= remaining());
-    used += amount;
+    used.add_assert(amount);
 }
 
 void BalanceEntry::unlock(Funds amount)
 {
     assert(used >= amount);
-    used -= amount;
+    used.subtract_assert(amount);
 }
 
 std::vector<TransferTxExchangeMessage> Mempool::get_payments(size_t n, std::vector<Hash>* hashes) const
@@ -95,7 +95,7 @@ bool Mempool::erase(Txmap::iterator iter, BalanceEntries::iterator b_iter, bool 
     assert(byFee.erase(iter) == 1);
     byHash.erase(iter);
     auto tx = *iter;
-    Funds spend = tx.second.fee.uncompact() + tx.second.amount;
+    Funds spend { tx.second.spend_assert() };
     txs.erase(iter);
     if (master)
         log.push_back(Erase { id });
@@ -186,44 +186,72 @@ int32_t Mempool::insert_tx(const TransferTxExchangeMessage& pm,
     const TxHash& txhash,
     const AddressFunds& af)
 {
+    try {
+        insert_tx_throw(pm, txh, txhash, af);
+        return 0;
+    } catch (Error e) {
+        return e.e;
+    }
+}
+
+void Mempool::insert_tx_throw(const TransferTxExchangeMessage& pm,
+    TransactionHeight txh,
+    const TxHash& txhash,
+    const AddressFunds& af)
+{
     if (pm.from_address(txhash) != af.address)
-        return EFAKEACCID;
+        throw Error(EFAKEACCID);
 
     if (af.funds.is_zero())
-        return EBALANCE;
+        throw Error(EBALANCE);
     auto balanceIter = balanceEntries.try_emplace(pm.from_id(), af).first;
     auto& e { balanceIter->second };
-
-    const Funds spend = pm.spend();
-    if (spend.overflow())
-        return EBALANCE;
+    const Funds spend { pm.spend_throw() };
 
     { // check if we can delete enough old entries to insert new entry
         std::vector<Txmap::iterator> clear;
         std::optional<Txmap::iterator> match;
-        Funds clearSum { 0 };
         if (auto iter = txs.find(pm.txid); iter != txs.end()) {
             if (iter->second.fee >= pm.compactFee) {
-                return ENONCE;
+                throw Error(ENONCE);
             }
             clear.push_back(iter);
             match = iter;
         }
         const auto remaining { e.remaining() };
-        if (remaining + clearSum < spend) {
+        // if (remaining < spend) {
+        //     Funds clearSum { 0 };
+        //     auto iterators { txs.by_fee_inc(pm.txid.accountId) };
+        //     for (auto iter : iterators) {
+        //         if (iter == match)
+        //             continue;
+        //         if (iter->second.fee >= pm.fee())
+        //             break;
+        //         clear.push_back(iter);
+        //         auto s{iter->second.spend()};
+        //         if (!s.has_value())
+        //
+        //         if (remaining + clearSum >= spend) {
+        //             goto candelete;
+        //         }
+        //     }
+        //     return EBALANCE;
+        // candelete:;
+        if (remaining < spend) {
+            Funds clearSum { Funds::zero() };
             auto iterators { txs.by_fee_inc(pm.txid.accountId) };
             for (auto iter : iterators) {
                 if (iter == match)
                     continue;
-                if (iter->second.fee >= pm.fee())
+                if (iter->second.fee >= pm.compactFee)
                     break;
                 clear.push_back(iter);
-                clearSum += iter->second.spend();
-                if (remaining + clearSum >= spend) {
+                clearSum.add_assert(iter->second.spend_assert());
+                if (Funds::sum_assert(remaining, clearSum) >= spend) {
                     goto candelete;
                 }
             }
-            return EBALANCE;
+            throw Error(EBALANCE);
         candelete:;
         }
         for (auto& iter : clear)
@@ -240,7 +268,6 @@ int32_t Mempool::insert_tx(const TransferTxExchangeMessage& pm,
     byFee.insert(iter);
     byHash.insert(iter);
     prune();
-    return 0;
 }
 
 void Mempool::prune()
@@ -253,7 +280,7 @@ void Mempool::prune()
 CompactUInt Mempool::min_fee() const
 {
     if (size() < maxSize)
-        return 0;
+        return CompactUInt::smallest();
     return byFee.smallest()->second.fee.next();
 }
 

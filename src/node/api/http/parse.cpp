@@ -50,15 +50,17 @@ CompactUInt extract_fee(const nlohmann::json& json)
         std::optional<Funds> fee;
         auto iter = json.find("fee");
         if (iter != json.end()) {
-            fee = { Funds::parse(iter->get<std::string>()) };
+            fee = { Funds::parse_throw(iter->get<std::string>()) };
             if (!fee.has_value())
                 goto error;
         }
         iter = json.find("feeE8");
         if (iter != json.end()) {
-            if (fee.has_value()) 
+            if (fee.has_value())
                 goto error; // exclusive, either "amount" or "amountE8"
-            fee = Funds(iter->get<uint64_t>());
+            fee = Funds::from_value(iter->get<uint64_t>());
+            if (fee.has_value())
+                goto error;
         }
 
         auto compactFee { CompactUInt::compact(*fee) };
@@ -88,14 +90,16 @@ Funds extract_funds(const nlohmann::json& json)
         auto iter = json.find("amount");
         if (iter != json.end()) {
             f = Funds::parse(iter->get<std::string>());
-            if (!f.has_value()) 
+            if (!f.has_value())
                 goto error;
         }
         iter = json.find("amountE8");
         if (iter != json.end()) {
-            if (f.has_value()) 
+            if (f.has_value())
                 goto error; // exclusive, either "amount" or "amountE8"
-            f = Funds(iter->get<uint64_t>());
+            f = Funds::from_value(iter->get<uint64_t>());
+            if (f.has_value())
+                goto error;
         }
 
         if (f.has_value())

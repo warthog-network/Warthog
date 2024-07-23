@@ -59,7 +59,7 @@ void get_connected_connection(ConnectedConnectionCB&& cb)
 
 void get_round16bit_e8(uint64_t e8, RoundCb cb)
 {
-    cb(API::Round16Bit { Funds(e8) });
+    cb(API::Round16Bit { Funds::from_value_throw(e8) });
 }
 
 void get_round16bit_funds(Funds f, RoundCb cb)

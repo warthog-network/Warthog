@@ -19,7 +19,10 @@ NonceId NonceId::random()
 PinNonce::PinNonce(ReaderCheck<bytesize> r)
     : id(r.r)
     , relativePin(r.r.uint8())
-    , reserved(r.r) {};
+    , reserved(r.r)
+{
+    r.assert_read_bytes();
+}
 
 PinNonce::PinNonce(Reader& r)
     : PinNonce(ReaderCheck<bytesize>(r)) {};

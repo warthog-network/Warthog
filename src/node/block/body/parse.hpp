@@ -6,6 +6,13 @@
 #include "crypto/crypto.hpp"
 
 struct TransferView : public View<BodyView::TransferSize> {
+private:
+    uint16_t fee_raw() const
+    {
+        return readuint16(pos + 16);
+    }
+
+public:
     AccountId fromAccountId() const
     {
         return AccountId(readuint64(pos));
@@ -19,21 +26,27 @@ struct TransferView : public View<BodyView::TransferSize> {
     {
         return pin_nonce().pin_height(pinFloor);
     }
-    CompactUInt compact_fee() const
+    CompactUInt compact_fee_trow() const
     {
-        return readuint16(pos + 16);
+        return CompactUInt::from_value_throw(fee_raw());
     }
-    Funds fee() const
+
+    CompactUInt compact_fee_assert() const
     {
-        return compact_fee().uncompact();
+        return CompactUInt::from_value_assert(fee_raw());
+    }
+
+    Funds fee_throw() const
+    {
+        return compact_fee_trow().uncompact();
     }
     AccountId toAccountId() const
     {
         return AccountId(readuint64(pos + 18));
     }
-    Funds amount() const
+    Funds amount_throw() const
     {
-        return Funds { readuint64(pos + 26) };
+        return Funds::from_value_throw(readuint64(pos + 26));
     }
     auto signature() const { return View<65>(pos + 34); }
     static_assert(65 == BodyView::SIGLEN);
@@ -44,7 +57,9 @@ struct TransferView : public View<BodyView::TransferSize> {
     }
 
     TransferView(const uint8_t* pos)
-        : View(pos) {}
+        : View(pos)
+    {
+    }
     const uint8_t* data() const { return pos; }
 };
 
@@ -79,13 +94,22 @@ struct Transfer {
     Transfer(TransferView v)
         : fromId(v.fromAccountId())
         , pinNonce(v.pin_nonce())
-        , compactFee(v.compact_fee())
+        , compactFee(v.compact_fee_trow())
         , toId(v.toAccountId())
-        , amount(v.amount())
-        , signature(v.signature()) {}
+        , amount(v.amount_throw())
+        , signature(v.signature())
+    {
+    }
 };
 
 struct RewardView : public View<BodyView::RewardSize> {
+private:
+    auto funds_value() const
+    {
+        return readuint64(pos + 8);
+    }
+
+public:
     RewardView(const uint8_t* pos, uint16_t i)
         : View(pos)
         , offset(i)
@@ -95,9 +119,15 @@ struct RewardView : public View<BodyView::RewardSize> {
     {
         return AccountId(readuint64(pos));
     }
-    Funds amount() const
+    Funds amount_throw() const
     {
-        return Funds(readuint64(pos + 8));
+        return Funds::from_value_throw(funds_value());
+    }
+    Funds amount_assert() const
+    {
+        auto f { Funds::from_value(funds_value()) };
+        assert(f.has_value());
+        return *f;
     }
     const uint16_t offset; // index in block
 };
@@ -110,14 +140,14 @@ inline TransferView BodyView::get_transfer(size_t i) const
 
 inline RewardView BodyView::reward() const
 {
-    return {data() + offsetReward , 0};
+    return { data() + offsetReward, 0 };
 }
 
-inline Funds BodyView::fee_sum() const
+inline Funds BodyView::fee_sum_assert() const
 {
-    Funds sum{0};
-    for (auto t : transfers()) 
-        sum += t.amount();
+    Funds sum { Funds::zero() };
+    for (auto t : transfers())
+        sum.add_assert(t.compact_fee_assert().uncompact());
     return sum;
 }
 inline AddressView BodyView::get_address(size_t i) const
@@ -126,9 +156,11 @@ inline AddressView BodyView::get_address(size_t i) const
     assert(i < nAddresses);
     return AddressView(data() + offsetAddresses + i * AddressView::size());
 }
-inline AddressView BodyView::Addresses::Iterator::operator*() const {
+inline AddressView BodyView::Addresses::Iterator::operator*() const
+{
     return bv.get_address(i);
 }
-inline TransferView BodyView::Transfers::Iterator::operator*() const {
+inline TransferView BodyView::Transfers::Iterator::operator*() const
+{
     return bv.get_transfer(i);
 }

@@ -37,7 +37,7 @@ VerifiedTransfer::VerifiedTransfer(const TransferInternal& ti, PinHeight pinHeig
           << pinHeight
           << ti.pinNonce.id
           << ti.pinNonce.reserved
-          << ti.compactFee
+          << ti.compactFee.uncompact()
           << ti.toAddress
           << ti.amount)
 {
@@ -72,15 +72,15 @@ void TransferData::write(Writer& w) const
       << amount << pinNonce;
 }
 
-std::optional<TransferData> TransferData::parse(Reader& r)
+TransferData TransferData::parse(Reader& r)
 {
     if (r.remaining() != bytesize)
-        return {};
+        throw std::runtime_error("Cannot parse TransferData.");
     return TransferData {
         .fromAccountId { r },
-        .compactFee { r },
+        .compactFee { CompactUInt::from_value_throw(r) },
         .toAccountId { r },
-        .amount { r },
+        .amount { Funds::from_value_throw(r) },
         .pinNonce { r }
     };
 }
@@ -91,13 +91,13 @@ void RewardData::write(Writer& w) const
     w << toAccountId << miningReward;
 }
 
-std::optional<RewardData> RewardData::parse(Reader& r)
+RewardData RewardData::parse(Reader& r)
 {
     if (r.remaining() != bytesize)
-        return {};
+        throw std::runtime_error("Cannot parse RewardData.");
     return RewardData {
         .toAccountId = AccountId(r.uint64()),
-        .miningReward = Funds(r.uint64())
+        .miningReward = Funds::from_value_throw(r.uint64())
     };
 }
 
@@ -116,33 +116,26 @@ std::vector<uint8_t> serialize(const Data& entry)
 // do metaprogramming dance
 //
 template <typename V, uint8_t prevcode>
-std::optional<V> check(uint8_t, Reader&)
+V check(uint8_t, Reader&)
 {
-    return {};
+    throw std::runtime_error("Cannot parse history entry, unknown variant type");
 }
+
 template <typename V, uint8_t prevIndicator, typename T, typename... S>
-std::optional<V> check(uint8_t indicator, Reader& r)
+V check(uint8_t indicator, Reader& r)
 {
     // variant indicators must be all different and in order
     static_assert(prevIndicator < T::indicator);
-    if (T::indicator == indicator) {
-        auto p = T::parse(r);
-        if (!p)
-            return p;
-        return *p;
-    }
+    if (T::indicator == indicator) 
+        return T::parse(r);
     return check<V, T::indicator, S...>(indicator, r);
 }
 
 template <typename Variant, typename T, typename... S>
-std::optional<Variant> check_first(uint8_t indicator, Reader& r)
+Variant check_first(uint8_t indicator, Reader& r)
 {
-    if (T::indicator == indicator) {
-        auto p = T::parse(r);
-        if (!p)
-            return p;
-        return *p;
-    }
+    if (T::indicator == indicator) 
+        return T::parse(r);
     return check<Variant, T::indicator, S...>(indicator, r);
 }
 
@@ -170,7 +163,7 @@ struct VariantParser<std::variant<Types...>> {
     }
 };
 
-std::optional<Data> parse(std::vector<uint8_t> v)
+Data parse_throw(std::vector<uint8_t> v)
 {
     return VariantParser<Data>::parse(v);
 }

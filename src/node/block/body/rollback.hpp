@@ -15,7 +15,13 @@ public:
 
     public:
         AccountId id() { return AccountId(readuint64(pos)); }
-        Funds balance() { return Funds(readuint64(pos + 8)); }
+        Funds balance()
+        {
+            auto v { Funds::from_value(readuint64(pos + 8)) };
+            if (!v)
+                throw std::runtime_error("Invalid funds in rollback data");
+            return *v;
+        }
 
     private:
         const uint8_t* pos;

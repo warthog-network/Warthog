@@ -26,7 +26,7 @@ std::string TransactionId::hex_string() const
 
 TxidWithFee::TxidWithFee(Reader& r)
     : txid(r)
-    , fee(r)
+    , fee(CompactUInt::from_value_throw(r))
 {
 }
 

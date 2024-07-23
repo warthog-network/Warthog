@@ -20,7 +20,7 @@ public:
 
     AccountRange account_range(AccountId id) { return { *this, id }; }
 };
-struct ByFee {
+struct ByFeeDesc {
     using iter_t = Txmap::iterator;
     void insert(iter_t iter);
     [[nodiscard]] size_t erase(iter_t iter);

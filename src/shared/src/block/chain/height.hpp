@@ -70,7 +70,7 @@ public:
     Funds reward() const
     {
         int32_t halvings = (val - 1) / HALVINTINTERVAL;
-        return Funds(GENESISBLOCKREWARD >> halvings);
+        return Funds::from_value(GENESISBLOCKREWARD >> halvings).value();
     }
 
     Height pin_begin()
@@ -167,7 +167,7 @@ public:
     Funds reward() const
     {
         int32_t halvings = (val - 1) / HALVINTINTERVAL;
-        return Funds(GENESISBLOCKREWARD >> halvings);
+        return Funds::from_value(GENESISBLOCKREWARD >> halvings).value();
     }
 
     // NonzeroHeight pin_bgin()

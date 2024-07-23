@@ -99,7 +99,10 @@ struct Column2 : public SQLite::Column {
     }
     operator Funds() const
     {
-        return Funds(int64_t(getInt64()));
+        auto v{Funds::from_value(int64_t(getInt64()))};
+        if (!v.has_value()) 
+            throw std::runtime_error("Database corrupted, invalid funds");
+        return *v;
     }
     operator uint64_t() const
     {

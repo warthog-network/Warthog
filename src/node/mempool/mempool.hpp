@@ -16,13 +16,13 @@ struct BalanceEntry {
     void lock(Funds amount);
     void unlock(Funds amount);
     [[nodiscard]] bool set_avail(Funds amount);
-    Funds remaining() const { return avail - used; }
+    Funds remaining() const { return Funds::diff_assert(avail,  used); }
     Funds locked() const { return used; }
     bool is_clean() { return used.is_zero(); }
 
 private:
-    Funds avail { 0 };
-    Funds used { 0 };
+    Funds avail { Funds::zero() };
+    Funds used { Funds::zero() };
 };
 
 class Mempool {
@@ -42,6 +42,7 @@ public:
     }
     void apply_log(const Log& log);
     int32_t insert_tx(const TransferTxExchangeMessage& pm, TransactionHeight txh, const TxHash& hash, const AddressFunds& e);
+    void insert_tx_throw(const TransferTxExchangeMessage& pm, TransactionHeight txh, const TxHash& hash, const AddressFunds& e);
     void erase(TransactionId id);
     void set_balance(AccountId, Funds newBalance);
     void erase_from_height(Height);
@@ -74,7 +75,7 @@ private:
     Log log;
     Txmap txs;
     std::set<iter_t, ComparatorPin> byPin;
-    ByFee byFee;
+    ByFeeDesc byFee;
     std::set<iter_t, ComparatorHash> byHash;
     BalanceEntries balanceEntries;
     bool master;

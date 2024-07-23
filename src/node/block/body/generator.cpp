@@ -87,7 +87,7 @@ class BlockGenerator {
         auto total_fee() const { return totalFee; }
 
     private:
-        Funds totalFee { 0 };
+        Funds totalFee { Funds::zero() };
         uint32_t nTransfers { 0 };
         std::vector<uint8_t> buf;
     };
@@ -167,7 +167,7 @@ BodyContainer BlockGenerator::gen_block(NonzeroHeight height,
     }
 
     // Reward Section
-    Funds totalReward { height.reward() + trs.total_fee() };
+    auto totalReward { Funds::sum_assert(height.reward(), trs.total_fee()) };
     RewardSection pos(*nas.getId(miner, true), totalReward);
 
     // Serialize block
@@ -200,7 +200,7 @@ void BlockGenerator::TransferSection::add_payment(
     const TransferTxExchangeMessage& m)
 {
     nTransfers += 1;
-    totalFee += m.fee();
+    totalFee.add_assert(m.fee());
     size_t offset = buf.size();
     buf.resize(offset + 99);
     uint8_t* pos = buf.data() + offset;

@@ -18,8 +18,8 @@ class BalanceChecker {
         Funds out() const { return _out; }
 
     private:
-        Funds _in { 0 };
-        Funds _out { 0 };
+        Funds _in { Funds::zero() };
+        Funds _out { Funds::zero() };
         std::vector<size_t> referredPayout;
         std::vector<size_t> referredFrom;
         std::vector<size_t> referredTo;
@@ -45,8 +45,6 @@ public:
     {
         if (!validAccountId(to))
             throw Error(EIDPOLICY);
-        if (amount.overflow())
-            throw Error(EBALANCE);
         payouts.emplace_back(to, amount, height, offset);
         size_t i = payouts.size() - 1;
         auto& ref = payouts[i];
@@ -54,16 +52,14 @@ public:
         if (to >= beginNewAccountId) {
             ref.toAddress = get_new_address(to - beginNewAccountId);
         } // otherwise wait for db lookup later
-        refTo._in += amount;
-        if (refTo._in.overflow())
-            throw Error(EBALANCE);
+        refTo._in.add_throw(amount);
         refTo.referredPayout.push_back(i);
     }
 
     void register_transfer(TransferView tv, Height height) // OK
     {
-        Funds amount { tv.amount() };
-        auto compactFee = tv.compact_fee();
+        Funds amount { tv.amount_throw() };
+        auto compactFee = tv.compact_fee_trow();
         Funds fee { compactFee.uncompact() };
         AccountId to = tv.toAccountId();
         AccountId from = tv.fromAccountId();
@@ -71,8 +67,6 @@ public:
             throw Error(EZEROAMOUNT);
         if (from == to)
             throw Error(ESELFSEND);
-        if (amount.overflow() || fee.overflow())
-            throw Error(EBALANCE);
         if (!validAccountId(from))
             throw Error(EIDPOLICY);
         if (!validAccountId(to))
@@ -88,18 +82,12 @@ public:
             ref.toAddress = get_new_address(to - beginNewAccountId);
         } // otherwise wait for db lookup later
         auto& refTo = account_flow(to);
-        refTo._in += amount;
-        if (refTo._in.overflow())
-            throw Error(EBALANCE);
+        refTo._in.add_throw(amount);
         refTo.referredTo.push_back(i);
 
         auto& refFrom = account_flow(from);
-        refFrom._out += amount + fee;
-        if (refFrom._out.overflow())
-            throw Error(EBALANCE);
-        totalfee += fee;
-        if (totalfee.overflow())
-            throw Error(EBALANCE);
+        refFrom._out.add_throw(Funds::sum_throw(amount, fee));
+        totalfee.add_throw(fee);
         refFrom.referredFrom.push_back(i);
     }
     Funds getTotalFee() { return totalfee; }; // OK
@@ -144,7 +132,7 @@ protected:
     }
 
 private:
-    Funds totalfee { 0 };
+    Funds totalfee { Funds::zero() };
     AccountId beginNewAccountId;
     AccountId endNewAccountId;
     const BodyView& bv;
@@ -256,14 +244,12 @@ Preparation BlockApplier::Preparer::prepare(const BodyView& bv, const NonzeroHei
     }
 
     // Read reward section
-    Funds totalpayout { 0 };
+    Funds totalpayout { Funds::zero() };
     {
         auto r{bv.reward()};
-        Funds amount { r.amount() };
+        Funds amount { r.amount_throw() };
         balanceChecker.register_reward(r.account_id(), amount, r.offset);
-        totalpayout += amount;
-        if (totalpayout.overflow())
-            throw Error(EBALANCE);
+        totalpayout.add_throw(amount);
     }
 
     // Read transfer section
@@ -271,7 +257,7 @@ Preparation BlockApplier::Preparer::prepare(const BodyView& bv, const NonzeroHei
         balanceChecker.register_transfer(t, height);
     }
 
-    if (totalpayout > height.reward() + balanceChecker.getTotalFee())
+    if (totalpayout > Funds::sum_throw(height.reward(), balanceChecker.getTotalFee()))
         throw Error(EBALANCE);
 
     // loop through old accounts and
@@ -286,9 +272,8 @@ Preparation BlockApplier::Preparer::prepare(const BodyView& bv, const NonzeroHei
             balanceChecker.set_address(accountflow, address);
 
             // check that balances are correct
-            if (accountflow.out() > accountflow.in() + balance)
-                throw Error(EBALANCE); // insufficient balance
-            Funds newbalance { accountflow.in() + balance - accountflow.out() };
+            auto totalIn{Funds::sum_throw(accountflow.in(), balance)};
+            Funds newbalance { Funds::diff_throw(totalIn , accountflow.out()) };
             res.updateBalances.push_back(std::make_pair(id, newbalance));
         } else {
             throw Error(EINVACCOUNT); // invalid account id (not found in database)
@@ -302,9 +287,10 @@ Preparation BlockApplier::Preparer::prepare(const BodyView& bv, const NonzeroHei
         if (acc.in().is_zero()) {
             throw Error(EIDPOLICY); // id was not referred
         }
-        if (acc.out() > Funds(0)) // Not (acc.out() > acc.in()) because we do not like chains of new accounts
+        if (acc.out() > Funds::zero()) // Not (acc.out() > acc.in()) because we do not like chains of new accounts
             throw Error(EBALANCE); // insufficient balance
-        Funds balance = acc.in() - acc.out();
+        assert(acc.out().is_zero());
+        Funds balance = acc.in();
         AddressView address = balanceChecker.get_new_address(i);
         AccountId accountId = balanceChecker.get_account_id(i);
         res.insertBalances.emplace_back(address, balance, accountId);

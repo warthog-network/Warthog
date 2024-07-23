@@ -127,12 +127,10 @@ std::optional<API::Transaction> State::api_get_tx(const HashView txHash) const
         auto& [data, historyIndex] = *p;
         if (data.size() == 0)
             return {};
-        auto parsed = history::parse(data);
-        if (!parsed)
-            throw std::runtime_error("Database corrupted");
+        auto parsed{history::parse_throw(data)};
         NonzeroHeight h { chainstate.history_height(historyIndex) };
-        if (std::holds_alternative<history::TransferData>(*parsed)) {
-            auto& d = std::get<history::TransferData>(*parsed);
+        if (std::holds_alternative<history::TransferData>(parsed)) {
+            auto& d = std::get<history::TransferData>(parsed);
             return API::TransferTransaction {
                 .txhash = txHash,
                 .toAddress = db.fetch_account(d.toAccountId).address,
@@ -141,13 +139,13 @@ std::optional<API::Transaction> State::api_get_tx(const HashView txHash) const
                 .timestamp = chainstate.headers()[h].timestamp(),
                 .amount = d.amount,
                 .fromAddress = db.fetch_account(d.fromAccountId).address,
-                .fee = d.compactFee,
+                .fee = d.compactFee.uncompact(),
                 .nonceId = d.pinNonce.id,
                 .pinHeight = d.pinNonce.pin_height((PinFloor(PrevHeight(h))))
             };
         } else {
-            assert(std::holds_alternative<history::RewardData>(*parsed));
-            auto& d = std::get<history::RewardData>(*parsed);
+            assert(std::holds_alternative<history::RewardData>(parsed));
+            auto& d = std::get<history::RewardData>(parsed);
             return API::RewardTransaction {
                 .txhash = txHash,
                 .toAddress = db.fetch_account(d.toAccountId).address,
@@ -247,9 +245,10 @@ tl::expected<ChainMiningTask, Error> State::mining_task(const Address& a)
     if (height.value() < NEWBLOCKSTRUCUTREHEIGHT && !is_testnet())
         return tl::make_unexpected(Error(ENOTSYNCED));
     auto payments { chainstate.mempool().get_payments(400) };
-    Funds totalfee { 0 };
+    Funds totalfee { Funds::zero() };
     for (auto& p : payments)
-        totalfee += p.fee();
+        totalfee.add_assert(p.fee()); // assert because 
+                                      // fee sum is < sum of mempool payers' balances
 
     // mempool should have deleted out of window transactions
     auto body { generate_body(db, height, a, payments) };
@@ -602,7 +601,7 @@ API::Balance State::api_get_address(AddressView address)
         return API::Balance {
             {},
             AccountId { 0 },
-            Funds { 0 }
+            Funds { Funds::zero() }
         };
     }
 }
@@ -619,7 +618,7 @@ API::Balance State::api_get_address(AccountId accountId)
         return API::Balance {
             {},
             AccountId { 0 },
-            Funds { 0 }
+            Funds { Funds::zero() }
         };
     }
 }

@@ -114,14 +114,15 @@ Funds read_fee(std::string msg)
     return parse_amount(read_with_msg(msg));
 }
 
-Funds read_amount(auto balance_lambda, CompactUInt fee)
+Funds read_amount(auto balance_lambda, CompactUInt cfee)
 {
     auto input { read_with_msg("Amount (type \"max\" for total balance): ") };
     if (input == "max") {
         Funds balance { balance_lambda() };
+        auto fee(cfee.uncompact());
         if (balance <= fee)
             throw std::runtime_error("Insufficient funds");
-        return balance - fee;
+        return Funds::diff_assert(balance, fee);
     }
     return parse_amount(input);
 }
@@ -186,7 +187,7 @@ int process(gengetopt_args_info& ai)
             if (interactive) {
                 cout << "Summary:"
                      << "\n  To:     " << to.to_string()
-                     << "\n  Fee:    " << Funds(fee).to_string()
+                     << "\n  Fee:    " << fee.uncompact().to_string()
                      << "\n  Amount: " << amount.to_string()
                      << "\n  Nonce: " << nid.value()
                      << "\nConfirm with \"y\": ";
@@ -198,7 +199,7 @@ int process(gengetopt_args_info& ai)
             cout << "Get pin" << endl;
             auto pin = endpoint.get_pin();
             cout << "Got pin" << endl;
-            PaymentCreateMessage m(pin.first, pin.second, w->privKey, CompactUInt::compact(fee), to, amount, nid);
+            PaymentCreateMessage m(pin.first, pin.second, w->privKey, fee, to, amount, nid);
             assert(m.valid_signature(pin.second, w->address));
             cout << "NonceId: " << m.nonceId.value() << endl;
             cout << "pinHeight: " << m.pinHeight.value() << endl;

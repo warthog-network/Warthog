@@ -60,7 +60,7 @@ public:
 
 namespace history {
 struct TransferData {
-    static std::optional<TransferData> parse(Reader& r);
+    static TransferData parse(Reader& r);
     constexpr static uint8_t indicator = 1;
     constexpr static uint8_t bytesize = 8 + 2 + 8 + 8 + 8; // without indicator
     AccountId fromAccountId;
@@ -71,7 +71,7 @@ struct TransferData {
     void write(Writer& w) const;
 };
 struct RewardData {
-    static std::optional<RewardData> parse(Reader& r);
+    static RewardData parse(Reader& r);
     constexpr static uint8_t indicator = 2;
     constexpr static uint8_t bytesize = 8 + 8; // without indicator
     AccountId toAccountId;
@@ -85,6 +85,6 @@ struct Entry {
     Hash hash;
     std::vector<uint8_t> data;
 };
-[[nodiscard]] std::optional<Data> parse(std::vector<uint8_t>);
+[[nodiscard]] Data parse_throw(std::vector<uint8_t>);
 std::vector<uint8_t> serialize(const Data&);
 }
