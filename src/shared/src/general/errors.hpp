@@ -120,7 +120,7 @@ const char* strerror(int32_t code);
 const char* err_name(int32_t code);
 inline bool leads_to_ban(int32_t code)
 {
-    if (code <= 0 || code > 100)
+    if (code <= 0 || code >= 200)
         return false;
     switch (code) {
     case ECHECKSUM:
@@ -128,12 +128,12 @@ inline bool leads_to_ban(int32_t code)
         // We are not sure the following are triggered by evil behavior or bug.
         // Let's observe for some more time before enable banning on them.
     case EEMPTY:
-    case EPROBEDESCRIPTOR: 
+    case EPROBEDESCRIPTOR:
         return false;
     default:
         return true;
     }
-    return code != ECHECKSUM && code > 0 && code <= 100;
+    return code != ECHECKSUM;
 }
 } // namespace errors
 

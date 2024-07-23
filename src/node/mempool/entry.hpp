@@ -22,7 +22,7 @@ struct EntryValue {
         , transactionHeight(transactionHeight)
     {
     }
-    [[nodiscard]] Funds spend() const { return fee.uncompact() + amount; }
+    [[nodiscard]] auto spend_assert() const { return Funds::sum_assert(fee.uncompact(), amount); }
     NonceReserved noncep2;
     CompactUInt fee;
     Address toAddr;

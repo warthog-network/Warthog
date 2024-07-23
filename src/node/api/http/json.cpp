@@ -299,14 +299,14 @@ json to_json(const API::MiningState& ms)
     auto height { mt.block.height };
     auto bodyView { mt.block.body_view() };
     auto blockReward { bodyView.reward() };
-    auto totalTxFee { bodyView.fee_sum() };
+    auto totalTxFee { bodyView.fee_sum_assert() };
     j["synced"] = ms.synced;
     j["header"] = serialize_hex(mt.block.header);
     j["difficulty"] = mt.block.header.target(height, is_testnet()).difficulty();
     j["merklePrefix"] = serialize_hex(bodyView.merkle_prefix());
     j["body"] = serialize_hex(mt.block.body.data());
-    j["blockReward"] = blockReward.amount().to_string();
-    j["blockRewardE8"] = blockReward.amount().E8();
+    j["blockReward"] = blockReward.amount_assert().to_string();
+    j["blockRewardE8"] = blockReward.amount_assert().E8();
     j["totalTxFee"] = totalTxFee.to_string();
     j["totalTxFeeE8"] = totalTxFee.E8();
     j["height"] = height;

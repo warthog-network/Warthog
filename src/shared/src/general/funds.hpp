@@ -1,42 +1,106 @@
 #pragma once
+#include "general/errors.hpp"
 #include "general/params.hpp"
 #include "general/with_uint64.hpp"
 #include <optional>
 
 class Writer;
 class CompactUInt;
+
 class Funds : public IsUint64 {
+private:
+    constexpr Funds(uint64_t val)
+        : IsUint64(val) {};
+
 public:
-    using IsUint64::IsUint64;
-    static std::optional<Funds> parse(std::string_view);
-    static Funds throw_parse(std::string_view);
-    bool overflow() const
+    static constexpr Funds zero() { return { 0 }; }
+    auto operator<=>(const Funds&) const = default;
+    static std::optional<Funds> from_value(uint64_t value)
     {
-        return val > MAXSUPPLY;
+        if (value > MAXSUPPLY)
+            return {};
+        return Funds(value);
     }
-    Funds(std::string_view);
+    static Funds from_value_throw(uint64_t value)
+    {
+        auto v{from_value(value)};
+        if (!v) 
+            throw Error(EINV_FUNDS);
+        return *v;
+    }
+
+    static std::optional<Funds> parse(std::string_view);
+    static Funds parse_throw(std::string_view);
     bool is_zero() const { return val == 0; }
-    void assert_bounds() const;
     std::string format() const;
     std::string to_string() const;
     uint64_t E8() const { return val; };
-    Funds& operator+=(Funds f)
+
+    void add_throw(Funds add)
     {
-        val += f.val;
-        return *this;
-    };
-    Funds operator+(Funds f) const
-    {
-        return Funds(*this) += f;
+        *this = sum_throw(*this, add);
     }
-    Funds& operator-=(Funds f)
+    void add_assert(Funds add)
     {
-        val -= f.val;
-        return *this;
+        *this = sum_assert(*this, add);
     }
-    Funds operator-(Funds f) const
+
+    static std::optional<Funds> sum(Funds a, Funds b)
     {
-        return Funds(*this) -= f;
+        auto s { a.val + b.val };
+        if (s < a.val)
+            return {};
+        return from_value(s);
+    }
+
+    template <typename... T>
+    static std::optional<Funds> sum(Funds a, Funds b, T&&... t)
+    {
+        auto s { sum(a, b) };
+        if (!s.has_value())
+            return {};
+        return sum(*s, std::forward<T>(t)...);
+    }
+
+    template <typename... T>
+    static Funds sum_throw(Funds a, T&&... t)
+    {
+        auto s { sum(a, std::forward<T>(t)...) };
+        if (!s.has_value())
+            throw Error(EBALANCE);
+        return *s;
+    }
+
+    template <typename... T>
+    static Funds sum_assert(Funds a, T&&... t)
+    {
+        auto s { sum(a, std::forward<T>(t)...) };
+        assert(s.has_value());
+        return *s;
+    }
+
+    void subtract_assert(Funds f)
+    {
+        *this = diff_assert(*this, f);
+    }
+    static std::optional<Funds> diff(Funds a, Funds b)
+    {
+        if (a.val < b.val)
+            return {};
+        return Funds::from_value(a.val - b.val);
+    }
+    static Funds diff_assert(Funds a, Funds b)
+    {
+        auto d { diff(a, b) };
+        assert(d.has_value());
+        return *d;
+    }
+    static Funds diff_throw(Funds a, Funds b)
+    {
+        auto d { diff(a, b) };
+        if (!d.has_value())
+            throw Error(EBALANCE);
+        return *d;
     }
 
 private:

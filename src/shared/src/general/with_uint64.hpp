@@ -44,7 +44,7 @@ public:
         : IsUint64((int64_t)(w)) {};
     // explicit IsUint64(long long w)
     //     : IsUint64((int64_t)(w)) {};
-    explicit IsUint64(uint64_t val)
+    explicit constexpr IsUint64(uint64_t val)
         : val(val) {};
     // explicit IsUint64(unsigned long long val)
         // : val(val) {};

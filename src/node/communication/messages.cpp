@@ -207,7 +207,7 @@ auto PongMsg::from_reader(Reader& r) -> PongMsg
     std::vector<TxidWithFee> txids;
     for (size_t i = 0; i < nTransactions; ++i) {
         TransactionId txid { r };
-        CompactUInt fee { r.uint16() };
+        CompactUInt fee { CompactUInt::from_value_throw(r.uint16()) };
         txids.push_back(TxidWithFee { txid, fee });
     }
     return {
@@ -410,7 +410,7 @@ auto TxnotifyMsg::from_reader(Reader& r) -> TxnotifyMsg
     std::vector<TxidWithFee> txids;
     for (size_t i = 0; i < nTransactions; ++i) {
         auto txid { r };
-        CompactUInt fee { r.uint16() };
+        auto fee { CompactUInt::from_value_throw(r.uint16()) };
         txids.push_back(TxidWithFee { txid, fee });
     }
     return { nonce, txids };

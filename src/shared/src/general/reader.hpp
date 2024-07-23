@@ -81,6 +81,10 @@ public:
     {
         return uint32();
     }
+    operator uint64_t()
+    {
+        return uint64();
+    }
     uint8_t uint8()
     {
         return read<uint8_t>();

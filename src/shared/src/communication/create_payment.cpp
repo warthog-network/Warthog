@@ -21,9 +21,9 @@ PaymentCreateMessage::PaymentCreateMessage(ReaderCheck<bytesize> r)
     : pinHeight(Height(r.r))
     , nonceId(r.r)
     , reserved(r.r)
-    , compactFee(r.r)
+    , compactFee(CompactUInt::from_value_throw(r.r))
     , toAddr(r.r)
-    , amount(r)
+    , amount(Funds::from_value_throw(r.r))
     , signature(r.r)
 {
 }
@@ -47,7 +47,7 @@ TxHash PaymentCreateMessage::tx_hash(HashView pinHash) const
         << pinHeight
         << nonceId
         << reserved
-        << compactFee
+        << compactFee.uncompact() // TODO: check if uncompact was implicit in earlier commits
         << toAddr
         << amount);
 }
@@ -63,14 +63,15 @@ PaymentCreateMessage::operator std::vector<uint8_t>()
 
 PaymentCreateMessage::operator std::string()
 {
-    return nlohmann::json{
-        {"pinHeight",pinHeight.value()},
-        {"nonceId",nonceId.value()},
-        {"toAddr",toAddr.to_string()},
-        {"amount",amount.to_string()},
-        {"fee",compactFee.to_string()},
-        {"signature65",signature.to_string()},
-    }.dump(1);
+    return nlohmann::json {
+        { "pinHeight", pinHeight.value() },
+        { "nonceId", nonceId.value() },
+        { "toAddr", toAddr.to_string() },
+        { "amount", amount.to_string() },
+        { "fee", compactFee.to_string() },
+        { "signature65", signature.to_string() },
+    }
+        .dump(1);
 }
 
 bool PaymentCreateMessage::valid_signature(HashView pinHash, AddressView fromAddress) const

@@ -46,7 +46,7 @@ struct ParameterParser {
     }
     operator Funds()
     {
-        return Funds::throw_parse(sv);
+        return Funds::parse_throw(sv);
     }
     operator Page()
     {

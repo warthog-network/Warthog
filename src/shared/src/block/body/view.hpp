@@ -104,7 +104,7 @@ public:
     size_t getNAddresses() const { return nAddresses; };
     TransferView get_transfer(size_t i) const;
     RewardView reward() const;
-    Funds fee_sum() const;
+    Funds fee_sum_assert() const;
     AddressView get_address(size_t i) const;
 
 private:
