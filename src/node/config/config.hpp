@@ -48,7 +48,7 @@ struct ConfigParams {
             }
         }
         V4V6 tcp { true, false };
-        V4V6 websocket { true, false };
+        V4V6 websocket { true, true };
         V4V6 webRTC { true, false };
     } allowedInboundTransports;
     struct Data {

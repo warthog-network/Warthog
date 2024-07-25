@@ -100,7 +100,7 @@ static int libwebsocket_callback(struct lws* wsi,
         auto& sockaddr = *ipport;
         if (cm.config.useProxy) {
             auto fIp { forwarded_for(wsi) };
-            if (!fIp || !fIp->is_v4())
+            if (!fIp)
                 return -1;
             sockaddr.ip =  *fIp; // overwrite with real IP
         }
