@@ -2,6 +2,7 @@
 #include "config/types.hpp"
 #include "eventloop/eventloop.hpp"
 #include "global/globals.hpp"
+#include "transport/helpers/sockaddr.hpp"
 #include "transport/ws/native/connection.hpp"
 #include "ws_session.hpp"
 #include <cassert>
@@ -29,20 +30,16 @@ std::optional<IP> forwarded_for(lws* wsi)
     }
     return {};
 }
-std::optional<std::pair<IPv4, uint16_t>> peer_ipv4_port(lws* wsi)
+std::optional<Sockaddr> peer_ip_port(lws* wsi)
 {
     auto fd { lws_get_socket_fd(wsi) };
-    // lws_get_peer_addresses()
     assert(fd > 0);
     sockaddr_storage sa;
     socklen_t len(sizeof(sa));
     int r(getpeername(fd, (sockaddr*)&sa, &len));
-    if (r != 0 || sa.ss_family != AF_INET) {
+    if (r != 0)
         return {};
-    }
-    // lws_get_peer_addresses()
-    sockaddr_in* addr_i4 = (struct sockaddr_in*)&sa;
-    return std::pair<IPv4, uint16_t> { IPv4(ntoh32(uint32_t(addr_i4->sin_addr.s_addr))), addr_i4->sin_port };
+    return Sockaddr::from_sockaddr_storage(sa);
 }
 }
 using namespace std;
@@ -96,27 +93,27 @@ static int libwebsocket_callback(struct lws* wsi,
         return -1; // Do not allow plain HTTP
     case LWS_CALLBACK_HTTP_CONFIRM_UPGRADE: {
         lws_rx_flow_control(wsi, 0);
-        auto ipv4port = peer_ipv4_port(wsi);
-        if (!ipv4port) // cannot extract peer info
+        auto ipport = peer_ip_port(wsi);
+        if (!ipport) // cannot extract peer info
             return -1;
         auto& cm { conman() };
-        IPv4 ip { ipv4port->first };
+        auto& sockaddr = *ipport;
         if (cm.config.useProxy) {
             auto fIp { forwarded_for(wsi) };
             if (!fIp || !fIp->is_v4())
                 return -1;
-            ip = fIp->get_v4(); // overwrite with real IP
+            sockaddr.ip =  *fIp; // overwrite with real IP
         }
-        spdlog::info("Incoming websocket connection from IP: {}", ip.to_string());
+        spdlog::info("Incoming websocket connection from IP: {}", sockaddr.ip.to_string());
 
-        WSSockaddr wsaddr(ip, ipv4port->second);
+        WSPeeraddr wsaddr(sockaddr);
         auto p {
             new std::shared_ptr<WSSession>(WSSession::make_new(false, wsi))
         };
         lws_set_opaque_user_data(wsi, p);
         auto& session { *p };
         session->connection = WSConnection::make_new(session, WSConnectRequest::make_inbound(wsaddr), conman());
-        global().peerServer->authenticate_inbound(ip, TransportType::Websocket, session->connection);
+        global().peerServer->authenticate_inbound(sockaddr.ip, TransportType::Websocket, session->connection);
         psession()->on_connected();
         lws_callback_on_writable(wsi);
         break;

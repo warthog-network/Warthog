@@ -3,6 +3,7 @@
 #include "ip_type.hpp"
 #include <array>
 #include <compare>
+#include <cstring>
 #include <optional>
 #include <span>
 #include <stdexcept>
@@ -12,15 +13,62 @@ class Writer;
 
 class IPv6 {
 public:
+    class BanHandle48 {
+    public:
+        auto operator<=>(const BanHandle48&) const = default;
+        BanHandle48(const uint8_t* p, size_t n)
+            : BanHandle48({ p, n })
+        {
+        }
+        BanHandle48(std::span<const uint8_t, 6> s)
+        {
+            std::copy(s.begin(), s.end(), data.begin());
+        }
+        std::string to_string() const;
+
+    private:
+        std::array<uint8_t, 6> data;
+    };
+
+    class BanHandle32 {
+    public:
+        auto operator<=>(const BanHandle32&) const = default;
+
+        BanHandle32(const uint8_t* p, size_t n)
+            : BanHandle32({ p, n })
+        {
+        }
+        BanHandle32(std::span<const uint8_t, 4> s)
+        {
+            std::copy(s.begin(), s.end(), data.begin());
+        }
+        std::string to_string() const;
+
+    private:
+        std::array<uint8_t, 4> data;
+    };
+    struct Block32View : public std::span<const uint8_t, 4> { // view class for representing /32 block
+        Block32View(std::span<const uint8_t, 4> s)
+            : std::span<const uint8_t, 4>(std::move(s))
+        {
+        }
+    };
     struct Block48View : public std::span<const uint8_t, 6> { // view class for representing /48 block
         Block48View(std::span<const uint8_t, 6> s)
-            :std::span<const uint8_t, 6>(std::move(s)){}
+            : std::span<const uint8_t, 6>(std::move(s))
+        {
+        }
     };
 
     constexpr static auto type() { return IpType::v6; }
     IPv6(Reader& r);
     Block48View block48_view() const;
-    constexpr IPv6(std::span<uint8_t, 16> s)
+    Block32View block32_view() const;
+    static constexpr IPv6 from_data(const uint8_t* pos, size_t len = byte_size())
+    {
+        return { std::span<const uint8_t, 16> { pos, len } };
+    }
+    constexpr IPv6(std::span<const uint8_t, 16> s)
     {
         std::copy(s.begin(), s.end(), data.begin());
     }
@@ -44,6 +92,14 @@ public:
     uint8_t at() const
     {
         return data[i];
+    }
+    BanHandle32 ban_handle32() const
+    {
+        return { std::span<const uint8_t, 4>(data.begin(), data.begin() + 4) };
+    }
+    BanHandle48 ban_handle48() const
+    {
+        return { std::span<const uint8_t, 6>(data.begin(), data.begin() + 6) };
     }
     bool is_valid() const;
     bool is_rfc3849() const; // IPv6 documentation address (2001:0DB8::/32)

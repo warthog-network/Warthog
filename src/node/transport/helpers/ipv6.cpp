@@ -2,9 +2,37 @@
 #include "general/reader.hpp"
 #include "general/writer.hpp"
 
+std::string IPv6::BanHandle48::to_string() const
+{
+    std::array<uint8_t, 16> tmp;
+    tmp.fill(0);
+    std::copy(data.begin(), data.end(), tmp.begin());
+    IPv6 ip(tmp);
+    auto s { ip.to_string() };
+    s.resize(15);
+    s += ":/48";
+    return s;
+}
+std::string IPv6::BanHandle32::to_string() const
+{
+    std::array<uint8_t, 16> tmp;
+    tmp.fill(0);
+    std::copy(data.begin(), data.end(), tmp.begin());
+    IPv6 ip(tmp);
+    auto s { ip.to_string() };
+    s.resize(10);
+    s += ":/32";
+    return s;
+}
+
 auto IPv6::block48_view() const -> Block48View
 {
     return { std::span<const uint8_t, 6> { data.begin(), data.begin() + 6 } };
+}
+
+auto IPv6::block32_view() const -> Block32View
+{
+    return { std::span<const uint8_t, 4> { data.begin(), data.begin() + 4 } };
 }
 
 template <std::size_t N>

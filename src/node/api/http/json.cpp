@@ -91,7 +91,7 @@ struct Inspector {
 
 namespace {
 template <typename T>
-json verified_json(const std::map<TCPSockaddr, T>& map)
+json verified_json(const std::map<TCPPeeraddr, T>& map)
 {
     using namespace std::chrono;
     auto now = steady_clock::now();
@@ -333,7 +333,7 @@ json to_json(const API::Transaction& tx)
         tx);
 }
 
-json to_json(const Sockaddr& ea)
+json to_json(const Peeraddr& ea)
 {
     return ea.to_string();
 }

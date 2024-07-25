@@ -79,7 +79,7 @@ public:
     {
         return weak_from_this();
     }
-    Sockaddr peer_addr() const override { return { sockAddr }; }
+    Peeraddr peer_addr() const override { return { sockAddr }; }
     auto& native_peer_addr() const { return sockAddr ; }
     // RTCSockaddr connection_peer_addr_native() const ;
     // { return connectRequest.address; }
@@ -103,7 +103,7 @@ private: // maybe proxied functions
 private:
     bool isInbound;
     uint64_t verificationConId { 0 }; // Nonzero specifies connection id of peer this RTC connection is verifying.
-    WebRTCSockaddr sockAddr;
+    WebRTCPeeraddr sockAddr;
     std::weak_ptr<Eventloop> eventloop;
 
     variant_t data;

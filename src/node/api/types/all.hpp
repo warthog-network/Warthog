@@ -1,6 +1,6 @@
 #pragma once
 
-#include "transport/helpers/socket_addr.hpp"
+#include "transport/helpers/peer_addr.hpp"
 #include "block/body/primitives.hpp"
 #include "block/chain/history/index.hpp"
 #include "block/chain/signed_snapshot.hpp"
@@ -145,7 +145,7 @@ struct HashrateChart {
 };
 
 struct Peerinfo {
-    Sockaddr endpoint;
+    Peeraddr endpoint;
     bool initialized;
     PeerChain chainstate;
     SignedSnapshot::Priority theirSnapshotPriority;

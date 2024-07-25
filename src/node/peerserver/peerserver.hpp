@@ -78,16 +78,16 @@ public:
     {
         return async_event(GetOffenses { page, std::move(cb) });
     }
-    bool async_register_peer(TCPSockaddr a)
+    bool async_register_peer(TCPPeeraddr a)
     {
         return async_event(RegisterPeer { a });
     }
-    bool async_seen_peer(TCPSockaddr a)
+    bool async_seen_peer(TCPPeeraddr a)
     {
         return async_event(SeenPeer { a });
     }
     bool async_get_recent_peers(
-        std::function<void(std::vector<std::pair<TCPSockaddr, uint32_t>>&&)>&& cb,
+        std::function<void(std::vector<std::pair<TCPPeeraddr, Timestamp>>&&)>&& cb,
         size_t maxEntries = 100)
     {
         return async_event(GetRecentPeers { std::move(cb), maxEntries });
@@ -107,13 +107,13 @@ public:
 
 private:
     struct RegisterPeer {
-        TCPSockaddr a;
+        TCPPeeraddr a;
     };
     struct SeenPeer {
-        TCPSockaddr a;
+        TCPPeeraddr a;
     };
     struct GetRecentPeers {
-        std::function<void(std::vector<std::pair<TCPSockaddr, uint32_t>>&&)> cb;
+        std::function<void(std::vector<std::pair<TCPPeeraddr, Timestamp>>&&)> cb;
         size_t maxEntries;
     };
     struct Inspect {
@@ -149,9 +149,9 @@ private:
     void handle_event(GetRecentPeers&&);
     void handle_event(Inspect&&);
 
-    void on_close(const OnClose&, const WebRTCSockaddr&);
+    void on_close(const OnClose&, const WebRTCPeeraddr&);
 #ifndef DISABLE_LIBUV
-    void on_close(const OnClose&, const TCPSockaddr&);
+    void on_close(const OnClose&, const Sockaddr&);
 #else
     void on_close(const OnClose&, const WSUrladdr&);
 #endif

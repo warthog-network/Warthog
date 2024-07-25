@@ -1,7 +1,7 @@
 #pragma once
 #include "eventloop/types/conref_declaration.hpp"
 #include "transport/connect_request.hpp"
-#include "transport/helpers/socket_addr.hpp"
+#include "transport/helpers/peer_addr.hpp"
 #include "transport/helpers/tcp_sockaddr.hpp"
 #include <atomic>
 #include <chrono>
@@ -49,7 +49,7 @@ public:
     {
     }
     virtual bool inbound() const = 0;
-    virtual Sockaddr peer_addr() const = 0;
+    virtual Peeraddr peer_addr() const = 0;
     virtual std::optional<ConnectRequest> connect_request() const = 0;
 };
 

@@ -139,9 +139,9 @@ std::pair<VectorEntry&, bool> VerifiedVector::emplace(const TCPWithSource& i, tp
     return { e, true };
 }
 
-std::vector<TCPSockaddr> connection_schedule::VerifiedVector::sample(size_t N) const
+std::vector<TCPPeeraddr> connection_schedule::VerifiedVector::sample(size_t N) const
 {
-    std::vector<TCPSockaddr> out;
+    std::vector<TCPPeeraddr> out;
     out.reserve(N);
     std::sample(this->data.begin(), this->data.end(), std::back_inserter(out),
         N, std::mt19937 { std::random_device {}() });
@@ -179,7 +179,7 @@ void SockaddrVectorBase<T>::update_wakeup_time(const std::optional<time_point>& 
 }
 
 template <typename T>
-auto SockaddrVectorBase<T>::find(const TCPSockaddr& address) const -> elem_t*
+auto SockaddrVectorBase<T>::find(const TCPPeeraddr& address) const -> elem_t*
 {
     auto iter { std::find_if(data.begin(), data.end(), [&](auto& elem) { return elem.address == address; }) };
     if (iter == data.end())
@@ -198,12 +198,12 @@ TCPConnectionSchedule::TCPConnectionSchedule(InitArg ia)
     wakeup_tp.consider(unverifiedNew.timeout());
 }
 
-auto TCPConnectionSchedule::find_verified(const TCPSockaddr& sa) -> VectorEntry*
+auto TCPConnectionSchedule::find_verified(const TCPPeeraddr& sa) -> VectorEntry*
 {
     return verified.find(sa);
 }
 
-auto TCPConnectionSchedule::find(const TCPSockaddr& a) const -> std::optional<Found>
+auto TCPConnectionSchedule::find(const TCPPeeraddr& a) const -> std::optional<Found>
 {
     using enum VerificationState;
     VectorEntry* p { verified.find(a) };
@@ -239,7 +239,7 @@ auto TCPConnectionSchedule::emplace_verified(const TCPWithSource& s, steady_cloc
     return verified.emplace(s, lastVerified).second;
 }
 
-std::optional<ConnectRequest> TCPConnectionSchedule::insert(TCPSockaddr addr, Source src)
+std::optional<ConnectRequest> TCPConnectionSchedule::insert(TCPPeeraddr addr, Source src)
 {
     auto o { find(addr) };
     if (o.has_value()) {
@@ -254,7 +254,7 @@ std::optional<ConnectRequest> TCPConnectionSchedule::insert(TCPSockaddr addr, So
     }
 }
 
-auto TCPConnectionSchedule::move_to_verified(SockaddrVector& ev, const TCPSockaddr& addr) -> VectorEntry*
+auto TCPConnectionSchedule::move_to_verified(SockaddrVector& ev, const TCPPeeraddr& addr) -> VectorEntry*
 {
 
     using elem_t = SockaddrVector::elem_t;
@@ -270,7 +270,7 @@ void TCPConnectionSchedule::outbound_established(const TCPConnection& c)
 {
     if (c.inbound())
         return;
-    const TCPSockaddr& ea { c.peer_addr_native() };
+    const TCPPeeraddr& ea { c.peer_addr_native() };
     VectorEntry* p { move_to_verified(unverifiedNew, ea) };
     if (!p)
         p = move_to_verified(unverifiedFailed, ea);
@@ -282,7 +282,7 @@ void TCPConnectionSchedule::outbound_established(const TCPConnection& c)
 }
 
 namespace connection_schedule {
-void SockaddrVector::erase(const TCPSockaddr& a, auto lambda)
+void SockaddrVector::erase(const TCPPeeraddr& a, auto lambda)
 {
     std::erase_if(data, [&a, &lambda](elem_t& d) {
         if (d.address == a) {
@@ -293,7 +293,7 @@ void SockaddrVector::erase(const TCPSockaddr& a, auto lambda)
     });
 }
 
-auto SockaddrVector::emplace(const WithSource<TCPSockaddr>& i) -> std::pair<elem_t&, bool>
+auto SockaddrVector::emplace(const WithSource<TCPPeeraddr>& i) -> std::pair<elem_t&, bool>
 {
     auto p { find(i.address) };
     if (p)
@@ -310,9 +310,9 @@ void TCPConnectionSchedule::start()
     constexpr size_t maxRecent = 100;
 
     // get recently seen peers from db
-    std::promise<std::vector<std::pair<TCPSockaddr, uint32_t>>> p;
+    std::promise<std::vector<std::pair<TCPPeeraddr, Timestamp>>> p;
     auto future { p.get_future() };
-    auto cb = [&p](std::vector<std::pair<TCPSockaddr, uint32_t>>&& v) {
+    auto cb = [&p](std::vector<std::pair<TCPPeeraddr, Timestamp>>&& v) {
         p.set_value(std::move(v));
     };
     peerServer.async_get_recent_peers(std::move(cb), maxRecent);
@@ -321,7 +321,7 @@ void TCPConnectionSchedule::start()
     const int64_t nowts = now_timestamp();
     constexpr connection_schedule::Source startup_source { 0 };
     for (const auto& [a, timestamp] : db_peers) {
-        auto lastVerified = sc::now() - seconds((nowts - int64_t(timestamp)));
+        auto lastVerified = sc::now() - seconds((nowts - int64_t(timestamp.val())));
         auto wasInserted { emplace_verified({ a, startup_source }, lastVerified) };
         assert(wasInserted);
     }

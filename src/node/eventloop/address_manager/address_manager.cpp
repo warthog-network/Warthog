@@ -55,7 +55,7 @@ void AddressManager::start_scheduled_connections()
 }
 
 #ifndef DISABLE_LIBUV
-void AddressManager::verify(std::vector<TCPSockaddr> v, IPv4 source)
+void AddressManager::verify(std::vector<TCPPeeraddr> v, IPv4 source)
 {
     for (auto& ea : v)
         tcpConnectionSchedule.insert(ea, source);
@@ -96,7 +96,7 @@ auto AddressManager::insert(InsertData id) -> tl::expected<Conref, int32_t>
 #ifndef DISABLE_LIBUV
         if (id.convar.is_tcp()) {
             auto& tcp_con { id.convar.get_tcp() };
-            auto ipv4 { tcp_con->peer_addr_native().ip() };
+            auto ipv4 { tcp_con->peer_addr_native().ip };
             if (!c->inbound()) {
                 tcpConnectionSchedule.outbound_established(*tcp_con);
                 // insert_additional_verified(c->connection_peer_addr()); // TODO: additional_verified necessary?

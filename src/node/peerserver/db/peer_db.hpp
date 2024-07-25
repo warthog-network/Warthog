@@ -3,9 +3,25 @@
 #include "general/errors.hpp"
 #include "general/now.hpp"
 #include "general/page.hpp"
+#include "general/timestamp.hpp"
 #include "offense_entry.hpp"
 #include "transport/helpers/tcp_sockaddr.hpp"
 #include <vector>
+
+inline IP::BanHandle get_banhandle(SQLite::Column col0)
+{
+    if (col0.isInteger())
+        return IPv4(uint32_t(col0.getInt64()));
+
+    assert(col0.isBlob());
+    size_t n(col0.size());
+    if (n==32) {
+        return IPv6::BanHandle32((const uint8_t*)col0.getBlob(),n);
+    }else if (n == 48){
+        return IPv6::BanHandle48((const uint8_t*)col0.getBlob(),n);
+    }
+    throw std::runtime_error("Peers database error in, cannot get ban handle");
+}
 
 inline IP get_ip(SQLite::Column col0)
 {
@@ -15,9 +31,9 @@ inline IP get_ip(SQLite::Column col0)
     assert(col0.isBlob());
     size_t n(col0.size());
     assert(n == IPv6::byte_size());
-    return IPv6(std::span<uint8_t, IPv6::byte_size()>((uint8_t*)col0.getBlob(), IPv6::byte_size()));
+    return IPv6::from_data((uint8_t*)col0.getBlob(), IPv6::byte_size());
 }
-struct Sockaddr;
+struct Peeraddr;
 class PeerDB {
 private:
     // ids to save additional information in tables
@@ -25,10 +41,10 @@ private:
 
 public:
     struct BanEntry {
-        IP ip;
+        IP::BanHandle ip;
         int32_t banuntil;
         Error offense;
-        BanEntry(IP ip, int32_t banuntil, uint32_t offense)
+        BanEntry(IP::BanHandle ip, int32_t banuntil, uint32_t offense)
             : ip(ip)
             , banuntil(banuntil)
             , offense(offense) {};
@@ -37,19 +53,27 @@ public:
     SQLite::Transaction transaction() { return SQLite::Transaction(db); }
     void set_ban(IPv4 ipv4, uint32_t banUntil, int32_t offense)
     {
-        peerset.bind(1, banUntil);
-        peerset.bind(2, offense);
-        peerset.bind(3, ipv4.data);
-        peerset.exec();
-        peerset.reset();
+        peerban.bind(1, banUntil);
+        peerban.bind(2, offense);
+        peerban.bind(3, ipv4.data);
+        peerban.exec();
+        peerban.reset();
     }
     void set_ban(IPv6::Block48View block48, uint32_t banUntil, int32_t offense)
     {
-        peerset.bind(1, banUntil);
-        peerset.bind(2, offense);
-        peerset.bindNoCopy(3, block48.data(), block48.size());
-        peerset.exec();
-        peerset.reset();
+        peerban.bind(1, banUntil);
+        peerban.bind(2, offense);
+        peerban.bindNoCopy(3, block48.data(), block48.size());
+        peerban.exec();
+        peerban.reset();
+    }
+    void set_ban(IPv6::Block32View block32, uint32_t banUntil, int32_t offense)
+    {
+        peerban.bind(1, banUntil);
+        peerban.bind(2, offense);
+        peerban.bindNoCopy(3, block32.data(), block32.size());
+        peerban.exec();
+        peerban.reset();
     }
     void insert_clear_ban(IP ip)
     {
@@ -57,7 +81,7 @@ public:
             insertClearBan.bind(1, ip.get_v4().data);
         } else {
             auto block48 { ip.get_v6().block48_view() };
-            peerset.bindNoCopy(1, block48.data(), block48.size());
+            peerban.bindNoCopy(1, block48.data(), block48.size());
         }
         insertClearBan.exec();
         insertClearBan.reset();
@@ -69,10 +93,10 @@ public:
         uint32_t t = now_timestamp();
         selectCurrentBans.bind(1, t);
         while (selectCurrentBans.executeStep()) {
-            auto ip { get_ip(selectCurrentBans.getColumn(0)) };
+            auto banhandle { get_banhandle(selectCurrentBans.getColumn(0)) };
             uint32_t banuntil = selectCurrentBans.getColumn(1).getInt64();
             int32_t offense = selectCurrentBans.getColumn(2).getInt64();
-            BanEntry e(ip, banuntil, offense);
+            BanEntry e(banhandle, banuntil, offense);
             res.push_back(e);
         }
         selectCurrentBans.reset();
@@ -80,7 +104,7 @@ public:
     }
 
     struct GetPeerResult {
-        uint32_t banUntil;
+        Timestamp banUntil;
         int32_t offense;
     };
     // std::optional<GetPeerResult> get_peer(IPv4 ipv4, uint32_t& banUntil, int32_t& offense)
@@ -95,7 +119,7 @@ public:
         }
         if (selectBan.executeStep()) {
             res.emplace(GetPeerResult {
-                .banUntil = uint32_t(selectBan.getColumn(0).getInt64()),
+                .banUntil = Timestamp(selectBan.getColumn(0).getInt64()),
                 .offense = selectBan.getColumn(1).getInt() });
         }
         selectBan.reset();
@@ -176,12 +200,9 @@ public:
         stmtResetBans.exec();
         stmtResetBans.reset();
     }
-    std::vector<std::pair<TCPSockaddr, uint32_t>> recent_peers(int64_t maxEntries = 100);
-    std::vector<std::pair<WSSockaddr, uint32_t>> recent_ws_peers(int64_t maxEntries = 100);
-    void peer_seen(TCPSockaddr, uint32_t now);
-    void ws_peer_seen(WSSockaddr a, uint32_t now);
-    void peer_insert(TCPSockaddr);
-    void ws_peer_insert(WSSockaddr);
+    std::vector<std::pair<TCPPeeraddr, Timestamp>> recent_peers(int64_t maxEntries = 100);
+    void peer_seen(TCPPeeraddr, uint32_t now);
+    void peer_insert(TCPPeeraddr);
 
 private:
     SQLite::Database db;
@@ -191,13 +212,11 @@ private:
     SQLite::Statement insertOffense;
     SQLite::Statement getOffenses;
     SQLite::Statement insertPeer;
-    SQLite::Statement insertWsPeer;
     SQLite::Statement setlastseen;
     SQLite::Statement set_ws_lastseen;
     SQLite::Statement selectRecentPeers;
-    SQLite::Statement selectRecentWsPeers;
     SQLite::Statement insertClearBan;
-    SQLite::Statement peerset;
+    SQLite::Statement peerban;
 
     SQLite::Statement stmtResetBans;
     SQLite::Statement selectBan;

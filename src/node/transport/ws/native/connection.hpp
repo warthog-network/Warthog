@@ -35,8 +35,8 @@ public:
         return weak_from_this();
     }
 
-    Sockaddr peer_addr() const override { return { connection_peer_addr_native() }; }
-    WSSockaddr connection_peer_addr_native() const { return connectRequest.address; }
+    Peeraddr peer_addr() const override { return { connection_peer_addr_native() }; }
+    WSPeeraddr connection_peer_addr_native() const { return connectRequest.address; }
     bool inbound() const override;
 
 private:

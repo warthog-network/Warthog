@@ -7,7 +7,7 @@ class WSUrladdr {
     constexpr WSUrladdr(std::string_view url, std::string scheme, uint16_t port)
         : url(url)
         , scheme(std::move(scheme))
-        , _port(port)
+        , port(port)
     {
     }
 
@@ -27,9 +27,8 @@ public:
         return scheme;
     }
     std::optional<IP> ip() const { return {}; }
-    uint16_t port() const { return _port; };
     static std::optional<WSUrladdr> parse(const std::string& sv);
     std::string url;
     std::string scheme;
-    uint16_t _port;
+    uint16_t port;
 };

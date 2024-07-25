@@ -90,9 +90,9 @@ void PeerServer::handle_event(AuthenticateInbound&& nc)
         con.close(EREFUSED);
         return;
     }
-    auto bannedUntil = [this, &ip]() -> std::optional<uint32_t> {
-        if (auto res { bancache.get(ip) }) {
-            return res->banUntil;
+    auto bannedUntil = [this, &ip]() -> std::optional<Timestamp> {
+        if (auto res { bancache.get_expiration(ip) }) {
+            return Timestamp::from_time_point(*res);
         }
         if (auto res { db.get_peer(ip) }) {
             return res->banUntil;
@@ -130,7 +130,7 @@ void PeerServer::handle_event(SeenPeer&& e)
 }
 void PeerServer::handle_event(GetRecentPeers&& e)
 {
-    std::vector<std::pair<TCPSockaddr, uint32_t>> res;
+    std::vector<std::pair<TCPPeeraddr, Timestamp>> res;
 
 #ifndef DISABLE_LIBUV
     // TCP peers
@@ -148,22 +148,29 @@ void PeerServer::handle_event(Inspect&& e)
     e.cb(*this);
 }
 
-void PeerServer::on_close(const OnClose&, const WebRTCSockaddr& addr)
+void PeerServer::on_close(const OnClose&, const WebRTCPeeraddr& addr)
 {
-    // addr._ip
     // do nothing
 }
 
 #ifndef DISABLE_LIBUV
-void PeerServer::on_close(const OnClose& o, const TCPSockaddr& addr)
+void PeerServer::on_close(const OnClose& o, const Sockaddr& addr)
 {
-    auto ip { addr._ip };
+    auto ip { addr.ip };
     auto offense { o.offense };
     if (!ip.is_loopback() // don't ban localhost
         && errors::leads_to_ban(offense)) {
         uint32_t banuntil = now + bantime(offense);
-        db.set_ban(ip, banuntil, offense);
-        db.insert_offense(ip, offense);
+        if (ip.is_v4()) {
+            auto ip4{ip.get_v4()};
+            db.set_ban(ip4, banuntil, offense);
+            db.insert_offense(ip4, offense);
+        }else{
+            auto ip6{ip.get_v6()};
+            db.set_ban(ip6.block48_view(), banuntil, offense);
+            db.insert_offense(ip6, offense);
+        }
+
         bancache.set(ip, banuntil);
     }
     if (o.con->logrow >= 0)

@@ -1,5 +1,5 @@
 #include "connection.hpp"
-#include "transport/helpers/socket_addr.hpp"
+#include "transport/helpers/peer_addr.hpp"
 #include "eventloop/eventloop.hpp"
 #include "general/is_testnet.hpp"
 #include "global/globals.hpp"
@@ -9,7 +9,7 @@
 
 uint16_t TCPConnection::listen_port() const
 {
-    return conman.bindAddress.port();
+    return conman.bindAddress.port;
 }
 
 std::optional<ConnectRequest> TCPConnection::connect_request() const
@@ -77,11 +77,11 @@ void TCPConnection::async_send(std::unique_ptr<char[]> data, size_t size)
     });
 }
 
-TCPSockaddr TCPConnection::claimed_peer_addr() const
+TCPPeeraddr TCPConnection::claimed_peer_addr() const
 {
     if (inbound()) {
         // on inbound connection take the port the peer claims to listen on
-        return { TCPSockaddr { peer_addr_native().ip(), asserted_port() } };
+        return { TCPPeeraddr { peer_addr_native().ip, asserted_port() } };
     } else {
         // on outbound connection the port is the correct peer endpoint port
         return peer_addr_native();

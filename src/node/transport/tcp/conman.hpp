@@ -41,7 +41,7 @@ private:
 
 public:
     struct APIPeerdata {
-        TCPSockaddr address;
+        TCPPeeraddr address;
         uint32_t since;
     };
     using PeersCB = MoveOnlyFunction<void(std::vector<APIPeerdata>)>;
@@ -70,7 +70,7 @@ private:
         async_add_event(DeferFunc { std::move(cb) });
     }
 
-    const TCPSockaddr bindAddress;
+    const TCPPeeraddr bindAddress;
     //--------------------------------------
     // data accessed by libuv thread
     PerIpCounter perIpCounter;

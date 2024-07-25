@@ -13,7 +13,7 @@ namespace address_manager {
 struct InitArg {
     PeerServer& peerServer;
 #ifndef DISABLE_LIBUV
-    const std::vector<TCPSockaddr>& pin;
+    const std::vector<TCPPeeraddr>& pin;
 #else
     const std::vector<WSUrladdr>& pin;
 #endif

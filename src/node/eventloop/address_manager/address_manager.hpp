@@ -118,7 +118,7 @@ public:
     void outbound_failed(const ConnectRequest& r);
     void outbound_closed(OutboundClosedEvent);
 
-    void verify(std::vector<TCPSockaddr>, IPv4 source); // TODO call this function
+    void verify(std::vector<TCPPeeraddr>, IPv4 source); // TODO call this function
     [[nodiscard]] std::optional<Conref> find(uint64_t id) const;
     size_t size() const { return conndatamap.size(); }
     size_t ip_count(const IP& ip) const { return ipCounter.count(ip); };
@@ -146,14 +146,14 @@ public:
     [[nodiscard]] std::optional<time_point> pop_scheduled_connect_time();
 
 private:
-    bool is_own_endpoint(Sockaddr a);
+    bool is_own_endpoint(Peeraddr a);
     std::optional<Conref> eviction_candidate() const;
 
 #ifndef DISABLE_LIBUV
 #endif
 
 private:
-    std::vector<Sockaddr> outboundEndpoints;
+    std::vector<Peeraddr> outboundEndpoints;
     std::vector<Conref> inboundConnections;
 #ifndef DISABLE_LIBUV
     TCPConnectionSchedule tcpConnectionSchedule;

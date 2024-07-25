@@ -19,7 +19,7 @@ class RTCConnection;
 namespace uvw {
 class timer_handle;
 }
-struct Sockaddr;
+struct Peeraddr;
 
 struct HandshakeState {
 

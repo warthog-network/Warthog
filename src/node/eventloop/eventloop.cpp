@@ -623,7 +623,7 @@ void Eventloop::handle_event(GeneratedVerificationSdpOffer&& m)
         return;
     }
     auto& c { o.value() };
-    const auto& verifyIp { rtcCon.native_peer_addr().ip() };
+    const auto& verifyIp { rtcCon.native_peer_addr().ip };
 
     auto ips { IdentityIps::from_sdp(m.sdp) };
 
@@ -1020,7 +1020,7 @@ void Eventloop::handle_msg(Conref c, PingV2Msg&& m)
     c.rtc().their.forwardRequests.discard(m.discarded_forward_requests());
 };
 
-void Eventloop::on_received_addresses(Conref cr, const messages::Vector16<TCPSockaddr>& addresses){
+void Eventloop::on_received_addresses(Conref cr, const messages::Vector16<TCPPeeraddr>& addresses){
     // only process received addresses when we are a native node (not browser nodes)
 #ifndef DISABLE_LIBUV 
     if (auto ip{cr.peer().ip()}; ip.has_value() && cr.is_tcp()) {
@@ -1523,7 +1523,7 @@ tl::expected<Conref, int32_t> Eventloop::try_register(RegisterConnection&& m)
         auto& conId { m.convar.get_rtc()->verification_con_id() };
         if (conId != 0) { // conId id verified in this RTC connection
             if (auto o { connections.find(conId) }) {
-                auto ip { c->native_peer_addr().ip() };
+                auto ip { c->native_peer_addr().ip };
                 auto& parent = *o;
                 parent.rtc().their.identity.set_verified(ip);
                 spdlog::info("verified RTC ip {} for {}", ip.to_string(), parent.peer().to_string());

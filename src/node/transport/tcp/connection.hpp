@@ -36,9 +36,9 @@ public:
         return weak_from_this();
     }
 
-    TCPSockaddr claimed_peer_addr() const;
-    Sockaddr peer_addr() const override { return { peer_addr_native() }; }
-    TCPSockaddr peer_addr_native() const { return connectRequest.address(); }
+    TCPPeeraddr claimed_peer_addr() const;
+    Peeraddr peer_addr() const override { return { peer_addr_native() }; }
+    TCPPeeraddr peer_addr_native() const { return connectRequest.address(); }
     bool inbound() const override;
 
 private:

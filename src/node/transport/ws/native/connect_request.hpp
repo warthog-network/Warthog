@@ -4,15 +4,15 @@
 
 struct WSConnectRequest : public ConnectRequestBase {
     friend class ConnectionData;
-    static WSConnectRequest make_inbound(WSSockaddr peer)
+    static WSConnectRequest make_inbound(WSPeeraddr peer)
     {
         return { std::move(peer), -std::chrono::seconds(1) };
     }
 
-    const WSSockaddr address;
+    const WSPeeraddr address;
 
 private:
-    WSConnectRequest(WSSockaddr address, steady_duration sleptFor)
+    WSConnectRequest(WSPeeraddr address, steady_duration sleptFor)
         : ConnectRequestBase(sleptFor)
         , address(std::move(address))
     {

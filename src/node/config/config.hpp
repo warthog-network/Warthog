@@ -2,22 +2,22 @@
 
 #include "block/chain/signed_snapshot.hpp"
 #include "expected.hpp"
-#include "transport/helpers/socket_addr.hpp"
+#include "transport/helpers/peer_addr.hpp"
 #include "transport/helpers/tcp_sockaddr.hpp"
 #include "transport/helpers/transport_types.hpp"
 #include "types.hpp"
 #include <atomic>
 struct gengetopt_args_info;
-struct EndpointVector : public std::vector<TCPSockaddr> {
+struct EndpointVector : public std::vector<TCPPeeraddr> {
     EndpointVector() { }
-    EndpointVector(std::vector<TCPSockaddr> v)
+    EndpointVector(std::vector<TCPPeeraddr> v)
         : vector(std::move(v))
     {
     }
     EndpointVector(std::initializer_list<std::string> l)
     {
         for (auto& s : l) {
-            push_back(TCPSockaddr { s });
+            push_back(TCPPeeraddr { s });
         }
     }
 };
@@ -56,21 +56,21 @@ struct ConfigParams {
         std::string peersdb;
     } data;
     struct JSONRPC {
-        TCPSockaddr bind { localhost, 3000 };
+        TCPPeeraddr bind { localhost, 3000 };
     } jsonrpc;
     struct PublicAPI {
-        TCPSockaddr bind;
+        TCPPeeraddr bind;
     };
     struct StratumPool {
-        TCPSockaddr bind;
+        TCPPeeraddr bind;
     };
     std::optional<PublicAPI> publicAPI;
     std::optional<StratumPool> stratumPool;
     WebsocketServerConfig websocketServer;
     struct Node {
-        static constexpr TCPSockaddr default_endpoint { localhost, DEFAULT_ENDPOINT_PORT };
+        static constexpr TCPPeeraddr default_endpoint { localhost, DEFAULT_ENDPOINT_PORT };
         std::optional<SnapshotSigner> snapshotSigner;
-        TCPSockaddr bind { default_endpoint };
+        TCPPeeraddr bind { default_endpoint };
         bool isolated { false };
         bool logCommunicationVal { false };
     } node;

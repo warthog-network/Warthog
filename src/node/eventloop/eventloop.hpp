@@ -129,7 +129,7 @@ public:
     void start();
 
 private:
-    std::vector<TCPSockaddr> get_db_peers(size_t num);
+    std::vector<TCPPeeraddr> get_db_peers(size_t num);
     //////////////////////////////
     // Important event loop functions
     void loop();
@@ -188,7 +188,7 @@ private:
     ////////////////////////
     // convenience functions
     void consider_send_snapshot(Conref);
-    void on_received_addresses(Conref cr, const messages::Vector16<TCPSockaddr>&);
+    void on_received_addresses(Conref cr, const messages::Vector16<TCPPeeraddr>&);
 
     void send_schedule_signaling_lists();
 

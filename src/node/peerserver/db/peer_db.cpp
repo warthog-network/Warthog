@@ -1,13 +1,13 @@
 #include "peer_db.hpp"
-#include "transport/helpers/socket_addr.hpp"
+#include "transport/helpers/peer_addr.hpp"
 #include "general/now.hpp"
 #include "spdlog/spdlog.h"
 PeerDB::CreateTables::CreateTables(SQLite::Database& db)
 {
     db.exec("CREATE TABLE IF NOT EXISTS \"offenses\" ( \"ip\"	INTEGER, \"timestamp\", \"offense\"	TEXT)");
-    db.exec("CREATE TABLE IF NOT EXISTS \"bans\" ( `ip` INTEGER NOT NULL, "
+    db.exec("CREATE TABLE IF NOT EXISTS \"bans\" ( `ip` BLOB NOT NULL UNIQUE,  "
             "`ban_until` INTEGER NOT NULL DEFAULT 0, `offense` INTEGER "
-            "NOT NULL, PRIMARY KEY(`ip`) )");
+            "NOT NULL )");
     db.exec("CREATE TABLE IF NOT EXISTS `connection_log` ( `peer` INTEGER NOT NULL, `inbound` INTEGER NOT NULL, "
             "`begin` INTEGER NOT NULL, `end` INTEGER DEFAULT NULL, "
             "`code` INTEGER DEFAULT NULL )");
@@ -25,15 +25,13 @@ PeerDB::PeerDB(const std::string& path)
     , insertOffense(db, "INSERT INTO `offenses` (`ip`, `timestamp`, `offense`) VALUES (?,?,?) ")
     , getOffenses(db, "SELECT `ip`, `timestamp`, `offense` FROM `offenses` LIMIT 100 OFFSET ?")
     , insertPeer(db, "INSERT OR IGNORE INTO `peers` (`ipport`) VALUES (?) ")
-    , insertWsPeer(db, "INSERT OR IGNORE INTO `ws_peers` (`ipport`) VALUES (?) ")
     , setlastseen(db, "UPDATE `peers` SET `lastseen`=? WHERE `ipport`=?")
     , set_ws_lastseen(db, "UPDATE `ws_peers` SET `lastseen`=? WHERE `ipport`=?")
     , selectRecentPeers(db, "SELECT `ipport`, `lastseen` FROM `peers` ORDER BY `lastseen` DESC LIMIT ?")
-    , selectRecentWsPeers(db, "SELECT `ipport`, `lastseen` FROM `ws_peers` ORDER BY `lastseen` DESC LIMIT ?")
 
     , insertClearBan(db, "INSERT OR IGNORE INTO `bans` (`ip`,`ban_until`,`offense`) VALUES "
                      "(?,0,0)")
-    , peerset(db, "UPDATE `bans` SET `ban_until`=?, `offense`=? WHERE `ip`=?")
+    , peerban(db, "UPDATE `bans` SET `ban_until`=?, `offense`=? WHERE `ip`=?")
     , stmtResetBans(db, "UPDATE `bans` SET `ban_until`=0, `offense`=0")
 
     , selectBan(db, "SELECT `ban_until`, `offense` FROM `bans` WHERE `ip`=?")
@@ -46,33 +44,21 @@ PeerDB::PeerDB(const std::string& path)
     spdlog::info("{} IPs are currently blacklisted.", get_banned_peers().size());
 }
 
-std::vector<std::pair<TCPSockaddr, uint32_t>> PeerDB::recent_peers(int64_t maxEntries)
+std::vector<std::pair<TCPPeeraddr, Timestamp>> PeerDB::recent_peers(int64_t maxEntries)
 {
-    std::vector<std::pair<TCPSockaddr, uint32_t>> out;
+    std::vector<std::pair<TCPPeeraddr, Timestamp>> out;
     selectRecentPeers.bind(1, maxEntries);
     while (selectRecentPeers.executeStep()) {
         int64_t id = selectRecentPeers.getColumn(0).getInt64();
         uint32_t timestamp = selectRecentPeers.getColumn(1).getInt64();
-        out.push_back({ TCPSockaddr::from_sql_id(id), timestamp }); 
+        out.push_back({ TCPPeeraddr::from_sql_id(id), timestamp }); 
     }
     selectRecentPeers.reset();
     return out;
 }
 
-std::vector<std::pair<WSSockaddr, uint32_t>> PeerDB::recent_ws_peers(int64_t maxEntries)
-{
-    std::vector<std::pair<WSSockaddr, uint32_t>> out;
-    selectRecentPeers.bind(1, maxEntries);
-    while (selectRecentPeers.executeStep()) {
-        int64_t id = selectRecentPeers.getColumn(0).getInt64();
-        uint32_t timestamp = selectRecentPeers.getColumn(1).getInt64();
-        out.push_back({ TCPSockaddr::from_sql_id(id), timestamp }); 
-    }
-    selectRecentPeers.reset();
-    return out;
-}
 
-void PeerDB::peer_seen(TCPSockaddr a, uint32_t now)
+void PeerDB::peer_seen(TCPPeeraddr a, uint32_t now)
 {
     setlastseen.bind(1, now);
     setlastseen.bind(2, a.to_sql_id());
@@ -80,23 +66,11 @@ void PeerDB::peer_seen(TCPSockaddr a, uint32_t now)
     setlastseen.reset();
 }
 
-void PeerDB::ws_peer_seen(WSSockaddr a, uint32_t now)
-{
-    setlastseen.bind(1, now);
-    setlastseen.bind(2, a.to_sql_id());
-    setlastseen.exec();
-    setlastseen.reset();
-}
 
-void PeerDB::peer_insert(TCPSockaddr a)
+void PeerDB::peer_insert(TCPPeeraddr a)
 {
     insertPeer.bind(1, a.to_sql_id());
     insertPeer.exec();
     insertPeer.reset();
 }
 
-void PeerDB::ws_peer_insert(WSSockaddr a){
-    insertWsPeer.bind(1, a.to_sql_id());
-    insertWsPeer.exec();
-    insertWsPeer.reset();
-}

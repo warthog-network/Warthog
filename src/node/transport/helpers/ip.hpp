@@ -5,6 +5,33 @@
 
 class IP {
 public:
+    class BanHandle {
+    public:
+        BanHandle(IPv4 ip)
+            : variant(ip)
+        {
+        }
+        BanHandle(IPv6::BanHandle32 v)
+            : variant(v)
+        {
+        }
+        BanHandle(IPv6::BanHandle48 v)
+            : variant(v)
+        {
+        }
+        auto visit(auto lambda) const
+        {
+            return std::visit(lambda, variant);
+        }
+        std::string to_string() const
+        {
+            return visit([](auto& handle) { return handle.to_string(); });
+        }
+
+    private:
+        using variant_t = std::variant<IPv4, IPv6::BanHandle32, IPv6::BanHandle48>;
+        variant_t variant;
+    };
     enum class type { v4,
         v6 };
     using variant_t = std::variant<IPv4, IPv6>;

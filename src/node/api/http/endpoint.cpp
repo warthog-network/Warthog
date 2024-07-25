@@ -178,7 +178,7 @@ void HTTPEndpoint::work()
                                            ws->subscribe(API::Rollback::WEBSOCKET_EVENT);
                                        },
                                    });
-    app.listen(bind.ip().to_string(), bind.port(), std::bind(&HTTPEndpoint::on_listen, this, _1));
+    app.listen(bind.ip.to_string(), bind.port, std::bind(&HTTPEndpoint::on_listen, this, _1));
     lc.loop->run();
 }
 
@@ -190,7 +190,7 @@ std::optional<HTTPEndpoint> HTTPEndpoint::make_public_endpoint(const ConfigParam
     return std::optional<HTTPEndpoint> { std::in_place, pAPI->bind, true };
 };
 
-HTTPEndpoint::HTTPEndpoint(TCPSockaddr bind, bool isPublic)
+HTTPEndpoint::HTTPEndpoint(TCPPeeraddr bind, bool isPublic)
     : bind(bind)
     , isPublic(isPublic)
     , app(lc.loop)

@@ -90,16 +90,16 @@ struct PingMsg : public MsgCombineRequest<4, SignedSnapshot::Priority, uint16_t,
     [[nodiscard]] const uint16_t& maxTransactions() const { return get<2>(); }
 };
 
-struct PongMsg : public MsgCombineReply<5, messages::Vector16<TCPSockaddr>, messages::Vector16<TxidWithFee>> {
+struct PongMsg : public MsgCombineReply<5, messages::Vector16<TCPPeeraddr>, messages::Vector16<TxidWithFee>> {
     static constexpr size_t maxSize = 4 + 2 + 6 * 100 + 18 * 1000;
     using Base::Base;
-    PongMsg(uint32_t nonce, messages::Vector16<TCPSockaddr> addresses, messages::Vector16<TxidWithFee> txids)
+    PongMsg(uint32_t nonce, messages::Vector16<TCPPeeraddr> addresses, messages::Vector16<TxidWithFee> txids)
         : Base { nonce, std::move(addresses), std::move(txids) }
     {
     }
 
     Error check(const PingMsg&) const;
-    [[nodiscard]] const messages::Vector16<TCPSockaddr>& addresses() const { return get<0>(); }
+    [[nodiscard]] const messages::Vector16<TCPPeeraddr>& addresses() const { return get<0>(); }
     [[nodiscard]] const messages::Vector16<TxidWithFee>& txids() const { return get<1>(); }
 };
 
@@ -300,16 +300,16 @@ struct PingV2Msg : public MsgCombineRequest<28, SignedSnapshot::Priority, uint16
     // [[nodiscard]] const uint32_t& minForwardKey() const { return get<3>(); }
 };
 
-struct PongV2Msg : public MsgCombineReply<29, messages::Vector16<TCPSockaddr>, messages::Vector16<TxidWithFee>> {
+struct PongV2Msg : public MsgCombineReply<29, messages::Vector16<TCPPeeraddr>, messages::Vector16<TxidWithFee>> {
     static constexpr size_t maxSize = 4 + 2 + 6 * 100 + 18 * 1000;
     using Base::Base;
-    PongV2Msg(uint32_t nonce, messages::Vector16<TCPSockaddr> addresses, messages::Vector16<TxidWithFee> txids)
+    PongV2Msg(uint32_t nonce, messages::Vector16<TCPPeeraddr> addresses, messages::Vector16<TxidWithFee> txids)
         : Base { nonce, std::move(addresses), std::move(txids) }
     {
     }
 
     Error check(const PingV2Msg&) const;
-    [[nodiscard]] const messages::Vector16<TCPSockaddr>& addresses() const { return get<0>(); }
+    [[nodiscard]] const messages::Vector16<TCPPeeraddr>& addresses() const { return get<0>(); }
     [[nodiscard]] const messages::Vector16<TxidWithFee>& txids() const { return get<1>(); }
 };
 

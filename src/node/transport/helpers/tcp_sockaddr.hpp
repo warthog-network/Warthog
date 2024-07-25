@@ -1,47 +1,12 @@
 #pragma once
 
-#include "transport/helpers/ip.hpp"
+#include "transport/helpers/sockaddr.hpp"
 #include <stdexcept>
 #ifndef DISABLE_LIBUV
 struct sockaddr;
 #endif
 
 class Reader;
-struct TCPSockaddrBase {
-    TCPSockaddrBase(Reader& r);
-    friend Writer& operator<<(Writer&, const TCPSockaddrBase&);
-    static constexpr size_t byte_size() { return IPv4::byte_size() + sizeof(_port); }
-    constexpr TCPSockaddrBase(IPv4 ipv4, uint16_t port)
-        : _ip(ipv4)
-        , _port(port)
-    {
-    }
-    constexpr TCPSockaddrBase(std::string_view);
-    static TCPSockaddrBase from_sql_id(int64_t id)
-    {
-        return TCPSockaddrBase(
-            IPv4(uint64_t(id & 0x0000FFFFFFFF0000) >> 16),
-            uint16_t(0x000000000000FFFF & id));
-    };
-    int64_t to_sql_id()
-    {
-        return (int64_t(_ip.data) << 16) + (int64_t(_port));
-    };
-    auto operator<=>(const TCPSockaddrBase&) const = default;
-    static constexpr std::optional<TCPSockaddrBase> parse(const std::string_view&);
-#ifndef DISABLE_LIBUV
-    operator sockaddr() const;
-    sockaddr sock_addr() const;
-#endif
-
-    auto& ip() const
-    {
-        return _ip;
-    }
-    auto port() const {return _port;}
-    IPv4 _ip;
-    uint16_t _port = 0;
-};
 
 constexpr std::optional<uint16_t> parse_port(const std::string_view& s)
 {
@@ -66,7 +31,7 @@ constexpr std::optional<uint16_t> parse_port(const std::string_view& s)
     return out;
 }
 
-std::optional<TCPSockaddrBase> constexpr TCPSockaddrBase::parse(const std::string_view& s)
+std::optional<Sockaddr4> constexpr Sockaddr4::parse(const std::string_view& s)
 {
     size_t d1 = s.find(":");
     auto ipv4str { s.substr(0, d1) };
@@ -81,22 +46,22 @@ std::optional<TCPSockaddrBase> constexpr TCPSockaddrBase::parse(const std::strin
     if (!port)
         return {};
 
-    return TCPSockaddrBase { ip.value(), port.value() };
+    return Sockaddr4 { ip.value(), port.value() };
 }
 
-constexpr TCPSockaddrBase::TCPSockaddrBase(std::string_view s)
-    : TCPSockaddrBase(
+constexpr Sockaddr4::Sockaddr4(std::string_view s)
+    : Sockaddr4(
         [&] {
-            auto ea { TCPSockaddrBase::parse(s) };
+            auto ea { Sockaddr4::parse(s) };
             if (ea)
                 return *ea;
             throw std::runtime_error("Cannot parse endpoint address \"" + std::string(s) + "\".");
         }()) {};
 
-struct TCPSockaddr : public TCPSockaddrBase {
-    using TCPSockaddrBase::TCPSockaddrBase;
-    TCPSockaddr(TCPSockaddrBase b)
-        : TCPSockaddrBase(std::move(b))
+struct TCPPeeraddr : public Sockaddr4 {
+    using Sockaddr4::Sockaddr4;
+    TCPPeeraddr(Sockaddr4 b)
+        : Sockaddr4(std::move(b))
     {
     }
     std::string to_string() const;
@@ -104,41 +69,39 @@ struct TCPSockaddr : public TCPSockaddrBase {
     {
         return "TCP";
     }
-    static TCPSockaddr from_sql_id(int64_t id)
+    static TCPPeeraddr from_sql_id(int64_t id)
     {
-        return { TCPSockaddrBase::from_sql_id(id) };
+        return { Sockaddr4::from_sql_id(id) };
     }
-    static constexpr std::optional<TCPSockaddr> parse(const std::string_view& sv)
+    static constexpr std::optional<TCPPeeraddr> parse(const std::string_view& sv)
     {
-        auto p { TCPSockaddrBase::parse(sv) };
+        auto p { Sockaddr4::parse(sv) };
         if (p) {
-            return TCPSockaddr(*p);
+            return TCPPeeraddr(*p);
         }
         return {};
     }
 };
 
-struct WSSockaddr : public TCPSockaddrBase {
-    using TCPSockaddrBase::TCPSockaddrBase;
+struct WSPeeraddr: public Sockaddr  {
+    using Sockaddr::Sockaddr;
+    auto operator<=>(const WSPeeraddr&) const = default;
     std::string to_string() const;
-    WSSockaddr(TCPSockaddrBase b)
-        : TCPSockaddrBase(std::move(b))
-    {
-    }
+    WSPeeraddr(Sockaddr addr):Sockaddr(std::move(addr)){}
     std::string_view type_str() const
     {
         return "WS";
     }
-    static WSSockaddr from_sql_id(int64_t id)
-    {
-        return { TCPSockaddrBase::from_sql_id(id) };
-    }
-    static constexpr std::optional<WSSockaddr> parse(const std::string_view& sv)
-    {
-        auto p { TCPSockaddrBase::parse(sv) };
-        if (p) {
-            return WSSockaddr(*p);
-        }
-        return {};
-    }
+    // static WSSockaddr from_sql_id(int64_t id)
+    // {
+    //     return { TCPSockaddrBase::from_sql_id(id) };
+    // }
+    // static constexpr std::optional<WSSockaddr> parse(const std::string_view& sv)
+    // {
+    //     auto p { TCPSockaddrBase::parse(sv) };
+    //     if (p) {
+    //         return WSSockaddr(*p);
+    //     }
+    //     return {};
+    // }
 };

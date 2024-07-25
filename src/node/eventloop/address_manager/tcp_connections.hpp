@@ -26,7 +26,7 @@ struct WithSource {
         : address(std::move(addr))
         , source(std::move(source)) {};
 };
-using TCPWithSource = WithSource<TCPSockaddr>;
+using TCPWithSource = WithSource<TCPPeeraddr>;
 
 // data structure to encode success of recent connection tries
 class ConnectionLog {
@@ -117,20 +117,20 @@ protected:
     std::chrono::steady_clock::time_point lastVerified;
     std::set<Source> sources;
     bool active{false};
-    TCPSockaddr address;
+    TCPPeeraddr address;
 };
 
 class VerifiedEntry : public VectorEntry {
 public:
     using tp = std::chrono::steady_clock::time_point;
 
-    operator TCPSockaddr() const { return this->sockaddr(); }
+    operator TCPPeeraddr() const { return this->sockaddr(); }
     VerifiedEntry(VectorEntry e, tp lastVerified)
         : VectorEntry(std::move(e))
         , lastVerified(lastVerified)
     {
     }
-    VerifiedEntry(const WithSource<TCPSockaddr>& i, tp lastVerified)
+    VerifiedEntry(const WithSource<TCPPeeraddr>& i, tp lastVerified)
         : VectorEntry(i)
         , lastVerified(lastVerified)
     {
@@ -148,7 +148,7 @@ class SockaddrVectorBase {
 public:
     using elem_t = T;
 
-    [[nodiscard]] elem_t* find(const TCPSockaddr&) const;
+    [[nodiscard]] elem_t* find(const TCPPeeraddr&) const;
     void take_expired(time_point now, std::vector<ConnectRequest>&);
     std::optional<time_point> timeout() const { return wakeup_tp; }
     elem_t& push_back(elem_t);
@@ -163,8 +163,8 @@ protected:
 class SockaddrVector : public SockaddrVectorBase<VectorEntry> {
 
 public:
-    void erase(const TCPSockaddr& addr, auto lambda);
-    std::pair<elem_t&, bool> emplace(const WithSource<TCPSockaddr>&);
+    void erase(const TCPPeeraddr& addr, auto lambda);
+    std::pair<elem_t&, bool> emplace(const WithSource<TCPPeeraddr>&);
     using SockaddrVectorBase::SockaddrVectorBase;
 };
 
@@ -172,7 +172,7 @@ class VerifiedVector : public SockaddrVectorBase<VerifiedEntry> {
 public:
     using tp = typename VerifiedEntry::tp;
     std::pair<VectorEntry&, bool> emplace(const TCPWithSource&, tp lastVerified);
-    std::vector<TCPSockaddr> sample(size_t N) const;
+    std::vector<TCPPeeraddr> sample(size_t N) const;
     using SockaddrVectorBase::SockaddrVectorBase;
 };
 class TCPSchedule{
@@ -200,7 +200,7 @@ public:
     TCPConnectionSchedule(InitArg);
 
     void start();
-    std::optional<ConnectRequest> insert(TCPSockaddr, Source);
+    std::optional<ConnectRequest> insert(TCPPeeraddr, Source);
     void connect_expired();
     void outbound_established(const TCPConnection&);
     void outbound_closed(const TCPConnectRequest&, bool success, int32_t reason);
@@ -208,15 +208,15 @@ public:
 
     [[nodiscard]] std::optional<time_point> pop_wakeup_time();
 
-    std::vector<TCPSockaddr> sample_verified(size_t N) const
+    std::vector<TCPPeeraddr> sample_verified(size_t N) const
     {
         return verified.sample(N);
     }
 private:
     [[nodiscard]] std::vector<TCPConnectRequest> pop_expired(time_point now = steady_clock::now());
     auto emplace_verified(const TCPWithSource&, steady_clock::time_point lastVerified);
-    VectorEntry* move_to_verified(SockaddrVector&, const TCPSockaddr&);
-    VectorEntry* find_verified(const TCPSockaddr&);
+    VectorEntry* move_to_verified(SockaddrVector&, const TCPPeeraddr&);
+    VectorEntry* find_verified(const TCPPeeraddr&);
 
     void outbound_connection_ended(const ConnectRequest&, ConnectionState state);
     struct Found {
@@ -231,12 +231,12 @@ private:
 #ifndef DISABLE_LIBUV
     auto get_context(const TCPConnectRequest&, ConnectionState) -> std::optional<FoundContext>;
 #endif
-    [[nodiscard]] auto find(const TCPSockaddr& a) const -> std::optional<Found>;
+    [[nodiscard]] auto find(const TCPPeeraddr& a) const -> std::optional<Found>;
     VerifiedVector verified;
     SockaddrVector unverifiedNew;
     SockaddrVector unverifiedFailed;
     size_t totalConnected { 0 };
     PeerServer& peerServer;
-    std::set<TCPSockaddr> pinned;
+    std::set<TCPPeeraddr> pinned;
     connection_schedule::WakeupTime wakeup_tp;
 };
