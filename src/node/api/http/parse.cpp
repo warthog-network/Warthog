@@ -59,7 +59,7 @@ CompactUInt extract_fee(const nlohmann::json& json)
             if (fee.has_value())
                 goto error; // exclusive, either "amount" or "amountE8"
             fee = Funds::from_value(iter->get<uint64_t>());
-            if (fee.has_value())
+            if (!fee.has_value())
                 goto error;
         }
 
