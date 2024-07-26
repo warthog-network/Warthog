@@ -98,7 +98,7 @@ Funds extract_funds(const nlohmann::json& json)
             if (f.has_value())
                 goto error; // exclusive, either "amount" or "amountE8"
             f = Funds::from_value(iter->get<uint64_t>());
-            if (f.has_value())
+            if (!f.has_value())
                 goto error;
         }
 
