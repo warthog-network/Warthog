@@ -26,7 +26,7 @@ public:
     {
         return scheme;
     }
-    std::optional<IP> ip() const { return {}; }
+    static const std::optional<IP> ip;
     static std::optional<WSUrladdr> parse(const std::string& sv);
     std::string url;
     std::string scheme;

@@ -3,6 +3,7 @@
 #include <charconv>
 #include <regex>
 
+const std::optional<IP> WSUrladdr::ip={};
 namespace {
 std::optional<uint16_t> parse_port(std::string_view scheme, std::string_view portStr)
 {

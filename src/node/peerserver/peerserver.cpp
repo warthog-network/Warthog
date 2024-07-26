@@ -138,8 +138,7 @@ void PeerServer::handle_event(GetRecentPeers&& e)
         res.push_back({ addr, lastseen });
 #else
     // WS peers
-    for (auto& [addr, lastseen] : db.recent_ws_peers(e.maxEntries))
-        res.push_back({ addr, lastseen });
+    // TODO
 #endif
     e.cb(std::move(res));
 }
