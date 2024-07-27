@@ -47,6 +47,8 @@ void AddressManager::outbound_closed(OutboundClosedEvent e)
 
 void AddressManager::start_scheduled_connections()
 {
+    if (config().node.isolated)
+        return;
 #ifndef DISABLE_LIBUV
     tcpConnectionSchedule.connect_expired();
 #else
@@ -66,9 +68,7 @@ void AddressManager::outbound_failed(const TCPConnectRequest& r)
     tcpConnectionSchedule.outbound_failed(r);
 }
 
-
 #else
-
 
 void AddressManager::outbound_failed(const WSBrowserConnectRequest& r)
 {
@@ -91,7 +91,7 @@ auto AddressManager::insert(InsertData id) -> tl::expected<Conref, int32_t>
     if (ip && !ip->is_loopback()) {
         if (ipCounter.contains(*ip))
             return tl::unexpected(EDUPLICATECONNECTION);
-        if (!c->inbound()) 
+        if (!c->inbound())
             c->successfulConnection = true;
 #ifndef DISABLE_LIBUV
         if (id.convar.is_tcp()) {
@@ -149,6 +149,8 @@ void AddressManager::garbage_collect()
 
 std::optional<std::chrono::steady_clock::time_point> AddressManager::pop_scheduled_connect_time()
 {
+    if (config().node.isolated)
+        return {};
 #ifndef DISABLE_LIBUV
     return tcpConnectionSchedule.pop_wakeup_time();
 #else
