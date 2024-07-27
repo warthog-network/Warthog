@@ -33,6 +33,7 @@ struct Config {
         std::optional<SnapshotSigner> snapshotSigner;
         EndpointAddress bind;
         bool isolated { false };
+        bool disableTxsMining { false }; // don't mine transactions
         std::atomic<bool> logCommunication { false };
     } node;
     struct Peers {

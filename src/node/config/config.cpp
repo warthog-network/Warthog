@@ -152,6 +152,7 @@ int Config::process_gengetopt(gengetopt_args_info& ai)
     std::optional<EndpointAddress> publicrpcBind;
     std::optional<EndpointAddress> stratumBind;
     node.isolated = ai.isolated_given;
+    node.disableTxsMining = ai.disable_tx_mining_given;
     if (ai.testnet_given) {
         enable_testnet();
     }
@@ -241,6 +242,8 @@ int Config::process_gengetopt(gengetopt_args_info& ai)
                             node.snapshotSigner = parse_leader_key(fetch<std::string>(v));
                         } else if (k == "isolated") {
                             node.isolated = fetch<bool>(v);
+                        } else if (k == "disable-tx-mining") {
+                            node.disableTxsMining = fetch<bool>(v);
                         } else if (k == "enable-ban") {
                             peers.enableBan = fetch<bool>(v);
                         } else if (k == "allow-localhost-ip") {
@@ -382,6 +385,7 @@ std::string Config::dump()
             { "bind", node.bind.to_string() },
             { "connect", connect },
             { "isolated", node.isolated },
+            { "disable-tx-mining", node.disableTxsMining },
             { "enable-ban", peers.enableBan },
             { "allow-localhost-ip", peers.allowLocalhostIp },
             { "log-communication", (bool)node.logCommunication } });
