@@ -17,7 +17,7 @@ public:
     public:
         auto operator<=>(const BanHandle48&) const = default;
         BanHandle48(const uint8_t* p, size_t n)
-            : BanHandle48({ p, n })
+            : BanHandle48(std::span<const uint8_t, 6> { p, n })
         {
         }
         BanHandle48(std::span<const uint8_t, 6> s)
@@ -35,7 +35,7 @@ public:
         auto operator<=>(const BanHandle32&) const = default;
 
         BanHandle32(const uint8_t* p, size_t n)
-            : BanHandle32({ p, n })
+            : BanHandle32(std::span<const uint8_t, 4> { p, n })
         {
         }
         BanHandle32(std::span<const uint8_t, 4> s)
