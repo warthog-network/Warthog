@@ -21,7 +21,8 @@ section "Websocket server options"
 option "ws-port" - "Websocket port" details="Public websocket nodes support communication over websocket" optional int
 option "ws-tls-cert" - "TLS certificate file for public websocket endpoint" details="Defaults to 'ws.cert'" optional string 
 option "ws-tls-key" - "TLS private key file for public websocket endpoint" details="Defaults to 'ws.key'" optional string 
-option "ws-proxied" - "Bind to loopback interface and honor 'X-Forwarded-For' header to determine peer IP. Intended use for reverse-proxies." details="By default the node uses the connection's peer IP for limits and bans. However, when behind a reverse proxy the real peer's IP must be determined using 'X-Forwarded-For' header. Furthermore only websocket connections from localhost are accepted." optional
+option "ws-x-forwarded-for" - "Honor 'X-Forwarded-For' header to determine peer IP. Intended use for reverse-proxies." details="By default the node uses the connection's peer IP for limits and bans. However, when behind a reverse proxy the real peer's IP must be determined using 'X-Forwarded-For' header." optional
+option "ws-bind-localhost" - "Bind to loopback interface. Intended use for reverse-proxies." details="Only websocket connections from localhost are accepted. This is to hide the node when websocket TLS encryption is done by a reverse proxy like nginx. This should not be used when the node is started within a docker container with forwarded ports." optional
 
 
 section "Logging options"

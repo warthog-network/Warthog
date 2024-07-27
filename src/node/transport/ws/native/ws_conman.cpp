@@ -98,7 +98,7 @@ static int libwebsocket_callback(struct lws* wsi,
             return -1;
         auto& cm { conman() };
         auto& sockaddr = *ipport;
-        if (cm.config.useProxy) {
+        if (cm.config.XFowarded) {
             auto fIp { forwarded_for(wsi) };
             if (!fIp)
                 return -1;
@@ -259,7 +259,7 @@ void WSConnectionManager::create_context()
     struct lws_context_creation_info info;
     memset(&info, 0, sizeof info); /* otherwise uninitialized garbage */
     info.port = config.port;
-    if (config.useProxy)
+    if (config.bindLocalhost)
         info.iface = "lo";
     info.protocols = protocols;
     info.pvo = &pvo;

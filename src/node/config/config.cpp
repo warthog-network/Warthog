@@ -463,8 +463,10 @@ int ConfigParams::init(const gengetopt_args_info& ai)
             websocketServer.keyfile = ai.ws_tls_key_arg;
         if (ai.ws_tls_cert_given)
             websocketServer.certfile = ai.ws_tls_cert_arg;
-        if (ai.ws_proxied_given)
-            websocketServer.useProxy = true;
+        if (ai.ws_x_forwarded_for_given)
+            websocketServer.XFowarded = true;
+        if (ai.ws_bind_localhost_given)
+            websocketServer.bindLocalhost = true;
     }
 
     if (dmp) {

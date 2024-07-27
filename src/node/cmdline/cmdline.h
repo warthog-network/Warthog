@@ -64,7 +64,8 @@ struct gengetopt_args_info
   char * ws_tls_key_arg;	/**< @brief TLS private key file for public websocket endpoint.  */
   char * ws_tls_key_orig;	/**< @brief TLS private key file for public websocket endpoint original value given at command line.  */
   const char *ws_tls_key_help; /**< @brief TLS private key file for public websocket endpoint help description.  */
-  const char *ws_proxied_help; /**< @brief Bind to loopback interface and honor 'X-Forwarded-For' header to determine peer IP. Intended use for reverse-proxies. help description.  */
+  const char *ws_x_forwarded_for_help; /**< @brief Honor 'X-Forwarded-For' header to determine peer IP. Intended use for reverse-proxies. help description.  */
+  const char *ws_bind_localhost_help; /**< @brief Bind to loopback interface. Intended use for reverse-proxies. help description.  */
   const char *debug_help; /**< @brief Enable debug messages help description.  */
   char * rpc_arg;	/**< @brief JSON RPC endpoint socket, defaults to \"127.0.0.1:3000\" for main net and \"127.0.0.1:3100\" for test net.  */
   char * rpc_orig;	/**< @brief JSON RPC endpoint socket, defaults to \"127.0.0.1:3000\" for main net and \"127.0.0.1:3100\" for test net original value given at command line.  */
@@ -95,7 +96,8 @@ struct gengetopt_args_info
   unsigned int ws_port_given ;	/**< @brief Whether ws-port was given.  */
   unsigned int ws_tls_cert_given ;	/**< @brief Whether ws-tls-cert was given.  */
   unsigned int ws_tls_key_given ;	/**< @brief Whether ws-tls-key was given.  */
-  unsigned int ws_proxied_given ;	/**< @brief Whether ws-proxied was given.  */
+  unsigned int ws_x_forwarded_for_given ;	/**< @brief Whether ws-x-forwarded-for was given.  */
+  unsigned int ws_bind_localhost_given ;	/**< @brief Whether ws-bind-localhost was given.  */
   unsigned int debug_given ;	/**< @brief Whether debug was given.  */
   unsigned int rpc_given ;	/**< @brief Whether rpc was given.  */
   unsigned int publicrpc_given ;	/**< @brief Whether publicrpc was given.  */
