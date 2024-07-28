@@ -12,6 +12,7 @@
 #include "general/filelock/filelock.hpp"
 class ChainDBTransaction;
 class Batch;
+class AssetName;
 struct SignedSnapshot;
 class Headerchain;
 struct RawBody : public std::vector<uint8_t> {
@@ -292,6 +293,8 @@ public:
     void delete_state_from(AccountId fromAccountId);
     // void setStateBalance(AccountId accountId, Funds balance);
     void insert_consensus(NonzeroHeight height, BlockId blockId, HistoryId historyCursor, AccountId accountCursor);
+
+    void insert_asset(NonzeroHeight height, AssetName name);
     std::tuple<std::vector<Batch>, HistoryHeights, AccountHeights>
     getConsensusHeaders() const;
 
@@ -388,6 +391,8 @@ private:
             db.exec("CREATE TABLE IF NOT EXISTS `Blocks` ( `height` INTEGER "
                     "NOT NULL, `header` BLOB NOT NULL, `body` BLOB NOT NULL, "
                     "`undo` BLOB DEFAULT null, `hash` BLOB NOT NULL UNIQUE )");
+            db.exec("CREATE TABLE IF NOT EXISTS \"Assets\" ( `height` INTEGER NOT "
+                    "NULL, `NAME` TEXT NOT NULL UNIQUE)");
             db.exec("CREATE TABLE IF NOT EXISTS \"Consensus\" ( `height` INTEGER NOT "
                     "NULL, `block_id` INTEGER NOT NULL, `history_cursor` INTEGER NOT "
                     "NULL, `account_cursor` INTEGER NOT NULL, PRIMARY KEY(`height`) )");
@@ -424,6 +429,9 @@ private:
     mutable Statement2 stmtBlockGetUndo;
     mutable Statement2 stmtBlockById;
     mutable Statement2 stmtBlockByHash;
+
+    // Asset functions
+    mutable Statement2 stmtAssetInsert;
 
     // Consensus table functions
     mutable Statement2 stmtConsensusHeaders;

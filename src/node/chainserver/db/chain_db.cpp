@@ -4,6 +4,7 @@
 #include "block/chain/header_chain.hpp"
 #include "block/header/header_impl.hpp"
 #include "block/header/view_inline.hpp"
+#include "general/asset.hpp"
 #include "general/hex.hpp"
 #include "general/now.hpp"
 #include "general/writer.hpp"
@@ -46,6 +47,7 @@ ChainDB::ChainDB(const std::string& path)
           db, "SELECT `height`, `header`, `body` FROM \"Blocks\" WHERE `ROWID`=?;")
     , stmtBlockByHash(
           db, "SELECT ROWID, `height`, `header`, `body` FROM \"Blocks\" WHERE `hash`=?;")
+    , stmtAssetInsert(db, "INSERT INTO \"Assets\" ( `height`, `name`,) VALUES (?,?)")
     , stmtConsensusHeaders(db, "SELECT c.height, c.history_cursor, c.account_cursor, b.header "
                                "FROM `Blocks` b JOIN `Consensus` c ON "
                                "b.ROWID=c.block_id ORDER BY c.height ASC;")
@@ -292,6 +294,14 @@ void ChainDB::insert_consensus(NonzeroHeight height, BlockId blockId, HistoryId 
 {
     stmtConsensusInsert.run(height, blockId, historyCursor, accountCursor);
     stmtScheduleDelete2.run(blockId);
+}
+
+void ChainDB::insert_asset(NonzeroHeight height, AssetName name)
+{
+    stmtAssetInsert.run(height, name.str());
+    auto lastId { db.getLastInsertRowid() };
+    stmtScheduleInsert.run(lastId, 0);
+    return { BlockId(lastId), true };
 }
 
 std::tuple<std::vector<Batch>, HistoryHeights, AccountHeights> ChainDB::getConsensusHeaders() const
