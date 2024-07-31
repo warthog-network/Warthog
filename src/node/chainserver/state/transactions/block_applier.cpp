@@ -90,6 +90,33 @@ public:
         totalfee.add_throw(fee);
         refFrom.referredFrom.push_back(i);
     }
+    void register_token_creation(TokenCreationView tc, Height height)
+    {
+        auto compactFee = tc.compact_fee_trow();
+        Funds fee { compactFee.uncompact() };
+        AccountId from = tc.fromAccountId();
+        auto tokenName { tc.token_name() };
+        if (!validAccountId(from))
+            throw Error(EIDPOLICY);
+
+        tokenCreations.emplace_back(from, tc.creation_code(), tc.token_name(), tc.pin_nonce(), tc.signature());
+        size_t i = payments.size() - 1;
+        auto& ref = payments.back();
+        if (from >= beginNewAccountId) {
+            ref.fromAddress = get_new_address(from - beginNewAccountId);
+        } // otherwise wait for db lookup later
+        if (to >= beginNewAccountId) {
+            ref.toAddress = get_new_address(to - beginNewAccountId);
+        } // otherwise wait for db lookup later
+        auto& refTo = account_flow(to);
+        refTo._in.add_throw(amount);
+        refTo.referredTo.push_back(i);
+
+        auto& refFrom = account_flow(from);
+        refFrom._out.add_throw(Funds::sum_throw(amount, fee));
+        totalfee.add_throw(fee);
+        refFrom.referredFrom.push_back(i);
+    }
     Funds getTotalFee() { return totalfee; }; // OK
     bool validAccountId(AccountId accountId) // OK
     {
@@ -141,6 +168,7 @@ private:
     NonzeroHeight height;
     std::vector<RewardInternal> payouts;
     std::vector<TransferInternal> payments;
+    std::vector<TokenCreationInternal> tokenCreations;
 };
 
 struct InsertHistoryEntry {
@@ -246,7 +274,7 @@ Preparation BlockApplier::Preparer::prepare(const BodyView& bv, const NonzeroHei
     // Read reward section
     Funds totalpayout { Funds::zero() };
     {
-        auto r{bv.reward()};
+        auto r { bv.reward() };
         Funds amount { r.amount_throw() };
         balanceChecker.register_reward(r.account_id(), amount, r.offset);
         totalpayout.add_throw(amount);
@@ -257,8 +285,10 @@ Preparation BlockApplier::Preparer::prepare(const BodyView& bv, const NonzeroHei
         balanceChecker.register_transfer(t, height);
     }
 
-    if (totalpayout > Funds::sum_throw(height.reward(), balanceChecker.getTotalFee()))
-        throw Error(EBALANCE);
+    // Read token creation section
+    for (auto tc : bv.token_creations()) {
+        balanceChecker.register_token_creation(tc, height);
+    }
 
     // loop through old accounts and
     // load previous balances and addresses from database
@@ -272,8 +302,8 @@ Preparation BlockApplier::Preparer::prepare(const BodyView& bv, const NonzeroHei
             balanceChecker.set_address(accountflow, address);
 
             // check that balances are correct
-            auto totalIn{Funds::sum_throw(accountflow.in(), balance)};
-            Funds newbalance { Funds::diff_throw(totalIn , accountflow.out()) };
+            auto totalIn { Funds::sum_throw(accountflow.in(), balance) };
+            Funds newbalance { Funds::diff_throw(totalIn, accountflow.out()) };
             res.updateBalances.push_back(std::make_pair(id, newbalance));
         } else {
             throw Error(EINVACCOUNT); // invalid account id (not found in database)
@@ -329,6 +359,10 @@ Preparation BlockApplier::Preparer::prepare(const BodyView& bv, const NonzeroHei
             .amount { tr.amount },
         });
     }
+
+    if (totalpayout > Funds::sum_throw(height.reward(), balanceChecker.getTotalFee()))
+        throw Error(EBALANCE);
+
     return res;
 }
 
@@ -347,13 +381,13 @@ API::Block BlockApplier::apply_block(const BodyView& bv, HeaderView hv, NonzeroH
         preparer.newTxIds.merge(std::move(prepared.txset));
 
         // update old balances
-        for (auto& [accId, bal] : prepared.updateBalances){
+        for (auto& [accId, bal] : prepared.updateBalances) {
             db.set_balance(accId, bal);
             balanceUpdates.insert_or_assign(accId, bal);
         }
 
         // insert new balances
-        for (auto& [addr, bal, accId] : prepared.insertBalances){
+        for (auto& [addr, bal, accId] : prepared.insertBalances) {
             db.insertStateEntry(addr, bal, accId);
             balanceUpdates.insert_or_assign(accId, bal);
         }

@@ -2,6 +2,7 @@
 #include "block/body/transaction_id.hpp"
 #include "crypto/crypto.hpp"
 #include "crypto/hasher_sha256.hpp"
+#include "defi/token.hpp"
 #include <variant>
 class Headerchain;
 struct RewardInternal {
@@ -43,6 +44,7 @@ struct TransferInternal {
     }
 };
 
+
 class VerifiedTransfer {
     friend struct TransferInternal;
     VerifiedTransfer(const TransferInternal&, PinHeight pinHeight, HashView pinHash);
@@ -54,6 +56,44 @@ class VerifiedTransfer {
 
 public:
     const TransferInternal& ti;
+    const TransactionId id;
+    const Hash hash;
+};
+
+class VerifiedTokenCreation;
+struct TokenCreationInternal {
+    AccountId fromAccountId;
+    TokenCreationCode creationCode;
+    TokenName tokenName;
+    PinNonce pinNonce;
+    CompactUInt compactFee;
+    RecoverableSignature signature;
+    AddressView fromAddress { nullptr };
+    VerifiedTokenCreation verify(const Headerchain&, NonzeroHeight) const;
+    TokenCreationInternal(AccountId fromAccountId, TokenCreationCode creationCode,
+        TokenName tokenName, PinNonce pinNonce, CompactUInt compactFee, RecoverableSignature signature)
+        : fromAccountId(fromAccountId)
+        , creationCode(std::move(creationCode))
+        , tokenName(std::move(tokenName))
+        , pinNonce(std::move(pinNonce))
+        , compactFee(std::move(compactFee))
+        , signature(std::move(signature))
+    {
+    }
+};
+
+class VerifiedTokenCreation {
+    friend struct TokenCreationInternal;
+    VerifiedTokenCreation(const TokenCreationInternal&, PinHeight pinHeight, HashView pinHash);
+    Address recover_address() const
+    {
+        return tci.signature.recover_pubkey(hash).address();
+    }
+
+    bool valid_signature() const;
+
+public:
+    const TokenCreationInternal& tci;
     const TransactionId id;
     const Hash hash;
 };

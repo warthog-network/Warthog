@@ -45,6 +45,38 @@ VerifiedTransfer::VerifiedTransfer(const TransferInternal& ti, PinHeight pinHeig
         throw Error(ECORRUPTEDSIG);
 }
 
+VerifiedTokenCreation TokenCreationInternal::verify(const Headerchain& hc, NonzeroHeight height) const
+{
+    assert(height <= hc.length() + 1);
+    assert(!fromAddress.is_null());
+    const PinFloor pinFloor { PrevHeight(height) };
+    PinHeight pinHeight(pinNonce.pin_height(pinFloor));
+    Hash pinHash { hc.hash_at(pinHeight) };
+    return VerifiedTokenCreation(*this, pinHeight, pinHash);
+}
+
+bool VerifiedTokenCreation::valid_signature() const
+{
+    auto recovered = recover_address();
+    return recovered == tci.fromAddress;
+}
+
+VerifiedTokenCreation::VerifiedTokenCreation(const TokenCreationInternal& tci, PinHeight pinHeight, HashView pinHash)
+    : tci(tci)
+    , id { tci.fromAccountId, pinHeight, tci.pinNonce.id }
+    , hash(HasherSHA256()
+          << pinHash
+          << pinHeight
+          << tci.creationCode
+          << tci.tokenName.view()
+          << tci.pinNonce.id
+          << tci.pinNonce.reserved
+          << tci.compactFee.uncompact())
+{
+    if (!valid_signature())
+        throw Error(ECORRUPTEDSIG);
+}
+
 namespace history {
 Entry::Entry(const RewardInternal& p)
 {

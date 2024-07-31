@@ -2,6 +2,7 @@
 
 #include "SQLiteCpp/SQLiteCpp.h"
 #include "api/types/forward_declarations.hpp"
+#include "defi/token.hpp"
 #include "block/block.hpp"
 #include "block/chain/offsts.hpp"
 #include "block/chain/worksum.hpp"
@@ -12,7 +13,7 @@
 #include "general/filelock/filelock.hpp"
 class ChainDBTransaction;
 class Batch;
-class AssetName;
+class TokenName;
 struct SignedSnapshot;
 class Headerchain;
 struct RawBody : public std::vector<uint8_t> {
@@ -294,7 +295,7 @@ public:
     // void setStateBalance(AccountId accountId, Funds balance);
     void insert_consensus(NonzeroHeight height, BlockId blockId, HistoryId historyCursor, AccountId accountCursor);
 
-    void insert_asset(NonzeroHeight height, AssetName name);
+    TokenId insert_new_token(NonzeroHeight height, TokenName name);
     std::tuple<std::vector<Batch>, HistoryHeights, AccountHeights>
     getConsensusHeaders() const;
 

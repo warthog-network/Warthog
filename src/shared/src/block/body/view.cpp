@@ -16,6 +16,7 @@ BodyView::BodyView(std::span<const uint8_t> s, NonzeroHeight h)
 
     if (s.size() > MAXBLOCKSIZE)
         return;
+    const bool defiEnabled { true };
     if (h.value() >= NEWBLOCKSTRUCUTREHEIGHT || is_testnet()) {
         // Read new address section
         rd.skip(10); // for mining
@@ -35,10 +36,16 @@ BodyView::BodyView(std::span<const uint8_t> s, NonzeroHeight h)
         if (rd.remaining() != 0) {
             nTransfers = rd.uint32();
             // Make sure that it has correct length
-            if (rd.remaining() != (TransferSize)*nTransfers)
+            if (rd.remaining() < (TransferSize)*nTransfers)
                 return;
         }
         offsetTransfers = rd.cursor() - s.data();
+        rd.skip(nTransfers * TransferSize);
+
+        if (defiEnabled && rd.remaining() != 0) {
+            nNewTokens = rd.uint8();
+        }
+        offsetNewAssets = rd.cursor() - s.data();
     } else {
         // Read new address section
         if (rd.remaining() < 8)

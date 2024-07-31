@@ -1,10 +1,55 @@
 #pragma once
 
 #include "block/body/transaction_id.hpp"
-#include "general/reader.hpp"
 #include "block/body/view.hpp"
 #include "crypto/crypto.hpp"
+#include "defi/token.hpp"
+#include "general/reader.hpp"
 
+struct TokenCreationView : public View<BodyView::NewAssetSize> {
+private:
+    uint16_t fee_raw() const
+    {
+        return readuint16(pos + 16);
+    }
+
+public:
+    using View<BodyView::NewAssetSize>::View;
+    // AccountId fromAccountId; 8
+    // PinNonce pinNonce; 8
+    // TokenCreationCode creationCode; 4
+    // TokenName tokenName; 5
+    // CompactUInt compactFee; 2
+    // RecoverableSignature signature; 65
+    static_assert(size() == 8 + 8 + 4 + 5 + 2 + 65);
+    AccountId fromAccountId() const
+    {
+        return AccountId(readuint64(pos));
+    }
+    PinNonce pin_nonce() const
+    {
+        Reader r({ pos + 8, pos + 16 });
+        return PinNonce(r);
+    }
+    PinHeight pinHeight(PinFloor pinFloor) const
+    {
+        return pin_nonce().pin_height(pinFloor);
+    }
+
+    CompactUInt compact_fee_trow() const
+    {
+        return CompactUInt::from_value_throw(fee_raw());
+    }
+    TokenCreationCode creation_code() const
+    {
+        return { readuint32(pos) };
+    }
+    TokenName token_name() const
+    {
+        return TokenName { pos + 4 };
+    }
+    auto signature() const { return View<65>(pos + 9); }
+};
 struct TransferView : public View<BodyView::TransferSize> {
 private:
     uint16_t fee_raw() const
@@ -138,6 +183,12 @@ inline TransferView BodyView::get_transfer(size_t i) const
     return data() + offsetTransfers + i * TransferView::size();
 }
 
+inline TokenCreationView BodyView ::get_new_token(size_t i) const
+{
+    assert(i < nNewTokens);
+    return TokenCreationView { data() + offsetNewAssets + i * TokenCreationView::size() };
+}
+
 inline RewardView BodyView::reward() const
 {
     return { data() + offsetReward, 0 };
@@ -163,4 +214,8 @@ inline AddressView BodyView::Addresses::Iterator::operator*() const
 inline TransferView BodyView::Transfers::Iterator::operator*() const
 {
     return bv.get_transfer(i);
+}
+inline TokenCreationView BodyView::NewTokens::Iterator::operator*() const
+{
+    return bv.get_new_token(i);
 }

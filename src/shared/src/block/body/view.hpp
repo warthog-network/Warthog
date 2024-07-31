@@ -4,6 +4,7 @@
 #include "crypto/hash.hpp"
 #include <span>
 
+struct TokenCreationView;
 struct TransferView;
 struct RewardView;
 class AddressView;
@@ -86,11 +87,52 @@ class BodyView {
         const BodyView& bv;
     };
 
+    struct NewTokens {
+        NewTokens(const BodyView& bv)
+            : bv(bv)
+        {
+        }
+
+        struct EndIterator {
+        };
+        struct Iterator {
+            TokenCreationView operator*() const;
+            size_t index() { return i; }
+
+            bool operator==(EndIterator) const
+            {
+                return i == imax;
+            }
+            Iterator& operator++()
+            {
+                i += 1;
+                return *this;
+            }
+
+        private:
+            Iterator(size_t i, const BodyView& bv)
+                : i(i)
+                , imax(bv.getNNewTokens())
+                , bv(bv)
+            {
+            }
+            friend struct NewTokens;
+            size_t i { 0 };
+            size_t imax;
+            const BodyView& bv;
+        };
+        Iterator begin() { return { 0, bv }; }
+        EndIterator end() { return {}; }
+
+        const BodyView& bv;
+    };
+
 public:
     constexpr static size_t SIGLEN { 65 };
     constexpr static size_t AddressSize { 20 };
     constexpr static size_t RewardSize { 16 };
     constexpr static size_t TransferSize { 34 + SIGLEN };
+    constexpr static size_t NewAssetSize { 8 + 8 + 4 + 5 + 2 + SIGLEN };
     BodyView(std::span<const uint8_t>, NonzeroHeight h);
     std::vector<Hash> merkle_leaves() const;
     Hash merkle_root(Height h) const;
@@ -101,8 +143,11 @@ public:
 
     auto transfers() const { return Transfers { *this }; }
     auto addresses() const { return Addresses { *this }; }
+    auto token_creations() const { return NewTokens { *this }; }
     size_t getNAddresses() const { return nAddresses; };
+    size_t getNNewTokens() const { return nNewTokens; };
     TransferView get_transfer(size_t i) const;
+    TokenCreationView get_new_token(size_t i) const;
     RewardView reward() const;
     Funds fee_sum_assert() const;
     AddressView get_address(size_t i) const;
@@ -113,10 +158,11 @@ private:
 private:
     std::span<const uint8_t> s;
     size_t nAddresses;
-    uint16_t nRewards;
     size_t nTransfers { 0 };
-    size_t offsetAddresses = 0;
-    size_t offsetReward = 0;
-    size_t offsetTransfers = 0;
+    size_t nNewTokens { 0 };
+    size_t offsetAddresses { 0 };
+    size_t offsetReward { 0 };
+    size_t offsetTransfers { 0 };
+    size_t offsetNewAssets { 0 };
     bool isValid = false;
 };

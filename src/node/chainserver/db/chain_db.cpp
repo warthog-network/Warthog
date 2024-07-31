@@ -4,7 +4,7 @@
 #include "block/chain/header_chain.hpp"
 #include "block/header/header_impl.hpp"
 #include "block/header/view_inline.hpp"
-#include "general/asset.hpp"
+#include "defi/token.hpp"
 #include "general/hex.hpp"
 #include "general/now.hpp"
 #include "general/writer.hpp"
@@ -296,12 +296,12 @@ void ChainDB::insert_consensus(NonzeroHeight height, BlockId blockId, HistoryId 
     stmtScheduleDelete2.run(blockId);
 }
 
-void ChainDB::insert_asset(NonzeroHeight height, AssetName name)
+TokenId ChainDB::insert_new_token(NonzeroHeight height, TokenName name)
 {
     stmtAssetInsert.run(height, name.str());
     auto lastId { db.getLastInsertRowid() };
     stmtScheduleInsert.run(lastId, 0);
-    return { BlockId(lastId), true };
+    return TokenId(lastId);
 }
 
 std::tuple<std::vector<Batch>, HistoryHeights, AccountHeights> ChainDB::getConsensusHeaders() const
