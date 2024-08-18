@@ -1,8 +1,8 @@
 #include "connection.hpp"
-#include "transport/helpers/peer_addr.hpp"
 #include "eventloop/eventloop.hpp"
 #include "general/is_testnet.hpp"
 #include "global/globals.hpp"
+#include "transport/helpers/peer_addr.hpp"
 #include "uwebsockets/MoveOnlyFunction.h"
 #include "version.hpp"
 #include <chrono>
@@ -68,11 +68,11 @@ void TCPConnection::close_internal(int errcode)
 // CALLED BY OTHER THREAD
 void TCPConnection::async_send(std::unique_ptr<char[]> data, size_t size)
 {
-    conman.async_call([this, data = std::move(data), size]() mutable {
-        if (!tcpHandle->closing()) {
-            if (tcpHandle->write(std::move(data), size)
-                || tcpHandle->write_queue_size() > MAXBUFFER)
-                close_internal(EBUFFERFULL);
+    conman.async_call([w = weak_from_this(), data = std::move(data), size]() mutable {
+        if (auto c { w.lock() }; c && !c->tcpHandle->closing()) {
+            if (c->tcpHandle->write(std::move(data), size)
+                || c->tcpHandle->write_queue_size() > MAXBUFFER)
+                c->close_internal(EBUFFERFULL);
         }
     });
 }
@@ -87,6 +87,7 @@ TCPPeeraddr TCPConnection::claimed_peer_addr() const
         return peer_addr_native();
     }
 };
-bool TCPConnection::inbound() const { 
+bool TCPConnection::inbound() const
+{
     return connectRequest.inbound();
 }
