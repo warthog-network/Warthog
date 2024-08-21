@@ -1,5 +1,6 @@
 #pragma once
 
+#include "defi/token/token.hpp"
 #include "transport/helpers/peer_addr.hpp"
 #include "block/body/primitives.hpp"
 #include "block/chain/history/index.hpp"
@@ -88,6 +89,14 @@ struct Block {
         Hash txhash;
         Address toAddress;
         Funds amount;
+    };
+    struct TokenCreation {
+        Address creatorAddress;
+        NonceId nonceId;
+        Hash txhash;
+        TokenName tokenName;
+        TokenId tokenIndex;
+        Funds fee;
     };
     Header header;
     NonzeroHeight height;

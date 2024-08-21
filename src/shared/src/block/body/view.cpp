@@ -45,7 +45,7 @@ BodyView::BodyView(std::span<const uint8_t> s, NonzeroHeight h)
         if (defiEnabled && rd.remaining() != 0) {
             nNewTokens = rd.uint8();
         }
-        offsetNewAssets = rd.cursor() - s.data();
+        offsetNewTokens = rd.cursor() - s.data();
     } else {
         // Read new address section
         if (rd.remaining() < 8)

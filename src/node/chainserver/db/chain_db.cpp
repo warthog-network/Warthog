@@ -4,7 +4,7 @@
 #include "block/chain/header_chain.hpp"
 #include "block/header/header_impl.hpp"
 #include "block/header/view_inline.hpp"
-#include "defi/token.hpp"
+#include "defi/token/token.hpp"
 #include "general/hex.hpp"
 #include "general/now.hpp"
 #include "general/writer.hpp"
@@ -18,12 +18,17 @@ ChainDB::Cache ChainDB::Cache::init(SQLite::Database& db)
     auto maxStateId = AccountId(int64_t(db.execAndGet("SELECT coalesce(max(ROWID),0) FROM `State`")
                                             .getInt64()));
 
+    auto maxTokenId_i64 { int64_t(db.execAndGet("SELECT coalesce(max(ROWID),0) FROM `Tokens`").getInt64()) };
+    assert(maxTokenId_i64 >= 0 && maxTokenId_i64 < std::numeric_limits<uint32_t>::max());
+    auto maxTokenId { TokenId(maxTokenId_i64) };
+
     int64_t hid = db.execAndGet("SELECT coalesce(max(id)+1,1) FROM History")
                       .getInt64();
     if (hid < 0)
         throw std::runtime_error("Database corrupted, negative history id.");
     return {
         .maxStateId { maxStateId },
+        .maxTokenId { maxTokenId },
         .nextHistoryId = HistoryId { uint64_t(hid) },
         .deletionKey { 2 }
     };
@@ -47,7 +52,12 @@ ChainDB::ChainDB(const std::string& path)
           db, "SELECT `height`, `header`, `body` FROM \"Blocks\" WHERE `ROWID`=?;")
     , stmtBlockByHash(
           db, "SELECT ROWID, `height`, `header`, `body` FROM \"Blocks\" WHERE `hash`=?;")
-    , stmtAssetInsert(db, "INSERT INTO \"Assets\" ( `height`, `name`,) VALUES (?,?)")
+    , stmtTokenInsert(db, "INSERT INTO \"Tokens\" ( `ROWID`, `height`, `creator_id`, `name`, `type`) VALUES (?,?,?,?,?)")
+    , stmtTokenInsertBalance(db, "INSERT INTO \"token_balance\" ( `token_id`, `account_id`, `balance`) VALUES (?,?,?)")
+    , stmtTokenSelectBalance(db, "SELECT `balance` FROM `token_balance` WHERE `token_id`=? AND `account_id`=?")
+    , stmtAccountSelectTokens(db, "SELECT `token_id`, `balance` FROM `token_balance` WHERE `account_id`=? LIMIT ?")
+    , stmtTokenUpdateBalance(db, "UPDATE `token_balance` SET `balance`=? WHERE `token_id`=? AND `account_id`=?")
+    , stmtTokenSelectRichlist(db, "SELECT `account_id`, `balance` FROM `token_balance` WHERE `token_id`=? ORDER BY `balance` DESC LIMIT ?")
     , stmtConsensusHeaders(db, "SELECT c.height, c.history_cursor, c.account_cursor, b.header "
                                "FROM `Blocks` b JOIN `Consensus` c ON "
                                "b.ROWID=c.block_id ORDER BY c.height ASC;")
@@ -122,7 +132,7 @@ ChainDB::ChainDB(const std::string& path)
     db.exec("UPDATE `Deleteschedule` SET `deletion_key`=1");
 }
 
-void ChainDB::insertStateEntry(const AddressView address, Funds balance,
+void ChainDB::insert_state_entry(const AddressView address, Funds balance,
     AccountId verifyNextStateId)
 {
     if (cache.maxStateId + 1 != verifyNextStateId)
@@ -296,12 +306,47 @@ void ChainDB::insert_consensus(NonzeroHeight height, BlockId blockId, HistoryId 
     stmtScheduleDelete2.run(blockId);
 }
 
-TokenId ChainDB::insert_new_token(NonzeroHeight height, TokenName name)
+void ChainDB::insert_new_token(TokenId verifyNextTokenId, NonzeroHeight height, AccountId creatorId, TokenName name, TokenMintType type)
 {
-    stmtAssetInsert.run(height, name.str());
-    auto lastId { db.getLastInsertRowid() };
-    stmtScheduleInsert.run(lastId, 0);
-    return TokenId(lastId);
+    auto id { cache.maxTokenId + 1 };
+    if (id != verifyNextTokenId)
+        throw std::runtime_error("Internal error, state id inconsistent.");
+    std::string n { name.c_str() };
+    stmtTokenInsert.run(id, height, creatorId, n, static_cast<uint8_t>(type));
+    cache.maxTokenId++;
+}
+
+void ChainDB::insert_token_balance(TokenId tokenId, AccountId accountId, Funds balance)
+{
+    stmtTokenInsertBalance.run(tokenId, accountId, balance);
+}
+
+std::optional<Funds> ChainDB::get_token_balance(TokenId tokenId, AccountId accountId)
+{
+    return stmtTokenSelectBalance.one(tokenId, accountId);
+}
+std::vector<std::pair<TokenId, Funds>> ChainDB::get_tokens(AccountId accountId, size_t limit)
+{
+    std::vector<std::pair<TokenId, Funds>> res;
+    stmtAccountSelectTokens.for_each([&](Statement2::Row& r) {
+        res.push_back({ r.get<TokenId>(0), r.get<Funds>(1) });
+    },
+        accountId, limit);
+    return res;
+}
+
+void ChainDB::update_token_balance(TokenId tokenId, AccountId accountId, Funds balance){
+    stmtTokenUpdateBalance.run(balance, tokenId, accountId);
+}
+
+std::vector<std::pair<AccountId, Funds>> ChainDB::get_richlist(TokenId tokenId, size_t limit)
+{
+    std::vector<std::pair<AccountId, Funds>> res;
+    stmtTokenSelectRichlist.for_each([&](Statement2::Row& r) {
+        res.push_back({ r.get<AccountId>(0), r.get<Funds>(1) });
+    },
+        tokenId, limit);
+    return res;
 }
 
 std::tuple<std::vector<Batch>, HistoryHeights, AccountHeights> ChainDB::getConsensusHeaders() const

@@ -2,17 +2,17 @@
 #include "block/body/transaction_id.hpp"
 #include "crypto/crypto.hpp"
 #include "crypto/hasher_sha256.hpp"
-#include "defi/token.hpp"
+#include "defi/token/token.hpp"
 #include <variant>
 class Headerchain;
 struct RewardInternal {
-    AccountId toAccountId;
+    ValidAccountId toAccountId;
     Funds amount;
     NonzeroHeight height;
     uint16_t offset; // id of payout in block
     AddressView toAddress { nullptr };
     Hash hash() const;
-    RewardInternal(AccountId toAccountId, Funds amount, NonzeroHeight height,
+    RewardInternal(ValidAccountId toAccountId, Funds amount, NonzeroHeight height,
         uint16_t offset)
         : toAccountId(toAccountId)
         , amount(amount)
@@ -23,16 +23,16 @@ struct RewardInternal {
 };
 class VerifiedTransfer;
 struct TransferInternal {
-    AccountId fromAccountId;
-    AccountId toAccountId;
+    ValidAccountId fromAccountId;
+    ValidAccountId toAccountId;
     Funds amount;
     PinNonce pinNonce;
     CompactUInt compactFee;
     AddressView fromAddress { nullptr };
     AddressView toAddress { nullptr };
     RecoverableSignature signature;
-    VerifiedTransfer verify(const Headerchain&, NonzeroHeight) const;
-    TransferInternal(AccountId from, CompactUInt compactFee, AccountId to,
+    [[nodiscard]] VerifiedTransfer verify(const Headerchain&, NonzeroHeight) const;
+    TransferInternal(ValidAccountId from, CompactUInt compactFee, ValidAccountId to,
         Funds amount, PinNonce pinNonce, View<65> signdata)
         : fromAccountId(from)
         , toAccountId(to)
@@ -43,7 +43,6 @@ struct TransferInternal {
     {
     }
 };
-
 
 class VerifiedTransfer {
     friend struct TransferInternal;
@@ -62,20 +61,18 @@ public:
 
 class VerifiedTokenCreation;
 struct TokenCreationInternal {
-    AccountId fromAccountId;
-    TokenCreationCode creationCode;
-    TokenName tokenName;
+    ValidAccountId creatorAccountId;
     PinNonce pinNonce;
+    TokenName tokenName;
     CompactUInt compactFee;
     RecoverableSignature signature;
-    AddressView fromAddress { nullptr };
-    VerifiedTokenCreation verify(const Headerchain&, NonzeroHeight) const;
-    TokenCreationInternal(AccountId fromAccountId, TokenCreationCode creationCode,
-        TokenName tokenName, PinNonce pinNonce, CompactUInt compactFee, RecoverableSignature signature)
-        : fromAccountId(fromAccountId)
-        , creationCode(std::move(creationCode))
-        , tokenName(std::move(tokenName))
+    AddressView creatorAddress { nullptr };
+    [[nodiscard]] VerifiedTokenCreation verify(const Headerchain&, NonzeroHeight, TokenId) const;
+    TokenCreationInternal(ValidAccountId fromAccountId, PinNonce pinNonce,
+        TokenName tokenName, CompactUInt compactFee, RecoverableSignature signature)
+        : creatorAccountId(fromAccountId)
         , pinNonce(std::move(pinNonce))
+        , tokenName(std::move(tokenName))
         , compactFee(std::move(compactFee))
         , signature(std::move(signature))
     {
@@ -84,7 +81,7 @@ struct TokenCreationInternal {
 
 class VerifiedTokenCreation {
     friend struct TokenCreationInternal;
-    VerifiedTokenCreation(const TokenCreationInternal&, PinHeight pinHeight, HashView pinHash);
+    VerifiedTokenCreation(const TokenCreationInternal&, PinHeight pinHeight, HashView pinHash, TokenId);
     Address recover_address() const
     {
         return tci.signature.recover_pubkey(hash).address();
@@ -92,10 +89,12 @@ class VerifiedTokenCreation {
 
     bool valid_signature() const;
 
+
 public:
     const TokenCreationInternal& tci;
-    const TransactionId id;
-    const Hash hash;
+    TransactionId id;
+    Hash hash;
+    TokenId tokenIndex;
 };
 
 namespace history {
@@ -118,10 +117,24 @@ struct RewardData {
     Funds miningReward;
     void write(Writer& w) const;
 };
-using Data = std::variant<TransferData, RewardData>;
+
+struct TokenCreationData {
+    static TokenCreationData parse(Reader& r);
+    constexpr static uint8_t indicator = 3;
+    constexpr static uint8_t bytesize = 8 + 8 + 6 + 2 + 4; // without indicator
+    AccountId creatorAccountId; // 8 bytes
+    PinNonce pinNonce; // 8 bytes
+    TokenName tokenName; // 6 bytes
+    CompactUInt compactFee; // 2 bytes
+    TokenId tokenIndex; // 4 bytes
+    void write(Writer& w) const;
+};
+
+using Data = std::variant<TransferData, RewardData, TokenCreationData>;
 struct Entry {
     Entry(const RewardInternal& p);
     Entry(const VerifiedTransfer& p);
+    Entry(const VerifiedTokenCreation& p);
     Hash hash;
     std::vector<uint8_t> data;
 };

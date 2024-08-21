@@ -21,6 +21,7 @@ class BalanceChecker {
         Funds _in { Funds::zero() };
         Funds _out { Funds::zero() };
         std::vector<size_t> referredPayout;
+        std::vector<size_t> referredTokenCreator;
         std::vector<size_t> referredFrom;
         std::vector<size_t> referredTo;
     };
@@ -41,10 +42,9 @@ public:
     { // OK
     }
 
-    void register_reward(AccountId to, Funds amount, uint16_t offset) // OK
+    void register_reward(AccountId unvalidatedTo, Funds amount, uint16_t offset) // OK
     {
-        if (!validAccountId(to))
-            throw Error(EIDPOLICY);
+        auto to { validate_id(unvalidatedTo) };
         payouts.emplace_back(to, amount, height, offset);
         size_t i = payouts.size() - 1;
         auto& ref = payouts[i];
@@ -61,16 +61,12 @@ public:
         Funds amount { tv.amount_throw() };
         auto compactFee = tv.compact_fee_trow();
         Funds fee { compactFee.uncompact() };
-        AccountId to = tv.toAccountId();
-        AccountId from = tv.fromAccountId();
+        auto to { validate_id(tv.toAccountId()) };
+        auto from { validate_id(tv.fromAccountId()) };
         if (height.value() > 719118 && amount.is_zero())
             throw Error(EZEROAMOUNT);
         if (from == to)
             throw Error(ESELFSEND);
-        if (!validAccountId(from))
-            throw Error(EIDPOLICY);
-        if (!validAccountId(to))
-            throw Error(EIDPOLICY);
 
         payments.emplace_back(from, compactFee, to, amount, tv.pin_nonce(), tv.signature());
         size_t i = payments.size() - 1;
@@ -90,50 +86,40 @@ public:
         totalfee.add_throw(fee);
         refFrom.referredFrom.push_back(i);
     }
-    void register_token_creation(TokenCreationView tc, Height height)
+    void register_token_creation(TokenCreationView tc, Height)
     {
         auto compactFee = tc.compact_fee_trow();
         Funds fee { compactFee.uncompact() };
-        AccountId from = tc.fromAccountId();
-        auto tokenName { tc.token_name() };
-        if (!validAccountId(from))
-            throw Error(EIDPOLICY);
+        auto from { validate_id(tc.fromAccountId()) };
 
-        tokenCreations.emplace_back(from, tc.creation_code(), tc.token_name(), tc.pin_nonce(), tc.signature());
-        size_t i = payments.size() - 1;
-        auto& ref = payments.back();
+        tokenCreations.emplace_back(from, tc.pin_nonce(), tc.token_name(), compactFee, tc.signature());
+        size_t i = tokenCreations.size() - 1;
         if (from >= beginNewAccountId) {
-            ref.fromAddress = get_new_address(from - beginNewAccountId);
+            auto& ref = tokenCreations.back();
+            ref.creatorAddress = get_new_address(from - beginNewAccountId);
         } // otherwise wait for db lookup later
-        if (to >= beginNewAccountId) {
-            ref.toAddress = get_new_address(to - beginNewAccountId);
-        } // otherwise wait for db lookup later
-        auto& refTo = account_flow(to);
-        refTo._in.add_throw(amount);
-        refTo.referredTo.push_back(i);
 
         auto& refFrom = account_flow(from);
-        refFrom._out.add_throw(Funds::sum_throw(amount, fee));
+        refFrom._out.add_throw(fee);
         totalfee.add_throw(fee);
-        refFrom.referredFrom.push_back(i);
+        refFrom.referredTokenCreator.push_back(i);
     }
     Funds getTotalFee() { return totalfee; }; // OK
-    bool validAccountId(AccountId accountId) // OK
+    ValidAccountId validate_id(AccountId accountId) const // OK
     {
-        return accountId < endNewAccountId;
+        return accountId.validate_throw(endNewAccountId);
     }
     int set_address(OldAccountFlow& af, AddressView address) // OK
     {
         af.address = address;
-        for (size_t i : af.referredFrom) {
-            payments[i].fromAddress = af.address;
-        }
-        for (size_t i : af.referredTo) {
-            payments[i].toAddress = af.address;
-        }
-        for (size_t i : af.referredPayout) {
+        for (size_t i : af.referredPayout)
             payouts[i].toAddress = af.address;
-        }
+        for (size_t i : af.referredTokenCreator)
+            tokenCreations[i].creatorAddress = af.address;
+        for (size_t i : af.referredFrom)
+            payments[i].fromAddress = af.address;
+        for (size_t i : af.referredTo)
+            payments[i].toAddress = af.address;
         return 0;
     }
     auto& getOldAccounts() { return oldAccounts; } // OK
@@ -144,8 +130,9 @@ public:
         return beginNewAccountId + newElementOffset;
     };
     AddressView get_new_address(size_t i) { return bv.get_address(i); } // OK
-    const std::vector<TransferInternal>& get_transfers() { return payments; };
-    const std::vector<RewardInternal>& get_rewards() { return payouts; };
+    auto& get_transfers() const { return payments; }
+    auto& get_rewards() const { return payouts; }
+    auto& get_token_creations() const { return tokenCreations; }
 
 protected:
     AccountFlow& account_flow(AccountId i)
@@ -178,6 +165,11 @@ struct InsertHistoryEntry {
     {
     }
     InsertHistoryEntry(const VerifiedTransfer& t, HistoryId historyId)
+        : he(t)
+        , historyId(historyId)
+    {
+    }
+    InsertHistoryEntry(const VerifiedTokenCreation& t, HistoryId historyId)
         : he(t)
         , historyId(historyId)
     {
@@ -232,8 +224,10 @@ struct Preparation {
     std::set<TransactionId> txset;
     std::vector<std::pair<AccountId, Funds>> updateBalances;
     std::vector<std::tuple<AddressView, Funds, AccountId>> insertBalances;
+    std::vector<std::tuple<TokenId, AccountId, TokenName>> insertTokenCreations;
     std::vector<API::Block::Reward> apiRewards;
     std::vector<API::Block::Transfer> apiTransfers;
+    std::vector<API::Block::TokenCreation> apiTokenCreations;
     HistoryEntries historyEntries;
     RollbackGenerator rg;
     Preparation(HistoryId nextHistoryId, AccountId beginNewAccountId)
@@ -254,6 +248,10 @@ Preparation BlockApplier::Preparer::prepare(const BodyView& bv, const NonzeroHei
     // * overflow check OK
     // * check every new address is indeed new OK
     // * check signatures OK
+
+    ////////////////////////////////////////////////////////////
+    /// Read block sections
+    ////////////////////////////////////////////////////////////
 
     // Read new address section
     const AccountId beginNewAccountId = db.next_state_id(); // they start from this index
@@ -289,6 +287,10 @@ Preparation BlockApplier::Preparer::prepare(const BodyView& bv, const NonzeroHei
     for (auto tc : bv.token_creations()) {
         balanceChecker.register_token_creation(tc, height);
     }
+
+    ////////////////////////////////////////////////////////////
+    /// Process block sections
+    ////////////////////////////////////////////////////////////
 
     // loop through old accounts and
     // load previous balances and addresses from database
@@ -360,6 +362,23 @@ Preparation BlockApplier::Preparer::prepare(const BodyView& bv, const NonzeroHei
         });
     }
 
+    const auto beginNewTokenId = db.next_token_id(); // they start from this index
+    for (size_t i = 0; i < balanceChecker.get_token_creations().size(); ++i) {
+        auto& tc { balanceChecker.get_token_creations()[i] };
+        auto tokenId { beginNewTokenId + i };
+        const auto verified { tc.verify(hc, height, tokenId) };
+        res.insertTokenCreations.push_back({ tokenId, tc.creatorAccountId, tc.tokenName });
+        res.apiTokenCreations.push_back(
+            {
+                .creatorAddress { verified.tci.creatorAddress },
+                .nonceId { verified.tci.pinNonce.id },
+                .txhash { verified.hash },
+                .tokenName { tc.tokenName },
+                .tokenIndex { verified.tokenIndex },
+                .fee { tc.compactFee.uncompact() },
+            });
+    }
+
     if (totalpayout > Funds::sum_throw(height.reward(), balanceChecker.getTotalFee()))
         throw Error(EBALANCE);
 
@@ -388,8 +407,14 @@ API::Block BlockApplier::apply_block(const BodyView& bv, HeaderView hv, NonzeroH
 
         // insert new balances
         for (auto& [addr, bal, accId] : prepared.insertBalances) {
-            db.insertStateEntry(addr, bal, accId);
+            db.insert_state_entry(addr, bal, accId);
             balanceUpdates.insert_or_assign(accId, bal);
+        }
+
+        // insert token creations
+        for (auto& [tokenId, creatorId, tokenName] : prepared.insertTokenCreations){
+            db.insert_new_token(tokenId, height, creatorId, tokenName, TokenMintType::Default);
+            db.insert_token_balance(tokenId, creatorId, DefaultTokenSupply);
         }
 
         // write undo data

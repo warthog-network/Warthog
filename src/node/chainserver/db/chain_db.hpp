@@ -2,7 +2,7 @@
 
 #include "SQLiteCpp/SQLiteCpp.h"
 #include "api/types/forward_declarations.hpp"
-#include "defi/token.hpp"
+#include "defi/token/token.hpp"
 #include "block/block.hpp"
 #include "block/chain/offsts.hpp"
 #include "block/chain/worksum.hpp"
@@ -90,6 +90,10 @@ struct Column2 : public SQLite::Column {
     operator AccountId() const
     {
         return AccountId(int64_t(getInt64()));
+    }
+    operator TokenId() const
+    {
+        return TokenId(int64_t(getInt64()));
     }
     operator IsUint64() const
     {
@@ -288,14 +292,22 @@ public:
     {
         stmtStateSetBalance.run(newbalance, stateId);
     };
-    void insertStateEntry(const AddressView address, Funds balance,
+    void insert_state_entry(const AddressView address, Funds balance,
         AccountId verifyNextStateId);
 
     void delete_state_from(AccountId fromAccountId);
     // void setStateBalance(AccountId accountId, Funds balance);
     void insert_consensus(NonzeroHeight height, BlockId blockId, HistoryId historyCursor, AccountId accountCursor);
 
-    TokenId insert_new_token(NonzeroHeight height, TokenName name);
+    // token functions
+    void insert_new_token(TokenId verifyNextTokenId, NonzeroHeight height, AccountId creatorId, TokenName name, TokenMintType type);
+    void insert_token_balance(TokenId, AccountId, Funds balance);
+    std::optional<Funds> get_token_balance(TokenId, AccountId);
+    std::vector<std::pair<TokenId,Funds>> get_tokens(AccountId, size_t limit);
+    void update_token_balance(TokenId, AccountId, Funds balance);
+    std::vector<std::pair<AccountId,Funds>> get_richlist(TokenId, size_t limit);
+
+
     std::tuple<std::vector<Batch>, HistoryHeights, AccountHeights>
     getConsensusHeaders() const;
 
@@ -358,6 +370,7 @@ public:
     void insert_bad_block(NonzeroHeight height, const HeaderView header);
 
     AccountId next_state_id() const { return AccountId(cache.maxStateId + 1); };
+    TokenId next_token_id() const { return TokenId(cache.maxTokenId + 1); };
     HistoryId insertHistory(const HashView hash,
         const std::vector<uint8_t>& data);
     void delete_history_from(NonzeroHeight);
@@ -392,8 +405,13 @@ private:
             db.exec("CREATE TABLE IF NOT EXISTS `Blocks` ( `height` INTEGER "
                     "NOT NULL, `header` BLOB NOT NULL, `body` BLOB NOT NULL, "
                     "`undo` BLOB DEFAULT null, `hash` BLOB NOT NULL UNIQUE )");
-            db.exec("CREATE TABLE IF NOT EXISTS \"Assets\" ( `height` INTEGER NOT "
-                    "NULL, `NAME` TEXT NOT NULL UNIQUE)");
+            db.exec("CREATE TABLE IF NOT EXISTS \"Tokens\" ( `height` INTEGER NOT "
+                    "NULL, `creator_id` INTEGER NOT NULL, `name` TEXT NOT NULL UNIQUE, `type` INTEGER NOT NULL)");
+            db.exec("CREATE TABLE IF NOT EXISTS \"token_balance\" ( `account_id` INTEGER NOT NULL, `token_id` INTEGER NOT NULL, `balance` INTEGER NOT NULL)");
+            db.exec("CREATE UNIQUE INDEX IF NOT EXISTS `token_balance_index` ON "
+                    "`token_balance` (`account_id` ASC, `token_id` ASC)");
+            db.exec("CREATE INDEX IF NOT EXISTS `token_balance_index2` ON "
+                    "`token_balance` (`token_id`, `balance` DESC)");
             db.exec("CREATE TABLE IF NOT EXISTS \"Consensus\" ( `height` INTEGER NOT "
                     "NULL, `block_id` INTEGER NOT NULL, `history_cursor` INTEGER NOT "
                     "NULL, `account_cursor` INTEGER NOT NULL, PRIMARY KEY(`height`) )");
@@ -421,6 +439,7 @@ private:
     } createTables;
     struct Cache {
         AccountId maxStateId;
+        TokenId maxTokenId; // TODO: initialize this variable
         HistoryId nextHistoryId;
         DeletionKey deletionKey;
         static Cache init(SQLite::Database& db);
@@ -431,8 +450,13 @@ private:
     mutable Statement2 stmtBlockById;
     mutable Statement2 stmtBlockByHash;
 
-    // Asset functions
-    mutable Statement2 stmtAssetInsert;
+    // Token functions
+    mutable Statement2 stmtTokenInsert;
+    mutable Statement2 stmtTokenInsertBalance;
+    mutable Statement2 stmtTokenSelectBalance;
+    mutable Statement2 stmtAccountSelectTokens;
+    mutable Statement2 stmtTokenUpdateBalance;
+    mutable Statement2 stmtTokenSelectRichlist;
 
     // Consensus table functions
     mutable Statement2 stmtConsensusHeaders;

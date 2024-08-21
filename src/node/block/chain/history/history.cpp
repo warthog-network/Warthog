@@ -45,33 +45,33 @@ VerifiedTransfer::VerifiedTransfer(const TransferInternal& ti, PinHeight pinHeig
         throw Error(ECORRUPTEDSIG);
 }
 
-VerifiedTokenCreation TokenCreationInternal::verify(const Headerchain& hc, NonzeroHeight height) const
+VerifiedTokenCreation TokenCreationInternal::verify(const Headerchain& hc, NonzeroHeight height, TokenId tid) const
 {
     assert(height <= hc.length() + 1);
-    assert(!fromAddress.is_null());
+    assert(!creatorAddress.is_null());
     const PinFloor pinFloor { PrevHeight(height) };
     PinHeight pinHeight(pinNonce.pin_height(pinFloor));
     Hash pinHash { hc.hash_at(pinHeight) };
-    return VerifiedTokenCreation(*this, pinHeight, pinHash);
+    return VerifiedTokenCreation(*this, pinHeight, pinHash, tid);
 }
 
 bool VerifiedTokenCreation::valid_signature() const
 {
     auto recovered = recover_address();
-    return recovered == tci.fromAddress;
+    return recovered == tci.creatorAddress;
 }
 
-VerifiedTokenCreation::VerifiedTokenCreation(const TokenCreationInternal& tci, PinHeight pinHeight, HashView pinHash)
+VerifiedTokenCreation::VerifiedTokenCreation(const TokenCreationInternal& tci, PinHeight pinHeight, HashView pinHash, TokenId tokenIndex)
     : tci(tci)
-    , id { tci.fromAccountId, pinHeight, tci.pinNonce.id }
+    , id { tci.creatorAccountId, pinHeight, tci.pinNonce.id }
     , hash(HasherSHA256()
           << pinHash
           << pinHeight
-          << tci.creationCode
           << tci.tokenName.view()
           << tci.pinNonce.id
           << tci.pinNonce.reserved
           << tci.compactFee.uncompact())
+    , tokenIndex(std::move(tokenIndex))
 {
     if (!valid_signature())
         throw Error(ECORRUPTEDSIG);
@@ -94,6 +94,17 @@ Entry::Entry(const VerifiedTransfer& p)
         p.ti.toAccountId,
         p.ti.amount,
         p.ti.pinNonce });
+    hash = p.hash;
+}
+
+Entry::Entry(const VerifiedTokenCreation& p)
+{
+    data = serialize(TokenCreationData {
+        .creatorAccountId { p.tci.creatorAccountId },
+        .pinNonce { p.tci.pinNonce },
+        .tokenName { p.tci.tokenName },
+        .compactFee { p.tci.compactFee },
+        .tokenIndex { p.tokenIndex } });
     hash = p.hash;
 }
 
@@ -133,6 +144,25 @@ RewardData RewardData::parse(Reader& r)
     };
 }
 
+void TokenCreationData::write(Writer& w) const
+{
+    assert(w.remaining() == bytesize);
+    w << creatorAccountId << compactFee << pinNonce << tokenName << tokenIndex;
+}
+
+TokenCreationData TokenCreationData::parse(Reader& r)
+{
+    if (r.remaining() != bytesize)
+        throw std::runtime_error("Cannot parse TokenCreationData.");
+    return TokenCreationData {
+        .creatorAccountId { r },
+        .pinNonce { r },
+        .tokenName { r },
+        .compactFee { r },
+        .tokenIndex { r },
+    };
+}
+
 std::vector<uint8_t> serialize(const Data& entry)
 {
     return std::visit([](auto& e) {
@@ -158,7 +188,7 @@ V check(uint8_t indicator, Reader& r)
 {
     // variant indicators must be all different and in order
     static_assert(prevIndicator < T::indicator);
-    if (T::indicator == indicator) 
+    if (T::indicator == indicator)
         return T::parse(r);
     return check<V, T::indicator, S...>(indicator, r);
 }
@@ -166,7 +196,7 @@ V check(uint8_t indicator, Reader& r)
 template <typename Variant, typename T, typename... S>
 Variant check_first(uint8_t indicator, Reader& r)
 {
-    if (T::indicator == indicator) 
+    if (T::indicator == indicator)
         return T::parse(r);
     return check<Variant, T::indicator, S...>(indicator, r);
 }
