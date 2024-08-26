@@ -72,6 +72,7 @@ struct ConfigParams {
         std::optional<SnapshotSigner> snapshotSigner;
         TCPPeeraddr bind { default_endpoint };
         bool isolated { false };
+        bool disableTxsMining { false }; // don't mine transactions
         bool logCommunicationVal { false };
     } node;
     struct Peers {

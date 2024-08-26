@@ -127,7 +127,7 @@ std::optional<API::Transaction> State::api_get_tx(const HashView txHash) const
         auto& [data, historyIndex] = *p;
         if (data.size() == 0)
             return {};
-        auto parsed{history::parse_throw(data)};
+        auto parsed { history::parse_throw(data) };
         NonzeroHeight h { chainstate.history_height(historyIndex) };
         if (std::holds_alternative<history::TransferData>(parsed)) {
             auto& d = std::get<history::TransferData>(parsed);
@@ -244,10 +244,13 @@ tl::expected<ChainMiningTask, Error> State::mining_task(const Address& a)
     NonzeroHeight height { next_height() };
     if (height.value() < NEWBLOCKSTRUCUTREHEIGHT && !is_testnet())
         return tl::make_unexpected(Error(ENOTSYNCED));
-    auto payments { chainstate.mempool().get_payments(400) };
+    std::vector<TransferTxExchangeMessage> payments;
+    if (!config().node.disableTxsMining) {
+        payments = chainstate.mempool().get_payments(400);
+    }
     Funds totalfee { Funds::zero() };
     for (auto& p : payments)
-        totalfee.add_assert(p.fee()); // assert because 
+        totalfee.add_assert(p.fee()); // assert because
                                       // fee sum is < sum of mempool payers' balances
 
     // mempool should have deleted out of window transactions
