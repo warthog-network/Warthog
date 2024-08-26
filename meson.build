@@ -1,5 +1,5 @@
 project( 'Warthog', ['c','cpp'],
-  version : '0.5.6',
+  version : '0.7.0',
   default_options : ['warning_level=3', 'cpp_std=c++20'])
 
 json_dep = subproject('json', default_options : ['warning_level=0', 'werror=false']).get_variable('nlohmann_json_dep')
