@@ -12,6 +12,7 @@
 #include <limits>
 #include <sstream>
 #ifdef __APPLE__
+ #include <pwd.h>
 #include <sys/types.h>
 #include <unistd.h>
 #endif
