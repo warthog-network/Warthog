@@ -30,6 +30,7 @@ inc_dirs = include_directories('./include/juice')
 libjuice = library(
   'libjuice',
   sources,
+  c_args: ['-DJUICE_STATIC'],
   include_directories: inc_dirs
 )
 

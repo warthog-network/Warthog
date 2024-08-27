@@ -1,6 +1,11 @@
 project( 'Warthog', ['c','cpp'],
-  version : '0.7.0',
+  version : '0.7.1',
   default_options : ['warning_level=3', 'cpp_std=c++20'])
+
+rtcstatic = []
+if host_machine.system() == 'windows'
+  rtcstatic = '-DRTC_STATIC'
+endif
 
 json_dep = subproject('json', default_options : ['warning_level=0', 'werror=false']).get_variable('nlohmann_json_dep')
 
@@ -14,18 +19,18 @@ plog_dep = subproject('plog', default_options : ['warning_level=0', 'werror=fals
 libdatachannel_dep = subproject('libdatachannel', default_options : ['warning_level=0', 'werror=false']).get_variable('libdatachannel_dep')
 libmbedtls_dep = subproject('mbedtls', default_options : ['warning_level=0', 'werror=false']).get_variable('libmbedtls_dep')
 
-exe = executable('rtc_server', 'rtc_server.cpp',
-  dependencies: [
-    json_dep,
-    libdatachannel_dep,
-    ],
-  install : true)
-exe = executable('rtc_client', 'rtc_client.cpp',
-  dependencies: [
-    json_dep,
-    libdatachannel_dep,
-    ],
-  install : true)
+# exe = executable('rtc_server', 'rtc_server.cpp',
+#   dependencies: [
+#     json_dep,
+#     libdatachannel_dep,
+#     ],
+#   install : true)
+# exe = executable('rtc_client', 'rtc_client.cpp',
+#   dependencies: [
+#     json_dep,
+#     libdatachannel_dep,
+#     ],
+#   install : true)
 else
 libdatachannel_dep = subproject('datachannel-wasm', default_options : ['warning_level=0', 'werror=false']).get_variable('libdatachannelwasm_dep')
 exe = executable('rtc_server', 'rtc_server.cpp',

@@ -1,6 +1,5 @@
 #include "ipv4.hpp"
 #include "general/reader.hpp"
-#include "netinet/in.h"
 #include "general/writer.hpp"
 #ifndef DISABLE_LIBUV
 #include "uv.h"

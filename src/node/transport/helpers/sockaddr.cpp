@@ -1,7 +1,8 @@
 #include "sockaddr.hpp"
 #include "general/reader.hpp"
-#include <netinet/in.h>
-#include <sys/socket.h>
+#ifndef DISABLE_LIBUV
+#include <uv.h>
+#endif
 
 std::optional<Sockaddr> Sockaddr::from_sockaddr_storage(const sockaddr_storage& sa){
     switch (sa.ss_family) {
@@ -30,7 +31,6 @@ Sockaddr4::Sockaddr4(Reader& r)
 }
 
 #ifndef DISABLE_LIBUV
-#include <uv.h>
 sockaddr Sockaddr4::sock_addr() const
 {
     sockaddr_in out;

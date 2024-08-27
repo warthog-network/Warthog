@@ -146,16 +146,18 @@ websocket = executable('websocket', 'websocket.cpp',
   name_suffix: 'html',
   install : true)
 else
-executable('client', vcs_dep, [src,'./rtc_client.cpp', src_spdlog,
-  ],
-  include_directories:['./' ,include_thirdparty,
-    ],
-  link_with: lib_thirdparty,
-  dependencies: deps,
-  install : true)
+# executable('client', vcs_dep, [src,'./rtc_client.cpp', src_spdlog,
+#   ],
+#   include_directories:['./' ,include_thirdparty,
+#     ],
+#   link_with: lib_thirdparty,
+#   dependencies: deps,
+#   install : true)
+
 executable('wart-node', vcs_dep, [src,'./main.cpp', src_spdlog],
   include_directories:['./' ,include_thirdparty],
   link_with: lib_thirdparty,
+  cpp_args: [rtcstatic,],
   dependencies: deps,
   install : true)
 endif
