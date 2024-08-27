@@ -1,8 +1,13 @@
 #include "ipv4.hpp"
 #include "general/reader.hpp"
 #include "general/writer.hpp"
-#ifndef DISABLE_LIBUV
-#include "uv.h"
+#ifdef _WIN32
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#else
+#include <netdb.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
 #endif
 
 IPv4::IPv4(Reader& r)

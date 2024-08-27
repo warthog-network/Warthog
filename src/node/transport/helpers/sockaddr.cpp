@@ -2,7 +2,6 @@
 #include "general/reader.hpp"
 #ifndef DISABLE_LIBUV
 #include <uv.h>
-#endif
 
 std::optional<Sockaddr> Sockaddr::from_sockaddr_storage(const sockaddr_storage& sa){
     switch (sa.ss_family) {
@@ -24,6 +23,7 @@ std::optional<Sockaddr> Sockaddr::from_sockaddr_storage(const sockaddr_storage& 
 
 }
 
+#endif
 Sockaddr4::Sockaddr4(Reader& r)
     : ip(r)
     , port(r.uint16())
