@@ -90,9 +90,6 @@ struct ECC {
     ECC() { ECC_Start(); }
     ~ECC() { ECC_Stop(); }
 };
-struct Starter {
-    Starter() { }
-};
 
 int main(int argc, char** argv)
 {
@@ -147,6 +144,8 @@ int main(int argc, char** argv)
     ps.start();
     cs->start();
     el->start();
+    if (stratumServer)
+        stratumServer->start();
 
 #ifdef DISABLE_LIBUV
     while (true) {
