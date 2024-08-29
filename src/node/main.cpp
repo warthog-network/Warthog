@@ -144,8 +144,6 @@ int main(int argc, char** argv)
     ps.start();
     cs->start();
     el->start();
-    if (stratumServer)
-        stratumServer->start();
 
 #ifdef DISABLE_LIBUV
     while (true) {
@@ -155,6 +153,8 @@ int main(int argc, char** argv)
 #else
     endpoint.start();
     wscm.start();
+    if (stratumServer)
+        stratumServer->start();
     spdlog::debug("Starting libuv loop");
     // running eventloop
     if ((i = l->run(uvw::loop::run_mode::DEFAULT)))
