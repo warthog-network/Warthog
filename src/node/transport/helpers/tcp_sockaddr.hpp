@@ -2,6 +2,7 @@
 
 #include "transport/helpers/sockaddr.hpp"
 #include <stdexcept>
+#include <limits>
 #ifndef DISABLE_LIBUV
 struct sockaddr;
 #endif
@@ -19,7 +20,7 @@ constexpr std::optional<uint16_t> parse_port(const std::string_view& s)
             return {};
         uint8_t digit = s[i] - '0';
         if (i == 5) {
-            if (port > 6553)
+            if (port > std::numeric_limits<uint16_t>::max())
                 return {};
             if (digit >= 6)
                 return {};
