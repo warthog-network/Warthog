@@ -25,8 +25,8 @@ using namespace std;
 #ifndef DISABLE_LIBUV
 std::string ConfigParams::get_default_datadir()
 {
-#ifdef __linux__
     const char* osBaseDir = nullptr;
+#ifdef __linux__
     if ((osBaseDir = getenv("HOME")) == NULL) {
         osBaseDir = getpwuid(getuid())->pw_dir;
     }
@@ -34,13 +34,11 @@ std::string ConfigParams::get_default_datadir()
         throw std::runtime_error("Cannot determine default data directory.");
     return std::string(osBaseDir) + "/.warthog/";
 #elif _WIN32
-    const char* osBaseDir = nullptr;
     osBaseDir = getenv("LOCALAPPDATA");
     if (osBaseDir == nullptr)
         throw std::runtime_error("Cannot determine default data directory.");
     return std::string(osBaseDir) + "/Warthog/";
 #elif __APPLE__
-    const char* osBaseDir = nullptr;
     if ((osBaseDir = getenv("HOME")) == NULL) {
         osBaseDir = getpwuid(getuid())->pw_dir;
     }

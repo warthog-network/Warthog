@@ -181,7 +181,7 @@ int process(gengetopt_args_info& ai)
         if (ai.send_given) {
             bool interactive { !ai.to_given || !ai.fee_given || !ai.amount_given };
             Address to(ai.to_given ? Address(ai.to_arg) : read_address("To: "));
-            CompactUInt fee { CompactUInt::compact({ ai.fee_given ? parse_amount(ai.fee_arg) : read_fee("Fee: ") }) };
+            CompactUInt fee { CompactUInt::compact( ai.fee_given ? parse_amount(ai.fee_arg) : read_fee("Fee: ") ) };
             Funds amount { ai.amount_given ? parse_amount(ai.amount_arg) : read_amount(balance_lambda, fee) };
             NonceId nid { ai.nonce_given ? NonceId(ai.nonce_arg) : NonceId::random() };
             if (interactive) {
@@ -217,7 +217,7 @@ int process(gengetopt_args_info& ai)
                 return 0;
             }
         }
-    } catch (std::runtime_error& e) {
+    } catch (std::exception& e) {
         cerr << e.what() << endl;
         return -1;
     }
