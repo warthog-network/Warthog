@@ -66,6 +66,9 @@ struct TCPPeeraddr : public Sockaddr4 {
     {
     }
     std::string to_string() const;
+    std::string to_string_with_protocol() const{
+        return "tcp://" + to_string();
+    }
     std::string_view type_str() const
     {
         return "TCP";
@@ -88,6 +91,9 @@ struct WSPeeraddr: public Sockaddr  {
     using Sockaddr::Sockaddr;
     auto operator<=>(const WSPeeraddr&) const = default;
     std::string to_string() const;
+    std::string to_string_with_protocol() const{
+        return "ws://" + to_string();
+    }
     WSPeeraddr(Sockaddr addr):Sockaddr(std::move(addr)){}
     std::string_view type_str() const
     {

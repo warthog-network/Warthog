@@ -145,7 +145,7 @@ template <typename T>
     if (val) {
         return val.value();
     }
-    throw std::runtime_error("Cannot extract configuration value starting at line "s + std::to_string(n.source().begin.line) + ", colum "s + std::to_string(n.source().begin.column) + ".");
+    throw std::runtime_error("Cannot extract configuration value starting at line "s + std::to_string(n.source().begin.line) + ", column "s + std::to_string(n.source().begin.column) + ".");
 }
 
 TCPPeeraddr fetch_endpointaddress(toml::node& n)
@@ -154,7 +154,7 @@ TCPPeeraddr fetch_endpointaddress(toml::node& n)
     if (p) {
         return p.value();
     }
-    throw std::runtime_error("Cannot extract configuration value starting at line "s + std::to_string(n.source().begin.line) + ", colum "s + std::to_string(n.source().begin.column) + ".");
+    throw std::runtime_error("Cannot extract configuration value starting at line "s + std::to_string(n.source().begin.line) + ", column "s + std::to_string(n.source().begin.column) + ".");
 }
 toml::array& array_ref(toml::node& n)
 {
@@ -287,7 +287,7 @@ int ConfigParams::init(const gengetopt_args_info& ai)
                 } else if (key == "stratum") {
                     for (auto& [k, v] : *t) {
                         if (k == "bind")
-                            stratumBind = fetch_endpointaddress(v);
+                            stratumBind = TCPPeeraddr::parse(fetch<std::string>(v));
                         else
                             warning_config(k);
                     }
