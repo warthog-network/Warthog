@@ -124,7 +124,7 @@ int main(int argc, char** argv)
     if (config().stratumPool) {
         stratumServer.emplace(config().stratumPool->bind);
     }
-    TCPConnectionManager cm(l, ps, config());
+    auto cm{ TCPConnectionManager::make_shared(l, ps, config())};
     WSConnectionManager wscm(ps, config().websocketServer);
     // setup signals
     setup_signals(l->raw());
@@ -133,7 +133,7 @@ int main(int argc, char** argv)
     HTTPEndpoint endpoint { config().jsonrpc.bind };
     auto endpointPublic { HTTPEndpoint::make_public_endpoint(config()) };
 
-    global_init(&breg, &ps, &*cs, &cm, &wscm, el.get(), &endpoint);
+    global_init(&breg, &ps, &*cs, cm.get(), &wscm, el.get(), &endpoint);
 #else
     global_init(&breg, &ps, &*cs, el.get());
 #endif
