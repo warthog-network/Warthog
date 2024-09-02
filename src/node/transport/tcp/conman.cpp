@@ -103,7 +103,7 @@ void TCPConnectionManager::handle_event(Connect&& c)
     auto& loop { listener->parent() };
     auto tcp { loop.resource<uvw::tcp_handle>() };
     auto& con{insert_connection(tcp, r)};
-    connection_log().info("{} connecting ", con.tag_string());
+    connection_log().info("{} connecting", con.tag_string());
     tcp->on<uvw::connect_event>([req = r, w = weak_from_this()](const uvw::connect_event&, uvw::tcp_handle& tcp) {
         auto cm { w.lock() };
         if (!cm)
@@ -115,7 +115,7 @@ void TCPConnectionManager::handle_event(Connect&& c)
 
     if (auto err { tcp->connect(r.address().sock_addr()) }; err) {
         Error e(err);
-        connection_log().info("{} cannot establish connection: ", e.strerror());
+        connection_log().info("{} cannot connect: {} ({})", con.tag_string(), e.err_name(), e.strerror());
         global().core->on_failed_connect(r, e);
         return;
     }
