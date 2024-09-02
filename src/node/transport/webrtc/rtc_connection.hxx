@@ -1,5 +1,5 @@
 #pragma once
-#include "connection.hpp"
+#include "rtc_connection.hpp"
 #include "rtc/rtc.hpp"
 #ifdef DISABLE_LIBUV
 #include "global/emscripten_proxy.hpp"

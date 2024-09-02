@@ -41,7 +41,7 @@ void on_connect(size_t total, const ConnectionBase& c)
         { "since", c.created_at_timestmap() },
         { "inbound", c.inbound() },
         { "type", c.type_str() },
-        { "address", c.to_string() } });
+        { "address", c.peer_addr().to_string() } });
 }
 
 void on_disconnect(size_t total, uint64_t id)

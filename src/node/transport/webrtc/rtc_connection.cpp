@@ -1,8 +1,6 @@
-#include "connection.hxx"
+#include "rtc_connection.hxx"
 #include "eventloop/eventloop.hpp"
 #include "webrtc_sockaddr.hpp"
-#ifdef DISABLE_LIBUV
-#endif
 
 void RTCConnection::if_not_closed(auto lambda)
 {
@@ -184,10 +182,11 @@ bool RTCConnection::set_error(int error)
 }
 
 //////////////////////////////
-/// maybe proxied functions (for emscripten build wasm-datachannel functions need to be called from main browser thread due because they access javascript "Window" object.
+/// maybe proxied functions (for emscripten build wasm-datachannel functions need to be called from main browser thread due because they access javascript "Window" object.)
 
 void RTCConnection::init_proxied(sdp_callback_t&& sdpCallback)
 {
+    spdlog::info("init proxied");
     rtc::Configuration config;
     config.iceServers.push_back({ "stun:stun.l.google.com:19302" });
 

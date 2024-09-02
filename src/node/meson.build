@@ -88,7 +88,7 @@ src= [
   './transport/helpers/per_ip_counter.cpp',
   './transport/helpers/sockaddr.cpp',
   './transport/helpers/tcp_sockaddr.cpp',
-  './transport/webrtc/connection.cpp',
+  './transport/webrtc/rtc_connection.cpp',
   './transport/webrtc/sdp_util.cpp',
   './transport/webrtc/webrtc_sockaddr.cpp',
   src_sqlitecpp,

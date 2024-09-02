@@ -8,7 +8,7 @@
 #ifndef DISABLE_LIBUV
 #include "transport/tcp/connection.hpp"
 #endif
-#include "transport/webrtc/connection.hpp"
+#include "transport/webrtc/rtc_connection.hpp"
 #include "transport/ws/connection.hpp"
 #include "version.hpp"
 #include <chrono>
@@ -39,9 +39,13 @@ ConnectionBase* ConnectionBase::ConnectionVariant::base()
     });
 }
 
-std::string ConnectionBase::to_string() const
+std::string ConnectionBase::tag_string() const
 {
-    return "(" + std::to_string(id) + ")" + (inbound() ? "IN" : "OUT") + peer_addr().to_string();
+    return tag() + " " + peer_addr().to_string();
+}
+std::string ConnectionBase::tag() const
+{
+    return "(" + std::to_string(id) + ") " + (inbound() ? "IN" : "OUT");
 }
 
 std::string_view ConnectionBase::type_str() const

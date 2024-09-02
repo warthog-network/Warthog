@@ -12,7 +12,7 @@
 #include "mempool/order_key.hpp"
 #include "peerserver/peerserver.hpp"
 #include "spdlog/spdlog.h"
-#include "transport/webrtc/connection.hxx"
+#include "transport/webrtc/rtc_connection.hxx"
 #include "transport/webrtc/sdp_util.hpp"
 #include "types/conref_impl.hpp"
 #include "types/peer_requests.hpp"

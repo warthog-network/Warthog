@@ -19,7 +19,8 @@ namespace {
 
 TCPConnection& TCPConnectionManager::insert_connection(std::shared_ptr<uvw::tcp_handle> tcpHandle, const TCPConnectRequest& r)
 {
-    auto con { TCPConnection::make_new(std::move(tcpHandle), r, *this) };
+    using sh_con_t = std::shared_ptr<TCPConnection>;
+    sh_con_t con { TCPConnection::make_new(std::move(tcpHandle), r, *this) };
     auto& tcp { con->tcpHandle };
     auto iter { tcpConnections.insert(con).first };
     tcp->data(con);
@@ -45,8 +46,8 @@ TCPConnectionManager::TCPConnectionManager(Token, std::shared_ptr<uvw::loop> loo
 {
     listener = loop->resource<uvw::tcp_handle>();
     assert(listener);
-    listener->on<uvw::error_event>([](const uvw::error_event&, uvw::tcp_handle&) {
-        spdlog::error("");
+    listener->on<uvw::error_event>([](const uvw::error_event& e, uvw::tcp_handle&) {
+        spdlog::error("TCP listener errror {}", e.name());
     });
     listener->on<uvw::listen_event>([this, &ps](const uvw::listen_event&, uvw::tcp_handle& server) {
         if (config().node.isolated)
@@ -99,20 +100,23 @@ void TCPConnectionManager::handle_event(GetPeers&& e)
 void TCPConnectionManager::handle_event(Connect&& c)
 {
     TCPConnectRequest& r { c };
-    connection_log().info("{} connecting ", r.address().to_string());
     auto& loop { listener->parent() };
     auto tcp { loop.resource<uvw::tcp_handle>() };
+    auto& con{insert_connection(tcp, r)};
+    connection_log().info("{} connecting ", con.tag_string());
     tcp->on<uvw::connect_event>([req = r, w = weak_from_this()](const uvw::connect_event&, uvw::tcp_handle& tcp) {
         auto cm { w.lock() };
         if (!cm)
             return;
-        auto& connection { cm->insert_connection(tcp.shared_from_this(), req) };
-        global().peerServer->log_outbound(req.address().ip, connection.shared_from_this());
-        connection.start_read();
+        auto connection { tcp.data<TCPConnection>() };
+        connection->start_read();
+        global().peerServer->log_outbound(req.address().ip, std::move(connection));
     });
 
     if (auto err { tcp->connect(r.address().sock_addr()) }; err) {
-        global().core->on_failed_connect(r, Error(err));
+        Error e(err);
+        connection_log().info("{} cannot establish connection: ", e.strerror());
+        global().core->on_failed_connect(r, e);
         return;
     }
 }

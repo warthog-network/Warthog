@@ -41,12 +41,6 @@ class RTCConnection final : public ConnectionBase, public std::enable_shared_fro
     uint16_t listen_port() const override { return 0; }
     std::optional<ConnectRequest> connect_request() const override { return {}; }
 
-    struct Connect {
-    };
-    struct Accept {
-        OneIpSdp& sdp;
-    };
-
 public:
     [[nodiscard]] static std::shared_ptr<RTCConnection> connect_new(Eventloop&, sdp_callback_t cb, const IP&, uint64_t verificationConId = 0);
     // feeler connection;
@@ -81,8 +75,6 @@ public:
     }
     Peeraddr peer_addr() const override { return { sockAddr }; }
     auto& native_peer_addr() const { return sockAddr ; }
-    // RTCSockaddr connection_peer_addr_native() const ;
-    // { return connectRequest.address; }
     bool inbound() const override { return isInbound; };
 
     void close(int errcode) override;

@@ -30,7 +30,7 @@ private:
 
     //////////////////////////////
     // Private methods
-    [[nodiscard]] TCPConnection& insert_connection(std::shared_ptr<uvw::tcp_handle> h, const TCPConnectRequest& r);
+    TCPConnection& insert_connection(std::shared_ptr<uvw::tcp_handle> h, const TCPConnectRequest& r);
     void on_wakeup();
 
     // ip counting
