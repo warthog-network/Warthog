@@ -37,7 +37,7 @@ public:
     auto chainlength() const -> Height { return chainstate.headers().length(); }
 
     // mempool
-    [[nodiscard]] auto insert_txs(const TxVec&) -> std::pair<std::vector<int32_t>, mempool::Log>;
+    [[nodiscard]] auto insert_txs(const TxVec&) -> std::pair<std::vector<Error>, mempool::Log>;
 
     // stage methods
     auto set_stage(Headerchain&& hc) -> stage_operation::StageSetResult;

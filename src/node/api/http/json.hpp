@@ -48,20 +48,20 @@ inline nlohmann::json to_json(const std::vector<T>& e)
     return to_json(e,std::identity());
 }
 
-inline std::string status(int32_t e)
+inline std::string status(Error e)
 {
     nlohmann::json j;
-    j["code"] = e;
-    if (e == 0) {
+    j["code"] = e.code;
+    if (e.is_error()) {
         j["error"] = nullptr;
     } else {
-        j["error"] = Error(e).strerror();
+        j["error"] = e.strerror();
     }
     return j.dump(1);
 }
 
 
-inline std::string status(const tl::expected<void, int32_t>& e)
+inline std::string status(const tl::expected<void, Error>& e)
 {
     if (e.has_value()) {
         return status(0);
@@ -70,7 +70,7 @@ inline std::string status(const tl::expected<void, int32_t>& e)
     }
 }
 
-inline std::string serialize(const tl::expected<void, int32_t>& e)
+inline std::string serialize(const tl::expected<void, Error>& e)
 {
     if (e.has_value()) {
         return status(0);
@@ -79,29 +79,19 @@ inline std::string serialize(const tl::expected<void, int32_t>& e)
     }
 }
 
-template <typename T>
-std::string serialize(const tl::expected<T, int32_t>& e)
-{
-    if (!e.has_value())
-        return status(e.error());
-    return nlohmann::json {
-        { "code", 0 },
-        { "data", to_json(*e) }
-    }.dump(1);
-}
 
 template <typename T>
 std::string serialize(const tl::expected<T, Error>& e)
 {
     if (!e.has_value())
-        return status(e.error().e);
+        return status(e.error());
     return nlohmann::json {
         { "code", 0 },
         { "data", to_json(*e) }
     }.dump(1);
 }
 
-inline std::string serialize(const tl::unexpected<int> e)
+inline std::string serialize(const tl::unexpected<Error> e)
 {
     return status(e.value());
 }

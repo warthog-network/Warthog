@@ -2,6 +2,7 @@
 #include <list>
 #include <memory>
 #include <span>
+#include "general/errors_forward.hpp"
 extern "C" {
 struct lws;
 }
@@ -36,8 +37,8 @@ public:
             current.cursor = 0;
         }
     }
-    void close(int32_t reason);
-    void on_close(int32_t reason);
+    void close(Error);
+    void on_close(Error);
     void on_connected();
 
     int receive(std::span<uint8_t> data);

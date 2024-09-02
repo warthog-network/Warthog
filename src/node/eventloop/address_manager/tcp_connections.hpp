@@ -1,5 +1,6 @@
 #pragma once
 #include "peerserver/connection_data.hpp"
+#include "general/errors_forward.hpp"
 #include "init_arg.hpp"
 #include "transport/helpers/ipv4.hpp"
 #include "wakeup_time.hpp"
@@ -203,7 +204,7 @@ public:
     std::optional<ConnectRequest> insert(TCPPeeraddr, Source);
     void connect_expired();
     void outbound_established(const TCPConnection&);
-    void outbound_closed(const TCPConnectRequest&, bool success, int32_t reason);
+    void outbound_closed(const TCPConnectRequest&, bool success, Error reason);
     void outbound_failed(const TCPConnectRequest&);
 
     [[nodiscard]] std::optional<time_point> pop_wakeup_time();

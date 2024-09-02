@@ -13,7 +13,7 @@ struct ChainOffender : public ChainError {
         , conId(connectionId)
     {
     }
-    ChainOffender(int32_t e, NonzeroHeight height, uint64_t connectionId)
+    ChainOffender(Error e, NonzeroHeight height, uint64_t connectionId)
         : ChainError(e, height)
         , conId(connectionId) {};
     uint64_t conId;

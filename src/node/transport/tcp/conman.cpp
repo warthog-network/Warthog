@@ -131,7 +131,7 @@ void TCPConnectionManager::handle_event(DeferFunc&& f)
     f.callback();
 };
 
-void TCPConnectionManager::shutdown(int32_t reason)
+void TCPConnectionManager::shutdown(Error reason)
 {
     if (closing == true)
         return;

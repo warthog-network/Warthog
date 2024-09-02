@@ -41,7 +41,7 @@ public:
 
 private:
     void start_read() override;
-    void close(int errcode) override;
+    void close(Error) override;
 
     std::weak_ptr<WSSession> session;
     const WSConnectRequest connectRequest;

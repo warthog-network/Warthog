@@ -181,7 +181,7 @@ void Mempool::set_balance(AccountId accId, Funds newBalance)
     assert(false); // should not happen
 }
 
-int32_t Mempool::insert_tx(const TransferTxExchangeMessage& pm,
+Error Mempool::insert_tx(const TransferTxExchangeMessage& pm,
     TransactionHeight txh,
     const TxHash& txhash,
     const AddressFunds& af)
@@ -190,7 +190,7 @@ int32_t Mempool::insert_tx(const TransferTxExchangeMessage& pm,
         insert_tx_throw(pm, txh, txhash, af);
         return 0;
     } catch (Error e) {
-        return e.e;
+        return e;
     }
 }
 

@@ -105,7 +105,7 @@ struct APIHeadRequest {
         : cb(std::move(cb))
     {
     }
-    void on(const tl::expected<API::ChainHead, int32_t>&& e)
+    void on(const tl::expected<API::ChainHead, Error>&& e)
     {
         if (e.has_value()) {
             on(std::move(e.value()));

@@ -34,7 +34,7 @@ void WSConnection::start_read()
     conman.start_read(session);
 }
 
-void WSConnection::close(int errcode)
+void WSConnection::close(Error e)
 {
-    conman.close(session, errcode);
+    conman.close(session, e);
 }

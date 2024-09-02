@@ -327,7 +327,7 @@ void TCPConnectionSchedule::start()
     }
 };
 
-void TCPConnectionSchedule::outbound_closed(const TCPConnectRequest& r, bool success, int32_t /*reason*/)
+void TCPConnectionSchedule::outbound_closed(const TCPConnectRequest& r, bool success, Error /*reason*/)
 {
     using enum ConnectionState;
     auto state { success ? CONNECTED_INITIALIZED : CONNECTED_UNINITIALIZED };

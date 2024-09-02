@@ -26,7 +26,7 @@ public:
     Height& operator=(const Height&) = default;
 
     NonzeroHeight nonzero_assert() const;
-    NonzeroHeight nonzero_throw(int Error) const;
+    NonzeroHeight nonzero_throw(Error) const;
     NonzeroHeight nonzero_throw(std::string) const;
     NonzeroHeight one_if_zero() const;
     // Height& operator--()
@@ -197,10 +197,10 @@ inline NonzeroHeight Height::nonzero_assert() const
     return { NonzeroHeight(value()) };
 }
 
-inline NonzeroHeight Height::nonzero_throw(int error) const
+inline NonzeroHeight Height::nonzero_throw(Error e) const
 {
     if (val == 0) {
-        throw Error(error);
+        throw e;
     }
     return nonzero_assert();
 }

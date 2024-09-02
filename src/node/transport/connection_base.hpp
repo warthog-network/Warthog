@@ -91,7 +91,7 @@ public:
         }
     };
     struct CloseState {
-        int error;
+        Error error;
     };
     // for inbound connections
     ConnectionBase();
@@ -108,7 +108,7 @@ public:
     // can only be called in eventloop thread because we assume
     // state == MessageState
 
-    virtual void close(int Error) = 0;
+    virtual void close(Error) = 0;
     void send(Sndbuffer&& msg);
     [[nodiscard]] std::vector<Rcvbuffer> pop_messages();
     [[nodiscard]] ProtocolVersion protocol_version() const;

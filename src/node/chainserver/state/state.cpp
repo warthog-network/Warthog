@@ -626,16 +626,16 @@ API::Balance State::api_get_address(AccountId accountId)
     }
 }
 
-auto State::insert_txs(const TxVec& txs) -> std::pair<std::vector<int32_t>, mempool::Log>
+auto State::insert_txs(const TxVec& txs) -> std::pair<std::vector<Error>, mempool::Log>
 {
-    std::vector<int32_t> res;
+    std::vector<Error> res;
     res.reserve(txs.size());
     for (auto& tx : txs) {
         try {
             chainstate.insert_tx(tx);
             res.push_back(0);
         } catch (const Error& e) {
-            res.push_back(e.e);
+            res.push_back(e.code);
         }
     }
     return { res, chainstate.pop_mempool_log() };

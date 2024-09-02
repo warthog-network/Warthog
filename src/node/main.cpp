@@ -11,7 +11,7 @@
 #ifdef DISABLE_LIBUV
 #include "config/browser.hpp"
 #else
-static void shutdown(int32_t reason);
+static void shutdown(Error reason);
 #include "api/http/endpoint.hpp"
 #include "api/stratum/stratum_server.hpp"
 #include "transport/tcp/conman.hpp"
@@ -63,7 +63,7 @@ void free_signals()
     uv_close((uv_handle_t*)&sigterm, nullptr);
 }
 
-static void shutdown(int32_t reason)
+static void shutdown(Error reason)
 {
     shutdownSignal.store(true);
     global().core->shutdown(reason);

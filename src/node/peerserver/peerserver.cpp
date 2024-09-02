@@ -7,7 +7,7 @@
 #include "spdlog/spdlog.h"
 
 namespace {
-uint32_t bantime(int32_t /*offense*/)
+uint32_t bantime(Error /*offense*/)
 {
     return 20 * 60; // 20 minutes;
 }

@@ -98,7 +98,7 @@ public:
     ~Eventloop();
 
     // API callbacks
-    using SignedSnapshotCb = std::function<void(const tl::expected<SignedSnapshot, int32_t>&)>;
+    using SignedSnapshotCb = std::function<void(const tl::expected<SignedSnapshot, Error>&)>;
     using InspectorCb = std::function<void(const Eventloop&)>;
 
     /////////////////////
@@ -116,7 +116,7 @@ public:
     void start_timer(StartTimer);
     void cancel_timer(const Timer::key_t&);
     void async_mempool_update(mempool::Log&& s);
-    void shutdown(int32_t reason);
+    void shutdown(Error reason);
     void wait_for_shutdown();
     void async_stage_action(stage_operation::Result);
     void async_state_update(StateUpdate&& s);
@@ -124,7 +124,7 @@ public:
 
     void erase(std::shared_ptr<ConnectionBase> c, Error);
     void on_failed_connect(const ConnectRequest& r, Error reason);
-    void on_outbound_closed(std::shared_ptr<ConnectionBase>, int32_t reason);
+    void on_outbound_closed(std::shared_ptr<ConnectionBase>, Error reason);
 
     void start();
 
@@ -148,7 +148,7 @@ private:
     void erase_internal(Conref cr, Error);
     [[nodiscard]] bool insert(Conref cr, const InitMsg& data); // returns true if requests might be possbile
     void close(Conref cr, Error reason);
-    void close_by_id(uint64_t connectionId, int32_t reason);
+    void close_by_id(uint64_t connectionId, Error reason);
     void close(const ChainOffender&);
     void close(Conref cr, ChainError);
     void report(const ChainOffender&) {};
@@ -272,7 +272,7 @@ private:
     };
     struct FailedConnect {
         ConnectRequest connectRequest;
-        int32_t reason;
+        Error reason;
     };
     struct CancelTimer {
         Timer::key_t timer;
@@ -338,7 +338,7 @@ private:
     ////////////////////////
     // convenience functions
     const ConsensusSlave& consensus() { return chains.consensus_state(); }
-    tl::expected<Conref, int32_t> try_register(RegisterConnection&&);
+    tl::expected<Conref, Error> try_register(RegisterConnection&&);
 
     ////////////////////////
     // register sync state
@@ -375,7 +375,7 @@ private: // private data
     std::condition_variable cv;
     std::mutex mutex;
     bool haswork = false;
-    int32_t closeReason = 0;
+    std::optional<Error> closeReason = 0;
     bool blockdownloadHalted = false;
     std::queue<Event> events;
     std::thread worker; // worker (constructed last)

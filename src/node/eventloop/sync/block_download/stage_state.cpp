@@ -47,7 +47,7 @@ std::vector<ChainOffender> StageState::on_result(const stage_operation::StageAdd
     stageSetAck = r.ce.height() - 1;
     std::vector<ChainOffender> offenders;
     if (e) {
-        if (e.e != ELEADERMISMATCH) { // is peer's fault
+        if (e.code != ELEADERMISMATCH) { // is peer's fault
             for (auto& p : data.banMemory) {
                 if (p.forkHeight > r.ce.height()) {
                     offenders.push_back({ e, p.connId });

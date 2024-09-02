@@ -87,7 +87,7 @@ bool Eventloop::async_register(ConnectionBase::ConnectionVariant con)
     return defer(RegisterConnection(std::move(con)));
 }
 
-void Eventloop::shutdown(int32_t reason)
+void Eventloop::shutdown(Error reason)
 {
     std::unique_lock<std::mutex> l(mutex);
     haswork = true;
@@ -105,7 +105,7 @@ void Eventloop::erase(std::shared_ptr<ConnectionBase> c, Error reason)
     defer(Erase { std::move(c), reason });
 }
 
-void Eventloop::on_outbound_closed(std::shared_ptr<ConnectionBase> c, int32_t reason)
+void Eventloop::on_outbound_closed(std::shared_ptr<ConnectionBase> c, Error reason)
 {
     defer(OutboundClosed { std::move(c), reason });
 }
@@ -236,7 +236,7 @@ bool Eventloop::check_shutdown()
 
     {
         std::unique_lock<std::mutex> l(mutex);
-        if (closeReason == 0)
+        if (closeReason.has_value())
             return false;
     }
 
@@ -244,7 +244,7 @@ bool Eventloop::check_shutdown()
     for (auto cr : connections.all()) {
         if (cr->erased())
             continue;
-        erase_internal(cr, Error(closeReason));
+        erase_internal(cr, *closeReason);
     }
     return true;
 }
@@ -715,7 +715,7 @@ void Eventloop::close(Conref cr, Error reason)
     erase_internal(cr, reason); // do not consider this connection anymore
 }
 
-void Eventloop::close_by_id(uint64_t conId, int32_t reason)
+void Eventloop::close_by_id(uint64_t conId, Error reason)
 {
     if (auto cr { connections.find(conId) }; cr)
         close(*cr, reason);
@@ -726,7 +726,7 @@ void Eventloop::close(const ChainOffender& o)
 {
     assert(o);
     if (auto cr { connections.find(o.conId) }; cr) {
-        close(*cr, o.e);
+        close(*cr, o.code);
     } else {
         report(o);
     }
@@ -734,7 +734,7 @@ void Eventloop::close(const ChainOffender& o)
 void Eventloop::close(Conref cr, ChainError e)
 {
     assert(e);
-    close(cr, e.e);
+    close(cr, e.code);
 }
 
 void Eventloop::process_connection(std::shared_ptr<ConnectionBase> c)
@@ -748,7 +748,7 @@ void Eventloop::process_connection(std::shared_ptr<ConnectionBase> c)
         try {
             dispatch_message(cr, msg.parse());
         } catch (Error e) {
-            close(cr, e.e);
+            close(cr, e.code);
             do_requests();
             break;
         }
@@ -1513,7 +1513,7 @@ void Eventloop::verify_rollback(Conref cr, const SignedPinRollbackMsg& m)
     }
 }
 
-tl::expected<Conref, int32_t> Eventloop::try_register(RegisterConnection&& m)
+tl::expected<Conref, Error> Eventloop::try_register(RegisterConnection&& m)
 {
     auto c { m.convar.base() };
     c->eventloop_registered = true;

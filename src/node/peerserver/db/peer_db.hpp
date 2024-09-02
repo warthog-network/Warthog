@@ -42,35 +42,35 @@ private:
 public:
     struct BanEntry {
         IP::BanHandle ip;
-        int32_t banuntil;
+        uint32_t banuntil;
         Error offense;
-        BanEntry(IP::BanHandle ip, int32_t banuntil, uint32_t offense)
+        BanEntry(IP::BanHandle ip, uint32_t banuntil, uint32_t offense)
             : ip(ip)
             , banuntil(banuntil)
             , offense(offense) {};
     };
     PeerDB(const std::string& path);
     SQLite::Transaction transaction() { return SQLite::Transaction(db); }
-    void set_ban(IPv4 ipv4, uint32_t banUntil, int32_t offense)
+    void set_ban(IPv4 ipv4, uint32_t banUntil, Error offense)
     {
         peerban.bind(1, banUntil);
-        peerban.bind(2, offense);
+        peerban.bind(2, offense.code);
         peerban.bind(3, ipv4.data);
         peerban.exec();
         peerban.reset();
     }
-    void set_ban(IPv6::Block48View block48, uint32_t banUntil, int32_t offense)
+    void set_ban(IPv6::Block48View block48, uint32_t banUntil, Error offense)
     {
         peerban.bind(1, banUntil);
-        peerban.bind(2, offense);
+        peerban.bind(2, offense.code);
         peerban.bindNoCopy(3, block48.data(), block48.size());
         peerban.exec();
         peerban.reset();
     }
-    void set_ban(IPv6::Block32View block32, uint32_t banUntil, int32_t offense)
+    void set_ban(IPv6::Block32View block32, uint32_t banUntil, Error offense)
     {
         peerban.bind(1, banUntil);
-        peerban.bind(2, offense);
+        peerban.bind(2, offense.code);
         peerban.bindNoCopy(3, block32.data(), block32.size());
         peerban.exec();
         peerban.reset();
@@ -105,9 +105,9 @@ public:
 
     struct GetPeerResult {
         Timestamp banUntil;
-        int32_t offense;
+        Error offense;
     };
-    // std::optional<GetPeerResult> get_peer(IPv4 ipv4, uint32_t& banUntil, int32_t& offense)
+    // std::optional<GetPeerResult> get_peer(IPv4 ipv4, uint32_t& banUntil, Error& offense)
     [[nodiscard]] std::optional<GetPeerResult> get_peer(const IP& ip)
     {
         std::optional<GetPeerResult> res;
@@ -141,10 +141,10 @@ public:
         return db.getLastInsertRowid();
     }
 
-    void insert_disconnect(int64_t rowid, uint32_t end, int32_t code)
+    void insert_disconnect(int64_t rowid, uint32_t end, Error code)
     {
         connection_log_update.bind(1, end);
-        connection_log_update.bind(2, code);
+        connection_log_update.bind(2, code.code);
         connection_log_update.bind(3, rowid);
         connection_log_update.exec();
         connection_log_update.reset();
@@ -162,21 +162,21 @@ public:
         refuseinsert.exec();
         refuseinsert.reset();
     }
-    void insert_offense(IPv4 ipv4, int32_t offense)
+    void insert_offense(IPv4 ipv4, Error offense)
     {
-        assert(offense != 0);
+        assert(offense.is_error());
         insertOffense.bind(1, ipv4.data);
         insertOffense.bind(2, now_timestamp());
-        insertOffense.bind(3, offense);
+        insertOffense.bind(3, offense.code);
         insertOffense.exec();
         insertOffense.reset();
     }
-    void insert_offense(IPv6 ipv6, int32_t offense)
+    void insert_offense(IPv6 ipv6, Error offense)
     {
-        assert(offense != 0);
+        assert(offense.is_error());
         insertOffense.bind(1, (void*)ipv6.data.data(), ipv6.data.size());
         insertOffense.bind(2, now_timestamp());
-        insertOffense.bind(3, offense);
+        insertOffense.bind(3, offense.code);
         insertOffense.exec();
         insertOffense.reset();
     }
@@ -189,7 +189,7 @@ public:
             auto ip { get_ip(getOffenses.getColumn(0)) };
             uint32_t timestamp
                 = getOffenses.getColumn(1).getInt64();
-            int32_t offense = getOffenses.getColumn(2).getInt64();
+            Error offense = getOffenses.getColumn(2).getInt64();
             out.push_back({ ip, timestamp, offense });
         }
         getOffenses.reset();

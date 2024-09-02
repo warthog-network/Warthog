@@ -68,7 +68,7 @@ public:
     {
         return std::make_shared<TCPConnectionManager>(Token {}, std::move(l), peerdb, cp);
     }
-    void shutdown(int32_t reason);
+    void shutdown(Error reason);
 
 private:
     void async_call(MoveOnlyFunction<void()>&& cb)

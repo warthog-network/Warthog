@@ -119,11 +119,11 @@ void RTCConnection::set_data_channel_proxied(std::shared_ptr<rtc::DataChannel> n
         std::cout << "ERROR: " << error << std::endl; });
 }
 
-void RTCConnection::close(int errcode)
+void RTCConnection::close(Error e)
 {
-    if (!set_error(errcode))
+    if (!set_error(e))
         return;
-    spdlog::info("Close rtc connection {}", errcode);
+    spdlog::info("Close rtc connection {}", e.strerror());
 #ifdef DISABLE_LIBUV
     proxy_to_main_runtime([p = shared_from_this()]() {
         p->pc.reset(); // triggers destructor
@@ -161,21 +161,21 @@ std::optional<Error> RTCConnection::set_sdp_answer(OneIpSdp sdp)
 void RTCConnection::notify_closed()
 {
     std::lock_guard l(errcodeMutex);
-    if (errcode == 0) {
-        errcode = ERTCCLOSED;
+    if (!error.has_value()) {
+        error = Error(ERTCCLOSED);
     }
     on_close({
-        .error = errcode,
+        .error = *error,
     });
     if (auto e { eventloop.lock() })
         e->notify_closed_rtc(shared_from_this());
 }
 
-bool RTCConnection::set_error(int error)
+bool RTCConnection::set_error(Error e)
 {
     std::lock_guard l(errcodeMutex);
-    if (errcode == 0) {
-        errcode = error; // TODO: on_error(errcode) in destructor
+    if (!error.has_value()) {
+        error = e; // TODO: on_error(errcode) in destructor
         return true;
     }
     return false;
@@ -222,7 +222,7 @@ void RTCConnection::send_proxied(std::vector<std::byte>&& msg)
 {
     {
         std::lock_guard l(errcodeMutex);
-        if (errcode)
+        if (error.has_value())
             return;
     }
     assert(dc);

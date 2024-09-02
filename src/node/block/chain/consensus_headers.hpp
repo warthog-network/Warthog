@@ -25,7 +25,7 @@ public:
     tl::expected<HeaderVerifier, ChainError> copy_apply(const std::optional<SignedSnapshot>& sp, const HeaderRange&) const;
     HeaderVerifier(const SharedBatch&);
     // void clear();
-    [[nodiscard]] auto prepare_append(const std::optional<SignedSnapshot>& sp, HeaderView hv) const -> tl::expected<PreparedAppend, int32_t>;
+    [[nodiscard]] auto prepare_append(const std::optional<SignedSnapshot>& sp, HeaderView hv) const -> tl::expected<PreparedAppend, Error>;
 
     void append(NonzeroHeight length, const PreparedAppend&);
 
@@ -68,7 +68,7 @@ public:
     // Modifiers
     void shrink(Height newlength); // OK
     void append(const HeaderVerifier::PreparedAppend&, BatchRegistry& br);
-    [[nodiscard]] auto prepare_append(const std::optional<SignedSnapshot>& sp, HeaderView hv) const -> tl::expected<HeaderVerifier::PreparedAppend, int32_t>;
+    [[nodiscard]] auto prepare_append(const std::optional<SignedSnapshot>& sp, HeaderView hv) const -> tl::expected<HeaderVerifier::PreparedAppend, Error>;
 
     // Getters
     HashView final_hash() const { return checker.final_hash(); }

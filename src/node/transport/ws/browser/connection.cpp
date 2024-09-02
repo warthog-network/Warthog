@@ -64,7 +64,7 @@ int WSConnection::on_error()
     return 0;
 }
 
-void WSConnection::notify_closed(int32_t reason)
+void WSConnection::notify_closed(Error reason)
 {
     if (!closed) {
         closed = true;
@@ -72,7 +72,7 @@ void WSConnection::notify_closed(int32_t reason)
     }
 }
 
-void WSConnection::close(int reason)
+void WSConnection::close(Error reason)
 {
     {
         std::lock_guard l(close_mutex);

@@ -230,7 +230,7 @@ void ChainServer::handle_event(MiningAppend&& e)
     } catch (Error err) {
         spdlog::info("Rejected new block #{}: {}", (state.chainlength() + 1).value(),
             err.strerror());
-        e.callback(tl::make_unexpected(err.e));
+        e.callback(tl::make_unexpected(err.code));
     }
 }
 
@@ -266,11 +266,11 @@ void ChainServer::emit_chain_state_event()
 }
 
 template <typename T>
-tl::expected<T, int32_t> noval_to_err(std::optional<T>&& v)
+tl::expected<T, Error> noval_to_err(std::optional<T>&& v)
 {
     if (v)
         return *v;
-    return tl::make_unexpected(ENOTFOUND);
+    return tl::make_unexpected(Error(ENOTFOUND));
 }
 
 void ChainServer::handle_event(LookupTxHash&& e)
@@ -369,7 +369,7 @@ void ChainServer::handle_event(PutMempool&& e)
         auto txhash { append_gentx(std::move(e.m)) };
         e.callback(txhash);
     } catch (Error err) {
-        e.callback(tl::make_unexpected(err.e));
+        e.callback(tl::make_unexpected(err.code));
     }
 }
 

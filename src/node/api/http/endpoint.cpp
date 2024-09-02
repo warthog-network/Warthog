@@ -249,7 +249,7 @@ void HTTPEndpoint::get_1(std::string pattern, auto asyncfun, bool priv)
                 pendingRequests.insert(res);
                 res->onAborted([this, res]() { on_aborted(res); });
             } catch (Error e) {
-                send_json(res, jsonmsg::serialize(tl::make_unexpected(e.e)));
+                send_json(res, jsonmsg::serialize(tl::make_unexpected(e)));
             }
         });
 }
@@ -271,7 +271,7 @@ void HTTPEndpoint::get_2(std::string pattern, auto asyncfun, bool priv)
                 pendingRequests.insert(res);
                 res->onAborted([this, res]() { on_aborted(res); });
             } catch (Error e) {
-                send_json(res, jsonmsg::serialize(tl::make_unexpected(e.e)));
+                send_json(res, jsonmsg::serialize(tl::make_unexpected(e)));
             }
         });
 }
@@ -294,7 +294,7 @@ void HTTPEndpoint::get_3(std::string pattern, auto asyncfun, bool priv)
                 pendingRequests.insert(res);
                 res->onAborted([this, res]() { on_aborted(res); });
             } catch (Error e) {
-                send_json(res, jsonmsg::serialize(tl::make_unexpected(e.e)));
+                send_json(res, jsonmsg::serialize(tl::make_unexpected(e)));
             }
         });
 }
@@ -320,7 +320,7 @@ void HTTPEndpoint::post(std::string pattern, auto parser, auto asyncfun, bool pr
                                     async_reply(res, jsonmsg::serialize(data));
                                 });
                         } catch (Error e) {
-                            auto ser = jsonmsg::serialize(tl::make_unexpected(e.e));
+                            auto ser = jsonmsg::serialize(tl::make_unexpected(e));
                             async_reply(res, ser);
                         }
                     }
