@@ -19,7 +19,7 @@ struct BlockApplier {
     }
     TransactionIds&& move_new_txids() { return std::move(preparer.newTxIds); };
     auto&& move_balance_updates() { return std::move(balanceUpdates); };
-    [[nodiscard]] API::Block apply_block(const BodyView& bv, HeaderView, NonzeroHeight height, BlockId blockId);
+    [[nodiscard]] api::Block apply_block(const BodyView& bv, HeaderView, NonzeroHeight height, BlockId blockId);
 
 private: // private methods
     struct Preparer {

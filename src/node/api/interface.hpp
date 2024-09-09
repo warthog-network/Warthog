@@ -42,10 +42,10 @@ void get_janushash_number(std::string_view, RawCb cb);
 void get_block_head(HeadCb cb);
 void get_chain_mine(const Address& a, MiningCb cb);
 mining_subscription::MiningSubscription subscribe_chain_mine(Address address, mining_subscription::callback_t callback);
-void get_chain_header(API::HeightOrHash, HeaderCb cb);
+void get_chain_header(api::HeightOrHash, HeaderCb cb);
 void get_chain_hash(Height height, HashCb cb);
 void get_chain_grid(GridCb cb);
-void get_chain_block(API::HeightOrHash, BlockCb cb);
+void get_chain_block(api::HeightOrHash, BlockCb cb);
 void get_txcache(TxcacheCb&& cb);
 void get_hashrate_n(size_t n, HashrateCb&& cb);
 void get_hashrate(HashrateCb&& cb);
@@ -57,7 +57,7 @@ void get_signed_snapshot(Eventloop::SignedSnapshotCb&& cb);
 void get_headerdownload(HeaderdownloadCb f);
 
 // account functions
-void get_account_balance(const API::AccountIdOrAddress& address, BalanceCb cb);
+void get_account_balance(const api::AccountIdOrAddress& address, BalanceCb cb);
 void get_account_history(const Address& address, uint64_t end, HistoryCb cb);
 void get_account_richlist(RichlistCb cb);
 

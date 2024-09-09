@@ -14,14 +14,13 @@ ApplyStageTransaction::ApplyStageTransaction(const State& s, ChainDBTransaction&
 {
 }
 
-[[nodiscard]] std::pair<std::vector<API::Block>, ChainError> ApplyStageTransaction::apply_stage_blocks()
+[[nodiscard]] ChainError ApplyStageTransaction::apply_stage_blocks()
 {
     assert(!applyResult);
     applyResult = AppendBlocksResult {};
     auto& res { applyResult.value() };
     auto& baseTxIds { rb ? rb->chainTxIds : ccs.chainstate.txids() };
     chainserver::BlockApplier ba { ccs.db, ccs.stage, baseTxIds, true };
-    std::vector<API::Block> apiBlocks;
     for (NonzeroHeight h = (chainlength + 1).nonzero_assert(); h <= ccs.stage.length(); ++h) {
         auto historyId { ccs.db.next_history_id() };
         AccountId accountId { ccs.db.next_state_id() };
@@ -45,7 +44,7 @@ ApplyStageTransaction::ApplyStageTransaction(const State& s, ChainDBTransaction&
             std::ofstream f(fname);
             f << serialize_hex(b.body.data());
             res.newTxIds = ba.move_new_txids();
-            return { apiBlocks, { e, h } };
+            return { e, h };
         }
         res.newHistoryOffsets.push_back(historyId);
         res.newAccountOffsets.push_back(accountId);
@@ -53,7 +52,7 @@ ApplyStageTransaction::ApplyStageTransaction(const State& s, ChainDBTransaction&
     }
     res.newTxIds = ba.move_new_txids();
     res.balanceUpdates = ba.move_balance_updates();
-    return { apiBlocks, { Error(0), (ccs.stage.length() + 1).nonzero_assert() } };
+    return { Error(0), (ccs.stage.length() + 1).nonzero_assert() };
 }
 
 void ApplyStageTransaction::consider_rollback(Height shrinkLength)
@@ -67,7 +66,7 @@ void ApplyStageTransaction::consider_rollback(Height shrinkLength)
     assert(chainlength == shrinkLength);
 }
 
-auto ApplyStageTransaction::commit(State& cs) -> StateUpdate
+auto ApplyStageTransaction::commit(State& cs) && -> commit_t
 {
     assert(!commited);
     assert(applyResult);
@@ -77,6 +76,9 @@ auto ApplyStageTransaction::commit(State& cs) -> StateUpdate
     auto result { rb ? cs.commit_fork(std::move(*rb), std::move(*applyResult))
                      : cs.commit_append(std::move(*applyResult)) };
     transaction.commit();
-    return result;
+    return {
+        .update { std::move(result) },
+        .appendedBlocks = std::move(apiBlocks)
+    };
 }
 }

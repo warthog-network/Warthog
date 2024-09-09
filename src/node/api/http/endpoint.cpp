@@ -28,13 +28,13 @@ struct ParameterParser {
         }
         return res;
     }
-    operator API::HeightOrHash()
+    operator api::HeightOrHash()
     {
         if (sv.length() == 64)
             return { Hash { *this } };
         return { Height { *this } };
     }
-    operator API::AccountIdOrAddress()
+    operator api::AccountIdOrAddress()
     {
         if (sv.length() == 48)
             return { Address { *this } };
@@ -64,7 +64,8 @@ struct ParameterParser {
     {
         return Height(static_cast<uint32_t>(*this));
     }
-    operator std::string_view(){
+    operator std::string_view()
+    {
         return sv;
     }
     operator Address()
@@ -174,8 +175,8 @@ void HTTPEndpoint::work()
     get("/debug/header_download", inspect_eventloop, jsonmsg::header_download, true);
     app.ws<int>("/ws/chain_delta", {
                                        .open = [](auto* ws) {
-                                           ws->subscribe(API::Block::WEBSOCKET_EVENT);
-                                           ws->subscribe(API::Rollback::WEBSOCKET_EVENT);
+                                           ws->subscribe(api::Block::eventName);
+                                           ws->subscribe(api::Rollback::eventName);
                                        },
                                    });
     app.listen(bind.ip.to_string(), bind.port, std::bind(&HTTPEndpoint::on_listen, this, _1));
@@ -338,31 +339,21 @@ void HTTPEndpoint::shutdown()
     }
 }
 
-void HTTPEndpoint::on_event(WebsocketEvent&& e)
+void HTTPEndpoint::on_event(event_t&& e)
 {
+    auto handle_event { [&](const auto& event) {
+        auto txt { nlohmann::json {
+            { "type", event.eventName },
+            { "data", jsonmsg::to_json(event) } }
+                       .dump() };
+        app.publish(event.eventName, txt, uWS::OpCode::TEXT);
+    } };
     std::visit([&](auto&& e) {
         handle_event(std::move(e));
     },
         std::move(e));
 }
 
-void HTTPEndpoint::handle_event(const API::Block& b)
-{
-    auto txt { nlohmann::json {
-        { "type", "blockAppend" },
-        { "data", jsonmsg::to_json(b) } }
-                   .dump() };
-    app.publish(b.WEBSOCKET_EVENT, txt, uWS::OpCode::TEXT);
-}
-
-void HTTPEndpoint::handle_event(const API::Rollback& r)
-{
-    auto txt { nlohmann::json {
-        { "type", "rollback" },
-        { "data", jsonmsg::to_json(r) } }
-                   .dump() };
-    app.publish(r.WEBSOCKET_EVENT, txt, uWS::OpCode::TEXT);
-}
 void HTTPEndpoint::send_reply(uWS::HttpResponse<false>* res, const std::string& s)
 {
     auto iter = pendingRequests.find(res);

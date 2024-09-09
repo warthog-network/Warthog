@@ -1,6 +1,6 @@
 #include "eventloop.hpp"
 #include "address_manager/address_manager_impl.hpp"
-#include "api/realtime.hpp"
+#include "api/events/emit.hpp"
 #include "api/types/all.hpp"
 #include "block/chain/header_chain.hpp"
 #include "block/header/batch.hpp"
@@ -399,9 +399,9 @@ void Eventloop::log_chain_length()
 
 void Eventloop::handle_event(PeersCb&& cb)
 {
-    std::vector<API::Peerinfo> out;
+    std::vector<api::Peerinfo> out;
     for (auto cr : connections.initialized()) {
-        out.push_back(API::Peerinfo {
+        out.push_back(api::Peerinfo {
             .endpoint { cr.peer() },
             .initialized = cr.initialized(),
             .chainstate = cr.chain(),
@@ -451,7 +451,7 @@ void Eventloop::handle_event(InspectorCb&& cb)
 
 void Eventloop::handle_event(GetHashrate&& e)
 {
-    e.cb(API::HashrateInfo {
+    e.cb(api::HashrateInfo {
         .nBlocks = e.n,
         .estimate = consensus().headers().hashrate(e.n) });
 }
@@ -676,7 +676,7 @@ void Eventloop::erase_internal(Conref c, Error error)
     }
     if (headerDownload.erase(c) && !closeReason) {
         spdlog::info("Connected to {} peers (closed connection to {}, reason: {})", headerDownload.size(), c.peer().to_string(), Error(error).err_name());
-        realtime_api::on_disconnect(headerDownload.size(), c.id());
+        api::event::emit_disconnect(headerDownload.size(), c.id());
     }
     if (blockDownload.erase(c))
         coordinate_sync();
@@ -694,7 +694,7 @@ bool Eventloop::insert(Conref c, const InitMsg& data)
     c->chain.initialize(data, chains);
     headerDownload.insert(c);
     blockDownload.insert(c);
-    realtime_api::on_connect(headerDownload.size(), c);
+    api::event::emit_connect(headerDownload.size(), c);
     spdlog::info("Connected to {} peers (new peer {})", headerDownload.size(), c.peer().to_string());
     if (rtc.ips && c.version().v2()) {
         spdlog::info("Sending own identity");

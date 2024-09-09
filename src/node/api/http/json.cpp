@@ -170,7 +170,7 @@ json header_json(const Header& header, NonzeroHeight height)
     return h;
 }
 
-[[nodiscard]] json body_json(const API::Block& b)
+[[nodiscard]] json body_json(const api::Block& b)
 {
     json out;
     { // rewards
@@ -210,7 +210,7 @@ json header_json(const Header& header, NonzeroHeight height)
 namespace jsonmsg {
 using namespace nlohmann;
 
-auto to_json_visit(const API::TransferTransaction& tx)
+auto to_json_visit(const api::TransferTransaction& tx)
 {
     json j;
     json jtx;
@@ -229,7 +229,7 @@ auto to_json_visit(const API::TransferTransaction& tx)
     j["transaction"] = jtx;
     return j;
 }
-auto to_json_visit(const API::RewardTransaction& tx)
+auto to_json_visit(const api::RewardTransaction& tx)
 {
     json j;
     json jtx;
@@ -260,7 +260,7 @@ json to_json(const TxHash& h)
     return j;
 }
 
-json to_json(const API::Head& h)
+json to_json(const api::Head& h)
 {
     auto& ch = h.chainHead;
     json j;
@@ -283,7 +283,7 @@ json to_json(const std::pair<NonzeroHeight, Header>& h)
     };
 }
 
-json to_json(const API::MiningState& ms)
+json to_json(const api::MiningState& ms)
 {
     auto& mt { ms.miningTask };
     json j;
@@ -304,7 +304,7 @@ json to_json(const API::MiningState& ms)
     j["testnet"] = is_testnet();
     return j;
 }
-json to_json(const API::MempoolEntries& entries)
+json to_json(const api::MempoolEntries& entries)
 {
     json j;
     json a = json::array();
@@ -325,7 +325,7 @@ json to_json(const API::MempoolEntries& entries)
     return j;
 }
 
-json to_json(const API::Transaction& tx)
+json to_json(const api::Transaction& tx)
 {
     return std::visit([&](const auto& e) {
         return to_json_visit(e);
@@ -338,12 +338,12 @@ json to_json(const Peeraddr& ea)
     return ea.to_string();
 }
 
-json to_json(const API::PeerinfoConnections& pc)
+json to_json(const api::PeerinfoConnections& pc)
 {
     return to_json(pc.v, pc.map);
 }
 
-json to_json(const API::TransactionsByBlocks& txs)
+json to_json(const api::TransactionsByBlocks& txs)
 {
     json arr = json::array();
     for (auto iter = txs.blocks_reversed.begin(); iter != txs.blocks_reversed.end(); ++iter) {
@@ -366,7 +366,7 @@ json to_json(const API::TransactionsByBlocks& txs)
     return arr;
 }
 
-json to_json(const API::Block& block)
+json to_json(const api::Block& block)
 {
     json j;
     HeaderView hv(block.header.data());
@@ -379,7 +379,7 @@ json to_json(const API::Block& block)
     return j;
 }
 
-json to_json(const API::AccountHistory& h)
+json to_json(const api::AccountHistory& h)
 {
     json a = json::array();
     auto& reversed = h.blocks_reversed;
@@ -399,7 +399,7 @@ json to_json(const API::AccountHistory& h)
     return j;
 }
 
-json to_json(const API::Richlist& l)
+json to_json(const api::Richlist& l)
 {
     json a = json::array();
     for (auto& [address, balance] : l.entries) {
@@ -412,7 +412,7 @@ json to_json(const API::Richlist& l)
     return a;
 }
 
-nlohmann::json to_json(const API::Wallet& w)
+nlohmann::json to_json(const api::Wallet& w)
 {
     auto pubKey { w.pk.pubkey() };
     return {
@@ -422,7 +422,7 @@ nlohmann::json to_json(const API::Wallet& w)
     };
 }
 
-json to_json(const API::HashrateInfo& hi)
+json to_json(const api::HashrateInfo& hi)
 {
     return json {
         { "lastNBlocksEstimate", hi.estimate },
@@ -430,7 +430,7 @@ json to_json(const API::HashrateInfo& hi)
     };
 }
 
-json to_json(const API::HashrateChart& c)
+json to_json(const api::HashrateChart& c)
 {
     json data(json::array());
     for (const auto& v : c.chart) {
@@ -452,7 +452,7 @@ json to_json(const OffenseEntry& e)
     };
 }
 
-std::string serialize(const std::vector<API::Peerinfo>& connected)
+std::string serialize(const std::vector<api::Peerinfo>& connected)
 {
     using namespace nlohmann;
     json j = json::array();
@@ -487,7 +487,7 @@ std::string serialize(const std::vector<API::Peerinfo>& connected)
     return j.dump(1);
 }
 
-json to_json(const API::Balance& b)
+json to_json(const api::Balance& b)
 {
     json j;
     j["balance"] = b.balance.to_string();
@@ -539,7 +539,7 @@ nlohmann::json to_json(const chainserver::TransactionIds& txids)
     return j;
 }
 
-nlohmann::json to_json(const API::Round16Bit& e)
+nlohmann::json to_json(const api::Round16Bit& e)
 {
     auto c { CompactUInt::compact(e.original) };
     return json {
@@ -562,14 +562,14 @@ nlohmann::json to_json(const NodeVersion&)
     };
 }
 
-nlohmann::json to_json(const API::Rollback& rb)
+nlohmann::json to_json(const api::Rollback& rb)
 {
     return json {
         { "length", rb.length }
     };
 }
 
-std::string serialize(const API::Raw& r)
+std::string serialize(const api::Raw& r)
 {
     return r.s;
 }

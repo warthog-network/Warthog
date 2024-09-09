@@ -327,12 +327,12 @@ public:
     // Account functions
     // get
     [[nodiscard]] std::optional<AddressFunds> lookup_account(AccountId id) const;
-    [[nodiscard]] API::Richlist lookup_richlist(uint32_t N) const;
+    [[nodiscard]] api::Richlist lookup_richlist(uint32_t N) const;
     [[nodiscard]] AddressFunds fetch_account(AccountId id) const;
 
     /////////////////////
     // Transactions functions
-    [[nodiscard]] API::Richlist look(size_t N) const;
+    [[nodiscard]] api::Richlist look(size_t N) const;
 
     ///////////////
     // Deleteschedule functions

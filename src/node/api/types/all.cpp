@@ -3,7 +3,7 @@
 #include "chainserver/account_cache.hpp"
 #include "general/address_funds.hpp"
 
-namespace API {
+namespace api {
 void Block::push_history(const Hash& txid,
     const std::vector<uint8_t>& data, chainserver::AccountCache& cache,
     PinFloor pinFloor)
@@ -12,7 +12,7 @@ void Block::push_history(const Hash& txid,
     if (std::holds_alternative<history::TransferData>(parsed)) {
         auto& d = std::get<history::TransferData>(parsed);
         transfers.push_back(
-            API::Block::Transfer {
+            api::Block::Transfer {
                 .fromAddress = cache[d.fromAccountId].address,
                 .fee = d.compactFee.uncompact(),
                 .nonceId = d.pinNonce.id,

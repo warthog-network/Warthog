@@ -1,5 +1,5 @@
 #include "mempool.hpp"
-#include "api/realtime.hpp"
+#include "api/events/emit.hpp"
 #include "chainserver/transaction_ids.hpp"
 #include <algorithm>
 #include <numeric>
@@ -58,7 +58,7 @@ void Mempool::apply_logevent(const Put& a)
 
     erase(a.entry.transaction_id());
     auto p = txs.emplace(a.entry.transaction_id(), a.entry.entry_value());
-    realtime_api::on_mempool_add(a, txs.size());
+    api::event::emit_mempool_add(a, txs.size());
     assert(p.second);
     byPin.insert(p.first);
     byFee.insert(p.first);
@@ -68,7 +68,7 @@ void Mempool::apply_logevent(const Put& a)
 void Mempool::apply_logevent(const Erase& e)
 {
     erase(e.id);
-    realtime_api::on_mempool_erase(e, size());
+    api::event::emit_mempool_erase(e, size());
 }
 
 std::optional<TransferTxExchangeMessage> Mempool::operator[](const TransactionId& id) const

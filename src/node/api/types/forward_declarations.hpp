@@ -1,6 +1,6 @@
 #pragma once
 #include <variant>
-namespace API {
+namespace api {
 struct MempoolEntries;
 struct TransferTransaction;
 struct Head;

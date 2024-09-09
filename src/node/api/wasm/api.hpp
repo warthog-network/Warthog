@@ -2,12 +2,12 @@
 #include "nlohmann/json_fwd.hpp"
 
 
-namespace wasm_api{
+namespace api{
     using nlohmann::json;
-    void on_connect_count(size_t N);
-    void on_connect(json);
-    void on_disconnect(json);
-    void on_chain(json);
-    void on_mempool_add(json);
-    void on_mempool_erase(json);
+    void emit_connect_count(size_t N);
+    void emit_connect(json);
+    void emit_disconnect(json);
+    void emit_chain(json);
+    void emit_mempool_add(json);
+    void emit_mempool_erase(json);
 }

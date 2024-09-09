@@ -130,7 +130,7 @@ uint64_t Headerchain::hashrate(uint32_t nblocks) const
     return sum_work(lower + 1, upper + 1).getdouble() / seconds;
 }
 
-API::HashrateChart Headerchain::hashrate_chart(NonzeroHeight reqmin, NonzeroHeight reqmax, const uint32_t nblocks) const
+api::HashrateChart Headerchain::hashrate_chart(NonzeroHeight reqmin, NonzeroHeight reqmax, const uint32_t nblocks) const
 {
     const auto max { std::min(Height(reqmax), length()) };
     const auto min { std::max(reqmin, NonzeroHeight(2u)) };

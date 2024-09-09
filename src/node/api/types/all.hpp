@@ -1,6 +1,6 @@
 #pragma once
 
-#include "transport/helpers/peer_addr.hpp"
+#include "accountid_or_address.hpp"
 #include "block/body/primitives.hpp"
 #include "block/chain/history/index.hpp"
 #include "block/chain/signed_snapshot.hpp"
@@ -9,19 +9,19 @@
 #include "block/header/header.hpp"
 #include "communication/mining_task.hpp"
 #include "crypto/address.hpp"
-#include "peerserver/db/offense_entry.hpp"
 #include "eventloop/peer_chain.hpp"
 #include "general/funds.hpp"
-#include "transport/helpers/tcp_sockaddr.hpp"
 #include "height_or_hash.hpp"
-#include "accountid_or_address.hpp"
+#include "peerserver/db/offense_entry.hpp"
+#include "transport/helpers/peer_addr.hpp"
+#include "transport/helpers/tcp_sockaddr.hpp"
 #include <variant>
 #include <vector>
 namespace chainserver {
 class AccountCache;
 }
 
-namespace API {
+namespace api {
 struct ChainHead {
     std::optional<SignedSnapshot> signedSnapshot;
     Worksum worksum;
@@ -69,12 +69,12 @@ struct Balance {
 };
 
 struct Rollback {
-    static constexpr const char WEBSOCKET_EVENT[] = "Rollback";
+    static constexpr const char eventName[] = "rollback";
     Height length;
 };
 
 struct Block {
-    static constexpr const char WEBSOCKET_EVENT[] = "Block";
+    static constexpr const char eventName[] = "blockAppend";
     struct Transfer {
         Address fromAddress;
         Funds fee;
@@ -106,15 +106,17 @@ struct Block {
     {
     }
 };
+
+
 struct AccountHistory {
     Funds balance;
     HistoryId fromId;
-    std::vector<API::Block> blocks_reversed;
+    std::vector<api::Block> blocks_reversed;
 };
 struct TransactionsByBlocks {
     size_t count { 0 };
     HistoryId fromId;
-    std::vector<API::Block> blocks_reversed;
+    std::vector<api::Block> blocks_reversed;
 };
 struct Richlist {
     std::vector<std::pair<Address, Funds>> entries;
@@ -158,7 +160,7 @@ struct Network {
 };
 
 struct PeerinfoConnections {
-    const std::vector<API::Peerinfo>& v;
+    const std::vector<api::Peerinfo>& v;
     static constexpr auto map = [](const Peerinfo& pi) -> auto& { return pi.endpoint; };
 };
 
@@ -166,14 +168,13 @@ struct Round16Bit {
     Funds original;
 };
 
-struct Wallet{
+struct Wallet {
     PrivKey pk;
 };
 
-struct Raw{
+struct Raw {
     std::string s;
 };
-
 
 using OffenseEntry = ::OffenseEntry;
 

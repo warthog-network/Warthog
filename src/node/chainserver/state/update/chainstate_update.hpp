@@ -10,12 +10,12 @@ namespace state_update {
         std::optional<SignedSnapshot> signedSnapshot;
     };
 
-    struct RollbackData {
-        struct Data {
-            HeaderchainRollback rollback;
-            std::shared_ptr<Headerchain> prevChain;
+    struct SignedSnapshotApply {
+        struct Rollback {
+            HeaderchainRollback deltaHeaders;
+            std::shared_ptr<Headerchain> prevHeaders;
         };
-        std::optional<Data> data;
+        std::optional<Rollback> rollback;
         SignedSnapshot signedSnapshot;
     };
 
@@ -24,9 +24,24 @@ namespace state_update {
         std::optional<SignedSnapshot> signedSnapshot;
     };
 
-    using ChainstateUpdate = std::variant<
+    using variant_t = std::variant<
         Fork,
         Append,
-        RollbackData>;
+        SignedSnapshotApply>;
+
+    struct ChainstateUpdate : public variant_t {
+        using variant_t::variant;
+        std::optional<Height> rollback_length(){
+            if (std::holds_alternative<Fork>(*this)) {
+                return std::get<Fork>(*this).shrinkLength;
+            }else if (std::holds_alternative<SignedSnapshotApply>(*this)){
+                auto rb{std::get<SignedSnapshotApply>(*this).rollback};
+                if (rb) {
+                    return rb->deltaHeaders.shrinkLength;
+                }
+            }
+            return std::nullopt;
+        }
+    };
 }
 }

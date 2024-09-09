@@ -2,13 +2,13 @@
 #ifndef DISABLE_LIBUV
 #define UWS_NO_ZLIB
 #include "api/types/all.hpp"
+#include "api/events/events.hpp"
 #include "block/block.hpp"
 #include "transport/helpers/tcp_sockaddr.hpp"
 #include "uwebsockets/App.h"
 #include <thread>
 #include <variant>
 
-using WebsocketEvent = std::variant<API::Rollback,API::Block>;
 
 struct ConfigParams;
 class IndexGenerator {
@@ -25,6 +25,7 @@ private:
 
 class HTTPEndpoint {
 public:
+    using event_t = api::Event;
     static std::optional<HTTPEndpoint> make_public_endpoint(const ConfigParams&);
     HTTPEndpoint(TCPPeeraddr bind, bool isPublic = false);
     void start(){
@@ -37,7 +38,7 @@ public:
         if (worker.joinable()) 
             worker.join();
     }
-    void push_event(WebsocketEvent e)
+    void push_event(event_t e)
     {
         lc.loop->defer([this, e = std::move(e)]() mutable {
             on_event(std::move(e));
@@ -51,7 +52,7 @@ private:
     }
     void work();
     void shutdown();
-    void on_event(WebsocketEvent&& e);
+    void on_event(event_t&& e);
 
     void send_reply(uWS::HttpResponse<false>* res, const std::string& s);
     void get(std::string pattern, auto asyncfun, auto serializer, bool priv = false);
@@ -65,11 +66,6 @@ private:
     // handlers
     void on_aborted(uWS::HttpResponse<false>* res);
     void on_listen(us_listen_socket_t* ls);
-
-    //////////////////////////////
-    // handlers for websocket events
-    void handle_event(const API::Block&);
-    void handle_event(const API::Rollback&);
 
     //////////////////////////////
     // variables

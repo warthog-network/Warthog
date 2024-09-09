@@ -64,8 +64,8 @@ ForkMsg StageAndConsensus::update_consensus(Fork&& fork)
 auto StageAndConsensus::update_consensus(const RollbackData& rd) -> std::optional<SignedPinRollbackMsg>
 {
     auto msg { consensus.apply(rd) };
-    if (rd.data) {
-        auto shrinkLength { rd.data->rollback.shrinkLength };
+    if (rd.rollback) {
+        auto shrinkLength { rd.rollback->deltaHeaders.shrinkLength };
         if (scForkHeight.forked() && scForkHeight > shrinkLength) {
             scForkHeight = { shrinkLength.value() + 1, false };
         }

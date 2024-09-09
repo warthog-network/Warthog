@@ -11,7 +11,6 @@
 #include <thread>
 #include <variant>
 
-using WebsocketEvent = std::variant<API::Rollback, API::Block>;
 class WSSession;
 class PeerServer;
 

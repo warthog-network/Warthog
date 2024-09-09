@@ -1,5 +1,5 @@
 #include "server.hpp"
-#include "api/realtime.hpp"
+#include "api/events/emit.hpp"
 #include "api/types/all.hpp"
 #include "block/header/header_impl.hpp"
 #include "eventloop/eventloop.hpp"
@@ -63,7 +63,7 @@ void ChainServer::api_put_mempool(PaymentCreateMessage m,
     defer_maybe_busy(PutMempool { std::move(m), std::move(callback) });
 }
 
-void ChainServer::api_get_balance(const API::AccountIdOrAddress& a, BalanceCb callback)
+void ChainServer::api_get_balance(const api::AccountIdOrAddress& a, BalanceCb callback)
 {
     defer_maybe_busy(GetBalance { a, std::move(callback) });
 }
@@ -126,7 +126,7 @@ void ChainServer::api_get_txcache(TxcacheCb callback)
     defer_maybe_busy(GetTxcache { std::move(callback) });
 }
 
-void ChainServer::api_get_header(API::HeightOrHash hoh, HeaderCb callback)
+void ChainServer::api_get_header(api::HeightOrHash hoh, HeaderCb callback)
 {
     defer_maybe_busy(GetHeader { hoh, std::move(callback) });
 }
@@ -135,7 +135,7 @@ void ChainServer::api_get_hash(Height height, HashCb callback)
     defer_maybe_busy(GetHash { height, std::move(callback) });
 }
 
-void ChainServer::api_get_block(API::HeightOrHash hoh, BlockCb callback)
+void ChainServer::api_get_block(api::HeightOrHash hoh, BlockCb callback)
 {
     defer_maybe_busy(GetBlock { hoh, std::move(callback) });
 }
@@ -218,12 +218,22 @@ TxHash ChainServer::append_gentx(const PaymentCreateMessage& m)
     return txhash;
 }
 
+void ChainServer::on_chain_changed(StateUpdateWithAPIBlocks&& su)
+{
+    emit_chain_state_event();
+    if (auto l { su.update.chainstateUpdate.rollback_length() })
+        api::event::emit_rollback(*l);
+    for (auto& b : su.appendedBlocks)
+        api::event::emit_block_append(std::move(b));
+    global().core->async_state_update(std::move(su.update));
+    dispatch_mining_subscriptions();
+}
+
 void ChainServer::handle_event(MiningAppend&& e)
 {
     try {
         auto res = state.append_mined_block(e.block);
-        emit_chain_state_event();
-        global().core->async_state_update(std::move(res));
+        on_chain_changed(std::move(res));
         spdlog::info("Accepted new block #{}", state.chainlength().value());
         e.callback({});
         dispatch_mining_subscriptions();
@@ -260,7 +270,7 @@ void ChainServer::handle_event(LookupTxids&& e)
 
 void ChainServer::emit_chain_state_event()
 {
-    realtime_api::on_chain({ .length { state.chainlength() },
+    api::event::emit_chain_state({ .length { state.chainlength() },
         .target { state.get_headers().next_target() },
         .totalWork { state.get_headers().total_work() } });
 }
@@ -354,13 +364,10 @@ void ChainServer::handle_event(stage_operation::StageSetOperation&& r)
 
 void ChainServer::handle_event(stage_operation::StageAddOperation&& r)
 {
-    auto [stageAddResult, delta] { state.add_stage(r.blocks, r.headers) };
-    if (delta) {
-        emit_chain_state_event();
-        global().core->async_state_update(std::move(*delta));
-        dispatch_mining_subscriptions();
-    }
-    global().core->async_stage_action(std::move(stageAddResult));
+    auto res { state.add_stage(r.blocks, r.headers) };
+    if (res.update)
+        on_chain_changed(std::move(*res.update));
+    global().core->async_stage_action(res.status);
 }
 
 void ChainServer::handle_event(PutMempool&& e)
@@ -384,7 +391,6 @@ void ChainServer::handle_event(PutMempoolBatch&& mb)
 void ChainServer::handle_event(SetSignedPin&& e)
 {
     auto res { state.apply_signed_snapshot(std::move(e.ss)) };
-    if (res) {
-        global().core->async_state_update(std::move(*res));
-    }
+    if (res)
+        on_chain_changed(std::move(*res));
 }

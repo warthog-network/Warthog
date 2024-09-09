@@ -1,4 +1,3 @@
-#include "api/realtime.hpp"
 #include "chainserver/db/chain_db.hpp"
 #include "chainserver/server.hpp"
 #include "eventloop/eventloop.hpp"

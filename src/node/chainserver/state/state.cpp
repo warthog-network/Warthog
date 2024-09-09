@@ -41,7 +41,7 @@ std::optional<std::pair<NonzeroHeight, Header>> State::get_header(Height h) cons
     return {};
 }
 
-auto State::api_get_header(API::HeightOrHash& hh) const -> std::optional<std::pair<NonzeroHeight, Header>>
+auto State::api_get_header(api::HeightOrHash& hh) const -> std::optional<std::pair<NonzeroHeight, Header>>
 {
     if (std::holds_alternative<Height>(hh.data)) {
         return get_header(std::get<Height>(hh.data));
@@ -69,7 +69,7 @@ std::optional<Hash> State::get_hash(Height h) const
     return chainstate.headers().get_hash(h);
 }
 
-std::optional<API::Block> State::api_get_block(const API::HeightOrHash& hh) const
+std::optional<api::Block> State::api_get_block(const api::HeightOrHash& hh) const
 {
     if (std::holds_alternative<Height>(hh.data)) {
         return api_get_block(std::get<Height>(hh.data));
@@ -80,7 +80,7 @@ std::optional<API::Block> State::api_get_block(const API::HeightOrHash& hh) cons
     return api_get_block(*h);
 }
 
-std::optional<API::Block> State::api_get_block(Height zh) const
+std::optional<api::Block> State::api_get_block(Height zh) const
 {
     if (zh == 0 || zh > chainlength())
         return {};
@@ -91,7 +91,7 @@ std::optional<API::Block> State::api_get_block(Height zh) const
                                      : chainstate.historyOffset(h + 1));
     auto entries = db.lookupHistoryRange(lower, upper);
     auto header = chainstate.headers()[h];
-    API::Block b(header, h, chainlength() - h + 1);
+    api::Block b(header, h, chainlength() - h + 1);
 
     chainserver::AccountCache cache(db);
     for (auto [hash, data] : entries) {
@@ -105,12 +105,12 @@ auto State::api_tx_cache() const -> const TransactionIds
     return chainstate.txids();
 }
 
-std::optional<API::Transaction> State::api_get_tx(const HashView txHash) const
+std::optional<api::Transaction> State::api_get_tx(const HashView txHash) const
 {
     if (auto p = chainstate.mempool()[txHash]; p) {
         auto& tx = *p;
 
-        return API::TransferTransaction {
+        return api::TransferTransaction {
             .txhash = txHash,
             .toAddress = tx.toAddr,
             .confirmations = 0,
@@ -131,7 +131,7 @@ std::optional<API::Transaction> State::api_get_tx(const HashView txHash) const
         NonzeroHeight h { chainstate.history_height(historyIndex) };
         if (std::holds_alternative<history::TransferData>(parsed)) {
             auto& d = std::get<history::TransferData>(parsed);
-            return API::TransferTransaction {
+            return api::TransferTransaction {
                 .txhash = txHash,
                 .toAddress = db.fetch_account(d.toAccountId).address,
                 .confirmations = (chainlength() - h) + 1,
@@ -146,7 +146,7 @@ std::optional<API::Transaction> State::api_get_tx(const HashView txHash) const
         } else {
             assert(std::holds_alternative<history::RewardData>(parsed));
             auto& d = std::get<history::RewardData>(parsed);
-            return API::RewardTransaction {
+            return api::RewardTransaction {
                 .txhash = txHash,
                 .toAddress = db.fetch_account(d.toAccountId).address,
                 .confirmations = (chainlength() - h) + 1,
@@ -159,12 +159,12 @@ std::optional<API::Transaction> State::api_get_tx(const HashView txHash) const
     return {};
 }
 
-auto State::api_get_latest_txs(size_t N) const -> API::TransactionsByBlocks
+auto State::api_get_latest_txs(size_t N) const -> api::TransactionsByBlocks
 {
     HistoryId upper { db.next_history_id() };
     // note: history ids start with 1
     HistoryId lower { (upper.value() > N + 1) ? db.next_history_id() - N : HistoryId { 1 } };
-    API::TransactionsByBlocks res { .fromId { lower }, .blocks_reversed {} };
+    api::TransactionsByBlocks res { .fromId { lower }, .blocks_reversed {} };
     if (upper.value() == 0)
         return res;
     auto lookup { db.lookupHistoryRange(lower, upper) };
@@ -175,7 +175,7 @@ auto State::api_get_latest_txs(size_t N) const -> API::TransactionsByBlocks
             auto h { chainstate.history_height(id) };
             PinFloor pinFloor { PrevHeight(h) };
             auto header { chainstate.headers()[h] };
-            auto b { API::Block(header, h, chainlength() - h + 1) };
+            auto b { api::Block(header, h, chainlength() - h + 1) };
             auto beginId { chainstate.historyOffset(h) };
             return std::tuple { pinFloor, beginId, b };
         };
@@ -267,7 +267,7 @@ tl::expected<ChainMiningTask, Error> State::mining_task(const Address& a)
     } };
 }
 
-stage_operation::StageSetResult State::set_stage(Headerchain&& hc)
+stage_operation::StageSetStatus State::set_stage(Headerchain&& hc)
 {
     if (signedSnapshot && !signedSnapshot->compatible(hc)) {
         return {};
@@ -313,7 +313,7 @@ stage_operation::StageSetResult State::set_stage(Headerchain&& hc)
     return { h };
 }
 
-auto State::add_stage(const std::vector<Block>& blocks, const Headerchain& hc) -> std::pair<stage_operation::StageAddResult, std::optional<StateUpdate>>
+auto State::add_stage(const std::vector<Block>& blocks, const Headerchain& hc) -> StageActionResult
 {
     if (signedSnapshot && !signedSnapshot->compatible(stage)) {
         return { { { ELEADERMISMATCH, signedSnapshot->height() } }, {} };
@@ -349,14 +349,7 @@ auto State::add_stage(const std::vector<Block>& blocks, const Headerchain& hc) -
         stage.append(prepared.value(), batchRegistry);
     }
     if (stage.total_work() > chainstate.headers().total_work()) {
-        auto [error, update, apiBlocks] { apply_stage(std::move(transaction)) };
-
-        publish_websocket_events(update, apiBlocks);
-
-        if (error.is_error())
-            return { { error }, update };
-        else
-            return { { err }, update };
+        return apply_stage(std::move(transaction));
     } else {
         transaction.commit();
         return { { err }, {} };
@@ -432,30 +425,7 @@ RollbackResult State::rollback(const Height newlength) const
     };
 }
 
-void State::publish_websocket_events(const std::optional<StateUpdate>& update, const std::vector<API::Block>& apiBlocks)
-{
-#ifndef DISABLE_LIBUV
-    using Fork = state_update::Fork;
-    using RollbackData = state_update::RollbackData;
-    if (update) {
-        auto& u { update->chainstateUpdate };
-        if (std::holds_alternative<Fork>(u)) {
-            auto& l { std::get<Fork>(u).shrinkLength };
-            http_endpoint().push_event(API::Rollback { l });
-        } else if (std::holds_alternative<RollbackData>(u)) {
-            auto& d { std::get<RollbackData>(u).data };
-            if (d.has_value()) {
-                auto& l { d->rollback.shrinkLength };
-                http_endpoint().push_event(API::Rollback { l });
-            }
-        }
-    }
-    for (auto& b : apiBlocks) {
-        http_endpoint().push_event(b);
-    }
-#endif
-}
-auto State::apply_stage(ChainDBTransaction&& t) -> std::tuple<ChainError, std::optional<StateUpdate>, std::vector<API::Block>>
+auto State::apply_stage(ChainDBTransaction&& t) -> StageActionResult
 {
     assert(!signedSnapshot || signedSnapshot->compatible(stage));
     assert(stage.total_work() > chainstate.headers().total_work());
@@ -463,25 +433,28 @@ auto State::apply_stage(ChainDBTransaction&& t) -> std::tuple<ChainError, std::o
 
     chainserver::ApplyStageTransaction tr { *this, std::move(t) };
     tr.consider_rollback(fh - 1);
-    auto [apiBlocks, error] { tr.apply_stage_blocks() };
-    if (error) {
+    auto status { tr.apply_stage_blocks() };
+    if (status.is_error()) {
         if (config().localDebug) {
             assert(0 == 1); // In local debug mode no errors should occurr (no bad actors)
         }
-        for (auto h { error.height() }; h < stage.length(); ++h)
+        for (auto h { status.height() }; h < stage.length(); ++h)
             db.delete_bad_block(stage.hash_at(h));
-        stage.shrink(error.height() - 1);
-        if (stage.total_work_at(error.height() - 1) <= chainstate.headers().total_work()) {
-            return { error, {}, {} };
+        stage.shrink(status.height() - 1);
+        if (stage.total_work_at(status.height() - 1) <= chainstate.headers().total_work()) {
+            return {
+                { status },
+                {},
+            };
         }
     }
     db.set_consensus_work(stage.total_work());
-    auto update { tr.commit(*this) };
+    auto update { std::move(tr).commit(*this) };
 
-    return { error, update, apiBlocks };
+    return { { status }, update };
 }
 
-auto State::apply_signed_snapshot(SignedSnapshot&& ssnew) -> std::optional<StateUpdate>
+auto State::apply_signed_snapshot(SignedSnapshot&& ssnew) -> std::optional<StateUpdateWithAPIBlocks>
 {
     if (signedSnapshot >= ssnew) {
         return {};
@@ -492,12 +465,13 @@ auto State::apply_signed_snapshot(SignedSnapshot&& ssnew) -> std::optional<State
     using namespace state_update;
 
     // consider chainstate
-    state_update::StateUpdate res {
-        .chainstateUpdate = state_update::RollbackData {
-            .data {},
+    state_update::StateUpdateWithAPIBlocks res {
+        .update {
+        .chainstateUpdate = state_update::SignedSnapshotApply {
+            .rollback {},
             .signedSnapshot { *signedSnapshot } },
         .mempoolUpdate {},
-    };
+    }};
     auto db_t { db.transaction() };
     if (!signedSnapshot->compatible(chainstate.headers())) {
         assert(signedSnapshot->height() <= chainlength());
@@ -506,14 +480,14 @@ auto State::apply_signed_snapshot(SignedSnapshot&& ssnew) -> std::optional<State
         std::unique_lock<std::mutex> ul(chainstateMutex);
         auto headers_ptr { blockCache.add_old_chain(chainstate, rb.deletionKey) };
 
-        res.chainstateUpdate = state_update::RollbackData {
-            .data { state_update::RollbackData::Data {
-                .rollback { chainstate.rollback(rb) },
-                .prevChain { std::move(headers_ptr) },
+        res.update.chainstateUpdate = state_update::SignedSnapshotApply {
+            .rollback { state_update::SignedSnapshotApply::Rollback {
+                .deltaHeaders { chainstate.rollback(rb) },
+                .prevHeaders { std::move(headers_ptr) },
             } },
             .signedSnapshot { *signedSnapshot }
         };
-        res.mempoolUpdate = chainstate.pop_mempool_log();
+        res.update.mempoolUpdate = chainstate.pop_mempool_log();
     } else {
         assert(chainstate.pop_mempool_log().size() == 0);
     };
@@ -525,7 +499,7 @@ auto State::apply_signed_snapshot(SignedSnapshot&& ssnew) -> std::optional<State
     return res;
 }
 
-auto State::append_mined_block(const Block& b) -> StateUpdate
+auto State::append_mined_block(const Block& b) -> StateUpdateWithAPIBlocks
 {
     auto nextHeight { next_height() };
     if (nextHeight != b.height)
@@ -555,9 +529,6 @@ auto State::append_mined_block(const Block& b) -> StateUpdate
 
     chainserver::BlockApplier e { db, chainstate.headers(), chainstate.txids(), false };
     auto apiBlock { e.apply_block(bv, b.header, nextHeight, blockId) };
-#ifndef DISABLE_LIBUV
-    http_endpoint().push_event(apiBlock);
-#endif
     db.set_consensus_work(chainstate.work_with_new_block());
     transaction.commit();
 
@@ -571,12 +542,13 @@ auto State::append_mined_block(const Block& b) -> StateUpdate
         .newAccountOffset { nextAccountId } });
     ul.unlock();
 
-    return {
-        .chainstateUpdate { state_update::Append {
-            headerchainAppend,
-            try_sign_chainstate() } },
-        .mempoolUpdate { chainstate.pop_mempool_log() }
-    };
+    return { .update {
+                 .chainstateUpdate { state_update::Append {
+                     headerchainAppend,
+                     try_sign_chainstate() } },
+                 .mempoolUpdate { chainstate.pop_mempool_log() },
+             },
+        .appendedBlocks { std::move(apiBlock) } };
 }
 
 std::pair<mempool::Log, TxHash> State::append_gentx(const PaymentCreateMessage& m)
@@ -592,16 +564,16 @@ std::pair<mempool::Log, TxHash> State::append_gentx(const PaymentCreateMessage& 
     }
 }
 
-API::Balance State::api_get_address(AddressView address)
+api::Balance State::api_get_address(AddressView address)
 {
     if (auto p = db.lookup_address(address); p) {
-        return API::Balance {
+        return api::Balance {
             address,
             p->accointId,
             p->funds
         };
     } else {
-        return API::Balance {
+        return api::Balance {
             {},
             AccountId { 0 },
             Funds { Funds::zero() }
@@ -609,16 +581,16 @@ API::Balance State::api_get_address(AddressView address)
     }
 }
 
-API::Balance State::api_get_address(AccountId accountId)
+api::Balance State::api_get_address(AccountId accountId)
 {
     if (auto p = db.lookup_account(accountId); p) {
-        return API::Balance {
+        return api::Balance {
             p->address,
             accountId,
             p->funds
         };
     } else {
-        return API::Balance {
+        return api::Balance {
             {},
             AccountId { 0 },
             Funds { Funds::zero() }
@@ -641,11 +613,11 @@ auto State::insert_txs(const TxVec& txs) -> std::pair<std::vector<Error>, mempoo
     return { res, chainstate.pop_mempool_log() };
 }
 
-API::ChainHead State::api_get_head() const
+api::ChainHead State::api_get_head() const
 {
     NonzeroHeight nextHeight { next_height() };
     PinFloor pf { PrevHeight(nextHeight) };
-    return API::ChainHead {
+    return api::ChainHead {
         .signedSnapshot { signedSnapshot },
         .worksum { chainstate.headers().total_work() },
         .nextTarget { chainstate.headers().next_target() },
@@ -656,20 +628,20 @@ API::ChainHead State::api_get_head() const
     };
 }
 
-auto State::api_get_mempool(size_t n) -> API::MempoolEntries
+auto State::api_get_mempool(size_t n) -> api::MempoolEntries
 {
     std::vector<Hash> hashes;
     auto entries = chainstate.mempool().get_payments(n, &hashes);
     assert(hashes.size() == entries.size());
-    API::MempoolEntries out;
+    api::MempoolEntries out;
     for (size_t i = 0; i < hashes.size(); ++i) {
-        out.entries.push_back(API::MempoolEntry {
+        out.entries.push_back(api::MempoolEntry {
             entries[i], hashes[i] });
     }
     return out;
 }
 
-auto State::api_get_history(Address a, uint64_t beforeId) -> std::optional<API::AccountHistory>
+auto State::api_get_history(Address a, uint64_t beforeId) -> std::optional<api::AccountHistory>
 {
     auto p = db.lookup_address(a);
     if (!p)
@@ -677,7 +649,7 @@ auto State::api_get_history(Address a, uint64_t beforeId) -> std::optional<API::
     auto& [accountId, balance] = *p;
 
     std::vector entries_desc = db.lookup_history_100_desc(accountId, beforeId);
-    std::vector<API::Block> blocks_reversed;
+    std::vector<api::Block> blocks_reversed;
     PinFloor pinFloor { 0 };
     auto firstHistoryId = HistoryId { 0 };
     auto nextHistoryOffset = HistoryId { 0 };
@@ -699,20 +671,20 @@ auto State::api_get_history(Address a, uint64_t beforeId) -> std::optional<API::
                     ? HistoryId { std::numeric_limits<uint64_t>::max() }
                     : chainstate.historyOffset(height + 1));
             blocks_reversed.push_back(
-                API::Block(header, height, 1 + (chainlength() - height)));
+                api::Block(header, height, 1 + (chainlength() - height)));
         }
-        API::Block& b = blocks_reversed.back();
+        api::Block& b = blocks_reversed.back();
         b.push_history(txid, data, cache, pinFloor);
     }
 
-    return API::AccountHistory {
+    return api::AccountHistory {
         .balance = balance,
         .fromId = firstHistoryId,
         .blocks_reversed = blocks_reversed
     };
 }
 
-auto State::api_get_richlist(size_t N) -> API::Richlist
+auto State::api_get_richlist(size_t N) -> api::Richlist
 {
     return db.lookup_richlist(N);
 }
@@ -788,7 +760,7 @@ auto State::commit_append(AppendBlocksResult&& abr) -> StateUpdate
                 headerchainAppend,
                 try_sign_chainstate(),
             } },
-        .mempoolUpdate { chainstate.pop_mempool_log() }
+        .mempoolUpdate { chainstate.pop_mempool_log() },
     };
 }
 

@@ -7,30 +7,30 @@ class TxHash;
 class Header;
 namespace jsonmsg {
 
-nlohmann::json to_json(const API::Balance&);
+nlohmann::json to_json(const api::Balance&);
 nlohmann::json to_json(const Grid&);
 nlohmann::json to_json(const NodeVersion&);
 nlohmann::json to_json(const Hash&);
 nlohmann::json to_json(const TxHash&);
-nlohmann::json to_json(const API::Head&);
+nlohmann::json to_json(const api::Head&);
 nlohmann::json to_json(const Peeraddr&);
 nlohmann::json to_json(const std::pair<NonzeroHeight,Header>&);
-nlohmann::json to_json(const API::MiningState&);
-nlohmann::json to_json(const API::MempoolEntries&);
-nlohmann::json to_json(const API::Transaction&);
-nlohmann::json to_json(const API::PeerinfoConnections&);
-nlohmann::json to_json(const API::TransactionsByBlocks&);
-nlohmann::json to_json(const API::Block&);
-nlohmann::json to_json(const API::AccountHistory&);
-nlohmann::json to_json(const API::Richlist&);
-nlohmann::json to_json(const API::Wallet&);
-nlohmann::json to_json(const API::HashrateInfo&);
-nlohmann::json to_json(const API::HashrateChart&);
+nlohmann::json to_json(const api::MiningState&);
+nlohmann::json to_json(const api::MempoolEntries&);
+nlohmann::json to_json(const api::Transaction&);
+nlohmann::json to_json(const api::PeerinfoConnections&);
+nlohmann::json to_json(const api::TransactionsByBlocks&);
+nlohmann::json to_json(const api::Block&);
+nlohmann::json to_json(const api::AccountHistory&);
+nlohmann::json to_json(const api::Richlist&);
+nlohmann::json to_json(const api::Wallet&);
+nlohmann::json to_json(const api::HashrateInfo&);
+nlohmann::json to_json(const api::HashrateChart&);
 nlohmann::json to_json(const OffenseEntry& e);
 nlohmann::json to_json(const std::optional<SignedSnapshot>&);
 nlohmann::json to_json(const chainserver::TransactionIds&);
-nlohmann::json to_json(const API::Round16Bit&);
-nlohmann::json to_json(const API::Rollback&);
+nlohmann::json to_json(const api::Round16Bit&);
+nlohmann::json to_json(const api::Rollback&);
 
 template <typename T>
 inline nlohmann::json to_json(const std::vector<T>& e, const auto& map)
@@ -95,7 +95,7 @@ inline std::string serialize(const tl::unexpected<Error> e)
 {
     return status(e.value());
 }
-std::string serialize(const API::Raw& r);
+std::string serialize(const api::Raw& r);
 
 template<typename T>
 inline std::string serialize(T&& e){
@@ -118,7 +118,7 @@ inline std::string serialize(const std::vector<PeerDB::BanEntry>& banned)
     return j.dump(1);
 }
 
-std::string serialize(const std::vector<API::Peerinfo>& banned);
+std::string serialize(const std::vector<api::Peerinfo>& banned);
 
 std::string endpoints(const Eventloop&);
 // std::string connect_timers(const Eventloop&);

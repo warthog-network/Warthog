@@ -25,7 +25,7 @@ public:
 class StageAndConsensus {
     using Append = chainserver::state_update::Append;
     using Fork = chainserver::state_update::Fork;
-    using RollbackData = chainserver::state_update::RollbackData;
+    using RollbackData = chainserver::state_update::SignedSnapshotApply;
 
 public:
     StageAndConsensus(const ConsensusSlave& s);

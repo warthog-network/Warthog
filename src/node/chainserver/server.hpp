@@ -45,7 +45,7 @@ public:
         GridCb callback;
     };
     struct GetBalance {
-        API::AccountIdOrAddress account;
+        api::AccountIdOrAddress account;
         BalanceCb callback;
     };
     struct GetMempool {
@@ -78,7 +78,7 @@ public:
         ChainHeadCb callback;
     };
     struct GetHeader {
-        API::HeightOrHash heightOrHash;
+        api::HeightOrHash heightOrHash;
         HeaderCb callback;
     };
     struct GetHash {
@@ -86,7 +86,7 @@ public:
         HashCb callback;
     };
     struct GetBlock {
-        API::HeightOrHash heightOrHash;
+        api::HeightOrHash heightOrHash;
         BlockCb callback;
     };
     struct GetMining {
@@ -187,16 +187,16 @@ public:
     void api_mining_append(Block&&, ResultCb);
     // void api_put_mempool(PaymentCreateMessage, ResultCb cb);
     void api_put_mempool(PaymentCreateMessage, MempoolInsertCb cb);
-    void api_get_balance(const API::AccountIdOrAddress& a, BalanceCb callback);
+    void api_get_balance(const api::AccountIdOrAddress& a, BalanceCb callback);
     void api_get_grid(GridCb);
     void api_get_mempool(MempoolCb callback);
     void api_lookup_tx(const HashView hash, TxCb callback);
     void api_lookup_latest_txs(LatestTxsCb callback);
     void api_get_history(const Address& address, uint64_t beforeId, HistoryCb callback);
     void api_get_richlist(RichlistCb callback);
-    void api_get_header(API::HeightOrHash, HeaderCb callback);
+    void api_get_header(api::HeightOrHash, HeaderCb callback);
     void api_get_hash(Height height, HashCb callback);
-    void api_get_block(API::HeightOrHash, BlockCb callback);
+    void api_get_block(api::HeightOrHash, BlockCb callback);
     void api_get_mining(const Address& a, ChainMiningCb callback);
     [[nodiscard]] mining_subscription::MiningSubscription api_subscribe_mining(Address address, mining_subscription::callback_t callback);
     void api_unsubscribe_mining(mining_subscription::SubscriptionId);
@@ -240,6 +240,8 @@ private:
     void handle_event(PutMempoolBatch&&);
     void handle_event(SetSignedPin&&);
 
+    using StateUpdateWithAPIBlocks = chainserver::state_update::StateUpdateWithAPIBlocks;
+    void on_chain_changed(StateUpdateWithAPIBlocks &&);
     void emit_chain_state_event();
 
     std::condition_variable cv;

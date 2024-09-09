@@ -320,7 +320,7 @@ private:
     // chain updates
     using Append = chainserver::state_update::Append;
     using Fork = chainserver::state_update::Fork;
-    using RollbackData = chainserver::state_update::RollbackData;
+    using RollbackData = chainserver::state_update::SignedSnapshotApply;
     void update_chain(Append&&);
     void update_chain(Fork&&);
     void update_chain(RollbackData&&);

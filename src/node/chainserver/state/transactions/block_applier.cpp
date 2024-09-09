@@ -204,8 +204,8 @@ struct Preparation {
     std::set<TransactionId> txset;
     std::vector<std::pair<AccountId, Funds>> updateBalances;
     std::vector<std::tuple<AddressView, Funds, AccountId>> insertBalances;
-    std::vector<API::Block::Reward> apiRewards;
-    std::vector<API::Block::Transfer> apiTransfers;
+    std::vector<api::Block::Reward> apiRewards;
+    std::vector<api::Block::Transfer> apiTransfers;
     HistoryEntries historyEntries;
     RollbackGenerator rg;
     Preparation(HistoryId nextHistoryId, AccountId beginNewAccountId)
@@ -332,7 +332,7 @@ Preparation BlockApplier::Preparer::prepare(const BodyView& bv, const NonzeroHei
     return res;
 }
 
-API::Block BlockApplier::apply_block(const BodyView& bv, HeaderView hv, NonzeroHeight height, BlockId blockId)
+api::Block BlockApplier::apply_block(const BodyView& bv, HeaderView hv, NonzeroHeight height, BlockId blockId)
 {
     auto prepared { preparer.prepare(bv, height) }; // call const function
 
@@ -365,7 +365,7 @@ API::Block BlockApplier::apply_block(const BodyView& bv, HeaderView hv, NonzeroH
         db.insert_consensus(height, blockId, db.next_history_id(), prepared.rg.begin_new_accounts());
 
         prepared.historyEntries.write(db);
-        API::Block b(hv, height, 0);
+        api::Block b(hv, height, 0);
         b.rewards = std::move(prepared.apiRewards);
         b.transfers = std::move(prepared.apiTransfers);
         return b;

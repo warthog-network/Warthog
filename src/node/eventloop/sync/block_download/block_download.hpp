@@ -65,8 +65,8 @@ public:
 
     void reset();
 private:
-    std::vector<ChainOffender> handle_stage_result(stage_operation::StageAddResult&&);
-    std::vector<ChainOffender> handle_stage_result(stage_operation::StageSetResult&&);
+    std::vector<ChainOffender> handle_stage_result(stage_operation::StageAddStatus&&);
+    std::vector<ChainOffender> handle_stage_result(stage_operation::StageSetStatus&&);
 
     ServerCall next_stage_call();
     [[nodiscard]] stage_operation::StageAddOperation pop_stage_add();

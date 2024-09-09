@@ -17,6 +17,7 @@ class State {
     friend class ApplyStageTransaction;
     friend class SetSignedPinTransaction;
     using StateUpdate = state_update::StateUpdate;
+    using StateUpdateWithAPIBlocks = state_update::StateUpdateWithAPIBlocks;
     using StageUpdate = state_update::StageUpdate;
     using TxVec = std::vector<TransferTxExchangeMessage>;
 
@@ -40,8 +41,12 @@ public:
     [[nodiscard]] auto insert_txs(const TxVec&) -> std::pair<std::vector<Error>, mempool::Log>;
 
     // stage methods
-    auto set_stage(Headerchain&& hc) -> stage_operation::StageSetResult;
-    auto add_stage(const std::vector<Block>& blocks, const Headerchain&) -> std::pair<stage_operation::StageAddResult, std::optional<StateUpdate>>;
+    auto set_stage(Headerchain&& hc) -> stage_operation::StageSetStatus;
+    struct StageActionResult{
+        stage_operation::StageAddStatus status;
+        std::optional<state_update::StateUpdateWithAPIBlocks> update;
+    };
+    auto add_stage(const std::vector<Block>& blocks, const Headerchain&) -> StageActionResult;
 
     // synced state notification
     void set_sync_state(bool synced)
@@ -62,33 +67,33 @@ public:
     auto get_mempool_tx(TransactionId) const -> std::optional<TransferTxExchangeMessage>;
 
     // api getters
-    auto api_get_address(AddressView) -> API::Balance;
-    auto api_get_address(AccountId) -> API::Balance;
-    auto api_get_head() const -> API::ChainHead;
-    auto api_get_history(Address a, uint64_t beforeId) -> std::optional<API::AccountHistory>;
-    auto api_get_richlist(size_t N) -> API::Richlist;
-    auto api_get_mempool(size_t) -> API::MempoolEntries;
-    auto api_get_tx(HashView hash) const -> std::optional<API::Transaction>;
-    auto api_get_latest_txs(size_t N = 100) const -> API::TransactionsByBlocks;
-    auto api_get_header(API::HeightOrHash& h) const -> std::optional<std::pair<NonzeroHeight, Header>>;
-    auto api_get_block(const API::HeightOrHash& h) const -> std::optional<API::Block>;
+    auto api_get_address(AddressView) -> api::Balance;
+    auto api_get_address(AccountId) -> api::Balance;
+    auto api_get_head() const -> api::ChainHead;
+    auto api_get_history(Address a, uint64_t beforeId) -> std::optional<api::AccountHistory>;
+    auto api_get_richlist(size_t N) -> api::Richlist;
+    auto api_get_mempool(size_t) -> api::MempoolEntries;
+    auto api_get_tx(HashView hash) const -> std::optional<api::Transaction>;
+    auto api_get_latest_txs(size_t N = 100) const -> api::TransactionsByBlocks;
+    auto api_get_header(api::HeightOrHash& h) const -> std::optional<std::pair<NonzeroHeight, Header>>;
+    auto api_get_block(const api::HeightOrHash& h) const -> std::optional<api::Block>;
     auto api_tx_cache() const -> const TransactionIds;
 
 private:
-    void publish_websocket_events(const std::optional<StateUpdate>&, const std::vector<API::Block>&);
 
     // delegated getters
-    auto api_get_block(Height h) const -> std::optional<API::Block>;
+    auto api_get_block(Height h) const -> std::optional<api::Block>;
     std::optional<NonzeroHeight> consensus_height(const Hash&) const;
     NonzeroHeight next_height() const { return (chainlength() + 1).nonzero_assert(); }
 
     // transactions
-    [[nodiscard]] auto apply_stage(ChainDBTransaction&& t) -> std::tuple<ChainError, std::optional<StateUpdate>, std::vector<API::Block>>;
+
+    [[nodiscard]] auto apply_stage(ChainDBTransaction&& t) -> StageActionResult;
 
 public:
-    [[nodiscard]] auto apply_signed_snapshot(SignedSnapshot&& sp) -> std::optional<StateUpdate>;
+    [[nodiscard]] auto apply_signed_snapshot(SignedSnapshot&& sp) -> std::optional<StateUpdateWithAPIBlocks>;
     //  stageUpdate;
-    [[nodiscard]] auto append_mined_block(const Block&) -> StateUpdate;
+    [[nodiscard]] auto append_mined_block(const Block&) -> StateUpdateWithAPIBlocks;
 
 private:
     // transaction helpers

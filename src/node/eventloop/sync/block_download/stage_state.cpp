@@ -40,11 +40,11 @@ void StageState::set_stale_from(Height from)
     }
 }
 
-std::vector<ChainOffender> StageState::on_result(const stage_operation::StageAddResult& r)
+std::vector<ChainOffender> StageState::on_result(const stage_operation::StageAddStatus& r)
 {
     auto data { pendingOperation.pop_add_data() };
     auto& e = r.ce;
-    stageSetAck = r.ce.height() - 1;
+    stageSetAck = e.height() - 1;
     std::vector<ChainOffender> offenders;
     if (e) {
         if (e.code != ELEADERMISMATCH) { // is peer's fault
@@ -59,14 +59,14 @@ std::vector<ChainOffender> StageState::on_result(const stage_operation::StageAdd
         clear_non_pending();
     return offenders;
 }
-std::optional<Height> StageState::on_result(const stage_operation::StageSetResult& e)
+std::optional<Height> StageState::on_result(const stage_operation::StageSetStatus& e)
 {
     auto data { pendingOperation.pop_set_data() };
     if (!e.firstMissHeight || (staleFrom.has_value() && *staleFrom < *e.firstMissHeight)) {
         clear_non_pending();
         return {};
     }
-    stageSetAck = *e.firstMissHeight-1;
+    stageSetAck = *e.firstMissHeight - 1;
     Height firstMissHeight { *e.firstMissHeight };
     if (firstMissHeight <= data.length)
         stageSetPhase = false;
