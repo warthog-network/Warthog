@@ -205,7 +205,7 @@ void HTTPEndpoint::get(std::string pattern, auto asyncfun, auto serializer, bool
         return;
     indexGenerator.get(pattern);
     app.get(pattern,
-        [this, asyncfun, serializer, pattern](auto* res, auto* req) {
+        [this, asyncfun, serializer](auto* res, auto* req) {
             spdlog::debug("GET {}", req->getUrl());
             asyncfun(
                 [this, res, serializer](auto& data) {
@@ -222,7 +222,7 @@ void HTTPEndpoint::get(std::string pattern, auto asyncfun, bool priv)
         return;
     indexGenerator.get(pattern);
     app.get(pattern,
-        [this, asyncfun, pattern](auto* res, auto* req) {
+        [this, asyncfun](auto* res, auto* req) {
             spdlog::debug("GET {}", req->getUrl());
             asyncfun(
                 [this, res]<typename T>(T&& data) {
@@ -239,7 +239,7 @@ void HTTPEndpoint::get_1(std::string pattern, auto asyncfun, bool priv)
         return;
     indexGenerator.get(pattern);
     app.get(pattern,
-        [this, asyncfun, pattern](auto* res, auto* req) {
+        [this, asyncfun](auto* res, auto* req) {
             spdlog::debug("GET {}", req->getUrl());
             try {
                 ParameterParser p1 { req->getParameter(0) };
@@ -260,7 +260,7 @@ void HTTPEndpoint::get_2(std::string pattern, auto asyncfun, bool priv)
         return;
     indexGenerator.get(pattern);
     app.get(pattern,
-        [this, asyncfun, pattern](auto* res, auto* req) {
+        [this, asyncfun](auto* res, auto* req) {
             spdlog::debug("GET {}", req->getUrl());
             try {
                 ParameterParser p1 { req->getParameter(0) };
@@ -282,7 +282,7 @@ void HTTPEndpoint::get_3(std::string pattern, auto asyncfun, bool priv)
         return;
     indexGenerator.get(pattern);
     app.get(pattern,
-        [this, asyncfun, pattern](auto* res, auto* req) {
+        [this, asyncfun](auto* res, auto* req) {
             spdlog::debug("GET {}", req->getUrl());
             try {
                 ParameterParser p1 { req->getParameter(0) };
@@ -306,7 +306,7 @@ void HTTPEndpoint::post(std::string pattern, auto parser, auto asyncfun, bool pr
         return;
     indexGenerator.post(pattern);
     app.post(pattern,
-        [this, pattern, parser = std::move(parser), asyncfun = std::move(asyncfun)](auto* res, uWS::HttpRequest* req) {
+        [this, parser = std::move(parser), asyncfun = std::move(asyncfun)](auto* res, uWS::HttpRequest* req) {
             spdlog::debug("POST {}", req->getUrl());
             std::vector<uint8_t> body;
 
