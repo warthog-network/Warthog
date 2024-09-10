@@ -236,7 +236,7 @@ bool Eventloop::check_shutdown()
 
     {
         std::unique_lock<std::mutex> l(mutex);
-        if (closeReason.has_value())
+        if (!closeReason.has_value())
             return false;
     }
 

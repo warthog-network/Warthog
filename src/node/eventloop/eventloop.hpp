@@ -375,7 +375,7 @@ private: // private data
     std::condition_variable cv;
     std::mutex mutex;
     bool haswork = false;
-    std::optional<Error> closeReason = 0;
+    std::optional<Error> closeReason{};
     bool blockdownloadHalted = false;
     std::queue<Event> events;
     std::thread worker; // worker (constructed last)
