@@ -1,3 +1,4 @@
+#pragma once
 #include "api/interface.hpp"
 #include "general/errors.hpp"
 #include "nlohmann/json.hpp"
