@@ -1,13 +1,5 @@
 #include "endpoint.hpp"
-#include "api/http/parse.hpp"
-#include "api/types/accountid_or_address.hpp"
-#include "api/types/all.hpp"
-#include "api/http/rest.hxx"
-#include "chainserver/transaction_ids.hpp"
-#include "communication/mining_task.hpp"
-#include "general/hex.hpp"
-#include "json.hpp"
-#include "spdlog/spdlog.h"
+#include "api/hook_endpoints.hxx"
 #include "version.hpp"
 #include <iostream>
 #include <type_traits>
@@ -69,7 +61,7 @@ void HTTPEndpoint::work()
         send_html(res, indexGenerator.result(isPublic));
     });
 
-    api_t::hook_endpoints(*this);
+    hook_endpoints(*this);
     app.ws<int>("/ws/chain_delta", {
                                        .open = [](auto* ws) {
                                            ws->subscribe(api::Block::eventName);

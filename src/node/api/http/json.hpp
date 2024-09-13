@@ -54,9 +54,9 @@ inline std::string status(Error e)
     nlohmann::json j;
     j["code"] = e.code;
     if (e.is_error()) {
-        j["error"] = nullptr;
-    } else {
         j["error"] = e.strerror();
+    } else {
+        j["error"] = nullptr;
     }
     return j.dump(1);
 }

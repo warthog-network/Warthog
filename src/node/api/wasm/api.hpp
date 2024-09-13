@@ -10,4 +10,5 @@ namespace api{
     void emit_chain(json);
     void emit_mempool_add(json);
     void emit_mempool_erase(json);
+    void emit_api_result(size_t id, std::string s);
 }

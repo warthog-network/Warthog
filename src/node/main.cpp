@@ -8,6 +8,7 @@
 #include "transport/ws/native/ws_conman.hpp"
 
 #ifdef DISABLE_LIBUV
+#include "api/wasm/endpiont_wasm.hpp"
 #include "config/browser.hpp"
 #else
 static void shutdown(Error reason);
@@ -145,6 +146,7 @@ int main(int argc, char** argv)
     el->start();
 
 #ifdef DISABLE_LIBUV
+    virtual_endpoint_initialize();
     while (true) {
         sleep(1000); // don't shut down
     }

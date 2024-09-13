@@ -4,7 +4,50 @@ callWithJson=function(name,json){
     }
 }
 
-mergeInto(LibraryManager.library, {
+addToLibrary({
+    $VIRTUALSTATE: {
+        dataChannelsMap: {},
+        nextId: 1,
+        getId: function() {
+            var ret = VIRTUALSTATE.nextId++
+            if (VIRTUALSTATE.nextId> 1000000000)
+                VIRTUALSTATE.nextId=1;
+            return ret;
+        },
+        getPromise: function(id){
+            var p = new Promise((resolve, reject) => {
+                if (VIRTUALSTATE[id]) {
+                    VIRTUALSTATE[id].reject();
+                }
+                VIRTUALSTATE[id] = {resolve: resolve, reject: reject};
+            });
+            return p;
+        },
+        resolvePromise: function(id, json){
+            if (VIRTUALSTATE[id]) {
+                VIRTUALSTATE[id].resolve(json);
+                delete VIRTUALSTATE[id];
+            }
+        }
+    },
+    $virtual_get(url){
+        var id = VIRTUALSTATE.getId();
+        Module._virtual_get_request(id, stringToNewUTF8(url));
+        return VIRTUALSTATE.getPromise(id);
+    },
+    $virtual_get__deps: ['$VIRTUALSTATE'],
+
+    $virtual_post(url,postdata){
+        var id = VIRTUALSTATE.postId();
+        Module._virtual_post_request(id, stringToNewUTF8(url), stringToNewUTF8(postdata));
+        return VIRTUALSTATE.getPromise(id);
+    },
+    $virtual_post__deps: ['$VIRTUALSTATE'],
+
+    onAPIResult: function(id, json){
+        VIRTUALSTATE.resolvePromise(id,JSON.parse(UTF8ToString(json)));
+    },
+    onAPIResult__deps: ['$virtual_get', '$virtual_post'],
     onConnect: json => {
         if (typeof Module["onConnect"] == "function"){
             Module["onConnect"](JSON.parse(UTF8ToString(json)));

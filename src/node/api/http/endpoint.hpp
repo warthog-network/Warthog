@@ -4,7 +4,6 @@
 #include "api/events/events.hpp"
 #include "api/types/all.hpp"
 #include "block/block.hpp"
-#include "../http/rest_fwd.hpp"
 #include "transport/helpers/tcp_sockaddr.hpp"
 #include "uwebsockets/App.h"
 #include <thread>
@@ -25,8 +24,8 @@ private:
 
 
 class HTTPEndpoint {
-    using api_t = RestAPI<HTTPEndpoint>;
-    friend api_t;
+    template<typename T>
+        friend class RouterHook;
 
 public:
     static constexpr bool SSL = false;

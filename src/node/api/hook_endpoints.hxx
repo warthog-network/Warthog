@@ -1,6 +1,12 @@
 #pragma once
 #include "api/http/parse.hpp"
-#include "json.hpp"
+#include "api/types/accountid_or_address.hpp"
+#include "api/types/all.hpp"
+#include "chainserver/transaction_ids.hpp"
+#include "communication/mining_task.hpp"
+#include "general/hex.hpp"
+#include "http/json.hpp"
+#include "api/http/json.hpp"
 #include "spdlog/spdlog.h"
 #include <charconv>
 #include <string>
@@ -66,9 +72,9 @@ struct ParameterParser {
 };
 }
 template <typename T>
-class RestAPI {
+class RouterHook {
 public:
-    static void hook_get(T& t, std::string pattern, auto asyncfun, auto serializer, bool priv=false)
+    static void hook_get(T& t, std::string pattern, auto asyncfun, auto serializer, bool priv = false)
     {
         if (priv && t.isPublic)
             return;
@@ -83,7 +89,7 @@ public:
                 t.insert_pending(res);
             });
     }
-    static void hook_get(T& t, std::string pattern, auto asyncfun, bool priv=false)
+    static void hook_get(T& t, std::string pattern, auto asyncfun, bool priv = false)
     {
         if (priv && t.isPublic)
             return;
@@ -99,7 +105,7 @@ public:
             });
     }
 
-    static void hook_get_1(T& t, std::string pattern, auto asyncfun, bool priv=false)
+    static void hook_get_1(T& t, std::string pattern, auto asyncfun, bool priv = false)
     {
         if (priv && t.isPublic)
             return;
@@ -119,7 +125,7 @@ public:
                 }
             });
     }
-    static void hook_get_2(T& t, std::string pattern, auto asyncfun, bool priv=false)
+    static void hook_get_2(T& t, std::string pattern, auto asyncfun, bool priv = false)
     {
         if (priv && t.isPublic)
             return;
@@ -140,7 +146,7 @@ public:
                 }
             });
     }
-    static void hook_get_3(T& t, std::string pattern, auto asyncfun, bool priv=false)
+    static void hook_get_3(T& t, std::string pattern, auto asyncfun, bool priv = false)
     {
         if (priv && t.isPublic)
             return;
@@ -163,7 +169,7 @@ public:
             });
     }
 
-    static void hook_post(T& t, std::string pattern, auto parser, auto asyncfun, bool priv=false)
+    static void hook_post(T& t, std::string pattern, auto parser, auto asyncfun, bool priv = false)
     {
         if (priv && t.isPublic)
             return;
@@ -240,3 +246,9 @@ public:
         hook_get(t, "/debug/header_download", inspect_eventloop, jsonmsg::header_download, true);
     }
 };
+
+template <typename T>
+void hook_endpoints(T&& t)
+{
+    RouterHook<std::remove_reference_t<T>>::hook_endpoints(std::forward<T>(t));
+}
