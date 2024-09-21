@@ -1,6 +1,7 @@
 #pragma once
 #include "address_manager/address_manager.hpp"
 #include "api/callbacks.hpp"
+#include "api/events/subscription_fwd.hpp"
 #include "api/types/forward_declarations.hpp"
 #include "block/chain/signed_snapshot.hpp"
 #include "chain_cache.hpp"
@@ -113,6 +114,11 @@ public:
     void api_get_peers(PeersCb&& cb);
     void api_get_synced(SyncedCb&& cb);
     void api_inspect(InspectorCb&&);
+
+    // subscription methods
+    void subscribe_connection_event(SubscriptionRequest r);
+    void destroy_subscriptions(subscription_data_ptr p);
+
     void start_timer(StartTimer);
     void cancel_timer(const Timer::key_t&);
     void async_mempool_update(mempool::Log&& s);
@@ -280,13 +286,18 @@ private:
     struct RTCClosed { // RTC connection closed
         std::shared_ptr<RTCConnection> con;
     };
+    struct SubscribeConnections : public SubscriptionRequest {
+    };
+    struct DestroySubscriptions {
+        subscription_data_ptr p;
+    };
 
     // event queue
     using Event = std::variant<Erase, OutboundClosed, RegisterConnection, OnProcessConnection,
         StateUpdate, SignedSnapshotCb, PeersCb, SyncedCb, stage_operation::Result,
         OnForwardBlockrep, InspectorCb, GetHashrate, GetHashrateChart,
         FailedConnect,
-        mempool::Log, StartTimer, CancelTimer, RTCClosed, IdentityIps, GeneratedVerificationSdpOffer, GeneratedVerificationSdpAnswer, GeneratedSdpOffer, GeneratedSdpAnswer>;
+        mempool::Log, StartTimer, CancelTimer, RTCClosed, IdentityIps, GeneratedVerificationSdpOffer, GeneratedVerificationSdpAnswer, GeneratedSdpOffer, GeneratedSdpAnswer, SubscribeConnections, DestroySubscriptions>;
 
 public:
     bool defer(Event e);
@@ -316,6 +327,8 @@ private:
     void handle_event(GeneratedVerificationSdpAnswer&&);
     void handle_event(GeneratedSdpOffer&&);
     void handle_event(GeneratedSdpAnswer&&);
+    void handle_event(SubscribeConnections&&);
+    void handle_event(DestroySubscriptions&&);
 
     // chain updates
     using Append = chainserver::state_update::Append;
@@ -368,6 +381,9 @@ private: // private data
     BlockDownload::Downloader blockDownload;
     mempool::SubscriptionMap mempoolSubscriptions;
     SyncState syncState;
+    std::vector<subscription_ptr> connectionSubscriptions;
+    void emit_disconnect(size_t, uint64_t);
+    void emit_connect(size_t, Conref);
 
     ////////////////////////////
     // mutex protected varibales
@@ -375,7 +391,7 @@ private: // private data
     std::condition_variable cv;
     std::mutex mutex;
     bool haswork = false;
-    std::optional<Error> closeReason{};
+    std::optional<Error> closeReason {};
     bool blockdownloadHalted = false;
     std::queue<Event> events;
     std::thread worker; // worker (constructed last)

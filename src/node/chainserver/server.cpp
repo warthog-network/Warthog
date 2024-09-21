@@ -1,10 +1,45 @@
 #include "server.hpp"
 #include "api/events/emit.hpp"
+#include "api/events/subscription.hpp"
 #include "api/types/all.hpp"
 #include "block/header/header_impl.hpp"
 #include "eventloop/eventloop.hpp"
 #include "general/hex.hpp"
 #include "global/globals.hpp"
+#include "subscription_state.hxx"
+
+namespace {
+constexpr size_t num_latest_blocks { 10 };
+}
+using SubscriptionEvent = subscription::events::Event;
+auto ChainServer::account_state_generator()
+{
+    return [this](const Address& a) {
+        return subscription::events::Event {
+            subscription::events::AccountState {
+                .address { a },
+                .history { state.api_get_history(a) },
+            }
+        };
+    };
+}
+auto ChainServer::chain_state()
+{
+    auto v{std::move(state.api_get_latest_blocks(num_latest_blocks).blocks_reversed)};
+    std::reverse(v.begin(),v.end());
+    return subscription::events::Event {
+        subscription::events::ChainState {
+            .head { state.api_get_head() },
+            .latestBlocks {std::move(v)} }
+    };
+}
+
+auto ChainServer::balance_fetcher()
+{
+    return [this](const Address& a)->Funds {
+        return state.api_get_address(a).balance;
+    };
+}
 
 bool ChainServer::is_busy()
 
@@ -140,6 +175,20 @@ void ChainServer::api_get_block(api::HeightOrHash hoh, BlockCb callback)
     defer_maybe_busy(GetBlock { hoh, std::move(callback) });
 }
 
+void ChainServer::subscribe_account_event(SubscriptionRequest r, Address a)
+{
+    defer(SubscribeAccount { std::move(r), std::move(a) });
+}
+void ChainServer::subscribe_chain_event(SubscriptionRequest r)
+{
+    defer(SubscribeChain { std::move(r) });
+}
+
+void ChainServer::destroy_subscriptions(subscription_data_ptr p)
+{
+    defer(DestroySubscriptions { p });
+}
+
 void ChainServer::async_get_blocks(DescriptedBlockRange range, getBlocksCb&& callback)
 {
     defer(GetBlocks { range, std::move(callback) });
@@ -221,10 +270,43 @@ TxHash ChainServer::append_gentx(const PaymentCreateMessage& m)
 void ChainServer::on_chain_changed(StateUpdateWithAPIBlocks&& su)
 {
     emit_chain_state_event();
-    if (auto l { su.update.chainstateUpdate.rollback_length() })
+
+    addressSubscriptions.session_start();
+    bool rollback { false };
+    auto v{state.api_get_latest_blocks(num_latest_blocks).blocks_reversed};
+    std::reverse(v.begin(),v.end());
+    // rollback api actions
+    if (auto l { su.update.chainstateUpdate.rollback_length() }) {
+        rollback = true;
+        addressSubscriptions.session_rollback(*l);
+        chainSubscriptions.get_subscriptions();
         api::event::emit_rollback(*l);
-    for (auto& b : su.appendedBlocks)
+        subscription::events::Event {
+            subscription::events::ChainFork {
+                .head { state.api_get_head() },
+                .latestBlocks { std::move(v) },
+                .rollbackLength { *l } }
+        }.send(chainSubscriptions.get_subscriptions());
+    }
+
+    // incremental block api actions
+    for (auto& b : su.appendedBlocks) {
+        addressSubscriptions.session_block(b);
         api::event::emit_block_append(std::move(b));
+    }
+    if (!rollback) {
+        if (su.appendedBlocks.size() > num_latest_blocks) {
+            chain_state().send(chainSubscriptions.get_subscriptions());
+        } else {
+            subscription::events::Event {
+                subscription::events::ChainAppend {
+                    .head { state.api_get_head() },
+                    .newBlocks { su.appendedBlocks } }
+            }.send(chainSubscriptions.get_subscriptions());
+        }
+    }
+
+    addressSubscriptions.session_end(account_state_generator(), balance_fetcher());
     global().core->async_state_update(std::move(su.update));
     dispatch_mining_subscriptions();
 }
@@ -393,4 +475,34 @@ void ChainServer::handle_event(SetSignedPin&& e)
     auto res { state.apply_signed_snapshot(std::move(e.ss)) };
     if (res)
         on_chain_changed(std::move(*res));
+}
+void ChainServer::handle_event(SubscribeAccount&& s)
+{
+    using enum subscription::Action;
+    switch (s.action) {
+    case Unsubscribe:
+        addressSubscriptions.erase(s.sptr, s.addr);
+        break;
+    case Subscribe:
+        if (addressSubscriptions.insert(s.sptr, s.addr))
+            account_state_generator()(s.addr).send(std::move(s.sptr));
+    }
+}
+void ChainServer::handle_event(SubscribeChain&& s)
+{
+    using enum subscription::Action;
+    switch (s.action) {
+    case Unsubscribe:
+        chainSubscriptions.erase(s.sptr.get());
+        break;
+    case Subscribe:
+        if (chainSubscriptions.insert(std::move(s.sptr))) {
+            chain_state().send(std::move(s.sptr));
+        }
+    }
+}
+
+void ChainServer::handle_event(DestroySubscriptions&& s)
+{
+    addressSubscriptions.erase_all(s.p);
 }

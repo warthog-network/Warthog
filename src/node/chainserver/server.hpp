@@ -1,8 +1,10 @@
 #pragma once
 #include "api/callbacks.hpp"
+#include "api/events/subscription_fwd.hpp"
 #include "api/types/accountid_or_address.hpp"
 #include "api/types/height_or_hash.hpp"
 #include "chainserver/mining_subscription.hpp"
+#include "chainserver/subscription_state.hpp"
 #include "communication/create_payment.hpp"
 #include "communication/stage_operation/request.hpp"
 #include "state/state.hpp"
@@ -111,6 +113,17 @@ public:
         SignedSnapshot ss;
     };
 
+    // subscription related
+    struct SubscribeAccount : public SubscriptionRequest {
+        Address addr;
+    };
+    struct SubscribeChain : public SubscriptionRequest {
+    };
+
+    struct DestroySubscriptions {
+        subscription_data_ptr p;
+    };
+
     // EVENTS
     using Event = std::variant<
         MiningAppend,
@@ -136,7 +149,11 @@ public:
         stage_operation::StageAddOperation,
         stage_operation::StageSetOperation,
         PutMempoolBatch,
-        SetSignedPin>;
+        SetSignedPin,
+        SubscribeAccount,
+        SubscribeChain,
+        DestroySubscriptions
+        >;
 
 private:
     template <typename T>
@@ -202,6 +219,10 @@ public:
     void api_unsubscribe_mining(mining_subscription::SubscriptionId);
     void api_get_txcache(TxcacheCb callback);
 
+    void subscribe_account_event(SubscriptionRequest, Address a);
+    void subscribe_chain_event(SubscriptionRequest);
+    void destroy_subscriptions(subscription_data_ptr);
+
     void async_set_signed_checkpoint(SignedSnapshot);
     void async_get_blocks(DescriptedBlockRange, getBlocksCb&&);
 
@@ -239,9 +260,18 @@ private:
     void handle_event(stage_operation::StageAddOperation&&);
     void handle_event(PutMempoolBatch&&);
     void handle_event(SetSignedPin&&);
-
+    void handle_event(SubscribeAccount&&);
+    void handle_event(SubscribeChain&&);
+    void handle_event(DestroySubscriptions&&);
+        
     using StateUpdateWithAPIBlocks = chainserver::state_update::StateUpdateWithAPIBlocks;
-    void on_chain_changed(StateUpdateWithAPIBlocks &&);
+    void on_chain_changed(StateUpdateWithAPIBlocks&&);
+
+    // generators (lambdas)
+    auto account_state_generator();
+    auto chain_state();
+    auto balance_fetcher();
+
     void emit_chain_state_event();
 
     std::condition_variable cv;
@@ -255,6 +285,8 @@ private:
     std::mutex mutex;
     std::queue<Event> events;
     MiningSubscriptions miningSubscriptions;
+    AddressSubscriptionState addressSubscriptions;
+    ChainSubscriptionState chainSubscriptions;
 
     //
     bool haswork = false;

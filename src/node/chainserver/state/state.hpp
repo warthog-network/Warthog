@@ -70,11 +70,13 @@ public:
     auto api_get_address(AddressView) -> api::Balance;
     auto api_get_address(AccountId) -> api::Balance;
     auto api_get_head() const -> api::ChainHead;
-    auto api_get_history(Address a, uint64_t beforeId) -> std::optional<api::AccountHistory>;
+    auto api_get_history(Address a, uint64_t beforeId=uint64_t(-1)) -> std::optional<api::AccountHistory>;
     auto api_get_richlist(size_t N) -> api::Richlist;
     auto api_get_mempool(size_t) -> api::MempoolEntries;
     auto api_get_tx(HashView hash) const -> std::optional<api::Transaction>;
     auto api_get_latest_txs(size_t N = 100) const -> api::TransactionsByBlocks;
+    auto api_get_latest_blocks(size_t N = 100) const -> api::TransactionsByBlocks;
+    auto api_get_transaction_range(HistoryId lower, HistoryId upper) const -> api::TransactionsByBlocks;
     auto api_get_header(api::HeightOrHash& h) const -> std::optional<std::pair<NonzeroHeight, Header>>;
     auto api_get_block(const api::HeightOrHash& h) const -> std::optional<api::Block>;
     auto api_tx_cache() const -> const TransactionIds;

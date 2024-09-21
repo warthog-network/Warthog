@@ -5,6 +5,7 @@
 #include "chainserver/mining_subscription.hpp"
 #include "eventloop/eventloop.hpp"
 #include "global/globals.hpp"
+#include "events/subscription_fwd.hpp"
 
 // mempool cbunctions
 void put_mempool(PaymentCreateMessage&&, MempoolInsertCb);
@@ -63,3 +64,8 @@ void get_account_richlist(RichlistCb cb);
 
 // endpoints function
 void inspect_eventloop(std::function<void(const Eventloop& e)>&&);
+
+void subscribe_chain_event(SubscriptionRequest);
+void subscribe_connection_event(SubscriptionRequest);
+void subscribe_account_event(SubscriptionRequest, Address);
+void destroy_all_subscriptions(subscription_data_ptr);

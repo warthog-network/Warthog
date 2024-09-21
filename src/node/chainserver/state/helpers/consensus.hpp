@@ -72,7 +72,7 @@ struct Chainstate {
     Descriptor descriptor() const { return dsc; }
     const auto& txids() const { return chainTxIds; }
     const auto& mempool() const { return _mempool; }
-    inline auto historyOffset(NonzeroHeight height) const
+    [[nodiscard]] inline auto historyOffset(NonzeroHeight height) const
     {
         return historyOffsets.at(height);
     };

@@ -20,10 +20,11 @@ src_browser = [
   ]
 
 src= [
+  './api/events/emit.cpp',
+  './api/events/subscription.cpp',
   './api/http/json.cpp',
   './api/http/parse.cpp',
   './api/interface.cpp',
-  './api/events/emit.cpp',
   './api/stratum/stratum_server.cpp',
   './api/types/all.cpp',
   './block/body/generator.cpp',
@@ -40,6 +41,7 @@ src= [
   './block/header/shared_batch.cpp',
   './block/header/timestamprule.cpp',
   './chainserver/account_cache.cpp',
+  './chainserver/subscription_state.cpp',
   './chainserver/db/chain_db.cpp',
   './chainserver/mining_subscription.cpp',
   './chainserver/server.cpp',

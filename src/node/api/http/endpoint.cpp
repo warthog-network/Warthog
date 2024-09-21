@@ -1,4 +1,5 @@
 #include "endpoint.hpp"
+#include "api/events/subscription.hpp"
 #include "api/hook_endpoints.hxx"
 #include "version.hpp"
 #include <iostream>
@@ -50,9 +51,38 @@ std::string IndexGenerator::result(bool isPublic) const
 </html>)HTML";
 }
 
-void HTTPEndpoint::reply_json(uWS::HttpResponse<false>* res, const std::string& s){
+void HTTPEndpoint::reply_json(uWS::HttpResponse<false>* res, const std::string& s)
+{
     res->writeHeader("Content-type", "text/html; charset=utf-8");
     res->end(s, true);
+}
+
+struct WSData;
+struct SubscriptionData : public std::enable_shared_from_this<SubscriptionData> {
+    using shared_ptr_t = std::shared_ptr<SubscriptionData>;
+    uWS::WebSocket<false, true, WSData>* ws;
+};
+
+struct WSData : public std::shared_ptr<SubscriptionData> {
+    WSData()
+        : std::shared_ptr<SubscriptionData>(
+            std::make_shared<SubscriptionData>())
+    {
+    }
+};
+
+void HTTPEndpoint::dispatch(std::vector<subscription_ptr> subscribers, std::string&& serialized)
+{
+    for (auto& s : subscribers) {
+        if (s->ws)
+            s->ws->send(serialized, uWS::OpCode::TEXT);
+    }
+}
+
+void HTTPEndpoint::send_event(std::vector<subscription_ptr> subscribers, subscription::events::Event&& event)
+{
+
+    lc.loop->defer([&, subscribers = std::move(subscribers), event = std::move(event)] { dispatch(subscribers, event.json_str()); });
 }
 
 void HTTPEndpoint::work()
@@ -62,12 +92,27 @@ void HTTPEndpoint::work()
     });
 
     hook_endpoints(*this);
-    app.ws<int>("/ws/chain_delta", {
-                                       .open = [](auto* ws) {
-                                           ws->subscribe(api::Block::eventName);
-                                           ws->subscribe(api::Rollback::eventName);
-                                       },
-                                   });
+    app.ws<int>("/ws/chain_delta", { .open { [](auto* ws) {
+            ws->subscribe(api::Block::eventName);
+            ws->subscribe(api::Rollback::eventName); } } });
+    using ws_t = uWS::WebSocket<false, true, WSData>;
+    app.ws<WSData>("/ws/events", { .open { [](ws_t* ws) {
+                                      (*ws->getUserData())->ws = ws;
+                                  } },
+                                     .message { [](ws_t* ws, std::string_view data, uWS::OpCode code) {
+                                         using uWS::OpCode;
+                                         try {
+                                             subscription::handleSubscriptioinMessage(nlohmann::json::parse(data), (*ws->getUserData()));
+                                         } catch (...) {
+                                         }
+                                         ws->end(1002);
+                                     } },
+                                     .close { [](ws_t* ws, int, std::string_view) {
+                                     const subscription_ptr& data{(*ws->getUserData())};
+                                     data->ws=nullptr;
+                                     destroy_all_subscriptions(data.get());
+
+                                     } } });
     app.listen(bind.ip.to_string(), bind.port, std::bind(&HTTPEndpoint::on_listen, this, _1));
     lc.loop->run();
 }
@@ -87,7 +132,6 @@ HTTPEndpoint::HTTPEndpoint(TCPPeeraddr bind, bool isPublic)
 {
     spdlog::info("RPC {}endpoint is {}.", isPublic ? "public " : "", bind.to_string());
 }
-
 
 void HTTPEndpoint::shutdown()
 {

@@ -2,6 +2,7 @@
 #ifndef DISABLE_LIBUV
 #define UWS_NO_ZLIB
 #include "api/events/events.hpp"
+#include "api/events/subscription_fwd.hpp"
 #include "api/types/all.hpp"
 #include "block/block.hpp"
 #include "transport/helpers/tcp_sockaddr.hpp"
@@ -50,7 +51,10 @@ public:
         });
     };
 
+    void send_event(std::vector<subscription_ptr> subscribers, subscription::events::Event&&);
+
 private:
+    void dispatch(std::vector<subscription_ptr> subscribers, std::string&& serialized);
     void async_reply(uWS::HttpResponse<false>* res, std::string reply)
     {
         lc.loop->defer(std::bind(&HTTPEndpoint::send_reply, this, res, std::move(reply)));

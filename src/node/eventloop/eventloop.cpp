@@ -1,6 +1,7 @@
 #include "eventloop.hpp"
 #include "address_manager/address_manager_impl.hpp"
 #include "api/events/emit.hpp"
+#include "api/events/subscription.hpp"
 #include "api/types/all.hpp"
 #include "block/chain/header_chain.hpp"
 #include "block/header/batch.hpp"
@@ -22,6 +23,7 @@
 #include <random>
 #include <sstream>
 
+using SubscriptionEvent = subscription::events::Event;
 template <typename... Args>
 inline void log_communication(spdlog::format_string_t<Args...> fmt, Args&&... args)
 {
@@ -149,6 +151,15 @@ void Eventloop::api_inspect(InspectorCb&& cb)
 {
     defer(std::move(cb));
 }
+void Eventloop::subscribe_connection_event(SubscriptionRequest r)
+{
+    defer(SubscribeConnections(std::move(r)));
+}
+void Eventloop::destroy_subscriptions(subscription_data_ptr p)
+{
+    defer(DestroySubscriptions(p));
+}
+
 void Eventloop::api_get_hashrate(HashrateCb&& cb, size_t n)
 {
     defer(GetHashrate { std::move(cb), n });
@@ -610,6 +621,62 @@ void Eventloop::handle_event(GeneratedSdpAnswer&& m)
     signalingServer.send(RTCRequestForwardAnswer { sdp, m.key });
 }
 
+void Eventloop::emit_disconnect(size_t n, uint64_t id)
+{
+    using namespace subscription;
+    events::Event { events::ConnectionsRemove { id, n } }.send(connectionSubscriptions);
+}
+void Eventloop::emit_connect(size_t n, Conref c)
+{
+    using namespace subscription;
+    events::Event { events::ConnectionsAdd {
+                        .connection {
+                            .id = c.id(),
+                            .since = 0,
+                            .peerAddr { c->c->peer_addr().to_string() },
+                            .inbound = c->c->inbound() },
+                        .total = n } }
+        .send(connectionSubscriptions);
+}
+void Eventloop::handle_event(SubscribeConnections&& c)
+{
+    using enum subscription::Action;
+    auto ptr { c.sptr.get() };
+    switch (c.action) {
+    case Unsubscribe:
+        std::erase_if(connectionSubscriptions, [&](subscription_ptr& p) {
+            return p.get() == ptr;
+        });
+        return;
+    case Subscribe:
+        for (auto& p : connectionSubscriptions) {
+            if (p.get() == c.sptr.get()) {
+                if (c.action == subscription::Action::Unsubscribe) {
+                }
+                goto subscribed;
+            }
+        }
+        connectionSubscriptions.push_back(c.sptr);
+    subscribed:
+        std::vector<subscription::events::Connection> v;
+        for (auto c : connections.initialized()) {
+            v.push_back({ .id = c.id(),
+                .since = 0,
+                .peerAddr { c->c->peer_addr().to_string() },
+                .inbound = c->c->inbound() });
+        }
+        SubscriptionEvent { subscription::events::ConnectionsState {
+                                .connections { std::move(v) },
+                                .total = v.size() } }
+            .send(std::move(c.sptr));
+    }
+}
+void Eventloop::handle_event(DestroySubscriptions&& d){
+    std::erase_if(connectionSubscriptions, [&](subscription_ptr& p) {
+            return p.get() == d.p;
+            });
+}
+
 void Eventloop::handle_event(GeneratedVerificationSdpOffer&& m)
 {
     auto l { m.con.lock() };
@@ -1020,12 +1087,13 @@ void Eventloop::handle_msg(Conref c, PingV2Msg&& m)
     c.rtc().their.forwardRequests.discard(m.discarded_forward_requests());
 };
 
-void Eventloop::on_received_addresses(Conref cr, const messages::Vector16<TCPPeeraddr>& addresses){
+void Eventloop::on_received_addresses(Conref cr, const messages::Vector16<TCPPeeraddr>& addresses)
+{
     // only process received addresses when we are a native node (not browser nodes)
-#ifndef DISABLE_LIBUV 
-    if (auto ip{cr.peer().ip()}; ip.has_value() && cr.is_tcp()) {
+#ifndef DISABLE_LIBUV
+    if (auto ip { cr.peer().ip() }; ip.has_value() && cr.is_tcp()) {
         spdlog::debug("{} Received {} addresses", cr.str(), addresses.size());
-        if (ip->is_v4()) 
+        if (ip->is_v4())
             connections.verify(addresses, ip->get_v4());
     }
 #endif
@@ -1035,7 +1103,7 @@ void Eventloop::handle_msg(Conref cr, PongMsg&& m)
 {
     log_communication("{} handle pong", cr.str());
     auto& pingMsg = cr.ping().check(m);
-    on_received_addresses(cr,m.addresses());
+    on_received_addresses(cr, m.addresses());
     received_pong_sleep_ping(cr);
     spdlog::debug("{} Got {} transaction Ids in pong message", cr.str(), m.txids().size());
 
@@ -1055,7 +1123,7 @@ void Eventloop::handle_msg(Conref cr, PongV2Msg&& m)
     log_communication("{} handle pong", cr.str());
     auto& pingData = cr.ping().check(m);
     auto& pingMsg = pingData.msg;
-    on_received_addresses(cr,m.addresses());
+    on_received_addresses(cr, m.addresses());
     received_pong_sleep_ping(cr);
     spdlog::debug("{} Got {} transaction Ids in pong message", cr.str(), m.txids().size());
 

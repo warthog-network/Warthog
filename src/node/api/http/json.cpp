@@ -260,12 +260,9 @@ json to_json(const TxHash& h)
     return j;
 }
 
-json to_json(const api::Head& h)
-{
-    auto& ch = h.chainHead;
+json to_json(const api::ChainHead& ch){
     json j;
     j["hash"] = serialize_hex(ch.hash);
-    j["synced"] = h.synced;
     j["height"] = ch.height;
     j["difficulty"] = ch.nextTarget.difficulty();
     j["is_janushash"] = ch.nextTarget.is_janushash();
@@ -273,6 +270,13 @@ json to_json(const api::Head& h)
     j["worksum"] = ch.worksum.getdouble();
     j["worksumHex"] = ch.worksum.to_string();
     j["pinHash"] = serialize_hex(ch.pinHash);
+    return j;
+}
+
+json to_json(const api::Head& h)
+{
+    auto j(to_json(h.chainHead));
+    j["synced"] = h.synced;
     return j;
 }
 
@@ -376,6 +380,24 @@ json to_json(const api::Block& block)
     j["utc"] = format_utc(hv.timestamp());
     j["confirmations"] = block.confirmations;
     j["height"] = block.height;
+    return j;
+}
+json to_json(const api::BlockSummary& block)
+{
+    json j;
+    HeaderView hv(block.header.data());
+    j["header"] = header_json(block.header, block.height);
+    j["confirmations"] = block.confirmations;
+    j["height"] = block.height;
+    j["nTransfers"] = block.nTransfers;
+    j["miner"] = block.miner.to_string();
+    j["transferred"] = block.transferred.to_string();
+    j["transferredE8"] = block.transferred.E8();
+    j["totalTxFee"] = block.totalTxFee.to_string();
+    j["totalTxFeeE8"] = block.totalTxFee.E8();
+    auto r { block.height.reward() };
+    j["blockReward"] = r.to_string();
+    j["blockReward"] = r.E8();
     return j;
 }
 
@@ -594,5 +616,21 @@ std::string header_download(const Eventloop& e)
 {
     return Inspector::header_download(e);
 }
+
+// SubscriptionAction parse_subscribe_throw(std::string_view s)
+// {
+//     auto j { json::parse(s) };
+//     if (j.size() != 1 || !j.is_object())
+//         goto failed;
+//
+//     if (auto iter { j.find("subscribe") }; iter != j.end()) {
+//         return { true, iter.value().get<std::string>() };
+//     }
+//     if (auto iter { j.find("unsubscribe") }; iter != j.end()) {
+//         return { false, iter.value().get<std::string>() };
+//     }
+// failed:
+//     throw std::runtime_error("Cannot parse subscription " + std::string(s));
+// };
 
 } // namespace jsonmsg

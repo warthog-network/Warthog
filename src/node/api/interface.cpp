@@ -1,10 +1,10 @@
 #include "interface.hpp"
 #include "api/types/all.hpp"
-#include "transport/tcp/conman.hpp"
 #include "block/header/header_impl.hpp"
 #include "chainserver/server.hpp"
 #include "eventloop/eventloop.hpp"
 #include "global/globals.hpp"
+#include "transport/tcp/conman.hpp"
 
 // mempool functions
 void put_mempool(PaymentCreateMessage&& m, MempoolInsertCb cb)
@@ -297,4 +297,22 @@ void get_account_richlist(RichlistCb f)
 void inspect_eventloop(std::function<void(const Eventloop& e)>&& cb)
 {
     global().core->api_inspect(std::move(cb));
+}
+
+void subscribe_chain_event(SubscriptionRequest r)
+{
+    global().chainServer->subscribe_chain_event(std::move(r));
+}
+void subscribe_connection_event(SubscriptionRequest r)
+{
+    global().core->subscribe_connection_event(std::move(r));
+}
+void subscribe_account_event(SubscriptionRequest r, Address a)
+{
+    global().chainServer->subscribe_account_event(std::move(r), std::move(a));
+}
+void destroy_all_subscriptions(subscription_data_ptr p)
+{
+    global().chainServer->destroy_subscriptions(p);
+    global().core->destroy_subscriptions(p);
 }

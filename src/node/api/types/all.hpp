@@ -73,6 +73,17 @@ struct Rollback {
     Height length;
 };
 
+struct BlockSummary {
+    Header  header;
+    NonzeroHeight height;
+    uint32_t confirmations = 0;
+    uint32_t nTransfers;
+    Address miner;
+    Funds transferred;
+    Funds totalTxFee;
+    Funds blockReward;
+};
+
 struct Block {
     static constexpr const char eventName[] = "blockAppend";
     struct Transfer {
@@ -106,6 +117,7 @@ struct Block {
     {
     }
 };
+
 
 
 struct AccountHistory {

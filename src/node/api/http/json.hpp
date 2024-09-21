@@ -1,5 +1,6 @@
 #pragma once
 #include "api/interface.hpp"
+#include "api/events/subscription.hpp"
 #include "general/errors.hpp"
 #include "nlohmann/json.hpp"
 struct Head;
@@ -14,6 +15,7 @@ nlohmann::json to_json(const NodeVersion&);
 nlohmann::json to_json(const Hash&);
 nlohmann::json to_json(const TxHash&);
 nlohmann::json to_json(const api::Head&);
+nlohmann::json to_json(const api::ChainHead&);
 nlohmann::json to_json(const Peeraddr&);
 nlohmann::json to_json(const std::pair<NonzeroHeight,Header>&);
 nlohmann::json to_json(const api::MiningState&);
@@ -22,6 +24,7 @@ nlohmann::json to_json(const api::Transaction&);
 nlohmann::json to_json(const api::PeerinfoConnections&);
 nlohmann::json to_json(const api::TransactionsByBlocks&);
 nlohmann::json to_json(const api::Block&);
+nlohmann::json to_json(const api::BlockSummary&);
 nlohmann::json to_json(const api::AccountHistory&);
 nlohmann::json to_json(const api::Richlist&);
 nlohmann::json to_json(const api::Wallet&);
@@ -124,6 +127,5 @@ std::string serialize(const std::vector<api::Peerinfo>& banned);
 std::string endpoints(const Eventloop&);
 // std::string connect_timers(const Eventloop&);
 std::string header_download(const Eventloop&);
-
 
 }
