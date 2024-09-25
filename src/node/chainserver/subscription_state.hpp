@@ -7,15 +7,18 @@
 #include <optional>
 #include <vector>
 
-namespace chain_subscription{
+namespace chain_subscription {
 class ChainSubscriptionState {
+private:
+    using vector_t = std::vector<subscription_ptr>;
+    vector_t subscriptions;
+
 public:
-    auto& get_subscriptions() const { return subscriptions; }
+    size_t size() const { return subscriptions.size(); }
+    auto get_subscriptions() const ->vector_t;
     void erase(subscription_data_ptr p);
     bool insert(subscription_ptr p);
 
-private:
-    std::vector<subscription_ptr> subscriptions;
 };
 
 }
@@ -61,7 +64,7 @@ private:
     auto& get_session_data(MapVal& mapVal, const Address& a);
 
 public:
-    [[nodiscard]] bool insert(const subscription_ptr& r, const Address&);
+    bool insert(const subscription_ptr& r, const Address&);
     size_t erase_all(subscription_data_ptr r);
     size_t erase(const subscription_ptr& r, const Address&);
 

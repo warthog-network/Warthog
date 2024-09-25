@@ -484,10 +484,11 @@ void ChainServer::handle_event(SubscribeAccount&& s)
         addressSubscriptions.erase(s.sptr, s.addr);
         break;
     case Subscribe:
-        if (addressSubscriptions.insert(s.sptr, s.addr))
-            account_state_generator()(s.addr).send(std::move(s.sptr));
+        addressSubscriptions.insert(s.sptr, s.addr);
+        account_state_generator()(s.addr).send(std::move(s.sptr));
     }
 }
+
 void ChainServer::handle_event(SubscribeChain&& s)
 {
     using enum subscription::Action;
@@ -496,13 +497,13 @@ void ChainServer::handle_event(SubscribeChain&& s)
         chainSubscriptions.erase(s.sptr.get());
         break;
     case Subscribe:
-        if (chainSubscriptions.insert(std::move(s.sptr))) {
-            chain_state().send(std::move(s.sptr));
-        }
+        chainSubscriptions.insert(s.sptr);
+        chain_state().send(std::move(s.sptr));
     }
 }
 
 void ChainServer::handle_event(DestroySubscriptions&& s)
 {
     addressSubscriptions.erase_all(s.p);
+    chainSubscriptions.erase(s.p);
 }

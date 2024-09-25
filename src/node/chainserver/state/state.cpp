@@ -171,7 +171,7 @@ auto State::api_get_latest_blocks(size_t N) const -> api::TransactionsByBlocks
 {
     HistoryId upper { db.next_history_id() };
     auto l { chainlength().value() };
-    auto hLower { l > N + 1 ? Height(l - N).nonzero_assert() : Height { 1 }.nonzero_assert() };
+    auto hLower { l > N ? Height(l + 1 - N).nonzero_assert() : Height { 1 }.nonzero_assert() };
     HistoryId lower { chainstate.historyOffset(hLower) };
     return api_get_transaction_range(lower, upper);
 }
@@ -485,7 +485,8 @@ auto State::apply_signed_snapshot(SignedSnapshot&& ssnew) -> std::optional<State
                 .rollback {},
                 .signedSnapshot { *signedSnapshot } },
             .mempoolUpdate {},
-        }
+        },
+        .appendedBlocks {}
     };
     auto db_t { db.transaction() };
     if (!signedSnapshot->compatible(chainstate.headers())) {
@@ -656,7 +657,7 @@ auto State::api_get_mempool(size_t n) -> api::MempoolEntries
     return out;
 }
 
-auto State::api_get_history(Address a, uint64_t beforeId) -> std::optional<api::AccountHistory>
+auto State::api_get_history(Address a, int64_t beforeId) -> std::optional<api::AccountHistory>
 {
     auto p = db.lookup_address(a);
     if (!p)

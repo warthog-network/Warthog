@@ -72,6 +72,7 @@ private:
     Loop *l;
     /* WebSocketContexts are of differing type, but we as owners and creators must delete them correctly */
     std::vector<MoveOnlyFunction<void()>> webSocketContextDeleters;
+    std::vector<us_socket_context_t *> webSocketContexts;
 
 public:
 
@@ -82,6 +83,14 @@ public:
 
         us_socket_context_add_server_name(SSL, (struct us_socket_context_t *) httpContext, hostname_pattern.c_str(), options);
         return std::move(*this);
+    }
+
+    int closeAllWebsockets() {
+        int sum {0};
+        for (auto &c : webSocketContexts) {
+            sum += us_socket_context_close_all_sockets(SSL, c, 0, nullptr);
+        }
+        return sum;
     }
 
     TemplatedApp &&removeServerName(std::string hostname_pattern) {
@@ -299,6 +308,7 @@ public:
         webSocketContextDeleters.push_back([webSocketContext]() {
             webSocketContext->free();
         });
+        webSocketContexts.push_back((us_socket_context_t *) webSocketContext);
 
         /* Quick fix to disable any compression if set */
 #ifdef UWS_NO_ZLIB

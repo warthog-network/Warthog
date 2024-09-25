@@ -173,6 +173,18 @@ void us_socket_context_free(int ssl, struct us_socket_context_t *context) {
     free(context);
 }
 
+int us_socket_context_close_all_sockets(int ssl, struct us_socket_context_t *context, int code, void *reason){
+    int i = 0;
+    for (struct us_socket_t * s = context->head; s != NULL;){
+        struct us_socket_t * next = s->next;
+        /* Todo: decide what code we give here */
+        us_socket_close(ssl, s, code, reason);
+        i += 1;
+        s = next;
+    }
+    return i;
+}
+
 struct us_listen_socket_t *us_socket_context_listen(int ssl, struct us_socket_context_t *context, const char *host, int port, int options, int socket_ext_size) {
 #ifndef LIBUS_NO_SSL
     if (ssl) {

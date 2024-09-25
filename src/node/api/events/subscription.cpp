@@ -85,7 +85,7 @@ namespace events {
             }
             return json {
                 { "connections", arr },
-                { "total",  },
+                { "total", arr.size() },
             };
         };
         json to_json(const ConnectionsRemove& a)
@@ -109,7 +109,7 @@ namespace events {
                 arr.push_back(jsonmsg::to_json(b));
             }
             return json {
-                { "summary", jsonmsg::to_json(a.head) },
+                { "head", jsonmsg::to_json(a.head) },
                 { "blockHistory", arr },
             };
         };
@@ -131,7 +131,7 @@ namespace events {
         template <typename T>
         std::string json_str(T&& t)
         {
-            auto j { to_json(t) };
+            auto j ( to_json(t) );
             j["eventName"] = t.eventName;
             return j.dump();
         }
@@ -140,7 +140,7 @@ namespace events {
     std::string Event::json_str() const
     {
         return std::visit([](auto&& e) {
-            json j { to_json(e) };
+            json j ( to_json(e) );
             j["eventName"] = e.eventName;
             return j.dump();
         },

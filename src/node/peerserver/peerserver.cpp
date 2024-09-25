@@ -147,7 +147,7 @@ void PeerServer::handle_event(Inspect&& e)
     e.cb(*this);
 }
 
-void PeerServer::on_close(const OnClose&, const WebRTCPeeraddr& addr)
+void PeerServer::on_close(const OnClose&, const WebRTCPeeraddr& /*addr*/)
 {
     // do nothing
 }

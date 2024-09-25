@@ -70,7 +70,7 @@ public:
     auto api_get_address(AddressView) -> api::Balance;
     auto api_get_address(AccountId) -> api::Balance;
     auto api_get_head() const -> api::ChainHead;
-    auto api_get_history(Address a, uint64_t beforeId=uint64_t(-1)) -> std::optional<api::AccountHistory>;
+    auto api_get_history(Address a, int64_t beforeId=0x7fffffffffffffff) -> std::optional<api::AccountHistory>;
     auto api_get_richlist(size_t N) -> api::Richlist;
     auto api_get_mempool(size_t) -> api::MempoolEntries;
     auto api_get_tx(HashView hash) const -> std::optional<api::Transaction>;

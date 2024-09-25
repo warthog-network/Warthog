@@ -46,6 +46,7 @@ struct ConfigParams {
             case WebRTC:
                 return webRTC.allowed(ip);
             }
+            return false; // should not happen but gcc complains about "warning: control reaches end of non-void function" without this statement
         }
         V4V6 tcp { true, false };
         V4V6 websocket { true, true };

@@ -1,5 +1,6 @@
 #include "subscription_state.hpp"
 #include "api/types/all.hpp"
+#include "spdlog/spdlog.h"
 #include <optional>
 
 namespace chain_subscription {
@@ -9,10 +10,16 @@ void ChainSubscriptionState::erase(subscription_data_ptr p)
         return p == p2.get();
     });
 }
-bool ChainSubscriptionState::insert(subscription_ptr p){
-    for (auto &p2 : subscriptions) {
-        if (p2.get() == p.get()) 
+auto ChainSubscriptionState::get_subscriptions() const -> vector_t
+{
+    return subscriptions;
+}
+bool ChainSubscriptionState::insert(subscription_ptr p)
+{
+    for (auto& p2 : subscriptions) {
+        if (p2.get() == p.get()) {
             return false;
+        }
     }
     subscriptions.push_back(std::move(p));
     return true;
@@ -54,13 +61,14 @@ bool AddressSubscriptionState::insert(const subscription_ptr& sptr, const Addres
                 return false;
         }
     }
+    mapVal.counter += 1;
     subscriptions.push_back({ id, sptr, a });
     return true;
 }
 
 size_t AddressSubscriptionState::erase_all(subscription_data_ptr r)
 {
-    return std::erase_if(subscriptions, [&](elem_t& e) {
+    auto n { std::erase_if(subscriptions, [&](elem_t& e) {
         auto& [id, sptr, addr] = e;
         if (sptr.get() == r) {
             auto iter = map.find(addr);
@@ -72,7 +80,9 @@ size_t AddressSubscriptionState::erase_all(subscription_data_ptr r)
             return true;
         }
         return false;
-    });
+    }) };
+
+    return n;
 }
 
 size_t AddressSubscriptionState::erase(const subscription_ptr& sptr, const Address& addr)
@@ -124,7 +134,7 @@ void AddressSubscriptionState::session_block(const api::Block& b)
 std::optional<SessionAddressCursor> AddressSubscriptionState::session_address_cursor(const api::Block& b, const Address& a, Height h)
 {
     auto iter { map.find(a) };
-    if (iter != map.end())
+    if (iter == map.end())
         return {};
     auto& mapVal { iter->second };
     mapVal.latestTransactionHeight = h;
