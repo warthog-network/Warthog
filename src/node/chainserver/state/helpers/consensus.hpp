@@ -74,6 +74,8 @@ struct Chainstate {
     const auto& mempool() const { return _mempool; }
     [[nodiscard]] inline auto historyOffset(NonzeroHeight height) const
     {
+        if (height.value() == 1) 
+            return HistoryId::smallest();
         return historyOffsets.at(height);
     };
     NonzeroHeight history_height(HistoryId historyIndex) const

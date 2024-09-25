@@ -73,4 +73,14 @@ addToLibrary({
             Module["onMempoolErase"](JSON.parse(UTF8ToString(json)));
         }
     },
+    onStream: json => {
+        var f = Module["onStream"]
+        if (typeof f == "function"){
+            f(JSON.parse(UTF8ToString(json)));
+        }
+    },
+    $stream_control(msg){
+        Module._stream_control(stringToNewUTF8(msg))
+    },
+    onStream__deps: ['$stream_control'],
 });

@@ -6,6 +6,8 @@
 #include "api/http/endpoint.hpp"
 #include "api/interface.hpp"
 #include "global/globals.hpp"
+#else
+#include "api/wasm/api.hpp"
 #endif
 
 using nlohmann::json;
@@ -152,12 +154,17 @@ namespace events {
         std::move(*this).send(std::vector<subscription_ptr> { p });
     }
 
+#ifndef DISABLE_LIBUV
     void Event::send(std::vector<subscription_ptr> subscribers) &&
     {
-#ifndef DISABLE_LIBUV
         global().httpEndpoint->send_event(std::move(subscribers), std::move(*this));
-#endif
     }
+#else
+    void Event::send(std::vector<subscription_ptr>) &&
+    {
+        api::emit_stream(json_str());
+    }
+#endif
 
 }
 // namespace topics {

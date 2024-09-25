@@ -45,6 +45,9 @@ public:
     }
 };
 
+struct SubscriptionData {
+};
+
 namespace {
 WasmEndpoint endpoint;
 std::mutex m;
@@ -98,6 +101,12 @@ void virtual_post_request(router::id_t id, char* path, char* postdata)
     } else {
         handle_post(id, path, postdata);
     }
+}
+
+EMSCRIPTEN_KEEPALIVE
+void stream_control(char* message)
+{
+    subscription::handleSubscriptioinMessage(nlohmann::json::parse(message), {});
 }
 }
 void dispatch(BufferedRequest::Post& post)

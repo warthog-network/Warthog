@@ -10,6 +10,7 @@ extern void onChain(const char*);
 extern void onMempoolAdd(const char*);
 extern void onMempoolErase(const char*);
 extern void onAPIResult(size_t, const char*);
+extern void onStream(const char*);
 }
 
 namespace api {
@@ -29,6 +30,9 @@ void proxy_json_call(const json& j)
 void emit_api_result(size_t id, std::string s)
 {
     proxy_to_main_runtime([id, s = std::move(s)]() { onAPIResult(id, s.c_str()); });
+}
+void emit_stream(std::string s){
+    proxy_to_main_runtime([s = std::move(s)]() { onStream(s.c_str()); });
 }
 
 void emit_connect(json j)
