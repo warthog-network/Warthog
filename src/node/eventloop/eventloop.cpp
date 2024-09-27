@@ -624,11 +624,13 @@ void Eventloop::handle_event(GeneratedSdpAnswer&& m)
 void Eventloop::emit_disconnect(size_t n, uint64_t id)
 {
     using namespace subscription;
+    api::event::emit_disconnect(n, id);
     events::Event { events::ConnectionsRemove { id, n } }.send(connectionSubscriptions);
 }
 void Eventloop::emit_connect(size_t n, Conref c)
 {
     using namespace subscription;
+    api::event::emit_connect(n, c);
     events::Event { events::ConnectionsAdd {
                         .connection {
                             .id = c.id(),
@@ -743,7 +745,7 @@ void Eventloop::erase_internal(Conref c, Error error)
     }
     if (headerDownload.erase(c) && !closeReason) {
         spdlog::info("Connected to {} peers (closed connection to {}, reason: {})", headerDownload.size(), c.peer().to_string(), Error(error).err_name());
-        api::event::emit_disconnect(headerDownload.size(), c.id());
+        emit_disconnect(headerDownload.size(), c.id());
     }
     if (blockDownload.erase(c))
         coordinate_sync();
@@ -761,7 +763,7 @@ bool Eventloop::insert(Conref c, const InitMsg& data)
     c->chain.initialize(data, chains);
     headerDownload.insert(c);
     blockDownload.insert(c);
-    api::event::emit_connect(headerDownload.size(), c);
+    emit_connect(headerDownload.size(), c);
     spdlog::info("Connected to {} peers (new peer {})", headerDownload.size(), c.peer().to_string());
     if (rtc.ips && c.version().v2()) {
         spdlog::info("Sending own identity");
