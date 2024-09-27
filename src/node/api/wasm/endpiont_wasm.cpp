@@ -48,7 +48,23 @@ public:
 struct SubscriptionData {
 };
 
+
 namespace {
+
+struct Freer {
+    char* p;
+    Freer(char* p)
+        : p(p)
+    {
+    }
+    ~Freer()
+    {
+        if (p)
+            free(p);
+        p = nullptr;
+    }
+};
+
 WasmEndpoint endpoint;
 std::mutex m;
 bool useBuffer { true };
@@ -83,6 +99,7 @@ extern "C" {
 EMSCRIPTEN_KEEPALIVE
 void virtual_get_request(router::id_t id, char* path)
 {
+    Freer f(path);
     std::unique_lock l(m);
     if (useBuffer) {
         l.unlock();
@@ -91,9 +108,12 @@ void virtual_get_request(router::id_t id, char* path)
         handle_get(id, path);
     }
 }
+
 EMSCRIPTEN_KEEPALIVE
 void virtual_post_request(router::id_t id, char* path, char* postdata)
 {
+    Freer f1(path);
+    Freer f2(postdata);
     std::unique_lock l(m);
     if (useBuffer) {
         l.unlock();
@@ -106,6 +126,7 @@ void virtual_post_request(router::id_t id, char* path, char* postdata)
 EMSCRIPTEN_KEEPALIVE
 void stream_control(char* message)
 {
+    Freer f(message);
     subscription::handleSubscriptioinMessage(nlohmann::json::parse(message), {});
 }
 }
@@ -127,4 +148,4 @@ void virtual_endpoint_initialize()
         std::visit([](auto& e) { dispatch(e); }, e.variant);
     }
     requestBuffer.clear();
-};
+}

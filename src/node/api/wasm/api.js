@@ -80,7 +80,7 @@ addToLibrary({
         }
     },
     $stream_control(msg){
-        Module._stream_control(stringToNewUTF8(msg))
+        Module._stream_control(stringToNewUTF8(JSON.stringify(msg)))
     },
     onStream__deps: ['$stream_control'],
 });
