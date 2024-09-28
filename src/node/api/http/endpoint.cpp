@@ -8,7 +8,7 @@ using namespace std::placeholders;
 
 namespace {
 
-void send_html(uWS::HttpResponse<false>* res, const std::string& s)
+void send_html(uWS::HttpResponse<false>* res, const std::string_view& s)
 {
     res->writeHeader("Content-type", "text/html; charset=utf-8");
     res->end(s, true);
@@ -90,6 +90,7 @@ void HTTPEndpoint::work()
     app.get("/", [&](uWS::HttpResponse<false>* res, uWS::HttpRequest*) {
         send_html(res, indexGenerator.result(isPublic));
     });
+#include "./guifiles.cpp"
 
     hook_endpoints(*this);
     app.ws<int>("/ws/chain_delta", { .open { [](auto* ws) {
@@ -97,20 +98,20 @@ void HTTPEndpoint::work()
             ws->subscribe(api::Rollback::eventName); } } });
     using ws_t = uWS::WebSocket<false, true, WSData>;
     app.ws<WSData>("/stream", { .open { [](ws_t* ws) {
-                                      (*ws->getUserData())->ws = ws;
+                                   (*ws->getUserData())->ws = ws;
+                               } },
+                                  .message { [](ws_t* ws, std::string_view data, uWS::OpCode) {
+                                      try {
+                                          subscription::handleSubscriptioinMessage(nlohmann::json::parse(data), (*ws->getUserData()));
+                                      } catch (...) {
+                                          ws->end(1002);
+                                      }
                                   } },
-                                     .message { [](ws_t* ws, std::string_view data, uWS::OpCode) {
-                                         try {
-                                             subscription::handleSubscriptioinMessage(nlohmann::json::parse(data), (*ws->getUserData()));
-                                         } catch (...) {
-                                             ws->end(1002);
-                                         }
-                                     } },
-                                     .close { [](ws_t* ws, int, std::string_view) {
-                                         const subscription_ptr& data { (*ws->getUserData()) };
-                                         data->ws = nullptr;
-                                         destroy_all_subscriptions(data.get());
-                                     } } });
+                                  .close { [](ws_t* ws, int, std::string_view) {
+                                      const subscription_ptr& data { (*ws->getUserData()) };
+                                      data->ws = nullptr;
+                                      destroy_all_subscriptions(data.get());
+                                  } } });
     app.listen(bind.ip.to_string(), bind.port, std::bind(&HTTPEndpoint::on_listen, this, _1));
     lc.loop->run();
 }
@@ -173,7 +174,7 @@ void HTTPEndpoint::on_aborted(uWS::HttpResponse<false>* res)
 void HTTPEndpoint::on_listen(us_listen_socket_t* ls)
 {
     if (ls) {
-        if (bshutdown) 
+        if (bshutdown)
             us_listen_socket_close(0, listen_socket);
         else
             listen_socket = ls;
