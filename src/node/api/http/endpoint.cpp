@@ -10,6 +10,7 @@ namespace {
 
 void send_html(uWS::HttpResponse<false>* res, const std::string_view& s)
 {
+    res->writeHeader("Access-Control-Allow-Origin", "*");
     res->writeHeader("Content-type", "text/html; charset=utf-8");
     res->end(s, true);
 }
@@ -53,6 +54,7 @@ std::string IndexGenerator::result(bool isPublic) const
 
 void HTTPEndpoint::reply_json(uWS::HttpResponse<false>* res, const std::string& s)
 {
+    res->writeHeader("Access-Control-Allow-Origin", "*");
     res->writeHeader("Content-type", "application/json; charset=utf-8");
     res->end(s, true);
 }
