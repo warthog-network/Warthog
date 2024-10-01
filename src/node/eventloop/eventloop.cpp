@@ -142,6 +142,11 @@ void Eventloop::api_get_peers(PeersCb&& cb)
     defer(std::move(cb));
 }
 
+void Eventloop::api_disconnect_peer(uint64_t id, ResultCb&& cb)
+{
+    defer(DisconnectPeer { id, std::move(cb) });
+}
+
 void Eventloop::api_get_synced(SyncedCb&& cb)
 {
     defer(std::move(cb));
@@ -673,10 +678,11 @@ void Eventloop::handle_event(SubscribeConnections&& c)
             .send(std::move(c.sptr));
     }
 }
-void Eventloop::handle_event(DestroySubscriptions&& d){
+void Eventloop::handle_event(DestroySubscriptions&& d)
+{
     std::erase_if(connectionSubscriptions, [&](subscription_ptr& p) {
-            return p.get() == d.p;
-            });
+        return p.get() == d.p;
+    });
 }
 
 void Eventloop::handle_event(GeneratedVerificationSdpOffer&& m)
@@ -729,6 +735,15 @@ void Eventloop::handle_event(GeneratedSdpOffer&& m)
         signalingServer.rtc().our.pendingOutgoing.insert(std::move(m.con));
         signalingServer.send(RTCRequestForwardOffer { key, std::move(m.sdp) });
     }
+}
+
+void Eventloop::handle_event(DisconnectPeer&& dp)
+{
+    if (auto o { connections.find(dp.id) }) {
+        close(*o, EAPICMD);
+        dp.cb({});
+    }
+    dp.cb(tl::make_unexpected(Error(ENOTFOUND)));
 }
 
 void Eventloop::erase_internal(Conref c, Error error)

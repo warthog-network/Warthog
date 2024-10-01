@@ -112,6 +112,7 @@ public:
     void api_get_hashrate_chart(HashrateChartCb&& cb);
     void api_get_hashrate_chart(NonzeroHeight from, NonzeroHeight to, size_t window, HashrateChartCb&& cb);
     void api_get_peers(PeersCb&& cb);
+    void api_disconnect_peer(uint64_t id, ResultCb&& cb);
     void api_get_synced(SyncedCb&& cb);
     void api_inspect(InspectorCb&&);
 
@@ -292,12 +293,17 @@ private:
         subscription_data_ptr p;
     };
 
+    struct DisconnectPeer {
+        uint64_t id;
+        ResultCb cb;
+    };
+
     // event queue
     using Event = std::variant<Erase, OutboundClosed, RegisterConnection, OnProcessConnection,
         StateUpdate, SignedSnapshotCb, PeersCb, SyncedCb, stage_operation::Result,
         OnForwardBlockrep, InspectorCb, GetHashrate, GetHashrateChart,
         FailedConnect,
-        mempool::Log, StartTimer, CancelTimer, RTCClosed, IdentityIps, GeneratedVerificationSdpOffer, GeneratedVerificationSdpAnswer, GeneratedSdpOffer, GeneratedSdpAnswer, SubscribeConnections, DestroySubscriptions>;
+        mempool::Log, StartTimer, CancelTimer, RTCClosed, IdentityIps, GeneratedVerificationSdpOffer, GeneratedVerificationSdpAnswer, GeneratedSdpOffer, GeneratedSdpAnswer, SubscribeConnections, DestroySubscriptions, DisconnectPeer>;
 
 public:
     bool defer(Event e);
@@ -329,6 +335,7 @@ private:
     void handle_event(GeneratedSdpAnswer&&);
     void handle_event(SubscribeConnections&&);
     void handle_event(DestroySubscriptions&&);
+    void handle_event(DisconnectPeer&&);
 
     // chain updates
     using Append = chainserver::state_update::Append;

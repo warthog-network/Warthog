@@ -50,6 +50,10 @@ void get_connected_peers2(PeersCb&& cb)
     global().core->api_get_peers(std::move(cb));
 }
 
+void disconnect_peer(uint64_t id, ResultCb&& cb){
+    global().core->api_disconnect_peer(id, std::move(cb));
+}
+
 void get_connected_connection(ConnectedConnectionCB&& cb)
 {
     global().core->api_get_peers([cb = std::move(cb)](const std::vector<api::Peerinfo>& pi) {

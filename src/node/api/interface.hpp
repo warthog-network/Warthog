@@ -29,6 +29,7 @@ void get_failed_addresses(PeerServer::banned_callback_t cb);
 void get_verified_addresses(PeerServer::banned_callback_t cb);
 
 void get_connected_peers2(PeersCb&& cb);
+void disconnect_peer(uint64_t, ResultCb&& cb);
 void get_connected_connection(ConnectedConnectionCB&& cb);
 
 // tools functions
