@@ -44,7 +44,8 @@ using ChainMiningCb = std::function<void(const tl::expected<ChainMiningTask, Err
 using MiningCb = std::function<void(const tl::expected<api::MiningState, Error>&)>;
 using TxcacheCb = std::function<void(const tl::expected<chainserver::TransactionIds, Error>&)>;
 using HashrateCb = std::function<void(const tl::expected<api::HashrateInfo, Error>&)>;
-using HashrateChartCb = std::function<void(const tl::expected<api::HashrateChart, Error>&)>;
+using HashrateBlockChartCb = std::function<void(const tl::expected<api::HashrateBlockChart, Error>&)>;
+using HashrateTimeChartCb = std::function<void(const tl::expected<api::HashrateTimeChart, Error>&)>;
 
 using HeadCb = std::function<void(const tl::expected<api::Head, Error>&)>;
 using ChainHeadCb = std::function<void(const tl::expected<api::ChainHead, Error>&)>;

@@ -51,7 +51,8 @@ void get_chain_block(api::HeightOrHash, BlockCb cb);
 void get_txcache(TxcacheCb&& cb);
 void get_hashrate_n(size_t n, HashrateCb&& cb);
 void get_hashrate(HashrateCb&& cb);
-void get_hashrate_chart(NonzeroHeight from, NonzeroHeight to, size_t window, HashrateChartCb&& cb);
+void get_hashrate_block_chart(NonzeroHeight from, NonzeroHeight to, size_t window, HashrateBlockChartCb&& cb);
+void get_hashrate_time_chart(uint32_t from, uint32_t to, size_t window, HashrateTimeChartCb&& cb);
 void put_chain_append(ChainMiningTask&& mt, ResultCb cb);
 void get_signed_snapshot(Eventloop::SignedSnapshotCb&& cb);
 

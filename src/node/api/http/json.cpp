@@ -260,7 +260,8 @@ json to_json(const TxHash& h)
     return j;
 }
 
-json to_json(const api::ChainHead& ch){
+json to_json(const api::ChainHead& ch)
+{
     json j;
     j["hash"] = serialize_hex(ch.hash);
     j["height"] = ch.height;
@@ -452,7 +453,7 @@ json to_json(const api::HashrateInfo& hi)
     };
 }
 
-json to_json(const api::HashrateChart& c)
+json to_json(const api::HashrateBlockChart& c)
 {
     json data(json::array());
     for (const auto& v : c.chart) {
@@ -461,6 +462,21 @@ json to_json(const api::HashrateChart& c)
     return json {
         { "range", json { { "min", c.range.begin }, { "max", c.range.end } } },
         { "data", data }
+    };
+}
+json to_json(const api::HashrateTimeChart& c)
+{
+    json data(json::array());
+    for (const auto& [timestamp, height, hashrate] : std::ranges::reverse_view(c.chartReversed)) {
+        data.push_back({ { "timestamp", timestamp },
+            { "height", height.value() },
+            { "hashrate", hashrate } });
+    }
+    return json {
+        { "chart", data },
+        { "begin", c.begin },
+        { "end", c.end },
+        { "interval", c.interval },
     };
 }
 

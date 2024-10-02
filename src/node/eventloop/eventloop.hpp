@@ -109,8 +109,8 @@ public:
     bool async_process(std::shared_ptr<ConnectionBase> c);
     bool async_register(ConnectionBase::ConnectionVariant con);
     void api_get_hashrate(HashrateCb&& cb, size_t n = 100);
-    void api_get_hashrate_chart(HashrateChartCb&& cb);
-    void api_get_hashrate_chart(NonzeroHeight from, NonzeroHeight to, size_t window, HashrateChartCb&& cb);
+    void api_get_hashrate_block_chart(NonzeroHeight from, NonzeroHeight to, size_t window, HashrateBlockChartCb&& cb);
+    void api_get_hashrate_time_chart(uint32_t from, uint32_t to, size_t window, HashrateTimeChartCb&& cb);
     void api_get_peers(PeersCb&& cb);
     void api_disconnect_peer(uint64_t id, ResultCb&& cb);
     void api_get_synced(SyncedCb&& cb);
@@ -267,10 +267,16 @@ private:
         uint64_t conId;
         std::vector<BodyContainer> blocks;
     };
-    struct GetHashrateChart {
-        HashrateChartCb cb;
+    struct GetHashrateBlockChart {
+        HashrateBlockChartCb cb;
         NonzeroHeight from;
         NonzeroHeight to;
+        size_t window;
+    };
+    struct GetHashrateTimeChart {
+        HashrateTimeChartCb cb;
+        uint32_t from;
+        uint32_t to;
         size_t window;
     };
     struct GetHashrate {
@@ -301,8 +307,7 @@ private:
     // event queue
     using Event = std::variant<Erase, OutboundClosed, RegisterConnection, OnProcessConnection,
         StateUpdate, SignedSnapshotCb, PeersCb, SyncedCb, stage_operation::Result,
-        OnForwardBlockrep, InspectorCb, GetHashrate, GetHashrateChart,
-        FailedConnect,
+        OnForwardBlockrep, InspectorCb, GetHashrate, GetHashrateBlockChart, GetHashrateTimeChart, FailedConnect,
         mempool::Log, StartTimer, CancelTimer, RTCClosed, IdentityIps, GeneratedVerificationSdpOffer, GeneratedVerificationSdpAnswer, GeneratedSdpOffer, GeneratedSdpAnswer, SubscribeConnections, DestroySubscriptions, DisconnectPeer>;
 
 public:
@@ -322,7 +327,8 @@ private:
     void handle_event(OnForwardBlockrep&&);
     void handle_event(InspectorCb&&);
     void handle_event(GetHashrate&&);
-    void handle_event(GetHashrateChart&&);
+    void handle_event(GetHashrateBlockChart&&);
+    void handle_event(GetHashrateTimeChart&&);
     void handle_event(FailedConnect&&);
     void handle_event(mempool::Log&&);
     void handle_event(StartTimer&&);

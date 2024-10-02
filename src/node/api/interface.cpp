@@ -267,9 +267,14 @@ void get_hashrate(HashrateCb&& cb)
 {
     global().core->api_get_hashrate(std::move(cb));
 }
-void get_hashrate_chart(NonzeroHeight from, NonzeroHeight to, size_t window, HashrateChartCb&& cb)
+void get_hashrate_block_chart(NonzeroHeight from, NonzeroHeight to, size_t window, HashrateBlockChartCb&& cb)
 {
-    global().core->api_get_hashrate_chart(from, to, window, std::move(cb));
+    global().core->api_get_hashrate_block_chart(from, to, window, std::move(cb));
+}
+
+void get_hashrate_time_chart(uint32_t from, uint32_t to, size_t window, HashrateTimeChartCb&& cb)
+{
+    global().core->api_get_hashrate_time_chart(from, to, window, std::move(cb));
 }
 
 void put_chain_append(ChainMiningTask&& mt, ResultCb f)

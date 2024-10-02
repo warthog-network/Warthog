@@ -153,9 +153,16 @@ struct HashrateChartRequest {
     Height end;
 };
 
-struct HashrateChart {
+struct HashrateBlockChart {
     HashrateChartRequest range;
     std::vector<double> chart;
+};
+
+struct HashrateTimeChart {
+    uint32_t begin;
+    uint32_t end;
+    uint32_t interval;
+    std::vector<std::tuple<uint32_t, Height, uint64_t>> chartReversed;
 };
 
 struct Peerinfo {

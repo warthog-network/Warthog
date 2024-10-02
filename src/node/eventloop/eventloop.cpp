@@ -170,9 +170,14 @@ void Eventloop::api_get_hashrate(HashrateCb&& cb, size_t n)
     defer(GetHashrate { std::move(cb), n });
 }
 
-void Eventloop::api_get_hashrate_chart(NonzeroHeight from, NonzeroHeight to, size_t window, HashrateChartCb&& cb)
+void Eventloop::api_get_hashrate_time_chart(uint32_t from, uint32_t to, size_t window, HashrateTimeChartCb&& cb)
 {
-    defer(GetHashrateChart { std::move(cb), from, to, window });
+    defer(GetHashrateTimeChart { std::move(cb), from, to, window });
+}
+
+void Eventloop::api_get_hashrate_block_chart(NonzeroHeight from, NonzeroHeight to, size_t window, HashrateBlockChartCb&& cb)
+{
+    defer(GetHashrateBlockChart { std::move(cb), from, to, window });
 }
 
 void Eventloop::async_forward_blockrep(uint64_t conId, std::vector<BodyContainer>&& blocks)
@@ -472,10 +477,15 @@ void Eventloop::handle_event(GetHashrate&& e)
         .estimate = consensus().headers().hashrate(e.n) });
 }
 
-void Eventloop::handle_event(GetHashrateChart&& e)
+void Eventloop::handle_event(GetHashrateBlockChart&& e)
 {
-    e.cb(consensus().headers().hashrate_chart(e.from, e.to, e.window));
+    e.cb(consensus().headers().hashrate_block_chart(e.from, e.to, e.window));
 }
+
+void Eventloop::handle_event(GetHashrateTimeChart&& e){
+        e.cb(consensus().headers().hashrate_time_chart(e.from, e.to, e.window));
+}
+
 void Eventloop::handle_event(FailedConnect&& e)
 {
     spdlog::warn("Cannot connect to {}: {}", e.connectRequest.address().to_string(), Error(e.reason).err_name());

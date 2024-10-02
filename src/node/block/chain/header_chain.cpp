@@ -47,7 +47,7 @@ std::pair<Height, AppendMsg> Headerchain::apply_append(HeaderchainAppend&& updat
     finalPin = std::move(update.finalPin);
     initialize_worksum();
     assert(worksum > prevWorksum);
-    return { h, AppendMsg( length().nonzero_assert(), worksum, grid(batchOffset) ) };
+    return { h, AppendMsg(length().nonzero_assert(), worksum, grid(batchOffset)) };
 }
 
 HeaderchainFork Headerchain::get_fork(NonzeroHeight forkHeight, Descriptor descriptor) const
@@ -116,10 +116,15 @@ void Headerchain::shrink(Height shrinkLength)
 
 uint64_t Headerchain::hashrate(uint32_t nblocks) const
 {
-    if (length() < Height(2))
+    return hashrate_at(length(), nblocks);
+}
+
+uint64_t Headerchain::hashrate_at(Height h, uint32_t nblocks) const
+{
+    if (h < Height(2) || h > length())
         return 0;
-    NonzeroHeight lower { length().value() > nblocks ? (length() - nblocks).nonzero_assert() : NonzeroHeight { 1u } };
-    NonzeroHeight upper { length().nonzero_assert() };
+    NonzeroHeight lower { h.value() > nblocks ? (h - nblocks).nonzero_assert() : NonzeroHeight { 1u } };
+    NonzeroHeight upper(h.nonzero_assert());
     auto ltime { operator[](lower).timestamp() };
     auto utime { operator[](upper).timestamp() };
     if (ltime >= utime)
@@ -130,7 +135,7 @@ uint64_t Headerchain::hashrate(uint32_t nblocks) const
     return sum_work(lower + 1, upper + 1).getdouble() / seconds;
 }
 
-api::HashrateChart Headerchain::hashrate_chart(NonzeroHeight reqmin, NonzeroHeight reqmax, const uint32_t nblocks) const
+api::HashrateBlockChart Headerchain::hashrate_block_chart(NonzeroHeight reqmin, NonzeroHeight reqmax, const uint32_t nblocks) const
 {
     const auto max { std::min(Height(reqmax), length()) };
     const auto min { std::max(reqmin, NonzeroHeight(2u)) };
@@ -173,6 +178,68 @@ api::HashrateChart Headerchain::hashrate_chart(NonzeroHeight reqmin, NonzeroHeig
     assert(chart.size() == max - min + 1);
     assert(chart.size() != 0);
     return { .range { .begin { min }, .end { max } }, .chart { std::move(chart) } };
+}
+
+api::HashrateTimeChart Headerchain::hashrate_time_chart(uint32_t min, uint32_t max, uint32_t interval) const
+{
+    constexpr uint32_t windowBlocks = 15 * 60 / BLOCKTIME;
+    const uint32_t intervalBlocks = interval / BLOCKTIME;
+
+    if (interval < 600)
+        interval = 600;
+    api::HashrateTimeChart res { .begin = min, .end = max, .interval = interval, .chartReversed {} };
+    auto height1 { NonzeroHeight { 1u } };
+    if (length() <= height1)
+        return res;
+    const auto tmin { operator[](height1).timestamp() };
+    if (min < tmin)
+        min = tmin;
+
+    const auto l { length().nonzero_assert() };
+    const auto tmax { operator[](l).timestamp() };
+    if (max > tmax)
+        max = tmax;
+    max = interval * (max / interval); // floor interval
+
+    if (max == 0 || min > max)
+        return res;
+
+    auto bisect_height_before {
+        [this](uint32_t t, NonzeroHeight lower, NonzeroHeight upper) -> NonzeroHeight {
+            while (true) {
+                auto h { Height((upper.value() + lower.value()) / 2).nonzero_assert() };
+                if (h == lower)
+                    return h;
+                if (operator[](h).timestamp() >= t)
+                    upper = h;
+                else
+                    lower = h;
+            }
+        }
+    };
+
+    auto scan_stride {
+        [&](uint32_t t, NonzeroHeight u, uint32_t stride) {
+            while (u.value() > stride) {
+                auto l { (u - stride).nonzero_assert() };
+                if (operator[](l).timestamp() < t)
+                    return bisect_height_before(t, l, u);
+                u = l;
+            }
+            return Height(1).nonzero_assert();
+        }
+    };
+    auto t1 { max };
+    auto h1 { bisect_height_before(t1, height1, l) + 1 };
+    assert(h1 <= length());
+    while (true) {
+        res.chartReversed.push_back({ t1, h1, hashrate_at(h1, windowBlocks) });
+        auto t0 { t1 >= interval ? t1 - interval : 0 };
+        if (t0 == 0 || t0 < min)
+            return res;
+        h1 = scan_stride(t0, h1, intervalBlocks) + 1;
+        t1 = t0;
+    }
 }
 
 Batch Headerchain::get_headers(NonzeroHeight begin, NonzeroHeight end) const
