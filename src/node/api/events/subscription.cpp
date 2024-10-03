@@ -112,7 +112,7 @@ namespace events {
             }
             return json {
                 { "head", jsonmsg::to_json(a.head) },
-                { "blockHistory", arr },
+                { "latestBlocks", arr },
             };
         };
         json to_json(const ChainAppend& a)
