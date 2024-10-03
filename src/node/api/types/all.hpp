@@ -30,6 +30,7 @@ struct ChainHead {
     Height height;
     Hash pinHash;
     PinHeight pinHeight;
+    uint64_t hashrate;
 };
 
 struct MiningState {

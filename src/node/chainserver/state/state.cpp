@@ -641,6 +641,7 @@ api::ChainHead State::api_get_head() const
         .height { chainlength() },
         .pinHash { chainstate.headers().hash_at(pf) },
         .pinHeight { PinHeight(pf) },
+        .hashrate = chainstate.headers().hashrate_at(chainlength(), 100)
     };
 }
 

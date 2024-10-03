@@ -262,16 +262,17 @@ json to_json(const TxHash& h)
 
 json to_json(const api::ChainHead& ch)
 {
-    json j;
-    j["hash"] = serialize_hex(ch.hash);
-    j["height"] = ch.height;
-    j["difficulty"] = ch.nextTarget.difficulty();
-    j["is_janushash"] = ch.nextTarget.is_janushash();
-    j["pinHeight"] = ch.pinHeight;
-    j["worksum"] = ch.worksum.getdouble();
-    j["worksumHex"] = ch.worksum.to_string();
-    j["pinHash"] = serialize_hex(ch.pinHash);
-    return j;
+    return {
+        { "hash", serialize_hex(ch.hash) },
+        { "height", ch.height },
+        { "difficulty", ch.nextTarget.difficulty() },
+        { "is_janushash", ch.nextTarget.is_janushash() },
+        { "pinHeight", ch.pinHeight },
+        { "worksum", ch.worksum.getdouble() },
+        { "worksumHex", ch.worksum.to_string() },
+        { "pinHash", serialize_hex(ch.pinHash) },
+        { "hashrate", ch.hashrate },
+    };
 }
 
 json to_json(const api::Head& h)

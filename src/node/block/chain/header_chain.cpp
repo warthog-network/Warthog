@@ -182,7 +182,7 @@ api::HashrateBlockChart Headerchain::hashrate_block_chart(NonzeroHeight reqmin, 
 
 api::HashrateTimeChart Headerchain::hashrate_time_chart(uint32_t min, uint32_t max, uint32_t interval) const
 {
-    constexpr uint32_t windowBlocks = 15 * 60 / BLOCKTIME;
+    constexpr uint32_t windowBlocks = 60 * 60 / BLOCKTIME;
     const uint32_t intervalBlocks = interval / BLOCKTIME;
 
     if (interval < 600)
