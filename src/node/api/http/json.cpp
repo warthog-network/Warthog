@@ -175,7 +175,8 @@ json header_json(const Header& header, NonzeroHeight height)
     json out;
     { // rewards
         json a = json::array();
-        for (auto& r : b.rewards) {
+        if (b.reward()) {
+            auto& r { *b.reward() };
             json elem;
             elem["txHash"] = serialize_hex(r.txhash);
             elem["toAddress"] = r.toAddress.to_string();

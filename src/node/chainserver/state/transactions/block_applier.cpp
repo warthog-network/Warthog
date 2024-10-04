@@ -20,9 +20,9 @@ class BalanceChecker {
     private:
         Funds _in { Funds::zero() };
         Funds _out { Funds::zero() };
-        std::vector<size_t> referredPayout;
         std::vector<size_t> referredFrom;
         std::vector<size_t> referredTo;
+        bool isMiner { false };
     };
 
     class OldAccountFlow : public AccountFlow {
@@ -31,29 +31,35 @@ class BalanceChecker {
     };
 
 public:
+    struct RewardArgument {
+        AccountId to;
+        Funds amount;
+        uint16_t offset;
+        RewardArgument(AccountId to, Funds amount, uint16_t offset)
+            : to(std::move(to))
+            , amount(std::move(amount))
+            , offset(std::move(offset))
+        {
+        }
+    };
     BalanceChecker(AccountId beginNewAccountId,
-        const BodyView& bv, NonzeroHeight height)
+        const BodyView& bv, NonzeroHeight height, RewardArgument r)
         : beginNewAccountId(beginNewAccountId)
         , endNewAccountId(beginNewAccountId + bv.getNAddresses())
         , bv(bv)
         , newAccounts(endNewAccountId - beginNewAccountId)
         , height(height)
+        , reward(r.to, r.amount, height, r.offset)
     { // OK
-    }
-
-    void register_reward(AccountId to, Funds amount, uint16_t offset) // OK
-    {
-        if (!validAccountId(to))
+        if (!validAccountId(r.to))
             throw Error(EIDPOLICY);
-        payouts.emplace_back(to, amount, height, offset);
-        size_t i = payouts.size() - 1;
-        auto& ref = payouts[i];
-        auto& refTo = account_flow(to);
-        if (to >= beginNewAccountId) {
-            ref.toAddress = get_new_address(to - beginNewAccountId);
+        if (r.to >= beginNewAccountId) {
+            reward.toAddress = get_new_address(r.to - beginNewAccountId);
         } // otherwise wait for db lookup later
-        refTo._in.add_throw(amount);
-        refTo.referredPayout.push_back(i);
+        auto& refTo = account_flow(r.to);
+        refTo._in.add_throw(r.amount);
+        refTo.isMiner = true;
+        ;
     }
 
     void register_transfer(TransferView tv, Height height) // OK
@@ -104,8 +110,8 @@ public:
         for (size_t i : af.referredTo) {
             payments[i].toAddress = af.address;
         }
-        for (size_t i : af.referredPayout) {
-            payouts[i].toAddress = af.address;
+        if (af.isMiner) {
+            reward.toAddress = af.address;
         }
         return 0;
     }
@@ -118,7 +124,7 @@ public:
     };
     AddressView get_new_address(size_t i) { return bv.get_address(i); } // OK
     const std::vector<TransferInternal>& get_transfers() { return payments; };
-    const std::vector<RewardInternal>& get_rewards() { return payouts; };
+    const auto& get_reward() { return reward; };
 
 protected:
     AccountFlow& account_flow(AccountId i)
@@ -139,7 +145,7 @@ private:
     std::map<AccountId, OldAccountFlow> oldAccounts;
     std::vector<AccountFlow> newAccounts;
     NonzeroHeight height;
-    std::vector<RewardInternal> payouts;
+    RewardInternal reward;
     std::vector<TransferInternal> payments;
 };
 
@@ -204,7 +210,7 @@ struct Preparation {
     std::set<TransactionId> txset;
     std::vector<std::pair<AccountId, Funds>> updateBalances;
     std::vector<std::tuple<AddressView, Funds, AccountId>> insertBalances;
-    std::vector<api::Block::Reward> apiRewards;
+    std::optional<api::Block::Reward> apiReward;
     std::vector<api::Block::Transfer> apiTransfers;
     HistoryEntries historyEntries;
     RollbackGenerator rg;
@@ -230,7 +236,6 @@ Preparation BlockApplier::Preparer::prepare(const BodyView& bv, const NonzeroHei
     // Read new address section
     const AccountId beginNewAccountId = db.next_state_id(); // they start from this index
     Preparation res(db.next_history_id(), beginNewAccountId);
-    BalanceChecker balanceChecker(beginNewAccountId, bv, height);
 
     { // verify address policy
         std::set<AddressView> newAddresses;
@@ -245,12 +250,14 @@ Preparation BlockApplier::Preparer::prepare(const BodyView& bv, const NonzeroHei
 
     // Read reward section
     Funds totalpayout { Funds::zero() };
-    {
-        auto r{bv.reward()};
-        Funds amount { r.amount_throw() };
-        balanceChecker.register_reward(r.account_id(), amount, r.offset);
-        totalpayout.add_throw(amount);
-    }
+    BalanceChecker balanceChecker {
+        [&]() {
+            auto r { bv.reward() };
+            Funds amount { r.amount_throw() };
+            totalpayout.add_throw(amount);
+            return BalanceChecker { beginNewAccountId, bv, height, { r.account_id(), amount, r.offset } };
+        }()
+    };
 
     // Read transfer section
     for (auto t : bv.transfers()) {
@@ -272,8 +279,8 @@ Preparation BlockApplier::Preparer::prepare(const BodyView& bv, const NonzeroHei
             balanceChecker.set_address(accountflow, address);
 
             // check that balances are correct
-            auto totalIn{Funds::sum_throw(accountflow.in(), balance)};
-            Funds newbalance { Funds::diff_throw(totalIn , accountflow.out()) };
+            auto totalIn { Funds::sum_throw(accountflow.in(), balance) };
+            Funds newbalance { Funds::diff_throw(totalIn, accountflow.out()) };
             res.updateBalances.push_back(std::make_pair(id, newbalance));
         } else {
             throw Error(EINVACCOUNT); // invalid account id (not found in database)
@@ -299,16 +306,18 @@ Preparation BlockApplier::Preparer::prepare(const BodyView& bv, const NonzeroHei
     // generate history for payments and check signatures
     // and check for unique transaction ids
 
-    for (auto& r : balanceChecker.get_rewards()) {
+    { // reward
+        auto& r { balanceChecker.get_reward() };
         assert(!r.toAddress.is_null());
         auto& ref { res.historyEntries.push_reward(r) };
-
-        res.apiRewards.push_back({
+        res.apiReward = api::Block::Reward {
             .txhash { ref.he.hash },
             .toAddress { r.toAddress },
             .amount { r.amount },
-        });
+        };
     }
+
+    // transfers
     for (auto& tr : balanceChecker.get_transfers()) {
         auto verified { tr.verify(hc, height) };
         TransactionId tid { verified.id };
@@ -347,13 +356,13 @@ api::Block BlockApplier::apply_block(const BodyView& bv, HeaderView hv, NonzeroH
         preparer.newTxIds.merge(std::move(prepared.txset));
 
         // update old balances
-        for (auto& [accId, bal] : prepared.updateBalances){
+        for (auto& [accId, bal] : prepared.updateBalances) {
             db.set_balance(accId, bal);
             balanceUpdates.insert_or_assign(accId, bal);
         }
 
         // insert new balances
-        for (auto& [addr, bal, accId] : prepared.insertBalances){
+        for (auto& [addr, bal, accId] : prepared.insertBalances) {
             db.insertStateEntry(addr, bal, accId);
             balanceUpdates.insert_or_assign(accId, bal);
         }
@@ -365,9 +374,7 @@ api::Block BlockApplier::apply_block(const BodyView& bv, HeaderView hv, NonzeroH
         db.insert_consensus(height, blockId, db.next_history_id(), prepared.rg.begin_new_accounts());
 
         prepared.historyEntries.write(db);
-        api::Block b(hv, height, 0);
-        b.rewards = std::move(prepared.apiRewards);
-        b.transfers = std::move(prepared.apiTransfers);
+        api::Block b(hv, height, 0, std::move(prepared.apiReward), std::move(prepared.apiTransfers));
         return b;
     } catch (Error e) {
         throw std::runtime_error(std::string("Unexpected exception: ") + __PRETTY_FUNCTION__ + ":" + e.strerror());

@@ -75,7 +75,7 @@ struct Rollback {
 };
 
 struct BlockSummary {
-    Header  header;
+    Header header;
     NonzeroHeight height;
     uint32_t confirmations = 0;
     uint32_t nTransfers;
@@ -104,22 +104,28 @@ struct Block {
     Header header;
     NonzeroHeight height;
     uint32_t confirmations = 0;
+
+private:
+    std::optional<Reward> _reward; // optional because account's history is also returned in block structure
+public:
     std::vector<Transfer> transfers;
-    std::vector<Reward> rewards;
     void push_history(const Hash& txid,
         const std::vector<uint8_t>& data, chainserver::AccountCache& cache,
         PinFloor pinFloor);
 
     Block(Header header,
-        NonzeroHeight height, uint32_t confirmations)
+        NonzeroHeight height, uint32_t confirmations,
+        std::optional<Reward> reward = {}, std::vector<Transfer> transfers = {})
         : header(header)
         , height(height)
         , confirmations(confirmations)
+        , _reward(std::move(reward))
+        , transfers(std::move(transfers))
     {
     }
+    void set_reward(Reward r);
+    auto& reward() const { return _reward; }
 };
-
-
 
 struct AccountHistory {
     Funds balance;

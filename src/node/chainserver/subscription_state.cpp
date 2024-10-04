@@ -120,9 +120,9 @@ void AddressSubscriptionState::session_rollback(Height h)
 }
 void AddressSubscriptionState::session_block(const api::Block& b)
 {
-    for (auto& r : b.rewards) {
-        if (auto c { session_address_cursor(b, r.toAddress, b.height) })
-            c->b.rewards.push_back(r);
+    if (auto& r { b.reward() }) {
+        if (auto c { session_address_cursor(b, r->toAddress, b.height) })
+            c->b.set_reward(*r);
     }
     for (auto& t : b.transfers) {
         if (auto c { session_address_cursor(b, t.toAddress, b.height) })

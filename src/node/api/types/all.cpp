@@ -4,6 +4,13 @@
 #include "general/address_funds.hpp"
 
 namespace api {
+void Block::set_reward(Reward r)
+{
+    if (_reward.has_value())
+        throw std::runtime_error("Database error, each block can only have one reward transaction");
+    _reward = r;
+}
+
 void Block::push_history(const Hash& txid,
     const std::vector<uint8_t>& data, chainserver::AccountCache& cache,
     PinFloor pinFloor)
@@ -23,7 +30,7 @@ void Block::push_history(const Hash& txid,
     } else {
         auto& d = std::get<history::RewardData>(parsed);
         auto toAddress = cache[d.toAccountId].address;
-        rewards.push_back({ txid, toAddress, d.miningReward });
+        set_reward(Reward { txid, toAddress, d.miningReward });
     }
 }
 }

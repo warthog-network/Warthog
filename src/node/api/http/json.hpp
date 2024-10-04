@@ -44,7 +44,7 @@ inline nlohmann::json to_json(const std::vector<T>& e, const auto& map)
     for (auto& item : e) {
         j.push_back(to_json(map(item)));
     }
-    return nlohmann::json { { "data", j } };
+    return j;
 }
 
 template <typename T>
