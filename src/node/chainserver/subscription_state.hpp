@@ -21,27 +21,37 @@ namespace chainserver {
 class State;
 }
 
-class BasicSubscriptionState {
+class SubscriptionVector {
 
 private:
     using vector_t = std::vector<subscription_ptr>;
-    vector_t subscriptions;
+    vector_t data;
 
 public:
-    size_t size() const { return subscriptions.size(); }
-    auto get_subscriptions() const -> vector_t;
-    void erase(subscription_data_ptr p);
+    bool erase(subscription_data_ptr p);
     bool insert(subscription_ptr p);
+    size_t size() const { return data.size(); }
+    auto entries() const -> vector_t;
 };
+
 namespace chain_subscription {
-class ChainSubscriptionState : public BasicSubscriptionState {
+class ChainSubscriptionState {
+public:
+    void handle_subscription(SubscriptionRequest&&, const chainserver::State& s);
+    size_t erase_all(subscription_data_ptr r);
+    void on_chain_changed(const chainserver::State&, const subscription_state::NewBlockInfo& nbi);
+
+private:
+    SubscriptionVector subscriptions;
+    static constexpr size_t num_latest_blocks { 10 };
+    auto chain_state(const chainserver::State& s);
 };
 }
 
 namespace minerdist_subscriptions {
 struct Aggregator {
     void push_back(const Address& b);
-    void push_front(const Address& b, bool trackDelta=true);
+    void push_front(const Address& b, bool trackDelta = true);
     void rollback(size_t by);
     void truncate(size_t maxlen = 1000);
     size_t size() const { return iters.size(); }
@@ -66,18 +76,19 @@ private:
     std::list<map_t::iterator> iters;
 };
 
-class MinerdistSubscriptionState : public BasicSubscriptionState {
+class MinerdistSubscriptionState {
 public:
+    void handle_subscription(SubscriptionRequest&& r, const chainserver::State& s);
     void erase(subscription_data_ptr p);
     void on_chain_changed(const chainserver::State&, const subscription_state::NewBlockInfo&);
-    std::optional<Aggregator> aggregator;
-
-    bool insert(subscription_ptr p) = delete;
-    void insert(subscription_ptr p, const chainserver::State& s);
 
 private:
+    void insert(subscription_ptr p, const chainserver::State& s);
+
     void fill_aggregator(const chainserver::State& a);
 
+    std::optional<Aggregator> aggregator;
+    SubscriptionVector subscriptions;
     static constexpr size_t nMiners { 1000 };
 };
 
@@ -124,16 +135,18 @@ private:
     auto& get_session_data(MapVal& mapVal, const Address& a);
 
 public:
-    bool insert(const subscription_ptr& r, const Address&);
+    void handle_subscription(SubscriptionRequest&&, const chainserver::State& s, const Address& a);
     size_t erase_all(subscription_data_ptr r);
-    size_t erase(const subscription_ptr& r, const Address&);
+    void on_chain_changed(const chainserver::State&, const subscription_state::NewBlockInfo& nbi);
 
+private:
+    bool insert(const subscription_ptr& r, const Address&);
+    size_t erase(const subscription_ptr& r, const Address&);
+    auto account_state(const Address&, const chainserver::State&);
     void session_start();
     void session_rollback(Height h);
     void session_block(const api::Block&);
-    void session_end(auto accountStateGenerator, auto balanceFetcher);
-
-private:
+    void session_end(const chainserver::State&);
     std::optional<SessionAddressCursor> session_address_cursor(const api::Block& b, const Address& a, Height);
 };
 }

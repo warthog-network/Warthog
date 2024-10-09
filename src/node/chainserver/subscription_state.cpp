@@ -19,40 +19,102 @@ void post_check_nozero(ssize_t modified, ssize_t& nonzero)
         nonzero -= 1;
 }
 }
-void BasicSubscriptionState::erase(subscription_data_ptr p)
+bool SubscriptionVector::erase(subscription_data_ptr p)
 {
-    std::erase_if(subscriptions, [&](subscription_ptr& p2) {
+    return std::erase_if(data, [&](subscription_ptr& p2) {
         return p == p2.get();
-    });
+    }) != 0;
 }
-auto BasicSubscriptionState::get_subscriptions() const -> vector_t
+auto SubscriptionVector::entries() const -> vector_t
 {
-    return subscriptions;
+    return data;
 }
-bool BasicSubscriptionState::insert(subscription_ptr p)
+bool SubscriptionVector::insert(subscription_ptr p)
 {
-    for (auto& p2 : subscriptions) {
+    for (auto& p2 : data) {
         if (p2.get() == p.get()) {
             return false;
         }
     }
-    subscriptions.push_back(std::move(p));
+    data.push_back(std::move(p));
     return true;
 }
 
-namespace minerdist_subscriptions {
-void MinerdistSubscriptionState::erase(subscription_data_ptr p)
+namespace chain_subscription {
+auto ChainSubscriptionState::chain_state(const chainserver::State& s)
 {
-    BasicSubscriptionState::erase(p);
-    if (size() == 0)
-        aggregator.reset();
+    auto v { std::move(s.api_get_latest_blocks(num_latest_blocks).blocks_reversed) };
+    std::reverse(v.begin(), v.end());
+    return subscription::events::Event {
+        subscription::events::ChainState {
+            .head { s.api_get_head() },
+            .latestBlocks { std::move(v) } }
+    };
+}
+void ChainSubscriptionState::handle_subscription(SubscriptionRequest&& r, const chainserver::State& s)
+{
+    using enum subscription::Action;
+    switch (r.action) {
+    case Unsubscribe:
+        subscriptions.erase(r.sptr.get());
+        break;
+    case Subscribe:
+        subscriptions.insert(r.sptr);
+        chain_state(s).send(std::move(r.sptr));
+    }
 }
 
-void MinerdistSubscriptionState::insert(subscription_ptr p, const chainserver::State& s)
+size_t ChainSubscriptionState::erase_all(subscription_data_ptr r)
 {
-    if (BasicSubscriptionState::insert(p))
-        fill_aggregator(s);
-    aggregator.value().state_event().send(p);
+    return subscriptions.erase(r) ? 1 : 0;
+}
+
+void ChainSubscriptionState::on_chain_changed(const chainserver::State& state, const subscription_state::NewBlockInfo& nbi)
+{
+    // rollback api actions
+    if (auto s { nbi.rollback }) {
+        auto& l { s->length };
+        auto v { state.api_get_latest_blocks(num_latest_blocks).blocks_reversed };
+        std::reverse(v.begin(), v.end());
+        subscription::events::Event {
+            subscription::events::ChainFork {
+                .head { state.api_get_head() },
+                .latestBlocks { std::move(v) },
+                .rollbackLength { l } }
+        }.send(subscriptions.entries());
+    } else {
+        if (nbi.newBlocks.size() > num_latest_blocks) {
+            chain_state(state).send(subscriptions.entries());
+        } else {
+            subscription::events::Event {
+                subscription::events::ChainAppend {
+                    .head { state.api_get_head() },
+                    .newBlocks { nbi.newBlocks } }
+            }.send(subscriptions.entries());
+        }
+    }
+}
+}
+
+namespace minerdist_subscriptions {
+void MinerdistSubscriptionState::handle_subscription(SubscriptionRequest&& r, const chainserver::State& s)
+{
+    using enum subscription::Action;
+    switch (r.action) {
+    case Unsubscribe:
+        erase(r.sptr.get());
+        break;
+    case Subscribe:
+        if (subscriptions.insert(r.sptr))
+            fill_aggregator(s);
+        aggregator.value().state_event().send(std::move(r.sptr));
+    }
+}
+void MinerdistSubscriptionState::erase(subscription_data_ptr p)
+{
+    subscriptions.erase(p);
+    if (subscriptions.size() == 0)
+        aggregator.reset();
 }
 
 void MinerdistSubscriptionState::on_chain_changed(const chainserver::State& a, const subscription_state::NewBlockInfo& nbi)
@@ -73,7 +135,7 @@ void MinerdistSubscriptionState::on_chain_changed(const chainserver::State& a, c
         fill_aggregator(a);
         aggregator->truncate(nMiners);
     }
-    aggregator.value().summarize().send(get_subscriptions());
+    aggregator.value().summarize().send(subscriptions.entries());
 }
 
 void MinerdistSubscriptionState::fill_aggregator(const chainserver::State& s)
@@ -208,6 +270,17 @@ std::optional<SessionAddressCursor> SessionData::session_cursor(const api::Block
     }
     return SessionAddressCursor { blocks.back() };
 }
+
+auto AddressSubscriptionState::account_state(const Address& a, const chainserver::State& s)
+{
+    return subscription::events::Event {
+        subscription::events::AccountState {
+            .address { a },
+            .history { s.api_get_history(a) },
+        }
+    };
+}
+
 auto& AddressSubscriptionState::get_session_data(MapVal& mapVal, const Address& a)
 {
     if (mapVal.sessionId != sessionId) {
@@ -215,6 +288,19 @@ auto& AddressSubscriptionState::get_session_data(MapVal& mapVal, const Address& 
         mapVal.sessionMapIter = sessionMap.try_emplace(a).first;
     };
     return mapVal.sessionMapIter->second;
+}
+
+void AddressSubscriptionState::handle_subscription(SubscriptionRequest&& r, const chainserver::State& s, const Address& a)
+{
+    using enum subscription::Action;
+    switch (r.action) {
+    case Unsubscribe:
+        erase(r.sptr, a);
+        break;
+    case Subscribe:
+        insert(r.sptr, a);
+        account_state(a, s).send(std::move(r.sptr));
+    }
 }
 bool AddressSubscriptionState::insert(const subscription_ptr& sptr, const Address& a)
 {
@@ -269,6 +355,40 @@ size_t AddressSubscriptionState::erase(const subscription_ptr& sptr, const Addre
         }
         return false;
     });
+}
+
+void AddressSubscriptionState::on_chain_changed(const chainserver::State& state, const subscription_state::NewBlockInfo& nbi)
+{
+    void session_start();
+    if (nbi.rollback)
+        session_rollback(nbi.rollback->length);
+    for (auto& b : nbi.newBlocks)
+        session_block(b);
+    session_end(state);
+}
+
+void AddressSubscriptionState::session_end(const chainserver::State& s)
+{
+    for (auto& [address, data] : sessionMap) {
+        auto iter = map.find(address);
+        assert(iter != map.end());
+        auto subscriptions { select_id(iter->second.id) };
+        if (data.forceReload) {
+            account_state(address, s).send(std::move(subscriptions));
+        } else {
+            assert(data.blocks.size() > 0);
+            subscription::events::AccountDelta ad {
+                .address { address },
+                .newBalance { s.api_get_address(address).balance },
+                .newTransactions { std::move(data.blocks) },
+            };
+            subscription::events::Event {
+                std::move(ad)
+            }
+                .send(std::move(subscriptions));
+        }
+    }
+    sessionMap.clear();
 }
 
 // session functions

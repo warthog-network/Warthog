@@ -12,21 +12,8 @@
 #include <queue>
 #include <thread>
 
-
 class ChainServer : public std::enable_shared_from_this<ChainServer> {
     using getBlocksCb = std::function<void(std::vector<BodyContainer>&&)>;
-
-private:
-    void garbage_collect();
-    void garbage_collect_chains();
-
-    struct BlocksReq {
-        Descriptor descriptor;
-        Height lowerHeight;
-        Height upperHeight;
-        getBlocksCb callback;
-    };
-
 public:
     // can be called concurrently
     Batch get_headers(BatchSelector selector);
@@ -115,9 +102,11 @@ public:
     };
 
     // subscription related
-    struct SubscribeAccount : public SubscriptionRequest {
+    struct SubscribeAccount {
+        SubscriptionRequest req;
         Address addr;
     };
+
     struct SubscribeChain : public SubscriptionRequest {
     };
     struct SubscribeMinerdist : public SubscriptionRequest {
@@ -156,8 +145,7 @@ public:
         SubscribeAccount,
         SubscribeChain,
         SubscribeMinerdist,
-        DestroySubscriptions
-        >;
+        DestroySubscriptions>;
 
 private:
     template <typename T>
@@ -269,15 +257,9 @@ private:
     void handle_event(SubscribeChain&&);
     void handle_event(SubscribeMinerdist&&);
     void handle_event(DestroySubscriptions&&);
-        
+
     using StateUpdateWithAPIBlocks = chainserver::state_update::StateUpdateWithAPIBlocks;
     void on_chain_changed(StateUpdateWithAPIBlocks&&);
-
-    // generators (lambdas)
-    auto account_state_generator();
-    auto chain_state();
-    auto minerdist_state();// distribution of miners of last blocks
-    auto balance_fetcher();
 
     void emit_chain_state_event();
 

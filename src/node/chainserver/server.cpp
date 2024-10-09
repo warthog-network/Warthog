@@ -6,56 +6,8 @@
 #include "eventloop/eventloop.hpp"
 #include "general/hex.hpp"
 #include "global/globals.hpp"
-#include "subscription_state.hxx"
-
-namespace {
-constexpr size_t num_latest_blocks { 10 };
-}
-using SubscriptionEvent = subscription::events::Event;
-
-
-auto ChainServer::account_state_generator()
-{
-    return [this](const Address& a) {
-        return subscription::events::Event {
-            subscription::events::AccountState {
-                .address { a },
-                .history { state.api_get_history(a) },
-            }
-        };
-    };
-}
-auto ChainServer::chain_state()
-{
-    auto v { std::move(state.api_get_latest_blocks(num_latest_blocks).blocks_reversed) };
-    std::reverse(v.begin(), v.end());
-    return subscription::events::Event {
-        subscription::events::ChainState {
-            .head { state.api_get_head() },
-            .latestBlocks { std::move(v) } }
-    };
-}
-
-auto ChainServer::minerdist_state()
-{
-    auto& d { minerdistSubscriptions.aggregator };
-    if (!d.has_value()) {
-        minerdistSubscriptions.aggregator.emplace();
-        for (auto& miner : state.api_get_latest_miners()) {
-            d->push_back(miner.address);
-        };
-    }
-}
-
-auto ChainServer::balance_fetcher()
-{
-    return [this](const Address& a) -> Funds {
-        return state.api_get_address(a).balance;
-    };
-}
 
 bool ChainServer::is_busy()
-
 {
     std::unique_lock<std::mutex> ul(mutex);
     return switching;
@@ -293,48 +245,17 @@ void ChainServer::on_chain_changed(StateUpdateWithAPIBlocks&& su)
         su.appendedBlocks
     };
     minerdistSubscriptions.on_chain_changed(state, nbi);
+    addressSubscriptions.on_chain_changed(state, nbi);
+    chainSubscriptions.on_chain_changed(state, nbi);
 
-
-    addressSubscriptions.session_start();
-    bool rollback { false };
-    auto v { state.api_get_latest_blocks(num_latest_blocks).blocks_reversed };
-
-    std::reverse(v.begin(), v.end());
     // rollback api actions
-    if (auto s { su.update.chainstateUpdate.rollback() }) {
-        auto& l { s->length };
-        rollback = true;
-        addressSubscriptions.session_rollback(l);
-        chainSubscriptions.get_subscriptions();
-        if (auto& a { minerdistSubscriptions.aggregator })
-            a->rollback(s->distance);
-        api::event::emit_rollback(l);
-        subscription::events::Event {
-            subscription::events::ChainFork {
-                .head { state.api_get_head() },
-                .latestBlocks { std::move(v) },
-                .rollbackLength { l } }
-        }.send(chainSubscriptions.get_subscriptions());
-    }
+    if (auto s { su.update.chainstateUpdate.rollback() })
+        api::event::emit_rollback(s->length);
 
     // incremental block api actions
-    for (auto& b : su.appendedBlocks) {
-        addressSubscriptions.session_block(b);
+    for (auto& b : su.appendedBlocks)
         api::event::emit_block_append(std::move(b));
-    }
-    if (!rollback) {
-        if (su.appendedBlocks.size() > num_latest_blocks) {
-            chain_state().send(chainSubscriptions.get_subscriptions());
-        } else {
-            subscription::events::Event {
-                subscription::events::ChainAppend {
-                    .head { state.api_get_head() },
-                    .newBlocks { su.appendedBlocks } }
-            }.send(chainSubscriptions.get_subscriptions());
-        }
-    }
 
-    addressSubscriptions.session_end(account_state_generator(), balance_fetcher());
     global().core->async_state_update(std::move(su.update));
     dispatch_mining_subscriptions();
 }
@@ -506,43 +427,20 @@ void ChainServer::handle_event(SetSignedPin&& e)
 }
 void ChainServer::handle_event(SubscribeAccount&& s)
 {
-    using enum subscription::Action;
-    switch (s.action) {
-    case Unsubscribe:
-        addressSubscriptions.erase(s.sptr, s.addr);
-        break;
-    case Subscribe:
-        addressSubscriptions.insert(s.sptr, s.addr);
-        account_state_generator()(s.addr).send(std::move(s.sptr));
-    }
+    addressSubscriptions.handle_subscription(std::move(s.req), state, s.addr);
 }
 
 void ChainServer::handle_event(SubscribeChain&& s)
 {
-    using enum subscription::Action;
-    switch (s.action) {
-    case Unsubscribe:
-        chainSubscriptions.erase(s.sptr.get());
-        break;
-    case Subscribe:
-        chainSubscriptions.insert(s.sptr);
-        chain_state().send(std::move(s.sptr));
-    }
+    chainSubscriptions.handle_subscription(std::move(s), state);
 }
 void ChainServer::handle_event(SubscribeMinerdist&& s)
 {
-    using enum subscription::Action;
-    switch (s.action) {
-    case Unsubscribe:
-        minerdistSubscriptions.erase(s.sptr.get());
-        break;
-    case Subscribe:
-        minerdistSubscriptions.insert(s.sptr,state);
-    }
+    minerdistSubscriptions.handle_subscription(std::move(s), state);
 }
 
 void ChainServer::handle_event(DestroySubscriptions&& s)
 {
     addressSubscriptions.erase_all(s.p);
-    chainSubscriptions.erase(s.p);
+    chainSubscriptions.erase_all(s.p);
 }

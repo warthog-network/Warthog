@@ -614,7 +614,7 @@ std::pair<mempool::Log, TxHash> State::append_gentx(const PaymentCreateMessage& 
     }
 }
 
-api::Balance State::api_get_address(AddressView address)
+api::Balance State::api_get_address(AddressView address) const
 {
     if (auto p = db.lookup_address(address); p) {
         return api::Balance {
@@ -632,7 +632,7 @@ api::Balance State::api_get_address(AddressView address)
     }
 }
 
-api::Balance State::api_get_address(AccountId accountId)
+api::Balance State::api_get_address(AccountId accountId) const
 {
     if (auto p = db.lookup_account(accountId); p) {
         return api::Balance {
@@ -680,7 +680,7 @@ api::ChainHead State::api_get_head() const
     };
 }
 
-auto State::api_get_mempool(size_t n) -> api::MempoolEntries
+auto State::api_get_mempool(size_t n) const -> api::MempoolEntries
 {
     std::vector<Hash> hashes;
     auto entries = chainstate.mempool().get_payments(n, &hashes);
@@ -693,7 +693,7 @@ auto State::api_get_mempool(size_t n) -> api::MempoolEntries
     return out;
 }
 
-auto State::api_get_history(Address a, int64_t beforeId) -> std::optional<api::AccountHistory>
+auto State::api_get_history(Address a, int64_t beforeId) const -> std::optional<api::AccountHistory>
 {
     auto p = db.lookup_address(a);
     if (!p)
@@ -736,12 +736,12 @@ auto State::api_get_history(Address a, int64_t beforeId) -> std::optional<api::A
     };
 }
 
-auto State::api_get_richlist(size_t N) -> api::Richlist
+auto State::api_get_richlist(size_t N) const -> api::Richlist
 {
     return db.lookup_richlist(N);
 }
 
-auto State::get_blocks(DescriptedBlockRange range) -> std::vector<BodyContainer>
+auto State::get_blocks(DescriptedBlockRange range) const -> std::vector<BodyContainer>
 {
     assert(range.lower != 0);
     assert(range.upper >= range.lower);

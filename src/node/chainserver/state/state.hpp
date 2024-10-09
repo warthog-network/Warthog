@@ -32,7 +32,7 @@ public:
 
     // normal methods
     void garbage_collect();
-    auto mining_task(const Address& a) -> tl::expected<ChainMiningTask,Error>;
+    auto mining_task(const Address& a) -> tl::expected<ChainMiningTask, Error>;
 
     auto append_gentx(const PaymentCreateMessage&) -> std::pair<mempool::Log, TxHash>;
     auto chainlength() const -> Height { return chainstate.headers().length(); }
@@ -42,7 +42,7 @@ public:
 
     // stage methods
     auto set_stage(Headerchain&& hc) -> stage_operation::StageSetStatus;
-    struct StageActionResult{
+    struct StageActionResult {
         stage_operation::StageAddStatus status;
         std::optional<state_update::StateUpdateWithAPIBlocks> update;
     };
@@ -63,21 +63,21 @@ public:
     auto get_header(Height h) const -> std::optional<std::pair<NonzeroHeight, Header>>;
     auto get_headers() const { return chainstate.headers(); }
     auto get_hash(Height h) const -> std::optional<Hash>;
-    auto get_blocks(DescriptedBlockRange) -> std::vector<BodyContainer>;
+    auto get_blocks(DescriptedBlockRange) const -> std::vector<BodyContainer>;
     auto get_mempool_tx(TransactionId) const -> std::optional<TransferTxExchangeMessage>;
 
     // api getters
-    auto api_get_address(AddressView) -> api::Balance;
-    auto api_get_address(AccountId) -> api::Balance;
+    auto api_get_address(AddressView) const -> api::Balance;
+    auto api_get_address(AccountId) const -> api::Balance;
     auto api_get_head() const -> api::ChainHead;
-    auto api_get_history(Address a, int64_t beforeId=0x7fffffffffffffff) -> std::optional<api::AccountHistory>;
-    auto api_get_richlist(size_t N) -> api::Richlist;
-    auto api_get_mempool(size_t) -> api::MempoolEntries;
+    auto api_get_history(Address a, int64_t beforeId = 0x7fffffffffffffff) const -> std::optional<api::AccountHistory>;
+    auto api_get_richlist(size_t N) const -> api::Richlist;
+    auto api_get_mempool(size_t) const -> api::MempoolEntries;
     auto api_get_tx(HashView hash) const -> std::optional<api::Transaction>;
     auto api_get_latest_txs(size_t N = 100) const -> api::TransactionsByBlocks;
     auto api_get_latest_blocks(size_t N = 100) const -> api::TransactionsByBlocks;
     auto api_get_miner(NonzeroHeight h) const -> std::optional<api::AddressWithId>;
-    auto api_get_latest_miners(uint32_t N=1000) const -> std::vector<api::AddressWithId>;
+    auto api_get_latest_miners(uint32_t N = 1000) const -> std::vector<api::AddressWithId>;
     auto api_get_miners(HeightRange) const -> std::vector<api::AddressWithId>;
     auto api_get_transaction_range(HistoryId lower, HistoryId upper) const -> api::TransactionsByBlocks;
     auto api_get_header(api::HeightOrHash& h) const -> std::optional<std::pair<NonzeroHeight, Header>>;
@@ -85,7 +85,6 @@ public:
     auto api_tx_cache() const -> const TransactionIds;
 
 private:
-
     // delegated getters
     auto api_get_block(Height h) const -> std::optional<api::Block>;
     std::optional<NonzeroHeight> consensus_height(const Hash&) const;
