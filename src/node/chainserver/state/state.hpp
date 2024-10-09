@@ -76,6 +76,9 @@ public:
     auto api_get_tx(HashView hash) const -> std::optional<api::Transaction>;
     auto api_get_latest_txs(size_t N = 100) const -> api::TransactionsByBlocks;
     auto api_get_latest_blocks(size_t N = 100) const -> api::TransactionsByBlocks;
+    auto api_get_miner(NonzeroHeight h) const -> std::optional<api::AddressWithId>;
+    auto api_get_latest_miners(uint32_t N=1000) const -> std::vector<api::AddressWithId>;
+    auto api_get_miners(HeightRange) const -> std::vector<api::AddressWithId>;
     auto api_get_transaction_range(HistoryId lower, HistoryId upper) const -> api::TransactionsByBlocks;
     auto api_get_header(api::HeightOrHash& h) const -> std::optional<std::pair<NonzeroHeight, Header>>;
     auto api_get_block(const api::HeightOrHash& h) const -> std::optional<api::Block>;

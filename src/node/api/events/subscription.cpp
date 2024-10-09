@@ -30,6 +30,8 @@ void handleSubscriptioinMessage(const nlohmann::json& j, subscription_ptr p)
         subscribe_connection_event({ std::move(p), action });
     } else if (topic == "account") {
         subscribe_account_event({ std::move(p), action }, Address(j["params"]["address"].get<std::string>()));
+    } else if (topic == "minerdist") {
+        subscribe_minerdist_event({ std::move(p), action });
     } else if (topic == "chain") {
         subscribe_chain_event({ std::move(p), action });
     } else {
@@ -128,6 +130,18 @@ namespace events {
                 { "head", jsonmsg::to_json(a.head) },
                 { "latestBlocks", jsonmsg::to_json(a.latestBlocks) },
                 { "rollbackLength", a.rollbackLength.value() },
+            };
+        };
+        json to_json(const MinerdistState& a)
+        {
+            return json {
+                { "counts", jsonmsg::to_json(a.counts) },
+            };
+        };
+        json to_json(const MinerdistDelta& a)
+        {
+            return json {
+                { "deltas", jsonmsg::to_json(a.deltas) },
             };
         };
         template <typename T>

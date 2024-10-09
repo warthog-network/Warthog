@@ -70,4 +70,5 @@ void inspect_eventloop(std::function<void(const Eventloop& e)>&&);
 void subscribe_chain_event(SubscriptionRequest);
 void subscribe_connection_event(SubscriptionRequest);
 void subscribe_account_event(SubscriptionRequest, Address);
+void subscribe_minerdist_event(SubscriptionRequest);
 void destroy_all_subscriptions(subscription_data_ptr);

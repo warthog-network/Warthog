@@ -4,23 +4,23 @@
 #include "../update/update.hpp"
 #include "block/body/account_id.hpp"
 #include "block/chain/consensus_headers.hpp"
-#include "block/chain/offsts.hpp"
 #include "block/chain/history/index.hpp"
-#include "mempool/mempool.hpp"
+#include "block/chain/offsts.hpp"
 #include "chainserver/db/deletion_key.hpp"
+#include "mempool/mempool.hpp"
 #include <cstdint>
 
 class ChainDB;
 namespace chainserver {
 struct RollbackResult {
-    Height shrinkLength;
+    ShrinkInfo shrink;
     std::vector<TransferTxExchangeMessage> toMempool;
-    std::map<AccountId,Funds> balanceUpdates;
+    std::map<AccountId, Funds> balanceUpdates;
     TransactionIds chainTxIds;
     DeletionKey deletionKey;
 };
 struct AppendBlocksResult {
-    std::map<AccountId,Funds> balanceUpdates;
+    std::map<AccountId, Funds> balanceUpdates;
     std::vector<HistoryId> newHistoryOffsets;
     std::vector<AccountId> newAccountOffsets;
     TransactionIds newTxIds;
@@ -40,7 +40,7 @@ struct Chainstate {
         AppendBlocksResult&& appendResult;
     };
     struct AppendSingle {
-        std::map<AccountId,Funds> balanceUpdates;
+        std::map<AccountId, Funds> balanceUpdates;
         std::optional<SignedSnapshot>& signedSnapshot;
         HeaderVerifier::PreparedAppend prepared;
         TransactionIds&& newTxIds;
@@ -63,7 +63,7 @@ struct Chainstate {
     [[nodiscard]] TxHash insert_tx(const PaymentCreateMessage& m);
 
     // const functions
-    Worksum work_with_new_block() const{return headerchain.total_work() + headerchain.next_target();};
+    Worksum work_with_new_block() const { return headerchain.total_work() + headerchain.next_target(); };
     const auto& headers() const { return headerchain; }
     auto mining_data() const { return headerchain.mining_data(); };
     HashView final_hash() const { return headerchain.final_hash(); }
@@ -74,7 +74,7 @@ struct Chainstate {
     const auto& mempool() const { return _mempool; }
     [[nodiscard]] inline auto historyOffset(NonzeroHeight height) const
     {
-        if (height.value() == 1) 
+        if (height.value() == 1)
             return HistoryId::smallest();
         return historyOffsets.at(height);
     };

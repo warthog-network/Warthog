@@ -50,17 +50,16 @@ std::pair<Height, AppendMsg> Headerchain::apply_append(HeaderchainAppend&& updat
     return { h, AppendMsg(length().nonzero_assert(), worksum, grid(batchOffset)) };
 }
 
-HeaderchainFork Headerchain::get_fork(NonzeroHeight forkHeight, Descriptor descriptor) const
+HeaderchainFork Headerchain::get_fork(ShrinkInfo shrink, Descriptor descriptor) const
 {
-    assert(forkHeight < length());
-    auto shrinkLength { forkHeight - 1 };
+    assert(shrink.length < length());
     return HeaderchainFork {
         .completeBatches {
-            completeBatches.begin() + shrinkLength.complete_batches(),
+            completeBatches.begin() + shrink.length.complete_batches(),
             completeBatches.end() },
         .finalPin { finalPin },
         .incompleteBatch = incompleteBatch,
-        .shrinkLength = shrinkLength,
+        .shrink { shrink },
         .descriptor = descriptor
     };
 }
@@ -70,7 +69,7 @@ ForkMsg Headerchain::apply_fork(HeaderchainFork&& update)
     Worksum prevWorksum = worksum;
     assert(update.completeBatches.size() > 0 || update.incompleteBatch.size() > 0);
 
-    size_t nComplete = update.shrinkLength.complete_batches();
+    size_t nComplete = update.shrink.length.complete_batches();
     completeBatches.erase(completeBatches.begin() + nComplete, completeBatches.end());
 
     assert(completeBatches.size() == nComplete);
@@ -86,7 +85,7 @@ ForkMsg Headerchain::apply_fork(HeaderchainFork&& update)
         update.descriptor,
         length().nonzero_assert(),
         worksum,
-        (update.shrinkLength + 1).nonzero_assert(),
+        update.shrink.length.add1(),
         grid(batchOffset));
 }
 

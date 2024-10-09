@@ -12,6 +12,7 @@
 #include <queue>
 #include <thread>
 
+
 class ChainServer : public std::enable_shared_from_this<ChainServer> {
     using getBlocksCb = std::function<void(std::vector<BodyContainer>&&)>;
 
@@ -119,6 +120,8 @@ public:
     };
     struct SubscribeChain : public SubscriptionRequest {
     };
+    struct SubscribeMinerdist : public SubscriptionRequest {
+    };
 
     struct DestroySubscriptions {
         subscription_data_ptr p;
@@ -152,6 +155,7 @@ public:
         SetSignedPin,
         SubscribeAccount,
         SubscribeChain,
+        SubscribeMinerdist,
         DestroySubscriptions
         >;
 
@@ -221,6 +225,7 @@ public:
 
     void subscribe_account_event(SubscriptionRequest, Address a);
     void subscribe_chain_event(SubscriptionRequest);
+    void subscribe_minerdist_event(SubscriptionRequest);
     void destroy_subscriptions(subscription_data_ptr);
 
     void async_set_signed_checkpoint(SignedSnapshot);
@@ -262,6 +267,7 @@ private:
     void handle_event(SetSignedPin&&);
     void handle_event(SubscribeAccount&&);
     void handle_event(SubscribeChain&&);
+    void handle_event(SubscribeMinerdist&&);
     void handle_event(DestroySubscriptions&&);
         
     using StateUpdateWithAPIBlocks = chainserver::state_update::StateUpdateWithAPIBlocks;
@@ -270,6 +276,7 @@ private:
     // generators (lambdas)
     auto account_state_generator();
     auto chain_state();
+    auto minerdist_state();// distribution of miners of last blocks
     auto balance_fetcher();
 
     void emit_chain_state_event();
@@ -287,6 +294,7 @@ private:
     MiningSubscriptions miningSubscriptions;
     AddressSubscriptionState addressSubscriptions;
     ChainSubscriptionState chainSubscriptions;
+    MinerdistSubscriptionState minerdistSubscriptions;
 
     //
     bool haswork = false;

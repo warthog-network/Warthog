@@ -63,9 +63,12 @@ struct TransferTransaction {
     NonceId nonceId;
     PinHeight pinHeight { PinHeight::undef() };
 };
-struct Balance {
-    std::optional<Address> address;
+struct AddressWithId {
+    Address address;
     AccountId accountId;
+};
+struct Balance {
+    std::optional<AddressWithId> address;
     Funds balance;
 };
 
@@ -125,6 +128,11 @@ public:
     }
     void set_reward(Reward r);
     auto& reward() const { return _reward; }
+};
+
+struct AddressCount{
+    Address address;
+    int64_t count;
 };
 
 struct AccountHistory {

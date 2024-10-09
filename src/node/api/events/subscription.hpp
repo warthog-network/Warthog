@@ -66,6 +66,14 @@ namespace events {
         std::vector<api::Block> latestBlocks;
         Height rollbackLength;
     };
+    struct MinerdistState {
+        static constexpr auto eventName { "minerdist.state" };
+        std::vector<api::AddressCount> counts;
+    };
+    struct MinerdistDelta {
+        static constexpr auto eventName { "minerdist.delta" };
+        std::vector<api::AddressCount> deltas;
+    };
     struct Event {
         using variant_t = std::variant<
             AccountState,
@@ -75,7 +83,9 @@ namespace events {
             ConnectionsAdd,
             ChainState,
             ChainAppend,
-            ChainFork>;
+            ChainFork,
+            MinerdistState,
+            MinerdistDelta>;
         std::string json_str() const;
         void send(std::vector<subscription_ptr>) &&;
         void send(subscription_ptr) &&;

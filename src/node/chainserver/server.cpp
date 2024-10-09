@@ -12,6 +12,8 @@ namespace {
 constexpr size_t num_latest_blocks { 10 };
 }
 using SubscriptionEvent = subscription::events::Event;
+
+
 auto ChainServer::account_state_generator()
 {
     return [this](const Address& a) {
@@ -25,18 +27,29 @@ auto ChainServer::account_state_generator()
 }
 auto ChainServer::chain_state()
 {
-    auto v{std::move(state.api_get_latest_blocks(num_latest_blocks).blocks_reversed)};
-    std::reverse(v.begin(),v.end());
+    auto v { std::move(state.api_get_latest_blocks(num_latest_blocks).blocks_reversed) };
+    std::reverse(v.begin(), v.end());
     return subscription::events::Event {
         subscription::events::ChainState {
             .head { state.api_get_head() },
-            .latestBlocks {std::move(v)} }
+            .latestBlocks { std::move(v) } }
     };
+}
+
+auto ChainServer::minerdist_state()
+{
+    auto& d { minerdistSubscriptions.aggregator };
+    if (!d.has_value()) {
+        minerdistSubscriptions.aggregator.emplace();
+        for (auto& miner : state.api_get_latest_miners()) {
+            d->push_back(miner.address);
+        };
+    }
 }
 
 auto ChainServer::balance_fetcher()
 {
-    return [this](const Address& a)->Funds {
+    return [this](const Address& a) -> Funds {
         return state.api_get_address(a).balance;
     };
 }
@@ -183,6 +196,10 @@ void ChainServer::subscribe_chain_event(SubscriptionRequest r)
 {
     defer(SubscribeChain { std::move(r) });
 }
+void ChainServer::subscribe_minerdist_event(SubscriptionRequest r)
+{
+    defer(SubscribeMinerdist { std::move(r) });
+}
 
 void ChainServer::destroy_subscriptions(subscription_data_ptr p)
 {
@@ -271,21 +288,32 @@ void ChainServer::on_chain_changed(StateUpdateWithAPIBlocks&& su)
 {
     emit_chain_state_event();
 
+    subscription_state::NewBlockInfo nbi {
+        su.update.chainstateUpdate.rollback(),
+        su.appendedBlocks
+    };
+    minerdistSubscriptions.on_chain_changed(state, nbi);
+
+
     addressSubscriptions.session_start();
     bool rollback { false };
-    auto v{state.api_get_latest_blocks(num_latest_blocks).blocks_reversed};
-    std::reverse(v.begin(),v.end());
+    auto v { state.api_get_latest_blocks(num_latest_blocks).blocks_reversed };
+
+    std::reverse(v.begin(), v.end());
     // rollback api actions
-    if (auto l { su.update.chainstateUpdate.rollback_length() }) {
+    if (auto s { su.update.chainstateUpdate.rollback() }) {
+        auto& l { s->length };
         rollback = true;
-        addressSubscriptions.session_rollback(*l);
+        addressSubscriptions.session_rollback(l);
         chainSubscriptions.get_subscriptions();
-        api::event::emit_rollback(*l);
+        if (auto& a { minerdistSubscriptions.aggregator })
+            a->rollback(s->distance);
+        api::event::emit_rollback(l);
         subscription::events::Event {
             subscription::events::ChainFork {
                 .head { state.api_get_head() },
                 .latestBlocks { std::move(v) },
-                .rollbackLength { *l } }
+                .rollbackLength { l } }
         }.send(chainSubscriptions.get_subscriptions());
     }
 
@@ -499,6 +527,17 @@ void ChainServer::handle_event(SubscribeChain&& s)
     case Subscribe:
         chainSubscriptions.insert(s.sptr);
         chain_state().send(std::move(s.sptr));
+    }
+}
+void ChainServer::handle_event(SubscribeMinerdist&& s)
+{
+    using enum subscription::Action;
+    switch (s.action) {
+    case Unsubscribe:
+        minerdistSubscriptions.erase(s.sptr.get());
+        break;
+    case Subscribe:
+        minerdistSubscriptions.insert(s.sptr,state);
     }
 }
 

@@ -1,20 +1,35 @@
 #include "subscription_state.hpp"
+#include "api/events/subscription.hpp"
 #include "api/types/all.hpp"
+#include "chainserver/state/state.hpp"
+#include "chainserver/state/update/update.hpp"
 #include "spdlog/spdlog.h"
 #include <optional>
+#include <ranges>
 
-namespace chain_subscription {
-void ChainSubscriptionState::erase(subscription_data_ptr p)
+namespace {
+void pre_check_nonzero(ssize_t modified, ssize_t& nonzero)
+{
+    if (modified == 0)
+        nonzero += 1;
+}
+void post_check_nozero(ssize_t modified, ssize_t& nonzero)
+{
+    if (modified == 0)
+        nonzero -= 1;
+}
+}
+void BasicSubscriptionState::erase(subscription_data_ptr p)
 {
     std::erase_if(subscriptions, [&](subscription_ptr& p2) {
         return p == p2.get();
     });
 }
-auto ChainSubscriptionState::get_subscriptions() const -> vector_t
+auto BasicSubscriptionState::get_subscriptions() const -> vector_t
 {
     return subscriptions;
 }
-bool ChainSubscriptionState::insert(subscription_ptr p)
+bool BasicSubscriptionState::insert(subscription_ptr p)
 {
     for (auto& p2 : subscriptions) {
         if (p2.get() == p.get()) {
@@ -24,6 +39,158 @@ bool ChainSubscriptionState::insert(subscription_ptr p)
     subscriptions.push_back(std::move(p));
     return true;
 }
+
+namespace minerdist_subscriptions {
+void MinerdistSubscriptionState::erase(subscription_data_ptr p)
+{
+    BasicSubscriptionState::erase(p);
+    if (size() == 0)
+        aggregator.reset();
+}
+
+void MinerdistSubscriptionState::insert(subscription_ptr p, const chainserver::State& s)
+{
+    if (BasicSubscriptionState::insert(p))
+        fill_aggregator(s);
+    aggregator.value().state_event().send(p);
+}
+
+void MinerdistSubscriptionState::on_chain_changed(const chainserver::State& a, const subscription_state::NewBlockInfo& nbi)
+{
+    if (!aggregator)
+        return;
+    auto& blocks { nbi.newBlocks };
+    if (blocks.size() > nMiners) {
+        aggregator->clear();
+        for (size_t i = blocks.size() - nMiners; i < blocks.size(); ++i) {
+            aggregator->push_back(blocks[i].reward()->toAddress);
+        }
+    } else {
+        if (nbi.rollback)
+            aggregator->rollback(nbi.rollback->distance);
+        for (auto& b : blocks)
+            aggregator->push_back(b.reward()->toAddress);
+        fill_aggregator(a);
+        aggregator->truncate(nMiners);
+    }
+    aggregator.value().summarize().send(get_subscriptions());
+}
+
+void MinerdistSubscriptionState::fill_aggregator(const chainserver::State& s)
+{
+    auto& a { aggregator };
+    bool created = false;
+    if (!a.has_value()) {
+        a.emplace();
+        created = true;
+    }
+    if (a->size() >= nMiners || s.chainlength() == 0)
+        return;
+    auto u { s.chainlength().nonzero_assert().subtract_clamp1(a->size()) };
+    auto miners { s.api_get_miners(u.latest(nMiners - a->size())) };
+    for (auto& miner : std::ranges::reverse_view(miners)) {
+        a->push_front(miner.address, !created);
+    };
+}
+
+void Aggregator::clear()
+{
+    *this = {};
+}
+
+subscription::events::Event Aggregator::summarize()
+{
+    bool useDelta { nonzeroDelta < nonzeroCount };
+    std::vector<api::AddressCount> counts;
+    for (auto iter { map.begin() }; iter != map.end();) {
+        auto& [k, v] { *iter };
+        if (useDelta) {
+            if (v.delta != 0)
+                counts.push_back({ k, v.delta });
+        } else {
+            if (v.count != 0) {
+                counts.push_back({ k, v.count });
+            }
+        }
+        v.delta = 0;
+        if (v.count == 0)
+            map.erase(iter++);
+        else
+            ++iter;
+    }
+    nonzeroDelta = 0;
+    if (useDelta)
+        return { subscription::events::MinerdistDelta { std::move(counts) } };
+    return { subscription::events::MinerdistState { std::move(counts) } };
+}
+
+subscription::events::Event Aggregator::state_event()
+{
+    std::vector<api::AddressCount> counts;
+    for (auto& [k, v] : map) {
+        if (v.count != 0)
+            counts.push_back({ k, v.count });
+    }
+    return { subscription::events::MinerdistState { std::move(counts) } };
+}
+
+void Aggregator::push_back(const Address& a)
+{
+    auto iter { map.try_emplace(a).first };
+    iters.push_back(iter);
+    count_new_iter(iter, true);
+}
+
+void Aggregator::push_front(const Address& a, bool trackDelta)
+{
+    auto iter { map.try_emplace(a).first };
+    iters.push_front(iter);
+    count_new_iter(iter, trackDelta);
+}
+
+void Aggregator::rollback(size_t by)
+{
+    for (size_t i { 0 }; i < by; ++i) {
+        if (size() == 0)
+            break;
+        uncount_iter(iters.back());
+        iters.pop_back();
+    }
+}
+
+void Aggregator::truncate(size_t maxlen)
+{
+    while (iters.size() > maxlen) {
+        uncount_iter(iters.front());
+        iters.pop_front();
+    }
+}
+
+void Aggregator::uncount_iter(iter_t iter)
+{
+
+    // don't need pre_check as count is >=0
+    iter->second.count -= 1;
+    post_check_nozero(iter->second.count, nonzeroCount);
+
+    pre_check_nonzero(iter->second.count, nonzeroDelta);
+    iter->second.delta -= 1;
+    post_check_nozero(iter->second.count, nonzeroDelta);
+}
+
+void Aggregator::count_new_iter(iter_t iter, bool trackDelta)
+{
+    pre_check_nonzero(iter->second.count, nonzeroCount);
+    iter->second.count += 1;
+    // don't need post check as count is >=0
+
+    if (trackDelta) {
+        pre_check_nonzero(iter->second.count, nonzeroDelta);
+        iter->second.delta += 1;
+        post_check_nozero(iter->second.count, nonzeroDelta);
+    }
+}
+
 }
 namespace address_subscription {
 std::optional<SessionAddressCursor> SessionData::session_cursor(const api::Block& b)

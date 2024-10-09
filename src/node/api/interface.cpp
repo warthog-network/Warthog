@@ -320,6 +320,9 @@ void subscribe_account_event(SubscriptionRequest r, Address a)
 {
     global().chainServer->subscribe_account_event(std::move(r), std::move(a));
 }
+void subscribe_minerdist_event(SubscriptionRequest r){
+    global().chainServer->subscribe_minerdist_event(std::move(r));
+}
 void destroy_all_subscriptions(subscription_data_ptr p)
 {
     global().chainServer->destroy_subscriptions(p);

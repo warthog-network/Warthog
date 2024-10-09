@@ -31,13 +31,13 @@ namespace state_update {
 
     struct ChainstateUpdate : public variant_t {
         using variant_t::variant;
-        std::optional<Height> rollback_length(){
+        std::optional<ShrinkInfo> rollback() const {
             if (std::holds_alternative<Fork>(*this)) {
-                return std::get<Fork>(*this).shrinkLength;
+                return std::get<Fork>(*this).shrink;
             }else if (std::holds_alternative<SignedSnapshotApply>(*this)){
                 auto rb{std::get<SignedSnapshotApply>(*this).rollback};
                 if (rb) {
-                    return rb->deltaHeaders.shrinkLength;
+                    return rb->deltaHeaders.shrink;
                 }
             }
             return std::nullopt;

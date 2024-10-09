@@ -176,6 +176,39 @@ auto State::api_get_latest_blocks(size_t N) const -> api::TransactionsByBlocks
     return api_get_transaction_range(lower, upper);
 }
 
+auto State::api_get_miner(NonzeroHeight h) const -> std::optional<api::AddressWithId>
+{
+    if (chainlength() < h)
+        return {};
+    auto offset { chainstate.historyOffset(h) };
+    auto lookup { db.lookupHistoryRange(offset, offset + 1) };
+    assert(lookup.size() == 1);
+
+    auto parsed = history::parse_throw(lookup[0].second);
+    assert(std::holds_alternative<history::RewardData>(parsed));
+    auto minerId { std::get<history::RewardData>(parsed).toAccountId };
+    return api::AddressWithId {
+        db.fetch_account(minerId).address,
+        minerId
+    };
+}
+
+auto State::api_get_miners(HeightRange hr) const -> std::vector<api::AddressWithId>
+{
+    std::vector<api::AddressWithId> res;
+    for (auto h : hr) {
+        auto o { api_get_miner(h) };
+        assert(o);
+        res.push_back(*o);
+    }
+    return res;
+}
+
+auto State::api_get_latest_miners(uint32_t N) const -> std::vector<api::AddressWithId>
+{
+    return api_get_miners(chainlength().latest(N));
+}
+
 auto State::api_get_transaction_range(HistoryId lower, HistoryId upper) const -> api::TransactionsByBlocks
 {
     api::TransactionsByBlocks res { .fromId { lower }, .blocks_reversed {} };
@@ -185,7 +218,7 @@ auto State::api_get_transaction_range(HistoryId lower, HistoryId upper) const ->
     assert(lookup.size() == upper - lower);
     if (chainlength() != 0) {
         chainserver::AccountCache cache(db);
-        auto update_tmp = [&](auto id) {
+        auto update_tmp = [&](HistoryId id) {
             auto h { chainstate.history_height(id) };
             PinFloor pinFloor { PrevHeight(h) };
             auto header { chainstate.headers()[h] };
@@ -372,6 +405,7 @@ auto State::add_stage(const std::vector<Block>& blocks, const Headerchain& hc) -
 
 RollbackResult State::rollback(const Height newlength) const
 {
+    const Height oldlength { chainlength() };
     spdlog::info("Rolling back chain");
     std::vector<TransferTxExchangeMessage> toMempool;
     assert(newlength < chainlength());
@@ -431,7 +465,7 @@ RollbackResult State::rollback(const Height newlength) const
         db.set_balance(p.first, p.second);
     }
     return chainserver::RollbackResult {
-        .shrinkLength { newlength },
+        .shrink { newlength, oldlength - newlength },
         .toMempool { std::move(toMempool) },
         .balanceUpdates { std::move(balanceMap) },
         .chainTxIds { db.fetch_tx_ids(newlength) },
@@ -584,14 +618,15 @@ api::Balance State::api_get_address(AddressView address)
 {
     if (auto p = db.lookup_address(address); p) {
         return api::Balance {
-            address,
-            p->accointId,
+            api::AddressWithId {
+                address,
+                p->accointId,
+            },
             p->funds
         };
     } else {
         return api::Balance {
             {},
-            AccountId { 0 },
             Funds { Funds::zero() }
         };
     }
@@ -601,14 +636,14 @@ api::Balance State::api_get_address(AccountId accountId)
 {
     if (auto p = db.lookup_account(accountId); p) {
         return api::Balance {
-            p->address,
-            accountId,
+            api::AddressWithId {
+                p->address,
+                accountId },
             p->funds
         };
     } else {
         return api::Balance {
             {},
-            AccountId { 0 },
             Funds { Funds::zero() }
         };
     }
@@ -742,7 +777,6 @@ auto State::get_mempool_tx(TransactionId txid) const -> std::optional<TransferTx
 auto State::commit_fork(RollbackResult&& rr, AppendBlocksResult&& abr) -> StateUpdate
 {
     assert(!signedSnapshot || signedSnapshot->compatible(stage));
-    auto forkHeight { (rr.shrinkLength + 1).nonzero_assert() };
     auto headers_ptr { blockCache.add_old_chain(chainstate, rr.deletionKey) };
 
     chainstate.fork(chainserver::Chainstate::ForkData {
@@ -752,7 +786,7 @@ auto State::commit_fork(RollbackResult&& rr, AppendBlocksResult&& abr) -> StateU
     });
 
     state_update::Fork forkMsg {
-        chainstate.headers().get_fork(forkHeight, chainstate.descriptor()),
+        chainstate.headers().get_fork(rr.shrink, chainstate.descriptor()),
         std::move(headers_ptr),
         try_sign_chainstate()
     };

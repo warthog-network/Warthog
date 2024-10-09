@@ -61,7 +61,7 @@ void ApplyStageTransaction::consider_rollback(Height shrinkLength)
     assert(shrinkLength <= ccs.chainlength());
     if (shrinkLength < ccs.chainlength()) {
         rb = ccs.rollback(shrinkLength);
-        chainlength = rb->shrinkLength;
+        chainlength = rb->shrink.length;
     }
     assert(chainlength == shrinkLength);
 }

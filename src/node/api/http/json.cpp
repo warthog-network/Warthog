@@ -424,6 +424,14 @@ json to_json(const api::AccountHistory& h)
     return j;
 }
 
+json to_json(const api::AddressCount& ac)
+{
+    return {
+        { "address", ac.address.to_string() },
+        { "count", ac.count }
+    };
+}
+
 json to_json(const api::Richlist& l)
 {
     json a = json::array();
@@ -532,15 +540,14 @@ json to_json(const api::Balance& b)
     json j;
     j["balance"] = b.balance.to_string();
     j["balanceE8"] = b.balance.E8();
-    if (b.address)
-        j["address"] = b.address->to_string();
-    else
+    if (b.address){
+        j["address"] = b.address->address.to_string();
+        j["accountId"] = b.address->accountId.value();
+    }
+    else{
         j["address"] = nullptr;
-    auto v { b.accountId.value() };
-    if (v > 0)
-        j["accountId"] = v;
-    else
         j["accountId"] = nullptr;
+    }
     return j;
 }
 

@@ -4,6 +4,16 @@
 #include "block/header/view_inline.hpp"
 #include "communication/messages.hpp"
 
+struct ShrinkInfo {
+    Height length;
+    uint32_t distance;
+    ShrinkInfo(Height length, uint32_t distance)
+        : length(length)
+        , distance(distance)
+    {
+    }
+};
+
 struct HeaderchainAppend {
     std::vector<SharedBatchView> completeBatches;
     SharedBatch finalPin;
@@ -11,7 +21,7 @@ struct HeaderchainAppend {
 };
 
 struct HeaderchainRollback {
-    Height shrinkLength;
+    ShrinkInfo shrink;
     Descriptor descriptor;
 };
 
@@ -19,7 +29,7 @@ struct HeaderchainFork {
     std::vector<SharedBatchView> completeBatches;
     SharedBatch finalPin;
     Batch incompleteBatch;
-    Height shrinkLength;
+    ShrinkInfo shrink;
     Descriptor descriptor;
 };
 
@@ -79,7 +89,7 @@ public:
     // chain updates
     [[nodiscard]] HeaderchainAppend get_append(Height prevLength) const;
     [[nodiscard]] std::pair<Height, AppendMsg> apply_append(HeaderchainAppend&& append);
-    [[nodiscard]] HeaderchainFork get_fork(NonzeroHeight forkHeight, Descriptor descriptor) const;
+    [[nodiscard]] HeaderchainFork get_fork(ShrinkInfo shrink, Descriptor descriptor) const;
     [[nodiscard]] ForkMsg apply_fork(HeaderchainFork&& fork);
 
     void shrink(Height shrinkLength);

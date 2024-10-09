@@ -52,7 +52,7 @@ AppendMsg StageAndConsensus::update_consensus(Append&& append)
 
 ForkMsg StageAndConsensus::update_consensus(Fork&& fork)
 {
-    auto shrinkLength { fork.shrinkLength };
+    auto shrinkLength { fork.shrink.length };
     auto msg = consensus.apply(std::move(fork));
     if (!scForkHeight.forked() || scForkHeight > shrinkLength) {
         auto startHeight { (shrinkLength + 1).nonzero_assert() };
@@ -65,7 +65,7 @@ auto StageAndConsensus::update_consensus(const RollbackData& rd) -> std::optiona
 {
     auto msg { consensus.apply(rd) };
     if (rd.rollback) {
-        auto shrinkLength { rd.rollback->deltaHeaders.shrinkLength };
+        auto shrinkLength { rd.rollback->deltaHeaders.shrink.length };
         if (scForkHeight.forked() && scForkHeight > shrinkLength) {
             scForkHeight = { shrinkLength.value() + 1, false };
         }

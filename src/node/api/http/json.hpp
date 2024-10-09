@@ -26,6 +26,7 @@ nlohmann::json to_json(const api::TransactionsByBlocks&);
 nlohmann::json to_json(const api::Block&);
 nlohmann::json to_json(const api::BlockSummary&);
 nlohmann::json to_json(const api::AccountHistory&);
+nlohmann::json to_json(const api::AddressCount&);
 nlohmann::json to_json(const api::Richlist&);
 nlohmann::json to_json(const api::Wallet&);
 nlohmann::json to_json(const api::HashrateInfo&);

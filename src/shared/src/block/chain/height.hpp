@@ -5,6 +5,8 @@
 
 class PinHeight;
 class NonzeroHeight;
+
+struct HeightRange;
 class Height : public IsUint32 {
     friend struct Batchslot;
 
@@ -29,6 +31,7 @@ public:
     NonzeroHeight nonzero_throw(Error) const;
     NonzeroHeight nonzero_throw(std::string) const;
     NonzeroHeight one_if_zero() const;
+    NonzeroHeight add1() const;
     // Height& operator--()
     // {
     //     assert(val > 0);
@@ -73,6 +76,7 @@ public:
         return Funds::from_value(GENESISBLOCKREWARD >> halvings).value();
     }
 
+    HeightRange latest(uint32_t n) const;
     Height pin_begin()
     {
         uint32_t shifted = val >> 5;
@@ -99,6 +103,7 @@ public:
     {
     }
     NonzeroHeight(bool) = delete;
+    HeightRange latest(uint32_t n) const;
     constexpr NonzeroHeight(uint32_t v)
         : IsUint32(v)
     {
@@ -114,6 +119,17 @@ public:
     {
         return NonzeroHeight { ::retarget_floor(val) };
     }
+
+    NonzeroHeight subtract_clamp1(uint32_t v) const
+    {
+        NonzeroHeight out { *this };
+        if (out.val > v)
+            out.val -= v;
+        else
+            out.val = 1;
+        return out;
+    }
+
     NonzeroHeight(const NonzeroHeight&) = default;
 
     NonzeroHeight& operator=(const NonzeroHeight&) = default;
@@ -183,6 +199,50 @@ public:
         return h1.val == h;
     }
 };
+
+struct HeightRange {
+    NonzeroHeight hbegin;
+    NonzeroHeight hend;
+    HeightRange( NonzeroHeight hbegin, NonzeroHeight hend)
+    :hbegin(hbegin), hend(hend)
+    {
+        assert(hbegin<=hend);
+    }
+    struct Iterator {
+        NonzeroHeight operator*()
+        {
+            return h;
+        }
+        NonzeroHeight h;
+        bool operator!=(Iterator other) { return h != other.h; }
+        Iterator& operator++()
+        {
+            ++h;
+            return *this;
+        }
+    };
+    Iterator begin() { return { hbegin }; }
+    Iterator end() { return { hend }; }
+};
+
+inline HeightRange Height::latest(uint32_t n) const
+{
+    auto u { add1() };
+    return {
+        u.subtract_clamp1(n),
+        u
+    };
+}
+
+inline HeightRange NonzeroHeight::latest(uint32_t n) const
+{
+    return Height(*this).latest(n);
+}
+
+inline NonzeroHeight Height::add1() const
+{
+    return val + 1;
+}
 
 class PrevHeight : public Height {
 public:
