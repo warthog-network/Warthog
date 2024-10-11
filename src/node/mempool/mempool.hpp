@@ -27,6 +27,7 @@ private:
 
 class Mempool {
     using iter_t = Txmap::iterator;
+    using const_iter_t = Txmap::const_iterator;
 
 public:
     Mempool(bool master = true, size_t maxSize = 10000)
@@ -67,16 +68,16 @@ private:
     using BalanceEntries = std::map<AccountId, BalanceEntry>;
     void apply_logevent(const Put&);
     void apply_logevent(const Erase&);
-    void erase(Txmap::iterator);
-    bool erase(Txmap::iterator, BalanceEntries::iterator, bool gc = true);
+    void erase_internal(Txmap::const_iterator);
+    bool erase_internal(Txmap::const_iterator, BalanceEntries::iterator, bool gc = true);
     void prune();
 
 private:
     Log log;
     Txmap txs;
-    std::set<iter_t, ComparatorPin> byPin;
+    std::set<const_iter_t, ComparatorPin> byPin;
     ByFeeDesc byFee;
-    std::set<iter_t, ComparatorHash> byHash;
+    std::set<const_iter_t, ComparatorHash> byHash;
     BalanceEntries balanceEntries;
     bool master;
     size_t maxSize;
