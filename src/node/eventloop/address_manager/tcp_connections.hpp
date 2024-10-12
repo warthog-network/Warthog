@@ -1,15 +1,17 @@
 #pragma once
-#include "peerserver/connection_data.hpp"
 #include "general/errors_forward.hpp"
 #include "init_arg.hpp"
+#include "peerserver/connection_data.hpp"
 #include "transport/helpers/ipv4.hpp"
 #include "wakeup_time.hpp"
+#include <nlohmann/json_fwd.hpp>
 #include <set>
 #include <vector>
 
 struct TCPConnectRequest;
 
 namespace connection_schedule {
+using json = nlohmann::json;
 
 using Source = IPv4;
 
@@ -67,7 +69,6 @@ struct ReconnectContext {
 template <typename T>
 class SockaddrVectorBase;
 
-
 class SockaddrVector;
 class VectorEntry {
 public:
@@ -99,6 +100,7 @@ protected:
         auto sleep_duration() const { return _sleepDuration; }
         auto wakeup_time() const { return _wakeupTime; }
         bool expired_at(time_point tp) const { return _wakeupTime < tp; }
+        json to_json() const;
         void set(duration d)
         {
             _sleepDuration = d;
@@ -117,7 +119,7 @@ protected:
     ConnectionLog connectionLog;
     std::chrono::steady_clock::time_point lastVerified;
     std::set<Source> sources;
-    bool active{false};
+    bool active { false };
     TCPPeeraddr address;
 };
 
@@ -125,6 +127,7 @@ class VerifiedEntry : public VectorEntry {
 public:
     using tp = std::chrono::steady_clock::time_point;
 
+    json to_json() const;
     operator TCPPeeraddr() const { return this->sockaddr(); }
     VerifiedEntry(VectorEntry e, tp lastVerified)
         : VectorEntry(std::move(e))
@@ -153,6 +156,7 @@ public:
     void take_expired(time_point now, std::vector<ConnectRequest>&);
     std::optional<time_point> timeout() const { return wakeup_tp; }
     elem_t& push_back(elem_t);
+    json to_json() const;
 
 protected:
     VectorEntry& insert(elem_t&&);
@@ -176,14 +180,13 @@ public:
     std::vector<TCPPeeraddr> sample(size_t N) const;
     using SockaddrVectorBase::SockaddrVectorBase;
 };
-class TCPSchedule{
-
+class TCPSchedule {
 };
-
 
 }
 
 class TCPConnectionSchedule {
+    using json = nlohmann::json;
     using InitArg = address_manager::InitArg;
     using ConnectionData = peerserver::ConnectionData;
     using TCPWithSource = connection_schedule::TCPWithSource;
@@ -206,6 +209,7 @@ public:
     void outbound_established(const TCPConnection&);
     void outbound_closed(const TCPConnectRequest&, bool success, Error reason);
     void outbound_failed(const TCPConnectRequest&);
+    json to_json() const;
 
     [[nodiscard]] std::optional<time_point> pop_wakeup_time();
 
@@ -213,6 +217,7 @@ public:
     {
         return verified.sample(N);
     }
+
 private:
     [[nodiscard]] std::vector<TCPConnectRequest> pop_expired(time_point now = steady_clock::now());
     auto emplace_verified(const TCPWithSource&, steady_clock::time_point lastVerified);

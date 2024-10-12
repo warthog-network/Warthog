@@ -7,6 +7,7 @@
 #include <cassert>
 #include <functional>
 #include <future>
+#include <nlohmann/json.hpp>
 #include <random>
 #include <type_traits>
 
@@ -14,6 +15,13 @@ using namespace std::chrono;
 using namespace std::chrono_literals;
 
 using sc = std::chrono::steady_clock;
+namespace {
+auto to_timestamp(sc::time_point tp)
+{
+    return duration_cast<seconds>(tp.time_since_epoch()).count();
+}
+
+}
 
 namespace connection_schedule {
 
@@ -80,15 +88,15 @@ void VectorEntry::connection_established()
 time_point VectorEntry::outbound_connected_ended(const ReconnectContext& c)
 {
     assert(active);
-        using enum ConnectionState;
-        switch (c.connectionState) {
-        case NOT_CONNECTED:
-        case CONNECTED_UNINITIALIZED:
-            connectionLog.log_failure();
-            break;
-        case CONNECTED_INITIALIZED:
-            break;
-        }
+    using enum ConnectionState;
+    switch (c.connectionState) {
+    case NOT_CONNECTED:
+    case CONNECTED_UNINITIALIZED:
+        connectionLog.log_failure();
+        break;
+    case CONNECTED_INITIALIZED:
+        break;
+    }
     active = false;
     return update_timer(c);
 }
@@ -139,13 +147,43 @@ std::pair<VectorEntry&, bool> VerifiedVector::emplace(const TCPWithSource& i, tp
     return { e, true };
 }
 
-std::vector<TCPPeeraddr> connection_schedule::VerifiedVector::sample(size_t N) const
+std::vector<TCPPeeraddr> VerifiedVector::sample(size_t N) const
 {
     std::vector<TCPPeeraddr> out;
     out.reserve(N);
     std::sample(this->data.begin(), this->data.end(), std::back_inserter(out),
         N, std::mt19937 { std::random_device {}() });
     return out;
+}
+
+json VectorEntry::Timer::to_json() const
+{
+    using namespace std::chrono;
+    return {
+        { "sleepDuration", duration_cast<seconds>(_sleepDuration).count() },
+        { "wakeupTime", to_timestamp(_wakeupTime) }
+    };
+}
+
+json VerifiedEntry::to_json() const
+{
+    using namespace std::chrono;
+    return {
+        { "timer", json(timer.to_json()) },
+        { "lastVerified", to_timestamp(lastVerified) },
+        { "active", active },
+        { "address", address.to_string() }
+    };
+}
+
+template <typename T>
+json SockaddrVectorBase<T>::to_json() const
+{
+    json j(json::array());
+    for (auto& d : data) {
+        j.push_back(d.to_json());
+    }
+    return j;
 }
 
 template <typename T>
@@ -345,6 +383,15 @@ void TCPConnectionSchedule::outbound_closed(const TCPConnectRequest& r, bool suc
 void TCPConnectionSchedule::outbound_failed(const TCPConnectRequest& cr)
 {
     outbound_connection_ended(cr, ConnectionState::NOT_CONNECTED);
+}
+
+auto TCPConnectionSchedule::to_json() const -> json
+{
+    return {
+        { "verified", verified.to_json() },
+        { "unverifiedNew", unverifiedNew.to_json() },
+        { "unverifiedFailed", unverifiedFailed.to_json() }
+    };
 }
 
 auto TCPConnectionSchedule::pop_wakeup_time() -> std::optional<time_point>

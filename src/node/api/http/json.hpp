@@ -37,6 +37,7 @@ nlohmann::json to_json(const std::optional<SignedSnapshot>&);
 nlohmann::json to_json(const chainserver::TransactionIds&);
 nlohmann::json to_json(const api::Round16Bit&);
 nlohmann::json to_json(const api::Rollback&);
+inline nlohmann::json to_json(const nlohmann::json& j){return j;}
 
 template <typename T>
 inline nlohmann::json to_json(const std::vector<T>& e, const auto& map)

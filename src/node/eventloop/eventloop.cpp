@@ -20,6 +20,7 @@
 #include <algorithm>
 #include <future>
 #include <iostream>
+#include <nlohmann/json.hpp>
 #include <random>
 #include <sstream>
 
@@ -168,6 +169,11 @@ void Eventloop::destroy_subscriptions(subscription_data_ptr p)
 void Eventloop::api_get_hashrate(HashrateCb&& cb, size_t n)
 {
     defer(GetHashrate { std::move(cb), n });
+}
+
+void Eventloop::api_get_connection_schedule(JSONCb&& cb)
+{
+    defer(GetConnectionSchedule(std::move(cb)));
 }
 
 void Eventloop::api_get_hashrate_time_chart(uint32_t from, uint32_t to, size_t window, HashrateTimeChartCb&& cb)
@@ -482,8 +488,14 @@ void Eventloop::handle_event(GetHashrateBlockChart&& e)
     e.cb(consensus().headers().hashrate_block_chart(e.from, e.to, e.window));
 }
 
-void Eventloop::handle_event(GetHashrateTimeChart&& e){
-        e.cb(consensus().headers().hashrate_time_chart(e.from, e.to, e.window));
+void Eventloop::handle_event(GetHashrateTimeChart&& e)
+{
+    e.cb(consensus().headers().hashrate_time_chart(e.from, e.to, e.window));
+}
+
+void Eventloop::handle_event(GetConnectionSchedule&& e)
+{
+    e.cb(connections.to_json());
 }
 
 void Eventloop::handle_event(FailedConnect&& e)

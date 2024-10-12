@@ -17,6 +17,7 @@ void get_latest_transactions(LatestTxsCb f);
 // peer db functions
 void get_banned_peers(PeerServer::banned_callback_t&& cb);
 void unban_peers(ResultCb&& cb);
+void get_connection_schedule(JSONCb&& cb);
 
 inline void get_offenses(Page page, PeerServer::offenses_callback_t&& cb)
 {

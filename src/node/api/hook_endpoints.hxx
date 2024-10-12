@@ -233,6 +233,7 @@ public:
         hook_get(t, "/peers/connected", get_connected_peers2, true);
         hook_get_1(t, "/peers/disconnect/:id", disconnect_peer, true);
         hook_get(t, "/peers/connected/connection", get_connected_connection);
+        hook_get(t, "/peers/connection_schedule", get_connection_schedule);
         // hook_get(t,"/peers/endpoints", inspect_eventloop, jsonmsg::endpoints, true);
         // hook_get(t,"/peers/connect_timers", inspect_eventloop, jsonmsg::connect_timers, true);
 
