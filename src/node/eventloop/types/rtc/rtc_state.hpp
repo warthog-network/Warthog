@@ -2,7 +2,7 @@
 #include "eventloop/types/conref_declaration.hpp"
 #include "registry_type.hpp"
 #include "transport/helpers/ip.hpp"
-#include "transport/webrtc/connection.hpp"
+#include "transport/webrtc/rtc_connection.hpp"
 #include "transport/webrtc/sdp_util.hpp"
 #include <list>
 #include <optional>

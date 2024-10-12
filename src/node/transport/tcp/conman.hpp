@@ -1,8 +1,8 @@
 #pragma once
 #ifndef DISABLE_LIBUV
-#include "general/move_only_function.hpp"
 #include "../helpers/per_ip_counter.hpp"
 #include "connect_request.hpp"
+#include "general/move_only_function.hpp"
 #include "peerserver/peerserver.hpp"
 #include "uvw.hpp"
 #include <list>
@@ -13,7 +13,7 @@ struct Inspector;
 class TCPConnection;
 class PeerServer;
 
-class TCPConnectionManager {
+class TCPConnectionManager : public std::enable_shared_from_this<TCPConnectionManager> {
     static constexpr size_t max_conn_per_ip = 3;
     friend class TCPConnection;
     friend class Reconnecter;
@@ -30,7 +30,7 @@ private:
 
     //////////////////////////////
     // Private methods
-    [[nodiscard]] TCPConnection& insert_connection(std::shared_ptr<uvw::tcp_handle>& h, const TCPConnectRequest& r);
+    TCPConnection& insert_connection(std::shared_ptr<uvw::tcp_handle> h, const TCPConnectRequest& r);
     void on_wakeup();
 
     // ip counting
@@ -38,6 +38,9 @@ private:
     void uncount(IPv4);
 
     // reference counting
+
+    struct Token {
+    };
 
 public:
     struct APIPeerdata {
@@ -60,11 +63,14 @@ public:
     }
     // auto& loop() { return tcp->parent(); }
 
-    TCPConnectionManager(std::shared_ptr<uvw::loop> l, PeerServer& peerdb, const ConfigParams&);
-    void shutdown(int32_t reason);
+    TCPConnectionManager(Token, std::shared_ptr<uvw::loop> l, PeerServer& peerdb, const ConfigParams&);
+    [[nodiscard]] static auto make_shared(std::shared_ptr<uvw::loop> l, PeerServer& peerdb, const ConfigParams& cp)
+    {
+        return std::make_shared<TCPConnectionManager>(Token {}, std::move(l), peerdb, cp);
+    }
+    void shutdown(Error reason);
 
 private:
-
     void async_call(MoveOnlyFunction<void()>&& cb)
     {
         async_add_event(DeferFunc { std::move(cb) });

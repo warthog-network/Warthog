@@ -3,6 +3,7 @@
 #include "init_arg.hpp"
 #include "transport/ws/browser/connect_request.hpp"
 #include "wakeup_time.hpp"
+#include "general/errors_forward.hpp"
 #include <chrono>
 #include <map>
 
@@ -24,7 +25,7 @@ class WSConnectionSchedule {
 
 public:
     WSConnectionSchedule(InitArg);
-    void outbound_closed(const WSBrowserConnectRequest& r, bool success, int32_t reason);
+    void outbound_closed(const WSBrowserConnectRequest& r, bool success, Error reason);
     void outbound_failed(const WSBrowserConnectRequest& r);
     void insert(const WSUrladdr& addr);
     void connect_expired(time_point now = steady_clock::now());

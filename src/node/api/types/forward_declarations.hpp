@@ -1,27 +1,30 @@
 #pragma once
 #include <variant>
-namespace API {
-struct MempoolEntries;
-struct TransferTransaction;
-struct Head;
-struct ChainHead;
-struct MiningState;
-struct RewardTransaction;
-struct Balance;
-struct HashrateInfo;
-struct Block;
+namespace api {
 struct AccountHistory;
-struct TransactionsByBlocks;
-struct HashrateChart;
-struct HashrateChartRequest;
-struct Richlist;
-struct Peerinfo;
-struct HeightOrHash;
-struct Round16Bit;
-struct PeerinfoConnections;
 struct AccountIdOrAddress;;
-struct Wallet;
-struct Rollback;
+struct AddressCount;
+struct AddressWithId;
+struct Balance;
+struct Block;
+struct ChainHead;
+struct HashrateBlockChart;
+struct HashrateChartRequest;
+struct HashrateInfo;
+struct HashrateTimeChart;
+struct Head;
+struct HeightOrHash;
+struct MempoolEntries;
+struct MiningState;
+struct Peerinfo;
+struct PeerinfoConnections;
 struct Raw;
+struct RewardTransaction;
+struct Richlist;
+struct Rollback;
+struct Round16Bit;
+struct TransactionsByBlocks;
+struct TransferTransaction;
+struct Wallet;
 using Transaction = std::variant<RewardTransaction, TransferTransaction>;
 }

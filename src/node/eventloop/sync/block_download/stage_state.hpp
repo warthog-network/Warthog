@@ -90,8 +90,8 @@ struct StageState {
 
     void clear();
     void clear_non_pending();
-    [[nodiscard]] std::vector<ChainOffender> on_result(const stage_operation::StageAddResult&);
-    [[nodiscard]] std::optional<Height> on_result(const stage_operation::StageSetResult&);
+    [[nodiscard]] std::vector<ChainOffender> on_result(const stage_operation::StageAddStatus&);
+    [[nodiscard]] std::optional<Height> on_result(const stage_operation::StageSetStatus&);
 
 private:
     bool stageSetPhase { true };

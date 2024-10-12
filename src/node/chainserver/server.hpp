@@ -1,8 +1,10 @@
 #pragma once
 #include "api/callbacks.hpp"
+#include "api/events/subscription_fwd.hpp"
 #include "api/types/accountid_or_address.hpp"
 #include "api/types/height_or_hash.hpp"
 #include "chainserver/mining_subscription.hpp"
+#include "chainserver/subscription_state.hpp"
 #include "communication/create_payment.hpp"
 #include "communication/stage_operation/request.hpp"
 #include "state/state.hpp"
@@ -12,18 +14,6 @@
 
 class ChainServer : public std::enable_shared_from_this<ChainServer> {
     using getBlocksCb = std::function<void(std::vector<BodyContainer>&&)>;
-
-private:
-    void garbage_collect();
-    void garbage_collect_chains();
-
-    struct BlocksReq {
-        Descriptor descriptor;
-        Height lowerHeight;
-        Height upperHeight;
-        getBlocksCb callback;
-    };
-
 public:
     // can be called concurrently
     Batch get_headers(BatchSelector selector);
@@ -45,7 +35,7 @@ public:
         GridCb callback;
     };
     struct GetBalance {
-        API::AccountIdOrAddress account;
+        api::AccountIdOrAddress account;
         BalanceCb callback;
     };
     struct GetMempool {
@@ -78,7 +68,7 @@ public:
         ChainHeadCb callback;
     };
     struct GetHeader {
-        API::HeightOrHash heightOrHash;
+        api::HeightOrHash heightOrHash;
         HeaderCb callback;
     };
     struct GetHash {
@@ -86,7 +76,7 @@ public:
         HashCb callback;
     };
     struct GetBlock {
-        API::HeightOrHash heightOrHash;
+        api::HeightOrHash heightOrHash;
         BlockCb callback;
     };
     struct GetMining {
@@ -109,6 +99,21 @@ public:
     };
     struct SetSignedPin {
         SignedSnapshot ss;
+    };
+
+    // subscription related
+    struct SubscribeAccount {
+        SubscriptionRequest req;
+        Address addr;
+    };
+
+    struct SubscribeChain : public SubscriptionRequest {
+    };
+    struct SubscribeMinerdist : public SubscriptionRequest {
+    };
+
+    struct DestroySubscriptions {
+        subscription_data_ptr p;
     };
 
     // EVENTS
@@ -136,7 +141,11 @@ public:
         stage_operation::StageAddOperation,
         stage_operation::StageSetOperation,
         PutMempoolBatch,
-        SetSignedPin>;
+        SetSignedPin,
+        SubscribeAccount,
+        SubscribeChain,
+        SubscribeMinerdist,
+        DestroySubscriptions>;
 
 private:
     template <typename T>
@@ -187,20 +196,25 @@ public:
     void api_mining_append(Block&&, ResultCb);
     // void api_put_mempool(PaymentCreateMessage, ResultCb cb);
     void api_put_mempool(PaymentCreateMessage, MempoolInsertCb cb);
-    void api_get_balance(const API::AccountIdOrAddress& a, BalanceCb callback);
+    void api_get_balance(const api::AccountIdOrAddress& a, BalanceCb callback);
     void api_get_grid(GridCb);
     void api_get_mempool(MempoolCb callback);
     void api_lookup_tx(const HashView hash, TxCb callback);
     void api_lookup_latest_txs(LatestTxsCb callback);
     void api_get_history(const Address& address, uint64_t beforeId, HistoryCb callback);
     void api_get_richlist(RichlistCb callback);
-    void api_get_header(API::HeightOrHash, HeaderCb callback);
+    void api_get_header(api::HeightOrHash, HeaderCb callback);
     void api_get_hash(Height height, HashCb callback);
-    void api_get_block(API::HeightOrHash, BlockCb callback);
+    void api_get_block(api::HeightOrHash, BlockCb callback);
     void api_get_mining(const Address& a, ChainMiningCb callback);
     [[nodiscard]] mining_subscription::MiningSubscription api_subscribe_mining(Address address, mining_subscription::callback_t callback);
     void api_unsubscribe_mining(mining_subscription::SubscriptionId);
     void api_get_txcache(TxcacheCb callback);
+
+    void subscribe_account_event(SubscriptionRequest, Address a);
+    void subscribe_chain_event(SubscriptionRequest);
+    void subscribe_minerdist_event(SubscriptionRequest);
+    void destroy_subscriptions(subscription_data_ptr);
 
     void async_set_signed_checkpoint(SignedSnapshot);
     void async_get_blocks(DescriptedBlockRange, getBlocksCb&&);
@@ -239,6 +253,13 @@ private:
     void handle_event(stage_operation::StageAddOperation&&);
     void handle_event(PutMempoolBatch&&);
     void handle_event(SetSignedPin&&);
+    void handle_event(SubscribeAccount&&);
+    void handle_event(SubscribeChain&&);
+    void handle_event(SubscribeMinerdist&&);
+    void handle_event(DestroySubscriptions&&);
+
+    using StateUpdateWithAPIBlocks = chainserver::state_update::StateUpdateWithAPIBlocks;
+    void on_chain_changed(StateUpdateWithAPIBlocks&&);
 
     void emit_chain_state_event();
 
@@ -253,6 +274,9 @@ private:
     std::mutex mutex;
     std::queue<Event> events;
     MiningSubscriptions miningSubscriptions;
+    AddressSubscriptionState addressSubscriptions;
+    ChainSubscriptionState chainSubscriptions;
+    MinerdistSubscriptionState minerdistSubscriptions;
 
     //
     bool haswork = false;

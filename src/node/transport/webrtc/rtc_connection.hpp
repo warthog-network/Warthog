@@ -41,12 +41,6 @@ class RTCConnection final : public ConnectionBase, public std::enable_shared_fro
     uint16_t listen_port() const override { return 0; }
     std::optional<ConnectRequest> connect_request() const override { return {}; }
 
-    struct Connect {
-    };
-    struct Accept {
-        OneIpSdp& sdp;
-    };
-
 public:
     [[nodiscard]] static std::shared_ptr<RTCConnection> connect_new(Eventloop&, sdp_callback_t cb, const IP&, uint64_t verificationConId = 0);
     // feeler connection;
@@ -81,20 +75,18 @@ public:
     }
     Peeraddr peer_addr() const override { return { sockAddr }; }
     auto& native_peer_addr() const { return sockAddr ; }
-    // RTCSockaddr connection_peer_addr_native() const ;
-    // { return connectRequest.address; }
     bool inbound() const override { return isInbound; };
 
-    void close(int errcode) override;
+    void close(Error) override;
     [[nodiscard]] std::optional<Error> set_sdp_answer(OneIpSdp);
     [[nodiscard]] auto& verification_con_id() { return verificationConId; }
 
 private:
-    [[nodiscard]] bool set_error(int error);
+    [[nodiscard]] bool set_error(Error);
     void if_not_closed(auto lambda);
     void notify_closed();
     void set_data_channel_proxied(std::shared_ptr<rtc::DataChannel>);
-    bool closed() { return errcode != 0; }
+    bool closed() { return error.has_value(); }
 
 private: // maybe proxied functions
     void init_proxied(sdp_callback_t&& sdpCallback);
@@ -110,6 +102,6 @@ private:
     std::shared_ptr<rtc::DataChannel> dc;
 
     std::recursive_mutex errcodeMutex;
-    int errcode { 0 };
+    std::optional<Error> error;
     std::unique_ptr<rtc::PeerConnection> pc;
 };

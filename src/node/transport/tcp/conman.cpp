@@ -17,35 +17,37 @@ namespace {
 }
 }
 
-TCPConnection& TCPConnectionManager::insert_connection(std::shared_ptr<uvw::tcp_handle>& tcpHandle, const TCPConnectRequest& r)
+TCPConnection& TCPConnectionManager::insert_connection(std::shared_ptr<uvw::tcp_handle> tcpHandle, const TCPConnectRequest& r)
 {
-    auto con { TCPConnection::make_new(tcpHandle, r, *this) };
+    using sh_con_t = std::shared_ptr<TCPConnection>;
+    sh_con_t con { TCPConnection::make_new(std::move(tcpHandle), r, *this) };
+    auto& tcp { con->tcpHandle };
     auto iter { tcpConnections.insert(con).first };
-    tcpHandle->data(con);
-    tcpHandle->on<uvw::close_event>([this, iter](const uvw::close_event&, uvw::tcp_handle& client) {
+    tcp->data(con);
+    tcp->on<uvw::close_event>([this, iter](const uvw::close_event&, uvw::tcp_handle& client) {
         client.data(nullptr);
         tcpConnections.erase(iter);
     });
-    tcpHandle->on<uvw::end_event>([](const uvw::end_event&, uvw::tcp_handle& client) {
+    tcp->on<uvw::end_event>([](const uvw::end_event&, uvw::tcp_handle& client) {
         client.data<TCPConnection>()->close_internal(UV_EOF);
     });
-    tcpHandle->on<uvw::error_event>([](const uvw::error_event& e, uvw::tcp_handle& client) {
+    tcp->on<uvw::error_event>([](const uvw::error_event& e, uvw::tcp_handle& client) {
         client.data<TCPConnection>()->close_internal(e.code());
     });
-    tcpHandle->on<uvw::shutdown_event>([](const uvw::shutdown_event&, uvw::tcp_handle& client) { client.close(); });
-    tcpHandle->on<uvw::data_event>([](const uvw::data_event& de, uvw::tcp_handle& client) {
+    tcp->on<uvw::shutdown_event>([](const uvw::shutdown_event&, uvw::tcp_handle& client) { client.close(); });
+    tcp->on<uvw::data_event>([](const uvw::data_event& de, uvw::tcp_handle& client) {
         client.data<TCPConnection>()->on_message({ reinterpret_cast<uint8_t*>(de.data.get()), de.length });
     });
     return *con;
 };
 
-TCPConnectionManager::TCPConnectionManager(std::shared_ptr<uvw::loop> loop, PeerServer& ps, const ConfigParams& cfg)
+TCPConnectionManager::TCPConnectionManager(Token, std::shared_ptr<uvw::loop> loop, PeerServer& ps, const ConfigParams& cfg)
     : bindAddress(cfg.node.bind)
 {
     listener = loop->resource<uvw::tcp_handle>();
     assert(listener);
-    listener->on<uvw::error_event>([](const uvw::error_event&, uvw::tcp_handle&) {
-        spdlog::error("");
+    listener->on<uvw::error_event>([](const uvw::error_event& e, uvw::tcp_handle&) {
+        spdlog::error("TCP listener errror {}", e.name());
     });
     listener->on<uvw::listen_event>([this, &ps](const uvw::listen_event&, uvw::tcp_handle& server) {
         if (config().node.isolated)
@@ -98,17 +100,25 @@ void TCPConnectionManager::handle_event(GetPeers&& e)
 void TCPConnectionManager::handle_event(Connect&& c)
 {
     TCPConnectRequest& r { c };
-    connection_log().info("{} connecting ", r.address().to_string()); // TODO: do connection_log
     auto& loop { listener->parent() };
     auto tcp { loop.resource<uvw::tcp_handle>() };
-    auto err { tcp->connect(r.address().sock_addr()) };
-    if (err) {
-        global().core->on_failed_connect(r, Error(err));
+    auto& con{insert_connection(tcp, r)};
+    connection_log().info("{} connecting", con.tag_string());
+    tcp->on<uvw::connect_event>([req = r, w = weak_from_this()](const uvw::connect_event&, uvw::tcp_handle& tcp) {
+        auto cm { w.lock() };
+        if (!cm)
+            return;
+        auto connection { tcp.data<TCPConnection>() };
+        connection->start_read();
+        global().peerServer->log_outbound(req.address().ip, std::move(connection));
+    });
+
+    if (auto err { tcp->connect(r.address().sock_addr()) }; err) {
+        Error e(err);
+        connection_log().info("{} cannot connect: {} ({})", con.tag_string(), e.err_name(), e.strerror());
+        global().core->on_failed_connect(r, e);
         return;
     }
-    auto& connection { insert_connection(tcp, r) };
-    global().peerServer->log_outbound(c.address().ip, connection.shared_from_this());
-    connection.start_read();
 }
 
 void TCPConnectionManager::handle_event(Inspect&& e)
@@ -121,7 +131,7 @@ void TCPConnectionManager::handle_event(DeferFunc&& f)
     f.callback();
 };
 
-void TCPConnectionManager::shutdown(int32_t reason)
+void TCPConnectionManager::shutdown(Error reason)
 {
     if (closing == true)
         return;

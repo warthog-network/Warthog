@@ -46,6 +46,7 @@ const char *gengetopt_args_info_detailed_help[] = {
   "      --temporary            Use temporary database (for testing purposes, do\n                               not use in production)",
   "  This option starts the node with a temporary empty chain database.",
   "      --testnet              Enable testnet",
+  "      --disable-tx-mining    Don't mine transactions (in case of bugs)",
   "\nData file options:",
   "      --chain-db=STRING      specify chain data file",
   "  Defaults to ~/.warthog/chain.db3 in Linux, %LOCALAPPDATA%/Warthog/chain.db3\n  on Windows.",
@@ -91,14 +92,14 @@ init_help_array(void)
   gengetopt_args_info_help[8] = gengetopt_args_info_detailed_help[11];
   gengetopt_args_info_help[9] = gengetopt_args_info_detailed_help[12];
   gengetopt_args_info_help[10] = gengetopt_args_info_detailed_help[13];
-  gengetopt_args_info_help[11] = gengetopt_args_info_detailed_help[15];
-  gengetopt_args_info_help[12] = gengetopt_args_info_detailed_help[17];
+  gengetopt_args_info_help[11] = gengetopt_args_info_detailed_help[14];
+  gengetopt_args_info_help[12] = gengetopt_args_info_detailed_help[16];
   gengetopt_args_info_help[13] = gengetopt_args_info_detailed_help[18];
-  gengetopt_args_info_help[14] = gengetopt_args_info_detailed_help[20];
-  gengetopt_args_info_help[15] = gengetopt_args_info_detailed_help[22];
-  gengetopt_args_info_help[16] = gengetopt_args_info_detailed_help[24];
-  gengetopt_args_info_help[17] = gengetopt_args_info_detailed_help[26];
-  gengetopt_args_info_help[18] = gengetopt_args_info_detailed_help[28];
+  gengetopt_args_info_help[14] = gengetopt_args_info_detailed_help[19];
+  gengetopt_args_info_help[15] = gengetopt_args_info_detailed_help[21];
+  gengetopt_args_info_help[16] = gengetopt_args_info_detailed_help[23];
+  gengetopt_args_info_help[17] = gengetopt_args_info_detailed_help[25];
+  gengetopt_args_info_help[18] = gengetopt_args_info_detailed_help[27];
   gengetopt_args_info_help[19] = gengetopt_args_info_detailed_help[29];
   gengetopt_args_info_help[20] = gengetopt_args_info_detailed_help[30];
   gengetopt_args_info_help[21] = gengetopt_args_info_detailed_help[31];
@@ -109,11 +110,12 @@ init_help_array(void)
   gengetopt_args_info_help[26] = gengetopt_args_info_detailed_help[36];
   gengetopt_args_info_help[27] = gengetopt_args_info_detailed_help[37];
   gengetopt_args_info_help[28] = gengetopt_args_info_detailed_help[38];
-  gengetopt_args_info_help[29] = 0; 
+  gengetopt_args_info_help[29] = gengetopt_args_info_detailed_help[39];
+  gengetopt_args_info_help[30] = 0; 
   
 }
 
-const char *gengetopt_args_info_help[30];
+const char *gengetopt_args_info_help[31];
 
 typedef enum {ARG_NO
   , ARG_STRING
@@ -144,6 +146,7 @@ void clear_given (struct gengetopt_args_info *args_info)
   args_info->isolated_given = 0 ;
   args_info->temporary_given = 0 ;
   args_info->testnet_given = 0 ;
+  args_info->disable_tx_mining_given = 0 ;
   args_info->chain_db_given = 0 ;
   args_info->peers_db_given = 0 ;
   args_info->ws_port_given = 0 ;
@@ -202,21 +205,22 @@ void init_args_info(struct gengetopt_args_info *args_info)
   args_info->isolated_help = gengetopt_args_info_detailed_help[7] ;
   args_info->temporary_help = gengetopt_args_info_detailed_help[9] ;
   args_info->testnet_help = gengetopt_args_info_detailed_help[11] ;
-  args_info->chain_db_help = gengetopt_args_info_detailed_help[13] ;
-  args_info->peers_db_help = gengetopt_args_info_detailed_help[15] ;
-  args_info->ws_port_help = gengetopt_args_info_detailed_help[18] ;
-  args_info->ws_tls_cert_help = gengetopt_args_info_detailed_help[20] ;
-  args_info->ws_tls_key_help = gengetopt_args_info_detailed_help[22] ;
-  args_info->ws_x_forwarded_for_help = gengetopt_args_info_detailed_help[24] ;
-  args_info->ws_bind_localhost_help = gengetopt_args_info_detailed_help[26] ;
-  args_info->debug_help = gengetopt_args_info_detailed_help[29] ;
-  args_info->rpc_help = gengetopt_args_info_detailed_help[31] ;
-  args_info->publicrpc_help = gengetopt_args_info_detailed_help[32] ;
-  args_info->stratum_help = gengetopt_args_info_detailed_help[33] ;
-  args_info->enable_public_help = gengetopt_args_info_detailed_help[34] ;
-  args_info->config_help = gengetopt_args_info_detailed_help[36] ;
-  args_info->test_help = gengetopt_args_info_detailed_help[37] ;
-  args_info->dump_config_help = gengetopt_args_info_detailed_help[38] ;
+  args_info->disable_tx_mining_help = gengetopt_args_info_detailed_help[12] ;
+  args_info->chain_db_help = gengetopt_args_info_detailed_help[14] ;
+  args_info->peers_db_help = gengetopt_args_info_detailed_help[16] ;
+  args_info->ws_port_help = gengetopt_args_info_detailed_help[19] ;
+  args_info->ws_tls_cert_help = gengetopt_args_info_detailed_help[21] ;
+  args_info->ws_tls_key_help = gengetopt_args_info_detailed_help[23] ;
+  args_info->ws_x_forwarded_for_help = gengetopt_args_info_detailed_help[25] ;
+  args_info->ws_bind_localhost_help = gengetopt_args_info_detailed_help[27] ;
+  args_info->debug_help = gengetopt_args_info_detailed_help[30] ;
+  args_info->rpc_help = gengetopt_args_info_detailed_help[32] ;
+  args_info->publicrpc_help = gengetopt_args_info_detailed_help[33] ;
+  args_info->stratum_help = gengetopt_args_info_detailed_help[34] ;
+  args_info->enable_public_help = gengetopt_args_info_detailed_help[35] ;
+  args_info->config_help = gengetopt_args_info_detailed_help[37] ;
+  args_info->test_help = gengetopt_args_info_detailed_help[38] ;
+  args_info->dump_config_help = gengetopt_args_info_detailed_help[39] ;
   
 }
 
@@ -382,6 +386,8 @@ cmdline_parser_dump(FILE *outfile, struct gengetopt_args_info *args_info)
     write_into_file(outfile, "temporary", 0, 0 );
   if (args_info->testnet_given)
     write_into_file(outfile, "testnet", 0, 0 );
+  if (args_info->disable_tx_mining_given)
+    write_into_file(outfile, "disable-tx-mining", 0, 0 );
   if (args_info->chain_db_given)
     write_into_file(outfile, "chain-db", args_info->chain_db_orig, 0);
   if (args_info->peers_db_given)
@@ -676,6 +682,7 @@ cmdline_parser_internal (
         { "isolated",	0, NULL, 0 },
         { "temporary",	0, NULL, 0 },
         { "testnet",	0, NULL, 0 },
+        { "disable-tx-mining",	0, NULL, 0 },
         { "chain-db",	1, NULL, 0 },
         { "peers-db",	1, NULL, 0 },
         { "ws-port",	1, NULL, 0 },
@@ -828,6 +835,20 @@ cmdline_parser_internal (
                 &(local_args_info.testnet_given), optarg, 0, 0, ARG_NO,
                 check_ambiguity, override, 0, 0,
                 "testnet", '-',
+                additional_error))
+              goto failure;
+          
+          }
+          /* Don't mine transactions (in case of bugs).  */
+          else if (strcmp (long_options[option_index].name, "disable-tx-mining") == 0)
+          {
+          
+          
+            if (update_arg( 0 , 
+                 0 , &(args_info->disable_tx_mining_given),
+                &(local_args_info.disable_tx_mining_given), optarg, 0, 0, ARG_NO,
+                check_ambiguity, override, 0, 0,
+                "disable-tx-mining", '-',
                 additional_error))
               goto failure;
           

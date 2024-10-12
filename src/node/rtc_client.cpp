@@ -4,7 +4,7 @@
 #include "transport/helpers/ip.hpp"
 
 #include "transport/helpers/ipv4.hpp"
-#include "transport/webrtc/connection.hxx"
+#include "transport/webrtc/rtc_connection.hxx"
 #include "transport/helpers/ipv6.hpp"
 #include <chrono>
 #include <iostream>

@@ -6,7 +6,7 @@
 class ConsensusSlave {
     using Append = chainserver::state_update::Append;
     using Fork = chainserver::state_update::Fork;
-    using RollbackData = chainserver::state_update::RollbackData;
+    using RollbackData = chainserver::state_update::SignedSnapshotApply;
 
 public:
     ConsensusSlave(std::optional<SignedSnapshot>, Descriptor descriptor, Headerchain headerchain);

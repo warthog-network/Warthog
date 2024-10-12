@@ -7,7 +7,7 @@
 #include "spdlog/spdlog.h"
 
 namespace {
-uint32_t bantime(int32_t /*offense*/)
+uint32_t bantime(Error /*offense*/)
 {
     return 20 * 60; // 20 minutes;
 }
@@ -147,7 +147,7 @@ void PeerServer::handle_event(Inspect&& e)
     e.cb(*this);
 }
 
-void PeerServer::on_close(const OnClose&, const WebRTCPeeraddr& addr)
+void PeerServer::on_close(const OnClose&, const WebRTCPeeraddr& /*addr*/)
 {
     // do nothing
 }

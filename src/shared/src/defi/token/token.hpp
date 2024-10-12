@@ -1,4 +1,5 @@
 #pragma once
+#include "general/funds.hpp"
 #include "general/params.hpp"
 #include "general/view.hpp"
 #include "general/with_uint64.hpp"
@@ -12,7 +13,8 @@
 class Reader;
 class Writer;
 
-constexpr uint64_t DefaultTokenSupply = 10000000 * COINUNIT;
+constexpr auto DefaultTokenSupply {Funds::from_value_throw( (100000000 * COINUNIT))};
+
 enum class TokenMintType { Default = 0,
     Auction = 1 };
 

@@ -68,11 +68,12 @@ usrsctp_dep = subproject('usrsctp', default_options : ['warning_level=0', 'werro
 libmbedtls_dep = subproject('mbedtls', default_options : ['warning_level=0', 'werror=false']).get_variable('libmbedtls_dep')
 
 
+
 inc_dirs = include_directories('./include/')
 libdatachannel = library(
   'libdatachannel',
   sources,
-  cpp_args: ['-DMBEDTLS_SSL_DTLS_SRTP', '-DUSE_MBEDTLS',  '-DRTC_ENABLE_MEDIA=0', '-DRTC_ENABLE_WEBSOCKET=0'],
+  cpp_args: ['-DMBEDTLS_SSL_DTLS_SRTP', '-DUSE_MBEDTLS',  '-DRTC_ENABLE_MEDIA=0', '-DRTC_ENABLE_WEBSOCKET=0', '-DRTC_EXPORTS', '-DJUICE_STATIC'],
   dependencies: [
     plog_dep, 
     libmbedtls_dep,
@@ -81,7 +82,14 @@ libdatachannel = library(
   include_directories: ['./src', './include/', './include/rtc']
 )
 
+
+winlink = []
+if host_machine.system() == 'windows'
+  winlink = ['-lbcrypt']
+endif
+
 libdatachannel_dep = declare_dependency(
     include_directories: inc_dirs,
-    link_with: libdatachannel
+    link_with: libdatachannel,
+    link_args: winlink
 )

@@ -2,12 +2,12 @@
 
 #include "SQLiteCpp/SQLiteCpp.h"
 #include "api/types/forward_declarations.hpp"
-#include "defi/token/token.hpp"
 #include "block/block.hpp"
 #include "block/chain/offsts.hpp"
 #include "block/chain/worksum.hpp"
 #include "block/id.hpp"
 #include "chainserver/transaction_ids.hpp"
+#include "defi/token/token.hpp"
 #include "deletion_key.hpp"
 #include "general/address_funds.hpp"
 #include "general/filelock/filelock.hpp"
@@ -105,8 +105,8 @@ struct Column2 : public SQLite::Column {
     }
     operator Funds() const
     {
-        auto v{Funds::from_value(int64_t(getInt64()))};
-        if (!v.has_value()) 
+        auto v { Funds::from_value(int64_t(getInt64())) };
+        if (!v.has_value())
             throw std::runtime_error("Database corrupted, invalid funds");
         return *v;
     }
@@ -155,6 +155,10 @@ struct Statement2 : public SQLite::Statement {
         SQLite::Statement::bind(index, (int64_t)id);
     };
     void bind(const int index, IsUint64 id)
+    {
+        SQLite::Statement::bind(index, (int64_t)id.value());
+    };
+    void bind(const int index, IsUint32 id)
     {
         SQLite::Statement::bind(index, (int64_t)id.value());
     };
@@ -303,10 +307,9 @@ public:
     void insert_new_token(TokenId verifyNextTokenId, NonzeroHeight height, AccountId creatorId, TokenName name, TokenMintType type);
     void insert_token_balance(TokenId, AccountId, Funds balance);
     std::optional<Funds> get_token_balance(TokenId, AccountId);
-    std::vector<std::pair<TokenId,Funds>> get_tokens(AccountId, size_t limit);
+    std::vector<std::pair<TokenId, Funds>> get_tokens(AccountId, size_t limit);
     void update_token_balance(TokenId, AccountId, Funds balance);
-    std::vector<std::pair<AccountId,Funds>> get_richlist(TokenId, size_t limit);
-
+    std::vector<std::pair<AccountId, Funds>> get_richlist(TokenId, size_t limit);
 
     std::tuple<std::vector<Batch>, HistoryHeights, AccountHeights>
     getConsensusHeaders() const;
@@ -343,12 +346,12 @@ public:
     // Account functions
     // get
     [[nodiscard]] std::optional<AddressFunds> lookup_account(AccountId id) const;
-    [[nodiscard]] API::Richlist lookup_richlist(uint32_t N) const;
+    [[nodiscard]] api::Richlist lookup_richlist(uint32_t N) const;
     [[nodiscard]] AddressFunds fetch_account(AccountId id) const;
 
     /////////////////////
     // Transactions functions
-    [[nodiscard]] API::Richlist look(size_t N) const;
+    [[nodiscard]] api::Richlist look(size_t N) const;
 
     ///////////////
     // Deleteschedule functions

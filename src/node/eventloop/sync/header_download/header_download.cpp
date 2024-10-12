@@ -521,7 +521,7 @@ std::vector<ChainOffender> Downloader::filter_leadermismatch_offenders(std::vect
 {
     std::vector<ChainOffender> res;
     for (auto [co, cr] : chainOffenders) {
-        if (co.e == ELEADERMISMATCH) {
+        if (co.code == ELEADERMISMATCH) {
             auto& d { data(cr) };
             if (is_leader(cr)) {
                 d.ignoreDescriptor = d.leaderIter->snapshot.descripted->descriptor;

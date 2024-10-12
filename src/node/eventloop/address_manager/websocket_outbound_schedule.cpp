@@ -37,7 +37,7 @@ void WSConnectionSchedule::connect_expired(time_point now)
     }
 }
 
-void WSConnectionSchedule::outbound_closed(const WSBrowserConnectRequest& r, bool success, int32_t reason)
+void WSConnectionSchedule::outbound_closed(const WSBrowserConnectRequest& r, bool success, Error reason)
 {
     if (auto iter { find_element(r.address()) }; iter != pinnedRequests.end()) {
         auto& elem { *iter };

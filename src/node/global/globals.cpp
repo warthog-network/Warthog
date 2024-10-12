@@ -17,7 +17,9 @@ auto create_connection_logger()
 {
     auto max_size = 1048576 * 5; // 5 MB
     auto max_files = 3;
-    return spdlog::rotating_logger_mt("connection_logger", config().get_default_datadir() + logdir() + "/connections.log", max_size, max_files);
+    auto res{ spdlog::rotating_logger_mt("connection_logger", config().get_default_datadir() + logdir() + "/connections.log", max_size, max_files)};
+    res->flush_on(spdlog::level::info);
+    return res;
 }
 
 auto create_syncdebug_logger()

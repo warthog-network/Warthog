@@ -91,7 +91,7 @@ public:
         }
     };
     struct CloseState {
-        int error;
+        Error error;
     };
     // for inbound connections
     ConnectionBase();
@@ -100,14 +100,15 @@ public:
     // can be called from all threads
     auto created_at() const { return createdAtSystem; }
     [[nodiscard]] virtual bool is_tcp() const { return false; }
-    std::string to_string() const;
+    std::string tag_string() const;
+    std::string tag() const;
     std::string_view type_str() const;
     uint32_t created_at_timestmap() const { return std::chrono::duration_cast<std::chrono::seconds>(createdAtSystem.time_since_epoch()).count(); }
 
     // can only be called in eventloop thread because we assume
     // state == MessageState
 
-    virtual void close(int Error) = 0;
+    virtual void close(Error) = 0;
     void send(Sndbuffer&& msg);
     [[nodiscard]] std::vector<Rcvbuffer> pop_messages();
     [[nodiscard]] ProtocolVersion protocol_version() const;

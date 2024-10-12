@@ -11,6 +11,7 @@ src_libuv = [
 
 src_browser = [
   './api/wasm/api.cpp',
+  './api/wasm/endpiont_wasm.cpp',
   './config/browser.cpp',
   './eventloop/address_manager/websocket_outbound_schedule.cpp',
   './transport/ws/browser/connect_request.cpp',
@@ -19,10 +20,11 @@ src_browser = [
   ]
 
 src= [
+  './api/events/emit.cpp',
+  './api/events/subscription.cpp',
   './api/http/json.cpp',
   './api/http/parse.cpp',
   './api/interface.cpp',
-  './api/realtime.cpp',
   './api/stratum/stratum_server.cpp',
   './api/types/all.cpp',
   './block/body/generator.cpp',
@@ -39,6 +41,7 @@ src= [
   './block/header/shared_batch.cpp',
   './block/header/timestamprule.cpp',
   './chainserver/account_cache.cpp',
+  './chainserver/subscription_state.cpp',
   './chainserver/db/chain_db.cpp',
   './chainserver/mining_subscription.cpp',
   './chainserver/server.cpp',
@@ -88,7 +91,7 @@ src= [
   './transport/helpers/per_ip_counter.cpp',
   './transport/helpers/sockaddr.cpp',
   './transport/helpers/tcp_sockaddr.cpp',
-  './transport/webrtc/connection.cpp',
+  './transport/webrtc/rtc_connection.cpp',
   './transport/webrtc/sdp_util.cpp',
   './transport/webrtc/webrtc_sockaddr.cpp',
   src_sqlitecpp,
@@ -146,16 +149,18 @@ websocket = executable('websocket', 'websocket.cpp',
   name_suffix: 'html',
   install : true)
 else
-executable('client', vcs_dep, [src,'./rtc_client.cpp', src_spdlog,
-  ],
-  include_directories:['./' ,include_thirdparty,
-    ],
-  link_with: lib_thirdparty,
-  dependencies: deps,
-  install : true)
+# executable('client', vcs_dep, [src,'./rtc_client.cpp', src_spdlog,
+#   ],
+#   include_directories:['./' ,include_thirdparty,
+#     ],
+#   link_with: lib_thirdparty,
+#   dependencies: deps,
+#   install : true)
+
 executable('wart-node', vcs_dep, [src,'./main.cpp', src_spdlog],
   include_directories:['./' ,include_thirdparty],
   link_with: lib_thirdparty,
+  cpp_args: [rtcstatic,],
   dependencies: deps,
   install : true)
 endif

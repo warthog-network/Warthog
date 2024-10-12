@@ -13,19 +13,21 @@ private:
     constexpr Funds(uint64_t val)
         : IsUint64(val) {};
 
+    static constexpr uint64_t maxVal { 0x3FFFFFFFFFFFFFFF };
+
 public:
     static constexpr Funds zero() { return { 0 }; }
     auto operator<=>(const Funds&) const = default;
-    static std::optional<Funds> from_value(uint64_t value)
+    static constexpr std::optional<Funds> from_value(uint64_t value)
     {
-        if (value > MAXSUPPLY)
+        if (value > maxVal)
             return {};
         return Funds(value);
     }
-    static Funds from_value_throw(uint64_t value)
+    static constexpr Funds from_value_throw(uint64_t value)
     {
-        auto v{from_value(value)};
-        if (!v) 
+        auto v { from_value(value) };
+        if (!v)
             throw Error(EINV_FUNDS);
         return *v;
     }
@@ -33,7 +35,7 @@ public:
     static std::optional<Funds> parse(std::string_view);
     static Funds parse_throw(std::string_view);
     bool is_zero() const { return val == 0; }
-    std::string format() const;
+    // std::string format(std::string_view unit) const;
     std::string to_string() const;
     uint64_t E8() const { return val; };
 

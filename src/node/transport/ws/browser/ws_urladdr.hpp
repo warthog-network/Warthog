@@ -22,6 +22,11 @@ public:
     }
 
     std::string to_string() const { return url; }
+    std::string to_string_with_protocol() const
+    {
+        return to_string();
+    }
+
     std::string_view type_str() const
     {
         return scheme;

@@ -12,6 +12,7 @@
 #include <limits>
 #include <sstream>
 #ifdef __APPLE__
+ #include <pwd.h>
 #include <sys/types.h>
 #include <unistd.h>
 #endif
@@ -24,8 +25,8 @@ using namespace std;
 #ifndef DISABLE_LIBUV
 std::string ConfigParams::get_default_datadir()
 {
-#ifdef __linux__
     const char* osBaseDir = nullptr;
+#ifdef __linux__
     if ((osBaseDir = getenv("HOME")) == NULL) {
         osBaseDir = getpwuid(getuid())->pw_dir;
     }
@@ -33,13 +34,11 @@ std::string ConfigParams::get_default_datadir()
         throw std::runtime_error("Cannot determine default data directory.");
     return std::string(osBaseDir) + "/.warthog/";
 #elif _WIN32
-    const char* osBaseDir = nullptr;
     osBaseDir = getenv("LOCALAPPDATA");
     if (osBaseDir == nullptr)
         throw std::runtime_error("Cannot determine default data directory.");
     return std::string(osBaseDir) + "/Warthog/";
 #elif __APPLE__
-    const char* osBaseDir = nullptr;
     if ((osBaseDir = getenv("HOME")) == NULL) {
         osBaseDir = getpwuid(getuid())->pw_dir;
     }
@@ -146,7 +145,7 @@ template <typename T>
     if (val) {
         return val.value();
     }
-    throw std::runtime_error("Cannot extract configuration value starting at line "s + std::to_string(n.source().begin.line) + ", colum "s + std::to_string(n.source().begin.column) + ".");
+    throw std::runtime_error("Cannot extract configuration value starting at line "s + std::to_string(n.source().begin.line) + ", column "s + std::to_string(n.source().begin.column) + ".");
 }
 
 TCPPeeraddr fetch_endpointaddress(toml::node& n)
@@ -155,7 +154,7 @@ TCPPeeraddr fetch_endpointaddress(toml::node& n)
     if (p) {
         return p.value();
     }
-    throw std::runtime_error("Cannot extract configuration value starting at line "s + std::to_string(n.source().begin.line) + ", colum "s + std::to_string(n.source().begin.column) + ".");
+    throw std::runtime_error("Cannot extract configuration value starting at line "s + std::to_string(n.source().begin.line) + ", column "s + std::to_string(n.source().begin.column) + ".");
 }
 toml::array& array_ref(toml::node& n)
 {
@@ -215,6 +214,7 @@ int ConfigParams::init(const gengetopt_args_info& ai)
     std::optional<TCPPeeraddr> publicrpcBind;
     std::optional<TCPPeeraddr> stratumBind;
     node.isolated = ai.isolated_given;
+    node.disableTxsMining = ai.disable_tx_mining_given;
     if (ai.testnet_given) {
         enable_testnet();
     }
@@ -287,7 +287,7 @@ int ConfigParams::init(const gengetopt_args_info& ai)
                 } else if (key == "stratum") {
                     for (auto& [k, v] : *t) {
                         if (k == "bind")
-                            stratumBind = fetch_endpointaddress(v);
+                            stratumBind = TCPPeeraddr::parse(fetch<std::string>(v));
                         else
                             warning_config(k);
                     }
@@ -319,6 +319,8 @@ int ConfigParams::init(const gengetopt_args_info& ai)
                             node.snapshotSigner = parse_leader_key(fetch<std::string>(v));
                         } else if (k == "isolated") {
                             node.isolated = fetch<bool>(v);
+                        } else if (k == "disable-tx-mining") {
+                            node.disableTxsMining = fetch<bool>(v);
                         } else if (k == "enable-ban") {
                             peers.enableBan = fetch<bool>(v);
                         } else if (k == "allow-localhost-ip") {
@@ -498,6 +500,7 @@ std::string ConfigParams::dump()
             { "bind", node.bind.to_string() },
             { "connect", connect },
             { "isolated", node.isolated },
+            { "disable-tx-mining", node.disableTxsMining },
             { "enable-ban", peers.enableBan },
             { "allow-localhost-ip", peers.allowLocalhostIp },
             { "log-communication", (bool)node.logCommunicationVal } });

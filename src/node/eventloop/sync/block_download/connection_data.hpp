@@ -23,12 +23,13 @@ private:
             ForkRange _range;
             IterRange(ForkIter iter, ForkRange range);
         } iterRange;
-        public:
-        ForkIter iter() const {return iterRange._iter;}
-        auto range() const {return iterRange._range;}
-        auto& descripted() const {return _descripted;}
+
+    public:
+        ForkIter iter() const { return iterRange._iter; }
+        auto range() const { return iterRange._range; }
+        auto& descripted() const { return _descripted; }
         void udpate_iter_range(ForkIter iter, ForkRange range);
-        ForkData(std::shared_ptr<Descripted> d,ForkIter fi, ForkRange forkRange);
+        ForkData(std::shared_ptr<Descripted> d, ForkIter fi, ForkRange forkRange);
     };
     std::optional<ForkData> forkData;
 
@@ -40,7 +41,7 @@ public:
         : focusIter(focusEnd)
     {
     }
-    bool has_fork_data()const{return forkData.has_value();}
+    bool has_fork_data() const { return forkData.has_value(); }
     ConnectionData(const ConnectionData&) = delete;
     auto fork_range() const { return forkData.value().range(); }
     auto fork_iter() const { return forkData.value().iter(); }

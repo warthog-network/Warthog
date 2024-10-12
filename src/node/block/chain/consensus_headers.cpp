@@ -129,7 +129,7 @@ void HeaderVerifier::append(NonzeroHeight newlength, const PreparedAppend& p)
     }
 }
 
-auto HeaderVerifier::prepare_append(const std::optional<SignedSnapshot>& sp, HeaderView hv) const -> tl::expected<PreparedAppend, int32_t>
+auto HeaderVerifier::prepare_append(const std::optional<SignedSnapshot>& sp, HeaderView hv) const -> tl::expected<PreparedAppend, Error>
 {
     auto hash { hv.hash() };
     NonzeroHeight appendHeight { height() + 1 };
@@ -333,7 +333,7 @@ void ExtendableHeaderchain::append(const HeaderVerifier::PreparedAppend& p,
     checker.append(length().nonzero_assert(), p);
 }
 
-auto ExtendableHeaderchain::prepare_append(const std::optional<SignedSnapshot>& sp, HeaderView hv) const -> tl::expected<HeaderVerifier::PreparedAppend, int32_t>
+auto ExtendableHeaderchain::prepare_append(const std::optional<SignedSnapshot>& sp, HeaderView hv) const -> tl::expected<HeaderVerifier::PreparedAppend, Error>
 {
     return checker.prepare_append(sp, hv);
 }

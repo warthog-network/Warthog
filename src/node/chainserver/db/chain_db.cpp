@@ -472,9 +472,9 @@ std::optional<AddressFunds> ChainDB::lookup_account(AccountId id) const
     });
 }
 
-API::Richlist ChainDB::lookup_richlist(uint32_t N) const
+api::Richlist ChainDB::lookup_richlist(uint32_t N) const
 {
-    API::Richlist out;
+    api::Richlist out;
     stmtRichlistLookup.for_each([&](Statement2::Row& r) {
         out.entries.push_back({ r[0], r[1] });
     },

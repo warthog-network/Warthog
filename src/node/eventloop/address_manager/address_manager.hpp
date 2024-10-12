@@ -23,9 +23,9 @@ public:
     friend struct ::Inspector;
     using InitArg = address_manager::InitArg;
     struct OutboundClosedEvent {
-        OutboundClosedEvent( std::shared_ptr<ConnectionBase> c, int32_t reason);
+        OutboundClosedEvent( std::shared_ptr<ConnectionBase> c, Error reason);
         std::shared_ptr<ConnectionBase> c;
-        int32_t reason;
+        Error reason;
     };
 private:
     class ConrefIter : public Coniter {
@@ -131,7 +131,7 @@ public:
         Timer& timer;
         std::function<void(Conref evictionCandidate)> evict_cb;
     };
-    auto insert(InsertData) -> tl::expected<Conref, int32_t>;
+    auto insert(InsertData) -> tl::expected<Conref, Error>;
 
 #ifndef DISABLE_LIBUV
     auto sample_verified_tcp(size_t N)

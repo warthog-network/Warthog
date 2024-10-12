@@ -1,10 +1,10 @@
 #include "interface.hpp"
 #include "api/types/all.hpp"
-#include "transport/tcp/conman.hpp"
 #include "block/header/header_impl.hpp"
 #include "chainserver/server.hpp"
 #include "eventloop/eventloop.hpp"
 #include "global/globals.hpp"
+#include "transport/tcp/conman.hpp"
 
 // mempool functions
 void put_mempool(PaymentCreateMessage&& m, MempoolInsertCb cb)
@@ -50,21 +50,25 @@ void get_connected_peers2(PeersCb&& cb)
     global().core->api_get_peers(std::move(cb));
 }
 
+void disconnect_peer(uint64_t id, ResultCb&& cb){
+    global().core->api_disconnect_peer(id, std::move(cb));
+}
+
 void get_connected_connection(ConnectedConnectionCB&& cb)
 {
-    global().core->api_get_peers([cb = std::move(cb)](const std::vector<API::Peerinfo>& pi) {
+    global().core->api_get_peers([cb = std::move(cb)](const std::vector<api::Peerinfo>& pi) {
         cb({ pi });
     });
 }
 
 void get_round16bit_e8(uint64_t e8, RoundCb cb)
 {
-    cb(API::Round16Bit { Funds::from_value_throw(e8) });
+    cb(api::Round16Bit { Funds::from_value_throw(e8) });
 }
 
 void get_round16bit_funds(Funds f, RoundCb cb)
 {
-    cb(API::Round16Bit { f });
+    cb(api::Round16Bit { f });
 }
 void get_version(VersionCb cb)
 {
@@ -73,12 +77,12 @@ void get_version(VersionCb cb)
 
 void get_wallet_new(WalletCb cb)
 {
-    cb(API::Wallet {});
+    cb(api::Wallet {});
 }
 
 void get_wallet_from_privkey(const PrivKey& pk, WalletCb cb)
 {
-    cb(API::Wallet { pk });
+    cb(api::Wallet { pk });
 }
 
 void get_janushash_number(std::string_view sv, RawCb cb)
@@ -105,7 +109,7 @@ struct APIHeadRequest {
         : cb(std::move(cb))
     {
     }
-    void on(const tl::expected<API::ChainHead, int32_t>&& e)
+    void on(const tl::expected<api::ChainHead, Error>&& e)
     {
         if (e.has_value()) {
             on(std::move(e.value()));
@@ -125,7 +129,7 @@ struct APIHeadRequest {
     }
 
 private:
-    void on(const API::ChainHead& h)
+    void on(const api::ChainHead& h)
     {
         head = std::move(h);
     }
@@ -136,14 +140,14 @@ private:
         if (sent == false && all_set()) {
             sent = true;
             cb(
-                API::Head {
+                api::Head {
                     .chainHead { std::move(*head) },
                     .synced = this->synced.value() });
         }
     }
     std::mutex m;
     bool sent { false };
-    std::optional<API::ChainHead> head;
+    std::optional<api::ChainHead> head;
     std::optional<bool> synced;
     HeadCb cb;
 };
@@ -201,7 +205,7 @@ private:
         if (sent == false && all_set()) {
             sent = true;
             cb(
-                API::MiningState {
+                api::MiningState {
                     .miningTask { std::move(*miningTask) },
                     .synced = this->synced.value() });
         }
@@ -232,7 +236,7 @@ mining_subscription::MiningSubscription subscribe_chain_mine(Address address, mi
     return global().chainServer->api_subscribe_mining(address, std::move(callback));
 }
 
-void get_chain_header(API::HeightOrHash hh, HeaderCb f)
+void get_chain_header(api::HeightOrHash hh, HeaderCb f)
 {
     global().chainServer->api_get_header(hh, f);
 }
@@ -245,7 +249,7 @@ void get_chain_grid(GridCb f)
 {
     global().chainServer->api_get_grid(f);
 }
-void get_chain_block(API::HeightOrHash hh, BlockCb cb)
+void get_chain_block(api::HeightOrHash hh, BlockCb cb)
 {
     global().chainServer->api_get_block(hh, cb);
 }
@@ -263,9 +267,14 @@ void get_hashrate(HashrateCb&& cb)
 {
     global().core->api_get_hashrate(std::move(cb));
 }
-void get_hashrate_chart(NonzeroHeight from, NonzeroHeight to, size_t window, HashrateChartCb&& cb)
+void get_hashrate_block_chart(NonzeroHeight from, NonzeroHeight to, size_t window, HashrateBlockChartCb&& cb)
 {
-    global().core->api_get_hashrate_chart(from, to, window, std::move(cb));
+    global().core->api_get_hashrate_block_chart(from, to, window, std::move(cb));
+}
+
+void get_hashrate_time_chart(uint32_t from, uint32_t to, size_t window, HashrateTimeChartCb&& cb)
+{
+    global().core->api_get_hashrate_time_chart(from, to, window, std::move(cb));
 }
 
 void put_chain_append(ChainMiningTask&& mt, ResultCb f)
@@ -278,7 +287,7 @@ void get_signed_snapshot(Eventloop::SignedSnapshotCb&& cb)
 }
 
 // account functions
-void get_account_balance(const API::AccountIdOrAddress& address, BalanceCb f)
+void get_account_balance(const api::AccountIdOrAddress& address, BalanceCb f)
 {
     global().chainServer->api_get_balance(address, f);
 }
@@ -297,4 +306,25 @@ void get_account_richlist(RichlistCb f)
 void inspect_eventloop(std::function<void(const Eventloop& e)>&& cb)
 {
     global().core->api_inspect(std::move(cb));
+}
+
+void subscribe_chain_event(SubscriptionRequest r)
+{
+    global().chainServer->subscribe_chain_event(std::move(r));
+}
+void subscribe_connection_event(SubscriptionRequest r)
+{
+    global().core->subscribe_connection_event(std::move(r));
+}
+void subscribe_account_event(SubscriptionRequest r, Address a)
+{
+    global().chainServer->subscribe_account_event(std::move(r), std::move(a));
+}
+void subscribe_minerdist_event(SubscriptionRequest r){
+    global().chainServer->subscribe_minerdist_event(std::move(r));
+}
+void destroy_all_subscriptions(subscription_data_ptr p)
+{
+    global().chainServer->destroy_subscriptions(p);
+    global().core->destroy_subscriptions(p);
 }

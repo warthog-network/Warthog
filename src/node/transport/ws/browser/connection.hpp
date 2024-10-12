@@ -45,8 +45,8 @@ private:
     int on_error();
     int on_close(EmscriptenWSConnection::CloseInfo);
     int on_message(EmscriptenWSConnection::Message);
-    void close(int reason) override;
-    void notify_closed(int32_t reason);
+    void close(Error reason) override;
+    void notify_closed(Error reason);
 
     const WSBrowserConnectRequest connectRequest;
     EmscriptenWSConnection emscriptenConnection;

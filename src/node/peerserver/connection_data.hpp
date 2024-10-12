@@ -48,6 +48,7 @@ public:
     ConnectionData()
     {
     }
+    virtual ~ConnectionData(){}
     virtual bool inbound() const = 0;
     virtual Peeraddr peer_addr() const = 0;
     virtual std::optional<ConnectRequest> connect_request() const = 0;
@@ -58,6 +59,7 @@ class Connection : public ConnectionData {
 
 public:
     using ConnectionData::ConnectionData;
+    virtual ~Connection(){}
 };
 
 }

@@ -170,12 +170,13 @@ json header_json(const Header& header, NonzeroHeight height)
     return h;
 }
 
-[[nodiscard]] json body_json(const API::Block& b)
+[[nodiscard]] json body_json(const api::Block& b)
 {
     json out;
     { // rewards
         json a = json::array();
-        for (auto& r : b.rewards) {
+        if (b.reward()) {
+            auto& r { *b.reward() };
             json elem;
             elem["txHash"] = serialize_hex(r.txhash);
             elem["toAddress"] = r.toAddress.to_string();
@@ -210,7 +211,7 @@ json header_json(const Header& header, NonzeroHeight height)
 namespace jsonmsg {
 using namespace nlohmann;
 
-auto to_json_visit(const API::TransferTransaction& tx)
+auto to_json_visit(const api::TransferTransaction& tx)
 {
     json j;
     json jtx;
@@ -229,7 +230,7 @@ auto to_json_visit(const API::TransferTransaction& tx)
     j["transaction"] = jtx;
     return j;
 }
-auto to_json_visit(const API::RewardTransaction& tx)
+auto to_json_visit(const api::RewardTransaction& tx)
 {
     json j;
     json jtx;
@@ -260,19 +261,25 @@ json to_json(const TxHash& h)
     return j;
 }
 
-json to_json(const API::Head& h)
+json to_json(const api::ChainHead& ch)
 {
-    auto& ch = h.chainHead;
-    json j;
-    j["hash"] = serialize_hex(ch.hash);
+    return {
+        { "hash", serialize_hex(ch.hash) },
+        { "height", ch.height },
+        { "difficulty", ch.nextTarget.difficulty() },
+        { "is_janushash", ch.nextTarget.is_janushash() },
+        { "pinHeight", ch.pinHeight },
+        { "worksum", ch.worksum.getdouble() },
+        { "worksumHex", ch.worksum.to_string() },
+        { "pinHash", serialize_hex(ch.pinHash) },
+        { "hashrate", ch.hashrate },
+    };
+}
+
+json to_json(const api::Head& h)
+{
+    auto j(to_json(h.chainHead));
     j["synced"] = h.synced;
-    j["height"] = ch.height;
-    j["difficulty"] = ch.nextTarget.difficulty();
-    j["is_janushash"] = ch.nextTarget.is_janushash();
-    j["pinHeight"] = ch.pinHeight;
-    j["worksum"] = ch.worksum.getdouble();
-    j["worksumHex"] = ch.worksum.to_string();
-    j["pinHash"] = serialize_hex(ch.pinHash);
     return j;
 }
 
@@ -283,7 +290,7 @@ json to_json(const std::pair<NonzeroHeight, Header>& h)
     };
 }
 
-json to_json(const API::MiningState& ms)
+json to_json(const api::MiningState& ms)
 {
     auto& mt { ms.miningTask };
     json j;
@@ -304,7 +311,7 @@ json to_json(const API::MiningState& ms)
     j["testnet"] = is_testnet();
     return j;
 }
-json to_json(const API::MempoolEntries& entries)
+json to_json(const api::MempoolEntries& entries)
 {
     json j;
     json a = json::array();
@@ -325,7 +332,7 @@ json to_json(const API::MempoolEntries& entries)
     return j;
 }
 
-json to_json(const API::Transaction& tx)
+json to_json(const api::Transaction& tx)
 {
     return std::visit([&](const auto& e) {
         return to_json_visit(e);
@@ -338,12 +345,12 @@ json to_json(const Peeraddr& ea)
     return ea.to_string();
 }
 
-json to_json(const API::PeerinfoConnections& pc)
+json to_json(const api::PeerinfoConnections& pc)
 {
     return to_json(pc.v, pc.map);
 }
 
-json to_json(const API::TransactionsByBlocks& txs)
+json to_json(const api::TransactionsByBlocks& txs)
 {
     json arr = json::array();
     for (auto iter = txs.blocks_reversed.begin(); iter != txs.blocks_reversed.end(); ++iter) {
@@ -366,7 +373,7 @@ json to_json(const API::TransactionsByBlocks& txs)
     return arr;
 }
 
-json to_json(const API::Block& block)
+json to_json(const api::Block& block)
 {
     json j;
     HeaderView hv(block.header.data());
@@ -378,8 +385,26 @@ json to_json(const API::Block& block)
     j["height"] = block.height;
     return j;
 }
+json to_json(const api::BlockSummary& block)
+{
+    json j;
+    HeaderView hv(block.header.data());
+    j["header"] = header_json(block.header, block.height);
+    j["confirmations"] = block.confirmations;
+    j["height"] = block.height;
+    j["nTransfers"] = block.nTransfers;
+    j["miner"] = block.miner.to_string();
+    j["transferred"] = block.transferred.to_string();
+    j["transferredE8"] = block.transferred.E8();
+    j["totalTxFee"] = block.totalTxFee.to_string();
+    j["totalTxFeeE8"] = block.totalTxFee.E8();
+    auto r { block.height.reward() };
+    j["blockReward"] = r.to_string();
+    j["blockReward"] = r.E8();
+    return j;
+}
 
-json to_json(const API::AccountHistory& h)
+json to_json(const api::AccountHistory& h)
 {
     json a = json::array();
     auto& reversed = h.blocks_reversed;
@@ -399,7 +424,15 @@ json to_json(const API::AccountHistory& h)
     return j;
 }
 
-json to_json(const API::Richlist& l)
+json to_json(const api::AddressCount& ac)
+{
+    return {
+        { "address", ac.address.to_string() },
+        { "count", ac.count }
+    };
+}
+
+json to_json(const api::Richlist& l)
 {
     json a = json::array();
     for (auto& [address, balance] : l.entries) {
@@ -412,7 +445,7 @@ json to_json(const API::Richlist& l)
     return a;
 }
 
-nlohmann::json to_json(const API::Wallet& w)
+nlohmann::json to_json(const api::Wallet& w)
 {
     auto pubKey { w.pk.pubkey() };
     return {
@@ -422,7 +455,7 @@ nlohmann::json to_json(const API::Wallet& w)
     };
 }
 
-json to_json(const API::HashrateInfo& hi)
+json to_json(const api::HashrateInfo& hi)
 {
     return json {
         { "lastNBlocksEstimate", hi.estimate },
@@ -430,7 +463,7 @@ json to_json(const API::HashrateInfo& hi)
     };
 }
 
-json to_json(const API::HashrateChart& c)
+json to_json(const api::HashrateBlockChart& c)
 {
     json data(json::array());
     for (const auto& v : c.chart) {
@@ -439,6 +472,21 @@ json to_json(const API::HashrateChart& c)
     return json {
         { "range", json { { "min", c.range.begin }, { "max", c.range.end } } },
         { "data", data }
+    };
+}
+json to_json(const api::HashrateTimeChart& c)
+{
+    json data(json::array());
+    for (const auto& [timestamp, height, hashrate] : std::ranges::reverse_view(c.chartReversed)) {
+        data.push_back({ { "timestamp", timestamp },
+            { "height", height.value() },
+            { "hashrate", hashrate } });
+    }
+    return json {
+        { "chart", data },
+        { "begin", c.begin },
+        { "end", c.end },
+        { "interval", c.interval },
     };
 }
 
@@ -452,7 +500,7 @@ json to_json(const OffenseEntry& e)
     };
 }
 
-std::string serialize(const std::vector<API::Peerinfo>& connected)
+std::string serialize(const std::vector<api::Peerinfo>& connected)
 {
     using namespace nlohmann;
     json j = json::array();
@@ -487,20 +535,19 @@ std::string serialize(const std::vector<API::Peerinfo>& connected)
     return j.dump(1);
 }
 
-json to_json(const API::Balance& b)
+json to_json(const api::Balance& b)
 {
     json j;
     j["balance"] = b.balance.to_string();
     j["balanceE8"] = b.balance.E8();
-    if (b.address)
-        j["address"] = b.address->to_string();
-    else
+    if (b.address){
+        j["address"] = b.address->address.to_string();
+        j["accountId"] = b.address->accountId.value();
+    }
+    else{
         j["address"] = nullptr;
-    auto v { b.accountId.value() };
-    if (v > 0)
-        j["accountId"] = v;
-    else
         j["accountId"] = nullptr;
+    }
     return j;
 }
 
@@ -539,7 +586,7 @@ nlohmann::json to_json(const chainserver::TransactionIds& txids)
     return j;
 }
 
-nlohmann::json to_json(const API::Round16Bit& e)
+nlohmann::json to_json(const api::Round16Bit& e)
 {
     auto c { CompactUInt::compact(e.original) };
     return json {
@@ -562,14 +609,14 @@ nlohmann::json to_json(const NodeVersion&)
     };
 }
 
-nlohmann::json to_json(const API::Rollback& rb)
+nlohmann::json to_json(const api::Rollback& rb)
 {
     return json {
         { "length", rb.length }
     };
 }
 
-std::string serialize(const API::Raw& r)
+std::string serialize(const api::Raw& r)
 {
     return r.s;
 }
@@ -594,5 +641,21 @@ std::string header_download(const Eventloop& e)
 {
     return Inspector::header_download(e);
 }
+
+// SubscriptionAction parse_subscribe_throw(std::string_view s)
+// {
+//     auto j { json::parse(s) };
+//     if (j.size() != 1 || !j.is_object())
+//         goto failed;
+//
+//     if (auto iter { j.find("subscribe") }; iter != j.end()) {
+//         return { true, iter.value().get<std::string>() };
+//     }
+//     if (auto iter { j.find("unsubscribe") }; iter != j.end()) {
+//         return { false, iter.value().get<std::string>() };
+//     }
+// failed:
+//     throw std::runtime_error("Cannot parse subscription " + std::string(s));
+// };
 
 } // namespace jsonmsg

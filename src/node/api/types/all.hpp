@@ -2,6 +2,7 @@
 
 #include "defi/token/token.hpp"
 #include "transport/helpers/peer_addr.hpp"
+#include "accountid_or_address.hpp"
 #include "block/body/primitives.hpp"
 #include "block/chain/history/index.hpp"
 #include "block/chain/signed_snapshot.hpp"
@@ -10,19 +11,19 @@
 #include "block/header/header.hpp"
 #include "communication/mining_task.hpp"
 #include "crypto/address.hpp"
-#include "peerserver/db/offense_entry.hpp"
 #include "eventloop/peer_chain.hpp"
 #include "general/funds.hpp"
-#include "transport/helpers/tcp_sockaddr.hpp"
 #include "height_or_hash.hpp"
-#include "accountid_or_address.hpp"
+#include "peerserver/db/offense_entry.hpp"
+#include "transport/helpers/peer_addr.hpp"
+#include "transport/helpers/tcp_sockaddr.hpp"
 #include <variant>
 #include <vector>
 namespace chainserver {
 class AccountCache;
 }
 
-namespace API {
+namespace api {
 struct ChainHead {
     std::optional<SignedSnapshot> signedSnapshot;
     Worksum worksum;
@@ -31,6 +32,7 @@ struct ChainHead {
     Height height;
     Hash pinHash;
     PinHeight pinHeight;
+    uint64_t hashrate;
 };
 
 struct MiningState {
@@ -63,19 +65,33 @@ struct TransferTransaction {
     NonceId nonceId;
     PinHeight pinHeight { PinHeight::undef() };
 };
-struct Balance {
-    std::optional<Address> address;
+struct AddressWithId {
+    Address address;
     AccountId accountId;
+};
+struct Balance {
+    std::optional<AddressWithId> address;
     Funds balance;
 };
 
 struct Rollback {
-    static constexpr const char WEBSOCKET_EVENT[] = "Rollback";
+    static constexpr const char eventName[] = "rollback";
     Height length;
 };
 
+struct BlockSummary {
+    Header header;
+    NonzeroHeight height;
+    uint32_t confirmations = 0;
+    uint32_t nTransfers;
+    Address miner;
+    Funds transferred;
+    Funds totalTxFee;
+    Funds blockReward;
+};
+
 struct Block {
-    static constexpr const char WEBSOCKET_EVENT[] = "Block";
+    static constexpr const char eventName[] = "blockAppend";
     struct Transfer {
         Address fromAddress;
         Funds fee;
@@ -101,29 +117,43 @@ struct Block {
     Header header;
     NonzeroHeight height;
     uint32_t confirmations = 0;
+
+private:
+    std::optional<Reward> _reward; // optional because account's history is also returned in block structure
+public:
     std::vector<Transfer> transfers;
-    std::vector<Reward> rewards;
     void push_history(const Hash& txid,
         const std::vector<uint8_t>& data, chainserver::AccountCache& cache,
         PinFloor pinFloor);
 
     Block(Header header,
-        NonzeroHeight height, uint32_t confirmations)
+        NonzeroHeight height, uint32_t confirmations,
+        std::optional<Reward> reward = {}, std::vector<Transfer> transfers = {})
         : header(header)
         , height(height)
         , confirmations(confirmations)
+        , _reward(std::move(reward))
+        , transfers(std::move(transfers))
     {
     }
+    void set_reward(Reward r);
+    auto& reward() const { return _reward; }
 };
+
+struct AddressCount{
+    Address address;
+    int64_t count;
+};
+
 struct AccountHistory {
     Funds balance;
     HistoryId fromId;
-    std::vector<API::Block> blocks_reversed;
+    std::vector<api::Block> blocks_reversed;
 };
 struct TransactionsByBlocks {
     size_t count { 0 };
     HistoryId fromId;
-    std::vector<API::Block> blocks_reversed;
+    std::vector<api::Block> blocks_reversed;
 };
 struct Richlist {
     std::vector<std::pair<Address, Funds>> entries;
@@ -148,9 +178,16 @@ struct HashrateChartRequest {
     Height end;
 };
 
-struct HashrateChart {
+struct HashrateBlockChart {
     HashrateChartRequest range;
     std::vector<double> chart;
+};
+
+struct HashrateTimeChart {
+    uint32_t begin;
+    uint32_t end;
+    uint32_t interval;
+    std::vector<std::tuple<uint32_t, Height, uint64_t>> chartReversed;
 };
 
 struct Peerinfo {
@@ -167,7 +204,7 @@ struct Network {
 };
 
 struct PeerinfoConnections {
-    const std::vector<API::Peerinfo>& v;
+    const std::vector<api::Peerinfo>& v;
     static constexpr auto map = [](const Peerinfo& pi) -> auto& { return pi.endpoint; };
 };
 
@@ -175,14 +212,13 @@ struct Round16Bit {
     Funds original;
 };
 
-struct Wallet{
+struct Wallet {
     PrivKey pk;
 };
 
-struct Raw{
+struct Raw {
     std::string s;
 };
-
 
 using OffenseEntry = ::OffenseEntry;
 

@@ -25,7 +25,7 @@ WSSession::WSSession(CreationToken, bool inbound, lws* wsi)
 {
 }
 
-void WSSession::on_close(int32_t reason)
+void WSSession::on_close(Error reason)
 {
     if (closing)
         return;
@@ -33,7 +33,7 @@ void WSSession::on_close(int32_t reason)
     if (connection)
         connection->on_close({ .error = reason });
 }
-void WSSession::close(int32_t reason)
+void WSSession::close(Error reason)
 {
     on_close(reason);
     assert(wsi);

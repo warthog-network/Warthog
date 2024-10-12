@@ -1,6 +1,7 @@
 #include "eventloop.hpp"
 #include "address_manager/address_manager_impl.hpp"
-#include "api/realtime.hpp"
+#include "api/events/emit.hpp"
+#include "api/events/subscription.hpp"
 #include "api/types/all.hpp"
 #include "block/chain/header_chain.hpp"
 #include "block/header/batch.hpp"
@@ -12,7 +13,7 @@
 #include "mempool/order_key.hpp"
 #include "peerserver/peerserver.hpp"
 #include "spdlog/spdlog.h"
-#include "transport/webrtc/connection.hxx"
+#include "transport/webrtc/rtc_connection.hxx"
 #include "transport/webrtc/sdp_util.hpp"
 #include "types/conref_impl.hpp"
 #include "types/peer_requests.hpp"
@@ -22,6 +23,7 @@
 #include <random>
 #include <sstream>
 
+using SubscriptionEvent = subscription::events::Event;
 template <typename... Args>
 inline void log_communication(spdlog::format_string_t<Args...> fmt, Args&&... args)
 {
@@ -87,7 +89,7 @@ bool Eventloop::async_register(ConnectionBase::ConnectionVariant con)
     return defer(RegisterConnection(std::move(con)));
 }
 
-void Eventloop::shutdown(int32_t reason)
+void Eventloop::shutdown(Error reason)
 {
     std::unique_lock<std::mutex> l(mutex);
     haswork = true;
@@ -105,7 +107,7 @@ void Eventloop::erase(std::shared_ptr<ConnectionBase> c, Error reason)
     defer(Erase { std::move(c), reason });
 }
 
-void Eventloop::on_outbound_closed(std::shared_ptr<ConnectionBase> c, int32_t reason)
+void Eventloop::on_outbound_closed(std::shared_ptr<ConnectionBase> c, Error reason)
 {
     defer(OutboundClosed { std::move(c), reason });
 }
@@ -140,6 +142,11 @@ void Eventloop::api_get_peers(PeersCb&& cb)
     defer(std::move(cb));
 }
 
+void Eventloop::api_disconnect_peer(uint64_t id, ResultCb&& cb)
+{
+    defer(DisconnectPeer { id, std::move(cb) });
+}
+
 void Eventloop::api_get_synced(SyncedCb&& cb)
 {
     defer(std::move(cb));
@@ -149,14 +156,28 @@ void Eventloop::api_inspect(InspectorCb&& cb)
 {
     defer(std::move(cb));
 }
+void Eventloop::subscribe_connection_event(SubscriptionRequest r)
+{
+    defer(SubscribeConnections(std::move(r)));
+}
+void Eventloop::destroy_subscriptions(subscription_data_ptr p)
+{
+    defer(DestroySubscriptions(p));
+}
+
 void Eventloop::api_get_hashrate(HashrateCb&& cb, size_t n)
 {
     defer(GetHashrate { std::move(cb), n });
 }
 
-void Eventloop::api_get_hashrate_chart(NonzeroHeight from, NonzeroHeight to, size_t window, HashrateChartCb&& cb)
+void Eventloop::api_get_hashrate_time_chart(uint32_t from, uint32_t to, size_t window, HashrateTimeChartCb&& cb)
 {
-    defer(GetHashrateChart { std::move(cb), from, to, window });
+    defer(GetHashrateTimeChart { std::move(cb), from, to, window });
+}
+
+void Eventloop::api_get_hashrate_block_chart(NonzeroHeight from, NonzeroHeight to, size_t window, HashrateBlockChartCb&& cb)
+{
+    defer(GetHashrateBlockChart { std::move(cb), from, to, window });
 }
 
 void Eventloop::async_forward_blockrep(uint64_t conId, std::vector<BodyContainer>&& blocks)
@@ -236,7 +257,7 @@ bool Eventloop::check_shutdown()
 
     {
         std::unique_lock<std::mutex> l(mutex);
-        if (closeReason == 0)
+        if (!closeReason.has_value())
             return false;
     }
 
@@ -244,7 +265,7 @@ bool Eventloop::check_shutdown()
     for (auto cr : connections.all()) {
         if (cr->erased())
             continue;
-        erase_internal(cr, Error(closeReason));
+        erase_internal(cr, *closeReason);
     }
     return true;
 }
@@ -399,9 +420,9 @@ void Eventloop::log_chain_length()
 
 void Eventloop::handle_event(PeersCb&& cb)
 {
-    std::vector<API::Peerinfo> out;
+    std::vector<api::Peerinfo> out;
     for (auto cr : connections.initialized()) {
-        out.push_back(API::Peerinfo {
+        out.push_back(api::Peerinfo {
             .endpoint { cr.peer() },
             .initialized = cr.initialized(),
             .chainstate = cr.chain(),
@@ -451,15 +472,20 @@ void Eventloop::handle_event(InspectorCb&& cb)
 
 void Eventloop::handle_event(GetHashrate&& e)
 {
-    e.cb(API::HashrateInfo {
+    e.cb(api::HashrateInfo {
         .nBlocks = e.n,
         .estimate = consensus().headers().hashrate(e.n) });
 }
 
-void Eventloop::handle_event(GetHashrateChart&& e)
+void Eventloop::handle_event(GetHashrateBlockChart&& e)
 {
-    e.cb(consensus().headers().hashrate_chart(e.from, e.to, e.window));
+    e.cb(consensus().headers().hashrate_block_chart(e.from, e.to, e.window));
 }
+
+void Eventloop::handle_event(GetHashrateTimeChart&& e){
+        e.cb(consensus().headers().hashrate_time_chart(e.from, e.to, e.window));
+}
+
 void Eventloop::handle_event(FailedConnect&& e)
 {
     spdlog::warn("Cannot connect to {}: {}", e.connectRequest.address().to_string(), Error(e.reason).err_name());
@@ -610,6 +636,65 @@ void Eventloop::handle_event(GeneratedSdpAnswer&& m)
     signalingServer.send(RTCRequestForwardAnswer { sdp, m.key });
 }
 
+void Eventloop::emit_disconnect(size_t n, uint64_t id)
+{
+    using namespace subscription;
+    api::event::emit_disconnect(n, id);
+    events::Event { events::ConnectionsRemove { id, n } }.send(connectionSubscriptions);
+}
+void Eventloop::emit_connect(size_t n, Conref c)
+{
+    using namespace subscription;
+    api::event::emit_connect(n, c);
+    events::Event { events::ConnectionsAdd {
+                        .connection {
+                            .id = c.id(),
+                            .since = 0,
+                            .peerAddr { c->c->peer_addr().to_string() },
+                            .inbound = c->c->inbound() },
+                        .total = n } }
+        .send(connectionSubscriptions);
+}
+void Eventloop::handle_event(SubscribeConnections&& c)
+{
+    using enum subscription::Action;
+    auto ptr { c.sptr.get() };
+    switch (c.action) {
+    case Unsubscribe:
+        std::erase_if(connectionSubscriptions, [&](subscription_ptr& p) {
+            return p.get() == ptr;
+        });
+        return;
+    case Subscribe:
+        for (auto& p : connectionSubscriptions) {
+            if (p.get() == c.sptr.get()) {
+                if (c.action == subscription::Action::Unsubscribe) {
+                }
+                goto subscribed;
+            }
+        }
+        connectionSubscriptions.push_back(c.sptr);
+    subscribed:
+        std::vector<subscription::events::Connection> v;
+        for (auto c : connections.initialized()) {
+            v.push_back({ .id = c.id(),
+                .since = 0,
+                .peerAddr { c->c->peer_addr().to_string() },
+                .inbound = c->c->inbound() });
+        }
+        SubscriptionEvent { subscription::events::ConnectionsState {
+                                .connections { std::move(v) },
+                                .total = v.size() } }
+            .send(std::move(c.sptr));
+    }
+}
+void Eventloop::handle_event(DestroySubscriptions&& d)
+{
+    std::erase_if(connectionSubscriptions, [&](subscription_ptr& p) {
+        return p.get() == d.p;
+    });
+}
+
 void Eventloop::handle_event(GeneratedVerificationSdpOffer&& m)
 {
     auto l { m.con.lock() };
@@ -662,6 +747,15 @@ void Eventloop::handle_event(GeneratedSdpOffer&& m)
     }
 }
 
+void Eventloop::handle_event(DisconnectPeer&& dp)
+{
+    if (auto o { connections.find(dp.id) }) {
+        close(*o, EAPICMD);
+        dp.cb({});
+    }
+    dp.cb(tl::make_unexpected(Error(ENOTFOUND)));
+}
+
 void Eventloop::erase_internal(Conref c, Error error)
 {
     if (c->c->eventloop_erased)
@@ -676,7 +770,7 @@ void Eventloop::erase_internal(Conref c, Error error)
     }
     if (headerDownload.erase(c) && !closeReason) {
         spdlog::info("Connected to {} peers (closed connection to {}, reason: {})", headerDownload.size(), c.peer().to_string(), Error(error).err_name());
-        realtime_api::on_disconnect(headerDownload.size(), c.id());
+        emit_disconnect(headerDownload.size(), c.id());
     }
     if (blockDownload.erase(c))
         coordinate_sync();
@@ -694,7 +788,7 @@ bool Eventloop::insert(Conref c, const InitMsg& data)
     c->chain.initialize(data, chains);
     headerDownload.insert(c);
     blockDownload.insert(c);
-    realtime_api::on_connect(headerDownload.size(), c);
+    emit_connect(headerDownload.size(), c);
     spdlog::info("Connected to {} peers (new peer {})", headerDownload.size(), c.peer().to_string());
     if (rtc.ips && c.version().v2()) {
         spdlog::info("Sending own identity");
@@ -715,7 +809,7 @@ void Eventloop::close(Conref cr, Error reason)
     erase_internal(cr, reason); // do not consider this connection anymore
 }
 
-void Eventloop::close_by_id(uint64_t conId, int32_t reason)
+void Eventloop::close_by_id(uint64_t conId, Error reason)
 {
     if (auto cr { connections.find(conId) }; cr)
         close(*cr, reason);
@@ -726,7 +820,7 @@ void Eventloop::close(const ChainOffender& o)
 {
     assert(o);
     if (auto cr { connections.find(o.conId) }; cr) {
-        close(*cr, o.e);
+        close(*cr, o.code);
     } else {
         report(o);
     }
@@ -734,7 +828,7 @@ void Eventloop::close(const ChainOffender& o)
 void Eventloop::close(Conref cr, ChainError e)
 {
     assert(e);
-    close(cr, e.e);
+    close(cr, e.code);
 }
 
 void Eventloop::process_connection(std::shared_ptr<ConnectionBase> c)
@@ -748,7 +842,7 @@ void Eventloop::process_connection(std::shared_ptr<ConnectionBase> c)
         try {
             dispatch_message(cr, msg.parse());
         } catch (Error e) {
-            close(cr, e.e);
+            close(cr, e.code);
             do_requests();
             break;
         }
@@ -1020,12 +1114,13 @@ void Eventloop::handle_msg(Conref c, PingV2Msg&& m)
     c.rtc().their.forwardRequests.discard(m.discarded_forward_requests());
 };
 
-void Eventloop::on_received_addresses(Conref cr, const messages::Vector16<TCPPeeraddr>& addresses){
+void Eventloop::on_received_addresses(Conref cr, const messages::Vector16<TCPPeeraddr>& addresses)
+{
     // only process received addresses when we are a native node (not browser nodes)
-#ifndef DISABLE_LIBUV 
-    if (auto ip{cr.peer().ip()}; ip.has_value() && cr.is_tcp()) {
+#ifndef DISABLE_LIBUV
+    if (auto ip { cr.peer().ip() }; ip.has_value() && cr.is_tcp()) {
         spdlog::debug("{} Received {} addresses", cr.str(), addresses.size());
-        if (ip->is_v4()) 
+        if (ip->is_v4())
             connections.verify(addresses, ip->get_v4());
     }
 #endif
@@ -1035,7 +1130,7 @@ void Eventloop::handle_msg(Conref cr, PongMsg&& m)
 {
     log_communication("{} handle pong", cr.str());
     auto& pingMsg = cr.ping().check(m);
-    on_received_addresses(cr,m.addresses());
+    on_received_addresses(cr, m.addresses());
     received_pong_sleep_ping(cr);
     spdlog::debug("{} Got {} transaction Ids in pong message", cr.str(), m.txids().size());
 
@@ -1055,7 +1150,7 @@ void Eventloop::handle_msg(Conref cr, PongV2Msg&& m)
     log_communication("{} handle pong", cr.str());
     auto& pingData = cr.ping().check(m);
     auto& pingMsg = pingData.msg;
-    on_received_addresses(cr,m.addresses());
+    on_received_addresses(cr, m.addresses());
     received_pong_sleep_ping(cr);
     spdlog::debug("{} Got {} transaction Ids in pong message", cr.str(), m.txids().size());
 
@@ -1513,7 +1608,7 @@ void Eventloop::verify_rollback(Conref cr, const SignedPinRollbackMsg& m)
     }
 }
 
-tl::expected<Conref, int32_t> Eventloop::try_register(RegisterConnection&& m)
+tl::expected<Conref, Error> Eventloop::try_register(RegisterConnection&& m)
 {
     auto c { m.convar.base() };
     c->eventloop_registered = true;

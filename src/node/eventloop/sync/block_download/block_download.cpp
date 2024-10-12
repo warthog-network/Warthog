@@ -29,7 +29,7 @@ Downloader::Downloader(Attorney attorney, size_t windowLength)
 {
 }
 
-std::vector<ChainOffender> Downloader::handle_stage_result(stage_operation::StageAddResult&& a)
+std::vector<ChainOffender> Downloader::handle_stage_result(stage_operation::StageAddStatus&& a)
 {
     auto offenders { stageState.on_result(a) };
     if (a.ce)
@@ -37,7 +37,7 @@ std::vector<ChainOffender> Downloader::handle_stage_result(stage_operation::Stag
     return offenders;
 }
 
-std::vector<ChainOffender> Downloader::handle_stage_result(stage_operation::StageSetResult&& r)
+std::vector<ChainOffender> Downloader::handle_stage_result(stage_operation::StageSetStatus&& r)
 {
     auto optionalAdvance { stageState.on_result(r) };
     if (optionalAdvance) // no error

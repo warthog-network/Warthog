@@ -14,11 +14,11 @@ class PeerServer {
 public:
     struct OnClose {
         std::shared_ptr<peerserver::ConnectionData> con;
-        int32_t offense;
+        Error offense;
     };
     using banned_callback_t = std::function<void(const std::vector<PeerDB::BanEntry>&)>;
-    using offenses_callback_t = std::function<void(const tl::expected<std::vector<OffenseEntry>, int32_t>&)>;
-    using result_callback_t = std::function<void(const tl::expected<void, int32_t>&)>;
+    using offenses_callback_t = std::function<void(const tl::expected<std::vector<OffenseEntry>, Error>&)>;
+    using result_callback_t = std::function<void(const tl::expected<void, Error>&)>;
 
 private:
     friend struct Inspector;
@@ -42,9 +42,9 @@ private:
     };
 
 public:
-    bool async_register_close(std::shared_ptr<peerserver::ConnectionData> con, int32_t offense)
+    bool async_register_close(std::shared_ptr<peerserver::ConnectionData> con, Error offense)
     {
-        if (offense == EREFUSED)
+        if (offense.code == EREFUSED)
             return false;
         return async_event(OnClose { std::move(con), offense });
     }

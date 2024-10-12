@@ -1,6 +1,8 @@
 #pragma once
 
+#include "errors_forward.hpp"
 #include <cstdint>
+#include <string>
 ////////////////////////////////////
 // LIST OF ERROR CODES            //
 ////////////////////////////////////
@@ -130,6 +132,7 @@
     XX(208, ERTCNOPEER, "WebRTC verification peer already closed")                 \
     XX(209, ERTCNOIP, "Cannot select own WebRTC ip")                               \
     XX(210, ERTCFEELER, "Normal feeler connection shutdown")                       \
+    XX(211, EAPICMD, "Triggered by API command")                                   \
     /*300 - 399: API triggered errors*/                                            \
     XX(300, EINV_HEX, "cannot parse hexadecimal input")                            \
     XX(301, EBADNONCE, "cannot parse nonce")                                       \
@@ -173,22 +176,6 @@ inline bool leads_to_ban(int32_t code)
 }
 } // namespace errors
 
-struct Error { // error class for exceptions
-    Error(int32_t e = 0)
-        : e(e) {};
-    const char* strerror() const { return errors::strerror(e); };
-    const char* err_name() const { return errors::err_name(e); };
-    bool is_error() const { return e != 0; }
-    operator bool() const { return is_error(); }
-    operator int() const { return e; }
-    int32_t e;
-};
-
-class NonzeroHeight;
-struct ChainError : public Error {
-    ChainError(Error e, NonzeroHeight height);
-    NonzeroHeight height() const;
-
-private:
-    uint32_t h;
-};
+inline const char* Error::strerror() const { return errors::strerror(code); }
+inline const char* Error::err_name() const { return errors::err_name(code); }
+inline std::string Error::format() const { return std::string(err_name()) + " (" + strerror() + ")"; }

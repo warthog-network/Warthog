@@ -105,6 +105,8 @@ WIN32_EXPORT struct us_socket_context_t *us_create_socket_context(int ssl, struc
 /* Delete resources allocated at creation time. */
 WIN32_EXPORT void us_socket_context_free(int ssl, struct us_socket_context_t *context);
 
+WIN32_EXPORT int us_socket_context_close_all_sockets(int ssl, struct us_socket_context_t *context, int code, void *reason);
+
 /* Setters of various async callbacks */
 WIN32_EXPORT void us_socket_context_on_open(int ssl, struct us_socket_context_t *context,
     struct us_socket_t *(*on_open)(struct us_socket_t *s, int is_client, char *ip, int ip_length));

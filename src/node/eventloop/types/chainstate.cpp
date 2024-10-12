@@ -48,15 +48,15 @@ auto ConsensusSlave::apply(const RollbackData& rd) -> std::optional<SignedPinRol
     signedSnapshot = rd.signedSnapshot;
 
     // rollback
-    if (rd.data) {
-        auto& rollback { rd.data->rollback };
+    if (rd.rollback) {
+        auto& rollback { rd.rollback->deltaHeaders };
         assert(descriptor_ + 1 == rollback.descriptor);
         descriptor_ = rollback.descriptor;
-        headerchain->shrink(rollback.shrinkLength);
+        headerchain->shrink(rollback.shrink.length);
 
         // prevChain
         if (pinGenerator.use_count() > 1) {
-            *pinGenerator = std::move(rd.data->prevChain);
+            *pinGenerator = std::move(rd.rollback->prevHeaders);
         }
         pinGenerator.reset();
 

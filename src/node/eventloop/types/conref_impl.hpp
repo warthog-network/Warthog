@@ -4,5 +4,5 @@
 
 inline std::string Conref::str() const
 {
-    return iter->second.c->to_string();
+    return iter->second.c->tag_string();
 }

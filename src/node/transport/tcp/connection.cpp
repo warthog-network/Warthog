@@ -46,22 +46,21 @@ void TCPConnection::start_read_internal()
         on_connected();
 }
 
-void TCPConnection::close(int errcode)
+void TCPConnection::close(Error e)
 {
-    conman.async_call([errcode, c = shared_from_this()]() {
-        c->close_internal(errcode);
+    conman.async_call([e, c = shared_from_this()]() {
+        c->close_internal(e);
     });
 }
 
-void TCPConnection::close_internal(int errcode)
+void TCPConnection::close_internal(Error e)
 {
     if (tcpHandle->closing())
         return;
     tcpHandle->close();
-    connection_log().info("{} closed: {} ({})",
-        to_string(), errors::err_name(errcode), errors::strerror(errcode));
+    connection_log().info("{} closed: {}", tag_string(), e.format());
     on_close({
-        .error = errcode,
+        .error = e,
     });
 }
 

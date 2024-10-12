@@ -7,7 +7,7 @@
 #include <future>
 #include <random>
 
-AddressManager::OutboundClosedEvent::OutboundClosedEvent(std::shared_ptr<ConnectionBase> c, int32_t reason)
+AddressManager::OutboundClosedEvent::OutboundClosedEvent(std::shared_ptr<ConnectionBase> c, Error reason)
     : c(std::move(c))
     , reason(reason)
 {
@@ -84,7 +84,7 @@ std::optional<Conref> AddressManager::find(uint64_t id) const
     return ConrefIter { iter };
 }
 
-auto AddressManager::insert(InsertData id) -> tl::expected<Conref, int32_t>
+auto AddressManager::insert(InsertData id) -> tl::expected<Conref, Error>
 {
     auto c { id.convar.base() };
     auto ip { c->peer_addr().ip() };

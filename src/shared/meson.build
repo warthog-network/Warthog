@@ -21,7 +21,7 @@ src_wh=[
     './src/crypto/hash.cpp',
     './src/crypto/verushash/verus_clhash_port.cpp',
     './src/crypto/verushash/verushash.cpp',
-    './src/defi/token.cpp',
+    './src/defi/token/token.cpp',
     './src/general/compact_uint.cpp',
     './src/general/errors.cpp',
     './src/general/is_testnet.cpp',

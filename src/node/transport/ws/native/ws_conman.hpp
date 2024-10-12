@@ -11,14 +11,13 @@
 #include <thread>
 #include <variant>
 
-using WebsocketEvent = std::variant<API::Rollback, API::Block>;
 class WSSession;
 class PeerServer;
 
 class WSConnectionManager {
     // Events
     struct Shutdown {
-        int32_t reason;
+        Error reason;
     };
     // struct Connect {
     //     WSConnectRequest conreq;
@@ -30,7 +29,7 @@ class WSConnectionManager {
     };
     struct Close {
         std::weak_ptr<WSSession> session;
-        int32_t reason;
+        Error reason;
     };
     struct StartRead {
         std::weak_ptr<WSSession> session;
@@ -44,14 +43,14 @@ public:
     {
         push_event(StartRead { std::move(p) });
     }
-    void close(std::weak_ptr<WSSession> p, int32_t reason)
+    void close(std::weak_ptr<WSSession> p, Error e)
     {
-        push_event(Close { std::move(p), reason });
+        push_event(Close { std::move(p), e });
     }
     WSConnectionManager(PeerServer& peerServer, WebsocketServerConfig);
     ~WSConnectionManager();
     void start();
-    void shutdown(int32_t reason)
+    void shutdown(Error reason)
     {
         push_event(Shutdown { reason });
     }

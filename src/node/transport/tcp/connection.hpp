@@ -45,8 +45,8 @@ private:
     void start_read() override;
     void start_read_internal();
 
-    void close(int errcode) override;
-    void close_internal(int errcode);
+    void close(Error) override;
+    void close_internal(Error);
 
 private:
     const TCPConnectRequest connectRequest;

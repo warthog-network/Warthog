@@ -6,11 +6,12 @@
 #include <variant>
 namespace stage_operation {
 
-struct StageSetResult {
+struct StageSetStatus {
     std::optional<NonzeroHeight> firstMissHeight;
 };
-struct StageAddResult {
+
+struct StageAddStatus {
     ChainError ce;
 };
-using Result = std::variant<StageSetResult, StageAddResult>;
+using Result = std::variant<StageSetStatus, StageAddStatus>;
 }

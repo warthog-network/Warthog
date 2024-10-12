@@ -1,5 +1,6 @@
 #pragma once
 #include "block/chain/height.hpp"
+#include "general/errors_forward.hpp"
 #include "block/header/header.hpp"
 #include "general/descriptor.hpp"
 #include <cstddef>
@@ -129,7 +130,7 @@ struct BatchSelector {
     static constexpr size_t byte_size() { return Descriptor::byte_size() + NonzeroHeight::byte_size() + sizeof(length); }
 };
 
-template <int32_t parseHeightZeroError>
+template <Error parseHeightZeroError>
 class NonzeroHeightParser : public NonzeroHeight {
 public:
     using NonzeroHeight::NonzeroHeight;

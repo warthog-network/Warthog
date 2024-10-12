@@ -220,7 +220,7 @@ void Connection::on_message(std::string_view msg)
     stratumLine += msg.substr(lower, msg.size() - lower);
 };
 
-void Connection::on_append_result(int64_t stratumId, tl::expected<void, int32_t> result)
+void Connection::on_append_result(int64_t stratumId, tl::expected<void, Error> result)
 {
     if (result.has_value()) {
         write() << messages::OK(stratumId);
@@ -249,7 +249,7 @@ void Connection::handle_message(messages::MiningSubmit&& m)
     }
     m.apply_to(extra2prefix, *b);
     put_chain_append({ *b },
-        [&, p = shared_from_this(), id = m.id](const tl::expected<void, int32_t>& res) {
+        [&, p = shared_from_this(), id = m.id](const tl::expected<void, Error>& res) {
             server.on_append_result({ .p = p, .stratumId = id, .result { res } });
         });
 }

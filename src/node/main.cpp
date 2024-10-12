@@ -1,4 +1,3 @@
-#include "api/realtime.hpp"
 #include "chainserver/db/chain_db.hpp"
 #include "chainserver/server.hpp"
 #include "eventloop/eventloop.hpp"
@@ -9,9 +8,10 @@
 #include "transport/ws/native/ws_conman.hpp"
 
 #ifdef DISABLE_LIBUV
+#include "api/wasm/endpiont_wasm.hpp"
 #include "config/browser.hpp"
 #else
-static void shutdown(int32_t reason);
+static void shutdown(Error reason);
 #include "api/http/endpoint.hpp"
 #include "api/stratum/stratum_server.hpp"
 #include "transport/tcp/conman.hpp"
@@ -63,7 +63,7 @@ void free_signals()
     uv_close((uv_handle_t*)&sigterm, nullptr);
 }
 
-static void shutdown(int32_t reason)
+static void shutdown(Error reason)
 {
     shutdownSignal.store(true);
     global().core->shutdown(reason);
@@ -89,9 +89,6 @@ void initialize_srand()
 struct ECC {
     ECC() { ECC_Start(); }
     ~ECC() { ECC_Stop(); }
-};
-struct Starter {
-    Starter() { }
 };
 
 int main(int argc, char** argv)
@@ -127,7 +124,7 @@ int main(int argc, char** argv)
     if (config().stratumPool) {
         stratumServer.emplace(config().stratumPool->bind);
     }
-    TCPConnectionManager cm(l, ps, config());
+    auto cm{ TCPConnectionManager::make_shared(l, ps, config())};
     WSConnectionManager wscm(ps, config().websocketServer);
     // setup signals
     setup_signals(l->raw());
@@ -136,7 +133,7 @@ int main(int argc, char** argv)
     HTTPEndpoint endpoint { config().jsonrpc.bind };
     auto endpointPublic { HTTPEndpoint::make_public_endpoint(config()) };
 
-    global_init(&breg, &ps, &*cs, &cm, &wscm, el.get(), &endpoint);
+    global_init(&breg, &ps, &*cs, cm.get(), &wscm, el.get(), &endpoint);
 #else
     global_init(&breg, &ps, &*cs, el.get());
 #endif
@@ -149,6 +146,7 @@ int main(int argc, char** argv)
     el->start();
 
 #ifdef DISABLE_LIBUV
+    virtual_endpoint_initialize();
     while (true) {
         sleep(1000); // don't shut down
     }
@@ -156,6 +154,8 @@ int main(int argc, char** argv)
 #else
     endpoint.start();
     wscm.start();
+    if (stratumServer)
+        stratumServer->start();
     spdlog::debug("Starting libuv loop");
     // running eventloop
     if ((i = l->run(uvw::loop::run_mode::DEFAULT)))

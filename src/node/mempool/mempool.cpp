@@ -1,5 +1,5 @@
 #include "mempool.hpp"
-#include "api/realtime.hpp"
+#include "api/events/emit.hpp"
 #include "chainserver/transaction_ids.hpp"
 #include <algorithm>
 #include <numeric>
@@ -27,18 +27,15 @@ void BalanceEntry::unlock(Funds amount)
 
 std::vector<TransferTxExchangeMessage> Mempool::get_payments(size_t n, std::vector<Hash>* hashes) const
 {
-    if (n == 0)
-        return {};
     std::vector<TransferTxExchangeMessage> res;
     res.reserve(n);
-    size_t i = 0;
-    for (auto iter = byFee.begin(); iter != byFee.end(); ++iter) {
-        auto& [txid, entry] { **iter };
+    for (auto txiter : byFee) {
+        if (res.size() >= n)
+            break;
+        auto& [txid, entry] { *txiter };
         res.push_back({ txid, entry });
         if (hashes)
-            hashes->emplace_back((*iter)->second.hash);
-        if (++i >= n)
-            break;
+            hashes->emplace_back(entry.hash);
     }
     return res;
 }
@@ -58,17 +55,17 @@ void Mempool::apply_logevent(const Put& a)
 
     erase(a.entry.transaction_id());
     auto p = txs.emplace(a.entry.transaction_id(), a.entry.entry_value());
-    realtime_api::on_mempool_add(a, txs.size());
+    api::event::emit_mempool_add(a, txs.size());
     assert(p.second);
-    byPin.insert(p.first);
-    byFee.insert(p.first);
-    byHash.insert(p.first);
+    assert(byPin.insert(p.first).second);
+    assert(byFee.insert(p.first));
+    assert(byHash.insert(p.first).second);
 }
 
 void Mempool::apply_logevent(const Erase& e)
 {
     erase(e.id);
-    realtime_api::on_mempool_erase(e, size());
+    api::event::emit_mempool_erase(e, size());
 }
 
 std::optional<TransferTxExchangeMessage> Mempool::operator[](const TransactionId& id) const
@@ -88,17 +85,26 @@ std::optional<TransferTxExchangeMessage> Mempool::operator[](const HashView txHa
     return TransferTxExchangeMessage { (*iter)->first, (*iter)->second };
 }
 
-bool Mempool::erase(Txmap::iterator iter, BalanceEntries::iterator b_iter, bool gc)
+bool Mempool::erase_internal(Txmap::const_iterator iter, BalanceEntries::iterator b_iter, bool gc)
 {
+    assert(size() == byFee.size());
+    assert(size() == byPin.size());
+    assert(size() == byHash.size());
+
+    // copy before erase
     const TransactionId id { iter->first };
-    byPin.erase(iter);
+    Funds spend { iter->second.spend_assert() };
+
+    // erase iter and its references
+    assert(byPin.erase(iter) == 1);
     assert(byFee.erase(iter) == 1);
-    byHash.erase(iter);
-    auto tx = *iter;
-    Funds spend { tx.second.spend_assert() };
+    assert(byHash.erase(iter) == 1);
     txs.erase(iter);
+
     if (master)
         log.push_back(Erase { id });
+
+    // update locked balance
     if (b_iter != balanceEntries.end()) {
         auto& balanceEntry { b_iter->second };
         balanceEntry.unlock(spend);
@@ -110,30 +116,30 @@ bool Mempool::erase(Txmap::iterator iter, BalanceEntries::iterator b_iter, bool 
     return false;
 }
 
-void Mempool::erase(decltype(txs)::iterator iter)
+void Mempool::erase_internal(Txmap::const_iterator iter)
 {
     auto b_iter = balanceEntries.find(iter->first.accountId);
-    erase(iter, b_iter);
+    erase_internal(iter, b_iter);
 }
 
 void Mempool::erase_from_height(Height h)
 {
     auto iter = byPin.lower_bound(h);
     while (iter != byPin.end())
-        erase(*(iter++));
+        erase_internal(*(iter++));
 }
 
 void Mempool::erase_before_height(Height h)
 {
     auto end = byPin.lower_bound(h);
     for (auto iter = byPin.begin(); iter != end;)
-        erase(*(iter++));
+        erase_internal(*(iter++));
 }
 
 void Mempool::erase(TransactionId id)
 {
     if (auto iter = txs.find(id); iter != txs.end())
-        erase(iter);
+        erase_internal(iter);
 }
 
 std::vector<TxidWithFee> Mempool::sample(size_t N) const
@@ -173,15 +179,16 @@ void Mempool::set_balance(AccountId accId, Funds newBalance)
     auto iterators { txs.by_fee_inc(accId) };
 
     for (size_t i = 0; i < iterators.size(); ++i) {
-        bool allErased = erase(iterators[i], b_iter);
-        assert(allErased == (i == iterators.size() - 1));
+        bool allErased = erase_internal(iterators[i], b_iter);
+        bool lastIteration = (i == iterators.size() - 1);
+        assert(allErased == lastIteration);
         if (balanceEntry.set_avail(newBalance))
             return;
     }
     assert(false); // should not happen
 }
 
-int32_t Mempool::insert_tx(const TransferTxExchangeMessage& pm,
+Error Mempool::insert_tx(const TransferTxExchangeMessage& pm,
     TransactionHeight txh,
     const TxHash& txhash,
     const AddressFunds& af)
@@ -190,7 +197,7 @@ int32_t Mempool::insert_tx(const TransferTxExchangeMessage& pm,
         insert_tx_throw(pm, txh, txhash, af);
         return 0;
     } catch (Error e) {
-        return e.e;
+        return e;
     }
 }
 
@@ -209,8 +216,8 @@ void Mempool::insert_tx_throw(const TransferTxExchangeMessage& pm,
     const Funds spend { pm.spend_throw() };
 
     { // check if we can delete enough old entries to insert new entry
-        std::vector<Txmap::iterator> clear;
-        std::optional<Txmap::iterator> match;
+        std::vector<Txmap::const_iterator> clear;
+        std::optional<Txmap::const_iterator> match;
         if (auto iter = txs.find(pm.txid); iter != txs.end()) {
             if (iter->second.fee >= pm.compactFee) {
                 throw Error(ENONCE);
@@ -219,24 +226,6 @@ void Mempool::insert_tx_throw(const TransferTxExchangeMessage& pm,
             match = iter;
         }
         const auto remaining { e.remaining() };
-        // if (remaining < spend) {
-        //     Funds clearSum { 0 };
-        //     auto iterators { txs.by_fee_inc(pm.txid.accountId) };
-        //     for (auto iter : iterators) {
-        //         if (iter == match)
-        //             continue;
-        //         if (iter->second.fee >= pm.fee())
-        //             break;
-        //         clear.push_back(iter);
-        //         auto s{iter->second.spend()};
-        //         if (!s.has_value())
-        //
-        //         if (remaining + clearSum >= spend) {
-        //             goto candelete;
-        //         }
-        //     }
-        //     return EBALANCE;
-        // candelete:;
         if (remaining < spend) {
             Funds clearSum { Funds::zero() };
             auto iterators { txs.by_fee_inc(pm.txid.accountId) };
@@ -255,7 +244,7 @@ void Mempool::insert_tx_throw(const TransferTxExchangeMessage& pm,
         candelete:;
         }
         for (auto& iter : clear)
-            erase(iter, balanceIter, false); // make sure we don't delete balanceIter
+            erase_internal(iter, balanceIter, false); // make sure we don't delete balanceIter
     }
 
     e.lock(spend);
@@ -264,17 +253,16 @@ void Mempool::insert_tx_throw(const TransferTxExchangeMessage& pm,
     assert(inserted);
     if (master)
         log.push_back(Put { *iter });
-    byPin.insert(iter);
-    byFee.insert(iter);
-    byHash.insert(iter);
+    assert(byPin.insert(iter).second);
+    assert(byFee.insert(iter));
+    assert(byHash.insert(iter).second);
     prune();
 }
 
 void Mempool::prune()
 {
-    while (size() > maxSize) {
-        erase(byFee.smallest()); // delete smallest element
-    }
+    while (size() > maxSize)
+        erase_internal(byFee.smallest()); // delete smallest element
 }
 
 CompactUInt Mempool::min_fee() const

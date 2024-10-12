@@ -14,11 +14,11 @@ Writer& operator<<(Writer& w, const Sockaddr4& addr){
 
 std::string TCPPeeraddr::to_string() const
 {
-    return "tcp://" + ip.to_string() + ":" + std::to_string(port);
+    return ip.to_string() + ":" + std::to_string(port);
 }
 
 std::string WSPeeraddr::to_string() const
 {
-    return "ws://" + ip.to_string() + ":" + std::to_string(port);
+    return ip.to_string() + ":" + std::to_string(port);
 }
 

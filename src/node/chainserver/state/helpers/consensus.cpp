@@ -33,16 +33,16 @@ void Chainstate::assert_equal_length()
 void Chainstate::fork(Chainstate::ForkData&& fd)
 {
 
-    const auto forkHeight { fd.rollbackResult.shrinkLength + 1 };
-    assert(fd.rollbackResult.shrinkLength < length());
+    const auto forkHeight { fd.rollbackResult.shrink.length + 1 };
+    assert(fd.rollbackResult.shrink.length < length());
     // increment descriptor
     dsc += 1;
 
     // adapt header chain and offsets
     headerchain = std::move(fd.stage);
-    historyOffsets.shrink(fd.rollbackResult.shrinkLength);
+    historyOffsets.shrink(fd.rollbackResult.shrink.length);
     historyOffsets.append_vector(fd.appendResult.newHistoryOffsets);
-    accountOffsets.shrink(fd.rollbackResult.shrinkLength);
+    accountOffsets.shrink(fd.rollbackResult.shrink.length);
     accountOffsets.append_vector(fd.appendResult.newAccountOffsets);
     assert_equal_length();
 
@@ -89,16 +89,16 @@ void Chainstate::fork(Chainstate::ForkData&& fd)
 
 auto Chainstate::rollback(const RollbackResult& rb) -> HeaderchainRollback
 {
-    const auto forkHeight { rb.shrinkLength + 1 };
-    assert(rb.shrinkLength < length());
+    const auto forkHeight { rb.shrink.length + 1 };
+    assert(rb.shrink.length < length());
 
     // increment descriptor
     dsc += 1;
 
     // adapt header chain and offsets
-    headerchain.shrink(rb.shrinkLength);
-    historyOffsets.shrink(rb.shrinkLength);
-    accountOffsets.shrink(rb.shrinkLength);
+    headerchain.shrink(rb.shrink.length);
+    historyOffsets.shrink(rb.shrink.length);
+    accountOffsets.shrink(rb.shrink.length);
     assert_equal_length();
 
     // set transaction ids
@@ -136,7 +136,7 @@ auto Chainstate::rollback(const RollbackResult& rb) -> HeaderchainRollback
         _mempool.insert_tx(tx, txh, txhash, from);
     }
     return HeaderchainRollback {
-        .shrinkLength { rb.shrinkLength },
+        .shrink { rb.shrink },
         .descriptor = dsc
     };
 }

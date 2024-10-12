@@ -1,6 +1,7 @@
 #pragma once
 #include "address_manager/address_manager.hpp"
 #include "api/callbacks.hpp"
+#include "api/events/subscription_fwd.hpp"
 #include "api/types/forward_declarations.hpp"
 #include "block/chain/signed_snapshot.hpp"
 #include "chain_cache.hpp"
@@ -98,7 +99,7 @@ public:
     ~Eventloop();
 
     // API callbacks
-    using SignedSnapshotCb = std::function<void(const tl::expected<SignedSnapshot, int32_t>&)>;
+    using SignedSnapshotCb = std::function<void(const tl::expected<SignedSnapshot, Error>&)>;
     using InspectorCb = std::function<void(const Eventloop&)>;
 
     /////////////////////
@@ -108,15 +109,21 @@ public:
     bool async_process(std::shared_ptr<ConnectionBase> c);
     bool async_register(ConnectionBase::ConnectionVariant con);
     void api_get_hashrate(HashrateCb&& cb, size_t n = 100);
-    void api_get_hashrate_chart(HashrateChartCb&& cb);
-    void api_get_hashrate_chart(NonzeroHeight from, NonzeroHeight to, size_t window, HashrateChartCb&& cb);
+    void api_get_hashrate_block_chart(NonzeroHeight from, NonzeroHeight to, size_t window, HashrateBlockChartCb&& cb);
+    void api_get_hashrate_time_chart(uint32_t from, uint32_t to, size_t window, HashrateTimeChartCb&& cb);
     void api_get_peers(PeersCb&& cb);
+    void api_disconnect_peer(uint64_t id, ResultCb&& cb);
     void api_get_synced(SyncedCb&& cb);
     void api_inspect(InspectorCb&&);
+
+    // subscription methods
+    void subscribe_connection_event(SubscriptionRequest r);
+    void destroy_subscriptions(subscription_data_ptr p);
+
     void start_timer(StartTimer);
     void cancel_timer(const Timer::key_t&);
     void async_mempool_update(mempool::Log&& s);
-    void shutdown(int32_t reason);
+    void shutdown(Error reason);
     void wait_for_shutdown();
     void async_stage_action(stage_operation::Result);
     void async_state_update(StateUpdate&& s);
@@ -124,7 +131,7 @@ public:
 
     void erase(std::shared_ptr<ConnectionBase> c, Error);
     void on_failed_connect(const ConnectRequest& r, Error reason);
-    void on_outbound_closed(std::shared_ptr<ConnectionBase>, int32_t reason);
+    void on_outbound_closed(std::shared_ptr<ConnectionBase>, Error reason);
 
     void start();
 
@@ -148,7 +155,7 @@ private:
     void erase_internal(Conref cr, Error);
     [[nodiscard]] bool insert(Conref cr, const InitMsg& data); // returns true if requests might be possbile
     void close(Conref cr, Error reason);
-    void close_by_id(uint64_t connectionId, int32_t reason);
+    void close_by_id(uint64_t connectionId, Error reason);
     void close(const ChainOffender&);
     void close(Conref cr, ChainError);
     void report(const ChainOffender&) {};
@@ -260,10 +267,16 @@ private:
         uint64_t conId;
         std::vector<BodyContainer> blocks;
     };
-    struct GetHashrateChart {
-        HashrateChartCb cb;
+    struct GetHashrateBlockChart {
+        HashrateBlockChartCb cb;
         NonzeroHeight from;
         NonzeroHeight to;
+        size_t window;
+    };
+    struct GetHashrateTimeChart {
+        HashrateTimeChartCb cb;
+        uint32_t from;
+        uint32_t to;
         size_t window;
     };
     struct GetHashrate {
@@ -272,7 +285,7 @@ private:
     };
     struct FailedConnect {
         ConnectRequest connectRequest;
-        int32_t reason;
+        Error reason;
     };
     struct CancelTimer {
         Timer::key_t timer;
@@ -280,13 +293,22 @@ private:
     struct RTCClosed { // RTC connection closed
         std::shared_ptr<RTCConnection> con;
     };
+    struct SubscribeConnections : public SubscriptionRequest {
+    };
+    struct DestroySubscriptions {
+        subscription_data_ptr p;
+    };
+
+    struct DisconnectPeer {
+        uint64_t id;
+        ResultCb cb;
+    };
 
     // event queue
     using Event = std::variant<Erase, OutboundClosed, RegisterConnection, OnProcessConnection,
         StateUpdate, SignedSnapshotCb, PeersCb, SyncedCb, stage_operation::Result,
-        OnForwardBlockrep, InspectorCb, GetHashrate, GetHashrateChart,
-        FailedConnect,
-        mempool::Log, StartTimer, CancelTimer, RTCClosed, IdentityIps, GeneratedVerificationSdpOffer, GeneratedVerificationSdpAnswer, GeneratedSdpOffer, GeneratedSdpAnswer>;
+        OnForwardBlockrep, InspectorCb, GetHashrate, GetHashrateBlockChart, GetHashrateTimeChart, FailedConnect,
+        mempool::Log, StartTimer, CancelTimer, RTCClosed, IdentityIps, GeneratedVerificationSdpOffer, GeneratedVerificationSdpAnswer, GeneratedSdpOffer, GeneratedSdpAnswer, SubscribeConnections, DestroySubscriptions, DisconnectPeer>;
 
 public:
     bool defer(Event e);
@@ -305,7 +327,8 @@ private:
     void handle_event(OnForwardBlockrep&&);
     void handle_event(InspectorCb&&);
     void handle_event(GetHashrate&&);
-    void handle_event(GetHashrateChart&&);
+    void handle_event(GetHashrateBlockChart&&);
+    void handle_event(GetHashrateTimeChart&&);
     void handle_event(FailedConnect&&);
     void handle_event(mempool::Log&&);
     void handle_event(StartTimer&&);
@@ -316,11 +339,14 @@ private:
     void handle_event(GeneratedVerificationSdpAnswer&&);
     void handle_event(GeneratedSdpOffer&&);
     void handle_event(GeneratedSdpAnswer&&);
+    void handle_event(SubscribeConnections&&);
+    void handle_event(DestroySubscriptions&&);
+    void handle_event(DisconnectPeer&&);
 
     // chain updates
     using Append = chainserver::state_update::Append;
     using Fork = chainserver::state_update::Fork;
-    using RollbackData = chainserver::state_update::RollbackData;
+    using RollbackData = chainserver::state_update::SignedSnapshotApply;
     void update_chain(Append&&);
     void update_chain(Fork&&);
     void update_chain(RollbackData&&);
@@ -338,7 +364,7 @@ private:
     ////////////////////////
     // convenience functions
     const ConsensusSlave& consensus() { return chains.consensus_state(); }
-    tl::expected<Conref, int32_t> try_register(RegisterConnection&&);
+    tl::expected<Conref, Error> try_register(RegisterConnection&&);
 
     ////////////////////////
     // register sync state
@@ -368,6 +394,9 @@ private: // private data
     BlockDownload::Downloader blockDownload;
     mempool::SubscriptionMap mempoolSubscriptions;
     SyncState syncState;
+    std::vector<subscription_ptr> connectionSubscriptions;
+    void emit_disconnect(size_t, uint64_t);
+    void emit_connect(size_t, Conref);
 
     ////////////////////////////
     // mutex protected varibales
@@ -375,7 +404,7 @@ private: // private data
     std::condition_variable cv;
     std::mutex mutex;
     bool haswork = false;
-    int32_t closeReason = 0;
+    std::optional<Error> closeReason {};
     bool blockdownloadHalted = false;
     std::queue<Event> events;
     std::thread worker; // worker (constructed last)

@@ -12,39 +12,39 @@ Funds Funds::parse_throw(std::string_view s)
     throw Error(EINV_FUNDS);
 }
 
-std::string Funds::format() const
-{
-    if (val == 0)
-        return "0 WRT";
-    static_assert(COINUNIT == 100000000);
-    std::string s { std::to_string(val) };
-    size_t p = s.size();
-    if (p >= 9) {
-        s.resize(p + 1 + 4);
-        for (size_t i = 0; i < 8; ++i)
-            s[p - i] = s[p - i - 1];
-        s[p - 8] = '.';
-        std::memcpy(&(s[p + 1]), " WRT", 4);
-    } else {
-        if (p < 3) {
-            s.resize(p + 5);
-            std::memcpy(&(s[p]), " nWRT", 5);
-        } else if (p < 6) {
-            s.resize(p + 1 + 5);
-            for (size_t i = 0; i < 2; ++i)
-                s[p - i] = s[p - i - 1];
-            s[p - 2] = '.';
-            std::memcpy(&(s[p + 1]), " μWRT", 5);
-        } else {
-            s.resize(p + 1 + 5);
-            for (size_t i = 0; i < 5; ++i)
-                s[p - i] = s[p - i - 1];
-            s[p - 5] = '.';
-            std::memcpy(&(s[p + 1]), " mWRT", 5);
-        }
-    }
-    return s;
-}
+// std::string Funds::format_wart(std::string_view unit) const
+// {
+//     if (val == 0)
+//         return "0 WRT";
+//     static_assert(COINUNIT == 100000000);
+//     std::string s { std::to_string(val) };
+//     size_t p = s.size();
+//     if (p >= 9) {
+//         s.resize(p + 1 + 4);
+//         for (size_t i = 0; i < 8; ++i)
+//             s[p - i] = s[p - i - 1];
+//         s[p - 8] = '.';
+//         std::memcpy(&(s[p + 1]), " WRT", 4);
+//     } else {
+//         if (p < 3) {
+//             s.resize(p + 5);
+//             std::memcpy(&(s[p]), " nWRT", 5);
+//         } else if (p < 6) {
+//             s.resize(p + 1 + 5);
+//             for (size_t i = 0; i < 2; ++i)
+//                 s[p - i] = s[p - i - 1];
+//             s[p - 2] = '.';
+//             std::memcpy(&(s[p + 1]), " μWRT", 5);
+//         } else {
+//             s.resize(p + 1 + 5);
+//             for (size_t i = 0; i < 5; ++i)
+//                 s[p - i] = s[p - i - 1];
+//             s[p - 5] = '.';
+//             std::memcpy(&(s[p + 1]), " mWRT", 5);
+//         }
+//     }
+//     return s;
+// }
 
 std::string Funds::to_string() const
 {

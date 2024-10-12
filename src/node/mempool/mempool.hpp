@@ -27,6 +27,7 @@ private:
 
 class Mempool {
     using iter_t = Txmap::iterator;
+    using const_iter_t = Txmap::const_iterator;
 
 public:
     Mempool(bool master = true, size_t maxSize = 10000)
@@ -41,7 +42,7 @@ public:
         log.clear();
     }
     void apply_log(const Log& log);
-    int32_t insert_tx(const TransferTxExchangeMessage& pm, TransactionHeight txh, const TxHash& hash, const AddressFunds& e);
+    Error insert_tx(const TransferTxExchangeMessage& pm, TransactionHeight txh, const TxHash& hash, const AddressFunds& e);
     void insert_tx_throw(const TransferTxExchangeMessage& pm, TransactionHeight txh, const TxHash& hash, const AddressFunds& e);
     void erase(TransactionId id);
     void set_balance(AccountId, Funds newBalance);
@@ -67,16 +68,16 @@ private:
     using BalanceEntries = std::map<AccountId, BalanceEntry>;
     void apply_logevent(const Put&);
     void apply_logevent(const Erase&);
-    void erase(Txmap::iterator);
-    bool erase(Txmap::iterator, BalanceEntries::iterator, bool gc = true);
+    void erase_internal(Txmap::const_iterator);
+    bool erase_internal(Txmap::const_iterator, BalanceEntries::iterator, bool gc = true);
     void prune();
 
 private:
     Log log;
     Txmap txs;
-    std::set<iter_t, ComparatorPin> byPin;
+    std::set<const_iter_t, ComparatorPin> byPin;
     ByFeeDesc byFee;
-    std::set<iter_t, ComparatorHash> byHash;
+    std::set<const_iter_t, ComparatorHash> byHash;
     BalanceEntries balanceEntries;
     bool master;
     size_t maxSize;
