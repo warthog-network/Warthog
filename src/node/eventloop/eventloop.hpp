@@ -115,6 +115,7 @@ public:
     void api_disconnect_peer(uint64_t id, ResultCb&& cb);
     void api_get_synced(SyncedCb&& cb);
     void api_inspect(InspectorCb&&);
+    void api_get_connection_schedule(JSONCb&& cb);
 
     // subscription methods
     void subscribe_connection_event(SubscriptionRequest r);
@@ -283,6 +284,9 @@ private:
         HashrateCb cb;
         size_t n;
     };
+    struct GetConnectionSchedule{
+        JSONCb cb;
+    };
     struct FailedConnect {
         ConnectRequest connectRequest;
         Error reason;
@@ -307,8 +311,9 @@ private:
     // event queue
     using Event = std::variant<Erase, OutboundClosed, RegisterConnection, OnProcessConnection,
         StateUpdate, SignedSnapshotCb, PeersCb, SyncedCb, stage_operation::Result,
-        OnForwardBlockrep, InspectorCb, GetHashrate, GetHashrateBlockChart, GetHashrateTimeChart, FailedConnect,
-        mempool::Log, StartTimer, CancelTimer, RTCClosed, IdentityIps, GeneratedVerificationSdpOffer, GeneratedVerificationSdpAnswer, GeneratedSdpOffer, GeneratedSdpAnswer, SubscribeConnections, DestroySubscriptions, DisconnectPeer>;
+        OnForwardBlockrep, InspectorCb, GetHashrate, GetHashrateBlockChart, GetHashrateTimeChart, GetConnectionSchedule, FailedConnect,
+        mempool::Log, StartTimer, CancelTimer, RTCClosed, IdentityIps, GeneratedVerificationSdpOffer, GeneratedVerificationSdpAnswer, GeneratedSdpOffer, GeneratedSdpAnswer, SubscribeConnections, DestroySubscriptions, DisconnectPeer
+    >;
 
 public:
     bool defer(Event e);
@@ -329,6 +334,7 @@ private:
     void handle_event(GetHashrate&&);
     void handle_event(GetHashrateBlockChart&&);
     void handle_event(GetHashrateTimeChart&&);
+    void handle_event(GetConnectionSchedule&&);
     void handle_event(FailedConnect&&);
     void handle_event(mempool::Log&&);
     void handle_event(StartTimer&&);

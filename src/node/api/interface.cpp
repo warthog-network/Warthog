@@ -1,6 +1,7 @@
 #include "interface.hpp"
 #include "api/types/all.hpp"
 #include "block/header/header_impl.hpp"
+#include <nlohmann/json.hpp>
 #include "chainserver/server.hpp"
 #include "eventloop/eventloop.hpp"
 #include "global/globals.hpp"
@@ -36,6 +37,9 @@ void get_banned_peers(PeerServer::banned_callback_t&& f)
 void unban_peers(ResultCb&& f)
 {
     global().peerServer->async_unban(std::move(f));
+}
+void get_connection_schedule(JSONCb&& cb){
+    global().core->api_get_connection_schedule(std::move(cb));
 }
 void get_offense_entries(ResultCb&& f)
 {

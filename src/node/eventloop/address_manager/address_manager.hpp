@@ -17,6 +17,7 @@ class Conref;
 struct Inspector;
 
 class AddressManager {
+    using json = nlohmann::json;
     using time_point = std::chrono::steady_clock::time_point;
 
 public:
@@ -117,6 +118,7 @@ public:
 
     void outbound_failed(const ConnectRequest& r);
     void outbound_closed(OutboundClosedEvent);
+    json to_json()const;
 
     void verify(std::vector<TCPPeeraddr>, IPv4 source); // TODO call this function
     [[nodiscard]] std::optional<Conref> find(uint64_t id) const;

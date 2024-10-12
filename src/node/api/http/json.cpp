@@ -12,6 +12,7 @@
 #include "general/errors.hpp"
 #include "general/hex.hpp"
 #include "general/is_testnet.hpp"
+#include <nlohmann/json.hpp>
 #include "version.hpp"
 #include <ranges>
 
@@ -540,11 +541,10 @@ json to_json(const api::Balance& b)
     json j;
     j["balance"] = b.balance.to_string();
     j["balanceE8"] = b.balance.E8();
-    if (b.address){
+    if (b.address) {
         j["address"] = b.address->address.to_string();
         j["accountId"] = b.address->accountId.value();
-    }
-    else{
+    } else {
         j["address"] = nullptr;
         j["accountId"] = nullptr;
     }
