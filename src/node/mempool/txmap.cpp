@@ -19,7 +19,7 @@ auto Txmap::by_fee_inc(AccountId id) const -> std::vector<const_iterator>
 bool ByFeeDesc::insert(const_iter_t iter)
 {
     auto pos = std::lower_bound(data.begin(), data.end(), iter, [](const_iter_t i1, const_iter_t i2) { return i1->second.fee > i2->second.fee; });
-    if (*pos == iter)
+    if (pos != data.end() && *pos == iter)
         return false;
     data.insert(pos, iter);
     return true;
