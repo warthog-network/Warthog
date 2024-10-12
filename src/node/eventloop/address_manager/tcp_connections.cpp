@@ -84,6 +84,14 @@ void VectorEntry::connection_established()
 {
     connectionLog.log_success();
 }
+json VectorEntry::to_json() const
+{
+    return {
+        { "timer", json(timer.to_json()) },
+        { "active", active },
+        { "address", address.to_string() }
+    };
+}
 
 time_point VectorEntry::outbound_connected_ended(const ReconnectContext& c)
 {
@@ -167,13 +175,9 @@ json VectorEntry::Timer::to_json() const
 
 json VerifiedEntry::to_json() const
 {
-    using namespace std::chrono;
-    return {
-        { "timer", json(timer.to_json()) },
-        { "lastVerified", to_timestamp(lastVerified) },
-        { "active", active },
-        { "address", address.to_string() }
-    };
+    auto json(VectorEntry::to_json());
+    json["lastVerified"] = to_timestamp(lastVerified);
+    return json;
 }
 
 template <typename T>

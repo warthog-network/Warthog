@@ -91,6 +91,7 @@ public:
 
     // connection event callbacks
     void connection_established();
+    json to_json() const;
     [[nodiscard]] time_point outbound_connected_ended(const ReconnectContext&);
 
 protected:
@@ -117,7 +118,6 @@ protected:
     };
     Timer timer;
     ConnectionLog connectionLog;
-    std::chrono::steady_clock::time_point lastVerified;
     std::set<Source> sources;
     bool active { false };
     TCPPeeraddr address;
