@@ -355,7 +355,7 @@ int ConfigParams::init(const gengetopt_args_info& ai)
         data.chaindb = ai.chain_db_arg;
     else {
         if (data.chaindb.empty())
-            data.chaindb = defaultDataDir + (is_testnet() ? "testnet3_chain.db3" : "chain.db3");
+            data.chaindb = defaultDataDir + (is_testnet() ? "testnet_chain_defi.db3" : "chain_defi.db3");
     }
     if (ai.peers_db_given)
         data.peersdb = ai.peers_db_arg;

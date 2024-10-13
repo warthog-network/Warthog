@@ -310,7 +310,7 @@ void ChainDB::insert_new_token(TokenId verifyNextTokenId, NonzeroHeight height, 
 {
     auto id { cache.maxTokenId + 1 };
     if (id != verifyNextTokenId)
-        throw std::runtime_error("Internal error, state id inconsistent.");
+        throw std::runtime_error("Internal error, token id inconsistent.");
     std::string n { name.c_str() };
     stmtTokenInsert.run(id, height, creatorId, n, static_cast<uint8_t>(type));
     cache.maxTokenId++;

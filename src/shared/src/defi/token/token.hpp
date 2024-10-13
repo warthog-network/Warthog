@@ -15,7 +15,8 @@ class Writer;
 
 constexpr auto DefaultTokenSupply {Funds::from_value_throw( (100000000 * COINUNIT))};
 
-enum class TokenMintType { Default = 0,
+enum class TokenMintType { 
+    Ownall = 0,
     Auction = 1 };
 
 class TokenName {

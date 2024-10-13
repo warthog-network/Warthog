@@ -138,7 +138,7 @@ public:
         return beginNewAccountId + newElementOffset;
     };
     AddressView get_new_address(size_t i) { return bv.get_address(i); } // OK
-    auto& get_token_creations() const { return tokenCreations; }
+    auto& token_creations() const { return tokenCreations; }
     const std::vector<TransferInternal>& get_transfers() { return payments; };
     const auto& get_reward() { return reward; };
 
@@ -163,6 +163,7 @@ private:
     NonzeroHeight height;
     RewardInternal reward;
     std::vector<TransferInternal> payments;
+
     std::vector<TokenCreationInternal> tokenCreations;
 };
 
@@ -374,8 +375,8 @@ Preparation BlockApplier::Preparer::prepare(const BodyView& bv, const NonzeroHei
     }
 
     const auto beginNewTokenId = db.next_token_id(); // they start from this index
-    for (size_t i = 0; i < balanceChecker.get_token_creations().size(); ++i) {
-        auto& tc { balanceChecker.get_token_creations()[i] };
+    for (size_t i = 0; i < balanceChecker.token_creations().size(); ++i) {
+        auto& tc { balanceChecker.token_creations()[i] };
         auto tokenId { beginNewTokenId + i };
         const auto verified { tc.verify(hc, height, tokenId) };
         res.insertTokenCreations.push_back({ tokenId, tc.creatorAccountId, tc.tokenName });
@@ -424,7 +425,7 @@ api::Block BlockApplier::apply_block(const BodyView& bv, HeaderView hv, NonzeroH
 
         // insert token creations
         for (auto& [tokenId, creatorId, tokenName] : prepared.insertTokenCreations) {
-            db.insert_new_token(tokenId, height, creatorId, tokenName, TokenMintType::Default);
+            db.insert_new_token(tokenId, height, creatorId, tokenName, TokenMintType::Ownall);
             db.insert_token_balance(tokenId, creatorId, DefaultTokenSupply);
         }
 
