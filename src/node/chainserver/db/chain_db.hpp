@@ -410,11 +410,11 @@ private:
                     "`undo` BLOB DEFAULT null, `hash` BLOB NOT NULL UNIQUE )");
             db.exec("CREATE TABLE IF NOT EXISTS \"Tokens\" ( `height` INTEGER NOT "
                     "NULL, `creator_id` INTEGER NOT NULL, `name` TEXT NOT NULL UNIQUE, `type` INTEGER NOT NULL)");
-            db.exec("CREATE TABLE IF NOT EXISTS \"token_balance\" ( `account_id` INTEGER NOT NULL, `token_id` INTEGER NOT NULL, `balance` INTEGER NOT NULL)");
-            db.exec("CREATE UNIQUE INDEX IF NOT EXISTS `token_balance_index` ON "
-                    "`token_balance` (`account_id` ASC, `token_id` ASC)");
-            db.exec("CREATE INDEX IF NOT EXISTS `token_balance_index2` ON "
-                    "`token_balance` (`token_id`, `balance` DESC)");
+            db.exec("CREATE TABLE IF NOT EXISTS \"TokenBalance\" ( `account_id` INTEGER NOT NULL, `token_id` INTEGER NOT NULL, `balance` INTEGER NOT NULL)");
+            db.exec("CREATE UNIQUE INDEX IF NOT EXISTS `TokenBalance_index` ON "
+                    "`TokenBalance` (`account_id` ASC, `token_id` ASC)");
+            db.exec("CREATE INDEX IF NOT EXISTS `TokenBalance_index2` ON "
+                    "`TokenBalance` (`token_id`, `balance` DESC)");
             db.exec("CREATE TABLE IF NOT EXISTS \"Consensus\" ( `height` INTEGER NOT "
                     "NULL, `block_id` INTEGER NOT NULL, `history_cursor` INTEGER NOT "
                     "NULL, `account_cursor` INTEGER NOT NULL, PRIMARY KEY(`height`) )");

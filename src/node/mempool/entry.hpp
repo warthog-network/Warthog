@@ -3,6 +3,7 @@
 #include "block/body/transaction_id.hpp"
 #include "block/chain/pin.hpp"
 #include "crypto/hash.hpp"
+#include "defi/token/id.hpp"
 #include "general/compact_uint.hpp"
 #include "general/funds.hpp"
 #include "mempool/order_key.hpp"
@@ -11,8 +12,9 @@ class TransferTxExchangeMessageView;
 namespace mempool {
 struct EntryValue;
 struct EntryValue {
-    EntryValue(NonceReserved noncep2, CompactUInt fee, Address toAddr, Funds amount, RecoverableSignature signature, Hash hash, Height transactionHeight)
+    EntryValue(NonceReserved noncep2, TokenId tokenId, CompactUInt fee, Address toAddr, Funds amount, RecoverableSignature signature, Hash hash, Height transactionHeight)
         : noncep2(noncep2)
+        , tokenId(tokenId)
         , fee(fee)
         , toAddr(toAddr)
         , amount(amount)
@@ -23,6 +25,7 @@ struct EntryValue {
     }
     [[nodiscard]] auto spend_assert() const { return Funds::sum_assert(fee.uncompact(), amount); }
     NonceReserved noncep2;
+    TokenId tokenId;
     CompactUInt fee;
     Address toAddr;
     Funds amount;

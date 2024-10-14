@@ -1,3 +1,4 @@
+#pragma once
 #include "general/with_uint64.hpp"
 struct TokenId : public IsUint32 {
     using IsUint32::IsUint32;

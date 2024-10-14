@@ -5,7 +5,7 @@
 #include <numeric>
 #include <random>
 namespace mempool {
-bool BalanceEntry::set_avail(Funds amount)
+bool LockedBalance::set_avail(Funds amount)
 {
     if (used > amount)
         return false;
@@ -13,13 +13,13 @@ bool BalanceEntry::set_avail(Funds amount)
     return true;
 }
 
-void BalanceEntry::lock(Funds amount)
+void LockedBalance::lock(Funds amount)
 {
     assert(amount <= remaining());
     used.add_assert(amount);
 }
 
-void BalanceEntry::unlock(Funds amount)
+void LockedBalance::unlock(Funds amount)
 {
     assert(used >= amount);
     used.subtract_assert(amount);
@@ -105,11 +105,11 @@ bool Mempool::erase_internal(Txmap::const_iterator iter, BalanceEntries::iterato
         log.push_back(Erase { id });
 
     // update locked balance
-    if (b_iter != balanceEntries.end()) {
+    if (b_iter != lockedBalances.end()) {
         auto& balanceEntry { b_iter->second };
         balanceEntry.unlock(spend);
         if (gc && balanceEntry.is_clean()) {
-            balanceEntries.erase(b_iter);
+            lockedBalances.erase(b_iter);
             return true;
         }
     }
@@ -118,7 +118,7 @@ bool Mempool::erase_internal(Txmap::const_iterator iter, BalanceEntries::iterato
 
 void Mempool::erase_internal(Txmap::const_iterator iter)
 {
-    auto b_iter = balanceEntries.find(iter->first.accountId);
+    auto b_iter = lockedBalances.find(iter->first.accountId);
     erase_internal(iter, b_iter);
 }
 
@@ -167,16 +167,16 @@ std::vector<TransactionId> Mempool::filter_new(const std::vector<TxidWithFee>& v
     return out;
 }
 
-void Mempool::set_balance(AccountId accId, Funds newBalance)
+void Mempool::set_balance(AccountToken ac, Funds newBalance)
 {
-    auto b_iter { balanceEntries.find(accId) };
-    if (b_iter == balanceEntries.end())
+    auto b_iter { lockedBalances.find(ac) };
+    if (b_iter == lockedBalances.end())
         return;
     auto& balanceEntry { b_iter->second };
     if (balanceEntry.set_avail(newBalance))
         return;
 
-    auto iterators { txs.by_fee_inc(accId) };
+    auto iterators { txs.by_fee_inc(ac) };
 
     for (size_t i = 0; i < iterators.size(); ++i) {
         bool allErased = erase_internal(iterators[i], b_iter);
@@ -211,7 +211,8 @@ void Mempool::insert_tx_throw(const TransferTxExchangeMessage& pm,
 
     if (af.funds.is_zero())
         throw Error(EBALANCE);
-    auto balanceIter = balanceEntries.try_emplace(pm.from_id(), af).first;
+    AccountToken key{pm.from_id(),TokenId(0)};
+    auto balanceIter = lockedBalances.try_emplace(key, af.funds).first;
     auto& e { balanceIter->second };
     const Funds spend { pm.spend_throw() };
 

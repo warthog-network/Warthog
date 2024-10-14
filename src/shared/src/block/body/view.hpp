@@ -6,6 +6,7 @@
 
 struct TokenCreationView;
 struct TransferView;
+struct TokenTransferView;
 struct RewardView;
 class AddressView;
 
@@ -132,6 +133,7 @@ public:
     constexpr static size_t AddressSize { 20 };
     constexpr static size_t RewardSize { 16 };
     constexpr static size_t TransferSize { 34 + SIGLEN };
+    constexpr static size_t TransferDefiSize { 34+4 + SIGLEN };
     constexpr static size_t TokenCreationSize { 8 + 8 + 5 + 2 + SIGLEN };
     BodyView(std::span<const uint8_t>, NonzeroHeight h);
     std::vector<Hash> merkle_leaves() const;
@@ -147,6 +149,7 @@ public:
     size_t getNAddresses() const { return nAddresses; };
     size_t getNNewTokens() const { return nNewTokens; };
     TransferView get_transfer(size_t i) const;
+    TokenTransferView get_token_transfer(size_t i) const;
     TokenCreationView get_new_token(size_t i) const;
     RewardView reward() const;
     Funds fee_sum_assert() const;

@@ -53,11 +53,11 @@ ChainDB::ChainDB(const std::string& path)
     , stmtBlockByHash(
           db, "SELECT ROWID, `height`, `header`, `body` FROM \"Blocks\" WHERE `hash`=?;")
     , stmtTokenInsert(db, "INSERT INTO \"Tokens\" ( `ROWID`, `height`, `creator_id`, `name`, `type`) VALUES (?,?,?,?,?)")
-    , stmtTokenInsertBalance(db, "INSERT INTO \"token_balance\" ( `token_id`, `account_id`, `balance`) VALUES (?,?,?)")
-    , stmtTokenSelectBalance(db, "SELECT `balance` FROM `token_balance` WHERE `token_id`=? AND `account_id`=?")
-    , stmtAccountSelectTokens(db, "SELECT `token_id`, `balance` FROM `token_balance` WHERE `account_id`=? LIMIT ?")
-    , stmtTokenUpdateBalance(db, "UPDATE `token_balance` SET `balance`=? WHERE `token_id`=? AND `account_id`=?")
-    , stmtTokenSelectRichlist(db, "SELECT `account_id`, `balance` FROM `token_balance` WHERE `token_id`=? ORDER BY `balance` DESC LIMIT ?")
+    , stmtTokenInsertBalance(db, "INSERT INTO \"TokenBalance\" ( `token_id`, `account_id`, `balance`) VALUES (?,?,?)")
+    , stmtTokenSelectBalance(db, "SELECT `balance` FROM `TokenBalance` WHERE `token_id`=? AND `account_id`=?")
+    , stmtAccountSelectTokens(db, "SELECT `token_id`, `balance` FROM `TokenBalance` WHERE `account_id`=? LIMIT ?")
+    , stmtTokenUpdateBalance(db, "UPDATE `TokenBalance` SET `balance`=? WHERE `token_id`=? AND `account_id`=?")
+    , stmtTokenSelectRichlist(db, "SELECT `account_id`, `balance` FROM `TokenBalance` WHERE `token_id`=? ORDER BY `balance` DESC LIMIT ?")
     , stmtConsensusHeaders(db, "SELECT c.height, c.history_cursor, c.account_cursor, b.header "
                                "FROM `Blocks` b JOIN `Consensus` c ON "
                                "b.ROWID=c.block_id ORDER BY c.height ASC;")

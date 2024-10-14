@@ -94,11 +94,60 @@ public:
         return { fromAccountId(), pinHeight, pn.id };
     }
 
-    TransferView(const uint8_t* pos)
-        : View(pos)
+    using View::View;
+};
+
+struct TokenTransferView : public View<BodyView::TransferDefiSize> {
+private:
+    uint16_t fee_raw() const
     {
+        return readuint16(pos + 16);
     }
-    const uint8_t* data() const { return pos; }
+
+public:
+    using View::View;
+    AccountId fromAccountId() const
+    {
+        return AccountId(readuint64(pos));
+    }
+    PinNonce pin_nonce() const
+    {
+        Reader r({ pos + 8, pos + 16 });
+        return PinNonce(r);
+    }
+    PinHeight pinHeight(PinFloor pinFloor) const
+    {
+        return pin_nonce().pin_height(pinFloor);
+    }
+    CompactUInt compact_fee_trow() const
+    {
+        return CompactUInt::from_value_throw(fee_raw());
+    }
+
+    CompactUInt compact_fee_assert() const
+    {
+        return CompactUInt::from_value_assert(fee_raw());
+    }
+
+    Funds fee_throw() const
+    {
+        return compact_fee_trow().uncompact();
+    }
+    AccountId toAccountId() const
+    {
+        return AccountId(readuint64(pos + 18));
+    }
+    Funds amount_throw() const
+    {
+        return Funds::from_value_throw(readuint64(pos + 26));
+    }
+    auto signature() const { return View<65>(pos + 34); }
+    static_assert(65 == BodyView::SIGLEN);
+    TransactionId txid(PinHeight pinHeight) const
+    {
+        PinNonce pn = pin_nonce();
+        return { fromAccountId(), pinHeight, pn.id };
+    }
 };
 
 struct Transfer {
@@ -173,7 +222,13 @@ public:
 inline TransferView BodyView::get_transfer(size_t i) const
 {
     assert(i < nTransfers);
-    return data() + offsetTransfers + i * TransferView::size();
+    return TransferView { data() + offsetTransfers + i * TransferView::size() };
+}
+
+inline TokenTransferView BodyView::get_token_transfer(size_t i) const
+{
+    assert(i < nTransfers);
+    return TokenTransferView { data() + offsetTransfers + i * TokenTransferView::size() };
 }
 
 inline TokenCreationView BodyView ::get_new_token(size_t i) const
