@@ -16,9 +16,9 @@ using namespace std::chrono_literals;
 
 using sc = std::chrono::steady_clock;
 namespace {
-auto to_timestamp(sc::time_point tp)
+auto expires_in(sc::time_point tp)
 {
-    return duration_cast<seconds>(tp.time_since_epoch()).count();
+    return duration_cast<seconds>(tp - sc::now()).count();
 }
 
 }
@@ -84,6 +84,7 @@ void VectorEntry::connection_established()
 {
     connectionLog.log_success();
 }
+
 json VectorEntry::to_json() const
 {
     return {
@@ -169,15 +170,21 @@ json VectorEntry::Timer::to_json() const
     using namespace std::chrono;
     return {
         { "sleepDuration", duration_cast<seconds>(_sleepDuration).count() },
-        { "wakeupTime", to_timestamp(_wakeupTime) }
+        { "expiresIn", expires_in(_wakeupTime) }
     };
 }
 
 json VerifiedEntry::to_json() const
 {
     auto json(VectorEntry::to_json());
-    json["lastVerified"] = to_timestamp(lastVerified);
+    json["lastVerified"] = expires_in(lastVerified);
     return json;
+}
+
+void VectorTimeout::update_wakeup_time(const std::optional<time_point>& tp)
+{
+    if (tp && (!wakeup_tp || wakeup_tp > tp))
+        wakeup_tp = tp;
 }
 
 template <typename T>
@@ -214,13 +221,6 @@ VectorEntry& SockaddrVectorBase<T>::insert(elem_t&& ed)
 }
 
 template <typename T>
-void SockaddrVectorBase<T>::update_wakeup_time(const std::optional<time_point>& tp)
-{
-    if (tp && (!wakeup_tp || wakeup_tp > tp))
-        wakeup_tp = tp;
-}
-
-template <typename T>
 auto SockaddrVectorBase<T>::find(const TCPPeeraddr& address) const -> elem_t*
 {
     auto iter { std::find_if(data.begin(), data.end(), [&](auto& elem) { return elem.address == address; }) };
@@ -236,8 +236,8 @@ TCPConnectionSchedule::TCPConnectionSchedule(InitArg ia)
 {
     spdlog::info("Peers connect size {} ", ia.pin.size());
     for (auto& p : pinned)
-        unverifiedNew.emplace(TCPWithSource({ p }));
-    wakeup_tp.consider(unverifiedNew.timeout());
+        unverified.emplace(TCPWithSource({ p }));
+    wakeup_tp.consider(unverified.timeout());
 }
 
 auto TCPConnectionSchedule::find_verified(const TCPPeeraddr& sa) -> VectorEntry*
@@ -245,16 +245,16 @@ auto TCPConnectionSchedule::find_verified(const TCPPeeraddr& sa) -> VectorEntry*
     return verified.find(sa);
 }
 
-auto TCPConnectionSchedule::find(const TCPPeeraddr& a) const -> std::optional<Found>
+auto TCPConnectionSchedule::find(const TCPPeeraddr& a) -> std::optional<Found>
 {
     using enum VerificationState;
     VectorEntry* p { verified.find(a) };
     if (p)
-        return Found { *p, VERIFIED };
-    if (p = unverifiedNew.find(a); p)
-        return Found { *p, UNVERIFIED_NEW };
-    if (p = unverifiedFailed.find(a); p)
-        return Found { *p, UNVERIFIED_FAILED };
+        return Found { *p, verified, VERIFIED };
+    if (p = feelers.find(a); p)
+        return Found { *p, feelers, FEELER };
+    if (p = unverified.find(a); p)
+        return Found { *p, unverified, UNVERIFIED };
     return {};
 }
 
@@ -290,8 +290,8 @@ std::optional<ConnectRequest> TCPConnectionSchedule::insert(TCPPeeraddr addr, So
             o->match.add_source(src);
         return {};
     } else {
-        unverifiedNew.emplace({ addr, src }); // TODO: check if unverified is cleared at some point
-        wakeup_tp.consider(unverifiedNew.timeout());
+        feelers.emplace({ addr, src }); // TODO: check if unverified is cleared at some point
+        wakeup_tp.consider(feelers.timeout());
         return ConnectRequest::make_outbound(addr, 0s);
     }
 }
@@ -313,9 +313,9 @@ void TCPConnectionSchedule::outbound_established(const TCPConnection& c)
     if (c.inbound())
         return;
     const TCPPeeraddr& ea { c.peer_addr_native() };
-    VectorEntry* p { move_to_verified(unverifiedNew, ea) };
+    VectorEntry* p { move_to_verified(feelers, ea) };
     if (!p)
-        p = move_to_verified(unverifiedFailed, ea);
+        p = move_to_verified(unverified, ea);
     if (!p)
         p = find_verified(ea);
     if (!p)
@@ -393,8 +393,8 @@ auto TCPConnectionSchedule::to_json() const -> json
 {
     return {
         { "verified", verified.to_json() },
-        { "unverifiedNew", unverifiedNew.to_json() },
-        { "unverifiedFailed", unverifiedFailed.to_json() }
+        { "feelers", feelers.to_json() },
+        { "retry", unverified.to_json() }
     };
 }
 
@@ -403,11 +403,14 @@ auto TCPConnectionSchedule::pop_wakeup_time() -> std::optional<time_point>
     return wakeup_tp.pop();
 }
 
-void TCPConnectionSchedule::outbound_connection_ended(const ConnectRequest& r, ConnectionState state)
+void TCPConnectionSchedule::outbound_connection_ended(const ConnectRequest& r, ConnectionState conState)
 {
     // TODO: check wait time logic
-    if (auto o { get_context(r, state) })
-        wakeup_tp.consider(o->match.outbound_connected_ended(o->context));
+    if (auto o { get_context(r, conState) }) {
+        auto tp { o->match.outbound_connected_ended(o->reconnectInfo) };
+        o->timeout.update_wakeup_time(tp);
+        wakeup_tp.consider(tp);
+    }
 }
 
 void TCPConnectionSchedule::connect_expired()
@@ -424,8 +427,8 @@ std::vector<TCPConnectRequest> TCPConnectionSchedule::pop_expired(time_point now
     // pop expired requests
     std::vector<ConnectRequest> outPending;
     verified.take_expired(now, outPending);
-    unverifiedNew.take_expired(now, outPending);
-    unverifiedFailed.take_expired(now, outPending);
+    feelers.take_expired(now, outPending);
+    unverified.take_expired(now, outPending);
 
     refresh_wakeup_time();
     return outPending;
@@ -435,8 +438,8 @@ void TCPConnectionSchedule::refresh_wakeup_time()
 {
     wakeup_tp.reset();
     wakeup_tp.consider(verified.timeout());
-    wakeup_tp.consider(unverifiedNew.timeout());
-    wakeup_tp.consider(unverifiedFailed.timeout());
+    wakeup_tp.consider(feelers.timeout());
+    wakeup_tp.consider(unverified.timeout());
 }
 
 auto TCPConnectionSchedule::get_context(const TCPConnectRequest& r, ConnectionState cs) -> std::optional<FoundContext>
@@ -446,7 +449,7 @@ auto TCPConnectionSchedule::get_context(const TCPConnectRequest& r, ConnectionSt
             assert(p->verificationState == VerificationState::VERIFIED);
 
         return FoundContext {
-            p->match,
+            *p,
             ReconnectContext {
                 .prevWait { r.sleptFor },
                 .endpointState = p->verificationState,

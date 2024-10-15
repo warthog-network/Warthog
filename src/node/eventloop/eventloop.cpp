@@ -9,6 +9,8 @@
 #include "chainserver/server.hpp"
 #include "communication/buffers/sndbuffer.hpp"
 #include "communication/messages_impl.hpp"
+#include "connection_inserter.hpp"
+#include "eventloop/connection_inserter.hpp"
 #include "global/globals.hpp"
 #include "mempool/order_key.hpp"
 #include "peerserver/peerserver.hpp"
@@ -85,9 +87,9 @@ bool Eventloop::async_process(std::shared_ptr<ConnectionBase> c)
     return defer(OnProcessConnection { std::move(c) });
 }
 
-bool Eventloop::async_register(ConnectionBase::ConnectionVariant con)
+bool Eventloop::on_handshake_completed(ConnectionBase::ConnectionVariant con)
 {
-    return defer(RegisterConnection(std::move(con)));
+    return defer(OnHandshakeCompleted(std::move(con)));
 }
 
 void Eventloop::shutdown(Error reason)
@@ -289,11 +291,9 @@ void Eventloop::handle_event(OutboundClosed&& e)
     connections.outbound_closed(std::move(e));
 }
 
-void Eventloop::handle_event(RegisterConnection&& m)
+void Eventloop::handle_event(OnHandshakeCompleted&& m)
 {
-    auto r { try_register(std::move(m)) };
-
-    if (r.has_value()) {
+    if (auto r { try_insert_connection(std::move(m)) }) {
         send_init(r.value());
     } else {
         auto c { m.convar.base() };
@@ -793,25 +793,6 @@ void Eventloop::erase_internal(Conref c, Error error)
     }
 }
 
-bool Eventloop::insert(Conref c, const InitMsg& data)
-{
-    bool doRequests = true;
-
-    c->chain.initialize(data, chains);
-    headerDownload.insert(c);
-    blockDownload.insert(c);
-    emit_connect(headerDownload.size(), c);
-    spdlog::info("Connected to {} peers (new peer {})", headerDownload.size(), c.peer().to_string());
-    if (rtc.ips && c.version().v2()) {
-        spdlog::info("Sending own identity");
-        c.send(RTCIdentity(*rtc.ips));
-    } else
-        spdlog::info("NOT sending own identity");
-    send_ping_await_pong(c);
-    // LATER: return whether doRequests is necessary;
-    return doRequests;
-}
-
 void Eventloop::close(Conref cr, Error reason)
 {
     spdlog::info("close {}: {}", cr.peer().to_string(), reason.err_name());
@@ -1048,12 +1029,24 @@ void Eventloop::dispatch_message(Conref cr, messages::Msg&& m)
         m);
 }
 
-void Eventloop::handle_msg(Conref cr, InitMsg&& m)
+void Eventloop::handle_msg(Conref c, InitMsg&& m)
 {
-    log_communication("{} handle init: height {}, work {}", cr.str(), m.chainLength.value(), m.worksum.getdouble());
-    cr.job().reset_notexpired<AwaitInit>(timer);
-    if (insert(cr, m))
-        do_requests();
+    log_communication("{} handle init: height {}, work {}", c.str(), m.chainLength.value(), m.worksum.getdouble());
+    c.job().reset_notexpired<AwaitInit>(timer);
+
+    c->chain.initialize(m, chains);
+    headerDownload.insert(c);
+    blockDownload.insert(c);
+    emit_connect(headerDownload.size(), c);
+    spdlog::info("Connected to {} peers (new peer {})", headerDownload.size(), c.peer().to_string());
+    if (rtc.ips && c.version().v2()) {
+        spdlog::info("Sending own identity");
+        c.send(RTCIdentity(*rtc.ips));
+    } else
+        spdlog::info("NOT sending own identity");
+    send_ping_await_pong(c);
+    // LATER: return whether doRequests is necessary;
+    do_requests();
 }
 
 void Eventloop::handle_msg(Conref cr, AppendMsg&& m)
@@ -1620,7 +1613,7 @@ void Eventloop::verify_rollback(Conref cr, const SignedPinRollbackMsg& m)
     }
 }
 
-tl::expected<Conref, Error> Eventloop::try_register(RegisterConnection&& m)
+tl::expected<Conref, Error> Eventloop::try_insert_connection(OnHandshakeCompleted&& m)
 {
     auto c { m.convar.base() };
     c->eventloop_registered = true;
@@ -1640,14 +1633,8 @@ tl::expected<Conref, Error> Eventloop::try_register(RegisterConnection&& m)
         }
     }
 
-    return connections.insert({ .convar { m.convar },
-        .headerDownload { headerDownload },
-        .blockDownload { blockDownload },
-        .timer { timer },
-        .evict_cb {
-            [this](Conref evictionCandidate) {
-                close(evictionCandidate, EEVICTED);
-            } } });
+    ConnectionInserter h(*this);
+    return connections.insert(m.convar,h);
 }
 void Eventloop::update_sync_state()
 {

@@ -254,11 +254,15 @@ namespace BlockDownload {
 class Attorney;
 }
 
-class PeerState {
+class Eventloop;
+class ConnectionInserter;
+class ConState {
+    ConState(std::shared_ptr<ConnectionBase> c, Eventloop&);
 public:
-    PeerState(std::shared_ptr<ConnectionBase> c, HeaderDownload::Downloader& h, BlockDownload::Downloader& b, Timer& t);
+    ConState(std::shared_ptr<ConnectionBase> c, const ConnectionInserter&);
     std::shared_ptr<ConnectionBase> c;
     std::optional<mempool::SubscriptionIter> subscriptionIter;
+    ConState(ConState&&) = default;
     ConnectionJob job;
     Height txSubscription { 0 };
     Ratelimit ratelimit;
@@ -269,6 +273,7 @@ public:
     bool verifiedEndpoint = false;
     Ping ping;
     Usage usage;
+    friend class ConnectionInserter;
     friend class Eventloop;
     friend class BlockDownload::Downloader;
     friend class BlockDownload::Forks;

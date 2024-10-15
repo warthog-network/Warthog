@@ -58,6 +58,7 @@ src= [
   './config/config.cpp',
   './eventloop/address_manager/address_manager.cpp',
   './eventloop/chain_cache.cpp',
+  './eventloop/connection_inserter.cpp',
   './eventloop/eventloop.cpp',
   './eventloop/peer_chain.cpp',
   './eventloop/sync/block_download/attorney.cpp',

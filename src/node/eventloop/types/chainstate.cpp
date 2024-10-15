@@ -5,8 +5,7 @@ ConsensusSlave::ConsensusSlave(std::optional<SignedSnapshot> sp, Descriptor desc
     , descriptor_(descriptor)
     , headerchain(std::make_shared<Headerchain>(std::move(headerchain)))
 {
-    return;
-};
+}
 
 std::pair<Height, AppendMsg> ConsensusSlave::apply(Append&& append)
 {
@@ -18,7 +17,7 @@ std::pair<Height, AppendMsg> ConsensusSlave::apply(Append&& append)
         assert(signedSnapshot->compatible(*headerchain));
     }
     return res;
-};
+}
 
 ForkMsg ConsensusSlave::apply(Fork&& fork)
 {
@@ -71,7 +70,7 @@ auto ConsensusSlave::apply(const RollbackData& rd) -> std::optional<SignedPinRol
 
     assert(signedSnapshot->compatible(*headerchain));
     return res;
-};
+}
 
 Headerchain::pin_t ConsensusSlave::get_pin() const
 {
@@ -79,7 +78,7 @@ Headerchain::pin_t ConsensusSlave::get_pin() const
         pinGenerator = make_shared<std::shared_ptr<Headerchain>>(headerchain);
     }
     return { pinGenerator };
-};
+}
 const SignedSnapshot::Priority ConsensusSlave::get_signed_snapshot_priority() const
 {
     if (signedSnapshot)

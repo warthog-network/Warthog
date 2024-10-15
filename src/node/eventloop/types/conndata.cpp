@@ -1,5 +1,6 @@
 #include "conndata.hpp"
 #include "communication/buffers/sndbuffer.hpp"
+#include "eventloop/eventloop.hpp"
 #include "eventloop/sync/sync.hpp"
 #include "eventloop/types/peer_requests.hpp"
 
@@ -10,11 +11,15 @@ ConnectionJob::ConnectionJob(uint64_t conId, Timer& t)
 {
 }
 
-PeerState::PeerState(std::shared_ptr<ConnectionBase> p, HeaderDownload::Downloader& h, BlockDownload::Downloader& b, Timer& t)
+ConState::ConState(std::shared_ptr<ConnectionBase> p, Eventloop& e)
     : c(std::move(p))
-    , job(c->id, t)
-    , ping(t)
-    , usage(h, b)
+    , job(c->id, e.timer)
+    , ping(e.timer)
+    , usage(e.headerDownload, e.blockDownload)
+{
+}
+ConState::ConState(std::shared_ptr<ConnectionBase> c, const ConnectionInserter& h)
+    : ConState(h.make_connection_state(std::move(c)))
 {
 }
 void Conref::send(Sndbuffer b)

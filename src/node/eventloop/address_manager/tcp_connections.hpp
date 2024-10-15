@@ -49,8 +49,8 @@ private:
 
 enum class VerificationState {
     VERIFIED, // could connect at least once to this endpoint
-    UNVERIFIED_FAILED, // could never connect and at least one failed try
-    UNVERIFIED_NEW // never tried to connect yet
+    UNVERIFIED, // could never connect and at least one failed try
+    FEELER // never tried to connect yet
 };
 enum class ConnectionState {
     NOT_CONNECTED, // connection failed early
@@ -144,8 +144,13 @@ public:
 
 class VerifiedVector;
 
+struct VectorTimeout {
+    void update_wakeup_time(const std::optional<time_point>&);
+    std::optional<time_point> wakeup_tp;
+};
+
 template <typename T>
-class SockaddrVectorBase {
+class SockaddrVectorBase : public VectorTimeout {
     friend class SockaddrVector;
     friend class ConnectionSchedule;
 
@@ -160,8 +165,6 @@ public:
 
 protected:
     VectorEntry& insert(elem_t&&);
-    void update_wakeup_time(const std::optional<time_point>&);
-    std::optional<time_point> wakeup_tp;
     mutable std::vector<elem_t> data;
 };
 
@@ -227,20 +230,20 @@ private:
     void outbound_connection_ended(const ConnectRequest&, ConnectionState state);
     struct Found {
         VectorEntry& match;
+        connection_schedule::VectorTimeout& timeout;
         VerificationState verificationState;
     };
-    struct FoundContext {
-        VectorEntry& match;
-        ReconnectContext context;
+    struct FoundContext : public Found {
+        ReconnectContext reconnectInfo;
     };
     void refresh_wakeup_time();
 #ifndef DISABLE_LIBUV
     auto get_context(const TCPConnectRequest&, ConnectionState) -> std::optional<FoundContext>;
 #endif
-    [[nodiscard]] auto find(const TCPPeeraddr& a) const -> std::optional<Found>;
+    [[nodiscard]] auto find(const TCPPeeraddr& a) -> std::optional<Found>;
     VerifiedVector verified;
-    SockaddrVector unverifiedNew;
-    SockaddrVector unverifiedFailed;
+    SockaddrVector feelers;
+    SockaddrVector unverified;
     size_t totalConnected { 0 };
     PeerServer& peerServer;
     std::set<TCPPeeraddr> pinned;

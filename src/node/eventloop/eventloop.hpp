@@ -56,10 +56,14 @@ class RTCData {
 protected:
     RTCState rtc;
 };
+class ConnectionInserter;
+class ConState;
 class Eventloop final : public std::enable_shared_from_this<Eventloop>, public RTCData {
     using StateUpdate = chainserver::state_update::StateUpdate;
     friend class BlockDownload::Attorney;
+    friend class ConnectionInserter;
     friend class EndAttorney;
+    friend class ConState;
 
     struct Token { };
     struct GeneratedVerificationSdpOffer {
@@ -107,7 +111,7 @@ public:
     // called by other threads
 
     bool async_process(std::shared_ptr<ConnectionBase> c);
-    bool async_register(ConnectionBase::ConnectionVariant con);
+    bool on_handshake_completed(ConnectionBase::ConnectionVariant con);
     void api_get_hashrate(HashrateCb&& cb, size_t n = 100);
     void api_get_hashrate_block_chart(NonzeroHeight from, NonzeroHeight to, size_t window, HashrateBlockChartCb&& cb);
     void api_get_hashrate_time_chart(uint32_t from, uint32_t to, size_t window, HashrateTimeChartCb&& cb);
@@ -154,7 +158,6 @@ private:
     //////////////////////////////
     // Connection related functions
     void erase_internal(Conref cr, Error);
-    [[nodiscard]] bool insert(Conref cr, const InitMsg& data); // returns true if requests might be possbile
     void close(Conref cr, Error reason);
     void close_by_id(uint64_t connectionId, Error reason);
     void close(const ChainOffender&);
@@ -258,7 +261,7 @@ private:
         Error reason;
     };
     using OutboundClosed = AddressManager::OutboundClosedEvent;
-    struct RegisterConnection {
+    struct OnHandshakeCompleted {
         ConnectionBase::ConnectionVariant convar;
     };
     struct OnProcessConnection {
@@ -309,7 +312,7 @@ private:
     };
 
     // event queue
-    using Event = std::variant<Erase, OutboundClosed, RegisterConnection, OnProcessConnection,
+    using Event = std::variant<Erase, OutboundClosed, OnHandshakeCompleted, OnProcessConnection,
         StateUpdate, SignedSnapshotCb, PeersCb, SyncedCb, stage_operation::Result,
         OnForwardBlockrep, InspectorCb, GetHashrate, GetHashrateBlockChart, GetHashrateTimeChart, GetConnectionSchedule, FailedConnect,
         mempool::Log, StartTimer, CancelTimer, RTCClosed, IdentityIps, GeneratedVerificationSdpOffer, GeneratedVerificationSdpAnswer, GeneratedSdpOffer, GeneratedSdpAnswer, SubscribeConnections, DestroySubscriptions, DisconnectPeer
@@ -322,7 +325,7 @@ private:
     // event handlers
     void handle_event(Erase&&);
     void handle_event(OutboundClosed&&);
-    void handle_event(RegisterConnection&&);
+    void handle_event(OnHandshakeCompleted&&);
     void handle_event(OnProcessConnection&&);
     void handle_event(StateUpdate&&);
     void handle_event(SignedSnapshotCb&&);
@@ -370,7 +373,7 @@ private:
     ////////////////////////
     // convenience functions
     const ConsensusSlave& consensus() { return chains.consensus_state(); }
-    tl::expected<Conref, Error> try_register(RegisterConnection&&);
+    tl::expected<Conref, Error> try_insert_connection(OnHandshakeCompleted&&);
 
     ////////////////////////
     // register sync state

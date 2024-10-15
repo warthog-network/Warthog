@@ -13,14 +13,14 @@ class EventloopVariables {
     friend class Eventloop;
     friend class Conref;
     friend class TCPConnectionSchedule;
-    friend class PeerState;
+    friend class ConState;
     friend class AddressManager;
     bool failed_to_connect() const { return !eventloop_registered; }
 
 private:
     std::atomic<bool> eventloop_registered { false };
     bool eventloop_erased { false };
-    bool successfulConnection { false };
+    bool successfulHandshake { false };
     Coniter dataiter;
 };
 
