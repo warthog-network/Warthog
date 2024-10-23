@@ -6,7 +6,8 @@ std::string Peeraddr::to_string() const
         return sockAddr.to_string_with_protocol();
     });
 }
-std::string_view Peeraddr::type_str() const{
+std::string_view Peeraddr::type_str() const
+{
     return visit([](auto& sockAddr) {
         return sockAddr.type_str();
     });

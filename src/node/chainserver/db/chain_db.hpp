@@ -1,6 +1,6 @@
 #pragma once
 
-#include "SQLiteCpp/SQLiteCpp.h"
+#include "general/sqlite.hpp"
 #include "api/types/forward_declarations.hpp"
 #include "block/block.hpp"
 #include "block/chain/offsts.hpp"
@@ -19,261 +19,11 @@ struct RawBody : public std::vector<uint8_t> {
 struct RawUndo : public std::vector<uint8_t> {
 };
 
-struct Column2 : public SQLite::Column {
 
-    operator Hash() const
-    {
-        return { get_array<32>() };
-    }
-    operator Height() const
-    {
-        int64_t h = getInt64();
-        if (h < 0) {
-            throw std::runtime_error("Database corrupted. Negative height h="
-                + std::to_string(h) + " observed");
-        }
-        return Height(h);
-    }
-    operator HistoryId() const
-    {
-        int64_t h = getInt64();
-        if (h <= 0) {
-            throw std::runtime_error("Database corrupted. HistoryId not positive.");
-        }
-        return HistoryId { uint64_t(h) };
-    }
-    template <size_t size>
-    std::array<uint8_t, size> get_array() const
-    {
-        std::array<uint8_t, size> res;
-        if (getBytes() != size)
-            throw std::runtime_error(
-                "Database corrupted, cannot load " + std::to_string(size) + " bytes");
-        memcpy(res.data(), getBlob(), size);
-        return res;
-    }
-
-    std::vector<uint8_t> get_vector() const
-    {
-        std::vector<uint8_t> res(getBytes());
-        memcpy(res.data(), getBlob(), getBytes());
-        return res;
-    }
-    operator std::vector<uint8_t>() const
-    {
-        return get_vector();
-    }
-    operator Address() const
-    {
-        return get_array<20>();
-    }
-    operator BodyContainer() const
-    {
-        return { std::vector<uint8_t>(*this) };
-    }
-    operator Header() const
-    {
-        return get_array<80>();
-        ;
-    }
-    operator NonzeroHeight() const
-    {
-        Height h { *this };
-        return h.nonzero_throw("Database corrupted, block has height 0");
-    }
-    operator int64_t() const
-    {
-        return getInt64();
-    }
-    operator AccountId() const
-    {
-        return AccountId(int64_t(getInt64()));
-    }
-    operator IsUint64() const
-    {
-        return IsUint64(int64_t(getInt64()));
-    }
-    operator BlockId() const
-    {
-        return BlockId(getInt64());
-    }
-    operator Funds() const
-    {
-        auto v{Funds::from_value(int64_t(getInt64()))};
-        if (!v.has_value()) 
-            throw std::runtime_error("Database corrupted, invalid funds");
-        return *v;
-    }
-    operator uint64_t() const
-    {
-        auto i { getInt64() };
-        if (i < 0)
-            throw std::runtime_error("Database corrupted, expected nonnegative entry");
-        return (uint64_t)i;
-    }
-};
-
-struct Statement2 : public SQLite::Statement {
-    using SQLite::Statement::Statement;
-
-    using SQLite::Statement::bind;
-    Column2 getColumn(const int aIndex)
-    {
-        return { Statement::getColumn(aIndex) };
-    }
-    void bind(const int index, const Worksum& ws)
-    {
-        bind(index, ws.to_bytes());
-    };
-    void bind(const int index, const std::vector<uint8_t>& v)
-    {
-        SQLite::Statement::bind(index, v.data(), v.size());
-    }
-    template <size_t N>
-    void bind(const int index, std::array<uint8_t, N> a)
-    {
-        SQLite::Statement::bind(index, a.data(), a.size());
-    }
-    template <size_t N>
-    void bind(const int index, View<N> v)
-    {
-        SQLite::Statement::bind(index, v.data(), v.size());
-    }
-    void bind(const int index, Funds f)
-    {
-        SQLite::Statement::bind(index, (int64_t)f.E8());
-    };
-    void bind(const int index, uint64_t id)
-    {
-        assert(id < std::numeric_limits<uint64_t>::max());
-        SQLite::Statement::bind(index, (int64_t)id);
-    };
-    void bind(const int index, IsUint64 id)
-    {
-        SQLite::Statement::bind(index, (int64_t)id.value());
-    };
-    void bind(const int index, BlockId id)
-    {
-        SQLite::Statement::bind(index, (int64_t)id.value());
-    };
-    void bind(const int index, Height id)
-    {
-        SQLite::Statement::bind(index, (int64_t)id.value());
-    };
-    template <size_t i>
-    void recursive_bind()
-    {
-    }
-    template <size_t i, typename T, typename... Types>
-    void recursive_bind(T&& t, Types&&... types)
-    {
-        bind(i, std::forward<T>(t));
-        recursive_bind<i + 1>(std::forward<Types>(types)...);
-    }
-    template <typename... Types>
-    uint32_t run(Types&&... types)
-    {
-        recursive_bind<1>(std::forward<Types>(types)...);
-        auto nchanged = exec();
-        reset();
-        assert(nchanged >= 0);
-        return nchanged;
-    }
-
-    // private:
-    struct Row {
-        Column2 operator[](int index) const
-        {
-            value_assert();
-            return st.getColumn(index);
-        }
-
-        template <typename T>
-        T get(int index)
-        {
-            return operator[](index);
-        }
-
-        template <size_t N>
-        std::array<uint8_t, N> get_array(int index) const
-        {
-            value_assert();
-            return st.getColumn(index);
-        }
-        std::vector<uint8_t> get_vector(int index) const
-        {
-            value_assert();
-            return st.getColumn(index);
-        }
-
-        template <typename T>
-        operator std::optional<T>()
-        {
-            if (!hasValue)
-                return {};
-            return get<T>(0);
-        }
-        bool has_value() const { return hasValue; }
-        auto process(auto lambda) const
-        {
-            using ret_t = std::remove_cvref_t<decltype(lambda(*this))>;
-            std::optional<ret_t> r;
-            if (has_value())
-                r = lambda(*this);
-            return r;
-        }
-
-    private:
-        void value_assert() const
-        {
-            if (!hasValue) {
-                throw std::runtime_error(
-                    "Database error: trying to access empty result.");
-            }
-        }
-        friend struct Statement2;
-        Row(Statement2& st)
-            : st(st)
-        {
-            hasValue = st.executeStep();
-        }
-        Statement2& st;
-        bool hasValue;
-    };
-    struct SingleResult : public Row {
-        using Row::Row;
-        ~SingleResult()
-        {
-            if (hasValue)
-                assert(st.executeStep() == false);
-            st.reset();
-        }
-    };
-
-public:
-    template <typename... Types>
-    [[nodiscard]] SingleResult one(Types&&... types)
-    {
-        recursive_bind<1>(std::forward<Types>(types)...);
-        return SingleResult { *this };
-    }
-
-    template <typename... Types, typename Lambda>
-    void for_each(Lambda lambda, Types&&... types)
-    {
-        recursive_bind<1>(std::forward<Types>(types)...);
-        while (true) {
-            auto r { Row(*this) };
-            if (!r.has_value())
-                break;
-            lambda(r);
-        }
-        reset();
-    }
-};
 
 class ChainDB {
 private:
+    using Statement = sqlite::Statement;
     friend class ChainDBTransaction;
     // ids to save additional information in tables
     static constexpr int64_t WORKSUMID = -1;
@@ -419,52 +169,52 @@ private:
         DeletionKey deletionKey;
         static Cache init(SQLite::Database& db);
     } cache;
-    Statement2 stmtBlockInsert;
-    Statement2 stmtUndoSet;
-    mutable Statement2 stmtBlockGetUndo;
-    mutable Statement2 stmtBlockById;
-    mutable Statement2 stmtBlockByHash;
+    Statement stmtBlockInsert;
+    Statement stmtUndoSet;
+    mutable Statement stmtBlockGetUndo;
+    mutable Statement stmtBlockById;
+    mutable Statement stmtBlockByHash;
 
     // Consensus table functions
-    mutable Statement2 stmtConsensusHeaders;
-    Statement2 stmtConsensusInsert;
-    // Statement2 stmtConsensusSet;
-    Statement2 stmtConsensusSetProperty;
-    mutable Statement2 stmtConsensusSelect;
-    mutable Statement2 stmtConsensusSelectRange;
-    mutable Statement2 stmtConsensusSelectHistory;
-    mutable Statement2 stmtConsensusHead;
-    Statement2 stmtConsensusDeleteFrom;
+    mutable Statement stmtConsensusHeaders;
+    Statement stmtConsensusInsert;
+    // Statement stmtConsensusSet;
+    Statement stmtConsensusSetProperty;
+    mutable Statement stmtConsensusSelect;
+    mutable Statement stmtConsensusSelectRange;
+    mutable Statement stmtConsensusSelectHistory;
+    mutable Statement stmtConsensusHead;
+    Statement stmtConsensusDeleteFrom;
 
-    Statement2 stmtScheduleExists;
-    Statement2 stmtScheduleInsert;
-    Statement2 stmtScheduleBlock;
-    Statement2 stmtScheduleProtected;
-    Statement2 stmtScheduleDelete2;
-    Statement2 stmtScheduleConsensus;
-    Statement2 stmtDeleteGCBlocks;
-    Statement2 stmtDeleteGCRefs;
+    Statement stmtScheduleExists;
+    Statement stmtScheduleInsert;
+    Statement stmtScheduleBlock;
+    Statement stmtScheduleProtected;
+    Statement stmtScheduleDelete2;
+    Statement stmtScheduleConsensus;
+    Statement stmtDeleteGCBlocks;
+    Statement stmtDeleteGCRefs;
 
-    Statement2 stmtStateInsert;
-    Statement2 stmtStateDeleteFrom;
-    Statement2 stmtStateSetBalance;
-    Statement2 stmtBadblockInsert;
-    mutable Statement2 stmtBadblockGet;
-    mutable Statement2 stmtAccountLookup;
-    mutable Statement2 stmtRichlistLookup;
-    Statement2 stmtHistoryInsert;
-    Statement2 stmtHistoryDeleteFrom;
-    mutable Statement2 stmtHistoryLookup;
-    mutable Statement2 stmtHistoryLookupRange;
-    Statement2 stmtAccountHistoryInsert;
-    Statement2 stmtAccountHistoryDeleteFrom;
+    Statement stmtStateInsert;
+    Statement stmtStateDeleteFrom;
+    Statement stmtStateSetBalance;
+    Statement stmtBadblockInsert;
+    mutable Statement stmtBadblockGet;
+    mutable Statement stmtAccountLookup;
+    mutable Statement stmtRichlistLookup;
+    Statement stmtHistoryInsert;
+    Statement stmtHistoryDeleteFrom;
+    mutable Statement stmtHistoryLookup;
+    mutable Statement stmtHistoryLookupRange;
+    Statement stmtAccountHistoryInsert;
+    Statement stmtAccountHistoryDeleteFrom;
 
-    mutable Statement2 stmtBlockIdSelect;
-    mutable Statement2 stmtBlockHeightSelect;
-    Statement2 stmtBlockDelete;
+    mutable Statement stmtBlockIdSelect;
+    mutable Statement stmtBlockHeightSelect;
+    Statement stmtBlockDelete;
 
-    mutable Statement2 stmtAddressLookup;
-    mutable Statement2 stmtHistoryById;
+    mutable Statement stmtAddressLookup;
+    mutable Statement stmtHistoryById;
 };
 class ChainDBTransaction {
 public:

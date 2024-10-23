@@ -181,7 +181,7 @@ std::vector<BlockId> ChainDB::consensus_block_ids(Height begin,
 {
     assert(end >= begin);
     std::vector<BlockId> out;
-    stmtConsensusSelectRange.for_each([&](Statement2::Row& r) {
+    stmtConsensusSelectRange.for_each([&](sqlite::Row& r) {
         out.push_back(r[0]);
     },
         begin, end);
@@ -302,7 +302,7 @@ std::tuple<std::vector<Batch>, HistoryHeights, AccountHeights> ChainDB::getConse
     HistoryHeights historyHeights;
     AccountHeights accountHeights;
     Batch b;
-    stmtConsensusHeaders.for_each([&](Statement2::Row& r) {
+    stmtConsensusHeaders.for_each([&](sqlite::Row& r) {
         if (h != r.get<Height>(0)) { // corrupted
             throw std::runtime_error("Database corrupted, block height not consecutive");
         }
@@ -333,7 +333,7 @@ std::vector<std::pair<Height, Header>>
 ChainDB::getBadblocks() const
 {
     std::vector<std::pair<Height, Header>> res;
-    stmtBadblockGet.for_each([&](Statement2::Row& r) {
+    stmtBadblockGet.for_each([&](sqlite::Row& r) {
         res.push_back({ r[0], r[1] });
     });
     return res;
@@ -370,7 +370,7 @@ std::vector<std::pair<Hash, std::vector<uint8_t>>> ChainDB::lookupHistoryRange(H
     std::vector<std::pair<Hash, std::vector<uint8_t>>> out;
     int64_t l = lower.value();
     int64_t u = (upper == HistoryId { 0 } ? std::numeric_limits<int64_t>::max() : upper.value());
-    stmtHistoryLookupRange.for_each([&](Statement2::Row& r) {
+    stmtHistoryLookupRange.for_each([&](sqlite::Row& r) {
         out.push_back({ r[0], r[1] });
     },
         l, u);
@@ -394,7 +394,7 @@ std::vector<std::tuple<HistoryId, Hash, std::vector<uint8_t>>> ChainDB::lookup_h
 {
     std::vector<std::tuple<HistoryId, Hash, std::vector<uint8_t>>> out;
     stmtHistoryById.for_each(
-        [&](Statement2::Row& row) {
+        [&](sqlite::Row& row) {
             out.push_back({ row[0], row[1], row[2] });
         },
         accountId, beforeId);
@@ -420,7 +420,7 @@ std::optional<AddressFunds> ChainDB::lookup_account(AccountId id) const
 api::Richlist ChainDB::lookup_richlist(uint32_t N) const
 {
     api::Richlist out;
-    stmtRichlistLookup.for_each([&](Statement2::Row& r) {
+    stmtRichlistLookup.for_each([&](sqlite::Row& r) {
         out.entries.push_back({ r[0], r[1] });
     },
         N);
