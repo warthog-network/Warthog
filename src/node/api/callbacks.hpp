@@ -29,7 +29,7 @@ struct NodeVersion {
 };
 
 class Header;
-class TCPPeeraddr;
+struct TCPPeeraddr;
 
 using PeersCb = std::function<void(const std::vector<api::Peerinfo>&)>;
 using SyncedCb = std::function<void(bool)>;

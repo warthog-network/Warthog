@@ -41,7 +41,9 @@ void AddressManager::outbound_closed(OutboundClosedEvent e)
             e.reason,
             e.c->addedToSchedule);
 #else
-        wsConnectionSchedule.outbound_closed(*cr, success, reason);
+        wsConnectionSchedule.outbound_closed(*cr,
+            e.reason,
+            e.c->addedToSchedule);
 #endif
     }
 }
@@ -82,7 +84,7 @@ void AddressManager::outbound_failed(const TCPConnectRequest& r, Error e)
 
 #else
 
-void AddressManager::outbound_failed(const WSBrowserConnectRequest& r)
+void AddressManager::outbound_failed(const WSBrowserConnectRequest& r, Error)
 {
     wsConnectionSchedule.outbound_failed(r);
 }

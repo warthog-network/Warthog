@@ -177,8 +177,9 @@ void Eventloop::api_get_connection_schedule(JSONCb&& cb)
 {
     defer(GetConnectionSchedule(std::move(cb)));
 }
-void Eventloop::api_sample_verified_peers( size_t n, SampledPeersCb cb){
-    defer(SampleVerifiedPeers{n,std::move(cb)});
+void Eventloop::api_sample_verified_peers(size_t n, SampledPeersCb cb)
+{
+    defer(SampleVerifiedPeers { n, std::move(cb) });
 }
 
 void Eventloop::api_get_hashrate_time_chart(uint32_t from, uint32_t to, size_t window, HashrateTimeChartCb&& cb)
@@ -504,7 +505,7 @@ void Eventloop::handle_event(GetConnectionSchedule&& e)
 void Eventloop::handle_event(FailedConnect&& e)
 {
     spdlog::warn("Cannot connect to {}: {}", e.connectRequest.address().to_string(), Error(e.reason).err_name());
-    connections.outbound_failed(e.connectRequest,e.reason);
+    connections.outbound_failed(e.connectRequest, e.reason);
 }
 
 void Eventloop::handle_event(mempool::Log&& log)
@@ -771,8 +772,13 @@ void Eventloop::handle_event(DisconnectPeer&& dp)
     dp.cb(tl::make_unexpected(Error(ENOTFOUND)));
 }
 
-void Eventloop::handle_event(SampleVerifiedPeers&& p){
+void Eventloop::handle_event(SampleVerifiedPeers&& p)
+{
+#ifndef DISABLE_LIBUV
     p.cb(connections.sample_verified_tcp(p.n));
+#else
+    p.cb({});
+#endif
 }
 
 void Eventloop::erase_internal(Conref c, Error error)
@@ -1126,15 +1132,18 @@ void Eventloop::handle_msg(Conref c, PingV2Msg&& m)
     c.rtc().their.forwardRequests.discard(m.discarded_forward_requests());
 };
 
+// only process received addresses when we are a native node (not browser nodes)
+#ifndef DISABLE_LIBUV
 void Eventloop::on_received_addresses(Conref cr, const messages::Vector16<TCPPeeraddr>& addresses)
 {
-    // only process received addresses when we are a native node (not browser nodes)
-#ifndef DISABLE_LIBUV
     if (auto ip { cr.peer().ip() }; ip.has_value() && cr.is_tcp()) {
         spdlog::debug("{} Received {} addresses", cr.str(), addresses.size());
         if (ip->is_v4())
             connections.verify(addresses, ip->get_v4());
     }
+#else
+void Eventloop::on_received_addresses(Conref, const messages::Vector16<TCPPeeraddr>&)
+{
 #endif
 }
 
@@ -1641,7 +1650,7 @@ tl::expected<Conref, Error> Eventloop::try_insert_connection(OnHandshakeComplete
     }
 
     ConnectionInserter h(*this);
-    return connections.insert(m.convar,h);
+    return connections.insert(m.convar, h);
 }
 void Eventloop::update_sync_state()
 {

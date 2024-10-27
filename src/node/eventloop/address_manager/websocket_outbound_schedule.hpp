@@ -25,7 +25,7 @@ class WSConnectionSchedule {
 
 public:
     WSConnectionSchedule(InitArg);
-    void outbound_closed(const WSBrowserConnectRequest& r, bool success, Error reason);
+    void outbound_closed(const WSBrowserConnectRequest& r, Error reason, bool success);
     void outbound_failed(const WSBrowserConnectRequest& r);
     void insert(const WSUrladdr& addr);
     void connect_expired(time_point now = steady_clock::now());

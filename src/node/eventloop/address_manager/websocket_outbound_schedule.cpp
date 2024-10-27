@@ -6,7 +6,7 @@ namespace connection_schedule {
 
 WSConnectionSchedule::WSConnectionSchedule(InitArg ia)
 {
-    for (auto &addr : ia.pin) {
+    for (auto& addr : ia.pin) {
         insert(addr);
     }
 }
@@ -37,7 +37,7 @@ void WSConnectionSchedule::connect_expired(time_point now)
     }
 }
 
-void WSConnectionSchedule::outbound_closed(const WSBrowserConnectRequest& r, bool success, Error reason)
+void WSConnectionSchedule::outbound_closed(const WSBrowserConnectRequest& r, Error reason, bool success)
 {
     if (auto iter { find_element(r.address()) }; iter != pinnedRequests.end()) {
         auto& elem { *iter };
