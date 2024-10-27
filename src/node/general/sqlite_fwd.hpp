@@ -74,7 +74,7 @@ public:
     template <size_t N>
     void bind(const int index, View<N> v);
     void bind(const int index, Funds f);
-    void bind(const int index, uint64_t id);
+    void bind(const int index, int64_t id);
     void bind(const int index, IsUint64 id);
     void bind(const int index, BlockId id);
     void bind(const int index, Height id);

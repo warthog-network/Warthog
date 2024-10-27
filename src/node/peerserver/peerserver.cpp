@@ -6,12 +6,6 @@
 #include "global/globals.hpp"
 #include "spdlog/spdlog.h"
 
-namespace {
-uint32_t bantime(Error /*offense*/)
-{
-    return 20 * 60; // 20 minutes;
-}
-} // namespace
 
 PeerServer::PeerServer(PeerDB& db, const ConfigParams& config)
     : db(db)
@@ -158,8 +152,8 @@ void PeerServer::on_close(const OnClose& o, const Sockaddr& addr)
     auto ip { addr.ip };
     auto offense { o.offense };
     if (!ip.is_loopback() // don't ban localhost
-        && errors::leads_to_ban(offense)) {
-        uint32_t banuntil = now + bantime(offense);
+        && offense.triggers_ban()) {
+        uint32_t banuntil = now + offense.bantime();
         if (ip.is_v4()) {
             auto ip4{ip.get_v4()};
             db.set_ban(ip4, banuntil, offense);

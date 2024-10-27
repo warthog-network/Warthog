@@ -22,6 +22,7 @@
 // Other codes, range [1000-1999]
 #define ADDITIONAL_ERRNO_MAP(XX)                                                   \
     /*001 - 200: Errors*/                                                          \
+    XX(0, ENOERROR, "no error")                                                    \
     XX(1, EMSGTYPE, "invalid message type")                                        \
     XX(2, EMSGLEN, "invalid message length")                                       \
     XX(4, ECHECKSUM, "bad message checksum")                                       \
@@ -153,29 +154,3 @@
 #define ERR_DEFINE(code, name, _) constexpr int32_t name = code;
 ADDITIONAL_ERRNO_MAP(ERR_DEFINE)
 #undef ERR_DEFINE
-
-namespace errors {
-const char* strerror(int32_t code);
-const char* err_name(int32_t code);
-inline bool leads_to_ban(int32_t code)
-{
-    if (code <= 0 || code >= 200)
-        return false;
-    switch (code) {
-    case ECHECKSUM:
-        //
-        // We are not sure the following are triggered by evil behavior or bug.
-        // Let's observe for some more time before enable banning on them.
-    case EEMPTY:
-    case EPROBEDESCRIPTOR:
-        return false;
-    default:
-        return true;
-    }
-    return code != ECHECKSUM;
-}
-} // namespace errors
-
-inline const char* Error::strerror() const { return errors::strerror(code); }
-inline const char* Error::err_name() const { return errors::err_name(code); }
-inline std::string Error::format() const { return std::string(err_name()) + " (" + strerror() + ")"; }

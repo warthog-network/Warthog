@@ -120,6 +120,7 @@ public:
     void api_get_synced(SyncedCb&& cb);
     void api_inspect(InspectorCb&&);
     void api_get_connection_schedule(JSONCb&& cb);
+    void api_sample_verified_peers( size_t n, SampledPeersCb cb);
 
     // subscription methods
     void subscribe_connection_event(SubscriptionRequest r);
@@ -287,7 +288,7 @@ private:
         HashrateCb cb;
         size_t n;
     };
-    struct GetConnectionSchedule{
+    struct GetConnectionSchedule {
         JSONCb cb;
     };
     struct FailedConnect {
@@ -310,13 +311,16 @@ private:
         uint64_t id;
         ResultCb cb;
     };
+    struct SampleVerifiedPeers {
+        size_t n;
+        SampledPeersCb cb;
+    };
 
     // event queue
     using Event = std::variant<Erase, OutboundClosed, OnHandshakeCompleted, OnProcessConnection,
         StateUpdate, SignedSnapshotCb, PeersCb, SyncedCb, stage_operation::Result,
         OnForwardBlockrep, InspectorCb, GetHashrate, GetHashrateBlockChart, GetHashrateTimeChart, GetConnectionSchedule, FailedConnect,
-        mempool::Log, StartTimer, CancelTimer, RTCClosed, IdentityIps, GeneratedVerificationSdpOffer, GeneratedVerificationSdpAnswer, GeneratedSdpOffer, GeneratedSdpAnswer, SubscribeConnections, DestroySubscriptions, DisconnectPeer
-    >;
+        mempool::Log, StartTimer, CancelTimer, RTCClosed, IdentityIps, GeneratedVerificationSdpOffer, GeneratedVerificationSdpAnswer, GeneratedSdpOffer, GeneratedSdpAnswer, SubscribeConnections, DestroySubscriptions, DisconnectPeer, SampleVerifiedPeers>;
 
 public:
     bool defer(Event e);
@@ -351,6 +355,7 @@ private:
     void handle_event(SubscribeConnections&&);
     void handle_event(DestroySubscriptions&&);
     void handle_event(DisconnectPeer&&);
+    void handle_event(SampleVerifiedPeers&&);
 
     // chain updates
     using Append = chainserver::state_update::Append;

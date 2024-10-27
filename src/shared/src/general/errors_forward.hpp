@@ -6,6 +6,8 @@ struct Error { // error class for exceptions
     const char* strerror() const;
     const char* err_name() const;
     std::string format() const;
+    uint32_t bantime() const;
+    bool triggers_ban() const;
     bool is_error() const { return code != 0; }
     operator bool() const { return is_error(); }
     operator int() const { return code; }

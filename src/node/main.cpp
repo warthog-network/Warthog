@@ -54,7 +54,7 @@ void setup_signals(uv_loop_t* l)
     uv_unref((uv_handle_t*)&sigterm);
     return;
 error:
-    throw std::runtime_error("Cannot setup signals: " + std::string(errors::err_name(i)));
+    throw std::runtime_error("Cannot setup signals: " + std::string(Error(i).err_name()));
 }
 void free_signals()
 {
@@ -166,7 +166,7 @@ int main(int argc, char** argv)
     l->close();
     return 0;
 error:
-    spdlog::error("libuv error:", errors::err_name(i));
+    spdlog::error("libuv error: {}", Error(i).err_name());
     return i;
 #endif
 }

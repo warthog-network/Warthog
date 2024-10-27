@@ -9,6 +9,7 @@ class TxHash;
 class Header;
 namespace jsonmsg {
 
+nlohmann::json to_json(const TCPPeeraddr&);
 nlohmann::json to_json(const api::Balance&);
 nlohmann::json to_json(const Grid&);
 nlohmann::json to_json(const NodeVersion&);

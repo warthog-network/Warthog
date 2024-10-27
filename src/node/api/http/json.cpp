@@ -1,6 +1,7 @@
 #include "json.hpp"
 #include "api/types/all.hpp"
 #include "block/body/parse.hpp"
+#include "transport/helpers/tcp_sockaddr.hpp"
 #include "block/header/header_impl.hpp"
 #include "block/header/view.hpp"
 #include "chainserver/transaction_ids.hpp"
@@ -534,6 +535,10 @@ std::string serialize(const std::vector<api::Peerinfo>& connected)
         j.push_back(elem);
     }
     return j.dump(1);
+}
+
+json to_json(const TCPPeeraddr& a){
+    return a.to_string();
 }
 
 json to_json(const api::Balance& b)

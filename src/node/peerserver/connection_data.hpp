@@ -12,7 +12,6 @@ class AddressManager;
 class EventloopVariables {
     friend class Eventloop;
     friend class Conref;
-    friend class TCPConnectionSchedule;
     friend class ConState;
     friend class AddressManager;
     bool failed_to_connect() const { return !eventloop_registered; }
@@ -20,7 +19,7 @@ class EventloopVariables {
 private:
     std::atomic<bool> eventloop_registered { false };
     bool eventloop_erased { false };
-    bool successfulHandshake { false };
+    bool addedToSchedule { false };
     Coniter dataiter;
 };
 
@@ -30,13 +29,16 @@ namespace connection_schedule {
 class ConnectionSchedule;
 }
 
+namespace tcpconnection_schedule{
 class TCPConnectionSchedule;
+}
+
 namespace peerserver {
 using duration = std::chrono::steady_clock::duration;
 
 class ConnectionData : public EventloopVariables {
     friend class ::PeerServer;
-    friend class ::TCPConnectionSchedule;
+    friend class tcpconnection_schedule::TCPConnectionSchedule;
     int64_t logrow = 0;
 
 public:

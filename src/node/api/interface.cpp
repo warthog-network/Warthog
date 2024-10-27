@@ -1,11 +1,11 @@
 #include "interface.hpp"
 #include "api/types/all.hpp"
 #include "block/header/header_impl.hpp"
-#include <nlohmann/json.hpp>
 #include "chainserver/server.hpp"
 #include "eventloop/eventloop.hpp"
 #include "global/globals.hpp"
 #include "transport/tcp/conman.hpp"
+#include <nlohmann/json.hpp>
 
 // mempool functions
 void put_mempool(PaymentCreateMessage&& m, MempoolInsertCb cb)
@@ -38,7 +38,8 @@ void unban_peers(ResultCb&& f)
 {
     global().peerServer->async_unban(std::move(f));
 }
-void get_connection_schedule(JSONCb&& cb){
+void get_connection_schedule(JSONCb&& cb)
+{
     global().core->api_get_connection_schedule(std::move(cb));
 }
 void get_offense_entries(ResultCb&& f)
@@ -54,7 +55,8 @@ void get_connected_peers2(PeersCb&& cb)
     global().core->api_get_peers(std::move(cb));
 }
 
-void disconnect_peer(uint64_t id, ResultCb&& cb){
+void disconnect_peer(uint64_t id, ResultCb&& cb)
+{
     global().core->api_disconnect_peer(id, std::move(cb));
 }
 
@@ -104,6 +106,10 @@ void get_janushash_number(std::string_view sv, RawCb cb)
         return s;
     };
     cb({ double_to_string(h.janus_number()) });
+}
+void sample_verified_peers(size_t n, SampledPeersCb cb)
+{
+    global().core->api_sample_verified_peers(n, std::move(cb));
 }
 
 namespace {
@@ -324,7 +330,8 @@ void subscribe_account_event(SubscriptionRequest r, Address a)
 {
     global().chainServer->subscribe_account_event(std::move(r), std::move(a));
 }
-void subscribe_minerdist_event(SubscriptionRequest r){
+void subscribe_minerdist_event(SubscriptionRequest r)
+{
     global().chainServer->subscribe_minerdist_event(std::move(r));
 }
 void destroy_all_subscriptions(subscription_data_ptr p)

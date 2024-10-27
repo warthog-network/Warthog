@@ -71,7 +71,7 @@ TCPConnectionManager::TCPConnectionManager(Token, std::shared_ptr<uvw::loop> loo
     int i = 0;
     if ((i = listener->bind(bindAddress)) || (i = listener->listen()))
         throw std::runtime_error(
-            "Cannot start connection manager: " + std::string(errors::err_name(i)));
+            "Cannot start connection manager: " + std::string(Error(i).err_name()));
     assert(0 == listener->listen());
 }
 void TCPConnectionManager::on_wakeup()
@@ -102,7 +102,7 @@ void TCPConnectionManager::handle_event(Connect&& c)
     TCPConnectRequest& r { c };
     auto& loop { listener->parent() };
     auto tcp { loop.resource<uvw::tcp_handle>() };
-    auto& con{insert_connection(tcp, r)};
+    auto& con { insert_connection(tcp, r) };
     connection_log().info("{} connecting", con.tag_string());
     tcp->on<uvw::connect_event>([req = r, w = weak_from_this()](const uvw::connect_event&, uvw::tcp_handle& tcp) {
         auto cm { w.lock() };

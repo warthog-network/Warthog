@@ -118,7 +118,7 @@ public:
     InitializedRange initialized() const { return { *this }; }
     AllRange all() const { return { *this }; }
 
-    void outbound_failed(const ConnectRequest& r);
+    void outbound_failed(const ConnectRequest& r, Error e);
     void outbound_closed(OutboundClosedEvent);
     json to_json() const;
 

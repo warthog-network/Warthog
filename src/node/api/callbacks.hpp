@@ -29,6 +29,7 @@ struct NodeVersion {
 };
 
 class Header;
+class TCPPeeraddr;
 
 using PeersCb = std::function<void(const std::vector<api::Peerinfo>&)>;
 using SyncedCb = std::function<void(bool)>;
@@ -64,3 +65,4 @@ using RichlistCb = std::function<void(const tl::expected<api::Richlist, Error>&)
 using VersionCb = std::function<void(const tl::expected<NodeVersion, Error>&)>;
 using WalletCb = std::function<void(const tl::expected<api::Wallet, Error>&)>;
 using RawCb = std::function<void(const api::Raw&)>;
+using SampledPeersCb = std::function<void(const std::vector<TCPPeeraddr>&)>;

@@ -244,6 +244,7 @@ public:
         hook_get(t, "/tools/wallet/new", get_wallet_new);
         hook_get_1(t, "/tools/wallet/from_privkey/:privkey", get_wallet_from_privkey);
         hook_get_1(t, "/tools/janushash_number/:headerhex", get_janushash_number);
+        hook_get_1(t, "/tools/sample_verified_peers/:number", sample_verified_peers);
 
         t.indexGenerator.section("Debug Endpoints");
         hook_get(t, "/debug/header_download", inspect_eventloop, jsonmsg::header_download, true);

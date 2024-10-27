@@ -42,7 +42,7 @@ void WSConnectionSchedule::outbound_closed(const WSBrowserConnectRequest& r, boo
     if (auto iter { find_element(r.address()) }; iter != pinnedRequests.end()) {
         auto& elem { *iter };
         if (!elem.expires) {
-            if (errors::leads_to_ban(reason)) {
+            if (reason.triggers_ban()) {
                 set_element_expiration(elem, 5min);
             } else {
                 if (!success)

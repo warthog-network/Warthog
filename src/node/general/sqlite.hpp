@@ -226,9 +226,8 @@ inline void Statement::bind(const int index, Funds f)
 {
     SQLite::Statement::bind(index, (int64_t)f.E8());
 };
-inline void Statement::bind(const int index, uint64_t id)
+inline void Statement::bind(const int index, int64_t id)
 {
-    assert(id < std::numeric_limits<int64_t>::max());
     SQLite::Statement::bind(index, (int64_t)id);
 };
 inline void Statement::bind(const int index, IsUint64 id)

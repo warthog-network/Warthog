@@ -177,6 +177,9 @@ void Eventloop::api_get_connection_schedule(JSONCb&& cb)
 {
     defer(GetConnectionSchedule(std::move(cb)));
 }
+void Eventloop::api_sample_verified_peers( size_t n, SampledPeersCb cb){
+    defer(SampleVerifiedPeers{n,std::move(cb)});
+}
 
 void Eventloop::api_get_hashrate_time_chart(uint32_t from, uint32_t to, size_t window, HashrateTimeChartCb&& cb)
 {
@@ -501,7 +504,7 @@ void Eventloop::handle_event(GetConnectionSchedule&& e)
 void Eventloop::handle_event(FailedConnect&& e)
 {
     spdlog::warn("Cannot connect to {}: {}", e.connectRequest.address().to_string(), Error(e.reason).err_name());
-    connections.outbound_failed(e.connectRequest);
+    connections.outbound_failed(e.connectRequest,e.reason);
 }
 
 void Eventloop::handle_event(mempool::Log&& log)
@@ -766,6 +769,10 @@ void Eventloop::handle_event(DisconnectPeer&& dp)
         dp.cb({});
     }
     dp.cb(tl::make_unexpected(Error(ENOTFOUND)));
+}
+
+void Eventloop::handle_event(SampleVerifiedPeers&& p){
+    p.cb(connections.sample_verified_tcp(p.n));
 }
 
 void Eventloop::erase_internal(Conref c, Error error)

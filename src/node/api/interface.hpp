@@ -40,6 +40,7 @@ void get_version(VersionCb cb);
 void get_wallet_new(WalletCb cb);
 void get_wallet_from_privkey(const PrivKey& pk, WalletCb cb);
 void get_janushash_number(std::string_view, RawCb cb);
+void sample_verified_peers(size_t n, SampledPeersCb cb);
 
 // chain functions
 void get_block_head(HeadCb cb);

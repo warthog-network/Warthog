@@ -28,18 +28,18 @@ AddressManager::AddressManager(InitArg ia)
 void AddressManager::start()
 {
 #ifndef DISABLE_LIBUV
-    tcpConnectionSchedule.start();
+    tcpConnectionSchedule.initialize();
 #endif
     start_scheduled_connections();
 };
 
 void AddressManager::outbound_closed(OutboundClosedEvent e)
 {
-    bool success { e.c->successfulHandshake };
-    auto reason { e.reason };
     if (auto cr { e.c->connect_request() }) {
 #ifndef DISABLE_LIBUV
-        tcpConnectionSchedule.outbound_closed(*cr, success, reason);
+        tcpConnectionSchedule.on_outbound_disconnected(*cr,
+            e.reason,
+            e.c->addedToSchedule);
 #else
         wsConnectionSchedule.outbound_closed(*cr, success, reason);
 #endif
@@ -72,12 +72,12 @@ void AddressManager::start_scheduled_connections()
 void AddressManager::verify(std::vector<TCPPeeraddr> v, IPv4 source)
 {
     for (auto& ea : v)
-        tcpConnectionSchedule.insert(ea, source);
+        tcpConnectionSchedule.add_feeler(ea, source);
 }
 
-void AddressManager::outbound_failed(const TCPConnectRequest& r)
+void AddressManager::outbound_failed(const TCPConnectRequest& r, Error e)
 {
-    tcpConnectionSchedule.outbound_failed(r);
+    tcpConnectionSchedule.on_outbound_failed(r, e);
 }
 
 #else
@@ -101,21 +101,19 @@ auto AddressManager::insert(ConnectionBase::ConnectionVariant& convar, const Con
     auto c { convar.base() };
     auto ip { c->peer_addr().ip() };
     if (ip && !ip->is_loopback()) {
-        if (ipCounter.contains(*ip))
-            return tl::unexpected(EDUPLICATECONNECTION);
-        if (!c->inbound())
-            c->successfulHandshake = true;
 #ifndef DISABLE_LIBUV
         if (convar.is_tcp()) {
             auto& tcp_con { convar.get_tcp() };
             auto ipv4 { tcp_con->peer_addr_native().ip };
             if (!c->inbound()) {
-                tcpConnectionSchedule.outbound_established(*tcp_con);
-                // insert_additional_verified(c->connection_peer_addr()); // TODO: additional_verified necessary?
+                tcpConnectionSchedule.on_outbound_connected(*tcp_con);
+                c->addedToSchedule = true;
             } else
-                tcpConnectionSchedule.insert(tcp_con->claimed_peer_addr(), ipv4);
+                tcpConnectionSchedule.add_feeler(tcp_con->claimed_peer_addr(), ipv4);
         }
 #endif
+        if (ipCounter.contains(*ip))
+            return tl::unexpected(EDUPLICATECONNECTION);
     }
 
     if (auto c { eviction_candidate() })
@@ -164,7 +162,7 @@ std::optional<std::chrono::steady_clock::time_point> AddressManager::pop_schedul
     if (config().node.isolated)
         return {};
 #ifndef DISABLE_LIBUV
-    return tcpConnectionSchedule.pop_wakeup_time();
+    return tcpConnectionSchedule.updated_wakeup_time();
 #else
     return wsConnectionSchedule.pop_wakeup_time();
 #endif
