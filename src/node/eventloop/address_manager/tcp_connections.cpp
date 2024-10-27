@@ -1,7 +1,7 @@
 #include "tcp_connections.hpp"
+#include "general/errors.hpp"
 #include "peerserver/peerserver.hpp"
 #include "spdlog/spdlog.h"
-#include "general/errors.hpp"
 #include "transport/connect_request.hpp"
 #include "transport/tcp/connection.hpp"
 #include <algorithm>
@@ -492,32 +492,37 @@ void TCPConnectionSchedule::on_outbound_failed(const TCPConnectRequest& cr, Erro
 {
     auto a { cr.address() };
 
-    auto increas_sleeptime { [&](EntryWithTimer& e) {
-        auto d { e.sleep_duration() };
+    auto increas_sleeptime { [this](EntryWithTimer& item, TimeoutInfo& container) {
+        auto d { item.sleep_duration() };
         if (d < 200ms) {
             d = 200ms;
         } else if (d < 1min)
             d *= 2; // exponential backoff
-        e.wakeup_after(d);
-        feelers.update_wakeup_time(e.wakeup_time());
-        wakeup_tp.consider(feelers.wakeup_tp);
+        item.wakeup_after(d);
+        container.update_wakeup_time(item.wakeup_time());
+        wakeup_tp.consider(container.wakeup_tp);
     } };
     if (auto f { feelers.find(a) }) {
         if (pinned.contains(a)) { // cannot delete pinned feelers
             f->lastError = err;
-            increas_sleeptime(*f);
+            increas_sleeptime(*f, feelers);
         } else { // delete from feelers
             assert(feelers.erase(a) == 1);
             return;
         }
     } else { // move entry from disconnectedVerified to feelers
-        auto n { disconnectedVerified.erase(a, [&](VerifiedEntry&& e) {
-            auto [elem, inserted] { feelers.insert(std::move(e)) };
-            elem.lastError = err;
-            assert(inserted);
-            increas_sleeptime(elem);
-        }) };
-        assert(n <= 1);
+        if (disconnectedVerified.size() > softboundVerified) {
+            auto n { disconnectedVerified.erase(a, [&](VerifiedEntry&& e) {
+                auto [elem, inserted] { feelers.insert(std::move(e)) };
+                elem.lastError = err;
+                assert(inserted);
+                increas_sleeptime(elem, feelers);
+            }) };
+            assert(n <= 1);
+        } else { // just exponential backoff reconnect
+            if (auto f{disconnectedVerified.find(a)})
+                increas_sleeptime(*f,disconnectedVerified);
+        }
     }
 }
 
