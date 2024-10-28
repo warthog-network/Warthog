@@ -10,9 +10,9 @@ ChainMiningTask parse_mining_task(const std::vector<uint8_t>& s)
         json parsed = json::parse(s);
         ChainMiningTask mt {
             .block {
-                .height { Height(parsed["height"].get<uint32_t>()).nonzero_throw(EBADHEIGHT) },
-                .header { hex_to_arr<80>(parsed["header"].get<std::string>()) },
-                .body { hex_to_vec(parsed["body"].get<std::string>()) },
+                .height { Height(parsed.at("height").get<uint32_t>()).nonzero_throw(EBADHEIGHT) },
+                .header { hex_to_arr<80>(parsed.at("header").get<std::string>()) },
+                .body { hex_to_vec(parsed.at("body").get<std::string>()) },
             }
         };
         if (mt.block.body.size() > MAXBLOCKSIZE)
@@ -27,7 +27,7 @@ namespace {
 PinHeight extract_pin_height(const nlohmann::json& json)
 {
     try {
-        auto h = json["pinHeight"].get<int>();
+        auto h = json.at("pinHeight").get<int>();
         if (h >= 0) {
             return PinHeight(Height(h));
         }
@@ -38,7 +38,7 @@ PinHeight extract_pin_height(const nlohmann::json& json)
 NonceId extract_nonce_id(const nlohmann::json& json)
 {
     try {
-        return NonceId(json["nonceId"].get<uint32_t>());
+        return NonceId(json.at("nonceId").get<uint32_t>());
     } catch (...) {
     }
     throw Error(EBADNONCE);
@@ -77,7 +77,7 @@ error:
 Address extract_to_addr(const nlohmann::json& json)
 {
     try {
-        return Address(json["toAddr"].get<std::string>());
+        return Address(json.at("toAddr").get<std::string>());
     } catch (...) {
         throw Error(EBADADDRESS);
     }
@@ -114,7 +114,7 @@ RecoverableSignature extract_signature(const nlohmann::json& json)
 {
     std::string signature;
     try {
-        signature = json["signature65"].get<std::string>();
+        signature = json.at("signature65").get<std::string>();
     } catch (...) {
         throw Error(EPARSESIG);
     }

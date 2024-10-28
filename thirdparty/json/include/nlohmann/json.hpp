@@ -2134,19 +2134,19 @@ class basic_json // NOLINT(cppcoreguidelines-special-member-functions,hicpp-spec
 
     /// @brief access specified object element
     /// @sa https://json.nlohmann.me/api/basic_json/operator%5B%5D/
-    template<typename T>
-    JSON_HEDLEY_NON_NULL(2)
-    const_reference operator[](T* key) const
-    {
-        // at only works for objects
-        if (JSON_HEDLEY_LIKELY(is_object()))
-        {
-            JSON_ASSERT(m_value.object->find(key) != m_value.object->end());
-            return m_value.object->find(key)->second;
-        }
-
-        JSON_THROW(type_error::create(305, "cannot use operator[] with a string argument with " + std::string(type_name()), *this));
-    }
+    // template<typename T>
+    // JSON_HEDLEY_NON_NULL(2)
+    // const_reference operator[](T* key) const
+    // {
+    //     // at only works for objects
+    //     if (JSON_HEDLEY_LIKELY(is_object()))
+    //     {
+    //         JSON_ASSERT(m_value.object->find(key) != m_value.object->end());
+    //         return m_value.object->find(key)->second;
+    //     }
+    //
+    //     JSON_THROW(type_error::create(305, "cannot use operator[] with a string argument with " + std::string(type_name()), *this));
+    // }
 
     /// @brief access specified object element with default value
     /// @sa https://json.nlohmann.me/api/basic_json/value/
