@@ -121,6 +121,8 @@
     XX(120, ERTCUNVERIFIEDIP, "WebRTC ip not verified")                            \
     XX(121, ERTCDUP_DATACHANNEL, "WebRTC ip not verified")                         \
     XX(122, ERTCUNEXP_VA, "Unexpected WebRTC verification answer")                 \
+    XX(123, EADDRNOTFOUND, "address not found")                         \
+    XX(124, EADDRIDNOTFOUND, "address id not found")                    \
     /*200 - 299: Errors not leading to ban*/                                       \
     XX(200, ERTCNOSIGNAL, "WebRTC signaling server was closed (offer)")            \
     XX(201, ERTCNOSIGNAL2, "WebRTC signaling server was closed (answer)")          \
