@@ -96,6 +96,8 @@
     XX(98, EINV_HEADERVEC, "invalid header vector")                     \
     XX(99, EINV_BLOCKREPSIZE, "invalid block reply size")               \
     XX(100, EMSGINTEGRITY, "message integrity check failed")            \
+    XX(101, EADDRNOTFOUND, "address not found")                         \
+    XX(102, EADDRIDNOTFOUND, "address id not found")                    \
     XX(200, EINV_HEX, "cannot parse hexadecimal input")                 \
     XX(201, EBADNONCE, "cannot parse nonce")                            \
     XX(202, EBADFEE, "invalid fee")                                     \
