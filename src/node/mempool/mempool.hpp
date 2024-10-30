@@ -16,7 +16,7 @@ struct BalanceEntry {
     void lock(Funds amount);
     void unlock(Funds amount);
     [[nodiscard]] bool set_avail(Funds amount);
-    Funds remaining() const { return Funds::diff_assert(avail,  used); }
+    Funds remaining() const { return Funds::diff_assert(avail, used); }
     Funds locked() const { return used; }
     bool is_clean() { return used.is_zero(); }
 
@@ -50,6 +50,7 @@ public:
     void erase_before_height(Height);
 
     // getters
+    [[nodiscard]] auto cache_validity() const { return txs.cache_validity(); }
     [[nodiscard]] auto get_payments(size_t n, std::vector<Hash>* hashes = nullptr) const
         -> std::vector<TransferTxExchangeMessage>;
     [[nodiscard]] auto sample(size_t) const -> std::vector<TxidWithFee>;

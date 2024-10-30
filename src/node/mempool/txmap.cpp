@@ -5,8 +5,8 @@
 namespace mempool {
 auto Txmap::by_fee_inc(AccountId id) const -> std::vector<const_iterator>
 {
-    auto lb { lower_bound(id) };
-    auto ub { upper_bound(id) };
+    auto lb { _map.lower_bound(id) };
+    auto ub { _map.upper_bound(id) };
     std::vector<const_iterator> iterators;
     for (auto iter { lb }; iter != ub; ++iter)
         iterators.push_back(iter);

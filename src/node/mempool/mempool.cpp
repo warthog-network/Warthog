@@ -54,7 +54,7 @@ void Mempool::apply_logevent(const Put& a)
 {
 
     erase(a.entry.transaction_id());
-    auto p = txs.emplace(a.entry.transaction_id(), a.entry.entry_value());
+    auto p = txs().emplace(a.entry.transaction_id(), a.entry.entry_value());
     api::event::emit_mempool_add(a, txs.size());
     assert(p.second);
     assert(byPin.insert(p.first).second);
@@ -70,8 +70,8 @@ void Mempool::apply_logevent(const Erase& e)
 
 std::optional<TransferTxExchangeMessage> Mempool::operator[](const TransactionId& id) const
 {
-    auto iter = txs.find(id);
-    if (iter == txs.end())
+    auto iter = txs().find(id);
+    if (iter == txs().end())
         return {};
     return TransferTxExchangeMessage { iter->first, iter->second };
 }
@@ -99,7 +99,7 @@ bool Mempool::erase_internal(Txmap::const_iterator iter, BalanceEntries::iterato
     assert(byPin.erase(iter) == 1);
     assert(byFee.erase(iter) == 1);
     assert(byHash.erase(iter) == 1);
-    txs.erase(iter);
+    txs().erase(iter);
 
     if (master)
         log.push_back(Erase { id });
@@ -138,7 +138,8 @@ void Mempool::erase_before_height(Height h)
 
 void Mempool::erase(TransactionId id)
 {
-    if (auto iter = txs.find(id); iter != txs.end())
+    auto& t { txs() };
+    if (auto iter = t.find(id); iter != t.end())
         erase_internal(iter);
 }
 
@@ -157,8 +158,8 @@ std::vector<TransactionId> Mempool::filter_new(const std::vector<TxidWithFee>& v
 {
     std::vector<TransactionId> out;
     for (auto& t : v) {
-        auto iter = txs.find(t.txid);
-        if (iter == txs.end()) {
+        auto iter = txs().find(t.txid);
+        if (iter == txs().end()) {
             if (t.fee >= min_fee())
                 out.push_back(t.txid);
         } else if (t.fee > iter->second.fee)
@@ -218,7 +219,8 @@ void Mempool::insert_tx_throw(const TransferTxExchangeMessage& pm,
     { // check if we can delete enough old entries to insert new entry
         std::vector<Txmap::const_iterator> clear;
         std::optional<Txmap::const_iterator> match;
-        if (auto iter = txs.find(pm.txid); iter != txs.end()) {
+        const auto& t { txs };
+        if (auto iter = t().find(pm.txid); iter != t().end()) {
             if (iter->second.fee >= pm.compactFee) {
                 throw Error(ENONCE);
             }
@@ -248,7 +250,7 @@ void Mempool::insert_tx_throw(const TransferTxExchangeMessage& pm,
     }
 
     e.lock(spend);
-    auto [iter, inserted] = txs.try_emplace(pm.txid,
+    auto [iter, inserted] = txs().try_emplace(pm.txid,
         pm.reserved, pm.compactFee, pm.toAddr, pm.amount, pm.signature, txhash, txh);
     assert(inserted);
     if (master)
