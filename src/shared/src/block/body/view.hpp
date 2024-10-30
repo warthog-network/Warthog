@@ -98,6 +98,7 @@ public:
     bool valid() const { return isValid; }
     size_t size() const { return s.size(); }
     const uint8_t* data() const { return s.data(); }
+    auto& span() const { return s; }
 
     auto transfers() const { return Transfers { *this }; }
     auto addresses() const { return Addresses { *this }; }

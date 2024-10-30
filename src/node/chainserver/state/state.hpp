@@ -13,6 +13,37 @@ struct Block;
 
 class ChainDBTransaction;
 namespace chainserver {
+struct MiningCache {
+    struct CacheValidity {
+        int db { 0 };
+        int mempool { 0 };
+        uint32_t timestamp;
+        bool operator==(const CacheValidity&) const = default;
+        CacheValidity(int db, int mempool, uint32_t timestamp)
+            : db(db)
+            , mempool(mempool)
+            , timestamp(timestamp)
+        {
+        }
+    };
+    MiningCache(CacheValidity cacheValidity)
+        : cacheValidity(cacheValidity)
+    {
+    }
+
+    struct Item {
+        Address address;
+        bool disableTxs;
+        BodyContainer b;
+    };
+
+    CacheValidity cacheValidity;
+    uint32_t timestamp;
+    void update_validity(CacheValidity);
+    [[nodiscard]] const BodyContainer* lookup(const Address&, bool disableTxs) const;
+    const BodyContainer& insert(const Address& a, bool disableTxs, BodyContainer);
+    std::vector<Item> cache;
+};
 class State {
     friend class ApplyStageTransaction;
     friend class SetSignedPinTransaction;
@@ -31,7 +62,8 @@ public:
 
     // normal methods
     void garbage_collect();
-    auto mining_task(const Address& a) -> tl::expected<ChainMiningTask,Error>;
+    auto mining_task(const Address& a) -> tl::expected<ChainMiningTask, Error>;
+    auto mining_task(const Address& a, bool disableTxs) -> tl::expected<ChainMiningTask, Error>;
 
     auto append_gentx(const PaymentCreateMessage&) -> std::pair<mempool::Log, TxHash>;
     auto chainlength() const -> Height { return chainstate.headers().length(); }
@@ -98,6 +130,7 @@ private:
     [[nodiscard]] auto commit_fork(RollbackResult&& rr, AppendBlocksResult&&) -> StateUpdate;
     [[nodiscard]] auto commit_append(AppendBlocksResult&& abr) -> StateUpdate;
     std::optional<SignedSnapshot> try_sign_chainstate();
+    MiningCache::CacheValidity mining_cache_validity();
 
 private:
     using tp = std::chrono::steady_clock::time_point;
@@ -106,6 +139,8 @@ private:
 
     std::optional<SnapshotSigner> snapshotSigner;
     std::optional<SignedSnapshot> signedSnapshot;
+
+    int dbCacheValidity { 0 };
     tp signAfter { tp::max() };
     bool signingEnabled { true };
 
@@ -115,5 +150,7 @@ private:
 
     ExtendableHeaderchain stage;
     std::chrono::steady_clock::time_point nextGarbageCollect;
+
+    MiningCache _miningCache;
 };
 }
