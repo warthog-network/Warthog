@@ -59,9 +59,7 @@ void TCPConnection::close_internal(Error e)
         return;
     tcpHandle->close();
     connection_log().info("{} closed: {}", tag_string(), e.format());
-    on_close({
-        .error = e,
-    });
+    on_close(e);
 }
 
 // CALLED BY OTHER THREAD

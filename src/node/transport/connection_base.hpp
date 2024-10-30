@@ -90,9 +90,6 @@ public:
             return std::visit(lambda, *this);
         }
     };
-    struct CloseState {
-        Error error;
-    };
     // for inbound connections
     ConnectionBase();
     virtual ~ConnectionBase() {};
@@ -123,7 +120,7 @@ protected:
     virtual void async_send(std::unique_ptr<char[]> data, size_t size) = 0;
 
     // callback methods called from transport implementation thread
-    void on_close(const CloseState& cs);
+    void on_close(Error);
     void on_message(std::span<uint8_t>);
     void on_connected();
     [[nodiscard]] uint16_t asserted_port() const;

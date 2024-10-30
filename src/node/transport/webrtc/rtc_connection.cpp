@@ -164,9 +164,7 @@ void RTCConnection::notify_closed()
     if (!error.has_value()) {
         error = Error(ERTCCLOSED);
     }
-    on_close({
-        .error = *error,
-    });
+    on_close(*error);
     if (auto e { eventloop.lock() })
         e->notify_closed_rtc(shared_from_this());
 }

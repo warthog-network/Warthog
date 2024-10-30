@@ -183,13 +183,13 @@ void ConnectionBase::send(Sndbuffer&& msg)
     async_send(std::move(msg.ptr), msg.fullsize());
 }
 
-void ConnectionBase::on_close(const CloseState& cs)
+void ConnectionBase::on_close(Error error)
 {
-    global().core->erase(get_shared(), cs.error);
+    global().core->erase(get_shared(), error);
     // l->async_register_close(peerAddress.ipv4, errcode, logrow); // TODO: logrow
-    global().peerServer->async_register_close(get_shared(), cs.error); // TODO: use failed outbound
+    global().peerServer->async_register_close(get_shared(), error); // TODO: use failed outbound
     if (!inbound())
-        global().core->on_outbound_closed(get_shared(), cs.error);
+        global().core->on_outbound_closed(get_shared(), error);
 }
 
 auto HandshakeState::parse(bool inbound) -> Parsed
