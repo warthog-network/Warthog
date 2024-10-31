@@ -69,14 +69,14 @@ Funds Endpoint::get_balance(const std::string& account)
     throw std::runtime_error("API request failed, response is malformed. Is the node version compatible with this wallet?");
 }
 
-std::pair<int32_t,std::string> Endpoint::send_transaction(const string& txjson)
+auto Endpoint::send_transaction(const std::string& txjson) -> std::variant<TxHash, Error>
 {
     cout << "=====DEBUG INFO TRANSACTION JSON=====\n"
          << txjson << "\n"
          << "=====================================" << endl;
 
     std::string out;
-    std::string error;
+    std::optional<std::string> error;
     std::string url = "/transaction/add";
 
     if (!http_post(url, std::vector<uint8_t>(txjson.begin(), txjson.end()), out)) {
@@ -88,7 +88,15 @@ std::pair<int32_t,std::string> Endpoint::send_transaction(const string& txjson)
         if (iter != parsed.end() && !iter->is_null()) {
             error = iter->get<string>();
         }
-        return {parsed["code"].get<int32_t>(),error};
+        auto code { parsed["code"].get<int32_t>() };
+        if (code != 0 || error.has_value()) {
+            return Error { code, *error };
+        } else {
+            auto hex_str { parsed.at("data")
+                               .at("txHash")
+                               .get<std::string>() };
+            return TxHash { Hash { hex_to_arr<32>(hex_str) } };
+        }
     } catch (...) {
         throw std::runtime_error("API request failed, response is malformed. Is the node version compatible with this wallet?");
     }
