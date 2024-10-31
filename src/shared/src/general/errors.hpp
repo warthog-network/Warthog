@@ -148,7 +148,6 @@
     XX(1001, ESIGHUP, "received SIGHUP")                                           \
     XX(1002, ESIGINT, "received SIGINT")                                           \
     XX(1003, EREFUSED, "connection refused due to ban")                            \
-    XX(1004, EMAXCONNECTIONS, "too many connections from this ip")                 \
     XX(1005, EDUPLICATECONNECTION, "duplicate connection")                         \
     XX(1006, EEVICTED, "connection was evicted")                                   \
     XX(2000, EBUG, "bug-related error")

@@ -76,7 +76,6 @@ void PeerServer::handle_event(GetOffenses&& go)
 
 void PeerServer::handle_event(AuthenticateInbound&& nc)
 {
-    // return EMAXCONNECTIONS; TODO: handle max connections
     auto& con = *nc.c;
     auto& ip = nc.ip;
     if (!config().allowedInboundTransports.allowed(nc.ip, nc.transportType)) {
