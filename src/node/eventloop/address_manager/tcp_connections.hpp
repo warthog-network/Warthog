@@ -47,19 +47,6 @@ private:
     uint32_t bits { 1 << 5 };
 };
 
-// enum class ConnectionState {
-//     NOT_CONNECTED, // connection failed early
-//     CONNECTED_UNINITIALIZED, // connection was closed before init message
-//     CONNECTED_INITIALIZED // connection was closed after init message
-// };
-
-// struct ReconnectContext {
-//     duration prevWait;
-//     bool verified;
-//     ConnectionState connectionState;
-//     bool pinned;
-// };
-
 template <typename T>
 class SockaddrVectorBase;
 
@@ -128,9 +115,6 @@ public:
 protected:
     Timer timer;
 };
-
-// class ConnectedEntry : public VectorEntry {
-// };
 
 class VerifiedEntry : public EntryWithTimer {
 public:
@@ -235,18 +219,6 @@ class TCPConnectionSchedule {
     using json = nlohmann::json;
     using InitArg = address_manager::InitArg;
     using ConnectionData = peerserver::ConnectionData;
-    // using TCPWithSource = connection_schedule::TCPWithSource;
-    // using ConnectionState = connection_schedule::ConnectionState;
-    // using time_point = connection_schedule::time_point;
-    // using VectorEntry = connection_schedule::VectorEntry;
-    // using FeelerVector = connection_schedule::FeelerVector;
-    // using ReconnectContext = connection_schedule::ReconnectContext;
-    // using Source = connection_schedule::Source;
-    // using steady_clock = std::chrono::steady_clock;
-    // using VerifiedVector = connection_schedule::VerifiedVector;
-    // using ConnectedVector = connection_schedule::ConnectedVector;
-    // using Found = connection_schedule::Found;
-    // using FoundDisconnected = connection_schedule::FoundDisconnected;
 public:
     TCPConnectionSchedule(InitArg);
 
@@ -269,15 +241,6 @@ public:
     std::vector<TCPPeeraddr> sample_verified(size_t N) const;
 
 private:
-    // auto insert_verified(const TCPWithSource&, steady_clock::time_point lastVerified);
-    // VectorEntry* move_to_connected(FeelerVector&, const TCPPeeraddr&);
-    // void outbound_connection_ended(const ConnectRequest&, ConnectionState state);
-    // struct FoundContext : public Found {
-    //     ReconnectContext reconnectInfo;
-    // };
-    // #ifndef DISABLE_LIBUV
-    // auto get_context(const TCPConnectRequest&, ConnectionState) -> std::optional<FoundContext>;
-    // #endif
 
     void insert_freshly_pinned(const TCPPeeraddr&);
     void prune_verified();
@@ -289,7 +252,6 @@ private:
     VerifiedVector connectedVerified;
     VerifiedVector disconnectedVerified;
     FeelerVector feelers; // Candidates to test connection to
-    //
     size_t totalConnected { 0 };
     PeerServer& peerServer;
     struct ComparatorPinned {

@@ -1103,7 +1103,7 @@ void Eventloop::handle_msg(Conref c, PingMsg&& m)
 {
     log_communication("{} handle ping", c.str());
     c->ratelimit.ping();
-#ifndef DISABLE_LIBUV // TODO: replace TCPSockaddr by something else for emscrpiten build (no TCP connections available in browsers)
+#ifndef DISABLE_LIBUV 
     size_t nAddr { std::min(uint16_t(20), m.maxAddresses()) };
     if (!c.is_tcp())
         nAddr = 0;
@@ -1124,7 +1124,7 @@ void Eventloop::handle_msg(Conref c, PingV2Msg&& m)
 
     log_communication("{} handle ping", c.str());
     c->ratelimit.ping();
-#ifndef DISABLE_LIBUV // TODO: replace TCPSockaddr by something else for emscrpiten build (no TCP connections available in browsers)
+#ifndef DISABLE_LIBUV 
     size_t nAddr { std::min(uint16_t(20), m.maxAddresses()) };
     if (!c.is_tcp())
         nAddr = 0;

@@ -171,6 +171,6 @@ void PeerServer::on_close(const OnClose& o, const Sockaddr& addr)
 #else
 void PeerServer::on_close(const OnClose& o, const WSUrladdr&)
 {
-    // TODO
+    // do nothing, it was an outbound websocket connection from our browser
 }
 #endif

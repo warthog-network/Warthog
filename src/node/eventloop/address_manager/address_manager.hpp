@@ -122,7 +122,7 @@ public:
     void outbound_closed(OutboundClosedEvent);
     json to_json() const;
 
-    void verify(std::vector<TCPPeeraddr>, IPv4 source); // TODO call this function
+    void verify(std::vector<TCPPeeraddr>, IPv4 source);
     [[nodiscard]] std::optional<Conref> find(uint64_t id) const;
     size_t size() const { return conndatamap.size(); }
     size_t ip_count(const IP& ip) const { return ipCounter.count(ip); };

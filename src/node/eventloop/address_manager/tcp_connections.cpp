@@ -130,21 +130,6 @@ json EntryWithTimer::to_json() const
     return j;
 }
 
-// time_point EntryWithTimer::outbound_connected_ended(const ReconnectContext& c)
-// {
-//     assert(!timer.has_value());
-//     using enum ConnectionState;
-//     switch (c.connectionState) {
-//     case NOT_CONNECTED:
-//     case CONNECTED_UNINITIALIZED:
-//         connectionLog.log_failure();
-//         break;
-//     case CONNECTED_INITIALIZED:
-//         break;
-//     }
-//     return update_timer(c);
-// }
-
 std::optional<time_point> EntryWithTimer::wakeup_time() const
 {
     return timer.wakeup_time();
@@ -160,41 +145,6 @@ std::optional<time_point> EntryWithTimer::make_expired_pending(time_point now, s
     timer.deactivate();
     return {};
 }
-
-// time_point EntryWithTimer::update_timer(const ReconnectContext& c)
-// {
-//     const bool verified { c.endpointState == VerificationState::VERIFIED };
-//     auto consecutiveFailures { connectionLog.consecutive_failures() };
-//     auto wait = std::invoke([&]() -> duration {
-//         // if everything went well, plan do regular check of peer
-//         if (consecutiveFailures == 0 && verified)
-//             return 5min;
-//
-//         // first failure
-//         if (consecutiveFailures == 1) {
-//             if (verified || c.pinned) {
-//                 return 1s; // immediately retry
-//             } else {
-//                 // unverified failed connections' first retry is in 30s
-//                 return 30s;
-//             }
-//         }
-//
-//         // increase timer duration for failed
-//         auto d { c.prevWait };
-//         if (d < 1s)
-//             d = 1s;
-//         else
-//             d *= 2;
-//
-//         if (c.pinned)
-//             return std::min(d, duration { 20s });
-//         else
-//             return std::min(d, duration { 30min });
-//     });
-//     timer = Timer(wait);
-//     return timer->wakeup_time();
-// }
 
 std::pair<VectorEntry&, bool> VerifiedVector::insert(const TCPWithSource& i, tp lastVerified)
 {
@@ -348,29 +298,6 @@ auto TCPConnectionSchedule::find(const TCPPeeraddr& a) -> std::optional<Found>
         return Found { *p, feelers, false };
     return {};
 }
-
-// auto ConnectionSchedule::invoke_with_verified(const TCPSockaddr& a, auto lambda)
-// {
-//     return std::visit(
-//         [&]<typename T>(const T& addr) {
-//             return lambda(addr, verified);
-//         },
-//         a.data);
-// }
-//
-// auto ConnectionSchedule::invoke_with_verified(const TCPSockaddr& a, auto lambda) const
-// {
-//     return std::visit(
-//         [&]<typename T>(const T& addr) {
-//             return lambda(addr, verified.get<std::remove_cvref_t<T>>());
-//         },
-//         a.data);
-// }
-
-// auto TCPConnectionSchedule::insert_verified(const TCPWithSource& s, steady_clock::time_point lastVerified)
-// {
-//     return verified.insert(s, lastVerified).second;
-// }
 
 std::optional<ConnectRequest> TCPConnectionSchedule::add_feeler(TCPPeeraddr addr, Source src)
 {
@@ -551,17 +478,6 @@ auto TCPConnectionSchedule::updated_wakeup_time() -> std::optional<time_point>
     return wakeup_tp.pop();
 }
 
-// void TCPConnectionSchedule::outbound_connection_ended(const ConnectRequest& r, ConnectionState conState)
-// {
-//     // TODO: check wait time logic
-//     if (auto o { get_context(r, conState) }) {
-//         auto tp { o->match.outbound_connected_ended(o->reconnectInfo) };
-//         o->timeout.update_wakeup_time(tp);
-//         wakeup_tp.consider(tp);
-//     }
-//     prune_verified();
-// }
-
 void TCPConnectionSchedule::connect_expired()
 {
     for (auto& r : pop_expired())
@@ -613,21 +529,4 @@ void TCPConnectionSchedule::refresh_wakeup_time()
     wakeup_tp.consider(feelers.timeout());
 }
 
-// auto TCPConnectionSchedule::get_context(const TCPConnectRequest& r, ConnectionState cs) -> std::optional<FoundContext>
-// {
-//     if (auto p { find(r.address()) }; p) {
-//         if (cs == ConnectionState::CONNECTED_INITIALIZED)
-//             assert(p->verificationState == VerificationState::VERIFIED);
-//
-//         return FoundContext {
-//             *p,
-//             ReconnectContext {
-//                 .prevWait { r.sleptFor },
-//                 .endpointState = p->verificationState,
-//                 .connectionState = cs,
-//                 .pinned = pinned.contains(r.address()) }
-//         };
-//     }
-//     return {};
-// };
 }
