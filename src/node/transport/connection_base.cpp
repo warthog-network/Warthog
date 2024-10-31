@@ -186,7 +186,7 @@ void ConnectionBase::send(Sndbuffer&& msg)
 void ConnectionBase::on_close(Error error)
 {
     global().core->erase(get_shared(), error);
-    global().peerServer->async_register_close(get_shared(), error);
+    global().peerServer->on_close(get_shared(), error);
     if (!inbound())
         global().core->on_outbound_closed(get_shared(), error);
 }

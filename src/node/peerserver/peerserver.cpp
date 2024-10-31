@@ -57,7 +57,7 @@ void PeerServer::handle_event(OnClose&& o)
 {
     o.con->peer_addr().visit(
         [this, &o](auto&& socketAddr) -> void {
-            on_close(o, socketAddr);
+            on_close_internal(o, socketAddr);
         });
 }
 
@@ -140,13 +140,13 @@ void PeerServer::handle_event(Inspect&& e)
     e.cb(*this);
 }
 
-void PeerServer::on_close(const OnClose&, const WebRTCPeeraddr& /*addr*/)
+void PeerServer::on_close_internal(const OnClose&, const WebRTCPeeraddr& /*addr*/)
 {
     // do nothing
 }
 
 #ifndef DISABLE_LIBUV
-void PeerServer::on_close(const OnClose& o, const Sockaddr& addr)
+void PeerServer::on_close_internal(const OnClose& o, const Sockaddr& addr)
 {
     auto ip { addr.ip };
     auto offense { o.offense };
@@ -169,7 +169,7 @@ void PeerServer::on_close(const OnClose& o, const Sockaddr& addr)
         db.insert_disconnect(o.con->logrow, now, offense);
 }
 #else
-void PeerServer::on_close(const OnClose& o, const WSUrladdr&)
+void PeerServer::on_close_internal(const OnClose& o, const WSUrladdr&)
 {
     // do nothing, it was an outbound websocket connection from our browser
 }
