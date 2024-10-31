@@ -110,7 +110,7 @@ struct ConnectionJob : public Timerref {
     data_t data_v;
 
     template <typename T>
-    // requires T::is_reply // TODO
+    requires T::is_reply
     auto pop_req(T& rep, Timer& t, size_t& activeRequests)
     {
         using type = typename typemap<T>::type;
