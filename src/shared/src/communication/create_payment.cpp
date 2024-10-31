@@ -49,7 +49,7 @@ TxHash PaymentCreateMessage::tx_hash(HashView pinHash) const
         << pinHeight
         << nonceId
         << reserved
-        << compactFee.uncompact() // TODO: check if uncompact was implicit in earlier commits
+        << compactFee.uncompact() 
         << toAddr
         << amount);
 }

@@ -1,4 +1,5 @@
 #include "address_manager.hpp"
+#include "api/types/all.hpp"
 #include "global/globals.hpp"
 #include <nlohmann/json.hpp>
 #ifndef DISABLE_LIBUV
@@ -135,6 +136,15 @@ auto AddressManager::insert(ConnectionBase::ConnectionVariant& convar, const Con
         outboundEndpoints.push_back(c->peer_addr());
     }
     return cr;
+}
+
+api::IPCounter AddressManager::api_count_ips() const
+{
+    api::IPCounter ipv;
+    for (auto& [k, v] : ipCounter.data()) {
+        ipv.vector.push_back({ k, v });
+    }
+    return ipv;
 }
 
 bool AddressManager::erase(Conref cr)

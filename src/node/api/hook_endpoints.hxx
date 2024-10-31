@@ -1,4 +1,5 @@
 #pragma once
+#include "api/http/json.hpp"
 #include "api/http/parse.hpp"
 #include "api/types/accountid_or_address.hpp"
 #include "api/types/all.hpp"
@@ -6,7 +7,6 @@
 #include "communication/mining_task.hpp"
 #include "general/hex.hpp"
 #include "http/json.hpp"
-#include "api/http/json.hpp"
 #include "spdlog/spdlog.h"
 #include <charconv>
 #include <string>
@@ -226,7 +226,7 @@ public:
         hook_get(t, "/account/richlist", get_account_richlist);
 
         t.indexGenerator.section("Peers Endpoints");
-        // get("/peers/ip_count", inspect_conman, jsonmsg::ip_counter); // TODO
+        hook_get(t, "/peers/ip_count", get_ip_count);
         hook_get(t, "/peers/banned", get_banned_peers);
         hook_get(t, "/peers/unban", unban_peers, true);
         hook_get_1(t, "/peers/offenses/:page", get_offenses);

@@ -28,7 +28,11 @@ void get_latest_transactions(LatestTxsCb f)
     global().chainServer->api_lookup_latest_txs(std::move(f));
 };
 
-// peer db functions
+// peer functions
+
+void get_ip_count(IpCounterCb&& cb){
+    global().core->api_count_ips(std::move(cb));
+}
 
 void get_banned_peers(PeerServer::banned_callback_t&& f)
 {

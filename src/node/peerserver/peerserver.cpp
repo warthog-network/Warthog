@@ -131,8 +131,7 @@ void PeerServer::handle_event(GetRecentPeers&& e)
     for (auto& [addr, lastseen] : db.recent_peers(e.maxEntries))
         res.push_back({ addr, lastseen });
 #else
-    // WS peers
-    // TODO
+    // WS peers will be added manually from javascript side.
 #endif
     e.cb(std::move(res));
 }

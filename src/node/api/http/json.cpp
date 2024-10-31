@@ -621,6 +621,14 @@ nlohmann::json to_json(const api::Rollback& rb)
     };
 }
 
+nlohmann::json to_json(const api::IPCounter& ipc){
+    json arr(json::array());
+    for (auto &[ip,c] : ipc.vector) {
+        arr[ip.to_string()]=c;
+    }
+    return arr;
+}
+
 std::string serialize(const api::Raw& r)
 {
     return r.s;

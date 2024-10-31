@@ -119,6 +119,7 @@ public:
     void api_disconnect_peer(uint64_t id, ResultCb&& cb);
     void api_get_synced(SyncedCb&& cb);
     void api_inspect(InspectorCb&&);
+    void api_count_ips(IpCounterCb&&);
     void api_get_connection_schedule(JSONCb&& cb);
     void api_sample_verified_peers( size_t n, SampledPeersCb cb);
 
@@ -318,7 +319,7 @@ private:
 
     // event queue
     using Event = std::variant<Erase, OutboundClosed, OnHandshakeCompleted, OnProcessConnection,
-        StateUpdate, SignedSnapshotCb, PeersCb, SyncedCb, stage_operation::Result,
+        StateUpdate, SignedSnapshotCb, PeersCb, SyncedCb, IpCounterCb, stage_operation::Result,
         OnForwardBlockrep, InspectorCb, GetHashrate, GetHashrateBlockChart, GetHashrateTimeChart, GetConnectionSchedule, FailedConnect,
         mempool::Log, StartTimer, CancelTimer, RTCClosed, IdentityIps, GeneratedVerificationSdpOffer, GeneratedVerificationSdpAnswer, GeneratedSdpOffer, GeneratedSdpAnswer, SubscribeConnections, DestroySubscriptions, DisconnectPeer, SampleVerifiedPeers>;
 
@@ -338,6 +339,7 @@ private:
     void handle_event(stage_operation::Result&&);
     void handle_event(OnForwardBlockrep&&);
     void handle_event(InspectorCb&&);
+    void handle_event(IpCounterCb&&);
     void handle_event(GetHashrate&&);
     void handle_event(GetHashrateBlockChart&&);
     void handle_event(GetHashrateTimeChart&&);

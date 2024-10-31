@@ -133,6 +133,7 @@ public:
         const ConnectionInserter& h)
         -> tl::expected<Conref, Error>;
 
+    api::IPCounter api_count_ips() const;
 #ifndef DISABLE_LIBUV
     auto sample_verified_tcp(size_t N)
     {

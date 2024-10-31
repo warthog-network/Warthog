@@ -14,7 +14,8 @@ void lookup_tx(const Hash hash, TxCb f);
 
 void get_latest_transactions(LatestTxsCb f);
 
-// peer db functions
+// peer functions
+void get_ip_count(IpCounterCb&& cb);
 void get_banned_peers(PeerServer::banned_callback_t&& cb);
 void unban_peers(ResultCb&& cb);
 void get_connection_schedule(JSONCb&& cb);

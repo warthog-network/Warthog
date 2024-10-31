@@ -26,5 +26,6 @@ struct Round16Bit;
 struct TransactionsByBlocks;
 struct TransferTransaction;
 struct Wallet;
+struct IPCounter;
 using Transaction = std::variant<RewardTransaction, TransferTransaction>;
 }

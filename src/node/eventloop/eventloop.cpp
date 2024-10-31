@@ -159,6 +159,10 @@ void Eventloop::api_inspect(InspectorCb&& cb)
 {
     defer(std::move(cb));
 }
+void Eventloop::api_count_ips(IpCounterCb&& cb)
+{
+    defer(std::move(cb));
+}
 void Eventloop::subscribe_connection_event(SubscriptionRequest r)
 {
     defer(SubscribeConnections(std::move(r)));
@@ -478,6 +482,11 @@ void Eventloop::handle_event(OnForwardBlockrep&& m)
 void Eventloop::handle_event(InspectorCb&& cb)
 {
     cb(*this);
+}
+
+void Eventloop::handle_event(IpCounterCb&& cb)
+{
+    cb(connections.api_count_ips());
 }
 
 void Eventloop::handle_event(GetHashrate&& e)
