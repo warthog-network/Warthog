@@ -3,6 +3,7 @@
 #include "general/funds.hpp"
 #include <array>
 #include <string>
+#include <variant>
 #include <vector>
 class PinHeight;
 class Endpoint {
@@ -10,11 +11,15 @@ class Endpoint {
     uint16_t port;
 
 public:
+    struct Error{
+        int code;
+        std::string message;
+    };
     Endpoint(std::string host, uint16_t port)
         : host(host)
         , port(port) {};
     Funds get_balance(const std::string& account);
-    std::pair<int32_t,std::string> send_transaction(const std::string& txjson);
+    std::variant<TxHash, Error> send_transaction(const std::string& txjson);
     std::pair<PinHeight, Hash> get_pin();
 private:
     bool http_get(const std::string& get, std::string& out);
