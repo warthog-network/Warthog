@@ -36,6 +36,9 @@ static void signal_caller(uv_signal_t* /*handle*/, int signum)
 static uv_signal_t sigint, sighup, sigterm;
 void setup_signals(uv_loop_t* l)
 {
+#if defined(SIGPIPE)
+    signal(SIGPIPE, SIG_IGN); // as per recommendation of https://docs.libuv.org/en/v1.x/_sources/guide/filesystem.rst.txt
+#endif
     int i;
     if ((i = uv_signal_init(l, &sigint) < 0))
         goto error;
@@ -124,7 +127,7 @@ int main(int argc, char** argv)
     if (config().stratumPool) {
         stratumServer.emplace(config().stratumPool->bind);
     }
-    auto cm{ TCPConnectionManager::make_shared(l, ps, config())};
+    auto cm { TCPConnectionManager::make_shared(l, ps, config()) };
     WSConnectionManager wscm(ps, config().websocketServer);
     // setup signals
     setup_signals(l->raw());
