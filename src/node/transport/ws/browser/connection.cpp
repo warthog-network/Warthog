@@ -68,7 +68,7 @@ void WSConnection::notify_closed(Error reason)
 {
     if (!closed) {
         closed = true;
-        ConnectionBase::on_close({ .error = reason });
+        ConnectionBase::on_close(reason);
     }
 }
 
