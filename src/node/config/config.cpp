@@ -403,6 +403,36 @@ int ConfigParams::init(const gengetopt_args_info& ai)
             enable_testnet();
         }
 
+        Endpoints mainnetEndpoints {
+            "122.148.197.165:9186",
+            "135.181.77.214:9186",
+            "167.114.1.208:9186",
+            "185.209.228.16:9186",
+            "185.215.180.7:9186",
+            "193.218.118.57:9186",
+            "194.164.30.182:9186",
+            "203.25.209.147:9186",
+            "209.12.214.158:9186",
+            "213.199.59.252:20016",
+            "47.187.202.183:9186",
+            "49.13.161.201:9186",
+            "51.75.21.134:9186",
+            "62.72.44.89:9186",
+            "63.231.144.31:9186",
+            "74.208.75.230:9186",
+            "74.208.77.165:9186",
+            "81.163.20.40:9186",
+            "82.146.46.246:9186",
+            "89.107.33.239:9186",
+            "89.117.150.162:9186",
+            "89.163.224.253:9186",
+        };
+        Endpoints testnetEndpoints {
+            "193.218.118.57:9286",
+            "98.71.18.140:9286"
+        };
+        auto& defaultEndpoints { is_testnet() ? testnetEndpoints : mainnetEndpoints };
+
         std::string filename = is_testnet() ? "testnet_config.toml" : "config.toml";
         if (!ai.config_given && !std::filesystem::exists(filename)) {
             if (!dmp)
@@ -411,39 +441,11 @@ int ConfigParams::init(const gengetopt_args_info& ai)
                 spdlog::error("No configuration file found.");
                 return -1;
             }
+            peers.connect = defaultEndpoints;
         } else {
 #ifndef DISABLE_LIBUV
-        std::optional<TCPPeeraddr> nodeBind;
-        std::optional<TCPPeeraddr> rpcBind;
-            Endpoints mainnetEndpoints {
-                "122.148.197.165:9186",
-                "135.181.77.214:9186",
-                "167.114.1.208:9186",
-                "185.209.228.16:9186",
-                "185.215.180.7:9186",
-                "193.218.118.57:9186",
-                "194.164.30.182:9186",
-                "203.25.209.147:9186",
-                "209.12.214.158:9186",
-                "213.199.59.252:20016",
-                "47.187.202.183:9186",
-                "49.13.161.201:9186",
-                "51.75.21.134:9186",
-                "62.72.44.89:9186",
-                "63.231.144.31:9186",
-                "74.208.75.230:9186",
-                "74.208.77.165:9186",
-                "81.163.20.40:9186",
-                "82.146.46.246:9186",
-                "89.107.33.239:9186",
-                "89.117.150.162:9186",
-                "89.163.224.253:9186",
-            };
-            Endpoints testnetEndpoints {
-                "193.218.118.57:9286",
-                "98.71.18.140:9286"
-            };
-            auto& defaultEndpoints { is_testnet() ? testnetEndpoints : mainnetEndpoints };
+            std::optional<TCPPeeraddr> nodeBind;
+            std::optional<TCPPeeraddr> rpcBind;
 
             if (ai.config_given)
                 filename = ai.config_arg;
