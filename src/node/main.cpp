@@ -125,7 +125,7 @@ int main(int argc, char** argv)
 #ifndef DISABLE_LIBUV
     std::optional<StratumServer> stratumServer;
     if (config().stratumPool) {
-        stratumServer.emplace(config().stratumPool->bind);
+        stratumServer.emplace(*config().stratumPool);
     }
     auto cm { TCPConnectionManager::make_shared(l, ps, config()) };
     WSConnectionManager wscm(ps, config().websocketServer);

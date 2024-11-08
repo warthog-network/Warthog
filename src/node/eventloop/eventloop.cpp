@@ -1570,7 +1570,9 @@ void Eventloop::handle_msg(Conref cr, RTCVerificationAnswer&& m)
 void Eventloop::try_verify_rtc_identities()
 {
     spdlog::info("try_verify_rtc_identities {}", rtc.connections.can_insert_feeler());
-    if (rtc.verificationSchedule.empty() || rtc.ips->has_value() == false)
+    if (rtc.verificationSchedule.empty() 
+        || !rtc.ips  
+        || rtc.ips->has_value() == false)
         return;
     while (rtc.connections.can_insert_feeler()) {
         auto p { rtc.ips->pattern() };

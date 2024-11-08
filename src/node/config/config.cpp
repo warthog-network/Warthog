@@ -12,7 +12,7 @@
 #include <limits>
 #include <sstream>
 #ifdef __APPLE__
- #include <pwd.h>
+#include <pwd.h>
 #include <sys/types.h>
 #include <unistd.h>
 #endif
@@ -75,17 +75,17 @@ std::string ConfigParams::get_default_datadir()
 #endif
 
 namespace {
-std::optional<SnapshotSigner> parse_leader_key(std::string privKey)
-{
-    try {
-        SnapshotSigner ss { PrivKey(privKey) };
-        spdlog::warn("This node signs chain snapshots with priority {}", ss.get_importance());
-        return ss;
-    } catch (Error e) {
-        spdlog::warn("Cannot parse leader key, ignoring.");
-    }
-    return {};
-}
+// std::optional<SnapshotSigner> parse_leader_key(std::string privKey)
+// {
+//     try {
+//         SnapshotSigner ss { PrivKey(privKey) };
+//         spdlog::warn("This node signs chain snapshots with priority {}", ss.get_importance());
+//         return ss;
+//     } catch (Error e) {
+//         spdlog::warn("Cannot parse leader key, ignoring.");
+//     }
+//     return {};
+// }
 
 struct CmdlineParsed {
     static std::optional<CmdlineParsed> parse(int argc, char** argv)
@@ -133,37 +133,8 @@ tl::expected<ConfigParams, int> ConfigParams::from_args(int argc, char** argv)
 }
 
 namespace {
-void warning_config(const toml::key k)
-{
-    spdlog::warn("Ignoring configuration setting \""s + std::string(k) + "\" (line "s + std::to_string(k.source().begin.line) + ")");
-}
-
-template <typename T>
-[[nodiscard]] auto fetch(toml::node& n)
-{
-    auto val = n.value<T>();
-    if (val) {
-        return val.value();
-    }
-    throw std::runtime_error("Cannot extract configuration value starting at line "s + std::to_string(n.source().begin.line) + ", column "s + std::to_string(n.source().begin.column) + ".");
-}
-
-TCPPeeraddr fetch_endpointaddress(toml::node& n)
-{
-    auto p = TCPPeeraddr::parse(fetch<std::string>(n));
-    if (p) {
-        return p.value();
-    }
-    throw std::runtime_error("Cannot extract configuration value starting at line "s + std::to_string(n.source().begin.line) + ", column "s + std::to_string(n.source().begin.column) + ".");
-}
-toml::array& array_ref(toml::node& n)
-{
-    if (n.is_array()) {
-        return *n.as_array();
-    }
-    throw std::runtime_error("Expecting array at line "s + std::to_string(n.source().begin.line) + ".");
-}
-EndpointVector parse_endpoints(std::string csv)
+#ifndef DISABLE_LIBUV
+Endpoints parse_endpoints(std::string csv)
 {
     std::vector<TCPPeeraddr> out;
 #ifndef DISABLE_LIBUV
@@ -184,296 +155,406 @@ EndpointVector parse_endpoints(std::string csv)
 #endif
     return out;
 }
+template <typename T, typename flag_t>
+struct ConfigFiller;
+std::runtime_error failed_convert(const toml::node& n)
+{
+    return std::runtime_error("Cannot parse configuration value starting at line "s + std::to_string(n.source().begin.line) + ", column "s + std::to_string(n.source().begin.column) + ".");
+}
+
+template <typename T>
+std::optional<T> config_convert(const toml::node& n)
+{
+    if (auto val = n.value<T>()) {
+        return val.value();
+    }
+    throw failed_convert(n);
+}
+
+template <>
+std::optional<TCPPeeraddr> config_convert(const toml::node& n)
+{
+    if (auto sv { n.value<std::string_view>() }) {
+        if (sv->length() == 0)
+            return {};
+        if (auto a { TCPPeeraddr::parse(*sv) })
+            return *a;
+    }
+    throw failed_convert(n);
+}
+
+template <>
+std::optional<Endpoints> config_convert(const toml::node& n)
+{
+    if (n.is_array()) {
+        Endpoints endpoints;
+        auto& a { *n.as_array() };
+        for (auto& e : a) {
+            auto a { config_convert<TCPPeeraddr>(e) };
+            if (!a)
+                goto failed;
+            endpoints.push_back(*a);
+        }
+        return endpoints;
+    }
+failed:
+    throw failed_convert(n);
+}
+
+template <>
+std::optional<SnapshotSigner>
+config_convert(const toml::node& n)
+{
+    try {
+        if (auto sv { n.value<std::string_view>() })
+            return SnapshotSigner { PrivKey(*sv) };
+    } catch (std::exception& e) {
+        spdlog::error(e.what());
+    }
+    throw failed_convert(n);
+}
+
+struct TableReaderData {
+    const toml::table& tbl;
+    std::string_view filepath;
+    mutable std::map<toml::key, bool> keyUsed;
+};
+
+struct TableReader : public TableReaderData {
+    bool report { true };
+    TableReader(const toml::table& tbl, std::string_view filepath)
+        : TableReaderData(tbl, filepath, {})
+    {
+        for (auto& [k, v] : tbl) {
+            keyUsed.emplace(k, false);
+        }
+    }
+    TableReader(const TableReader&) = delete;
+    TableReader(TableReader&& a)
+        : TableReaderData(std::move(a))
+    {
+        a.report = false;
+    };
+    ~TableReader()
+    {
+        if (report) {
+            for (auto& [k, used] : keyUsed) {
+                if (!used) {
+                    spdlog::warn("Ignoring configuration setting \""s + std::string(k.str()) + "\" at line "s + std::to_string(k.source().begin.line) + " in file "s + string(filepath));
+                }
+            }
+        }
+    }
+
+    std::optional<TableReader> subtable(std::string_view s)
+    {
+
+        if (auto it { tbl.find(s) }; it != tbl.end()) {
+            keyUsed[it->first] = true;
+            if (it->second.is_table() == false)
+                throw std::runtime_error("Configuration file's "s + std::string(s) + " must be a table."s);
+            auto p { it->second.as_table() };
+            assert(p != nullptr);
+            return TableReader { *p, filepath };
+        }
+        return std::nullopt;
+    }
+
+    struct Entry {
+        const toml::node* v;
+
+        template <typename T>
+        std::optional<T> get() const
+        {
+            return config_convert<T>(*v);
+        }
+    };
+    std::optional<Entry> operator[](std::string_view key) const
+    {
+        if (auto it { tbl.find(key) }; it != tbl.end()) {
+            keyUsed[it->first] = true;
+            return { Entry { &it->second } };
+        }
+        return std::nullopt;
+    }
+};
+
+template <typename T, typename U>
+[[nodiscard]] std::optional<T> fill_optional(
+    std::optional<TableReader>& tblreader,
+    std::string_view tblkey,
+    bool flag_given,
+    U& flag_val,
+    auto flag_map)
+{
+    std::optional<TableReader::Entry> e;
+    if (tblreader) {
+        e = (*tblreader)[tblkey];
+    }
+
+    if (flag_given) {
+        return flag_map(flag_val);
+    }
+    if (e) {
+        if (auto v { e->get<T>() }) {
+            return *v;
+        }
+    }
+
+    return {};
+}
+
+template <typename T, typename U>
+[[nodiscard]] T fill_optional(
+    std::optional<TableReader>& tblreader,
+    std::string_view tblkey,
+    bool flag_given,
+    U& flag_val)
+{
+    return fill_default<T, U>(tblreader, tblkey, flag_given, flag_val,
+        [](U& u) { return u; });
+}
+
+template <typename T>
+std::optional<T> fill_optional(
+    std::optional<TableReader>& tblreader,
+    std::string_view tblkey)
+{
+    if (tblreader) {
+        if (auto oe { (*tblreader)[tblkey] }) {
+            if (auto v { oe->get<T>() }) {
+                return *v;
+            }
+        }
+    }
+    return {};
+}
+
+template <typename T, typename U>
+[[nodiscard]] T fill_default(
+    std::optional<TableReader>& tblreader,
+    std::string_view tblkey,
+    auto default_val,
+    bool flag_given,
+    U& flag_val,
+    auto flag_map)
+{
+    auto o { fill_optional<T>(tblreader, tblkey, flag_given, flag_val, flag_map) };
+    if (!o)
+        return default_val;
+    return *o;
+}
+
+template <typename T, typename U>
+[[nodiscard]] T fill_default(
+    std::optional<TableReader>& tblreader,
+    std::string_view tblkey,
+    auto default_val,
+    bool flag_given,
+    U& flag_val)
+{
+    return fill_default<T, U>(tblreader, tblkey, std::move(default_val), flag_given, flag_val,
+        [](U& u) { return u; });
+}
+
+template <typename T>
+[[nodiscard]] T fill_default(
+    std::optional<TableReader>& tblreader,
+    std::string_view tblkey,
+    auto default_val)
+{
+    auto o { fill_optional<T>(tblreader, tblkey) };
+    if (!o)
+        return default_val;
+    return *o;
+}
+#endif
+
 } // namespace
 
 int ConfigParams::init(const gengetopt_args_info& ai)
 {
-    bool dmp(ai.dump_config_given);
-    if (!dmp)
-        spdlog::info("Warthog Node v{}.{}.{} ", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
+    try {
+        bool dmp(ai.dump_config_given);
+        if (!dmp)
+            spdlog::info("Warthog Node v{}.{}.{} ", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
 
-        // Log
+            // Log
 #ifdef DISABLE_LIBUV
-    assert(ConfigParams::mount_opfs("/opfs"));
+        assert(ConfigParams::mount_opfs("/opfs"));
 #endif
-    const auto defaultDataDir { get_default_datadir() };
-    if (ai.debug_given)
-        spdlog::set_level(spdlog::level::debug);
+        const auto defaultDataDir { get_default_datadir() };
+        if (ai.debug_given)
+            spdlog::set_level(spdlog::level::debug);
 
-    if (!std::filesystem::exists(defaultDataDir)) {
-        if (!dmp)
-            spdlog::info("Crating default directory {}", defaultDataDir);
-        std::error_code ec;
-        if (!std::filesystem::create_directories(defaultDataDir, ec)) {
-            throw std::runtime_error("Cannot create default directory " + defaultDataDir + ": " + ec.message());
+        if (!std::filesystem::exists(defaultDataDir)) {
+            if (!dmp)
+                spdlog::info("Crating default directory {}", defaultDataDir);
+            std::error_code ec;
+            if (!std::filesystem::create_directories(defaultDataDir, ec)) {
+                throw std::runtime_error("Cannot create default directory " + defaultDataDir + ": " + ec.message());
+            }
         }
-    }
-    // copy default values
-    std::optional<TCPPeeraddr> nodeBind;
-    std::optional<TCPPeeraddr> rpcBind;
-    std::optional<TCPPeeraddr> publicrpcBind;
-    std::optional<TCPPeeraddr> stratumBind;
-    node.isolated = ai.isolated_given;
-    node.disableTxsMining = ai.disable_tx_mining_given;
-    if (ai.testnet_given) {
-        enable_testnet();
-    }
-    if (ai.enable_public_given) {
-        publicrpcBind = TCPPeeraddr("0.0.0.0:3001");
-    }
+        // copy default values
 
-#ifndef DISABLE_LIBUV
-    if (is_testnet()) {
-        peers.connect = EndpointVector {
-            "193.218.118.57:9286",
-            "98.71.18.140:9286"
-        };
-    } else {
-        peers.connect = EndpointVector {
-            "122.148.197.165:9186",
-            "135.181.77.214:9186",
-            "167.114.1.208:9186",
-            "185.209.228.16:9186",
-            "185.215.180.7:9186",
-            "193.218.118.57:9186",
-            "194.164.30.182:9186",
-            "203.25.209.147:9186",
-            "209.12.214.158:9186",
-            "213.199.59.252:20016",
-            "47.187.202.183:9186",
-            "49.13.161.201:9186",
-            "51.75.21.134:9186",
-            "62.72.44.89:9186",
-            "63.231.144.31:9186",
-            "74.208.75.230:9186",
-            "74.208.77.165:9186",
-            "81.163.20.40:9186",
-            "82.146.46.246:9186",
-            "89.107.33.239:9186",
-            "89.117.150.162:9186",
-            "89.163.224.253:9186",
-        };
-    }
-#endif
-
-    std::string filename = is_testnet() ? "testnet_config.toml" : "config.toml";
-    if (!ai.config_given && !std::filesystem::exists(filename)) {
-        if (!dmp)
-            spdlog::debug("No config.toml file found, using default configuration");
-        if (ai.test_given) {
-            spdlog::error("No configuration file found.");
-            return -1;
+        node.isolated = ai.isolated_given;
+        node.disableTxsMining = ai.disable_tx_mining_given;
+        if (ai.testnet_given) {
+            enable_testnet();
         }
-    } else {
+
+        std::string filename = is_testnet() ? "testnet_config.toml" : "config.toml";
+        if (!ai.config_given && !std::filesystem::exists(filename)) {
+            if (!dmp)
+                spdlog::debug("No config.toml file found, using default configuration");
+            if (ai.test_given) {
+                spdlog::error("No configuration file found.");
+                return -1;
+            }
+        } else {
 #ifndef DISABLE_LIBUV
-        if (ai.config_given)
-            filename = ai.config_arg;
-        if (!dmp)
-            spdlog::info("Reading configuration file \"{}\"", filename);
-        try {
+        std::optional<TCPPeeraddr> nodeBind;
+        std::optional<TCPPeeraddr> rpcBind;
+            Endpoints mainnetEndpoints {
+                "122.148.197.165:9186",
+                "135.181.77.214:9186",
+                "167.114.1.208:9186",
+                "185.209.228.16:9186",
+                "185.215.180.7:9186",
+                "193.218.118.57:9186",
+                "194.164.30.182:9186",
+                "203.25.209.147:9186",
+                "209.12.214.158:9186",
+                "213.199.59.252:20016",
+                "47.187.202.183:9186",
+                "49.13.161.201:9186",
+                "51.75.21.134:9186",
+                "62.72.44.89:9186",
+                "63.231.144.31:9186",
+                "74.208.75.230:9186",
+                "74.208.77.165:9186",
+                "81.163.20.40:9186",
+                "82.146.46.246:9186",
+                "89.107.33.239:9186",
+                "89.117.150.162:9186",
+                "89.163.224.253:9186",
+            };
+            Endpoints testnetEndpoints {
+                "193.218.118.57:9286",
+                "98.71.18.140:9286"
+            };
+            auto& defaultEndpoints { is_testnet() ? testnetEndpoints : mainnetEndpoints };
+
+            if (ai.config_given)
+                filename = ai.config_arg;
+            if (!dmp)
+                spdlog::info("Reading configuration file \"{}\"", filename);
             // overwrite with config file
             toml::table tbl = toml::parse_file(filename);
-            for (auto& [key, val] : tbl) {
-                auto t = val.as_table();
-                if (key == "db") {
-                    for (auto& [k, v] : *t) {
-                        if (k == "chain-db")
-                            data.chaindb = fetch<std::string>(v);
-                        else if (k == "peers-db")
-                            data.peersdb = fetch<std::string>(v);
-                        else
-                            warning_config(k);
-                    }
-                } else if (key == "stratum") {
-                    for (auto& [k, v] : *t) {
-                        if (k == "bind")
-                            stratumBind = TCPPeeraddr::parse(fetch<std::string>(v));
-                        else
-                            warning_config(k);
-                    }
-                } else if (key == "publicrpc") {
-                    for (auto& [k, v] : *t) {
-                        if (k == "bind")
-                            publicrpcBind = fetch_endpointaddress(v);
-                        else
-                            warning_config(k);
-                    }
-                } else if (key == "jsonrpc") {
-                    for (auto& [k, v] : *t) {
-                        if (k == "bind")
-                            rpcBind = fetch_endpointaddress(v);
-                        else
-                            warning_config(k);
-                    }
-                } else if (key == "node") {
-                    for (auto& [k, v] : *t) {
-                        if (k == "bind") {
-                            nodeBind = fetch_endpointaddress(v);
-                        } else if (k == "connect") {
-                            peers.connect.clear();
-                            toml::array& c = array_ref(v);
-                            for (auto& e : c) {
-                                peers.connect.push_back(fetch_endpointaddress(e));
-                            }
-                        } else if (k == "leader-key") {
-                            node.snapshotSigner = parse_leader_key(fetch<std::string>(v));
-                        } else if (k == "isolated") {
-                            node.isolated = fetch<bool>(v);
-                        } else if (k == "disable-tx-mining") {
-                            node.disableTxsMining = fetch<bool>(v);
-                        } else if (k == "enable-ban") {
-                            peers.enableBan = fetch<bool>(v);
-                        } else if (k == "allow-localhost-ip") {
-                            peers.allowLocalhostIp = fetch<bool>(v);
-                        } else if (k == "log-communication") {
-                            node.logCommunicationVal = fetch<bool>(v);
-                        } else
-                            warning_config(k);
-                    }
-                } else {
-                    warning_config(key);
-                }
-            }
+            TableReader root(tbl, filename);
+
+            // db properties
+            auto s_db { root.subtable("db") };
+            data.chaindb = fill_default<std::string>(s_db, "chain-db",
+                defaultDataDir + (is_testnet() ? "testnet3_chain.db3" : "chain.db3"),
+                ai.chain_db_given, ai.chain_db_arg);
+            data.peersdb = fill_default<std::string>(s_db, "peers-db",
+                defaultDataDir + (is_testnet() ? "testnet_peers.db3" : "peers_v2.db3"),
+                ai.peers_db_given, ai.peers_db_arg);
+
+            auto arg_to_peer_lambda = [](string_view argname) {
+                return [argname](std::string_view argval) {
+                    auto p = TCPPeeraddr::parse(argval);
+                    if (!p)
+                        throw std::runtime_error("Bad "s + string(argname) + " option specified.");
+                    return *p;
+                };
+            };
+
+            // stratum properties
+            auto s_stratum { root.subtable("stratum") };
+            stratumPool = fill_optional<TCPPeeraddr>(s_stratum, "bind",
+                ai.stratum_given, ai.stratum_arg, arg_to_peer_lambda("--stratum"));
+
+            // publicrpc
+            auto s_pubrpc { root.subtable("publicrpc") };
+            publicAPI = fill_optional<TCPPeeraddr>(s_pubrpc, "bind", ai.publicrpc_given, ai.publicrpc_arg, arg_to_peer_lambda("--publicrpc"));
+            if (!publicAPI && ai.enable_public_given)
+                publicAPI = TCPPeeraddr("0.0.0.0:3001");
+
+            // jsonrpc
+            auto s_jsonpc { root.subtable("jsonrpc") };
+            rpcBind = fill_default<TCPPeeraddr>(s_jsonpc, "bind",
+                TCPPeeraddr(is_testnet() ? "127.0.0.1:3100" : "127.0.0.1:3000"), ai.rpc_given, ai.rpc_arg, arg_to_peer_lambda("--rpc"));
+
+            auto s_node { root.subtable("node") };
+            nodeBind = fill_default<TCPPeeraddr>(s_node, "bind",
+                TCPPeeraddr(is_testnet() ? "0.0.0.0:9286" : "0.0.0.0:9186"), ai.bind_given, ai.bind_arg, arg_to_peer_lambda("--bind"));
+            node.isolated = fill_default<bool>(s_node, "isolated", false);
+            node.disableTxsMining = fill_default<bool>(s_node, "disable-tx-mining", false);
+            peers.enableBan = fill_default<bool>(s_node, "enable-ban", true);
+            peers.allowLocalhostIp = fill_default<bool>(s_node, "allow-localhost-ip", false);
+            node.logCommunicationVal = fill_default<bool>(s_node, "log-communication", false);
+            node.snapshotSigner = fill_optional<SnapshotSigner>(s_node, "leader-key");
+            peers.connect = fill_default<Endpoints>(s_node, "connect", defaultEndpoints, ai.connect_given, ai.connect_arg, parse_endpoints);
+
             if (ai.test_given) {
                 std::cout << "Configuration file \"" + filename + "\" is vaild.\n";
                 return 0;
             }
-        } catch (const toml::parse_error& err) {
-            std::cerr << "Error while parsing file '" << *err.source().path << "':\n"
-                      << err.description() << "\n  (" << err.source().begin
-                      << ")\n";
-            return -1;
-        } catch (const std::runtime_error& e) {
-            std::cerr << e.what();
-            return -1;
-        }
 #endif
-    }
-
-    // DB args
-    if (ai.chain_db_given)
-        data.chaindb = ai.chain_db_arg;
-    else {
-        if (data.chaindb.empty())
-            data.chaindb = defaultDataDir + (is_testnet() ? "testnet3_chain.db3" : "chain.db3");
-    }
-    if (ai.peers_db_given)
-        data.peersdb = ai.peers_db_arg;
-    else {
-        if (data.peersdb.empty()) {
-            data.peersdb = defaultDataDir + (is_testnet() ? "testnet_peers.db3" : "peers_v2.db3");
         }
-    }
-    if (ai.temporary_given)
-        data.chaindb = "";
 
-    // Stratum API socket
-    if (ai.stratum_given) {
-        auto p = TCPPeeraddr::parse(ai.stratum_arg);
-        if (!p) {
-            std::cerr << "Bad --stratum option '" << ai.rpc_arg << "'.\n";
-            return -1;
-        };
-        stratumPool = StratumPool { .bind = p.value() };
-    } else {
-        if (stratumBind) {
-            stratumPool = StratumPool { *stratumBind };
-        }
-    }
+        if (ai.temporary_given)
+            data.chaindb = "";
 
-    // JSON RPC socket
-    if (ai.rpc_given) {
-        auto p = TCPPeeraddr::parse(ai.rpc_arg);
-        if (!p) {
-            std::cerr << "Bad --rpc option '" << ai.rpc_arg << "'.\n";
-            return -1;
-        };
-        jsonrpc.bind = p.value();
-    } else {
-        if (rpcBind) {
-            jsonrpc.bind = *rpcBind;
-        } else {
-            if (is_testnet())
-                jsonrpc.bind = TCPPeeraddr::parse("127.0.0.1:3100").value();
-            else
-                jsonrpc.bind = TCPPeeraddr::parse("127.0.0.1:3000").value();
-        }
-    }
+#ifdef DISABLE_LIBUV
+        auto wsPeers { ws_peers() };
+        spdlog::info("Websocket default peer list ({}):", wsPeers.size());
 
-    // JSON Public RPC socket
-    if (ai.publicrpc_given) {
-        auto p = TCPPeeraddr::parse(ai.publicrpc_arg);
-        if (!p) {
-            std::cerr << "Bad --publicrpc option '" << ai.rpc_arg << "'.\n";
-            return -1;
-        };
-        publicAPI = PublicAPI { p.value() };
-    } else {
-        if (publicrpcBind) {
-            publicAPI = PublicAPI(publicrpcBind.value());
-        }
-    }
-
-    // Node socket
-    if (ai.bind_given) {
-        auto p = TCPPeeraddr::parse(ai.bind_arg);
-        if (!p) {
-            std::cerr << "Bad --bind option '" << ai.bind_arg << "'.\n";
-            return -1;
-        };
-        node.bind = p.value();
-    } else {
-        if (nodeBind)
-            node.bind = *nodeBind;
-        else {
-            if (is_testnet())
-                node.bind = TCPPeeraddr::parse("0.0.0.0:9286").value();
-            else
-                node.bind = TCPPeeraddr::parse("0.0.0.0:9186").value();
-        }
-    }
-#ifndef DISABLE_LIBUV
-    if (ai.connect_given) {
-        peers.connect = parse_endpoints(ai.connect_arg);
-    }
-#else
-    auto wsPeers { ws_peers() };
-    spdlog::info("Websocket default peer list ({}):", wsPeers.size());
-
-    size_t i = 1;
-    for (auto& p : wsPeers) {
-        auto a { WSUrladdr::parse(p) };
-        if (a) {
-            spdlog::info("Adding websocket peer {}: {}", i, p);
-            peers.connect.push_back(*a);
-        } else {
-            spdlog::warn("Failed parsing Websocket peer {}: {}", i, p);
-        }
-        i += 1;
-    }
-#endif
-
-    if (ai.ws_port_given) {
-        auto parse_port = [](int port) -> uint16_t {
-            if (port < 0 || port > std::numeric_limits<uint16_t>::max()) {
-                throw std::runtime_error("Invalid port '" + std::to_string(port) + "'");
+        size_t i = 1;
+        for (auto& p : wsPeers) {
+            auto a { WSUrladdr::parse(p) };
+            if (a) {
+                spdlog::info("Adding websocket peer {}: {}", i, p);
+                peers.connect.push_back(*a);
+            } else {
+                spdlog::warn("Failed parsing Websocket peer {}: {}", i, p);
             }
-            return port;
-        };
-        websocketServer.port = parse_port(ai.ws_port_arg);
-        if (ai.ws_tls_key_given)
-            websocketServer.keyfile = ai.ws_tls_key_arg;
-        if (ai.ws_tls_cert_given)
-            websocketServer.certfile = ai.ws_tls_cert_arg;
-        if (ai.ws_x_forwarded_for_given)
-            websocketServer.XFowarded = true;
-        if (ai.ws_bind_localhost_given)
-            websocketServer.bindLocalhost = true;
-    }
+            i += 1;
+        }
+#endif
 
-    if (dmp) {
-        std::cout << dump();
-        return 0;
+        if (ai.ws_port_given) {
+            auto parse_port = [](int port) -> uint16_t {
+                if (port < 0 || port > std::numeric_limits<uint16_t>::max()) {
+                    throw std::runtime_error("Invalid port '" + std::to_string(port) + "'");
+                }
+                return port;
+            };
+            websocketServer.port = parse_port(ai.ws_port_arg);
+            if (ai.ws_tls_key_given)
+                websocketServer.keyfile = ai.ws_tls_key_arg;
+            if (ai.ws_tls_cert_given)
+                websocketServer.certfile = ai.ws_tls_cert_arg;
+            if (ai.ws_x_forwarded_for_given)
+                websocketServer.XFowarded = true;
+            if (ai.ws_bind_localhost_given)
+                websocketServer.bindLocalhost = true;
+        }
+
+        if (dmp) {
+            std::cout << dump();
+            return 0;
+        }
+    } catch (const toml::parse_error& err) {
+        std::cerr << "Error while parsing file '" << *err.source().path << "':\n"
+                  << err.description() << "\n  (" << err.source().begin
+                  << ")\n";
+        return -1;
+    } catch (const std::runtime_error& e) {
+        spdlog::error(e.what());
+        return -1;
     }
     return 1;
 }
@@ -493,7 +574,7 @@ std::string ConfigParams::dump()
 #endif
     tbl.insert_or_assign("stratum",
         toml::table {
-            { "bind", stratumPool ? stratumPool->bind.to_string() : ""s },
+            { "bind", stratumPool ? stratumPool->to_string() : ""s },
         });
     tbl.insert_or_assign("node",
         toml::table {

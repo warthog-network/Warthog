@@ -55,8 +55,10 @@ std::optional<Conref> VerificationSchedule::pop_front()
     Conref res { queue[offset] };
     res.rtc().verificationScheduled = false;
     offset += 1;
-    if (offset >= pruneOffset)
+    if (offset >= pruneOffset){
         queue.erase(queue.begin(), queue.begin() + offset);
+        offset = 0;
+    }
     return res;
 }
 
