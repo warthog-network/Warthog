@@ -80,13 +80,17 @@ struct ConfigParams {
         bool enableBan { true };
     } peers;
     bool localDebug { false };
-
     static std::string get_default_datadir();
     std::string dump();
     [[nodiscard]] static tl::expected<ConfigParams, int> from_args(int argc, char** argv);
 
 private:
+    ConfigParams() {};
+    void prepare_warthog_dir(const std::string&, bool log);
+    void assign_defaults();
     int init(const gengetopt_args_info&);
+    void process_args(const gengetopt_args_info& ai);
+    std::optional<int> process_config_file(const gengetopt_args_info& ai, bool silent);
 };
 struct Config : public ConfigParams {
     Config(ConfigParams&&);

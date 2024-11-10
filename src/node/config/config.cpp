@@ -122,14 +122,15 @@ private:
 
 tl::expected<ConfigParams, int> ConfigParams::from_args(int argc, char** argv)
 {
-    if (auto p { CmdlineParsed::parse(argc, argv) }) {
-        ConfigParams c;
-        if (auto i { c.init(p->value()) }; i < 1) {
-            return tl::make_unexpected(i);
-        }
-        return c;
+    auto p { CmdlineParsed::parse(argc, argv) };
+    if (!p)
+        return tl::make_unexpected(-1);
+
+    ConfigParams c;
+    if (auto i { c.init(p->value()) }; i < 1) {
+        return tl::make_unexpected(i);
     }
-    return tl::make_unexpected(-1);
+    return c;
 }
 
 namespace {
@@ -279,99 +280,204 @@ struct TableReader : public TableReaderData {
     }
 };
 
-template <typename T, typename U>
-[[nodiscard]] std::optional<T> fill_optional(
-    std::optional<TableReader>& tblreader,
-    std::string_view tblkey,
+template <typename U>
+void fill_arg(
+    auto& dst,
     bool flag_given,
     U& flag_val,
     auto flag_map)
 {
-    std::optional<TableReader::Entry> e;
-    if (tblreader) {
-        e = (*tblreader)[tblkey];
-    }
-
-    if (flag_given) {
-        return flag_map(flag_val);
-    }
-    if (e) {
-        if (auto v { e->get<T>() }) {
-            return *v;
-        }
-    }
-
-    return {};
+    if (flag_given)
+        dst = flag_map(flag_val);
 }
 
-template <typename T, typename U>
-[[nodiscard]] T fill_optional(
-    std::optional<TableReader>& tblreader,
-    std::string_view tblkey,
+template <typename U>
+void fill_arg(
+    auto& dst,
     bool flag_given,
     U& flag_val)
 {
-    return fill_default<T, U>(tblreader, tblkey, flag_given, flag_val,
+    fill_arg<U>(dst, flag_given, flag_val,
         [](U& u) { return u; });
 }
 
+// fill_arg(peers.connect, ai.connect_given, ai.connect_arg, parse_endpoints);
 template <typename T>
-std::optional<T> fill_optional(
+void fill(
+    T& dst,
     std::optional<TableReader>& tblreader,
     std::string_view tblkey)
 {
     if (tblreader) {
         if (auto oe { (*tblreader)[tblkey] }) {
             if (auto v { oe->get<T>() }) {
-                return *v;
+                dst = *v;
+                return;
             }
         }
     }
-    return {};
-}
-
-template <typename T, typename U>
-[[nodiscard]] T fill_default(
-    std::optional<TableReader>& tblreader,
-    std::string_view tblkey,
-    auto default_val,
-    bool flag_given,
-    U& flag_val,
-    auto flag_map)
-{
-    auto o { fill_optional<T>(tblreader, tblkey, flag_given, flag_val, flag_map) };
-    if (!o)
-        return default_val;
-    return *o;
-}
-
-template <typename T, typename U>
-[[nodiscard]] T fill_default(
-    std::optional<TableReader>& tblreader,
-    std::string_view tblkey,
-    auto default_val,
-    bool flag_given,
-    U& flag_val)
-{
-    return fill_default<T, U>(tblreader, tblkey, std::move(default_val), flag_given, flag_val,
-        [](U& u) { return u; });
 }
 
 template <typename T>
-[[nodiscard]] T fill_default(
+void fill(
+    std::optional<T>& dst,
     std::optional<TableReader>& tblreader,
-    std::string_view tblkey,
-    auto default_val)
+    std::string_view tblkey)
 {
-    auto o { fill_optional<T>(tblreader, tblkey) };
-    if (!o)
-        return default_val;
-    return *o;
+    if (tblreader) {
+        if (auto oe { (*tblreader)[tblkey] }) {
+            if (auto v { oe->get<T>() }) {
+                dst = *v;
+                return;
+            }
+        }
+    }
 }
+
+//
+// template <typename T, typename U>
+// [[nodiscard]] T fill_default(
+//     std::optional<TableReader>& tblreader,
+//     std::string_view tblkey,
+//     auto default_val,
+//     bool flag_given,
+//     U& flag_val,
+//     auto flag_map)
+// {
+//     auto o { fill_optional<T>(tblreader, tblkey, flag_given, flag_val, flag_map) };
+//     if (!o)
+//         return default_val;
+//     return *o;
+// }
+//
+// template <typename T, typename U>
+// [[nodiscard]] T fill_default(
+//     std::optional<TableReader>& tblreader,
+//     std::string_view tblkey,
+//     auto default_val,
+//     bool flag_given,
+//     U& flag_val)
+// {
+//     return fill_default<T, U>(tblreader, tblkey, std::move(default_val), flag_given, flag_val,
+//         [](U& u) { return u; });
+// }
+//
+// template <typename T>
+// [[nodiscard]] T fill_default(
+//     std::optional<TableReader>& tblreader,
+//     std::string_view tblkey,
+//     auto default_val)
+// {
+//     auto o { fill_optional<T>(tblreader, tblkey) };
+//     if (!o)
+//         return default_val;
+//     return *o;
+// }
 #endif
 
 } // namespace
 
+void ConfigParams::process_args(const gengetopt_args_info& ai)
+{
+    auto arg_to_peer_lambda = [](string_view argname) {
+        return [argname](std::string_view argval) {
+            auto p = TCPPeeraddr::parse(argval);
+            if (!p)
+                throw std::runtime_error("Bad "s + string(argname) + " option specified.");
+            return *p;
+        };
+    };
+    fill_arg(peers.connect, ai.connect_given, ai.connect_arg, parse_endpoints);
+    fill_arg(node.bind, ai.bind_given, ai.bind_arg, arg_to_peer_lambda("--bind"));
+    fill_arg(jsonrpc.bind, ai.rpc_given, ai.rpc_arg, arg_to_peer_lambda("--rpc"));
+    fill_arg(publicAPI, ai.publicrpc_given, ai.publicrpc_arg, arg_to_peer_lambda("--publicrpc"));
+    fill_arg(stratumPool, ai.stratum_given, ai.stratum_arg, arg_to_peer_lambda("--stratum"));
+    fill_arg(data.chaindb, ai.chain_db_given, ai.chain_db_arg);
+    fill_arg(data.peersdb, ai.peers_db_given, ai.peers_db_arg);
+    node.isolated = ai.isolated_given;
+    node.disableTxsMining = ai.disable_tx_mining_given;
+
+    if (ai.temporary_given)
+        data.chaindb = "";
+
+    if (ai.ws_port_given) {
+        auto parse_port = [](int port) -> uint16_t {
+            if (port < 0 || port > std::numeric_limits<uint16_t>::max()) {
+                throw std::runtime_error("Invalid port '" + std::to_string(port) + "'");
+            }
+            return port;
+        };
+        websocketServer.port = parse_port(ai.ws_port_arg);
+        if (ai.ws_tls_key_given)
+            websocketServer.keyfile = ai.ws_tls_key_arg;
+        if (ai.ws_tls_cert_given)
+            websocketServer.certfile = ai.ws_tls_cert_arg;
+        if (ai.ws_x_forwarded_for_given)
+            websocketServer.XFowarded = true;
+        if (ai.ws_bind_localhost_given)
+            websocketServer.bindLocalhost = true;
+    }
+}
+
+std::optional<int> ConfigParams::process_config_file(const gengetopt_args_info& ai, bool silent)
+{
+    std::string filename
+        = is_testnet() ? "testnet_config.toml" : "config.toml";
+    if (!ai.config_given && !std::filesystem::exists(filename)) {
+        if (!silent)
+            spdlog::debug("No config.toml file found, using default configuration");
+        if (ai.test_given) {
+            spdlog::error("No configuration file found.");
+            return -1;
+        }
+    } else {
+#ifndef DISABLE_LIBUV
+
+        if (ai.config_given)
+            filename = ai.config_arg;
+        if (!silent)
+            spdlog::info("Reading configuration file \"{}\"", filename);
+
+        // overwrite with config file
+        toml::table tbl = toml::parse_file(filename);
+        TableReader root(tbl, filename);
+
+        // db properties
+        auto s_db { root.subtable("db") };
+        fill(data.chaindb, s_db, "chain-db");
+        fill(data.peersdb, s_db, "peers-db");
+
+        // stratum properties
+        auto s_stratum { root.subtable("stratum") };
+        fill<TCPPeeraddr>(stratumPool, s_stratum, "bind");
+
+        // publicrpc
+        auto s_pubrpc { root.subtable("publicrpc") };
+        fill(publicAPI, s_pubrpc, "bind");
+        if (!publicAPI && ai.enable_public_given)
+            publicAPI = TCPPeeraddr("0.0.0.0:3001");
+
+        // jsonrpc
+        auto s_jsonpc { root.subtable("jsonrpc") };
+        fill(jsonrpc.bind, s_jsonpc, "bind");
+
+        auto s_node { root.subtable("node") };
+        fill(node.bind, s_node, "bind");
+        fill(node.isolated, s_node, "isolated");
+        fill(node.disableTxsMining, s_node, "disable-tx-mining");
+        fill(peers.enableBan, s_node, "enable-ban");
+        fill(peers.allowLocalhostIp, s_node, "allow-localhost-ip");
+        fill(node.logCommunicationVal, s_node, "log-communication");
+        fill(node.snapshotSigner, s_node, "leader-key");
+        fill(peers.connect, s_node, "connect");
+        if (ai.test_given) {
+            std::cout << "Configuration file \"" + filename + "\" is vaild.\n";
+            return 0;
+        }
+#endif
+    }
+    return {};
+}
 int ConfigParams::init(const gengetopt_args_info& ai)
 {
     try {
@@ -383,22 +489,13 @@ int ConfigParams::init(const gengetopt_args_info& ai)
 #ifdef DISABLE_LIBUV
         assert(ConfigParams::mount_opfs("/opfs"));
 #endif
-        const auto defaultDataDir { get_default_datadir() };
+        const auto warthogDir { get_default_datadir() };
+        prepare_warthog_dir(warthogDir, !dmp);
+
         if (ai.debug_given)
             spdlog::set_level(spdlog::level::debug);
 
-        if (!std::filesystem::exists(defaultDataDir)) {
-            if (!dmp)
-                spdlog::info("Crating default directory {}", defaultDataDir);
-            std::error_code ec;
-            if (!std::filesystem::create_directories(defaultDataDir, ec)) {
-                throw std::runtime_error("Cannot create default directory " + defaultDataDir + ": " + ec.message());
-            }
-        }
         // copy default values
-
-        node.isolated = ai.isolated_given;
-        node.disableTxsMining = ai.disable_tx_mining_given;
         if (ai.testnet_given) {
             enable_testnet();
         }
@@ -431,85 +528,18 @@ int ConfigParams::init(const gengetopt_args_info& ai)
             "193.218.118.57:9286",
             "98.71.18.140:9286"
         };
-        auto& defaultEndpoints { is_testnet() ? testnetEndpoints : mainnetEndpoints };
+        peers.connect = { is_testnet() ? testnetEndpoints : mainnetEndpoints };
+        data.chaindb = warthogDir 
+            + (is_testnet() ? "testnet3_chain.db3" : "chain.db3");
+        data.peersdb = warthogDir 
+            + (is_testnet() ? "testnet_peers.db3" : "peers_v2.db3");
+        jsonrpc.bind = TCPPeeraddr(is_testnet() ? "127.0.0.1:3100" : "127.0.0.1:3000");
+        node.bind = TCPPeeraddr(is_testnet() ? "0.0.0.0:9286" : "0.0.0.0:9186");
 
-        std::string filename = is_testnet() ? "testnet_config.toml" : "config.toml";
-        if (!ai.config_given && !std::filesystem::exists(filename)) {
-            if (!dmp)
-                spdlog::debug("No config.toml file found, using default configuration");
-            if (ai.test_given) {
-                spdlog::error("No configuration file found.");
-                return -1;
-            }
-            peers.connect = defaultEndpoints;
-        } else {
-#ifndef DISABLE_LIBUV
-            std::optional<TCPPeeraddr> nodeBind;
-            std::optional<TCPPeeraddr> rpcBind;
+        if ( auto i{process_config_file(ai,dmp)})
+            return *i;
 
-            if (ai.config_given)
-                filename = ai.config_arg;
-            if (!dmp)
-                spdlog::info("Reading configuration file \"{}\"", filename);
-            // overwrite with config file
-            toml::table tbl = toml::parse_file(filename);
-            TableReader root(tbl, filename);
-
-            // db properties
-            auto s_db { root.subtable("db") };
-            data.chaindb = fill_default<std::string>(s_db, "chain-db",
-                defaultDataDir + (is_testnet() ? "testnet3_chain.db3" : "chain.db3"),
-                ai.chain_db_given, ai.chain_db_arg);
-            data.peersdb = fill_default<std::string>(s_db, "peers-db",
-                defaultDataDir + (is_testnet() ? "testnet_peers.db3" : "peers_v2.db3"),
-                ai.peers_db_given, ai.peers_db_arg);
-
-            auto arg_to_peer_lambda = [](string_view argname) {
-                return [argname](std::string_view argval) {
-                    auto p = TCPPeeraddr::parse(argval);
-                    if (!p)
-                        throw std::runtime_error("Bad "s + string(argname) + " option specified.");
-                    return *p;
-                };
-            };
-
-            // stratum properties
-            auto s_stratum { root.subtable("stratum") };
-            stratumPool = fill_optional<TCPPeeraddr>(s_stratum, "bind",
-                ai.stratum_given, ai.stratum_arg, arg_to_peer_lambda("--stratum"));
-
-            // publicrpc
-            auto s_pubrpc { root.subtable("publicrpc") };
-            publicAPI = fill_optional<TCPPeeraddr>(s_pubrpc, "bind", ai.publicrpc_given, ai.publicrpc_arg, arg_to_peer_lambda("--publicrpc"));
-            if (!publicAPI && ai.enable_public_given)
-                publicAPI = TCPPeeraddr("0.0.0.0:3001");
-
-            // jsonrpc
-            auto s_jsonpc { root.subtable("jsonrpc") };
-            rpcBind = fill_default<TCPPeeraddr>(s_jsonpc, "bind",
-                TCPPeeraddr(is_testnet() ? "127.0.0.1:3100" : "127.0.0.1:3000"), ai.rpc_given, ai.rpc_arg, arg_to_peer_lambda("--rpc"));
-
-            auto s_node { root.subtable("node") };
-            nodeBind = fill_default<TCPPeeraddr>(s_node, "bind",
-                TCPPeeraddr(is_testnet() ? "0.0.0.0:9286" : "0.0.0.0:9186"), ai.bind_given, ai.bind_arg, arg_to_peer_lambda("--bind"));
-            node.isolated = fill_default<bool>(s_node, "isolated", false);
-            node.disableTxsMining = fill_default<bool>(s_node, "disable-tx-mining", false);
-            peers.enableBan = fill_default<bool>(s_node, "enable-ban", true);
-            peers.allowLocalhostIp = fill_default<bool>(s_node, "allow-localhost-ip", false);
-            node.logCommunicationVal = fill_default<bool>(s_node, "log-communication", false);
-            node.snapshotSigner = fill_optional<SnapshotSigner>(s_node, "leader-key");
-            peers.connect = fill_default<Endpoints>(s_node, "connect", defaultEndpoints, ai.connect_given, ai.connect_arg, parse_endpoints);
-
-            if (ai.test_given) {
-                std::cout << "Configuration file \"" + filename + "\" is vaild.\n";
-                return 0;
-            }
-#endif
-        }
-
-        if (ai.temporary_given)
-            data.chaindb = "";
-
+        process_args(ai);
 #ifdef DISABLE_LIBUV
         auto wsPeers { ws_peers() };
         spdlog::info("Websocket default peer list ({}):", wsPeers.size());
@@ -527,24 +557,6 @@ int ConfigParams::init(const gengetopt_args_info& ai)
         }
 #endif
 
-        if (ai.ws_port_given) {
-            auto parse_port = [](int port) -> uint16_t {
-                if (port < 0 || port > std::numeric_limits<uint16_t>::max()) {
-                    throw std::runtime_error("Invalid port '" + std::to_string(port) + "'");
-                }
-                return port;
-            };
-            websocketServer.port = parse_port(ai.ws_port_arg);
-            if (ai.ws_tls_key_given)
-                websocketServer.keyfile = ai.ws_tls_key_arg;
-            if (ai.ws_tls_cert_given)
-                websocketServer.certfile = ai.ws_tls_cert_arg;
-            if (ai.ws_x_forwarded_for_given)
-                websocketServer.XFowarded = true;
-            if (ai.ws_bind_localhost_given)
-                websocketServer.bindLocalhost = true;
-        }
-
         if (dmp) {
             std::cout << dump();
             return 0;
@@ -561,6 +573,23 @@ int ConfigParams::init(const gengetopt_args_info& ai)
     return 1;
 }
 
+void ConfigParams::prepare_warthog_dir(const std::string& warthogDir, bool log)
+{
+    if (!std::filesystem::exists(warthogDir)) {
+        if (!log)
+            spdlog::info("Crating Warthog directory {}", warthogDir);
+        std::error_code ec;
+        if (!std::filesystem::create_directories(warthogDir, ec)) {
+            throw std::runtime_error("Cannot create default directory " + warthogDir + ": " + ec.message());
+        }
+    }
+}
+void ConfigParams::assign_defaults()
+{
+    // data.peersdb
+    //         defaultDataDir
+    // + (is_testnet() ? "testnet3_chain.db3" : "chain.db3"),
+}
 std::string ConfigParams::dump()
 {
     toml::table tbl;
