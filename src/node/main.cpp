@@ -156,6 +156,8 @@ int main(int argc, char** argv)
     return 0;
 #else
     endpoint.start();
+    if (endpointPublic)
+        endpointPublic->start();
     wscm.start();
     if (stratumServer)
         stratumServer->start();

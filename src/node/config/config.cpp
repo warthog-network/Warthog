@@ -399,6 +399,8 @@ void ConfigParams::process_args(const gengetopt_args_info& ai)
 
     if (ai.temporary_given)
         data.chaindb = "";
+    if (!publicAPI && ai.enable_public_given)
+        publicAPI = TCPPeeraddr("0.0.0.0:3001");
 
     if (ai.ws_port_given) {
         auto parse_port = [](int port) -> uint16_t {
@@ -454,8 +456,6 @@ std::optional<int> ConfigParams::process_config_file(const gengetopt_args_info& 
         // publicrpc
         auto s_pubrpc { root.subtable("publicrpc") };
         fill(publicAPI, s_pubrpc, "bind");
-        if (!publicAPI && ai.enable_public_given)
-            publicAPI = TCPPeeraddr("0.0.0.0:3001");
 
         // jsonrpc
         auto s_jsonpc { root.subtable("jsonrpc") };
