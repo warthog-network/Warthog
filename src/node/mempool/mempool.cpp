@@ -183,7 +183,9 @@ void Mempool::set_balance(AccountId accId, Funds newBalance)
         bool allErased = erase_internal(iterators[i], b_iter);
         bool lastIteration = (i == iterators.size() - 1);
         assert(allErased == lastIteration);
-        if (balanceEntry.set_avail(newBalance))
+        // balanceEntry reference is invalidateed when all entries are erased 
+        // because it will be wiped together with last entry.
+        if (allErased || balanceEntry.set_avail(newBalance))
             return;
     }
     assert(false); // should not happen
