@@ -1,6 +1,7 @@
 #include "rtc_state.hpp"
 #include "eventloop/types/conndata.hpp"
 #include "rtc_state.hpp"
+#include "general/logging.hpp"
 
 namespace rtc_state {
 std::optional<IP> RTCState::get_ip(IpType t) const
@@ -78,13 +79,13 @@ void Connections::insert(std::shared_ptr<RTCConnection> c)
     entries.push_back(std::move(c));
     auto iter { std::prev(entries.end()) };
     (*iter)->rtcRegistryIter = iter;
-    spdlog::info("Inserted RTC connection, ({} active)", size());
+    log_rtc("Inserted RTC connection, ({} active)", size());
 }
 
 void Connections::erase(std::shared_ptr<RTCConnection>& c)
 {
     entries.erase(c->rtcRegistryIter);
-    spdlog::info("Closed RTC connection, ({} active)", size());
+    log_rtc("Closed RTC connection, ({} active)", size());
 }
 }
 

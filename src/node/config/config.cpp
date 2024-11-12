@@ -468,6 +468,7 @@ std::optional<int> ConfigParams::process_config_file(const gengetopt_args_info& 
         fill(peers.enableBan, s_node, "enable-ban");
         fill(peers.allowLocalhostIp, s_node, "allow-localhost-ip");
         fill(node.logCommunicationVal, s_node, "log-communication");
+        fill(node.logRTC, s_node, "log-rtc");
         fill(node.snapshotSigner, s_node, "leader-key");
         fill(peers.connect, s_node, "connect");
         if (ai.test_given) {
@@ -616,7 +617,8 @@ std::string ConfigParams::dump()
             { "disable-tx-mining", node.disableTxsMining },
             { "enable-ban", peers.enableBan },
             { "allow-localhost-ip", peers.allowLocalhostIp },
-            { "log-communication", (bool)node.logCommunicationVal } });
+            { "log-communication", (bool)node.logCommunicationVal },
+            { "log-rtc", (bool)node.logRTC } });
     tbl.insert_or_assign("db", toml::table {
                                    { "chain-db", data.chaindb },
                                    { "peers-db", data.peersdb },
@@ -630,4 +632,5 @@ Config::Config(ConfigParams&& params)
     : ConfigParams(std::move(params))
 {
     logCommunication = node.logCommunicationVal;
+    logRTC = node.logRTC;
 }

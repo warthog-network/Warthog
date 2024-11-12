@@ -11,6 +11,7 @@
 #include "communication/messages_impl.hpp"
 #include "connection_inserter.hpp"
 #include "eventloop/connection_inserter.hpp"
+#include "general/logging.hpp"
 #include "global/globals.hpp"
 #include "mempool/order_key.hpp"
 #include "peerserver/peerserver.hpp"
@@ -27,12 +28,6 @@
 #include <sstream>
 
 using SubscriptionEvent = subscription::events::Event;
-template <typename... Args>
-inline void log_communication(spdlog::format_string_t<Args...> fmt, Args&&... args)
-{
-    if (config().logCommunication)
-        spdlog::info(fmt, std::forward<Args>(args)...);
-}
 
 using namespace std::chrono_literals;
 namespace TimerEvent = eventloop::timer_events;
@@ -594,8 +589,8 @@ void Eventloop::handle_event(RTCClosed&& ct)
 
 void Eventloop::handle_event(IdentityIps&& ips)
 {
-    spdlog::info("Webrtc identity IPv4: {}", ips.get_ip4() ? ips.get_ip4().value().to_string() : "N/A");
-    spdlog::info("Webrtc identity IPv6: {}", ips.get_ip6() ? ips.get_ip6().value().to_string() : "N/A");
+    log_rtc("Webrtc identity IPv4: {}", ips.get_ip4() ? ips.get_ip4().value().to_string() : "N/A");
+    log_rtc("Webrtc identity IPv6: {}", ips.get_ip6() ? ips.get_ip6().value().to_string() : "N/A");
 
     assert(rtc.ips.has_value() == false);
     for (auto cr : connections.initialized()) {
@@ -745,7 +740,7 @@ void Eventloop::handle_event(GeneratedVerificationSdpOffer&& m)
         return;
     }
 
-    spdlog::info("GeneratedVerificationSdpOffer: with IP {}", selected->to_string());
+    log_rtc("GeneratedVerificationSdpOffer: with IP {}", selected->to_string());
     auto filtered { sdp_filter::only_udp_ip(*selected, m.sdp) };
     assert(filtered.has_value());
     c.send(RTCVerificationOffer { verifyIp, filtered.value() });
@@ -880,7 +875,7 @@ void Eventloop::send_ping_await_pong(Conref c)
     // send
     log_communication("{} Sending Ping", c.str());
     auto t = timerSystem.insert(
-        (config().localDebug ? 10min : 1min),
+        (config().localDebug ? 10min : 2min),
         TimerEvent::CloseNoPong { c.id() });
 
     uint16_t maxTCPAddressess { 0 };
@@ -1061,10 +1056,10 @@ void Eventloop::handle_msg(Conref c, InitMsg&& m)
     emit_connect(headerDownload.size(), c);
     spdlog::info("Connected to {} peers (new peer {})", headerDownload.size(), c.peer().to_string());
     if (rtc.ips && c.version().v2()) {
-        spdlog::info("Sending own identity");
+        log_rtc("Sending own identity");
         c.send(RTCIdentity(*rtc.ips));
     } else
-        spdlog::info("NOT sending own identity");
+        log_rtc("NOT sending own identity");
     send_ping_await_pong(c);
     // LATER: return whether doRequests is necessary;
     do_requests();
@@ -1355,7 +1350,7 @@ void Eventloop::send_schedule_signaling_lists()
         quotasVec.push_back({ c, avail });
         conrefs.push_back(c);
     }
-    spdlog::info("send_schedule_signaling_lists to {} peers", conrefs.size());
+    log_rtc("send_schedule_signaling_lists to {} peers", conrefs.size());
 
     // shuffle connections
     std::random_device rd;
@@ -1404,7 +1399,7 @@ void Eventloop::send_schedule_signaling_lists()
 
 void Eventloop::handle_msg(Conref c, RTCIdentity&& msg)
 {
-    spdlog::info("Received rtc identity");
+    log_rtc("Received rtc identity");
     // TODO: restrict number of identity messages
     c.rtc().their.identity.set(msg.ips());
 
@@ -1419,7 +1414,7 @@ void Eventloop::handle_msg(Conref c, RTCQuota&& msg)
 
 void Eventloop::handle_msg(Conref c, RTCSignalingList&& s)
 {
-    spdlog::warn("Received RTCSignalingList");
+    log_rtc("Received RTCSignalingList");
     const auto& ips { s.ips() };
     const auto offset {
         c.rtc().their.signalingList.set_new_list_size(ips.size())
@@ -1553,7 +1548,7 @@ void Eventloop::handle_msg(Conref cr, RTCForwardedAnswer&& a)
 
 void Eventloop::handle_msg(Conref cr, RTCVerificationAnswer&& m)
 {
-    spdlog::info("received RTCVerificationAnswer");
+    log_rtc("Received RTCVerificationAnswer");
     // TODO:
     // - clear pending on main connection close
     // - callback on connection fail
@@ -1568,7 +1563,7 @@ void Eventloop::handle_msg(Conref cr, RTCVerificationAnswer&& m)
 
 void Eventloop::try_verify_rtc_identities()
 {
-    spdlog::info("try_verify_rtc_identities {}", rtc.connections.can_insert_feeler());
+    log_rtc("try_verify_rtc_identities {}", rtc.connections.can_insert_feeler());
     if (rtc.verificationSchedule.empty()
         || !rtc.ips
         || rtc.ips->has_value() == false)
@@ -1646,7 +1641,7 @@ tl::expected<Conref, Error> Eventloop::try_insert_connection(OnHandshakeComplete
                 auto ip { c->native_peer_addr().ip };
                 auto& parent = *o;
                 parent.rtc().their.identity.set_verified(ip);
-                spdlog::info("verified RTC ip {} for {}", ip.to_string(), parent.peer().to_string());
+                log_rtc("verified RTC ip {} for {}", ip.to_string(), parent.peer().to_string());
             }
             conId = 0;
             return tl::make_unexpected(ERTCFEELER);

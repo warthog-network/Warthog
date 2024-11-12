@@ -69,6 +69,7 @@ struct ConfigParams {
         bool isolated { false };
         bool disableTxsMining { false }; // don't mine transactions
         bool logCommunicationVal { false };
+        bool logRTC { false };
     } node;
     struct Peers {
         bool allowLocalhostIp = false; // do not ignore 127.xxx.xxx.xxx peer node addresses provided by peers
@@ -92,7 +93,9 @@ private:
     void process_args(const gengetopt_args_info& ai);
     std::optional<int> process_config_file(const gengetopt_args_info& ai, bool silent);
 };
+
 struct Config : public ConfigParams {
     Config(ConfigParams&&);
     std::atomic<bool> logCommunication { false };
+    std::atomic<bool> logRTC { false };
 };
