@@ -133,8 +133,8 @@ tl::expected<ConfigParams, int> ConfigParams::from_args(int argc, char** argv)
     return c;
 }
 
-namespace {
 #ifndef DISABLE_LIBUV
+namespace {
 Endpoints parse_endpoints(std::string csv)
 {
     std::vector<TCPPeeraddr> out;
@@ -373,7 +373,6 @@ void fill(
 //         return default_val;
 //     return *o;
 // }
-#endif
 
 } // namespace
 
@@ -420,6 +419,7 @@ void ConfigParams::process_args(const gengetopt_args_info& ai)
             websocketServer.bindLocalhost = true;
     }
 }
+#endif
 
 std::optional<int> ConfigParams::process_config_file(const gengetopt_args_info& ai, bool silent)
 {
@@ -528,19 +528,20 @@ int ConfigParams::init(const gengetopt_args_info& ai)
             "193.218.118.57:9286",
             "98.71.18.140:9286"
         };
-        peers.connect = { is_testnet() ? testnetEndpoints : mainnetEndpoints };
-        data.chaindb = warthogDir 
+        data.chaindb = warthogDir
             + (is_testnet() ? "testnet3_chain.db3" : "chain.db3");
-        data.peersdb = warthogDir 
+        data.peersdb = warthogDir
             + (is_testnet() ? "testnet_peers.db3" : "peers_v2.db3");
         jsonrpc.bind = TCPPeeraddr(is_testnet() ? "127.0.0.1:3100" : "127.0.0.1:3000");
         node.bind = TCPPeeraddr(is_testnet() ? "0.0.0.0:9286" : "0.0.0.0:9186");
 
-        if ( auto i{process_config_file(ai,dmp)})
+        if (auto i { process_config_file(ai, dmp) })
             return *i;
 
+#ifndef DISABLE_LIBUV
+        peers.connect = is_testnet() ? testnetEndpoints : mainnetEndpoints;
         process_args(ai);
-#ifdef DISABLE_LIBUV
+#else
         auto wsPeers { ws_peers() };
         spdlog::info("Websocket default peer list ({}):", wsPeers.size());
 
