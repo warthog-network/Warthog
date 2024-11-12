@@ -58,8 +58,11 @@ protected:
 };
 class ConnectionInserter;
 class ConState;
+namespace TimerEvent = eventloop::timer_events;
 class Eventloop final : public std::enable_shared_from_this<Eventloop>, public RTCData {
     using StateUpdate = chainserver::state_update::StateUpdate;
+    using TimerSystem = eventloop::TimerSystem;
+    using Timer = eventloop::Timer;
     friend class BlockDownload::Attorney;
     friend class ConnectionInserter;
     friend class EndAttorney;
@@ -122,13 +125,13 @@ public:
     void api_count_ips(IpCounterCb&&);
     void api_get_connection_schedule(JSONCb&& cb);
     void api_sample_verified_peers( size_t n, SampledPeersCb cb);
+    void start_timer(StartTimer);
+    void cancel_timer(TimerSystem::key_t);
 
     // subscription methods
     void subscribe_connection_event(SubscriptionRequest r);
     void destroy_subscriptions(subscription_data_ptr p);
 
-    void start_timer(StartTimer);
-    void cancel_timer(const Timer::key_t&);
     void async_mempool_update(mempool::Log&& s);
     void shutdown(Error reason);
     void wait_for_shutdown();
@@ -225,28 +228,27 @@ private:
 
     ////////////////////////
     // Handling timeout events
-    void handle_expired(Timer::Event&& data);
+    void handle_expired(TimerSystem::Event&& data);
     void expired_pingsleep(Conref cr);
     void expired_init(Conref cr);
 
     ////////////////////////
     // Timer functions
-    void cancel_timer(Timer::iterator& ref);
     void send_ping_await_pong(Conref cr);
     void received_pong_sleep_ping(Conref cr);
 
     ////////////////////////
     // Timeout callbacks
     template <typename T>
-    requires std::derived_from<T, Timer::WithConnecitonId>
+    requires std::derived_from<T, TimerEvent::WithConnecitonId>
     void handle_timeout(T&&);
-    void handle_connection_timeout(Conref, Timer::SendPing&&);
-    void handle_connection_timeout(Conref, Timer::Expire&&);
-    void handle_connection_timeout(Conref, Timer::CloseNoReply&&);
-    void handle_connection_timeout(Conref, Timer::CloseNoPong&&);
-    void handle_timeout(Timer::ScheduledConnect&&);
-    void handle_timeout(Timer::CallFunction&&);
-    void handle_timeout(Timer::SendIdentityIps&&);
+    void handle_connection_timeout(Conref, TimerEvent::SendPing&&);
+    void handle_connection_timeout(Conref, TimerEvent::Expire&&);
+    void handle_connection_timeout(Conref, TimerEvent::CloseNoReply&&);
+    void handle_connection_timeout(Conref, TimerEvent::CloseNoPong&&);
+    void handle_timeout(TimerEvent::ScheduledConnect&&);
+    void handle_timeout(TimerEvent::CallFunction&&);
+    void handle_timeout(TimerEvent::SendIdentityIps&&);
 
     void on_request_expired(Conref cr, const Proberequest&);
     void on_request_expired(Conref cr, const Batchrequest&);
@@ -297,7 +299,7 @@ private:
         Error reason;
     };
     struct CancelTimer {
-        Timer::key_t timer;
+        TimerSystem::key_t key;
     };
     struct RTCClosed { // RTC connection closed
         std::shared_ptr<RTCConnection> con;
@@ -397,8 +399,8 @@ private: // private data
 
     AddressManager connections;
 
-    Timer timer;
-    std::optional<Timer::iterator> wakeupTimer;
+    TimerSystem timerSystem;
+    std::optional<Timer> wakeupTimer;
 
     // Request related
     size_t activeRequests = 0;

@@ -6,15 +6,15 @@
 
 using namespace std::chrono_literals;
 
-ConnectionJob::ConnectionJob(uint64_t conId, Timer& t)
-    : Timerref(t.insert(30s, Timer::CloseNoReply { conId }))
+ConnectionJob::ConnectionJob(uint64_t conId, TimerSystem& t)
+    : timer(t.insert(30s, TimerEvent::CloseNoReply { conId }))
 {
 }
 
 ConState::ConState(std::shared_ptr<ConnectionBase> p, Eventloop& e)
     : c(std::move(p))
-    , job(c->id, e.timer)
-    , ping(e.timer)
+    , job(c->id, e.timerSystem)
+    , ping(e.timerSystem)
     , usage(e.headerDownload, e.blockDownload)
 {
 }

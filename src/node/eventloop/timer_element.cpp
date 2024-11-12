@@ -2,7 +2,8 @@
 #include "eventloop/eventloop.hpp"
 #include "global/globals.hpp"
 
-TimerElement::~TimerElement(){
-    if (key) 
+TimerElement::~TimerElement()
+{
+    if (key)
         global().core->cancel_timer(*key);
 }

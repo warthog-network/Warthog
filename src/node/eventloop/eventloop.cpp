@@ -35,6 +35,8 @@ inline void log_communication(spdlog::format_string_t<Args...> fmt, Args&&... ar
 }
 
 using namespace std::chrono_literals;
+namespace TimerEvent = eventloop::timer_events;
+
 Eventloop::Eventloop(Token, PeerServer& ps, ChainServer& cs, const ConfigParams& config)
     : stateServer(cs)
     , chains(cs.get_chainstate())
@@ -130,7 +132,7 @@ void Eventloop::start_timer(StartTimer st)
     defer(std::move(st));
 }
 
-void Eventloop::cancel_timer(const Timer::key_t& k)
+void Eventloop::cancel_timer(TimerSystem::key_t k)
 {
     defer(CancelTimer { k });
 }
@@ -209,7 +211,7 @@ void Eventloop::notify_closed_rtc(std::shared_ptr<RTCConnection> rtc)
 bool Eventloop::has_work()
 {
     auto now = std::chrono::steady_clock::now();
-    return haswork || (now > timer.next());
+    return haswork || (now > timerSystem.next());
 }
 
 void Eventloop::loop()
@@ -225,7 +227,7 @@ void Eventloop::loop()
         {
             std::unique_lock<std::mutex> ul(mutex);
             while (!has_work()) {
-                auto until = timer.next();
+                auto until = timerSystem.next();
                 using namespace std::chrono;
                 auto count = duration_cast<seconds>(until.time_since_epoch()).count();
                 spdlog::debug("Eventloop wait until {} ms", count);
@@ -243,11 +245,11 @@ void Eventloop::loop()
 void Eventloop::work()
 {
     decltype(events) tmp;
-    std::vector<Timer::Event> expired;
+    std::vector<TimerSystem::Event> expired;
     {
         std::unique_lock<std::mutex> l(mutex);
         std::swap(tmp, events);
-        expired = timer.pop_expired();
+        expired = timerSystem.pop_expired();
     }
     // process expired
     for (auto& data : expired) {
@@ -569,13 +571,13 @@ void Eventloop::handle_event(StartTimer&& st)
         st.on_expire();
         return;
     }
-    auto iter = timer.insert(st.wakeup, Timer::CallFunction(std::move(st.on_expire)));
-    st.on_timerstart({ iter->first });
+    auto t { timerSystem.insert(st.wakeup, TimerEvent::CallFunction(std::move(st.on_expire))) };
+    st.on_timerstart(t.key());
 }
 
 void Eventloop::handle_event(CancelTimer&& ct)
 {
-    timer.cancel(ct.timer);
+    timerSystem.cancel(ct.key);
 }
 
 void Eventloop::handle_event(RTCClosed&& ct)
@@ -797,11 +799,8 @@ void Eventloop::erase_internal(Conref c, Error error)
     c->c->eventloop_erased = true;
     bool doRequests = false;
     c.job().unref_active_requests(activeRequests);
-    if (c.ping().has_timerref(timer))
-        timer.cancel(c.ping().timer());
-    if (c.job().has_timerref(timer)) {
-        timer.cancel(c.job().timer());
-    }
+    timerSystem.cancel(c.ping().timer);
+    timerSystem.cancel(c.job().timer);
     if (headerDownload.erase(c) && !closeReason) {
         spdlog::info("Connected to {} peers (closed connection to {}, reason: {})", headerDownload.size(), c.peer().to_string(), Error(error).err_name());
         emit_disconnect(headerDownload.size(), c.id());
@@ -880,9 +879,9 @@ void Eventloop::send_ping_await_pong(Conref c)
 
     // send
     log_communication("{} Sending Ping", c.str());
-    auto t = timer.insert(
+    auto t = timerSystem.insert(
         (config().localDebug ? 10min : 1min),
-        Timer::CloseNoPong { c.id() });
+        TimerEvent::CloseNoPong { c.id() });
 
     uint16_t maxTCPAddressess { 0 };
 #ifndef DISABLE_LIBUV
@@ -906,9 +905,8 @@ void Eventloop::send_ping_await_pong(Conref c)
 
 void Eventloop::received_pong_sleep_ping(Conref c)
 {
-    auto t = timer.insert(10s, Timer::SendPing { c.id() });
-    auto old_t = c.ping().sleep(t);
-    cancel_timer(old_t);
+    auto t = timerSystem.insert(10s, TimerEvent::SendPing { c.id() });
+    timerSystem.cancel(c.ping().sleep(t));
 }
 
 void Eventloop::send_requests(Conref cr, const std::vector<Request>& requests)
@@ -939,8 +937,8 @@ template <typename T>
 void Eventloop::send_request(Conref c, const T& req)
 {
     log_communication("{} send {}", c.str(), req.log_str());
-    auto t = timer.insert(req.expiry_time, Timer::Expire { c.id() });
-    c.job().assign(t, timer, req);
+    auto t = timerSystem.insert(req.expiry_time, TimerEvent::Expire { c.id() });
+    c.job().assign(t, req);
     if (req.isActiveRequest) {
         assert(activeRequests < maxRequests);
         activeRequests += 1;
@@ -954,50 +952,51 @@ void Eventloop::send_init(Conref cr)
 }
 
 template <typename T>
-requires std::derived_from<T, Timer::WithConnecitonId>
+requires std::derived_from<T, TimerEvent::WithConnecitonId>
 void Eventloop::handle_timeout(T&& t)
 {
     if (auto cr { connections.find(t.conId) }; cr.has_value()) {
         handle_connection_timeout(*cr, std::move(t));
     }
 }
-void Eventloop::handle_connection_timeout(Conref cr, Timer::CloseNoReply&&)
+void Eventloop::handle_connection_timeout(Conref cr, TimerEvent::CloseNoReply&&)
 {
-    cr.job().reset_expired(timer);
-    close(cr, ETIMEOUT);
-}
-void Eventloop::handle_connection_timeout(Conref cr, Timer::CloseNoPong&&)
-{
-    cr.ping().reset_expired(timer);
+    cr.job().timer = timerSystem.disabled_timer();
     close(cr, ETIMEOUT);
 }
 
-void Eventloop::handle_timeout(Timer::ScheduledConnect&&)
+void Eventloop::handle_connection_timeout(Conref cr, TimerEvent::CloseNoPong&&)
+{
+    cr.ping().timer.reset_expired(timerSystem);
+    close(cr, ETIMEOUT);
+}
+
+void Eventloop::handle_timeout(TimerEvent::ScheduledConnect&&)
 {
     connections.start_scheduled_connections();
 }
 
-void Eventloop::handle_timeout(Timer::CallFunction&& cf)
+void Eventloop::handle_timeout(TimerEvent::CallFunction&& cf)
 {
     cf.callback();
 }
 
-void Eventloop::handle_timeout(Timer::SendIdentityIps&&)
+void Eventloop::handle_timeout(TimerEvent::SendIdentityIps&&)
 {
     send_schedule_signaling_lists();
 }
 
-void Eventloop::handle_connection_timeout(Conref cr, Timer::SendPing&&)
+void Eventloop::handle_connection_timeout(Conref cr, TimerEvent::SendPing&&)
 {
-    cr.ping().timer_expired(timer);
+    cr.ping().timer_expired(timerSystem);
     return send_ping_await_pong(cr);
 }
 
-void Eventloop::handle_connection_timeout(Conref cr, Timer::Expire&&)
+void Eventloop::handle_connection_timeout(Conref cr, TimerEvent::Expire&&)
 {
-    cr.job().restart_expired(timer.insert(
-                                 (config().localDebug ? 10min : 2min), Timer::CloseNoReply { cr.id() }),
-        timer);
+    cr.job().restart_expired(timerSystem.insert(
+                                 (config().localDebug ? 10min : 2min), TimerEvent::CloseNoReply { cr.id() }),
+        timerSystem);
     assert(!cr.job().data_v.valueless_by_exception());
     std::visit(
         [&]<typename T>(T& v) {
@@ -1054,7 +1053,7 @@ void Eventloop::dispatch_message(Conref cr, messages::Msg&& m)
 void Eventloop::handle_msg(Conref c, InitMsg&& m)
 {
     log_communication("{} handle init: height {}, work {}", c.str(), m.chainLength.value(), m.worksum.getdouble());
-    c.job().reset_notexpired<AwaitInit>(timer);
+    c.job().reset_notexpired<AwaitInit>(timerSystem);
 
     c->chain.initialize(m, chains);
     headerDownload.insert(c);
@@ -1103,7 +1102,7 @@ void Eventloop::handle_msg(Conref c, PingMsg&& m)
 {
     log_communication("{} handle ping", c.str());
     c->ratelimit.ping();
-#ifndef DISABLE_LIBUV 
+#ifndef DISABLE_LIBUV
     size_t nAddr { std::min(uint16_t(20), m.maxAddresses()) };
     if (!c.is_tcp())
         nAddr = 0;
@@ -1124,7 +1123,7 @@ void Eventloop::handle_msg(Conref c, PingV2Msg&& m)
 
     log_communication("{} handle ping", c.str());
     c->ratelimit.ping();
-#ifndef DISABLE_LIBUV 
+#ifndef DISABLE_LIBUV
     size_t nAddr { std::min(uint16_t(20), m.maxAddresses()) };
     if (!c.is_tcp())
         nAddr = 0;
@@ -1220,7 +1219,7 @@ void Eventloop::handle_msg(Conref cr, BatchrepMsg&& m)
 {
     log_communication("{} handle_batchrep", cr.str());
     // check nonce and get associated data
-    auto req = cr.job().pop_req(m, timer, activeRequests);
+    auto req = cr.job().pop_req(m, timerSystem, activeRequests);
 
     // save batch
     if (m.batch().size() < req.minReturn || m.batch().size() > req.max_return()) {
@@ -1261,7 +1260,7 @@ void Eventloop::handle_msg(Conref cr, ProbereqMsg&& m)
 void Eventloop::handle_msg(Conref cr, ProberepMsg&& rep)
 {
     log_communication("{} handle_proberep", cr.str());
-    auto req = cr.job().pop_req(rep, timer, activeRequests);
+    auto req = cr.job().pop_req(rep, timerSystem, activeRequests);
     if (!rep.requested().has_value() && !req.descripted->expired()) {
         throw ChainError { EEMPTY, req.height() };
     }
@@ -1283,7 +1282,7 @@ void Eventloop::handle_msg(Conref cr, BlockreqMsg&& m)
 void Eventloop::handle_msg(Conref cr, BlockrepMsg&& m)
 {
     log_communication("{} handle blockrep", cr.str());
-    auto req = cr.job().pop_req(m, timer, activeRequests);
+    auto req = cr.job().pop_req(m, timerSystem, activeRequests);
 
     try {
         blockDownload.on_blockreq_reply(cr, std::move(m), req);
@@ -1400,7 +1399,7 @@ void Eventloop::send_schedule_signaling_lists()
         c.rtc().our.signalingList.set(conIds);
         c.send(RTCSignalingList(std::move(ips)));
     }
-    timer.insert(1min, Timer::SendIdentityIps {});
+    timerSystem.insert(1min, TimerEvent::SendIdentityIps {});
 }
 
 void Eventloop::handle_msg(Conref c, RTCIdentity&& msg)
@@ -1570,8 +1569,8 @@ void Eventloop::handle_msg(Conref cr, RTCVerificationAnswer&& m)
 void Eventloop::try_verify_rtc_identities()
 {
     spdlog::info("try_verify_rtc_identities {}", rtc.connections.can_insert_feeler());
-    if (rtc.verificationSchedule.empty() 
-        || !rtc.ips  
+    if (rtc.verificationSchedule.empty()
+        || !rtc.ips
         || rtc.ips->has_value() == false)
         return;
     while (rtc.connections.can_insert_feeler()) {
@@ -1618,12 +1617,6 @@ void Eventloop::process_blockdownload_stage()
 void Eventloop::async_stage_action(stage_operation::Result r)
 {
     defer(std::move(r));
-}
-
-void Eventloop::cancel_timer(Timer::iterator& ref)
-{
-    timer.cancel(ref);
-    ref = timer.end();
 }
 
 void Eventloop::verify_rollback(Conref cr, const SignedPinRollbackMsg& m)
@@ -1681,9 +1674,9 @@ void Eventloop::set_scheduled_connect_timer()
     auto& tp { *t };
 
     if (wakeupTimer) {
-        if ((*wakeupTimer)->first.wakeup_tp <= tp)
+        if (wakeupTimer->wakeup_tp() <= tp)
             return;
-        timer.cancel(*wakeupTimer);
+        timerSystem.cancel(*wakeupTimer);
     }
-    timer.insert(tp, Timer::ScheduledConnect {});
+    timerSystem.insert(tp, TimerEvent::ScheduledConnect {});
 }

@@ -9,47 +9,18 @@
 #include "rtc/peer_rtc_state.hpp"
 #include "transport/connection_base.hpp"
 
-class Timerref {
-public:
-    Timerref(Timer& t)
-        : timer_iter(t.end())
-    {
-    }
-    Timerref(Timer::iterator iter)
-        : timer_iter(iter)
-    {
-    }
-    Timer::iterator& timer_ref() { return timer_iter; }
-    void reset_expired(Timer& t)
-    {
-        assert(timer_iter != t.end());
-        timer_iter = t.end();
-    }
-    void reset_notexpired(Timer& t)
-    {
-        assert(timer_iter != t.end());
-        t.cancel(timer_iter);
-        timer_iter = t.end();
-    }
-    bool has_timerref(Timer& timer) { return timer_iter != timer.end(); }
-    Timer::iterator timer() { return timer_iter; }
-
-protected:
-    Timer::iterator timer_iter;
-};
-
-struct ConnectionJob : public Timerref {
+struct ConnectionJob {
+    using TimerSystem = eventloop::TimerSystem;
+    using Timer = eventloop::Timer;
     using time_point = std::chrono::steady_clock::time_point;
-    using Timerref::Timerref;
-    ConnectionJob(uint64_t conId, Timer& t);
+    ConnectionJob(uint64_t conId, TimerSystem& t);
 
     template <typename T>
     requires std::derived_from<T, IsRequest>
-    void assign(Timer::iterator iter, Timer& t, T& req)
+    void assign(Timer t, T& req)
     {
         assert(!active());
-        assert(t.end() != iter);
-        timer_iter = iter;
+        timer = t;
         try {
             assert(!data_v.valueless_by_exception());
             data_v = req;
@@ -78,10 +49,10 @@ struct ConnectionJob : public Timerref {
     // data
 
     template <typename T>
-    void reset_notexpired(Timer& t)
+    void reset_notexpired(TimerSystem& ts)
     {
         assert(!data_v.valueless_by_exception());
-        Timerref::reset_notexpired(t);
+        timer.reset_notexpired(ts);
         bool b = !std::holds_alternative<T>(data_v);
         try {
             data_v = std::monostate();
@@ -100,18 +71,19 @@ struct ConnectionJob : public Timerref {
         return std::holds_alternative<AwaitInit>(data_v);
     }
 
-    void restart_expired(Timer::iterator iter, Timer& t)
+    void restart_expired(Timer t, TimerSystem& ts)
     {
-        assert(timer_iter != t.end());
-        timer_iter = iter;
+        assert(!ts.is_disabled(t));
+        timer = t;
         return;
     }
     using data_t = std::variant<AwaitInit, std::monostate, Proberequest, Batchrequest, Blockrequest>;
     data_t data_v;
+    Timer timer;
 
     template <typename T>
     requires T::is_reply
-    auto pop_req(T& rep, Timer& t, size_t& activeRequests)
+    auto pop_req(T& rep, TimerSystem& t, size_t& activeRequests)
     {
         using type = typename typemap<T>::type;
         assert(!data_v.valueless_by_exception());
@@ -160,7 +132,9 @@ private:
     };
 };
 
-struct Ping : public Timerref {
+struct Ping  {
+    using TimerSystem = eventloop::TimerSystem;
+    using Timer = eventloop::Timer;
     struct PingV2Data {
         struct ExtraData {
             ExtraData(uint64_t signalingListDiscardIndex)
@@ -171,33 +145,33 @@ struct Ping : public Timerref {
         } extraData;
         PingV2Msg msg;
     };
-    Ping(Timer& end)
-        : Timerref(end)
+    Ping(TimerSystem& s)
+        : timer(s.disabled_timer())
     {
     }
-    void await_pong(PingMsg msg, Timer::iterator iter)
+    void await_pong(PingMsg msg, Timer t)
     {
         assert(!has_value());
         data = std::move(msg);
-        timer_iter = iter;
+        timer = t;
     }
-    void await_pong_v2(PingV2Data d, Timer::iterator iter)
+    void await_pong_v2(PingV2Data d, Timer t)
     {
         assert(!has_value());
         data = std::move(d);
-        timer_iter = iter;
+        timer = t;
     }
-    Timer::iterator sleep(Timer::iterator iter)
+    Timer sleep(Timer t)
     {
-        auto tmp = timer_iter;
+        auto tmp = timer;
         assert(has_value());
         data = std::monostate();
-        timer_iter = iter;
+        timer = t;
         return tmp;
     }
-    void timer_expired(Timer& timer)
+    void timer_expired(TimerSystem& ts)
     {
-        timer_iter = timer.end();
+        timer = ts.disabled_timer();
     }
     auto& check(const PongV2Msg& m)
     {
@@ -220,6 +194,7 @@ struct Ping : public Timerref {
         return d;
     }
 
+    eventloop::Timer timer;
 private:
     bool has_value() const { return !std::holds_alternative<std::monostate>(data); }
     std::variant<std::monostate, PingMsg, PingV2Data> data;
@@ -258,6 +233,7 @@ class Eventloop;
 class ConnectionInserter;
 class ConState {
     ConState(std::shared_ptr<ConnectionBase> c, Eventloop&);
+
 public:
     ConState(std::shared_ptr<ConnectionBase> c, const ConnectionInserter&);
     std::shared_ptr<ConnectionBase> c;
