@@ -5,6 +5,7 @@
 #include "chainserver/mining_subscription.hpp"
 #include "communication/create_payment.hpp"
 #include "communication/stage_operation/request.hpp"
+#include "general/logging.hpp"
 #include "state/state.hpp"
 #include <condition_variable>
 #include <queue>
@@ -247,6 +248,7 @@ private:
 
     // state variables
     chainserver::State state;
+    std::optional<logging::TimingSession> timing;
 
     // mutex protected variables
     std::mutex mutex;

@@ -1,5 +1,6 @@
 #pragma once
 #include "config/config.hpp"
+#include "general/logging.hpp"
 #include <memory>
 
 class BatchRegistry;
@@ -20,6 +21,7 @@ struct Global {
     BatchRegistry* pbr;
     HTTPEndpoint* httpEndpoint;
     std::shared_ptr<spdlog::logger> connLogger;
+    std::optional<logging::TimingLogger> timingLogger;
     std::shared_ptr<spdlog::logger> syncdebugLogger;
     Config conf;
 };
@@ -27,6 +29,7 @@ struct Global {
 const Global& global();
 HTTPEndpoint& http_endpoint();
 inline spdlog::logger& connection_log() { return *global().connLogger; }
+inline auto& timing_log() { return global().timingLogger.value(); }
 inline spdlog::logger& syncdebug_log() { return *global().syncdebugLogger; }
 const Config& config();
 int init_config(int argc, char** argv);

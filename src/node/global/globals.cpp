@@ -4,25 +4,39 @@
 #include "spdlog/sinks/rotating_file_sink.h"
 namespace {
 
-    std::string logdir(){
-        if (is_testnet()) {
-            return "logs_testnet";
-        }else{
-            return "logs";
-        }
+std::string logdir()
+{
+    if (is_testnet()) {
+        return "logs_testnet";
+    } else {
+        return "logs";
     }
+}
 auto create_connection_logger()
 {
     auto max_size = 1048576 * 5; // 5 MB
     auto max_files = 3;
-    return spdlog::rotating_logger_mt("connection_logger", config().defaultDataDir + logdir()+"/connections.log", max_size, max_files);
+    return spdlog::rotating_logger_mt("connection_logger", config().defaultDataDir + logdir() + "/connections.log", max_size, max_files);
 }
 
 auto create_syncdebug_logger()
 {
     auto max_size = 1048576 * 5; // 5 MB
     auto max_files = 3;
-    return spdlog::rotating_logger_mt("syncdebug_logger", config().defaultDataDir + logdir()+"/syncdebug.log", max_size, max_files);
+    return spdlog::rotating_logger_mt("syncdebug_logger", config().defaultDataDir + logdir() + "/syncdebug.log", max_size, max_files);
+}
+
+auto create_timing_logger()
+{
+    auto max_size = 1048576 * 50; // 50 MB
+    auto max_files = 10;
+    return spdlog::rotating_logger_mt("timing", config().defaultDataDir + logdir() + "/timing.log", max_size, max_files);
+}
+auto create_longrunning_logger()
+{
+    auto max_size = 1048576 * 50; // 50 MB
+    auto max_files = 10;
+    return spdlog::rotating_logger_mt("longrunning", config().defaultDataDir + logdir() + "/longrunning.log", max_size, max_files);
 }
 
 }
@@ -57,10 +71,14 @@ void global_init(BatchRegistry* pbr, PeerServer* pps, ChainServer* pcs, Conman* 
     globalinstance.pcs = pcs;
     globalinstance.pel = pel;
     globalinstance.httpEndpoint = httpEndpoint;
-    globalinstance.connLogger = create_connection_logger();;
-    globalinstance.syncdebugLogger = create_syncdebug_logger();;
+    globalinstance.connLogger = create_connection_logger();
+    ;
+    globalinstance.syncdebugLogger = create_syncdebug_logger();
+    ;
+    globalinstance.timingLogger.emplace(create_timing_logger(), create_longrunning_logger());
 };
 
-HTTPEndpoint& http_endpoint(){
+HTTPEndpoint& http_endpoint()
+{
     return *globalinstance.httpEndpoint;
 };

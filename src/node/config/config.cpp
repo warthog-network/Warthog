@@ -167,16 +167,19 @@ int Config::process_gengetopt(gengetopt_args_info& ai)
         };
     } else {
         peers.connect = {
-            "193.218.118.57:9186",
-            "96.41.20.26:9186",
-            "89.163.224.253:9186",
-            "88.11.56.103:9186",
-            "81.163.20.40:9186",
-            "74.122.131.1:9186",
-            "68.227.255.200:9186",
-            "64.92.35.4:9186",
-            "37.114.63.165:9186",
+            "135.181.77.214:9186",
             "15.235.162.190:9186",
+            "193.218.118.57:9186",
+            "203.25.209.147:9186",
+            "213.199.59.252:20016",
+            "37.114.63.165:9186",
+            "64.92.35.4:9186",
+            "68.227.255.200:9186",
+            "74.122.131.1:9186",
+            "81.163.20.40:9186",
+            "88.11.56.103:9186",
+            "89.163.224.253:9186",
+            "96.41.20.26:9186",
         };
     }
 
@@ -286,7 +289,7 @@ int Config::process_gengetopt(gengetopt_args_info& ai)
             data.peersdb = defaultDataDir + (is_testnet() ? "testnet_peers.db3" : "peers.db3");
         }
     }
-    if (ai.temporary_given) 
+    if (ai.temporary_given)
         data.chaindb = "";
 
     // Stratum API socket
@@ -314,7 +317,7 @@ int Config::process_gengetopt(gengetopt_args_info& ai)
     } else {
         if (rpcBind) {
             jsonrpc.bind = *rpcBind;
-        }else{
+        } else {
             if (is_testnet())
                 jsonrpc.bind = EndpointAddress::parse("127.0.0.1:3100").value();
             else
@@ -377,9 +380,9 @@ std::string Config::dump()
         connect.push_back(ea.to_string());
     }
     tbl.insert_or_assign("stratum",
-            toml::table {
+        toml::table {
             { "bind", stratumPool ? stratumPool->bind.to_string() : ""s },
-            });
+        });
     tbl.insert_or_assign("node",
         toml::table {
             { "bind", node.bind.to_string() },
@@ -394,6 +397,6 @@ std::string Config::dump()
                                    { "peers-db", data.peersdb },
                                });
     stringstream ss;
-    ss << tbl<<endl;
+    ss << tbl << endl;
     return ss.str();
 }

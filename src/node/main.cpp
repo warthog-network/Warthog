@@ -81,6 +81,7 @@ int main(int argc, char** argv)
         return i; // >0 means continue with execution
     BatchRegistry breg;
 
+    spdlog::flush_every(5s);
     spdlog::info("Chain database: {}", config().data.chaindb);
     spdlog::info("Peers database: {}", config().data.peersdb);
 
@@ -130,5 +131,6 @@ int main(int argc, char** argv)
     return 0;
 error:
     spdlog::error("libuv error:", errors::err_name(i));
+    spdlog::shutdown();
     return i;
 }
