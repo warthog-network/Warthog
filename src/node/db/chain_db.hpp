@@ -368,6 +368,8 @@ private:
                     "`AccountHistory` (`history_id` ASC)");
             db.exec("CREATE TABLE IF NOT EXISTS `History` ( `id` INTEGER NOT NULL, "
                     "`hash` BLOB NOT NULL, `data` BLOB NOT NULL, PRIMARY KEY(`id`))");
+            db.exec("CREATE INDEX IF NOT EXISTS `history_index` ON "
+                    "`History` (`hash` ASC)");
         }
     } createTables;
     struct Cache {
