@@ -1,5 +1,6 @@
 #pragma once
 #include "config/config.hpp"
+#include "general/logger/timing_logger.hpp"
 #include <memory>
 
 class BatchRegistry;
@@ -27,6 +28,7 @@ struct Global {
     Eventloop* core;
     BatchRegistry* batchRegistry;
     std::shared_ptr<spdlog::logger> connLogger;
+    std::optional<logging::TimingLogger> timingLogger;
     std::shared_ptr<spdlog::logger> syncdebugLogger;
     std::optional<Config> conf;
 };
@@ -34,6 +36,7 @@ extern std::atomic<bool> shutdownSignal;
 
 const Global& global();
 inline spdlog::logger& connection_log() { return *global().connLogger; }
+inline auto& timing_log() { return global().timingLogger.value(); }
 inline spdlog::logger& syncdebug_log() { return *global().syncdebugLogger; }
 const Config& config();
 int init_config(int argc, char** argv);

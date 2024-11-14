@@ -29,6 +29,19 @@ auto create_syncdebug_logger()
     return spdlog::rotating_logger_mt("syncdebug_logger", config().get_default_datadir() + logdir() + "/syncdebug.log", max_size, max_files);
 }
 
+auto create_timing_logger()
+{
+    auto max_size = 1048576 * 50; // 50 MB
+    auto max_files = 10;
+    return spdlog::rotating_logger_mt("timing", config().get_default_datadir() + logdir() + "/timing.log", max_size, max_files);
+}
+auto create_longrunning_logger()
+{
+    auto max_size = 1048576 * 50; // 50 MB
+    auto max_files = 10;
+    return spdlog::rotating_logger_mt("longrunning", config().get_default_datadir() + logdir() + "/longrunning.log", max_size, max_files);
+}
+
 }
 
 #ifdef DISABLE_LIBUV
@@ -81,6 +94,7 @@ void global_init(BatchRegistry* pbr, PeerServer* pps, ChainServer* pcs, Eventloo
     globalinstance.core = pel;
     globalinstance.connLogger = create_connection_logger();
     globalinstance.syncdebugLogger = create_syncdebug_logger();
+    globalinstance.timingLogger.emplace(create_timing_logger(), create_longrunning_logger());
 };
 
 std::atomic<bool> shutdownSignal { false };
