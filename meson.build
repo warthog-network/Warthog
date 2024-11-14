@@ -1,5 +1,5 @@
 project( 'Warthog', ['c','cpp'],
-  version : '0.7.35',
+  version : '0.7.36',
   default_options : ['warning_level=3', 'cpp_std=c++20'])
 
 rtcstatic = []
@@ -8,6 +8,7 @@ if host_machine.system() == 'windows'
 endif
 
 json_dep = subproject('json', default_options : ['warning_level=0', 'werror=false']).get_variable('nlohmann_json_dep')
+spdlog_dep = subproject('spdlog', default_options : ['warning_level=0', 'werror=false']).get_variable('spdlog_dep')
 
 if not get_option('emscripten')
 libuv_dep = subproject('libuv', default_options : ['warning_level=0', 'werror=false', 'build_tests=false']).get_variable('libuv_dep')
