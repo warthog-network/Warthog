@@ -14,6 +14,7 @@
 
 class ChainServer : public std::enable_shared_from_this<ChainServer> {
     using getBlocksCb = std::function<void(std::vector<BodyContainer>&&)>;
+
 public:
     // can be called concurrently
     Batch get_headers(BatchSelector selector);
@@ -90,6 +91,9 @@ public:
     struct GetTxcache {
         TxcacheCb callback;
     };
+    struct GetDBSize {
+        DBSizeCB callback;
+    };
     struct GetBlocks {
         DescriptedBlockRange range;
         getBlocksCb callback;
@@ -137,6 +141,7 @@ public:
         SubscribeMining,
         UnsubscribeMining,
         GetTxcache,
+        GetDBSize,
         GetBlocks,
         stage_operation::StageAddOperation,
         stage_operation::StageSetOperation,
@@ -210,6 +215,7 @@ public:
     [[nodiscard]] mining_subscription::MiningSubscription api_subscribe_mining(Address address, mining_subscription::callback_t callback);
     void api_unsubscribe_mining(mining_subscription::SubscriptionId);
     void api_get_txcache(TxcacheCb callback);
+    void api_get_db_size(DBSizeCB callback);
 
     void subscribe_account_event(SubscriptionRequest, Address a);
     void subscribe_chain_event(SubscriptionRequest);
@@ -248,6 +254,7 @@ private:
     void handle_event(SubscribeMining&&);
     void handle_event(UnsubscribeMining&&);
     void handle_event(GetTxcache&&);
+    void handle_event(GetDBSize&&);
     void handle_event(GetBlocks&&);
     void handle_event(stage_operation::StageSetOperation&&);
     void handle_event(stage_operation::StageAddOperation&&);

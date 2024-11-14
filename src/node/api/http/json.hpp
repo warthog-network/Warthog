@@ -39,6 +39,7 @@ nlohmann::json to_json(const chainserver::TransactionIds&);
 nlohmann::json to_json(const api::Round16Bit&);
 nlohmann::json to_json(const api::Rollback&);
 nlohmann::json to_json(const api::IPCounter& ipc);
+nlohmann::json to_json(const api::NodeInfo& info);
 inline nlohmann::json to_json(const nlohmann::json& j){return j;}
 
 template <typename T>

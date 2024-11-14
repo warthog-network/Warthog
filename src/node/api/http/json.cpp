@@ -1,7 +1,6 @@
 #include "json.hpp"
 #include "api/types/all.hpp"
 #include "block/body/parse.hpp"
-#include "transport/helpers/tcp_sockaddr.hpp"
 #include "block/header/header_impl.hpp"
 #include "block/header/view.hpp"
 #include "chainserver/transaction_ids.hpp"
@@ -13,8 +12,9 @@
 #include "general/errors.hpp"
 #include "general/hex.hpp"
 #include "general/is_testnet.hpp"
-#include <nlohmann/json.hpp>
+#include "transport/helpers/tcp_sockaddr.hpp"
 #include "version.hpp"
+#include <nlohmann/json.hpp>
 #include <ranges>
 
 using namespace std::chrono;
@@ -511,7 +511,7 @@ std::string serialize(const std::vector<api::Peerinfo>& connected)
         auto conn = json {
             { "port", item.endpoint.port() },
             { "sinceTimestamp", item.since },
-            { "sinceUtc", format_utc(item.since) }
+            { "sinceUTC", format_utc(item.since) }
         };
         if (auto ip { item.endpoint.ip() }; ip.has_value())
             conn["ip"] = ip->to_string();
@@ -537,7 +537,8 @@ std::string serialize(const std::vector<api::Peerinfo>& connected)
     return j.dump(1);
 }
 
-json to_json(const TCPPeeraddr& a){
+json to_json(const TCPPeeraddr& a)
+{
     return a.to_string();
 }
 
@@ -621,12 +622,47 @@ nlohmann::json to_json(const api::Rollback& rb)
     };
 }
 
-nlohmann::json to_json(const api::IPCounter& ipc){
+nlohmann::json to_json(const api::IPCounter& ipc)
+{
     json arr(json::array());
-    for (auto &[ip,c] : ipc.vector) {
-        arr[ip.to_string()]=c;
+    for (auto& [ip, c] : ipc.vector) {
+        arr[ip.to_string()] = c;
     }
     return arr;
+}
+
+nlohmann::json to_json(const api::NodeInfo& info)
+{
+    using namespace std;
+    using namespace std::chrono;
+    using namespace std::string_literals;
+    using sc = std::chrono::steady_clock;
+    auto format_duration = [](size_t s /* uptime seconds*/) {
+        size_t days = s / (24 * 60 * 60);
+        size_t hours = (s % (24 * 60 * 60)) / (60 * 60);
+        size_t minutes = (s % (60 * 60)) / 60;
+        size_t seconds = (s % 60);
+        return to_string(days) + "d "s + to_string(hours) + "h "s + to_string(minutes) + "m "s + to_string(seconds) + "s"s;
+    };
+
+    auto startedAt { config().started_at() };
+    auto uptime { sc::now() - startedAt.steady };
+    auto uptimeSeconds(duration_cast<seconds>(uptime).count());
+    auto uptimeStr { format_duration(uptimeSeconds) };
+    uint32_t sinceTimestamp(duration_cast<seconds>(startedAt.system.time_since_epoch()).count());
+    return {
+        { "dbSize", info.dbSize },
+        { "chainDBPath", config().data.chaindb },
+        { "peersDBPath", config().data.peersdb },
+        { "version", { { "name", CMDLINE_PARSER_VERSION }, { "major", VERSION_MAJOR }, { "minor", VERSION_MINOR }, { "patch", VERSION_PATCH }, { "commit", GIT_COMMIT_INFO } } },
+        {"uptime", {
+        { "sinceTimestamp", sinceTimestamp },
+        { "sinceUTC", format_utc(sinceTimestamp) },
+        { "seconds", uptimeSeconds },
+        { "formatted", uptimeStr }
+
+        }}
+    };
 }
 
 std::string serialize(const api::Raw& r)

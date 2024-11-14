@@ -30,7 +30,8 @@ void get_latest_transactions(LatestTxsCb f)
 
 // peer functions
 
-void get_ip_count(IpCounterCb&& cb){
+void get_ip_count(IpCounterCb&& cb)
+{
     global().core->api_count_ips(std::move(cb));
 }
 
@@ -80,9 +81,17 @@ void get_round16bit_funds(Funds f, RoundCb cb)
 {
     cb(api::Round16Bit { f });
 }
+
 void get_version(VersionCb cb)
 {
     cb(NodeVersion {});
+}
+void get_info(InfoCb cb)
+{
+    global().chainServer->api_get_db_size(
+        [cb = std::move(cb)](tl::expected<api::DBSize, Error> s) {
+            cb(std::move(s).transform([](api::DBSize&& s) { return api::NodeInfo { std::move(s) }; }));
+        });
 }
 
 void get_wallet_new(WalletCb cb)

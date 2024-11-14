@@ -241,6 +241,7 @@ public:
         hook_get_1(t, "/tools/encode16bit/from_e8/:feeE8", get_round16bit_e8);
         hook_get_1(t, "/tools/encode16bit/from_string/:string", get_round16bit_funds);
         hook_get(t, "/tools/version", get_version);
+        hook_get(t, "/tools/info", get_info);
         hook_get(t, "/tools/wallet/new", get_wallet_new);
         hook_get_1(t, "/tools/wallet/from_privkey/:privkey", get_wallet_from_privkey);
         hook_get_1(t, "/tools/janushash_number/:headerhex", get_janushash_number);

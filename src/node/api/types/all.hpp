@@ -11,6 +11,7 @@
 #include "crypto/address.hpp"
 #include "eventloop/peer_chain.hpp"
 #include "general/funds.hpp"
+#include "general/start_time_points.hpp"
 #include "height_or_hash.hpp"
 #include "peerserver/db/offense_entry.hpp"
 #include "transport/helpers/peer_addr.hpp"
@@ -130,7 +131,7 @@ public:
     auto& reward() const { return _reward; }
 };
 
-struct AddressCount{
+struct AddressCount {
     Address address;
     int64_t count;
 };
@@ -210,10 +211,17 @@ struct Raw {
     std::string s;
 };
 
-struct IPCounter{
-    std::vector<std::pair<IP,size_t>> vector;
+struct IPCounter {
+    std::vector<std::pair<IP, size_t>> vector;
 };
 
 using OffenseEntry = ::OffenseEntry;
+
+struct DBSize {
+    size_t dbSize;
+};
+
+struct NodeInfo : public DBSize {
+};
 
 }

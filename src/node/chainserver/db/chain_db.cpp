@@ -113,6 +113,7 @@ ChainDB::ChainDB(const std::string& path)
     , stmtHistoryById(db, "SELECT h.id, `hash`,`data` FROM `History` `h` JOIN "
                           "`AccountHistory` `ah` ON h.id=`ah`.history_id WHERE "
                           "ah.`account_id`=? AND h.id<? ORDER BY h.id DESC LIMIT 100")
+    , stmtGetDBSize(db, "SELECT page_count * page_size FROM pragma_page_count(), pragma_page_size();")
 {
 
     //
@@ -363,6 +364,11 @@ std::optional<std::pair<std::vector<uint8_t>, HistoryId>> ChainDB::lookup_histor
             o[0]
         };
     });
+}
+
+size_t ChainDB::byte_size() const
+{
+    return stmtGetDBSize.one().get<int64_t>(0);
 }
 
 std::vector<std::pair<Hash, std::vector<uint8_t>>> ChainDB::lookupHistoryRange(HistoryId lower, HistoryId upper)

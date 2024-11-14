@@ -28,6 +28,7 @@ struct NodeVersion {
     /* data */
 };
 
+
 class Header;
 struct TCPPeeraddr;
 
@@ -64,6 +65,8 @@ using HistoryCb = std::function<void(const tl::expected<api::AccountHistory, Err
 using RichlistCb = std::function<void(const tl::expected<api::Richlist, Error>&)>;
 
 using VersionCb = std::function<void(const tl::expected<NodeVersion, Error>&)>;
+using DBSizeCB = std::function<void(const tl::expected<api::DBSize, Error>&)>;
+using InfoCb = std::function<void(const tl::expected<api::NodeInfo, Error>&)>;
 using WalletCb = std::function<void(const tl::expected<api::Wallet, Error>&)>;
 using RawCb = std::function<void(const api::Raw&)>;
 using SampledPeersCb = std::function<void(const std::vector<TCPPeeraddr>&)>;

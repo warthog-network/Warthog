@@ -1,6 +1,5 @@
 #pragma once
 
-#include "general/sqlite.hpp"
 #include "api/types/forward_declarations.hpp"
 #include "block/block.hpp"
 #include "block/chain/offsts.hpp"
@@ -10,6 +9,7 @@
 #include "deletion_key.hpp"
 #include "general/address_funds.hpp"
 #include "general/filelock/filelock.hpp"
+#include "general/sqlite.hpp"
 class ChainDBTransaction;
 class Batch;
 struct SignedSnapshot;
@@ -18,8 +18,6 @@ struct RawBody : public std::vector<uint8_t> {
 };
 struct RawUndo : public std::vector<uint8_t> {
 };
-
-
 
 class ChainDB {
 private:
@@ -118,6 +116,7 @@ public:
     // BELOW METHODS REQUIRED FOR INDEXING NODES
     std::optional<AccountFunds> lookup_address(const AddressView address) const; // for indexing nodes
     std::vector<std::tuple<HistoryId, Hash, std::vector<uint8_t>>> lookup_history_100_desc(AccountId account_id, int64_t beforeId);
+    size_t byte_size() const;
 
 private:
     [[nodiscard]] bool schedule_exists(BlockId dk);
@@ -215,6 +214,7 @@ private:
 
     mutable Statement stmtAddressLookup;
     mutable Statement stmtHistoryById;
+    mutable Statement stmtGetDBSize;
 };
 class ChainDBTransaction {
 public:

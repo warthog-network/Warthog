@@ -881,4 +881,8 @@ MiningCache::CacheValidity State::mining_cache_validity()
     return { dbCacheValidity, chainstate.mempool().cache_validity(), now_timestamp() };
 }
 
+size_t State::api_db_size() const{
+    return db.byte_size();
+}
+
 }

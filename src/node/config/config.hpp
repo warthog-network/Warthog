@@ -1,5 +1,6 @@
 #pragma once
 
+#include  "general/start_time_points.hpp"
 #include "block/chain/signed_snapshot.hpp"
 #include "expected.hpp"
 #include "transport/helpers/peer_addr.hpp"
@@ -94,8 +95,12 @@ private:
     std::optional<int> process_config_file(const gengetopt_args_info& ai, bool silent);
 };
 
+
 struct Config : public ConfigParams {
     Config(ConfigParams&&);
     std::atomic<bool> logCommunication { false };
     std::atomic<bool> logRTC { false };
+    auto& started_at() const{return startedAt;}
+private:
+    StartTimePoints startedAt;
 };

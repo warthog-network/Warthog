@@ -126,6 +126,13 @@ void ChainServer::api_get_txcache(TxcacheCb callback)
     defer_maybe_busy(GetTxcache { std::move(callback) });
 }
 
+void ChainServer::api_get_db_size(DBSizeCB callback)
+{
+    GetDBSize db{ std::move(callback) };
+    defer_maybe_busy(db);
+}
+
+
 void ChainServer::api_get_header(api::HeightOrHash hoh, HeaderCb callback)
 {
     defer_maybe_busy(GetHeader { hoh, std::move(callback) });
@@ -382,6 +389,10 @@ void ChainServer::handle_event(GetTxcache&& e)
 {
     e.callback(state.api_tx_cache());
 }
+void ChainServer::handle_event(GetDBSize&& e)
+{
+    e.callback(api::DBSize{state.api_db_size()});
+}
 //
 void ChainServer::handle_event(GetBlocks&& e)
 {
@@ -444,3 +455,4 @@ void ChainServer::handle_event(DestroySubscriptions&& s)
     addressSubscriptions.erase_all(s.p);
     chainSubscriptions.erase_all(s.p);
 }
+

@@ -115,6 +115,7 @@ public:
     auto api_get_header(api::HeightOrHash& h) const -> std::optional<std::pair<NonzeroHeight, Header>>;
     auto api_get_block(const api::HeightOrHash& h) const -> std::optional<api::Block>;
     auto api_tx_cache() const -> const TransactionIds;
+    size_t api_db_size() const;
 
 private:
     // delegated getters

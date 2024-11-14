@@ -630,7 +630,7 @@ void Eventloop::handle_event(GeneratedVerificationSdpAnswer&& m)
     }
     auto& sdp = *filtered;
 
-    spdlog::info("send RTCVerificationAnswer, ip: {}", m.ownIp.to_string());
+    log_rtc("send RTCVerificationAnswer, ip: {}", m.ownIp.to_string());
     originCon.send(RTCVerificationAnswer { sdp });
 }
 void Eventloop::handle_event(GeneratedSdpAnswer&& m)
