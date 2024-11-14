@@ -3,6 +3,7 @@
 #include "block/header/header_impl.hpp"
 #include "chainserver/server.hpp"
 #include "eventloop/eventloop.hpp"
+#include "general/logger/log_memory.hpp"
 #include "global/globals.hpp"
 #include "transport/tcp/conman.hpp"
 #include <nlohmann/json.hpp>
@@ -347,6 +348,10 @@ void subscribe_minerdist_event(SubscriptionRequest r)
 {
     global().chainServer->subscribe_minerdist_event(std::move(r));
 }
+void subscribe_log_event(SubscriptionRequest r){
+    logging::logMemory.subscribe(std::move(r));
+}
+
 void destroy_all_subscriptions(subscription_data_ptr p)
 {
     global().chainServer->destroy_subscriptions(p);

@@ -1,8 +1,12 @@
 #include "globals.hpp"
+#include "crypto/crypto.hpp"
 #include "general/is_testnet.hpp"
+#include "general/logger/log_memory.hpp"
+#include "spdlog/sinks/callback_sink.h"
 #include "spdlog/sinks/rotating_file_sink.h"
 #include "spdlog/spdlog.h"
 #include "transport/tcp/conman.hpp"
+#include <chrono>
 namespace {
 
 std::string logdir()
@@ -17,7 +21,7 @@ auto create_connection_logger()
 {
     auto max_size = 1048576 * 5; // 5 MB
     auto max_files = 3;
-    auto res{ spdlog::rotating_logger_mt("connection_logger", config().get_default_datadir() + logdir() + "/connections.log", max_size, max_files)};
+    auto res { spdlog::rotating_logger_mt("connection_logger", config().get_default_datadir() + logdir() + "/connections.log", max_size, max_files) };
     res->flush_on(spdlog::level::info);
     return res;
 }
@@ -97,4 +101,37 @@ void global_init(BatchRegistry* pbr, PeerServer* pps, ChainServer* pcs, Eventloo
     globalinstance.timingLogger.emplace(create_timing_logger(), create_longrunning_logger());
 };
 
-std::atomic<bool> shutdownSignal { false };
+
+namespace {
+void initialize_logging()
+{
+    using namespace std::string_literals;
+    using namespace std::chrono_literals;
+    spdlog::flush_every(5s);
+    auto callback_sink = std::make_shared<spdlog::sinks::callback_sink_mt>([](const spdlog::details::log_msg& msg) {
+        logging::logMemory.add_entry(msg);
+    });
+    callback_sink->set_level(spdlog::level::debug);
+    spdlog::default_logger()->sinks().push_back(callback_sink);
+}
+
+void initialize_srand()
+{
+    using namespace std::chrono;
+    srand(duration_cast<milliseconds>(steady_clock::now().time_since_epoch()).count());
+}
+
+}
+
+void global_startup()
+{
+    ECC_Start();
+    initialize_logging();
+    initialize_srand();
+}
+
+void global_cleanup()
+{
+    ECC_Stop();
+    spdlog::shutdown();
+}

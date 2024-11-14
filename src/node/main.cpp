@@ -2,8 +2,12 @@
 #include "chainserver/server.hpp"
 #include "eventloop/eventloop.hpp"
 #include "general/errors.hpp"
+#include "general/logger/log_memory.hpp"
 #include "global/globals.hpp"
 #include "peerserver/peerserver.hpp"
+#include "spdlog/sinks/ansicolor_sink.h"
+#include "spdlog/sinks/callback_sink.h"
+#include "spdlog/sinks/stdout_color_sinks.h"
 #include "spdlog/spdlog.h"
 #include "transport/ws/native/ws_conman.hpp"
 
@@ -83,28 +87,14 @@ static void shutdown(Error reason)
 }
 #endif
 
-void initialize_srand()
+int run_app(int argc, char** argv)
 {
-    using namespace std::chrono;
-    srand(duration_cast<milliseconds>(steady_clock::now().time_since_epoch()).count());
-}
-
-struct ECC {
-    ECC() { ECC_Start(); }
-    ~ECC() { ECC_Stop(); }
-};
-
-int main(int argc, char** argv)
-{
-    using namespace std::chrono_literals;
-    ECC ecc;
-    initialize_srand();
     int i = init_config(argc, argv);
     if (i <= 0)
         return i; // >0 means continue with execution
     BatchRegistry breg;
 
-    spdlog::flush_every(5s);
+    // spdlog::set_default_logger
     spdlog::info("Chain database: {}", config().data.chaindb);
     spdlog::info("Peers database: {}", config().data.peersdb);
 
@@ -174,7 +164,14 @@ int main(int argc, char** argv)
     return 0;
 error:
     spdlog::error("libuv error: {}", Error(i).err_name());
-    spdlog::shutdown();
     return i;
 #endif
+}
+
+int main(int argc, char** argv)
+{
+    global_startup();
+    auto i { run_app(argc, argv) };
+    global_cleanup();
+    return i;
 }

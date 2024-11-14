@@ -32,7 +32,7 @@ struct Global {
     std::shared_ptr<spdlog::logger> syncdebugLogger;
     std::optional<Config> conf;
 };
-extern std::atomic<bool> shutdownSignal;
+inline std::atomic<bool> shutdownSignal;
 
 const Global& global();
 inline spdlog::logger& connection_log() { return *global().connLogger; }
@@ -48,3 +48,5 @@ void global_init(BatchRegistry* pbr, PeerServer* pps, ChainServer* pcs, TCPConne
 #else
 void global_init(BatchRegistry* pbr, PeerServer* pps, ChainServer* pcs, Eventloop* pel);
 #endif
+void global_startup();
+void global_cleanup();

@@ -32,6 +32,8 @@ void handleSubscriptioinMessage(const nlohmann::json& j, subscription_ptr p)
         subscribe_account_event({ std::move(p), action }, Address(j["params"]["address"].get<std::string>()));
     } else if (topic == "minerdist") {
         subscribe_minerdist_event({ std::move(p), action });
+    } else if (topic == "log") {
+        subscribe_log_event({ std::move(p), action });
     } else if (topic == "chain") {
         subscribe_chain_event({ std::move(p), action });
     } else {
@@ -144,21 +146,46 @@ namespace events {
                 { "deltas", jsonmsg::to_json(a.deltas) },
             };
         };
-        template <typename T>
-        std::string json_str(T&& t)
+
+        // log events
+        json to_json(const LogEntry& e)
         {
-            auto j ( to_json(t) );
-            j["eventName"] = t.eventName;
-            return j.dump();
-        }
+            using namespace std::chrono;
+            auto sv { spdlog::level::to_string_view(e.level) };
+            return json {
+                { "timestampMilliseconds", jsonmsg::to_json(duration_cast<milliseconds>(e.tp.time_since_epoch()).count()) },
+                { "level", std::string_view(sv.data(), sv.size()) },
+                { "message", e.payload }
+            };
+        };
+        json to_json(const LogState& a)
+        {
+            auto arr(json::array());
+            for (auto& e : a.lines) {
+                arr.push_back(to_json(e));
+            }
+            return arr;
+        };
+        json to_json(const LogLine& a)
+        {
+            return to_json(a.line);
+        };
+        // template <typename T>
+        // std::string json_str(T&& t)
+        // {
+        //     auto j(to_json(t));
+        //     j["eventName"] = t.eventName;
+        //     return j.dump();
+        // }
     }
 
     std::string Event::json_str() const
     {
         return std::visit([](auto&& e) {
-            json j ( to_json(e) );
-            j["eventName"] = e.eventName;
-            return j.dump();
+            return json {
+                { "event", to_json(e) },
+                { "type", e.eventName }
+            }.dump();
         },
             variant);
     }
@@ -266,4 +293,24 @@ namespace events {
 //     auto topic { get_string(j, "topic") };
 //     return topics::Unwrapper<topics::helper_t>::parse({ .topic { topic }, .subscribe = subscribe, .params { j["params"] } });
 // }
+bool SubscriptionVector::erase(subscription_data_ptr p)
+{
+    return std::erase_if(data, [&](subscription_ptr& p2) {
+        return p == p2.get();
+    }) != 0;
+}
+auto SubscriptionVector::entries() const -> vector_t
+{
+    return data;
+}
+bool SubscriptionVector::insert(subscription_ptr p)
+{
+    for (auto& p2 : data) {
+        if (p2.get() == p.get()) {
+            return false;
+        }
+    }
+    data.push_back(std::move(p));
+    return true;
+}
 }

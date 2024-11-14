@@ -19,26 +19,6 @@ void post_check_nozero(ssize_t modified, ssize_t& nonzero)
         nonzero -= 1;
 }
 }
-bool SubscriptionVector::erase(subscription_data_ptr p)
-{
-    return std::erase_if(data, [&](subscription_ptr& p2) {
-        return p == p2.get();
-    }) != 0;
-}
-auto SubscriptionVector::entries() const -> vector_t
-{
-    return data;
-}
-bool SubscriptionVector::insert(subscription_ptr p)
-{
-    for (auto& p2 : data) {
-        if (p2.get() == p.get()) {
-            return false;
-        }
-    }
-    data.push_back(std::move(p));
-    return true;
-}
 
 namespace chain_subscription {
 auto ChainSubscriptionState::chain_state(const chainserver::State& s)

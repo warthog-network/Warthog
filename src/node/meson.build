@@ -77,6 +77,7 @@ src= [
   './eventloop/types/rtc/peer_rtc_state.cpp',
   './eventloop/types/rtc/rtc_state.cpp',
   './general/descriptor.cpp',
+  './general/logger/log_memory.cpp',
   './global/globals.cpp',
   './mempool/mempool.cpp',
   './mempool/subscription.cpp',
