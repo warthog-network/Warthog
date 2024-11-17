@@ -3,6 +3,10 @@
 #include <iostream>
 
 namespace logging {
+
+// global variable
+LogMemory logMemory;
+
 void LogMemory::subscribe(SubscriptionRequest&& r)
 {
     using enum subscription::Action;

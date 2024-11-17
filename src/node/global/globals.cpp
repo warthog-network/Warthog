@@ -7,6 +7,10 @@
 #include "spdlog/spdlog.h"
 #include "transport/tcp/conman.hpp"
 #include <chrono>
+
+// global variables
+std::atomic<bool> shutdownSignal;
+
 namespace {
 
 std::string logdir()

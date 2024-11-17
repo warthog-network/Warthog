@@ -19,5 +19,5 @@ private:
     std::vector<LogEntry> logs;
     SubscriptionVector subscriptions;
 };
-inline LogMemory logMemory;
+extern LogMemory logMemory;
 }

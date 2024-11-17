@@ -32,7 +32,7 @@ struct Global {
     std::shared_ptr<spdlog::logger> syncdebugLogger;
     std::optional<Config> conf;
 };
-inline std::atomic<bool> shutdownSignal;
+extern std::atomic<bool> shutdownSignal;
 
 const Global& global();
 inline spdlog::logger& connection_log() { return *global().connLogger; }
