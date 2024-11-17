@@ -155,7 +155,8 @@ namespace events {
             return json {
                 { "timestampMilliseconds", jsonmsg::to_json(duration_cast<milliseconds>(e.tp.time_since_epoch()).count()) },
                 { "level", std::string_view(sv.data(), sv.size()) },
-                { "message", e.payload }
+                { "message", e.payload },
+                { "datetime", e.datetime }
             };
         };
         json to_json(const LogState& a)

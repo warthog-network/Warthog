@@ -624,11 +624,11 @@ nlohmann::json to_json(const api::Rollback& rb)
 
 nlohmann::json to_json(const api::IPCounter& ipc)
 {
-    json arr(json::array());
+    json obj(json::object());
     for (auto& [ip, c] : ipc.vector) {
-        arr[ip.to_string()] = c;
+        obj.push_back({ip.to_string(), c});
     }
-    return arr;
+    return obj;
 }
 
 nlohmann::json to_json(const api::NodeInfo& info)

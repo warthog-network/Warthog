@@ -12,7 +12,9 @@ struct LogMemory {
     void add_entry(const spdlog::details::log_msg& e);
     void subscribe(SubscriptionRequest&& r);
 
+    LogMemory();
 private:
+    std::unique_ptr<spdlog::pattern_formatter> datetimeFormatter;
     std::recursive_mutex m;
     std::vector<LogEntry> logs;
     SubscriptionVector subscriptions;
