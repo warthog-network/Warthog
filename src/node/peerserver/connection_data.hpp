@@ -1,5 +1,6 @@
 #pragma once
 #include "eventloop/types/conref_declaration.hpp"
+#include "general/start_time_points.hpp"
 #include "transport/connect_request.hpp"
 #include "transport/helpers/peer_addr.hpp"
 #include "transport/helpers/tcp_sockaddr.hpp"
@@ -17,6 +18,7 @@ class EventloopVariables {
     bool failed_to_connect() const { return !eventloop_registered; }
 
 private:
+    StartTimePoints startTimePoints;
     std::atomic<bool> eventloop_registered { false };
     bool eventloop_erased { false };
     bool addedToSchedule { false };

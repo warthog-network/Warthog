@@ -671,7 +671,7 @@ void Eventloop::emit_connect(size_t n, Conref c)
     events::Event { events::ConnectionsAdd {
                         .connection {
                             .id = c.id(),
-                            .since = 0,
+                            .since = c->c->startTimePoints,
                             .peerAddr { c->c->peer_addr().to_string() },
                             .inbound = c->c->inbound() },
                         .total = n } }
@@ -700,7 +700,7 @@ void Eventloop::handle_event(SubscribeConnections&& c)
         std::vector<subscription::events::Connection> v;
         for (auto c : connections.initialized()) {
             v.push_back({ .id = c.id(),
-                .since = 0,
+                .since = c->c->startTimePoints,
                 .peerAddr { c->c->peer_addr().to_string() },
                 .inbound = c->c->inbound() });
         }

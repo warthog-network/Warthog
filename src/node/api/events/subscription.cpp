@@ -78,7 +78,7 @@ namespace events {
         {
             return json {
                 { "id", a.id },
-                { "since", a.since },
+                { "since", a.since.timestamp() },
                 { "peerAddr", a.peerAddr },
                 { "inbound", a.inbound }
             };

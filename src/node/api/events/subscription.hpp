@@ -29,7 +29,7 @@ namespace events {
     /// Connection events
     struct Connection {
         uint64_t id;
-        int32_t since;
+        StartTimePoints since;
         std::string peerAddr;
         bool inbound;
     };
