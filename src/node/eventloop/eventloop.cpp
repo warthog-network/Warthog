@@ -1492,7 +1492,7 @@ void Eventloop::handle_msg(Conref cr, RTCForwardedOffer&& m)
 
 void Eventloop::handle_msg(Conref cr, RTCVerificationOffer&& m)
 {
-    OneIpSdp oneIpSdp { std::move(m.offer()) };
+    OneIpSdp oneIpSdp { m.offer() };
     // TODO: check m.ip() ip was indeed offered before by us as identity
     // TODO: rate limit this function
     rtc.connections.insert(
