@@ -12,6 +12,7 @@
 #include <array>
 #include <spdlog/spdlog.h>
 
+using namespace std::string_literals;
 ChainDB::Cache ChainDB::Cache::init(SQLite::Database& db)
 {
     auto maxStateId = AccountId(int64_t(db.execAndGet("SELECT coalesce(max(ROWID),0) FROM `State`")
@@ -165,7 +166,7 @@ std::optional<SignedSnapshot> ChainDB::get_signed_snapshot() const
     try {
         return SignedSnapshot(r);
     } catch (Error e) {
-        throw std::runtime_error(fmt::format("Database corrupted. Signed snapshot invalid: {}", e.strerror()));
+        throw std::runtime_error("Database corrupted. Signed snapshot invalid: "s + std::string(e.strerror()));
     }
 }
 
