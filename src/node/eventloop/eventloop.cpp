@@ -1469,7 +1469,7 @@ void Eventloop::handle_msg(Conref cr, RTCForwardedOffer&& m)
 {
     // check our quota assigned to that peeer
     auto key { cr.rtc().our.quota.take_one() };
-    OneIpSdp oneIpSdp { std::move(m.offer()) };
+    OneIpSdp oneIpSdp { m.offer() };
     auto inType { oneIpSdp.ip().type() };
     auto ownIp { rtc.get_ip(inType) };
     if (!ownIp)
