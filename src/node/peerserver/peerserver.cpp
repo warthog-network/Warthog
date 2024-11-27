@@ -3,12 +3,16 @@
 #include "asyncio/connection.hpp"
 #include "config/config.hpp"
 #include "db/peer_db.hpp"
+#include "general/error_time.hpp"
 #include "general/now.hpp"
 
+using namespace std::chrono_literals;
 namespace {
-uint32_t bantime(int32_t /*offense*/)
+std::optional<ErrorTimepoint> ban_data(Error offense)
 {
-    return 20 * 60; // 20 minutes;
+    if (errors::leads_to_ban(offense))
+        return ErrorTimepoint::from_duration(offense, 20min);
+    return std::nullopt;
 }
 } // namespace
 
@@ -18,18 +22,15 @@ PeerServer::PeerServer(PeerDB& db, const Config& config)
 {
     worker = std::thread(&PeerServer::work, this);
 }
-void PeerServer::register_close(IPv4 address, uint32_t now,
-    int32_t offense, int64_t rowid)
+void PeerServer::register_close(IPv4 address, ErrorTimestamp et, int64_t rowid)
 {
-
-    if (errors::leads_to_ban(offense)) {
-        uint32_t banuntil = now + bantime(offense);
-        db.set_ban(address, banuntil, offense);
-        db.insert_offense(address, offense);
-        bancache.set(address, banuntil);
+    if (auto banData { ban_data(et.error) }) {
+        db.set_ban(address, *banData);
+        bancache.set(address, *banData);
+        db.insert_offense(address, et.error);
     }
     if (rowid >= 0)
-        db.insert_disconnect(rowid, now, offense);
+        db.insert_disconnect(rowid, et);
 }
 
 void PeerServer::work()
@@ -63,8 +64,8 @@ void PeerServer::work()
 
 void PeerServer::handle_event(Offense&& o)
 {
-    register_close(o.ip, now, o.offense, o.rowid);
-};
+    register_close(o.ip, { o.offense, now }, o.rowid);
+}
 
 void PeerServer::handle_event(Unban&& ub)
 {
@@ -81,13 +82,18 @@ void PeerServer::handle_event(GetOffenses&& go)
 
 void PeerServer::handle_event(NewConnection&& nc)
 {
-    if (auto l{nc.c.lock()}; l){
+    if (auto l { nc.c.lock() }; l) {
         bool allowed = true;
         const IPv4& ip = l->peer_address().ipv4;
-        uint32_t banuntil;
-        int32_t offense;
-        if (bancache.get(ip, banuntil) || db.get_peer(ip.data, banuntil, offense)) { // found entry
-            if (enableBan == true && banuntil > now) {
+        auto banState {
+            [&]() -> std::optional<ErrorTimestamp> {
+                if (auto v { bancache.get(ip) })
+                    return static_cast<ErrorTimestamp>(*v);
+                return db.get_ban_state(ip);
+            }()
+        };
+        if (banState) { // found entry, must be in db
+            if (enableBan == true && banState->timestamp > now) {
                 allowed = false;
                 db.insert_refuse(ip, now);
             }
@@ -95,6 +101,7 @@ void PeerServer::handle_event(NewConnection&& nc)
             db.insert_peer(ip);
         };
         if (allowed) {
+            bancache.set(ip, ErrorTimepoint::from_duration(ECONNRATELIMIT, 30s));
             auto rowid = db.insert_connect(ip.data, now);
             nc.cm.async_validate(std::move(l), true, rowid);
         } else {

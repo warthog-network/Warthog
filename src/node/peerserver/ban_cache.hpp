@@ -1,18 +1,26 @@
 #pragma once
 
-#include"general/tcp_util.hpp"
-#include<map>
-#include<queue>
-#include<cstddef>
-class BanCache
-{
+#include "general/error_time.hpp"
+#include "general/errors.hpp"
+#include "general/tcp_util.hpp"
+#include <cstddef>
+#include <map>
+#include <queue>
+class BanCache {
+    using Value = ErrorTimepoint;
+
+    using sc = std::chrono::steady_clock;
+
 public:
-    BanCache (size_t maxSize=1000):maxSize(maxSize){};
-    void set(IPv4 ip, uint32_t banUntil);
-    bool get(IPv4 ip, uint32_t& banUntil);
+    BanCache(size_t maxSize = 5000)
+        : maxSize(maxSize) {};
+    void set(IPv4 ip, const Value&);
+    std::optional<Value> get(IPv4 ip) const;
     void clear();
+
 private:
-    std::map<uint32_t,uint32_t> map;
-    std::queue<decltype(map)::iterator> iters;
+    using map_t = std::map<uint32_t, Value>;
+    map_t map;
+    std::queue<map_t::iterator> iters;
     const size_t maxSize;
 };

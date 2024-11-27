@@ -130,7 +130,7 @@ private:
     }
     void work();
     void accept_connection();
-    void register_close(IPv4 address, uint32_t now, int32_t offense, int64_t rowid);
+    void register_close(IPv4 address, ErrorTimestamp et, int64_t rowid);
     ////////////////
     //
     // private variables

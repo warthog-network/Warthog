@@ -105,6 +105,7 @@
     XX(204, EBADAMOUNT, "invalid amount")                               \
     XX(205, EPARSESIG, "cannot parse signature")                        \
     XX(206, ENOTSYNCED, "node not synced yet")                          \
+    XX(207, ECONNRATELIMIT, "connection rate limit exceeded")           \
     XX(1000, ESIGTERM, "received SIGTERM")                              \
     XX(1001, ESIGHUP, "received SIGHUP")                                \
     XX(1002, ESIGINT, "received SIGINT")                                \
