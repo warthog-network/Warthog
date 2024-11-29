@@ -17,8 +17,9 @@ namespace {
 }
 }
 
-TCPConnection& TCPConnectionManager::insert_connection(std::shared_ptr<uvw::tcp_handle> tcpHandle, const TCPConnectRequest& r)
+std::shared_ptr<TCPConnection> TCPConnectionManager::insert_connection(std::shared_ptr<uvw::tcp_handle> tcpHandle, const TCPConnectRequest& r)
 {
+    assert(tcpHandle != nullptr);
     using sh_con_t = std::shared_ptr<TCPConnection>;
     sh_con_t con { TCPConnection::make_new(std::move(tcpHandle), r, *this) };
     auto& tcp { con->tcpHandle };
@@ -38,7 +39,7 @@ TCPConnection& TCPConnectionManager::insert_connection(std::shared_ptr<uvw::tcp_
     tcp->on<uvw::data_event>([](const uvw::data_event& de, uvw::tcp_handle& client) {
         client.data<TCPConnection>()->on_message({ reinterpret_cast<uint8_t*>(de.data.get()), de.length });
     });
-    return *con;
+    return con;
 };
 
 TCPConnectionManager::TCPConnectionManager(Token, std::shared_ptr<uvw::loop> loop, PeerServer& ps, const ConfigParams& cfg)
@@ -57,8 +58,8 @@ TCPConnectionManager::TCPConnectionManager(Token, std::shared_ptr<uvw::loop> loo
         auto endpoint { get_ipv4_endpoint(*tcpHandle) };
         if (endpoint) {
             auto connectRequest { TCPConnectRequest::make_inbound(*endpoint) };
-            auto connection { insert_connection(tcpHandle, connectRequest).shared_from_this() };
-            ps.authenticate_inbound(endpoint.value().ip, TransportType::TCP, connection);
+            auto connection { insert_connection(tcpHandle, connectRequest) };
+            ps.authenticate_inbound(endpoint.value().ip, TransportType::TCP, std::move(connection));
         }
     });
     wakeup = loop->resource<uvw::async_handle>();
@@ -102,8 +103,8 @@ void TCPConnectionManager::handle_event(Connect&& c)
     TCPConnectRequest& r { c };
     auto& loop { listener->parent() };
     auto tcp { loop.resource<uvw::tcp_handle>() };
-    auto& con { insert_connection(tcp, r) };
-    connection_log().info("{} connecting", con.tag_string());
+    auto con { insert_connection(tcp, r) };
+    connection_log().info("{} connecting", con->tag_string());
     tcp->on<uvw::connect_event>([req = r, w = weak_from_this()](const uvw::connect_event&, uvw::tcp_handle& tcp) {
         auto cm { w.lock() };
         if (!cm)
@@ -115,7 +116,7 @@ void TCPConnectionManager::handle_event(Connect&& c)
 
     if (auto err { tcp->connect(r.address().sock_addr()) }; err) {
         Error e(err);
-        connection_log().info("{} cannot connect: {} ({})", con.tag_string(), e.err_name(), e.strerror());
+        connection_log().info("{} cannot connect: {} ({})", con->tag_string(), e.err_name(), e.strerror());
         global().core->on_failed_connect(r, e);
         return;
     }
