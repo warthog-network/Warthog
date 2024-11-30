@@ -2,10 +2,12 @@
 #include "config/config.hpp"
 #include "connection_data.hpp"
 #include "db/peer_db.hpp"
+#include "general/error_time.hpp"
 #include "general/now.hpp"
 #include "global/globals.hpp"
 #include "spdlog/spdlog.h"
 
+using namespace std::chrono_literals;
 
 PeerServer::PeerServer(PeerDB& db, const ConfigParams& config)
     : db(db)
@@ -85,7 +87,7 @@ void PeerServer::handle_event(AuthenticateInbound&& nc)
     }
     auto bannedUntil = [this, &ip]() -> std::optional<Timestamp> {
         if (auto res { bancache.get_expiration(ip) }) {
-            return Timestamp::from_time_point(*res);
+            return res->timestamp();
         }
         if (auto res { db.get_peer(ip) }) {
             return res->banUntil;
@@ -96,6 +98,7 @@ void PeerServer::handle_event(AuthenticateInbound&& nc)
         db.insert_refuse(ip, now);
         con.close(EREFUSED);
     } else {
+        bancache.ban(ip, ErrorTimepoint::from_duration(ECONNRATELIMIT, 30s));
         db.insert_clear_ban(ip);
         con.logrow = db.insert_connect(ip, true, now);
         con.start_read();
@@ -153,16 +156,16 @@ void PeerServer::on_close_internal(const OnClose& o, const Sockaddr& addr)
         && offense.triggers_ban()) {
         uint32_t banuntil = now + offense.bantime();
         if (ip.is_v4()) {
-            auto ip4{ip.get_v4()};
+            auto ip4 { ip.get_v4() };
             db.set_ban(ip4, banuntil, offense);
             db.insert_offense(ip4, offense);
-        }else{
-            auto ip6{ip.get_v6()};
+        } else {
+            auto ip6 { ip.get_v6() };
             db.set_ban(ip6.block48_view(), banuntil, offense);
             db.insert_offense(ip6, offense);
         }
 
-        bancache.set(ip, banuntil);
+        bancache.ban(ip, { offense, banuntil });
     }
     if (o.con->logrow >= 0)
         db.insert_disconnect(o.con->logrow, now, offense);

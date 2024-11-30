@@ -1,6 +1,7 @@
 #pragma once
 
 #include "general/rate_limiter.hpp"
+#include "general/error_time.hpp"
 #include "general/timestamp.hpp"
 #include "transport/helpers/ip.hpp"
 #include <cstddef>
@@ -9,7 +10,7 @@
 
 namespace bancache {
 
-using time_point = std::chrono::steady_clock::time_point;
+using time_point = Timepoint;
 template <typename key_t, typename extra_t>
 class BasicCache {
 protected:
@@ -37,19 +38,29 @@ protected:
     }
 
 public:
-    void clear()
-    {
-        map.clear();
-        byTimepoint.clear();
-    }
-    [[nodiscard]] std::optional<time_point> lookup_expiration(key_t k) const
+    [[nodiscard]] std::optional<Timepoint> lookup_expiration(key_t k) const
     {
         auto iter { map.find(k) };
         if (iter != map.end())
             return iter->second.iter->first;
         return {};
     }
-    [[nodiscard]] bool is_expired(key_t k, time_point tp = std::chrono::steady_clock::now()) const
+    void clear()
+    {
+        map.clear();
+        byTimepoint.clear();
+    }
+    struct FindRes {
+        Timepoint timepoint;
+        const mapval_t& val;
+    };
+    std::optional<FindRes> find(key_t k) {
+        if(auto it{ map.find(k)}; it!= map.end()){
+            return FindRes{it->second.iter->first,it->second};
+        };
+        return {};
+    }
+    [[nodiscard]] bool is_expired(key_t k, time_point tp = time_point::now()) const
     {
         auto e { lookup_expiration(k) };
         return e >= tp;
@@ -64,7 +75,7 @@ public:
         }
         byTimepoint.erase(byTimepoint.begin(), iter);
     }
-    void prune(time_point ts = std::chrono::steady_clock::now())
+    void prune(time_point ts = time_point::now())
     {
         prune(ts, [](auto&) {});
     }
@@ -75,11 +86,11 @@ namespace single_bancache {
         time_point operator()(time_point tp) { return tp; }
     };
     template <typename key_t>
-    class SignleBanCache : public BasicCache<key_t, ExpiresGenerator> {
+    class SingleBanCache : public BasicCache<key_t, ExpiresGenerator> {
     public:
-        auto set_expiration(key_t k, time_point tp)
+        auto ban(key_t k, ErrorTimepoint et)
         {
-            return BasicCache<key_t, ExpiresGenerator>::set_expiration(k, tp);
+            return BasicCache<key_t, ExpiresGenerator>::set_expiration(k, et);
         }
     };
 }
@@ -89,7 +100,7 @@ namespace ratelimit_cache {
         time_point operator()()
         {
             r.count_event();
-            return r.cooldown_tp();
+            return {r.cooldown_tp()};
         }
         bool is_limited() const { return r.limited(); }
         ExpiresGenerator()
@@ -103,7 +114,7 @@ namespace ratelimit_cache {
     public:
         using base_t = BasicCache<key_t, ExpiresGenerator>;
 
-        auto count_ban(key_t k)
+        auto count(key_t k)
         {
             return base_t::set_expiration(k);
         }
@@ -111,30 +122,29 @@ namespace ratelimit_cache {
 }
 
 using ratelimit_cache::RatelimitCache;
-using single_bancache::SignleBanCache;
+using single_bancache::SingleBanCache;
 
 class BanCache {
 public:
-    void set(const IP& ip, time_point banUntil);
-    void set(const IP& ip, Timestamp ts);
-    using Match = time_point;
-    std::optional<Match> get_expiration(const IP& ipl);
+    void ban(const IP& ip, ErrorTimepoint);
+    using time_point = std::chrono::steady_clock::time_point;
+    std::optional<Timepoint> get_expiration(const IP& ipl);
     void clear();
 
 private:
-    std::optional<Match> get_expiration_internal(const IPv4&);
-    std::optional<Match> get_expiration_internal(const IPv6&);
-    void set_internal(const IPv4&, time_point);
-    void set_internal(const IPv6&, time_point);
+    std::optional<Timepoint> get_expiration_internal(const IPv4&);
+    std::optional<Timepoint> get_expiration_internal(const IPv6&);
+    void ban_internal(const IPv4&, ErrorTimepoint);
+    void ban_internal(const IPv6&, ErrorTimepoint);
 
 private: // private data
     struct BanHandleData {
         std::optional<time_point> banUntil;
         size_t count { 0 };
     };
-    SignleBanCache<IPv4> banmapv4;
-    SignleBanCache<IPv6::BanHandle48> banmapv6_48;
-    SignleBanCache<IPv6::BanHandle32> banmapv6_32;
+    SingleBanCache<IPv4> banmapv4;
+    SingleBanCache<IPv6::BanHandle48> banmapv6_48;
+    SingleBanCache<IPv6::BanHandle32> banmapv6_32;
     RatelimitCache<IPv6::BanHandle32> ratelimitCache;
 };
 }

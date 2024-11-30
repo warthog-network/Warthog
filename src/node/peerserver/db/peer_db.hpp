@@ -81,7 +81,7 @@ public:
             insertClearBan.bind(1, ip.get_v4().data);
         } else {
             auto block48 { ip.get_v6().block48_view() };
-            peerban.bindNoCopy(1, block48.data(), block48.size());
+            insertClearBan.bindNoCopy(1, block48.data(), block48.size());
         }
         insertClearBan.exec();
         insertClearBan.reset();

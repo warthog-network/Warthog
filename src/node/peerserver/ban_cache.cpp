@@ -9,49 +9,47 @@ void BanCache::clear()
     ratelimitCache.clear();
 };
 
-void BanCache::set_internal(const IPv4& ip, time_point banUntil)
+void BanCache::ban_internal(const IPv4& ip, ErrorTimepoint data)
 {
-    auto [extra, inserted] { banmapv4.set_expiration(ip, banUntil) };
+    auto [extra, inserted] { banmapv4.ban(ip, data) };
     if (inserted) {
         banmapv4.prune();
     }
 }
 
-void BanCache::set_internal(const IPv6& ip, time_point banUntil)
+void BanCache::ban_internal(const IPv6& ip, ErrorTimepoint data)
 {
-    auto [extra, inserted] { banmapv6_48.set_expiration(ip.ban_handle48(), banUntil) };
+    auto [extra, inserted] { banmapv6_48.ban(ip.ban_handle48(), data) };
     if (inserted)
         banmapv6_48.prune();
-    auto& e { ratelimitCache.count_ban(ip.ban_handle32()).first };
+    auto& e { ratelimitCache.count(ip.ban_handle32()).first };
     using namespace std::chrono;
-    if (e.is_limited())
-        banmapv6_32.set_expiration(ip.ban_handle32(), steady_clock::now() + minutes(20));
+    if (e.is_limited()) {
+        data.time_point() = steady_clock::now() + minutes(20);
+        banmapv6_32.ban(ip.ban_handle32(), data);
+    }
     banmapv6_32.prune();
     ratelimitCache.prune();
 }
 
-void BanCache::set(const IP& ip, time_point banUntil)
+void BanCache::ban(const IP& ip, ErrorTimepoint banUntil)
 {
-    ip.visit([&](auto& ip) { return set_internal(ip, banUntil); });
+    ip.visit([&](auto& ip) { return ban_internal(ip, banUntil); });
 }
 
-void BanCache::set(const IP& ip, Timestamp ts)
+auto BanCache::get_expiration_internal(const IPv4& ip) -> std::optional<Timepoint>
 {
-    set(ip, ts.steady_clock_time_point());
+    if (auto f { banmapv4.find(ip) })
+        return f->timepoint;
+    return {};
 }
 
-auto BanCache::get_expiration_internal(const IPv4& ip) -> std::optional<Match>
+auto BanCache::get_expiration_internal(const IPv6& ip) -> std::optional<Timepoint>
 {
-    return banmapv4.lookup_expiration(ip);
+    return std::max(banmapv6_48.lookup_expiration(ip.ban_handle48()), banmapv6_32.lookup_expiration(ip.ban_handle32()));
 }
 
-auto BanCache::get_expiration_internal(const IPv6& ip) -> std::optional<Match>
-{
-    return std::max(banmapv6_48.lookup_expiration(ip.ban_handle48()),
-        banmapv6_32.lookup_expiration(ip.ban_handle32()));
-}
-
-auto BanCache::get_expiration(const IP& ip) -> std::optional<Match>
+auto BanCache::get_expiration(const IP& ip) -> std::optional<Timepoint>
 {
     return ip.visit([&](auto& ip) { return get_expiration_internal(ip); });
 }

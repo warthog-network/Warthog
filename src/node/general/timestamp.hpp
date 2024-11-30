@@ -1,8 +1,8 @@
 #pragma once
 
 #include <chrono>
-#include <compare>
-#include <cstdint>
+// #include <compare>
+// #include <cstdint>
 class Timestamp {
 
 public:
@@ -37,4 +37,20 @@ public:
 
 private:
     uint32_t data;
+};
+
+struct Timepoint : public std::chrono::steady_clock::time_point {
+    Timepoint(std::chrono::steady_clock::time_point tp)
+        : std::chrono::steady_clock::time_point(tp)
+    {
+    }
+    static Timepoint now()
+    {
+        return { std::chrono::steady_clock::now() };
+    }
+    Timestamp timestamp() const
+    {
+        using namespace std::chrono;
+        return duration_cast<seconds>((system_clock::now() + (*this - steady_clock::now())).time_since_epoch()).count();
+    }
 };
