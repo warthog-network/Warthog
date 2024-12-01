@@ -292,6 +292,24 @@ json to_json(const std::pair<NonzeroHeight, Header>& h)
     };
 }
 
+json to_json(const api::TransmissionTimeseries& tt)
+{
+    json arr;
+    for (auto& [host, ts] : tt.byHost) {
+        json tsjson(json::array());
+        for (auto& e : ts) {
+            tsjson.push_back({
+                { "begin", e.begin.val() },
+                { "end", e.end.val() },
+                { "rx", e.rx },
+                { "tx", e.tx },
+            });
+        }
+        arr[host] = tsjson;
+    }
+    return arr;
+}
+
 json to_json(const api::MiningState& ms)
 {
     auto& mt { ms.miningTask };
@@ -626,7 +644,7 @@ nlohmann::json to_json(const api::IPCounter& ipc)
 {
     json obj(json::object());
     for (auto& [ip, c] : ipc.vector) {
-        obj.push_back({ip.to_string(), c});
+        obj.push_back({ ip.to_string(), c });
     }
     return obj;
 }
@@ -654,14 +672,11 @@ nlohmann::json to_json(const api::NodeInfo& info)
         { "dbSize", info.dbSize },
         { "chainDBPath", config().data.chaindb },
         { "peersDBPath", config().data.peersdb },
+        { "rxtxDBPath", config().data.rxtxdb },
         { "version", { { "name", CMDLINE_PARSER_VERSION }, { "major", VERSION_MAJOR }, { "minor", VERSION_MINOR }, { "patch", VERSION_PATCH }, { "commit", GIT_COMMIT_INFO } } },
-        {"uptime", {
-        { "sinceTimestamp", sinceTimestamp },
-        { "sinceUTC", format_utc(sinceTimestamp) },
-        { "seconds", uptimeSeconds },
-        { "formatted", uptimeStr }
+        { "uptime", { { "sinceTimestamp", sinceTimestamp }, { "sinceUTC", format_utc(sinceTimestamp) }, { "seconds", uptimeSeconds }, { "formatted", uptimeStr }
 
-        }}
+                    } }
     };
 }
 

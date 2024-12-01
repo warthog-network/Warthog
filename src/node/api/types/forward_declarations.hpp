@@ -1,5 +1,6 @@
 #pragma once
 #include <variant>
+#include "communication/rxtx_server/api_types_fwd.hpp"
 namespace api {
 struct AccountHistory;
 struct AccountIdOrAddress;;

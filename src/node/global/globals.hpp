@@ -13,8 +13,11 @@ class WSConnectionManager;
 namespace spdlog {
 class logger;
 }
-namespace uvw{
-    class loop;
+namespace uvw {
+class loop;
+}
+namespace rxtx {
+class Server;
 }
 
 struct Global {
@@ -24,6 +27,7 @@ struct Global {
     HTTPEndpoint* httpEndpoint;
 #endif
     ChainServer* chainServer;
+    rxtx::Server* rxtxServer;
     PeerServer* peerServer;
     Eventloop* core;
     BatchRegistry* batchRegistry;
@@ -44,9 +48,9 @@ void start_global_services();
 
 #ifndef DISABLE_LIBUV
 HTTPEndpoint& http_endpoint();
-void global_init(BatchRegistry* pbr, PeerServer* pps, ChainServer* pcs, TCPConnectionManager* pcm, WSConnectionManager* wcm, Eventloop* pel, HTTPEndpoint* httpEndpoint);
+void global_init(BatchRegistry* pbr, rxtx::Server* ts, PeerServer* pps, ChainServer* pcs, TCPConnectionManager* pcm, WSConnectionManager* wcm, Eventloop* pel, HTTPEndpoint* httpEndpoint);
 #else
-void global_init(BatchRegistry* pbr, PeerServer* pps, ChainServer* pcs, Eventloop* pel);
+void global_init(BatchRegistry* pbr, rxtx::Server* ts, PeerServer* pps, ChainServer* pcs, Eventloop* pel);
 #endif
 void global_startup();
 void global_cleanup();

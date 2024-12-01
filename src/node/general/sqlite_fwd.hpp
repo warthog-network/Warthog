@@ -1,5 +1,7 @@
 #pragma once
 #include "SQLiteCpp/SQLiteCpp.h"
+#include <optional>
+#include <vector>
 class Hash;
 class Height;
 class HistoryId;
@@ -12,6 +14,7 @@ struct IsUint64;
 class BlockId;
 class Funds;
 class Worksum;
+class Timestamp;
 template <size_t N>
 struct View;
 
@@ -43,6 +46,7 @@ class Row {
 private: // data
     std::reference_wrapper<Statement> st;
     bool hasValue;
+
 public:
     friend class Statement;
     friend class RunningStatement;
@@ -78,6 +82,8 @@ public:
     void bind(const int index, IsUint64 id);
     void bind(const int index, BlockId id);
     void bind(const int index, Height id);
+    void bind(const int index, const std::string&);
+    void bind(const int index, Timestamp);
     template <size_t i>
     void recursive_bind();
     template <size_t i, typename T, typename... Types>

@@ -56,6 +56,7 @@ struct ConfigParams {
     struct Data {
         std::string chaindb;
         std::string peersdb;
+        std::string rxtxdb;
     } data;
     struct JSONRPC {
         TCPPeeraddr bind { localhost, 3000 };

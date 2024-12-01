@@ -1,5 +1,12 @@
 #include "peer_addr.hpp"
 
+std::string Peerhost::to_string() const
+{
+    return std::visit([](auto& host) -> std::string {
+        return host;
+    },
+        data);
+}
 std::string Peeraddr::to_string() const
 {
     return visit([](auto& sockAddr) {
@@ -27,4 +34,9 @@ uint16_t Peeraddr::port() const
         return sockAddr.port;
     },
         data);
+}
+
+Peerhost Peeraddr::host() const
+{
+    return { visit([](auto& addr) -> Peerhost { return Peerhost{ addr.host() }; }) };
 }

@@ -393,6 +393,7 @@ void ConfigParams::process_args(const gengetopt_args_info& ai)
     fill_arg(stratumPool, ai.stratum_given, ai.stratum_arg, arg_to_peer_lambda("--stratum"));
     fill_arg(data.chaindb, ai.chain_db_given, ai.chain_db_arg);
     fill_arg(data.peersdb, ai.peers_db_given, ai.peers_db_arg);
+    fill_arg(data.rxtxdb, ai.rxtx_db_given, ai.rxtx_db_arg);
     node.isolated = ai.isolated_given;
     node.disableTxsMining = ai.disable_tx_mining_given;
 
@@ -448,6 +449,7 @@ std::optional<int> ConfigParams::process_config_file(const gengetopt_args_info& 
         auto s_db { root.subtable("db") };
         fill(data.chaindb, s_db, "chain-db");
         fill(data.peersdb, s_db, "peers-db");
+        fill(data.peersdb, s_db, "rxtx-db");
 
         // stratum properties
         auto s_stratum { root.subtable("stratum") };
@@ -533,6 +535,8 @@ int ConfigParams::init(const gengetopt_args_info& ai)
             + (is_testnet() ? "testnet3_chain.db3" : "chain.db3");
         data.peersdb = warthogDir
             + (is_testnet() ? "testnet_peers.db3" : "peers_v2.db3");
+        data.rxtxdb = warthogDir
+            + (is_testnet() ? "testnet_rxtx.db3" : "rxtx.db3");
         jsonrpc.bind = TCPPeeraddr(is_testnet() ? "127.0.0.1:3100" : "127.0.0.1:3000");
         node.bind = TCPPeeraddr(is_testnet() ? "0.0.0.0:9286" : "0.0.0.0:9186");
 
@@ -622,6 +626,7 @@ std::string ConfigParams::dump()
     tbl.insert_or_assign("db", toml::table {
                                    { "chain-db", data.chaindb },
                                    { "peers-db", data.peersdb },
+                                   { "rxtx-db", data.peersdb },
                                });
     stringstream ss;
     ss << tbl << endl;

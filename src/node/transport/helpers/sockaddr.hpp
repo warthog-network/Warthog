@@ -24,6 +24,7 @@ struct Sockaddr4 {
     {
         return (int64_t(ip.data) << 16) + (int64_t(port));
     };
+    IP host() const { return ip; }
     auto operator<=>(const Sockaddr4&) const = default;
     static constexpr std::optional<Sockaddr4> parse(const std::string_view&);
 #ifndef DISABLE_LIBUV
@@ -49,6 +50,8 @@ struct Sockaddr {
     IP ip;
     uint16_t port;
     auto operator<=>(const Sockaddr&) const = default;
+
+    IP host() const { return ip; }
     Sockaddr(Sockaddr4 s)
         : ip(std::move(s.ip))
         , port(s.port)

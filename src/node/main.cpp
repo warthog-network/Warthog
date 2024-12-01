@@ -1,5 +1,6 @@
 #include "chainserver/db/chain_db.hpp"
 #include "chainserver/server.hpp"
+#include "communication/rxtx_server/rxtx_server.hpp"
 #include "eventloop/eventloop.hpp"
 #include "general/errors.hpp"
 #include "general/logger/log_memory.hpp"
@@ -76,6 +77,7 @@ static void shutdown(Error reason)
     global().core->shutdown(reason);
     global().chainServer->shutdown();
     global().peerServer->shutdown();
+    global().rxtxServer->shutdown();
 #ifndef DISABLE_LIBUV
     global().conman->shutdown(reason);
     global().wsconman->shutdown(reason);
@@ -97,6 +99,7 @@ int run_app(int argc, char** argv)
     // spdlog::set_default_logger
     spdlog::info("Chain database: {}", config().data.chaindb);
     spdlog::info("Peers database: {}", config().data.peersdb);
+    spdlog::info("Rxtx database: {}", config().data.peersdb);
 
     // spdlog::flush_on(spdlog::level::debug);
 #ifndef DISABLE_LIBUV
@@ -104,13 +107,13 @@ int run_app(int argc, char** argv)
     auto l { uvw::loop::create() };
 #endif
 
-    spdlog::debug("Opening peers database \"{}\"", config().data.peersdb);
     PeerDB pdb(config().data.peersdb);
     PeerServer ps(pdb, config());
 
-    spdlog::debug("Opening chain database \"{}\"", config().data.chaindb);
     ChainDB db(config().data.chaindb);
     auto cs = ChainServer::make_chain_server(db, breg, config().node.snapshotSigner);
+
+    rxtx::Server rxtxServer;
 
     auto el { Eventloop::create(ps, *cs, config()) };
 
@@ -128,9 +131,9 @@ int run_app(int argc, char** argv)
     HTTPEndpoint endpoint { config().jsonrpc.bind };
     auto endpointPublic { HTTPEndpoint::make_public_endpoint(config()) };
 
-    global_init(&breg, &ps, &*cs, cm.get(), &wscm, el.get(), &endpoint);
+    global_init(&breg, &rxtxServer, &ps, &*cs, cm.get(), &wscm, el.get(), &endpoint);
 #else
-    global_init(&breg, &ps, &*cs, el.get());
+    global_init(&breg, &rxtxServer, &ps, &*cs, el.get());
 #endif
 
     // setup globals
@@ -139,6 +142,7 @@ int run_app(int argc, char** argv)
     ps.start();
     cs->start();
     el->start();
+    rxtxServer.start();
 
 #ifdef DISABLE_LIBUV
     virtual_endpoint_initialize();

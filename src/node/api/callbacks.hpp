@@ -70,3 +70,5 @@ using InfoCb = std::function<void(const tl::expected<api::NodeInfo, Error>&)>;
 using WalletCb = std::function<void(const tl::expected<api::Wallet, Error>&)>;
 using RawCb = std::function<void(const api::Raw&)>;
 using SampledPeersCb = std::function<void(const std::vector<TCPPeeraddr>&)>;
+
+using TransmissionCb = std::function<void(const api::TransmissionTimeseries&)>;

@@ -8,7 +8,7 @@ class WSSession;
 class WSConnectionManager;
 
 class WSConnection final : public AuthenticatableConnection, public std::enable_shared_from_this<WSConnection> {
-    void async_send(std::unique_ptr<char[]> data, size_t size) override;
+    void send_impl(std::unique_ptr<char[]> data, size_t size) override;
     uint16_t listen_port() const override;
     std::optional<ConnectRequest> connect_request() const override { return {}; }
     struct CreationToken { };

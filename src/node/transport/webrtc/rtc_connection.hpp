@@ -37,7 +37,7 @@ class RTCConnection final : public ConnectionBase, public std::enable_shared_fro
 
     friend class RTCConnectionManager;
 
-    void async_send(std::unique_ptr<char[]> data, size_t size) override;
+    void send_impl(std::unique_ptr<char[]> data, size_t size) override;
     uint16_t listen_port() const override { return 0; }
     std::optional<ConnectRequest> connect_request() const override { return {}; }
 

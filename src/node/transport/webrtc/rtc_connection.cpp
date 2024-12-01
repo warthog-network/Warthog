@@ -14,7 +14,7 @@ void RTCConnection::if_not_closed(auto lambda)
 //     peerIp = sdp.ip();
 // }
 
-void RTCConnection::async_send(std::unique_ptr<char[]> data, size_t size)
+void RTCConnection::send_impl(std::unique_ptr<char[]> data, size_t size)
 {
     std::vector<std::byte> msg;
     msg.resize(size);

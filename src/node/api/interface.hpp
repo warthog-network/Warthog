@@ -68,6 +68,9 @@ void get_account_balance(const api::AccountIdOrAddress& address, BalanceCb cb);
 void get_account_history(const Address& address, uint64_t end, HistoryCb cb);
 void get_account_richlist(RichlistCb cb);
 
+void get_transmission_minutes(TransmissionCb cb);
+void get_transmission_hours(TransmissionCb cb);
+
 // endpoints function
 void inspect_eventloop(std::function<void(const Eventloop& e)>&&);
 

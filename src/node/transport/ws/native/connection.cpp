@@ -14,7 +14,7 @@ std::shared_ptr<WSConnection> WSConnection::make_new(
     return std::make_shared<WSConnection>(CreationToken {}, std::move(handle), r, conman);
 }
 
-void WSConnection::async_send(std::unique_ptr<char[]> data, size_t size)
+void WSConnection::send_impl(std::unique_ptr<char[]> data, size_t size)
 {
     conman.async_send(session, std::move(data), size);
 }

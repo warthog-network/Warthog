@@ -63,7 +63,7 @@ void TCPConnection::close_internal(Error e)
 }
 
 // CALLED BY OTHER THREAD
-void TCPConnection::async_send(std::unique_ptr<char[]> data, size_t size)
+void TCPConnection::send_impl(std::unique_ptr<char[]> data, size_t size)
 {
     conman.async_call([w = weak_from_this(), data = std::move(data), size]() mutable {
         if (auto c { w.lock() }; c && !c->tcpHandle->closing()) {

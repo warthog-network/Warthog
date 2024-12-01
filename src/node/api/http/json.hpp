@@ -19,6 +19,7 @@ nlohmann::json to_json(const api::Head&);
 nlohmann::json to_json(const api::ChainHead&);
 nlohmann::json to_json(const Peeraddr&);
 nlohmann::json to_json(const std::pair<NonzeroHeight,Header>&);
+nlohmann::json to_json(const api::TransmissionTimeseries&);
 nlohmann::json to_json(const api::MiningState&);
 nlohmann::json to_json(const api::MempoolEntries&);
 nlohmann::json to_json(const api::Transaction&);

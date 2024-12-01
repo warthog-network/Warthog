@@ -7,6 +7,27 @@
 #endif
 
 #include <variant>
+struct Peerhost {
+    using variant_t = std::variant<IP
+#ifdef DISABLE_LIBUV
+        ,
+        std::string
+#endif
+        >;
+    variant_t data;
+    std::string to_string() const;
+    Peerhost(IP ip)
+        : data(std::move(ip))
+    {
+    }
+#ifdef DISABLE_LIBUV
+    Peerhost(std::string s)
+        : data(std::move(s))
+    {
+    }
+#endif
+};
+
 struct Peeraddr {
     [[nodiscard]] bool is_supported();
 #ifndef DISABLE_LIBUV
@@ -45,6 +66,7 @@ struct Peeraddr {
     {
         return std::visit(lambda, data);
     }
+    Peerhost host() const;
     variant_t data;
     [[nodiscard]] std::optional<IP> ip() const;
     [[nodiscard]] uint16_t port() const;

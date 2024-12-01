@@ -223,5 +223,6 @@ struct DBSize {
 
 struct NodeInfo : public DBSize {
 };
-
 }
+
+#include "communication/rxtx_server/api_types.hpp"

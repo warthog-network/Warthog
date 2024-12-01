@@ -34,7 +34,9 @@ ChainDBTransaction ChainDB::transaction()
     return ChainDBTransaction(*this);
 }
 ChainDB::ChainDB(const std::string& path)
-    : db(path, SQLite::OPEN_READWRITE | SQLite::OPEN_CREATE)
+    : db([&]() -> auto& {
+    spdlog::debug("Opening chain database \"{}\"", path);
+    return path; }(), SQLite::OPEN_READWRITE | SQLite::OPEN_CREATE)
     , fl(path)
     , createTables(db)
     , cache(Cache::init(db))

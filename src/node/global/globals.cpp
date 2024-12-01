@@ -86,9 +86,9 @@ HTTPEndpoint& http_endpoint()
     return *globalinstance.httpEndpoint;
 };
 
-void global_init(BatchRegistry* pbr, PeerServer* pps, ChainServer* pcs, TCPConnectionManager* pcm, WSConnectionManager* wcm, Eventloop* pel, HTTPEndpoint* httpEndpoint)
+void global_init(BatchRegistry* pbr, rxtx::Server* ts, PeerServer* pps, ChainServer* pcs, TCPConnectionManager* pcm, WSConnectionManager* wcm, Eventloop* pel, HTTPEndpoint* httpEndpoint)
 #else
-void global_init(BatchRegistry* pbr, PeerServer* pps, ChainServer* pcs, Eventloop* pel)
+void global_init(BatchRegistry* pbr, rxtx::Server* ts, PeerServer* pps, ChainServer* pcs, Eventloop* pel)
 #endif
 {
 #ifndef DISABLE_LIBUV
@@ -98,13 +98,13 @@ void global_init(BatchRegistry* pbr, PeerServer* pps, ChainServer* pcs, Eventloo
 #endif
     globalinstance.batchRegistry = pbr;
     globalinstance.peerServer = pps;
+    globalinstance.rxtxServer = ts;
     globalinstance.chainServer = pcs;
     globalinstance.core = pel;
     globalinstance.connLogger = create_connection_logger();
     globalinstance.syncdebugLogger = create_syncdebug_logger();
     globalinstance.timingLogger.emplace(create_timing_logger(), create_longrunning_logger());
 };
-
 
 namespace {
 void initialize_logging()

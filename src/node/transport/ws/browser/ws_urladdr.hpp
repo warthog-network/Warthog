@@ -20,6 +20,7 @@ public:
     {
         return url <=> addr.url;
     }
+    std::string host() const { return url; }
 
     std::string to_string() const { return url; }
     std::string to_string_with_protocol() const

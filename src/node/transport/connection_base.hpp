@@ -76,10 +76,16 @@ public:
         [[nodiscard]] ConnectionBase* base();
         [[nodiscard]] const ConnectionBase* base() const;
 #ifndef DISABLE_LIBUV
-        bool is_tcp() const { return std::holds_alternative<std::shared_ptr<TCPConnection>>(*this); }
+        bool is_tcp() const
+        {
+            return std::holds_alternative<std::shared_ptr<TCPConnection>>(*this);
+        }
         auto& get_tcp() { return std::get<std::shared_ptr<TCPConnection>>(*this); }
 #endif
-        bool is_rtc() const { return std::holds_alternative<std::shared_ptr<RTCConnection>>(*this); }
+        bool is_rtc() const
+        {
+            return std::holds_alternative<std::shared_ptr<RTCConnection>>(*this);
+        }
         auto& get_rtc() { return std::get<std::shared_ptr<RTCConnection>>(*this); }
         auto visit(auto lambda) const
         {
@@ -117,7 +123,8 @@ protected:
     virtual ConnectionVariant get_shared_variant() = 0;
     virtual std::weak_ptr<ConnectionBase> get_weak() = 0;
     virtual uint16_t listen_port() const = 0;
-    virtual void async_send(std::unique_ptr<char[]> data, size_t size) = 0;
+    virtual void send_impl(std::unique_ptr<char[]> data, size_t size) = 0;
+    void send_track_bytes(std::unique_ptr<char[]> data, size_t size);
 
     // callback methods called from transport implementation thread
     void on_close(Error);

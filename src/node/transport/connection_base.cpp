@@ -1,5 +1,6 @@
 #include "connection_base.hpp"
 #include "communication/buffers/sndbuffer.hpp"
+#include "communication/rxtx_server/rxtx_server.hpp"
 #include "eventloop/eventloop.hpp"
 #include "general/is_testnet.hpp"
 #include "global/globals.hpp"
@@ -17,6 +18,7 @@ namespace {
 std::mutex statechangeMutex;
 std::atomic<uint64_t> connectionCounter { 1 }; // global counter of ids
 }
+
 ConnectionBase::ConnectionBase()
     : peerserver::Connection()
     , id(connectionCounter++)
@@ -97,6 +99,7 @@ void ConnectionBase::handshake_timer_expired()
 
 void ConnectionBase::on_message(std::span<uint8_t> s)
 {
+    global().rxtxServer->add_rx(this->peer_addr().host(), s.size());
     try {
         while (s.size() > 0) {
             s = std::visit([&](auto& mode) { return process_message(s, mode); }, state);
@@ -180,7 +183,13 @@ std::span<uint8_t> ConnectionBase::process_message(std::span<uint8_t> s, Message
 void ConnectionBase::send(Sndbuffer&& msg)
 {
     msg.writeChecksum();
-    async_send(std::move(msg.ptr), msg.fullsize());
+    send_track_bytes(std::move(msg.ptr), msg.fullsize());
+}
+
+void ConnectionBase::send_track_bytes(std::unique_ptr<char[]> data, size_t size)
+{
+    global().rxtxServer->add_tx(this->peer_addr().host(), size);
+    send_impl(std::move(data), size);
 }
 
 void ConnectionBase::on_close(Error error)
@@ -228,9 +237,9 @@ void ConnectionBase::send_handshake()
     if (!inbound()) {
         uint16_t portBe = hton16(listen_port());
         memcpy(data + 22, &portBe, 2);
-        async_send(std::unique_ptr<char[]>(data), 24);
+        send_track_bytes(std::unique_ptr<char[]>(data), 24);
     } else {
-        async_send(std::unique_ptr<char[]>(data), 22);
+        send_track_bytes(std::unique_ptr<char[]>(data), 22);
     }
 }
 
@@ -238,7 +247,7 @@ void ConnectionBase::send_handshake_ack()
 {
     char* data = new char[1];
     memcpy(data, "\0", 1);
-    async_send(std::unique_ptr<char[]>(data), 1);
+    send_track_bytes(std::unique_ptr<char[]>(data), 1);
 }
 
 void ConnectionBase::on_connected()

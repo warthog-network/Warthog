@@ -8,28 +8,34 @@
 #include "block/id.hpp"
 #include "crypto/address.hpp"
 #include "crypto/hash.hpp"
-#include "sqlite_fwd.hpp"
 #include "general/reader.hpp"
+#include "general/timestamp.hpp"
+#include "sqlite_fwd.hpp"
 
 namespace sqlite {
 class RunningStatement {
     friend class Statement;
+
 public:
     class Sentinel { };
     class Iterator {
         friend class RunningStatement;
+
     public:
         const Row& operator*()
         {
             return r;
         }
-        bool operator==(const Sentinel&) const{
+        bool operator==(const Sentinel&) const
+        {
             return r.has_value();
         }
-        Iterator& operator++(){
+        Iterator& operator++()
+        {
             r = Row(s.stmt);
             return *this;
         }
+
     private:
         Iterator(RunningStatement& s)
             : s(s)
@@ -46,6 +52,7 @@ public:
     {
         stmt.reset();
     }
+
 private:
     RunningStatement(SQLite::Statement& stmt);
     Statement& stmt;
@@ -142,7 +149,8 @@ inline Column::operator uint64_t() const
         throw std::runtime_error("Database corrupted, expected nonnegative entry");
     return (uint64_t)i;
 }
-inline Statement& Row::statement() const{
+inline Statement& Row::statement() const
+{
     return st.get();
 }
 inline Column Row::operator[](int index) const
@@ -225,23 +233,30 @@ inline void Statement::bind(const int index, View<N> v)
 inline void Statement::bind(const int index, Funds f)
 {
     SQLite::Statement::bind(index, (int64_t)f.E8());
-};
+}
 inline void Statement::bind(const int index, int64_t id)
 {
     SQLite::Statement::bind(index, (int64_t)id);
-};
+}
 inline void Statement::bind(const int index, IsUint64 id)
 {
     SQLite::Statement::bind(index, (int64_t)id.value());
-};
+}
 inline void Statement::bind(const int index, BlockId id)
 {
     SQLite::Statement::bind(index, (int64_t)id.value());
-};
+}
 inline void Statement::bind(const int index, Height id)
 {
     SQLite::Statement::bind(index, (int64_t)id.value());
-};
+}
+inline void Statement::bind(const int index, const std::string& s)
+{
+    SQLite::Statement::bindNoCopy(index, s.data(), s.size());
+}
+inline void Statement::bind(const int index, Timestamp ts){
+    bind(index,ts.val());
+}
 template <size_t i>
 void Statement::recursive_bind()
 {
@@ -279,7 +294,7 @@ template <typename... Types>
 auto Statement::loop(Types&&... types)
 {
     recursive_bind<1>(std::forward<Types>(types)...);
-    return RunningStatement{*this};
+    return RunningStatement { *this };
 }
 
 }

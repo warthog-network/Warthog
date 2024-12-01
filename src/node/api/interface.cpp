@@ -2,6 +2,7 @@
 #include "api/types/all.hpp"
 #include "block/header/header_impl.hpp"
 #include "chainserver/server.hpp"
+#include "communication/rxtx_server/rxtx_server.hpp"
 #include "eventloop/eventloop.hpp"
 #include "general/logger/log_memory.hpp"
 #include "global/globals.hpp"
@@ -326,6 +327,16 @@ void get_account_richlist(RichlistCb f)
 {
     global().chainServer->api_get_richlist(f);
 }
+void get_transmission_minutes(TransmissionCb cb)
+{
+    global().rxtxServer->api_get_aggregate_minutes({ .cb { std::move(cb) },
+        .range { 0, std::numeric_limits<uint32_t>::max() } });
+}
+void get_transmission_hours(TransmissionCb cb)
+{
+    global().rxtxServer->api_get_aggregate_hours({ .cb { std::move(cb) },
+        .range { 0, std::numeric_limits<uint32_t>::max() } });
+}
 
 void inspect_eventloop(std::function<void(const Eventloop& e)>&& cb)
 {
@@ -348,7 +359,8 @@ void subscribe_minerdist_event(SubscriptionRequest r)
 {
     global().chainServer->subscribe_minerdist_event(std::move(r));
 }
-void subscribe_log_event(SubscriptionRequest r){
+void subscribe_log_event(SubscriptionRequest r)
+{
     logging::logMemory.subscribe(std::move(r));
 }
 
