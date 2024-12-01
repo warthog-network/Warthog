@@ -385,11 +385,14 @@ void StratumServer::acceptor(TCPPeeraddr endpointAddress)
         client->on<uvw::data_event>([&con](const uvw::data_event& de, uvw::tcp_handle& client) {
             try {
                 con.on_message({ de.data.get(), de.length });
+            } catch (const nlohmann::json::exception& e) {
+                spdlog::debug("Invalid json on stratum, closing connection");
+                client.close();
             } catch (const std::exception& e) {
-                cout << "Error, closing connection: " << e.what() << endl;
+                spdlog::debug("Error on stratum {}, closing connection", e.what());
                 client.close();
             } catch (Error e) {
-                cout << "Error, closing connection: " << e.strerror() << endl;
+                spdlog::debug("Error on stratum {}, closing connection", e.strerror());
                 client.close();
             }
         });
