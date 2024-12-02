@@ -29,7 +29,7 @@ void Server::api_get_aggregate_minutes(GetAggregate a)
 
 void Server::api_get_aggregate_hours(GetAggregate a)
 {
-    push_event(GetAggregateMinutes(std::move(a)));
+    push_event(GetAggregateHours(std::move(a)));
 }
 
 void Server::start()
