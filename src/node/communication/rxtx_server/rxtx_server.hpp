@@ -48,6 +48,7 @@ private:
     void process_events(events_t&&);
     void finalize_aggregators(Timestamp t, bool drain);
     bool has_events();
+    void prune_db();
 
     void handle_event(Shutdown&&);
     void handle_event(Rx&&);
@@ -66,6 +67,7 @@ public:
 
 private:
     // internal variables
+    std::chrono::steady_clock::time_point nextPrune;
     Buckets<60> aggregatorMinute;
     Buckets<60 * 60> aggregatorHour;
     DB db;

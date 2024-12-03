@@ -329,13 +329,17 @@ void get_account_richlist(RichlistCb f)
 }
 void get_transmission_minutes(TransmissionCb cb)
 {
+    using namespace std::chrono;
+    auto begin { duration_cast<seconds>((system_clock::now() - days(1)).time_since_epoch()).count() };
     global().rxtxServer->api_get_aggregate_minutes({ .cb { std::move(cb) },
-        .range { 0, std::numeric_limits<uint32_t>::max() } });
+        .range { begin, std::numeric_limits<uint32_t>::max() } });
 }
 void get_transmission_hours(TransmissionCb cb)
 {
+    using namespace std::chrono;
+    auto begin { duration_cast<seconds>((system_clock::now() - days(30)).time_since_epoch()).count() };
     global().rxtxServer->api_get_aggregate_hours({ .cb { std::move(cb) },
-        .range { 0, std::numeric_limits<uint32_t>::max() } });
+        .range { begin, std::numeric_limits<uint32_t>::max() } });
 }
 
 void inspect_eventloop(std::function<void(const Eventloop& e)>&& cb)

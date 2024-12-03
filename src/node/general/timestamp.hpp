@@ -14,6 +14,21 @@ public:
     {
     }
     auto operator<=>(const Timestamp&) const = default;
+
+    Timestamp operator-(uint32_t n) const{
+        return data - n;
+    }
+    Timestamp operator-(std::chrono::system_clock::duration d){
+        using namespace std::chrono;
+        return operator-(duration_cast<seconds>(d).count());
+    }
+    Timestamp operator+(uint32_t n) const{
+        return data + n;
+    }
+    Timestamp operator+(std::chrono::system_clock::duration d) const{
+        using namespace std::chrono;
+        return operator+(duration_cast<seconds>(d).count());
+    }
     static Timestamp now()
     {
         using namespace std::chrono;

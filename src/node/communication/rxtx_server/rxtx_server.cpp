@@ -87,6 +87,19 @@ void Server::run()
         wait_until = next_timestmamp(1s);
         if (needs_shutdown)
             break;
+        prune_db();
+    }
+}
+void Server::prune_db()
+{
+    using namespace std::chrono;
+    using namespace std::chrono_literals;
+    if (steady_clock::now() > nextPrune) {
+        auto tx { db.create_transaction() };
+        db.prune_minutes(Timestamp::now() - days(30));
+        db.prune_hours(Timestamp::now() - days(30));
+        tx.commit();
+        nextPrune = steady_clock::now() + hours(1);
     }
 }
 
@@ -129,14 +142,14 @@ void Server::handle_event(Tx&& e)
 
 void Server::handle_event(GetAggregateHours&& e)
 {
-    auto agg{db.get_aggregated_hours(e.range)};
+    auto agg { db.get_aggregated_hours(e.range) };
     aggregatorHour.merge_into(agg.byHost);
     e.cb(std::move(agg));
 }
 
 void Server::handle_event(GetAggregateMinutes&& e)
 {
-    auto agg{db.get_aggregated_minutes(e.range)};
+    auto agg { db.get_aggregated_minutes(e.range) };
     aggregatorMinute.merge_into(agg.byHost);
     e.cb(std::move(agg));
 }
