@@ -27,9 +27,11 @@ sources = files(
 	'src/udp.c')
 
 inc_dirs = include_directories('./include/juice')
+thread_dep = dependency('threads')
 libjuice = library(
   'libjuice',
   sources,
+  dependencies: thread_dep,
   c_args: ['-DJUICE_STATIC'],
   include_directories: inc_dirs
 )
