@@ -3,6 +3,6 @@
 
 std::optional<GridPin> GridPin::checkpoint(){
     // UPDATE GRID PIN HERE (HARD-CODED CHAIN CHECKPOINT)
-    static Header h("e08d066d686d5b264db7007286a3be93fd3853b9f9b9bbe03afbc2ff9f07b33d0afd15fa022ca40e560d6a7925659b7e3550246bd258c63b7ff17fbc343aef02bcc480c50000000265cc1c15c8e352fe");
-    return GridPin{Batchslot(114),h};
+    static Header h("34b4064fced07341204e3b2283477d5fc6423d7f8244f83d6e1fa1551a74ad470ba7c02fc4c7d16b758e8af266349dc1070727b5ecd5d7fc6c6417d2458018e328818355000000036748585daf74da6b");
+    return GridPin{Batchslot(259),h};
 }
