@@ -1635,7 +1635,7 @@ tl::expected<Conref, Error> Eventloop::try_insert_connection(OnHandshakeComplete
 
     if (m.convar.is_rtc()) {
         auto& c { m.convar.get_rtc() };
-        auto& conId { m.convar.get_rtc()->verification_con_id() };
+        auto& conId { c->verification_con_id() };
         if (conId != 0) { // conId id verified in this RTC connection
             if (auto o { connections.find(conId) }) {
                 auto ip { c->native_peer_addr().ip };

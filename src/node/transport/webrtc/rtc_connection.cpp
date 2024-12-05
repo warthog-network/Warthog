@@ -28,7 +28,7 @@ void RTCConnection::send_impl(std::unique_ptr<char[]> data, size_t size)
 #endif
 }
 
-std::shared_ptr<RTCConnection> RTCConnection::connect_new(Eventloop& eventloop, sdp_callback_t cb, const IP& ip, uint64_t verificationConId)
+std::shared_ptr<RTCConnection> RTCConnection::connect_new_verification(Eventloop& eventloop, sdp_callback_t cb, const IP& ip, uint64_t verificationConId)
 {
     // TODO: count active rtc connections
     log_rtc("RTC connect_new with ip {}", ip.to_string());
@@ -46,7 +46,7 @@ std::shared_ptr<RTCConnection> RTCConnection::connect_new(Eventloop& eventloop, 
     return p;
 }
 
-std::shared_ptr<RTCConnection> RTCConnection::accept_new(Eventloop& eventloop, sdp_callback_t cb, OneIpSdp sdp, uint64_t verificationConId)
+std::shared_ptr<RTCConnection> RTCConnection::accept_new_verification(Eventloop& eventloop, sdp_callback_t cb, OneIpSdp sdp, uint64_t verificationConId)
 {
     log_rtc("RTC accept_new with ip {}", sdp.ip().to_string());
     auto p { std::make_shared<RTCConnection>(true, verificationConId, eventloop.weak_from_this(), sdp.ip(), Default()) };

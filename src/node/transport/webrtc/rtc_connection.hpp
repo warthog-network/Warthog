@@ -42,16 +42,15 @@ class RTCConnection final : public ConnectionBase, public std::enable_shared_fro
     std::optional<ConnectRequest> connect_request() const override { return {}; }
 
 public:
-    [[nodiscard]] static std::shared_ptr<RTCConnection> connect_new(Eventloop&, sdp_callback_t cb, const IP&, uint64_t verificationConId = 0);
     // feeler connection;
-    [[nodiscard]] static std::shared_ptr<RTCConnection> connect_new_verification(Eventloop& e, sdp_callback_t cb, const IP& ip, uint64_t verificationConId)
+    [[nodiscard]] static std::shared_ptr<RTCConnection> connect_new(Eventloop& e, sdp_callback_t cb, const IP& ip)
     {
-        return connect_new(e, std::move(cb), ip, verificationConId);
+        return connect_new_verification(e, std::move(cb), ip, 0);
     }
-    [[nodiscard]] static std::shared_ptr<RTCConnection> accept_new(Eventloop& eventloop, sdp_callback_t cb, OneIpSdp sdp, uint64_t verificationConId = 0);
-    [[nodiscard]] static std::shared_ptr<RTCConnection> accept_new_verification(Eventloop& e, sdp_callback_t cb, OneIpSdp sdp, uint64_t verificationConId)
-    {
-        return accept_new(e, std::move(cb), std::move(sdp), verificationConId);
+    [[nodiscard]] static std::shared_ptr<RTCConnection> connect_new_verification(Eventloop& e, sdp_callback_t cb, const IP& ip, uint64_t verificationConId);
+    [[nodiscard]] static std::shared_ptr<RTCConnection> accept_new_verification(Eventloop& e, sdp_callback_t cb, OneIpSdp sdp, uint64_t verificationConId);
+    [[nodiscard]] static std::shared_ptr<RTCConnection> accept_new(Eventloop& e, sdp_callback_t cb, OneIpSdp sdp){
+        return accept_new_verification(e, std::move(cb), std::move(sdp), 0);
     }
     RTCConnection(bool isInbound, uint64_t verificationConId, std::weak_ptr<Eventloop>, IP ip, variant_t data);
     RTCConnection(const RTCConnection&) = delete;
