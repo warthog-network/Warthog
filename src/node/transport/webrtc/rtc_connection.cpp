@@ -195,12 +195,9 @@ void RTCConnection::init_proxied(sdp_callback_t&& sdpCallback)
     pc->onStateChange([p = shared_from_this()](rtc::PeerConnection::State state) mutable {
         if (p) {
             using enum rtc::PeerConnection::State;
-            if (state == Failed) {
-                auto e { p->eventloop.lock() };
+            if (state == Failed) 
                 p->close(ERTCFAILED);
-            }
             if (state == Closed) {
-                auto e { p->eventloop.lock() };
                 p->notify_closed();
                 p.reset(); // release connection
             }
