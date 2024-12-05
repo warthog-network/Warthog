@@ -28,9 +28,6 @@ jobs:
         - name : Docker Build MacOS
           run : DOCKER_BUILDKIT=1 docker build . -f dockerfiles/build_macos --output ./build/aarch64-macos
 
-        - name: Docker Build Debug
-          run: DOCKER_BUILDKIT=1 docker build . -f dockerfiles/build_debug --output build/debug
-
         - name: Get version
           id: get_version
           run: |
@@ -49,5 +46,3 @@ jobs:
               ./build/windows/wart-node-windows.exe
               ./build/wart-node-linux
               ./build/wart-wallet-linux
-              ./build/debug/wart-node-linux-debug
-              ./build/debug/wart-wallet-linux-debug

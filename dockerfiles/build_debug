@@ -11,9 +11,6 @@ RUN cp -r /build /build_tmp
 RUN rm -rf /build && mv /build_tmp /build
 RUN apk add valgrind
 
-FROM scratch AS export-stage
-COPY --from=build install/usr/local/bin/wart-node ./wart-node-linux-debug
-COPY --from=build install/usr/local/bin/wart-wallet ./wart-wallet-linux-debug
 
 VOLUME ["/warthog/.warthog"]
 ENTRYPOINT ["valgrind", "/build/code/src/node/wart-node", "--chain-db=/warthog/.warthog/chain.db", "--peers-db=/warthog/.warthog/peers.db"]
