@@ -1493,6 +1493,8 @@ void Eventloop::handle_msg(Conref cr, RTCForwardedOffer&& m)
 void Eventloop::handle_msg(Conref cr, RTCVerificationOffer&& m)
 {
     OneIpSdp oneIpSdp { m.offer() };
+    if (!cr.rtc().their.identity.contains(oneIpSdp.ip()))
+        throw Error(ERTCIDIP);
     // TODO: check m.ip() ip was indeed offered before by us as identity
     // TODO: rate limit this function
     rtc.connections.insert(
@@ -1564,7 +1566,8 @@ void Eventloop::handle_msg(Conref cr, RTCVerificationAnswer&& m)
 void Eventloop::try_verify_rtc_identities()
 {
     log_rtc("try_verify_rtc_identities {}", rtc.connections.can_insert_feeler());
-    if (rtc.verificationSchedule.empty()
+    if (!rtc.ips.has_value() // only verify peers when you know your identity
+        || rtc.verificationSchedule.empty()
         || !rtc.ips
         || rtc.ips->has_value() == false)
         return;

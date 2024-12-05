@@ -317,6 +317,11 @@ public:
         }
     };
     bool empty() const { return fresh; }
+    bool contains(IP ip) const
+    {
+        return (ipv4.has_value() && ipv4->ip == ip)
+            || (ipv6.has_value() && ipv6->ip == ip);
+    }
     void set(IdentityIps id)
     {
         if (!fresh)
