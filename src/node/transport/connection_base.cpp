@@ -119,7 +119,7 @@ std::span<uint8_t> ConnectionBase::process_message(std::span<uint8_t> data, Hand
 {
     auto r { p.remaining(inbound()) };
     auto s { data.size() };
-    if (r <= s) {
+    if (s <= r) {
         std::ranges::copy(data, p.data() + p.pos);
         p.pos += s;
         if (r == s) {
