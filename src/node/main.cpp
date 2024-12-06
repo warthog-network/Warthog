@@ -99,7 +99,7 @@ int run_app(int argc, char** argv)
     // spdlog::set_default_logger
     spdlog::info("Chain database: {}", config().data.chaindb);
     spdlog::info("Peers database: {}", config().data.peersdb);
-    spdlog::info("Rxtx database: {}", config().data.peersdb);
+    spdlog::info("Rxtx database: {}", config().data.rxtxdb);
 
     // spdlog::flush_on(spdlog::level::debug);
 #ifndef DISABLE_LIBUV

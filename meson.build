@@ -1,5 +1,5 @@
 project( 'Warthog', ['c','cpp'],
-  version : '0.7.47',
+  version : '0.7.48',
   default_options : ['warning_level=3', 'cpp_std=c++20'])
 
 rtcstatic = []
