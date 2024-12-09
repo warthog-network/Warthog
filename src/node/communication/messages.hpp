@@ -24,22 +24,28 @@ struct EntryValue;
 class Entry;
 }
 
+namespace spdlog {
+class logger;
+}
+
 struct InitMsg2 : public MsgCombine<0, Descriptor, SignedSnapshot::Priority, Height, Worksum, Grid> {
     InitMsg2(Reader& r);
     static constexpr size_t maxSize = 100000;
     static Sndbuffer serialize_chainstate(const ConsensusSlave&);
+    std::string log_str() const;
 
-    [[nodiscard]] auto& descriptor() { return get<0>(); }
-    [[nodiscard]] auto& sp() { return get<1>(); }
-    [[nodiscard]] auto& chainLength() { return get<2>(); }
-    [[nodiscard]] auto& worksum() { return get<3>(); }
-    [[nodiscard]] auto& grid() { return get<4>(); }
+    [[nodiscard]] auto& descriptor() const { return get<0>(); }
+    [[nodiscard]] auto& sp() const { return get<1>(); }
+    [[nodiscard]] auto& chain_length() const { return get<2>(); }
+    [[nodiscard]] auto& worksum() const { return get<3>(); }
+    [[nodiscard]] auto& grid() const { return get<4>(); }
 };
 
 struct InitMsg : public MsgCode<0> {
     InitMsg(Reader& r);
     static constexpr size_t maxSize = 100000;
     static Sndbuffer serialize_chainstate(const ConsensusSlave&);
+    std::string log_str() const;
 
     Descriptor descriptor;
     SignedSnapshot::Priority sp;
@@ -51,6 +57,7 @@ struct InitMsg : public MsgCode<0> {
 struct ForkMsg : public MsgCombine<1, Descriptor, NonzeroHeight, Worksum, NonzeroHeight, messages::ReadRest<Grid>> {
     static constexpr size_t maxSize = 20000;
     using Base::Base;
+    std::string log_str() const;
 
     [[nodiscard]] auto& descriptor() const { return get<0>(); }
     [[nodiscard]] const NonzeroHeight& chainLength() const { return get<1>(); }
@@ -62,6 +69,7 @@ struct AppendMsg : public MsgCombine<2, NonzeroHeight, Worksum, messages::ReadRe
     using Base::Base;
     static constexpr size_t maxSize = 4 + 4 + 32 + 80 * 100;
 
+    std::string log_str() const;
     [[nodiscard]] auto& newLength() const { return get<0>(); };
     [[nodiscard]] auto& worksum() const { return get<1>(); };
     [[nodiscard]] auto& grid() const { return get<2>(); };
@@ -71,6 +79,7 @@ struct SignedPinRollbackMsg : public MsgCombine<3, SignedSnapshot, Height, Works
     static constexpr size_t maxSize = SignedSnapshot::binary_size + 4 + 32 + 4;
     using Base::Base;
 
+    std::string log_str() const;
     [[nodiscard]] const SignedSnapshot& signedSnapshot() const { return get<0>(); }
     [[nodiscard]] const Height& shrinkLength() const { return get<1>(); }
     [[nodiscard]] const Worksum& worksum() const { return get<2>(); }
@@ -85,6 +94,7 @@ struct PingMsg : public MsgCombineRequest<4, SignedSnapshot::Priority, uint16_t,
         : Base(sp, maxAddresses, maxTransactions)
     {
     }
+    std::string log_str() const;
     [[nodiscard]] const SignedSnapshot::Priority& sp() const { return get<0>(); }
     [[nodiscard]] const uint16_t& maxAddresses() const { return get<1>(); }
     [[nodiscard]] const uint16_t& maxTransactions() const { return get<2>(); }
@@ -93,6 +103,7 @@ struct PingMsg : public MsgCombineRequest<4, SignedSnapshot::Priority, uint16_t,
 struct PongMsg : public MsgCombineReply<5, messages::Vector16<TCPPeeraddr>, messages::Vector16<TxidWithFee>> {
     static constexpr size_t maxSize = 4 + 2 + 6 * 100 + 18 * 1000;
     using Base::Base;
+    std::string log_str() const;
     PongMsg(uint32_t nonce, messages::Vector16<TCPPeeraddr> addresses, messages::Vector16<TxidWithFee> txids)
         : Base { nonce, std::move(addresses), std::move(txids) }
     {
@@ -115,6 +126,7 @@ struct BatchrepMsg : public MsgCombineReply<7, messages::ReadRest<Batch>> {
     static constexpr size_t maxSize = 4 + HEADERBATCHSIZE * 80;
     using Base::Base;
 
+    std::string log_str() const;
     [[nodiscard]] const Batch& batch() const { return get<0>(); }
     Batch& batch() { return get<0>(); }
 };
@@ -132,6 +144,7 @@ struct ProberepMsg : MsgCombineReply<9, Descriptor, CurrentAndRequested> {
     static constexpr size_t maxSize = 189;
     using Base::Base;
 
+    std::string log_str() const;
     ProberepMsg(uint32_t nonce, uint32_t currentDescriptor)
         : MsgCombineReply<9, Descriptor, CurrentAndRequested> { nonce, currentDescriptor, CurrentAndRequested {} }
     {
@@ -157,6 +170,7 @@ struct BlockrepMsg : public MsgCombineReply<11, messages::VectorRest<BodyContain
     static constexpr size_t maxSize = MAXBLOCKBATCHSIZE * (4 + MAXBLOCKSIZE);
     using Base::Base;
 
+    std::string log_str() const;
     bool empty() const { return blocks().empty(); }
     [[nodiscard]] const messages::VectorRest<BodyContainer>& blocks() const { return get<0>(); }
     messages::VectorRest<BodyContainer>& blocks() { return get<0>(); }
@@ -166,6 +180,7 @@ struct TxsubscribeMsg : public MsgCombineRequest<12, Height> {
     static constexpr size_t maxSize = 8;
     using Base::Base;
 
+    std::string log_str() const;
     [[nodiscard]] const Height& upper() const { return get<0>(); }
 };
 
@@ -177,6 +192,7 @@ struct TxnotifyMsg : public MsgCombineRequest<13, messages::Vector16<TxidWithFee
     static Sndbuffer direct_send(send_iter begin, send_iter end);
     [[nodiscard]] const messages::Vector16<TxidWithFee>& txids() const { return get<0>(); }
     static constexpr size_t maxSize = 4 + TxnotifyMsg::MAXENTRIES * TransactionId::bytesize;
+    std::string log_str() const;
 };
 
 struct TxreqMsg : public MsgCombineRequest<14, messages::VectorRest<TransactionId>> {
@@ -186,6 +202,7 @@ struct TxreqMsg : public MsgCombineRequest<14, messages::VectorRest<TransactionI
     TxreqMsg(Reader& r);
     [[nodiscard]] const messages::VectorRest<TransactionId>& txids() const { return get<0>(); }
     static constexpr size_t maxSize = 2 + 4 + TxreqMsg::MAXENTRIES * TransactionId::bytesize;
+    std::string log_str() const;
 };
 
 struct TxrepMsg : public MsgCombineReply<15, messages::VectorRest<messages::Optional<TransferTxExchangeMessage>>> {
@@ -195,6 +212,7 @@ struct TxrepMsg : public MsgCombineReply<15, messages::VectorRest<messages::Opti
     using vector_t = messages::VectorRest<messages::Optional<TransferTxExchangeMessage>>;
     TxrepMsg(Reader& r);
     [[nodiscard]] auto& txs() const { return get<0>(); }
+    std::string log_str() const;
 };
 
 struct LeaderMsg : public MsgCombine<16, SignedSnapshot> {
@@ -202,6 +220,7 @@ struct LeaderMsg : public MsgCombine<16, SignedSnapshot> {
     using Base::Base;
 
     [[nodiscard]] const SignedSnapshot& signedSnapshot() const { return get<0>(); }
+    std::string log_str() const;
 };
 
 struct RTCIdentity : public MsgCombineRequest<18, IdentityIps> {
@@ -209,6 +228,7 @@ struct RTCIdentity : public MsgCombineRequest<18, IdentityIps> {
     using Base::Base;
 
     [[nodiscard]] auto& ips() const { return get<0>(); }
+    std::string log_str() const;
 };
 
 struct RTCQuota : public MsgCombine<19, uint8_t> {
@@ -216,6 +236,7 @@ struct RTCQuota : public MsgCombine<19, uint8_t> {
     using Base::Base;
 
     [[nodiscard]] uint8_t increase() const { return get<0>(); }
+    std::string log_str() const;
 };
 
 struct RTCSignalingList : public MsgCombine<20, messages::Vector8<IP>> {
@@ -223,14 +244,16 @@ struct RTCSignalingList : public MsgCombine<20, messages::Vector8<IP>> {
     using Base::Base;
 
     [[nodiscard]] const auto& ips() const { return get<0>(); }
+    std::string log_str() const;
 };
 
 struct RTCRequestForwardOffer : public MsgCombine<21, uint64_t, String16> {
     static constexpr size_t maxSize = 10;
     using Base::Base;
 
-    [[nodiscard]] const auto& signaling_list_key() const { return get<0>(); };
-    [[nodiscard]] const std::string& offer() const { return get<1>().data; };
+    [[nodiscard]] const auto& signaling_list_key() const { return get<0>(); }
+    [[nodiscard]] const std::string& offer() const { return get<1>().data; }
+    std::string log_str() const;
 };
 
 struct RTCForwardedOffer : public MsgCombine<22, String16> {
@@ -238,6 +261,7 @@ struct RTCForwardedOffer : public MsgCombine<22, String16> {
     using Base::Base;
 
     [[nodiscard]] const std::string& offer() const { return get<0>().data; }
+    std::string log_str() const;
 };
 
 struct RTCRequestForwardAnswer : public MsgCombine<23, String16, uint64_t> {
@@ -246,7 +270,8 @@ struct RTCRequestForwardAnswer : public MsgCombine<23, String16, uint64_t> {
 
     [[nodiscard]] const String16& answer() const { return get<0>(); }
     [[nodiscard]] String16& answer() { return get<0>(); }
-    [[nodiscard]] auto& key() { return get<1>(); }
+    [[nodiscard]] auto& key() const { return get<1>(); }
+    std::string log_str() const;
 };
 
 struct RTCForwardOfferDenied : public MsgCombine<24, uint32_t, uint8_t> {
@@ -255,6 +280,7 @@ struct RTCForwardOfferDenied : public MsgCombine<24, uint32_t, uint8_t> {
 
     [[nodiscard]] auto key() const { return get<0>(); }
     [[nodiscard]] auto reason() const { return get<1>(); }
+    std::string log_str() const;
 };
 
 struct RTCForwardedAnswer : public MsgCombine<25, uint32_t, String16> {
@@ -263,6 +289,7 @@ struct RTCForwardedAnswer : public MsgCombine<25, uint32_t, String16> {
 
     [[nodiscard]] uint32_t key() const { return get<0>(); }
     [[nodiscard]] const std::string& answer() const { return get<1>().data; }
+    std::string log_str() const;
 };
 
 struct RTCVerificationOffer : public MsgCombine<26, IP, String16> {
@@ -271,6 +298,7 @@ struct RTCVerificationOffer : public MsgCombine<26, IP, String16> {
 
     [[nodiscard]] const auto& ip() const { return get<0>(); }
     [[nodiscard]] const std::string& offer() const { return get<1>().data; }
+    std::string log_str() const;
 };
 
 struct RTCVerificationAnswer : public MsgCombine<27, String16> {
@@ -278,6 +306,7 @@ struct RTCVerificationAnswer : public MsgCombine<27, String16> {
     using Base::Base;
 
     [[nodiscard]] const std::string& answer() const { return get<0>().data; }
+    std::string log_str() const;
 };
 
 struct PingV2Msg : public MsgCombineRequest<28, SignedSnapshot::Priority, uint16_t, uint16_t, uint32_t> {
@@ -287,6 +316,7 @@ struct PingV2Msg : public MsgCombineRequest<28, SignedSnapshot::Priority, uint16
         uint16_t maxAddresses = 5;
         uint16_t maxTransactions = 100;
         uint32_t ndiscard = 0;
+    std::string log_str() const;
     };
 
     PingV2Msg(SignedSnapshot::Priority sp, Options o)
@@ -297,6 +327,7 @@ struct PingV2Msg : public MsgCombineRequest<28, SignedSnapshot::Priority, uint16
     [[nodiscard]] const uint16_t& maxAddresses() const { return get<1>(); }
     [[nodiscard]] const uint16_t& maxTransactions() const { return get<2>(); }
     [[nodiscard]] const uint32_t& discarded_forward_requests() const { return get<3>(); }
+    std::string log_str() const;
     // [[nodiscard]] const uint32_t& minForwardKey() const { return get<3>(); }
 };
 
@@ -311,6 +342,7 @@ struct PongV2Msg : public MsgCombineReply<29, messages::Vector16<TCPPeeraddr>, m
     Error check(const PingV2Msg&) const;
     [[nodiscard]] const messages::Vector16<TCPPeeraddr>& addresses() const { return get<0>(); }
     [[nodiscard]] const messages::Vector16<TxidWithFee>& txids() const { return get<1>(); }
+    std::string log_str() const;
 };
 
 namespace messages {

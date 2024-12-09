@@ -4,7 +4,9 @@
 #include "eventloop/types/chainstate.hpp"
 #include "message_elements/packer_impl.hpp"
 #include "messages_impl.hpp"
+#include "spdlog/fmt/fmt.h"
 
+using namespace std::string_literals;
 inline void throw_if_inconsistent(Height length, Worksum worksum)
 {
     if ((length == 0) != worksum.is_zero()) {
@@ -33,9 +35,14 @@ Sndbuffer InitMsg2::serialize_chainstate(const ConsensusSlave& cs)
 InitMsg2::InitMsg2(Reader& r)
     : Base(r)
 {
-    if (grid().slot_end().upper() <= chainLength())
+    if (grid().slot_end().upper() <= chain_length())
         throw Error(EGRIDMISMATCH);
-    throw_if_inconsistent(chainLength(), worksum());
+    throw_if_inconsistent(chain_length(), worksum());
+}
+
+std::string InitMsg2::log_str() const
+{
+    return fmt::format("InitMsg2, descriptor {}, length {}, worksum {}, grid size {}", descriptor().value(), chain_length().value(), worksum().to_string(), grid().size());
 }
 
 InitMsg::InitMsg(Reader& r)
@@ -66,6 +73,143 @@ Sndbuffer InitMsg::serialize_chainstate(const ConsensusSlave& cs)
     return mw;
 }
 
+std::string InitMsg::log_str() const
+{
+    return fmt::format("InitMsg, descriptor {}, length {}, worksum {}, grid size {}", descriptor.value(), chainLength.value(), worksum.to_string(), grid.size());
+}
+
+std::string ForkMsg::log_str() const
+{
+    return fmt::format("ForkMsg, descriptor {}, length {}, worksum {}, forkHeight {}, grid size {}", descriptor().value(), chainLength().value(), worksum().to_string(), forkHeight().value(), grid().size());
+}
+
+std::string AppendMsg::log_str() const
+{
+    return fmt::format("AppendMsg, length {}, worksum {}, grid size {}", newLength().value(), worksum().to_string(), grid().size());
+}
+
+std::string SignedPinRollbackMsg::log_str() const
+{
+    return fmt::format("SignedPinRollbackMsg, shrinkLength {}, worksum {}, descriptor {}", shrinkLength().value(), worksum().to_string(), descriptor().value());
+}
+std::string PingMsg::log_str() const
+{
+    return fmt::format("PingMsg, maxAddresses {}, maxTransactions {}", maxAddresses(), maxTransactions());
+}
+std::string PongMsg::log_str() const
+{
+    return fmt::format("PongMsg, addresses {}, txids {}", addresses().size(), txids().size());
+}
+std::string BatchreqMsg::log_str() const
+{
+    return fmt::format("BatchreqMsg [{},{}]", std::to_string(selector().startHeight), std::to_string(selector().startHeight + selector().length - 1));
+}
+
+std::string BatchrepMsg::log_str() const
+{
+    return fmt::format("BatchrepMsg, size: {}", batch().size());
+}
+
+std::string ProbereqMsg::log_str() const
+{
+    return fmt::format("ProbereqMsg {}/{}", std::to_string(descriptor().value()), std::to_string(height()));
+}
+
+std::string ProberepMsg::log_str() const
+{
+    ;
+    return fmt::format("ProberepMsg {}/{}", current().has_value(), requested().has_value());
+}
+
+std::string BlockreqMsg::log_str() const
+{
+    return fmt::format("BlockreqMsg {}/[{},{}]", range().descriptor.value(), range().lower.value(), range().upper.value());
+}
+std::string BlockrepMsg::log_str() const
+{
+    return fmt::format("BlockrepMsg size {}", blocks().size());
+}
+
+std::string TxnotifyMsg::log_str() const
+{
+    return fmt::format("TxnotifyMsg size {}", txids().size());
+}
+
+std::string TxreqMsg::log_str() const
+{
+    return fmt::format("TxreqMsg size {}", txids().size());
+}
+
+std::string TxrepMsg::log_str() const
+{
+    return fmt::format("TxrepMsg size {}", txs().size());
+}
+
+std::string LeaderMsg::log_str() const
+{
+    return fmt::format("LeaderMsg priority {}", static_cast<std::string>(signedSnapshot().priority));
+}
+
+std::string RTCIdentity::log_str() const
+{
+    auto ip_string = [](auto& ip) -> std::string {
+        if (ip)
+            return ip->to_string();
+        return "none"s;
+    };
+    return fmt::format("RTCIdentity IPv4: {}, IPv6: {}", ip_string(ips().get_ip4()), ip_string(ips().get_ip6()));
+}
+
+std::string RTCQuota::log_str() const
+{
+    return fmt::format("RTCQuota +{}", increase());
+}
+
+std::string RTCSignalingList::log_str() const
+{
+    return fmt::format("RTCSignalingList {} ips", ips().size());
+}
+
+std::string RTCRequestForwardOffer::log_str() const
+{
+    return fmt::format("RTCRequestForwardOffer key {}, size: {}", signaling_list_key(), offer().size());
+}
+
+std::string RTCForwardedOffer::log_str() const
+{
+    return fmt::format("RTCForwardedOffer size {}", offer().size());
+}
+std::string RTCRequestForwardAnswer::log_str() const
+{
+    return fmt::format("RTCRequestForwardAnswer key {}, size: {}", key(), answer().data.size());
+}
+
+std::string RTCForwardOfferDenied::log_str() const
+{
+    return fmt::format("RTCForwardOfferDenied key {}, reason: {}", key(), reason());
+}
+std::string RTCForwardedAnswer::log_str() const
+{
+    return fmt::format("RTCForwardedAnswer key {}, size: {}", key(), answer().size());
+}
+std::string RTCVerificationOffer::log_str() const
+{
+    return fmt::format("RTCVerificationOffer ip {}, offer.size()", ip().to_string(), offer().size());
+}
+std::string RTCVerificationAnswer::log_str() const
+{
+    return fmt::format("RTCVerificationAnswer size()", answer().size());
+}
+std::string PingV2Msg::log_str() const
+{
+    return fmt::format("PingV2Msg ip maxAddresses {}, maxTransactions {}, discarded_forward_requests {}", maxAddresses(), maxTransactions(), discarded_forward_requests());
+}
+
+std::string PongV2Msg::log_str() const
+{
+    return fmt::format("PongV2Msg ip addresses {}, txids {}", addresses().size(), txids().size());
+}
+
 Error PongMsg::check(const PingMsg& m) const
 {
     if (nonce() != m.nonce())
@@ -75,21 +219,6 @@ Error PongMsg::check(const PingMsg& m) const
         return ERESTRICTED;
     }
     return 0;
-}
-
-std::string BatchreqMsg::log_str() const
-{
-    return "batchreq [" + std::to_string(selector().startHeight) + "," + std::to_string(selector().startHeight + selector().length - 1) + "]";
-}
-
-std::string ProbereqMsg::log_str() const
-{
-    return "probereq " + std::to_string(descriptor().value()) + "/" + std::to_string(height());
-}
-
-std::string BlockreqMsg::log_str() const
-{
-    return "blockreq [" + std::to_string(range().lower) + "," + std::to_string(range().upper) + "]";
 }
 
 Sndbuffer TxnotifyMsg::direct_send(send_iter begin, send_iter end)
@@ -126,7 +255,6 @@ Error PongV2Msg::check(const PingV2Msg& m) const
     }
     return 0;
 }
-
 
 namespace {
 template <uint8_t prevcode>

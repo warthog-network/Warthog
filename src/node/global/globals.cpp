@@ -21,35 +21,21 @@ std::string logdir()
         return "logs";
     }
 }
+
+[[nodiscard]] auto create_log(std::string_view name, size_t sizeMegabytes = 5 , size_t nFiles = 3)
+{
+    size_t max_size = 1048576 * sizeMegabytes;
+    using namespace std::string_literals;
+    std::string filename { config().get_default_datadir() + logdir() + "/"s + std::string(name) + ".log"s };
+    return spdlog::rotating_logger_mt(std::string(name), filename, max_size, nFiles);
+}
+
 auto create_connection_logger()
 {
-    auto max_size = 1048576 * 5; // 5 MB
-    auto max_files = 3;
-    auto res { spdlog::rotating_logger_mt("connection_logger", config().get_default_datadir() + logdir() + "/connections.log", max_size, max_files) };
+    auto res{create_log("connections")};
     res->flush_on(spdlog::level::info);
     return res;
 }
-
-auto create_syncdebug_logger()
-{
-    auto max_size = 1048576 * 5; // 5 MB
-    auto max_files = 3;
-    return spdlog::rotating_logger_mt("syncdebug_logger", config().get_default_datadir() + logdir() + "/syncdebug.log", max_size, max_files);
-}
-
-auto create_timing_logger()
-{
-    auto max_size = 1048576 * 50; // 50 MB
-    auto max_files = 10;
-    return spdlog::rotating_logger_mt("timing", config().get_default_datadir() + logdir() + "/timing.log", max_size, max_files);
-}
-auto create_longrunning_logger()
-{
-    auto max_size = 1048576 * 50; // 50 MB
-    auto max_files = 10;
-    return spdlog::rotating_logger_mt("longrunning", config().get_default_datadir() + logdir() + "/longrunning.log", max_size, max_files);
-}
-
 }
 
 #ifdef DISABLE_LIBUV
@@ -102,8 +88,9 @@ void global_init(BatchRegistry* pbr, rxtx::Server* ts, PeerServer* pps, ChainSer
     globalinstance.chainServer = pcs;
     globalinstance.core = pel;
     globalinstance.connLogger = create_connection_logger();
-    globalinstance.syncdebugLogger = create_syncdebug_logger();
-    globalinstance.timingLogger.emplace(create_timing_logger(), create_longrunning_logger());
+    globalinstance.syncdebugLogger = create_log("syncdebug");
+    globalinstance.timingLogger.emplace(create_log("timing",50,10), create_log("longrunning",50,10));
+    globalinstance.communicationLogger = create_log("communication",50,3);
 };
 
 namespace {

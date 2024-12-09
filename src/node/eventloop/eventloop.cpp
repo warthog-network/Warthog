@@ -1040,6 +1040,7 @@ void Eventloop::dispatch_message(Conref cr, messages::Msg&& m)
     }
 
     std::visit([&](auto&& e) {
+        communication_log().info("{}: {}", cr.str(), e.log_str());
         handle_msg(cr, std::move(e));
     },
         m);

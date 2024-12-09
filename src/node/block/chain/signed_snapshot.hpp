@@ -21,8 +21,8 @@ public:
         Height height { 0 };
         Priority(Reader& r);
         friend Writer& operator<<(Writer&, const Priority&);
-        
-        static constexpr size_t byte_size(){return sizeof(importance) + decltype(height)::byte_size();}
+
+        static constexpr size_t byte_size() { return sizeof(importance) + decltype(height)::byte_size(); }
         Priority() {};
         Priority(uint16_t i, Height h)
             : importance(i)
@@ -36,16 +36,21 @@ public:
         NonzeroPriority(uint16_t i, NonzeroHeight h)
             : importance(i)
             , height(h) {};
+        operator std::string() const
+        {
+            return std::to_string(importance) + "/" + std::to_string(height.value());
+        }
         auto operator<=>(const NonzeroPriority&) const = default;
-        operator Priority() const{
-            return {importance,height};
+        operator Priority() const
+        {
+            return { importance, height };
         };
     };
     [[nodiscard]] bool compatible(const Headerchain& hc) const;
     [[nodiscard]] bool compatible_inefficient(const HeaderchainSkeleton& hc) const;
 
     static constexpr size_t binary_size { 4 + 32 + 65 };
-    static constexpr size_t byte_size(){return binary_size;}
+    static constexpr size_t byte_size() { return binary_size; }
     SignedSnapshot(Reader& r);
 
     auto operator<=>(const SignedSnapshot& rhs) const
@@ -66,7 +71,9 @@ private:
     SignedSnapshot(NonzeroHeight height, HashView hash, RecoverableSignature signature)
         : hash(hash)
         , signature(signature)
-        , priority { get_importance(), height } {}
+        , priority { get_importance(), height }
+    {
+    }
     SignedSnapshot(NonzeroPriority p, HashView hash, RecoverableSignature signature)
         : hash(hash)
         , signature(signature)
@@ -85,7 +92,9 @@ public:
     SignedSnapshot sign(const chainserver::Chainstate&);
     SnapshotSigner(const PrivKey& pk)
         : pk(pk)
-        , importance(get_importance(pk.pubkey())) {}
+        , importance(get_importance(pk.pubkey()))
+    {
+    }
 
 private:
     SignedSnapshot sign(NonzeroHeight, Hash);

@@ -32,6 +32,7 @@ struct Global {
     Eventloop* core;
     BatchRegistry* batchRegistry;
     std::shared_ptr<spdlog::logger> connLogger;
+    std::shared_ptr<spdlog::logger> communicationLogger;
     std::optional<logging::TimingLogger> timingLogger;
     std::shared_ptr<spdlog::logger> syncdebugLogger;
     std::optional<Config> conf;
@@ -42,6 +43,7 @@ const Global& global();
 inline spdlog::logger& connection_log() { return *global().connLogger; }
 inline auto& timing_log() { return global().timingLogger.value(); }
 inline spdlog::logger& syncdebug_log() { return *global().syncdebugLogger; }
+inline spdlog::logger& communication_log() { return *global().communicationLogger; }
 const Config& config();
 int init_config(int argc, char** argv);
 void start_global_services();
