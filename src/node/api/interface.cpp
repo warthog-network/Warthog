@@ -337,7 +337,7 @@ void get_transmission_minutes(TransmissionCb cb)
 void get_transmission_hours(TransmissionCb cb)
 {
     using namespace std::chrono;
-    auto begin { duration_cast<seconds>((system_clock::now() - days(30)).time_since_epoch()).count() };
+    auto begin { duration_cast<seconds>((system_clock::now() - days(10)).time_since_epoch()).count() };
     global().rxtxServer->api_get_aggregate_hours({ .cb { std::move(cb) },
         .range { begin, std::numeric_limits<uint32_t>::max() } });
 }
