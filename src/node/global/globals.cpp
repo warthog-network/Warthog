@@ -27,6 +27,7 @@ std::string logdir()
     size_t max_size = 1048576 * sizeMegabytes;
     using namespace std::string_literals;
     std::string filename { config().get_default_datadir() + logdir() + "/"s + std::string(name) + ".log"s };
+    spdlog::info("Logging to {}", filename);
     return spdlog::rotating_logger_mt(std::string(name), filename, max_size, nFiles);
 }
 

@@ -595,7 +595,7 @@ void Eventloop::handle_event(IdentityIps&& ips)
     assert(rtc.ips.has_value() == false);
     for (auto cr : connections.initialized()) {
         if (cr.version().v2()) {
-            spdlog::info("Sending own identity");
+            log_rtc("Sending own identity");
             cr.send(RTCIdentity(ips));
         }
     }
