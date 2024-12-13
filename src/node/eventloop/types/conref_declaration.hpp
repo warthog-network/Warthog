@@ -27,7 +27,10 @@ public:
     [[nodiscard]] auto version() const;
     [[nodiscard]] bool initialized() const;
     [[nodiscard]] bool is_tcp() const;
-    void send(Sndbuffer);
+
+    template<typename T>
+    void send(T&&);
+
     Conref(Coniter iter)
         : iter(iter)
     {
@@ -45,4 +48,6 @@ public:
 
     template <typename... Args>
     inline void warn(const char* fmt, Args&&... args);
+private:
+    void send_buffer(Sndbuffer);
 };

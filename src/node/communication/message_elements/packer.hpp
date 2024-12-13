@@ -10,43 +10,43 @@ struct MessageWriter;
 class Reader;
 class Sndbuffer;
 
-template <size_t i, typename T>
-class B {
-public:
-    const T& get() const { return t; }
-    T& get() { return t; }
-    B(T t)
-        : t(std::move(t))
-    {
-    }
-    B(Reader& r)
-        : t(r)
-    {
-    }
-
-private:
-    T t;
-};
-
 template <uint8_t M>
 struct MsgCode {
     static constexpr uint8_t msgcode { M };
     static MessageWriter gen_msg(size_t len);
 };
 
-template <size_t code, typename... Ts>
+template <size_t code, typename... Types>
 class MsgPacker {
-    using seq = std::make_index_sequence<sizeof...(Ts)>;
+    using seq = std::make_index_sequence<sizeof...(Types)>;
 
     template <typename T>
     class Internal;
 
     template <size_t i>
     using parent_t =
-        typename std::tuple_element<i, std::tuple<Ts...>>::type;
+        typename std::tuple_element<i, std::tuple<Types...>>::type;
 
-    template <size_t... Is>
-    class Internal<std::index_sequence<Is...>> : public MsgCode<code>, B<Is, Ts>... {
+    template <size_t i, typename T>
+    class IndexedType {
+    public:
+        const T& get() const { return t; }
+        T& get() { return t; }
+        IndexedType(T t)
+            : t(std::move(t))
+        {
+        }
+        IndexedType(Reader& r)
+            : t(r)
+        {
+        }
+
+    private:
+        T t;
+    };
+
+    template <size_t... Indices>
+    class Internal<std::index_sequence<Indices...>> : public MsgCode<code>, IndexedType<Indices, Types>... {
 
         template <size_t i>
         size_t sum_byte_size(size_t cumsum) const;
@@ -54,7 +54,7 @@ class MsgPacker {
         template <size_t i>
         MessageWriter& write_message(MessageWriter& w) const
         {
-            if constexpr (i < sizeof...(Is)) {
+            if constexpr (i < sizeof...(Indices)) {
                 return write_message<i + 1>(w << get<i>());
             }
             return w;
@@ -64,11 +64,11 @@ class MsgPacker {
         using Base = Internal;
         template <typename... Args>
         Internal(Args&&... args)
-            : B<Is, Ts>(std::forward<Args>(args))...
+            : IndexedType<Indices, Types>(std::forward<Args>(args))...
         {
         }
         Internal(Reader& r)
-            : B<Is, Ts>(r)...
+            : IndexedType<Indices, Types>(r)...
         {
         }
         operator Sndbuffer() const;
@@ -76,13 +76,13 @@ class MsgPacker {
         template <size_t i>
         auto& get() const
         {
-            return B<i, parent_t<i>>::get();
+            return IndexedType<i, parent_t<i>>::get();
         }
 
         template <size_t i>
         auto& get()
         {
-            return B<i, parent_t<i>>::get();
+            return IndexedType<i, parent_t<i>>::get();
         }
 
         [[nodiscard]] size_t byte_size() const

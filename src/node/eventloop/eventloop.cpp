@@ -550,12 +550,13 @@ void Eventloop::handle_event(mempool::Log&& log)
             bounds.push_back({ entries.end(), miter->second });
             ++miter;
         }
-    finished:
+    finished:;
 
+        // TODO
         // send subscription individually
-        for (auto& [end, cr] : bounds) {
-            cr.send(TxnotifyMsg::direct_send(entries.begin(), end));
-        }
+        // for (auto& [end, cr] : bounds) {
+        //     cr.send(TxnotifyMsg::direct_send(entries.begin(), end));
+        // }
     }
 }
 
@@ -943,7 +944,7 @@ void Eventloop::send_request(Conref c, const T& req)
 
 void Eventloop::send_init(Conref cr)
 {
-    cr.send(InitMsg::serialize_chainstate(consensus()));
+    cr.send(InitMsgGenerator(consensus()));
 }
 
 template <typename T>
@@ -1040,7 +1041,7 @@ void Eventloop::dispatch_message(Conref cr, messages::Msg&& m)
     }
 
     std::visit([&](auto&& e) {
-        communication_log().info("{}: {}", cr.str(), e.log_str());
+        communication_log().info("IN  {}: {}", cr.str(), e.log_str());
         handle_msg(cr, std::move(e));
     },
         m);

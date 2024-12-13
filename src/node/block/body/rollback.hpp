@@ -58,7 +58,7 @@ public:
     {
         size_t bytesize = 8 + 16 * originalBalances.size();
         std::vector<uint8_t> res(bytesize);
-        Writer w(res.data(), res.size());
+        Writer w(res);
         w << beginNewAccounts;
         for (auto p : originalBalances) {
             AccountId accountId = p.first;

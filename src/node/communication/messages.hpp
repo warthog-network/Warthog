@@ -31,7 +31,6 @@ class logger;
 struct InitMsg2 : public MsgCombine<0, Descriptor, SignedSnapshot::Priority, Height, Worksum, Grid> {
     InitMsg2(Reader& r);
     static constexpr size_t maxSize = 100000;
-    static Sndbuffer serialize_chainstate(const ConsensusSlave&);
     std::string log_str() const;
 
     [[nodiscard]] auto& descriptor() const { return get<0>(); }
@@ -41,10 +40,15 @@ struct InitMsg2 : public MsgCombine<0, Descriptor, SignedSnapshot::Priority, Hei
     [[nodiscard]] auto& grid() const { return get<4>(); }
 };
 
+struct InitMsgGenerator{
+    const ConsensusSlave& cs;
+    operator Sndbuffer() const;
+    std::string log_str() const;
+};
+
 struct InitMsg : public MsgCode<0> {
     InitMsg(Reader& r);
     static constexpr size_t maxSize = 100000;
-    static Sndbuffer serialize_chainstate(const ConsensusSlave&);
     std::string log_str() const;
 
     Descriptor descriptor;
@@ -189,7 +193,7 @@ struct TxnotifyMsg : public MsgCombineRequest<13, messages::Vector16<TxidWithFee
     using Base::Base;
 
     using send_iter = std::vector<mempool::Entry>::iterator;
-    static Sndbuffer direct_send(send_iter begin, send_iter end);
+    // static Sndbuffer direct_send(send_iter begin, send_iter end);
     [[nodiscard]] const messages::Vector16<TxidWithFee>& txids() const { return get<0>(); }
     static constexpr size_t maxSize = 4 + TxnotifyMsg::MAXENTRIES * TransactionId::bytesize;
     std::string log_str() const;

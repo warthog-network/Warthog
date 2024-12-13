@@ -16,22 +16,6 @@ inline void throw_if_inconsistent(Height length, Worksum worksum)
     }
 }
 
-Sndbuffer InitMsg2::serialize_chainstate(const ConsensusSlave& cs)
-{
-    const size_t N = cs.headers().complete_batches().size();
-    size_t len = 4 + 2 + 4 + 4 + 32 + 4 + N * 80;
-    auto& sp { cs.get_signed_snapshot_priority() };
-    auto mw { gen_msg(len) };
-    mw << cs.descriptor()
-       << sp.importance
-       << sp.height
-       << cs.headers().length()
-       << cs.total_work()
-       << (uint32_t)(cs.headers().complete_batches().size() * 80)
-       << Range(cs.grid().raw());
-    return mw;
-}
-
 InitMsg2::InitMsg2(Reader& r)
     : Base(r)
 {
@@ -57,12 +41,12 @@ InitMsg::InitMsg(Reader& r)
     throw_if_inconsistent(chainLength, worksum);
 }
 
-Sndbuffer InitMsg::serialize_chainstate(const ConsensusSlave& cs)
+InitMsgGenerator::operator Sndbuffer() const
 {
     const size_t N = cs.headers().complete_batches().size();
     size_t len = 4 + 2 + 4 + 4 + 32 + 4 + N * 80;
     auto& sp { cs.get_signed_snapshot_priority() };
-    auto mw { gen_msg(len) };
+    auto mw { MsgCode<0>::gen_msg(len) };
     mw << cs.descriptor()
        << sp.importance
        << sp.height
@@ -73,6 +57,10 @@ Sndbuffer InitMsg::serialize_chainstate(const ConsensusSlave& cs)
     return mw;
 }
 
+std::string InitMsgGenerator::log_str() const
+{
+    return fmt::format("InitMsg, descriptor {}, length {}, worksum {}, grid size {}", cs.descriptor().value(), cs.headers().length().value(), cs.total_work().to_string(), cs.grid().size());
+}
 std::string InitMsg::log_str() const
 {
     return fmt::format("InitMsg, descriptor {}, length {}, worksum {}, grid size {}", descriptor.value(), chainLength.value(), worksum.to_string(), grid.size());
@@ -221,15 +209,16 @@ Error PongMsg::check(const PingMsg& m) const
     return 0;
 }
 
-Sndbuffer TxnotifyMsg::direct_send(send_iter begin, send_iter end)
-{
-    auto mw { gen_msg(4 + (end - begin) * TransactionId::bytesize) };
-    mw << RandNonce().nonce();
-    for (auto iter = begin; iter != end; ++iter) {
-        mw << iter->transaction_id();
-    }
-    return mw;
-}
+// Sndbuffer TxnotifyMsg::direct_send(send_iter begin, send_iter end)
+// {
+//     TODO: wrong since it is not including 16 bit length of #transactions
+//     auto mw { gen_msg(4 + (end - begin) * TransactionId::bytesize) };
+//     mw << RandNonce().nonce();
+//     for (auto iter = begin; iter != end; ++iter) {
+//         mw << iter->transaction_id();
+//     }
+//     return mw;
+// }
 
 TxreqMsg::TxreqMsg(Reader& r)
     : Base(r)

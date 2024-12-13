@@ -22,7 +22,7 @@ ConState::ConState(std::shared_ptr<ConnectionBase> c, const ConnectionInserter& 
     : ConState(h.make_connection_state(std::move(c)))
 {
 }
-void Conref::send(Sndbuffer b)
+void Conref::send_buffer(Sndbuffer b)
 {
     if (!(*this)->c->eventloop_erased) {
         iter->second.c->send(std::move(b));
