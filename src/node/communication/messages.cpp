@@ -4,7 +4,7 @@
 #include "eventloop/types/chainstate.hpp"
 #include "message_elements/packer_impl.hpp"
 #include "messages_impl.hpp"
-#include "spdlog/fmt/fmt.h"
+#include "spdlog/fmt/bundled/core.h"
 
 using namespace std::string_literals;
 inline void throw_if_inconsistent(Height length, Worksum worksum)
