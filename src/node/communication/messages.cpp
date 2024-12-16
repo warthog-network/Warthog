@@ -4,9 +4,10 @@
 #include "eventloop/types/chainstate.hpp"
 #include "message_elements/packer_impl.hpp"
 #include "messages_impl.hpp"
-#include "spdlog/fmt/bundled/core.h"
+#include "spdlog/fmt/fmt.h"
 
 using namespace std::string_literals;
+namespace fmt_lib = spdlog::fmt_lib;
 inline void throw_if_inconsistent(Height length, Worksum worksum)
 {
     if ((length == 0) != worksum.is_zero()) {
@@ -15,6 +16,7 @@ inline void throw_if_inconsistent(Height length, Worksum worksum)
         throw Error(EFAKEHEIGHT);
     }
 }
+
 
 InitMsg2::InitMsg2(Reader& r)
     : Base(r)
@@ -26,7 +28,7 @@ InitMsg2::InitMsg2(Reader& r)
 
 std::string InitMsg2::log_str() const
 {
-    return fmt::format("InitMsg2, descriptor {}, length {}, worksum {}, grid size {}", descriptor().value(), chain_length().value(), worksum().to_string(), grid().size());
+    return fmt_lib::format("InitMsg2, descriptor {}, length {}, worksum {}, grid size {}", descriptor().value(), chain_length().value(), worksum().to_string(), grid().size());
 }
 
 InitMsg::InitMsg(Reader& r)
@@ -59,83 +61,83 @@ InitMsgGenerator::operator Sndbuffer() const
 
 std::string InitMsgGenerator::log_str() const
 {
-    return fmt::format("InitMsg, descriptor {}, length {}, worksum {}, grid size {}", cs.descriptor().value(), cs.headers().length().value(), cs.total_work().to_string(), cs.grid().size());
+    return fmt_lib::format("InitMsg, descriptor {}, length {}, worksum {}, grid size {}", cs.descriptor().value(), cs.headers().length().value(), cs.total_work().to_string(), cs.grid().size());
 }
 std::string InitMsg::log_str() const
 {
-    return fmt::format("InitMsg, descriptor {}, length {}, worksum {}, grid size {}", descriptor.value(), chainLength.value(), worksum.to_string(), grid.size());
+    return fmt_lib::format("InitMsg, descriptor {}, length {}, worksum {}, grid size {}", descriptor.value(), chainLength.value(), worksum.to_string(), grid.size());
 }
 
 std::string ForkMsg::log_str() const
 {
-    return fmt::format("ForkMsg, descriptor {}, length {}, worksum {}, forkHeight {}, grid size {}", descriptor().value(), chainLength().value(), worksum().to_string(), forkHeight().value(), grid().size());
+    return fmt_lib::format("ForkMsg, descriptor {}, length {}, worksum {}, forkHeight {}, grid size {}", descriptor().value(), chainLength().value(), worksum().to_string(), forkHeight().value(), grid().size());
 }
 
 std::string AppendMsg::log_str() const
 {
-    return fmt::format("AppendMsg, length {}, worksum {}, grid size {}", newLength().value(), worksum().to_string(), grid().size());
+    return fmt_lib::format("AppendMsg, length {}, worksum {}, grid size {}", newLength().value(), worksum().to_string(), grid().size());
 }
 
 std::string SignedPinRollbackMsg::log_str() const
 {
-    return fmt::format("SignedPinRollbackMsg, shrinkLength {}, worksum {}, descriptor {}", shrinkLength().value(), worksum().to_string(), descriptor().value());
+    return fmt_lib::format("SignedPinRollbackMsg, shrinkLength {}, worksum {}, descriptor {}", shrinkLength().value(), worksum().to_string(), descriptor().value());
 }
 std::string PingMsg::log_str() const
 {
-    return fmt::format("PingMsg, maxAddresses {}, maxTransactions {}", maxAddresses(), maxTransactions());
+    return fmt_lib::format("PingMsg, maxAddresses {}, maxTransactions {}", maxAddresses(), maxTransactions());
 }
 std::string PongMsg::log_str() const
 {
-    return fmt::format("PongMsg, addresses {}, txids {}", addresses().size(), txids().size());
+    return fmt_lib::format("PongMsg, addresses {}, txids {}", addresses().size(), txids().size());
 }
 std::string BatchreqMsg::log_str() const
 {
-    return fmt::format("BatchreqMsg [{},{}]", std::to_string(selector().startHeight), std::to_string(selector().startHeight + selector().length - 1));
+    return fmt_lib::format("BatchreqMsg [{},{}]", std::to_string(selector().startHeight), std::to_string(selector().startHeight + selector().length - 1));
 }
 
 std::string BatchrepMsg::log_str() const
 {
-    return fmt::format("BatchrepMsg, size: {}", batch().size());
+    return fmt_lib::format("BatchrepMsg, size: {}", batch().size());
 }
 
 std::string ProbereqMsg::log_str() const
 {
-    return fmt::format("ProbereqMsg {}/{}", std::to_string(descriptor().value()), std::to_string(height()));
+    return fmt_lib::format("ProbereqMsg {}/{}", std::to_string(descriptor().value()), std::to_string(height()));
 }
 
 std::string ProberepMsg::log_str() const
 {
     ;
-    return fmt::format("ProberepMsg {}/{}", current().has_value(), requested().has_value());
+    return fmt_lib::format("ProberepMsg {}/{}", current().has_value(), requested().has_value());
 }
 
 std::string BlockreqMsg::log_str() const
 {
-    return fmt::format("BlockreqMsg {}/[{},{}]", range().descriptor.value(), range().lower.value(), range().upper.value());
+    return fmt_lib::format("BlockreqMsg {}/[{},{}]", range().descriptor.value(), range().lower.value(), range().upper.value());
 }
 std::string BlockrepMsg::log_str() const
 {
-    return fmt::format("BlockrepMsg size {}", blocks().size());
+    return fmt_lib::format("BlockrepMsg size {}", blocks().size());
 }
 
 std::string TxnotifyMsg::log_str() const
 {
-    return fmt::format("TxnotifyMsg size {}", txids().size());
+    return fmt_lib::format("TxnotifyMsg size {}", txids().size());
 }
 
 std::string TxreqMsg::log_str() const
 {
-    return fmt::format("TxreqMsg size {}", txids().size());
+    return fmt_lib::format("TxreqMsg size {}", txids().size());
 }
 
 std::string TxrepMsg::log_str() const
 {
-    return fmt::format("TxrepMsg size {}", txs().size());
+    return fmt_lib::format("TxrepMsg size {}", txs().size());
 }
 
 std::string LeaderMsg::log_str() const
 {
-    return fmt::format("LeaderMsg priority {}", static_cast<std::string>(signedSnapshot().priority));
+    return fmt_lib::format("LeaderMsg priority {}", static_cast<std::string>(signedSnapshot().priority));
 }
 
 std::string RTCIdentity::log_str() const
@@ -145,57 +147,57 @@ std::string RTCIdentity::log_str() const
             return ip->to_string();
         return "none"s;
     };
-    return fmt::format("RTCIdentity IPv4: {}, IPv6: {}", ip_string(ips().get_ip4()), ip_string(ips().get_ip6()));
+    return fmt_lib::format("RTCIdentity IPv4: {}, IPv6: {}", ip_string(ips().get_ip4()), ip_string(ips().get_ip6()));
 }
 
 std::string RTCQuota::log_str() const
 {
-    return fmt::format("RTCQuota +{}", increase());
+    return fmt_lib::format("RTCQuota +{}", increase());
 }
 
 std::string RTCSignalingList::log_str() const
 {
-    return fmt::format("RTCSignalingList {} ips", ips().size());
+    return fmt_lib::format("RTCSignalingList {} ips", ips().size());
 }
 
 std::string RTCRequestForwardOffer::log_str() const
 {
-    return fmt::format("RTCRequestForwardOffer key {}, size: {}", signaling_list_key(), offer().size());
+    return fmt_lib::format("RTCRequestForwardOffer key {}, size: {}", signaling_list_key(), offer().size());
 }
 
 std::string RTCForwardedOffer::log_str() const
 {
-    return fmt::format("RTCForwardedOffer size {}", offer().size());
+    return fmt_lib::format("RTCForwardedOffer size {}", offer().size());
 }
 std::string RTCRequestForwardAnswer::log_str() const
 {
-    return fmt::format("RTCRequestForwardAnswer key {}, size: {}", key(), answer().data.size());
+    return fmt_lib::format("RTCRequestForwardAnswer key {}, size: {}", key(), answer().data.size());
 }
 
 std::string RTCForwardOfferDenied::log_str() const
 {
-    return fmt::format("RTCForwardOfferDenied key {}, reason: {}", key(), reason());
+    return fmt_lib::format("RTCForwardOfferDenied key {}, reason: {}", key(), reason());
 }
 std::string RTCForwardedAnswer::log_str() const
 {
-    return fmt::format("RTCForwardedAnswer key {}, size: {}", key(), answer().size());
+    return fmt_lib::format("RTCForwardedAnswer key {}, size: {}", key(), answer().size());
 }
 std::string RTCVerificationOffer::log_str() const
 {
-    return fmt::format("RTCVerificationOffer ip {}, offer.size()", ip().to_string(), offer().size());
+    return fmt_lib::format("RTCVerificationOffer ip {}, offer.size()", ip().to_string(), offer().size());
 }
 std::string RTCVerificationAnswer::log_str() const
 {
-    return fmt::format("RTCVerificationAnswer size()", answer().size());
+    return fmt_lib::format("RTCVerificationAnswer size()", answer().size());
 }
 std::string PingV2Msg::log_str() const
 {
-    return fmt::format("PingV2Msg ip maxAddresses {}, maxTransactions {}, discarded_forward_requests {}", maxAddresses(), maxTransactions(), discarded_forward_requests());
+    return fmt_lib::format("PingV2Msg ip maxAddresses {}, maxTransactions {}, discarded_forward_requests {}", maxAddresses(), maxTransactions(), discarded_forward_requests());
 }
 
 std::string PongV2Msg::log_str() const
 {
-    return fmt::format("PongV2Msg ip addresses {}, txids {}", addresses().size(), txids().size());
+    return fmt_lib::format("PongV2Msg ip addresses {}, txids {}", addresses().size(), txids().size());
 }
 
 Error PongMsg::check(const PingMsg& m) const
