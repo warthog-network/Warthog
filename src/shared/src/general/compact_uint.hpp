@@ -20,7 +20,7 @@ class CompactUInt {
     }
 
 public:
-    static constexpr auto smallest(){return CompactUInt(1);}
+    static constexpr auto smallest(){return CompactUInt(0);}
     static CompactUInt from_value_assert(uint16_t val)
     {
         auto v { from_value(val) };
