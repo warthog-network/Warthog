@@ -9,7 +9,10 @@ namespace {
 {
     sockaddr_storage storage;
     int alen = sizeof(storage);
-    assert(uv_tcp_getpeername(handle.raw(), (struct sockaddr*)&storage, &alen) == 0);
+    if (auto e{uv_tcp_getpeername(handle.raw(), (struct sockaddr*)&storage, &alen)}; e != 0){
+        spdlog::error("Bad uv_tcp_getpeername result: {}", e);
+        return {};
+    }
     if (storage.ss_family != AF_INET)
         return {};
     sockaddr_in* addr_i4 = (struct sockaddr_in*)&storage;
