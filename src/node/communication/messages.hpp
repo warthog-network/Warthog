@@ -28,26 +28,25 @@ namespace spdlog {
 class logger;
 }
 
-struct InitMsg2 : public MsgCombine<0, Descriptor, SignedSnapshot::Priority, Height, Worksum, Grid> {
-    InitMsg2(Reader& r);
-    static constexpr size_t maxSize = 100000;
-    std::string log_str() const;
-
-    [[nodiscard]] auto& descriptor() const { return get<0>(); }
-    [[nodiscard]] auto& sp() const { return get<1>(); }
-    [[nodiscard]] auto& chain_length() const { return get<2>(); }
-    [[nodiscard]] auto& worksum() const { return get<3>(); }
-    [[nodiscard]] auto& grid() const { return get<4>(); }
-};
-
-struct InitMsgGenerator{
+struct InitMsgGeneratorV1 {
     const ConsensusSlave& cs;
     operator Sndbuffer() const;
     std::string log_str() const;
 };
+struct InitMsgGeneratorV3 {
+    const ConsensusSlave& cs;
+    bool rtcEnabled;
+    InitMsgGeneratorV3(const ConsensusSlave& cs, bool rtcEnabled)
+        : cs(cs)
+        , rtcEnabled(rtcEnabled)
+    {
+    }
+    operator Sndbuffer() const;
+    std::string log_str() const;
+};
 
-struct InitMsg : public MsgCode<0> {
-    InitMsg(Reader& r);
+struct InitMsgV1 : public MsgCode<0> {
+    InitMsgV1(Reader& r);
     static constexpr size_t maxSize = 100000;
     std::string log_str() const;
 
@@ -320,7 +319,7 @@ struct PingV2Msg : public MsgCombineRequest<28, SignedSnapshot::Priority, uint16
         uint16_t maxAddresses = 5;
         uint16_t maxTransactions = 100;
         uint32_t ndiscard = 0;
-    std::string log_str() const;
+        std::string log_str() const;
     };
 
     PingV2Msg(SignedSnapshot::Priority sp, Options o)
@@ -349,8 +348,21 @@ struct PongV2Msg : public MsgCombineReply<29, messages::Vector16<TCPPeeraddr>, m
     std::string log_str() const;
 };
 
+struct InitMsgV3 : public MsgCombine<30, Descriptor, SignedSnapshot::Priority, Height, Worksum, Grid, uint8_t> {
+    InitMsgV3(Reader& r);
+    static constexpr size_t maxSize = 100000;
+    std::string log_str() const;
+
+    [[nodiscard]] auto& descriptor() const { return get<0>(); }
+    [[nodiscard]] auto& sp() const { return get<1>(); }
+    [[nodiscard]] auto& chain_length() const { return get<2>(); }
+    [[nodiscard]] auto& worksum() const { return get<3>(); }
+    [[nodiscard]] auto& grid() const { return get<4>(); }
+    [[nodiscard]] auto rtc_enabled() const { return (get<5>() & 1) != 0; }
+};
+
 namespace messages {
 [[nodiscard]] size_t size_bound(uint8_t msgtype);
 
-using Msg = std::variant<InitMsg, ForkMsg, AppendMsg, SignedPinRollbackMsg, PingMsg, PongMsg, BatchreqMsg, BatchrepMsg, ProbereqMsg, ProberepMsg, BlockreqMsg, BlockrepMsg, TxnotifyMsg, TxreqMsg, TxrepMsg, LeaderMsg, RTCIdentity, RTCQuota, RTCSignalingList, RTCRequestForwardOffer, RTCForwardedOffer, RTCRequestForwardAnswer, RTCForwardOfferDenied, RTCForwardedAnswer, RTCVerificationOffer, RTCVerificationAnswer, PingV2Msg, PongV2Msg>;
+using Msg = std::variant<InitMsgV1, ForkMsg, AppendMsg, SignedPinRollbackMsg, PingMsg, PongMsg, BatchreqMsg, BatchrepMsg, ProbereqMsg, ProberepMsg, BlockreqMsg, BlockrepMsg, TxnotifyMsg, TxreqMsg, TxrepMsg, LeaderMsg, RTCIdentity, RTCQuota, RTCSignalingList, RTCRequestForwardOffer, RTCForwardedOffer, RTCRequestForwardAnswer, RTCForwardOfferDenied, RTCForwardedAnswer, RTCVerificationOffer, RTCVerificationAnswer, PingV2Msg, PongV2Msg, InitMsgV3>;
 } // namespace messages

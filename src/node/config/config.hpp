@@ -1,8 +1,8 @@
 #pragma once
 
-#include  "general/start_time_points.hpp"
 #include "block/chain/signed_snapshot.hpp"
 #include "expected.hpp"
+#include "general/start_time_points.hpp"
 #include "transport/helpers/peer_addr.hpp"
 #include "transport/helpers/tcp_sockaddr.hpp"
 #include "transport/helpers/transport_types.hpp"
@@ -70,6 +70,7 @@ struct ConfigParams {
         TCPPeeraddr bind { default_endpoint };
         bool isolated { false };
         bool disableTxsMining { false }; // don't mine transactions
+        bool enableWebRTC { false }; // don't use WebRTC
         bool logCommunicationVal { false };
         bool logRTC { false };
     } node;
@@ -96,12 +97,12 @@ private:
     std::optional<int> process_config_file(const gengetopt_args_info& ai, bool silent);
 };
 
-
 struct Config : public ConfigParams {
     Config(ConfigParams&&);
     std::atomic<bool> logCommunication { false };
     std::atomic<bool> logRTC { false };
-    auto& started_at() const{return startedAt;}
+    auto& started_at() const { return startedAt; }
+
 private:
     StartTimePoints startedAt;
 };

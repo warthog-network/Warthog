@@ -50,6 +50,7 @@ struct gengetopt_args_info
   const char *temporary_help; /**< @brief Use temporary database (for testing purposes, do not use in production) help description.  */
   const char *testnet_help; /**< @brief Enable testnet help description.  */
   const char *disable_tx_mining_help; /**< @brief Don't mine transactions (in case of bugs) help description.  */
+  const char *enable_webrtc_help; /**< @brief Enable WebRTC connectivity help description.  */
   char * chain_db_arg;	/**< @brief specify chain data file.  */
   char * chain_db_orig;	/**< @brief specify chain data file original value given at command line.  */
   const char *chain_db_help; /**< @brief specify chain data file help description.  */
@@ -96,6 +97,7 @@ struct gengetopt_args_info
   unsigned int temporary_given ;	/**< @brief Whether temporary was given.  */
   unsigned int testnet_given ;	/**< @brief Whether testnet was given.  */
   unsigned int disable_tx_mining_given ;	/**< @brief Whether disable-tx-mining was given.  */
+  unsigned int enable_webrtc_given ;	/**< @brief Whether enable-webrtc was given.  */
   unsigned int chain_db_given ;	/**< @brief Whether chain-db was given.  */
   unsigned int peers_db_given ;	/**< @brief Whether peers-db was given.  */
   unsigned int rxtx_db_given ;	/**< @brief Whether rxtx-db was given.  */

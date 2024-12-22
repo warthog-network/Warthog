@@ -17,21 +17,7 @@ inline void throw_if_inconsistent(Height length, Worksum worksum)
     }
 }
 
-
-InitMsg2::InitMsg2(Reader& r)
-    : Base(r)
-{
-    if (grid().slot_end().upper() <= chain_length())
-        throw Error(EGRIDMISMATCH);
-    throw_if_inconsistent(chain_length(), worksum());
-}
-
-std::string InitMsg2::log_str() const
-{
-    return fmt_lib::format("InitMsg2, descriptor {}, length {}, worksum {}, grid size {}", descriptor().value(), chain_length().value(), worksum().to_string(), grid().size());
-}
-
-InitMsg::InitMsg(Reader& r)
+InitMsgV1::InitMsgV1(Reader& r)
     : descriptor(r)
     , sp(r)
     , chainLength(r)
@@ -43,7 +29,11 @@ InitMsg::InitMsg(Reader& r)
     throw_if_inconsistent(chainLength, worksum);
 }
 
-InitMsgGenerator::operator Sndbuffer() const
+std::string InitMsgV1::log_str() const
+{
+    return fmt_lib::format("InitMsgV1, descriptor {}, length {}, worksum {}, grid size {}", descriptor.value(), chainLength.value(), worksum.to_string(), grid.size());
+}
+InitMsgGeneratorV1::operator Sndbuffer() const
 {
     const size_t N = cs.headers().complete_batches().size();
     size_t len = 4 + 2 + 4 + 4 + 32 + 4 + N * 80;
@@ -59,13 +49,9 @@ InitMsgGenerator::operator Sndbuffer() const
     return mw;
 }
 
-std::string InitMsgGenerator::log_str() const
+std::string InitMsgGeneratorV1::log_str() const
 {
-    return fmt_lib::format("InitMsg, descriptor {}, length {}, worksum {}, grid size {}", cs.descriptor().value(), cs.headers().length().value(), cs.total_work().to_string(), cs.grid().size());
-}
-std::string InitMsg::log_str() const
-{
-    return fmt_lib::format("InitMsg, descriptor {}, length {}, worksum {}, grid size {}", descriptor.value(), chainLength.value(), worksum.to_string(), grid.size());
+    return fmt_lib::format("InitMsgV1, descriptor {}, length {}, worksum {}, grid size {}", cs.descriptor().value(), cs.headers().length().value(), cs.total_work().to_string(), cs.grid().size());
 }
 
 std::string ForkMsg::log_str() const
@@ -245,6 +231,41 @@ Error PongV2Msg::check(const PingV2Msg& m) const
         return ERESTRICTED;
     }
     return 0;
+}
+
+InitMsgV3::InitMsgV3(Reader& r)
+    : Base(r)
+{
+    if (grid().slot_end().upper() <= chain_length())
+        throw Error(EGRIDMISMATCH);
+    throw_if_inconsistent(chain_length(), worksum());
+}
+
+std::string InitMsgV3::log_str() const
+{
+    return fmt_lib::format("InitMsg3, descriptor {}, length {}, worksum {}, grid size {}", descriptor().value(), chain_length().value(), worksum().to_string(), grid().size());
+}
+
+InitMsgGeneratorV3::operator Sndbuffer() const
+{
+    const size_t N = cs.headers().complete_batches().size();
+    size_t len = 4 + 2 + 4 + 4 + 32 + 4 + N * 80 + 1;
+    auto& sp { cs.get_signed_snapshot_priority() };
+    auto mw { MsgCode<0>::gen_msg(len) };
+    mw << cs.descriptor()
+       << sp.importance
+       << sp.height
+       << cs.headers().length()
+       << cs.total_work()
+       << (uint32_t)(cs.headers().complete_batches().size() * 80)
+       << Range(cs.grid().raw())
+       << uint8_t(rtcEnabled);
+    return mw;
+}
+
+std::string InitMsgGeneratorV3::log_str() const
+{
+    return fmt_lib::format("InitMsgV3, descriptor {}, length {}, worksum {}, grid size {}", cs.descriptor().value(), cs.headers().length().value(), cs.total_work().to_string(), cs.grid().size());
 }
 
 namespace {

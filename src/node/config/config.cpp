@@ -396,6 +396,7 @@ void ConfigParams::process_args(const gengetopt_args_info& ai)
     fill_arg(data.rxtxdb, ai.rxtx_db_given, ai.rxtx_db_arg);
     node.isolated = ai.isolated_given;
     node.disableTxsMining = ai.disable_tx_mining_given;
+    node.enableWebRTC = ai.enable_webrtc_given;
 
     if (ai.temporary_given)
         data.chaindb = "";

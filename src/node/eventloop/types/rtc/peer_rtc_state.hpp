@@ -420,6 +420,7 @@ struct PeerRTCState : public VerificationScheduleData {
         PendingVerification pendingVerification;
         SignalingLists signalingList;
     } our;
+    bool enanabled{false};
 };
 }
 

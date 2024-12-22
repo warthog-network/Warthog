@@ -182,7 +182,8 @@ private:
     void handle_msg(Conref cr, ProberepMsg&&);
     void handle_msg(Conref cr, BlockreqMsg&&);
     void handle_msg(Conref cr, BlockrepMsg&&);
-    void handle_msg(Conref cr, InitMsg&&);
+    void handle_msg(Conref cr, InitMsgV1&&);
+    void handle_msg(Conref cr, InitMsgV3&&);
     void handle_msg(Conref cr, AppendMsg&&);
     void handle_msg(Conref cr, SignedPinRollbackMsg&&);
     void handle_msg(Conref cr, ForkMsg&&);

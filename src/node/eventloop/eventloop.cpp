@@ -9,6 +9,7 @@
 #include "chainserver/server.hpp"
 #include "communication/buffers/sndbuffer.hpp"
 #include "communication/messages_impl.hpp"
+#include "config/browser.hpp"
 #include "connection_inserter.hpp"
 #include "eventloop/connection_inserter.hpp"
 #include "general/logging.hpp"
@@ -31,19 +32,32 @@ using SubscriptionEvent = subscription::events::Event;
 
 using namespace std::chrono_literals;
 namespace TimerEvent = eventloop::timer_events;
+namespace {
+bool rtc_enabled(Conref c)
+{
+    return config().node.enableWebRTC && c->rtcState.enanabled;
+}
+void throw_if_rtc_disabled(Conref c)
+{
+    if (!rtc_enabled(c))
+        throw Error(ERTCDISABLED);
+}
 
-Eventloop::Eventloop(Token, PeerServer& ps, ChainServer& cs, const ConfigParams& config)
+}
+
+Eventloop::Eventloop(Token, PeerServer& ps, ChainServer& cs, const ConfigParams& cfg)
     : stateServer(cs)
     , chains(cs.get_chainstate())
     , mempool(false)
 #ifndef DISABLE_LIBUV
-    , connections({ ps, config.peers.connect })
+    , connections({ ps, cfg.peers.connect })
 #else
-    , connections({ ps, config.peers.connect })
+    , connections({ ps, cfg.peers.connect })
 #endif
     , headerDownload(chains, consensus().total_work())
     , blockDownload(*this)
 {
+    spdlog::info("Experimental WebRTC support {}", config().node.enableWebRTC ? "enabled" : "disabled");
     auto& ss = consensus().get_signed_snapshot();
     spdlog::info("Chain info: length {}, work {}, ", consensus().headers().length().value(), consensus().total_work().getdouble());
     if (ss.has_value()) {
@@ -211,11 +225,13 @@ bool Eventloop::has_work()
 
 void Eventloop::loop()
 {
-    RTCConnection::fetch_id([w = weak_from_this()](IdentityIps&& ips) {
-        if (auto p { w.lock() })
-            p->defer(std::move(ips));
-    },
-        true);
+    if (config().node.enableWebRTC) {
+        RTCConnection::fetch_id([w = weak_from_this()](IdentityIps&& ips) {
+            if (auto p { w.lock() })
+                p->defer(std::move(ips));
+        },
+            true);
+    }
 
     connections.start();
     while (true) {
@@ -578,8 +594,10 @@ void Eventloop::handle_event(CancelTimer&& ct)
 
 void Eventloop::handle_event(RTCClosed&& ct)
 {
+    assert(config().node.enableWebRTC);
     if (auto conId { ct.con->verification_con_id() }; conId != 0) { // conId id verified in this RTC connection
         if (auto con { connections.find(conId) }) {
+            assert(rtc_enabled(*con));
             con->rtc().our.pendingVerification.done();
             rtc.verificationSchedule.add(*con);
         }
@@ -590,12 +608,14 @@ void Eventloop::handle_event(RTCClosed&& ct)
 
 void Eventloop::handle_event(IdentityIps&& ips)
 {
-    log_rtc("Webrtc identity IPv4: {}", ips.get_ip4() ? ips.get_ip4().value().to_string() : "N/A");
-    log_rtc("Webrtc identity IPv6: {}", ips.get_ip6() ? ips.get_ip6().value().to_string() : "N/A");
+    assert(config().node.enableWebRTC);
+    log_rtc("WebRTC identity IPv4: {}", ips.get_ip4() ? ips.get_ip4().value().to_string() : "N/A");
+    log_rtc("WebRTC identity IPv6: {}", ips.get_ip6() ? ips.get_ip6().value().to_string() : "N/A");
 
     assert(rtc.ips.has_value() == false);
     for (auto cr : connections.initialized()) {
-        if (cr.version().v2()) {
+        // if (cr.version().v2()) { TODO
+        if (rtc_enabled(cr)) {
             log_rtc("Sending own identity");
             cr.send(RTCIdentity(ips));
         }
@@ -611,6 +631,7 @@ void Eventloop::handle_event(IdentityIps&& ips)
 
 void Eventloop::handle_event(GeneratedVerificationSdpAnswer&& m)
 {
+    assert(config().node.enableWebRTC);
     auto l { m.con.lock() };
     if (!l)
         return;
@@ -634,8 +655,10 @@ void Eventloop::handle_event(GeneratedVerificationSdpAnswer&& m)
     log_rtc("send RTCVerificationAnswer, ip: {}", m.ownIp.to_string());
     originCon.send(RTCVerificationAnswer { sdp });
 }
+
 void Eventloop::handle_event(GeneratedSdpAnswer&& m)
 {
+    assert(config().node.enableWebRTC);
     auto l { m.con.lock() };
     if (!l)
         return;
@@ -646,6 +669,7 @@ void Eventloop::handle_event(GeneratedSdpAnswer&& m)
         return;
     }
     auto& signalingServer { sig.value() };
+    assert(rtc_enabled(signalingServer));
 
     // filter
     auto filtered { sdp_filter::only_udp_ip(m.ownIp, m.sdp) };
@@ -721,6 +745,7 @@ void Eventloop::handle_event(DestroySubscriptions&& d)
 void Eventloop::handle_event(GeneratedVerificationSdpOffer&& m)
 {
     auto l { m.con.lock() };
+    assert(config().node.enableWebRTC);
     if (!l)
         return;
     auto& rtcCon { *l };
@@ -731,6 +756,7 @@ void Eventloop::handle_event(GeneratedVerificationSdpOffer&& m)
         return;
     }
     auto& c { o.value() };
+    assert(rtc_enabled(c));
     const auto& verifyIp { rtcCon.native_peer_addr().ip };
 
     auto ips { IdentityIps::from_sdp(m.sdp) };
@@ -750,7 +776,7 @@ void Eventloop::handle_event(GeneratedVerificationSdpOffer&& m)
 void Eventloop::handle_event(GeneratedSdpOffer&& m)
 {
     auto l { m.con.lock() };
-    if (!l)
+    if (!config().node.enableWebRTC || !l)
         return;
     auto& rtcCon { *l };
 
@@ -760,6 +786,7 @@ void Eventloop::handle_event(GeneratedSdpOffer&& m)
         return;
     }
     auto& signalingServer { sig.value() };
+    assert(rtc_enabled(signalingServer));
 
     auto key { m.signalingListKey };
     // only send if the signaling server still supports the same list where
@@ -868,6 +895,7 @@ void Eventloop::send_ping_await_pong(Conref c)
     c.rtc().our.pendingForwards.prune([&](const rtc_state::PendingForwards::Entry& e) {
         if (auto con { connections.find(e.fromConId) }) {
             if (con->rtc().their.forwardRequests.is_accepted_key(e.fromKey)) {
+                assert(rtc_enabled(*con));
                 con->send(RTCForwardOfferDenied(e.fromKey, 1));
             }
         }
@@ -944,7 +972,11 @@ void Eventloop::send_request(Conref c, const T& req)
 
 void Eventloop::send_init(Conref cr)
 {
-    cr.send(InitMsgGenerator(consensus()));
+    if (cr.version().v1() || cr.version().v2()) {
+        cr.send(InitMsgGeneratorV1(consensus()));
+    } else {
+        cr.send(InitMsgGeneratorV3(consensus(), config().node.enableWebRTC));
+    }
 }
 
 template <typename T>
@@ -1030,13 +1062,14 @@ void Eventloop::dispatch_message(Conref cr, messages::Msg&& m)
 {
     using namespace messages;
 
+    using namespace std;
+    bool isInit = holds_alternative<InitMsgV1>(m) || holds_alternative<InitMsgV3>(m);
     // first message must be of type INIT (is_init() is only initially true)
     if (cr.job().awaiting_init()) {
-        if (!std::holds_alternative<InitMsg>(m)) {
+        if (!isInit)
             throw Error(ENOINIT);
-        }
     } else {
-        if (std::holds_alternative<InitMsg>(m))
+        if (isInit)
             throw Error(EINVINIT);
     }
 
@@ -1047,21 +1080,50 @@ void Eventloop::dispatch_message(Conref cr, messages::Msg&& m)
         m);
 }
 
-void Eventloop::handle_msg(Conref c, InitMsg&& m)
+void Eventloop::handle_msg(Conref c, InitMsgV1&& m)
 {
     log_communication("{} handle init: height {}, work {}", c.str(), m.chainLength.value(), m.worksum.getdouble());
     c.job().reset_notexpired<AwaitInit>(timerSystem);
 
+    if (!c.version().v1() && !c.version().v2()) // must have at least version 3 for this message type
+        throw Error(EINITV1);
     c->chain.initialize(m, chains);
     headerDownload.insert(c);
     blockDownload.insert(c);
     emit_connect(headerDownload.size(), c);
     spdlog::info("Connected to {} peers (new peer {})", headerDownload.size(), c.peer().to_string());
-    if (rtc.ips && c.version().v2()) {
-        log_rtc("Sending own identity");
-        c.send(RTCIdentity(*rtc.ips));
-    } else
-        log_rtc("NOT sending own identity");
+    if (rtc_enabled(c)) {
+        if (rtc.ips && c.version().v2()) {
+            c->rtcState.enanabled = true; // v2 has rtc enabled by default
+            log_rtc("Sending own identity");
+            c.send(RTCIdentity(*rtc.ips));
+        } else
+            log_rtc("NOT sending own identity");
+    }
+    send_ping_await_pong(c);
+    // LATER: return whether doRequests is necessary;
+    do_requests();
+}
+
+void Eventloop::handle_msg(Conref c, InitMsgV3&& m)
+{
+    log_communication("{} handle init: height {}, work {}", c.str(), m.chain_length().value(), m.worksum().getdouble());
+    if (c.version().v1() || c.version().v2()) // must have at least version 3 for this message type
+        throw Error(EINITV3);
+    c.job().reset_notexpired<AwaitInit>(timerSystem);
+    c->rtcState.enanabled = m.rtc_enabled();
+    c->chain.initialize(m, chains);
+    headerDownload.insert(c);
+    blockDownload.insert(c);
+    emit_connect(headerDownload.size(), c);
+    spdlog::info("Connected to {} peers (new peer {})", headerDownload.size(), c.peer().to_string());
+    if (rtc_enabled(c)) {
+        if (rtc.ips) { // TODO V2
+            log_rtc("Sending own identity");
+            c.send(RTCIdentity(*rtc.ips));
+        } else
+            log_rtc("NOT sending own identity");
+    }
     send_ping_await_pong(c);
     // LATER: return whether doRequests is necessary;
     do_requests();
@@ -1342,6 +1404,8 @@ void Eventloop::handle_msg(Conref cr, LeaderMsg&& msg)
 
 void Eventloop::send_schedule_signaling_lists()
 {
+    if (!config().node.enableWebRTC)
+        return;
     // build map
     std::vector<std::pair<Conref, size_t>> quotasVec;
     std::vector<Conref> conrefs;
@@ -1364,6 +1428,8 @@ void Eventloop::send_schedule_signaling_lists()
 
     // send and save
     for (auto& c : conrefs) {
+        if (!rtc_enabled(c))
+            continue;
         auto& identity { c.rtc().their.identity };
         auto v4 { identity.verified_ip4() };
         auto v6 { identity.verified_ip6() };
@@ -1401,6 +1467,7 @@ void Eventloop::send_schedule_signaling_lists()
 
 void Eventloop::handle_msg(Conref c, RTCIdentity&& msg)
 {
+    throw_if_rtc_disabled(c);
     log_rtc("Received rtc identity");
     // TODO: restrict number of identity messages
     c.rtc().their.identity.set(msg.ips());
@@ -1411,11 +1478,14 @@ void Eventloop::handle_msg(Conref c, RTCIdentity&& msg)
 
 void Eventloop::handle_msg(Conref c, RTCQuota&& msg)
 {
+    throw_if_rtc_disabled(c);
+    log_rtc("Received RTCQuota increase {} bytes", msg.increase());
     c.rtc().their.quota.increase_allowed(msg.increase());
 }
 
 void Eventloop::handle_msg(Conref c, RTCSignalingList&& s)
 {
+    throw_if_rtc_disabled(c);
     log_rtc("Received RTCSignalingList");
     const auto& ips { s.ips() };
     const auto offset {
@@ -1446,6 +1516,7 @@ void Eventloop::handle_msg(Conref c, RTCSignalingList&& s)
 
 void Eventloop::handle_msg(Conref cr, RTCRequestForwardOffer&& r)
 {
+    throw_if_rtc_disabled(cr);
     auto dstId { cr.rtc().our.signalingList.get_con_id(r.signaling_list_key()) };
     auto key { cr.rtc().their.forwardRequests.create() };
     if (!dstId) {
@@ -1469,6 +1540,7 @@ void Eventloop::handle_msg(Conref cr, RTCRequestForwardOffer&& r)
 
 void Eventloop::handle_msg(Conref cr, RTCForwardedOffer&& m)
 {
+    throw_if_rtc_disabled(cr);
     // check our quota assigned to that peeer
     auto key { cr.rtc().our.quota.take_one() };
     OneIpSdp oneIpSdp { m.offer() };
@@ -1494,6 +1566,7 @@ void Eventloop::handle_msg(Conref cr, RTCForwardedOffer&& m)
 
 void Eventloop::handle_msg(Conref cr, RTCVerificationOffer&& m)
 {
+    throw_if_rtc_disabled(cr);
     OneIpSdp oneIpSdp { m.offer() };
     if (!cr.rtc().their.identity.contains(oneIpSdp.ip()))
         throw Error(ERTCIDIP);
@@ -1516,6 +1589,7 @@ void Eventloop::handle_msg(Conref cr, RTCVerificationOffer&& m)
 
 void Eventloop::handle_msg(Conref cr, RTCRequestForwardAnswer&& r)
 {
+    throw_if_rtc_disabled(cr);
     auto fwdInfo { cr.rtc().our.pendingForwards.get(r.key()) };
     auto ip { sdp_filter::load_ip(r.answer().data) };
     if (!ip)
@@ -1533,6 +1607,7 @@ void Eventloop::handle_msg(Conref cr, RTCRequestForwardAnswer&& r)
 
 void Eventloop::handle_msg(Conref cr, RTCForwardOfferDenied&& m)
 {
+    throw_if_rtc_disabled(cr);
     auto wcon { cr.rtc().our.pendingOutgoing.get_rtc_con(m.key()) };
     if (auto pcon { wcon.lock() })
         pcon->close(ERTCFWDREJECT); // TODO count pending per node
@@ -1540,6 +1615,7 @@ void Eventloop::handle_msg(Conref cr, RTCForwardOfferDenied&& m)
 
 void Eventloop::handle_msg(Conref cr, RTCForwardedAnswer&& a)
 {
+    throw_if_rtc_disabled(cr);
     auto w { cr.rtc().our.pendingOutgoing.get_rtc_con(a.key()) };
     auto c { w.lock() };
     if (!c)
@@ -1552,6 +1628,7 @@ void Eventloop::handle_msg(Conref cr, RTCForwardedAnswer&& a)
 
 void Eventloop::handle_msg(Conref cr, RTCVerificationAnswer&& m)
 {
+    throw_if_rtc_disabled(cr);
     log_rtc("Received RTCVerificationAnswer");
     // TODO:
     // - clear pending on main connection close
@@ -1567,6 +1644,7 @@ void Eventloop::handle_msg(Conref cr, RTCVerificationAnswer&& m)
 
 void Eventloop::try_verify_rtc_identities()
 {
+    assert(config().node.enableWebRTC);
     log_rtc("try_verify_rtc_identities {}", rtc.connections.can_insert_feeler());
     if (!rtc.ips.has_value() // only verify peers when you know your identity
         || rtc.verificationSchedule.empty()
@@ -1580,6 +1658,7 @@ void Eventloop::try_verify_rtc_identities()
         if (!b)
             return;
         auto& [c, ip] = *o;
+        assert(rtc_enabled(c));
         auto newCon { RTCConnection::connect_new_verification(
             *this,
             [this, peerId = c.id()](RTCConnection& con, std::string sdp) {
@@ -1596,7 +1675,6 @@ void Eventloop::try_verify_rtc_identities()
 
 void Eventloop::consider_send_snapshot(Conref c)
 {
-    // spdlog::info("
     if (signed_snapshot().has_value()) {
         auto theirPriority = c->theirSnapshotPriority;
         auto snapshotPriority = signed_snapshot()->priority;
@@ -1609,8 +1687,7 @@ void Eventloop::consider_send_snapshot(Conref c)
 
 void Eventloop::process_blockdownload_stage()
 {
-    auto r { blockDownload.pop_stage() };
-    if (r)
+    if (auto r { blockDownload.pop_stage() })
         stateServer.async_stage_request(*r);
 }
 
@@ -1639,6 +1716,8 @@ tl::expected<Conref, Error> Eventloop::try_insert_connection(OnHandshakeComplete
     c->eventloop_registered = true;
 
     if (m.convar.is_rtc()) {
+        if (config().node.enableWebRTC)
+            tl::make_unexpected(ERTCDISABLED);
         auto& c { m.convar.get_rtc() };
         auto& conId { c->verification_con_id() };
         if (conId != 0) { // conId id verified in this RTC connection
