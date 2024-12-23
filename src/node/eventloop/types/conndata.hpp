@@ -52,7 +52,8 @@ struct ConnectionJob {
     void reset_notexpired(TimerSystem& ts)
     {
         assert(!data_v.valueless_by_exception());
-        timer.reset_notexpired(ts);
+        assert(timer && ts.erase(*timer));
+        timer.reset();
         bool b = !std::holds_alternative<T>(data_v);
         try {
             data_v = std::monostate();
@@ -71,15 +72,13 @@ struct ConnectionJob {
         return std::holds_alternative<AwaitInit>(data_v);
     }
 
-    void restart_expired(Timer t, TimerSystem& ts)
+    void set_timer(Timer t)
     {
-        assert(!ts.is_disabled(t));
         timer = t;
-        return;
     }
     using data_t = std::variant<AwaitInit, std::monostate, Proberequest, Batchrequest, Blockrequest>;
     data_t data_v;
-    Timer timer;
+    std::optional<Timer> timer;
 
     template <typename T>
     requires T::is_reply
@@ -132,7 +131,7 @@ private:
     };
 };
 
-struct Ping  {
+struct Ping {
     using TimerSystem = eventloop::TimerSystem;
     using Timer = eventloop::Timer;
     struct PingV2Data {
@@ -145,10 +144,6 @@ struct Ping  {
         } extraData;
         PingV2Msg msg;
     };
-    Ping(TimerSystem& s)
-        : timer(s.disabled_timer())
-    {
-    }
     void await_pong(PingMsg msg, Timer t)
     {
         assert(!has_value());
@@ -161,7 +156,7 @@ struct Ping  {
         data = std::move(d);
         timer = t;
     }
-    Timer sleep(Timer t)
+    std::optional<Timer> sleep(Timer t)
     {
         auto tmp = timer;
         assert(has_value());
@@ -169,9 +164,9 @@ struct Ping  {
         timer = t;
         return tmp;
     }
-    void timer_expired(TimerSystem& ts)
+    void reset_timer()
     {
-        timer = ts.disabled_timer();
+        timer.reset();
     }
     auto& check(const PongV2Msg& m)
     {
@@ -194,7 +189,8 @@ struct Ping  {
         return d;
     }
 
-    eventloop::Timer timer;
+    std::optional<eventloop::Timer> timer;
+
 private:
     bool has_value() const { return !std::holds_alternative<std::monostate>(data); }
     std::variant<std::monostate, PingMsg, PingV2Data> data;

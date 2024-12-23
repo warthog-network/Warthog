@@ -25,15 +25,4 @@ TimerSystem::time_point TimerSystem::next()
     return ordered.begin()->first.wakeup_tp;
 };
 
-void Timer::reset_expired(TimerSystem& ts)
-{
-    assert(!ts.is_disabled(*this));
-    *this = ts.disabled_timer();
-}
-void Timer::reset_notexpired(TimerSystem& ts)
-{
-    assert(!ts.is_disabled(*this));
-    ts.cancel(timer_iter);
-    *this = ts.disabled_timer();
-}
 }
