@@ -14,7 +14,6 @@ ConnectionJob::ConnectionJob(uint64_t conId, TimerSystem& t)
 ConState::ConState(std::shared_ptr<ConnectionBase> p, Eventloop& e)
     : c(std::move(p))
     , job(c->id, e.timerSystem)
-    , ping(e.timerSystem)
     , usage(e.headerDownload, e.blockDownload)
 {
 }

@@ -589,7 +589,7 @@ void Eventloop::handle_event(StartTimer&& st)
 
 void Eventloop::handle_event(CancelTimer&& ct)
 {
-    timerSystem.cancel(ct.key);
+    timerSystem.erase(ct.key);
 }
 
 void Eventloop::handle_event(RTCClosed&& ct)
@@ -822,8 +822,8 @@ void Eventloop::erase_internal(Conref c, Error error)
     c->c->eventloop_erased = true;
     bool doRequests = false;
     c.job().unref_active_requests(activeRequests);
-    timerSystem.cancel(c.ping().timer);
-    timerSystem.cancel(c.job().timer);
+    timerSystem.erase(c.ping().timer);
+    timerSystem.erase(c.job().timer);
     if (headerDownload.erase(c) && !closeReason) {
         spdlog::info("Connected to {} peers (closed connection to {}, reason: {})", headerDownload.size(), c.peer().to_string(), Error(error).err_name());
         emit_disconnect(headerDownload.size(), c.id());
@@ -930,7 +930,7 @@ void Eventloop::send_ping_await_pong(Conref c)
 void Eventloop::received_pong_sleep_ping(Conref c)
 {
     auto t = timerSystem.insert(10s, TimerEvent::SendPing { c.id() });
-    timerSystem.cancel(c.ping().sleep(t));
+    timerSystem.erase(c.ping().sleep(t));
 }
 
 void Eventloop::send_requests(Conref cr, const std::vector<Request>& requests)
@@ -989,13 +989,12 @@ void Eventloop::handle_timeout(T&& t)
 }
 void Eventloop::handle_connection_timeout(Conref cr, TimerEvent::CloseNoReply&&)
 {
-    cr.job().timer = timerSystem.disabled_timer();
+    cr.job().timer.reset();
     close(cr, ETIMEOUT);
 }
 
 void Eventloop::handle_connection_timeout(Conref cr, TimerEvent::CloseNoPong&&)
 {
-    cr.ping().timer.reset_expired(timerSystem);
     close(cr, ETIMEOUT);
 }
 
@@ -1016,15 +1015,14 @@ void Eventloop::handle_timeout(TimerEvent::SendIdentityIps&&)
 
 void Eventloop::handle_connection_timeout(Conref cr, TimerEvent::SendPing&&)
 {
-    cr.ping().timer_expired(timerSystem);
+    cr.ping().reset_timer();
     return send_ping_await_pong(cr);
 }
 
 void Eventloop::handle_connection_timeout(Conref cr, TimerEvent::Expire&&)
 {
-    cr.job().restart_expired(timerSystem.insert(
-                                 (config().localDebug ? 10min : 2min), TimerEvent::CloseNoReply { cr.id() }),
-        timerSystem);
+    cr.job().set_timer(timerSystem.insert(
+                                 (config().localDebug ? 10min : 2min), TimerEvent::CloseNoReply { cr.id() }));
     assert(!cr.job().data_v.valueless_by_exception());
     std::visit(
         [&]<typename T>(T& v) {
@@ -1755,7 +1753,7 @@ void Eventloop::set_scheduled_connect_timer()
     if (wakeupTimer) {
         if (wakeupTimer->wakeup_tp() <= tp)
             return;
-        timerSystem.cancel(*wakeupTimer);
+        timerSystem.erase(*wakeupTimer);
     }
     timerSystem.insert(tp, TimerEvent::ScheduledConnect {});
 }
