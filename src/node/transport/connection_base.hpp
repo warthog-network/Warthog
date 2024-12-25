@@ -39,7 +39,7 @@ struct HandshakeState {
     uint8_t pos = 0;
     bool handshakesent = false;
     struct Parsed {
-        ProtocolVersion version;
+        NodeVersion version;
         std::optional<uint16_t> port;
     };
     Parsed parse(bool inboound);
@@ -114,7 +114,7 @@ public:
     virtual void close(Error) = 0;
     void send(Sndbuffer&& msg);
     [[nodiscard]] std::vector<Rcvbuffer> pop_messages();
-    [[nodiscard]] ProtocolVersion protocol_version() const;
+    [[nodiscard]] NodeVersion node_version() const;
 
     virtual std::shared_ptr<ConnectionBase> get_shared() = 0;
 

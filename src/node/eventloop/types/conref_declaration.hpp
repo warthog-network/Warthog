@@ -25,6 +25,7 @@ public:
     [[nodiscard]] auto& ping();
     [[nodiscard]] auto operator->();
     [[nodiscard]] auto version() const;
+    [[nodiscard]] auto protocol() const;
     [[nodiscard]] bool initialized() const;
     [[nodiscard]] bool is_tcp() const;
 

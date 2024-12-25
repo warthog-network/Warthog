@@ -265,7 +265,7 @@ uint16_t ConnectionBase::asserted_port() const
     return std::get<MessageState>(state).handshakeData.port.value();
 }
 
-ProtocolVersion ConnectionBase::protocol_version() const
+NodeVersion ConnectionBase::node_version() const
 {
     return std::get<MessageState>(state).handshakeData.version;
 }

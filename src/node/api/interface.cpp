@@ -86,7 +86,7 @@ void get_round16bit_funds(Funds f, RoundCb cb)
 
 void get_version(VersionCb cb)
 {
-    cb(NodeVersion {});
+    cb(PrintNodeVersion {});
 }
 void get_info(InfoCb cb)
 {

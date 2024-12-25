@@ -267,7 +267,8 @@ inline auto& Conref::rtc() { return iter->second.rtcState; }
 inline auto Conref::peer() const { return iter->second.c->peer_addr(); }
 inline auto& Conref::ping() { return iter->second.ping; }
 inline auto Conref::operator->() { return &(iter->second); }
-inline auto Conref::version() const { return iter->second.c->protocol_version(); }
+inline auto Conref::version() const { return iter->second.c->node_version(); }
+inline auto Conref::protocol() const { return version().protocol();}
 inline bool Conref::initialized() const { return !iter->second.job.waiting_for_init(); }
 inline bool Conref::is_tcp() const { return iter->second.c->is_tcp(); }
 inline Conref::operator const ConnectionBase&() { return *iter->second.c; }

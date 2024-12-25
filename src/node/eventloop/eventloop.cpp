@@ -825,7 +825,7 @@ void Eventloop::erase_internal(Conref c, Error error)
     timerSystem.erase(c.ping().timer);
     timerSystem.erase(c.job().timer);
     if (headerDownload.erase(c) && !closeReason) {
-        spdlog::info("Connected to {} peers (closed connection to {}, reason: {})", headerDownload.size(), c.peer().to_string(), Error(error).err_name());
+        spdlog::info("Connected to {} peers (closed connection to {} version {}, reason: {})", headerDownload.size(), c.peer().to_string(), c.version().to_string(), Error(error).err_name());
         emit_disconnect(headerDownload.size(), c.id());
     }
     if (blockDownload.erase(c))
@@ -839,7 +839,6 @@ void Eventloop::erase_internal(Conref c, Error error)
 
 void Eventloop::close(Conref cr, Error reason)
 {
-    spdlog::info("close {}: {}", cr.peer().to_string(), reason.err_name());
     if (!cr->c->eventloop_registered)
         return;
     cr->c->close(reason);
@@ -913,7 +912,7 @@ void Eventloop::send_ping_await_pong(Conref c)
         maxTCPAddressess = 5; // only accept TCP addresses from TCP peers and only if we are TCP node ourselves
 #endif
 
-    if (c.version().v1()) {
+    if (c.protocol().v1()) {
         PingMsg p(signed_snapshot() ? signed_snapshot()->priority : SignedSnapshot::Priority {}, maxTCPAddressess);
         c.ping().await_pong(p, t);
         c.send(p);
@@ -972,7 +971,7 @@ void Eventloop::send_request(Conref c, const T& req)
 
 void Eventloop::send_init(Conref cr)
 {
-    if (cr.version().v1() || cr.version().v2()) {
+    if (cr.protocol().v1() || cr.protocol().v2()) {
         cr.send(InitMsgGeneratorV1(consensus()));
     } else {
         cr.send(InitMsgGeneratorV3(consensus(), config().node.enableWebRTC));
@@ -1022,7 +1021,7 @@ void Eventloop::handle_connection_timeout(Conref cr, TimerEvent::SendPing&&)
 void Eventloop::handle_connection_timeout(Conref cr, TimerEvent::Expire&&)
 {
     cr.job().set_timer(timerSystem.insert(
-                                 (config().localDebug ? 10min : 2min), TimerEvent::CloseNoReply { cr.id() }));
+        (config().localDebug ? 10min : 2min), TimerEvent::CloseNoReply { cr.id() }));
     assert(!cr.job().data_v.valueless_by_exception());
     std::visit(
         [&]<typename T>(T& v) {
@@ -1083,15 +1082,15 @@ void Eventloop::handle_msg(Conref c, InitMsgV1&& m)
     log_communication("{} handle init: height {}, work {}", c.str(), m.chainLength.value(), m.worksum.getdouble());
     c.job().reset_notexpired<AwaitInit>(timerSystem);
 
-    if (!c.version().v1() && !c.version().v2()) // must have at least version 3 for this message type
+    if (!c.protocol().v1() && !c.protocol().v2()) // must have at least version 3 for this message type
         throw Error(EINITV1);
     c->chain.initialize(m, chains);
     headerDownload.insert(c);
     blockDownload.insert(c);
     emit_connect(headerDownload.size(), c);
-    spdlog::info("Connected to {} peers (new peer {})", headerDownload.size(), c.peer().to_string());
+    spdlog::info("Connected to {} peers (new peer {} version {})", headerDownload.size(), c.peer().to_string(), c.version().to_string());
     if (rtc_enabled(c)) {
-        if (rtc.ips && c.version().v2()) {
+        if (rtc.ips && c.protocol().v2()) {
             c->rtcState.enanabled = true; // v2 has rtc enabled by default
             log_rtc("Sending own identity");
             c.send(RTCIdentity(*rtc.ips));
@@ -1106,7 +1105,7 @@ void Eventloop::handle_msg(Conref c, InitMsgV1&& m)
 void Eventloop::handle_msg(Conref c, InitMsgV3&& m)
 {
     log_communication("{} handle init: height {}, work {}", c.str(), m.chain_length().value(), m.worksum().getdouble());
-    if (c.version().v1() || c.version().v2()) // must have at least version 3 for this message type
+    if (c.protocol().v1() || c.protocol().v2()) // must have at least version 3 for this message type
         throw Error(EINITV3);
     c.job().reset_notexpired<AwaitInit>(timerSystem);
     c->rtcState.enanabled = m.rtc_enabled();
@@ -1408,7 +1407,7 @@ void Eventloop::send_schedule_signaling_lists()
     std::vector<std::pair<Conref, size_t>> quotasVec;
     std::vector<Conref> conrefs;
     for (auto c : connections.initialized()) {
-        if (c.version().v1())
+        if (c.protocol().v1())
             continue;
         auto avail { c.rtc().their.quota.available() };
         quotasVec.push_back({ c, avail });
