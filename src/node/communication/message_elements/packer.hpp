@@ -96,7 +96,7 @@ public:
 };
 
 template <size_t code, typename... Ts>
-using MsgCombine = MsgPacker<code, Ts...>::type;
+using MsgCombine = typename MsgPacker<code, Ts...>::type;
 
 template <size_t code, typename... Ts>
 class MsgCombineRequest : public MsgCombine<code, RandNonce, Ts...> {

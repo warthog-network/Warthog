@@ -417,7 +417,8 @@ RollbackResult State::rollback(const Height newlength) const
     auto ids { db.consensus_block_ids(beginHeight, endHeight) };
     assert(ids.size() == endHeight - beginHeight);
     std::optional<AccountId> oldAccountStart;
-    std::map<AccountId, Funds> balanceMap;
+    std::optional<TokenId> oldTokenStart;
+    std::map<AccountToken, Funds> balanceMap;
     for (size_t i = 0; i < ids.size(); ++i) {
         const auto id { ids[i] };
         NonzeroHeight height = beginHeight + i;
@@ -443,19 +444,19 @@ RollbackResult State::rollback(const Height newlength) const
         }
 
         // roll back state modifications
-        RollbackView rbv(undo);
+        RollbackView rbv(undo, true);
         if (i == 0) {
             oldAccountStart = rbv.getBeginNewAccounts();
+            oldTokenStart = rbv.getBeginNewTokens();
         }
-        const size_t N = rbv.nAccounts();
-        for (size_t j = 0; j < N; ++j) {
-            auto entry = rbv.accountBalance(j);
-            const Funds bal { entry.balance() };
-            const AccountId id { entry.id() };
-            if (id < oldAccountStart) {
-                balanceMap.try_emplace(id, bal);
-            }
-        }
+        rbv.foreach_balance_update(
+            [&](const IdBalance& entry) {
+                const Funds& bal { entry.balance };
+                const AccountToken& id { entry.id };
+                if (id.accId < oldAccountStart.value() && id.tokenId < oldTokenStart) {
+                    balanceMap.try_emplace(id, bal);
+                }
+            });
     }
     db.delete_history_from((newlength + 1).nonzero_assert());
     db.delete_state_from(*oldAccountStart);

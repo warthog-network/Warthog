@@ -292,12 +292,7 @@ private:
 public:
     ChainDB(const std::string& path);
     [[nodiscard]] ChainDBTransaction transaction();
-    void set_balance(AccountId stateId, Funds newbalance)
-    {
-        stmtStateSetBalance.run(newbalance, stateId);
-    };
-    void insert_state_entry(const AddressView address, Funds balance,
-        AccountId verifyNextStateId);
+    void insert_account(const AddressView address, AccountId verifyNextStateId);
 
     void delete_state_from(AccountId fromAccountId);
     // void setStateBalance(AccountId accountId, Funds balance);
@@ -305,10 +300,10 @@ public:
 
     // token functions
     void insert_new_token(TokenId verifyNextTokenId, NonzeroHeight height, AccountId creatorId, TokenName name, TokenMintType type);
-    void insert_token_balance(TokenId, AccountId, Funds balance);
-    std::optional<Funds> get_token_balance(TokenId, AccountId);
+    [[nodiscard]] BalanceId insert_token_balance(TokenId, AccountId, Funds balance);
+    void set_token_balance(TokenId, AccountId, Funds balance);
+    std::optional<std::pair<BalanceId, Funds>> get_token_balance(TokenId, AccountId);
     std::vector<std::pair<TokenId, Funds>> get_tokens(AccountId, size_t limit);
-    void update_token_balance(TokenId, AccountId, Funds balance);
     std::vector<std::pair<AccountId, Funds>> get_richlist(TokenId, size_t limit);
 
     std::tuple<std::vector<Batch>, HistoryHeights, AccountHeights>
@@ -372,7 +367,7 @@ public:
     // set
     void insert_bad_block(NonzeroHeight height, const HeaderView header);
 
-    AccountId next_state_id() const { return AccountId(cache.maxStateId + 1); };
+    AccountId next_state_id() const { return AccountId(cache.maxAccountId + 1); };
     TokenId next_token_id() const { return TokenId(cache.maxTokenId + 1); };
     HistoryId insertHistory(const HashView hash,
         const std::vector<uint8_t>& data);
@@ -388,6 +383,8 @@ public:
     // BELOW METHODS REQUIRED FOR INDEXING NODES
     std::optional<AccountFunds> lookup_address(const AddressView address) const; // for indexing nodes
     std::vector<std::tuple<HistoryId, Hash, std::vector<uint8_t>>> lookup_history_100_desc(AccountId account_id, int64_t beforeId);
+    void insert_fork_event(int64_t id, Height height, size_t totalTokens);
+    void delete_fork_events(Height beginHeight);
 
 private:
     [[nodiscard]] bool schedule_exists(BlockId dk);
@@ -408,13 +405,26 @@ private:
             db.exec("CREATE TABLE IF NOT EXISTS `Blocks` ( `height` INTEGER "
                     "NOT NULL, `header` BLOB NOT NULL, `body` BLOB NOT NULL, "
                     "`undo` BLOB DEFAULT null, `hash` BLOB NOT NULL UNIQUE )");
+
+            db.exec("CREATE TABLE IF NOT EXISTS \"Pools\" ( `tokenId` INTEGER "
+                    "NOT NULL, `base` INTEGER NOT NULL, `quote` INTEGER NOT NULL, " 
+                    "PRIMARY KEY(`tokenId`))");
+            db.exec("CREATE TABLE IF NOT EXISTS \"ForkEvents\" ( `id` INTEGER "
+                    "NOT NULL, `height` INTEGER NOT NULL, `totalTokens` INTEGER"
+                    "NOT NULL, PRIMARY KEY(`id`))");
+            db.exec("CREATE TABLE IF NOT EXISTS \"ForkSnapshots\" ( `id` INTEGER "
+                    "NOT NULL, `token_id` INTEGER NOT NULL, `forkedToken` INTEGER"
+                    "NOT NULL, PRIMARY KEY(`id`))");
+            db.exec("CREATE TABLE IF NOT EXISTS \"TokenForks\" ( `id` INTEGER "
+                    "NOT NULL, `eventId` INTEGER NOT NULL, `tokenId` INTEGER NOT "
+                    "NULL, `forkedTokenId` INTEGER NOT NULL, PRIMARY KEY(`id`))");
             db.exec("CREATE TABLE IF NOT EXISTS \"Tokens\" ( `height` INTEGER NOT "
                     "NULL, `creator_id` INTEGER NOT NULL, `name` TEXT NOT NULL UNIQUE, `type` INTEGER NOT NULL)");
-            db.exec("CREATE TABLE IF NOT EXISTS \"TokenBalance\" ( `account_id` INTEGER NOT NULL, `token_id` INTEGER NOT NULL, `balance` INTEGER NOT NULL)");
-            db.exec("CREATE UNIQUE INDEX IF NOT EXISTS `TokenBalance_index` ON "
-                    "`TokenBalance` (`account_id` ASC, `token_id` ASC)");
-            db.exec("CREATE INDEX IF NOT EXISTS `TokenBalance_index2` ON "
-                    "`TokenBalance` (`token_id`, `balance` DESC)");
+            db.exec("CREATE TABLE IF NOT EXISTS \"Balance\" (`id` INTEGER NOT NULL, `account_id` INTEGER NOT NULL, `token_id` INTEGER NOT NULL, `balance` INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(`id`))");
+            db.exec("CREATE UNIQUE INDEX IF NOT EXISTS `Balance_index` ON "
+                    "`Balance` (`account_id` ASC, `token_id` ASC)");
+            db.exec("CREATE INDEX IF NOT EXISTS `Balance_index2` ON "
+                    "`Balance` (`token_id`, `balance` DESC)");
             db.exec("CREATE TABLE IF NOT EXISTS \"Consensus\" ( `height` INTEGER NOT "
                     "NULL, `block_id` INTEGER NOT NULL, `history_cursor` INTEGER NOT "
                     "NULL, `account_cursor` INTEGER NOT NULL, PRIMARY KEY(`height`) )");
@@ -424,9 +434,8 @@ private:
                     "(-1,x'"
                     "0000000000000000000000000000000000000000000000000000000000"
                     "000000',0,0);");
-            db.exec("CREATE TABLE IF NOT EXISTS `State` ( `address` BLOB NOT "
-                    "NULL UNIQUE, "
-                    "`balance` INTEGER NOT NULL DEFAULT 0 )");
+            db.exec("CREATE TABLE IF NOT EXISTS `Accounts` ( `id` INTEGER NOT NULL, "
+                    "`address` BLOB NOT NULL UNIQUE, PRIMARY KEY(`id`))");
             db.exec("CREATE TABLE IF NOT EXISTS `Badblocks` ( `height` INTEGER, "
                     "`header` "
                     "BLOB UNIQUE )");
@@ -441,9 +450,10 @@ private:
         }
     } createTables;
     struct Cache {
-        AccountId maxStateId;
+        AccountId maxAccountId;
         TokenId maxTokenId; // TODO: initialize this variable
         HistoryId nextHistoryId;
+        BalanceId nextBalanceId;
         DeletionKey deletionKey;
         static Cache init(SQLite::Database& db);
     } cache;
@@ -481,9 +491,8 @@ private:
     Statement2 stmtDeleteGCBlocks;
     Statement2 stmtDeleteGCRefs;
 
-    Statement2 stmtStateInsert;
-    Statement2 stmtStateDeleteFrom;
-    Statement2 stmtStateSetBalance;
+    Statement2 stmtAccountInsert;
+    Statement2 stmtAccountDeleteFrom;
     Statement2 stmtBadblockInsert;
     mutable Statement2 stmtBadblockGet;
     mutable Statement2 stmtAccountLookup;
@@ -501,6 +510,9 @@ private:
 
     mutable Statement2 stmtAddressLookup;
     mutable Statement2 stmtHistoryById;
+
+    mutable Statement2 stmtInsertForkEvent;
+    mutable Statement2 stmtDeleteForkEvents;
 };
 class ChainDBTransaction {
 public:

@@ -15,21 +15,26 @@
 
 ChainDB::Cache ChainDB::Cache::init(SQLite::Database& db)
 {
-    auto maxStateId = AccountId(int64_t(db.execAndGet("SELECT coalesce(max(ROWID),0) FROM `State`")
-                                            .getInt64()));
+    auto maxaAccountId = AccountId(int64_t(db.execAndGet("SELECT coalesce(max(id),0) FROM `Accounts`")
+                                               .getInt64()));
 
     auto maxTokenId_i64 { int64_t(db.execAndGet("SELECT coalesce(max(ROWID),0) FROM `Tokens`").getInt64()) };
     assert(maxTokenId_i64 >= 0 && maxTokenId_i64 < std::numeric_limits<uint32_t>::max());
     auto maxTokenId { TokenId(maxTokenId_i64) };
+
+    auto maxBalanceId_i64 { int64_t(db.execAndGet("SELECT coalesce(max(ROWID)+1,1) FROM `Balance`").getInt64()) };
+    assert(maxTokenId_i64 >= 0 && maxTokenId_i64 < std::numeric_limits<uint32_t>::max());
+    auto maxBalanceId { BalanceId(maxBalanceId_i64) };
 
     int64_t hid = db.execAndGet("SELECT coalesce(max(id)+1,1) FROM History")
                       .getInt64();
     if (hid < 0)
         throw std::runtime_error("Database corrupted, negative history id.");
     return {
-        .maxStateId { maxStateId },
+        .maxAccountId { maxaAccountId },
         .maxTokenId { maxTokenId },
         .nextHistoryId = HistoryId { uint64_t(hid) },
+        .nextBalanceId { maxBalanceId },
         .deletionKey { 2 }
     };
 }
@@ -53,11 +58,11 @@ ChainDB::ChainDB(const std::string& path)
     , stmtBlockByHash(
           db, "SELECT ROWID, `height`, `header`, `body` FROM \"Blocks\" WHERE `hash`=?;")
     , stmtTokenInsert(db, "INSERT INTO \"Tokens\" ( `ROWID`, `height`, `creator_id`, `name`, `type`) VALUES (?,?,?,?,?)")
-    , stmtTokenInsertBalance(db, "INSERT INTO \"TokenBalance\" ( `token_id`, `account_id`, `balance`) VALUES (?,?,?)")
-    , stmtTokenSelectBalance(db, "SELECT `balance` FROM `TokenBalance` WHERE `token_id`=? AND `account_id`=?")
-    , stmtAccountSelectTokens(db, "SELECT `token_id`, `balance` FROM `TokenBalance` WHERE `account_id`=? LIMIT ?")
-    , stmtTokenUpdateBalance(db, "UPDATE `TokenBalance` SET `balance`=? WHERE `token_id`=? AND `account_id`=?")
-    , stmtTokenSelectRichlist(db, "SELECT `account_id`, `balance` FROM `TokenBalance` WHERE `token_id`=? ORDER BY `balance` DESC LIMIT ?")
+    , stmtTokenInsertBalance(db, "INSERT INTO \"Balance\" ( `id`, `token_id`, `account_id`, `balance`) VALUES (?,?,?)")
+    , stmtTokenSelectBalance(db, "SELECT `id`, `balance` FROM `Balance` WHERE `token_id`=? AND `account_id`=?")
+    , stmtAccountSelectTokens(db, "SELECT `token_id`, `balance` FROM `Balance` WHERE `account_id`=? LIMIT ?")
+    , stmtTokenUpdateBalance(db, "UPDATE `Balance` SET `balance`=? WHERE `token_id`=? AND `account_id`=?")
+    , stmtTokenSelectRichlist(db, "SELECT `account_id`, `balance` FROM `Balance` WHERE `token_id`=? ORDER BY `balance` DESC LIMIT ?")
     , stmtConsensusHeaders(db, "SELECT c.height, c.history_cursor, c.account_cursor, b.header "
                                "FROM `Blocks` b JOIN `Consensus` c ON "
                                "b.ROWID=c.block_id ORDER BY c.height ASC;")
@@ -89,18 +94,17 @@ ChainDB::ChainDB(const std::string& path)
               "`Deleteschedule` WHERE `deletion_key`<=? AND `deletion_key` > 0 )")
     , stmtDeleteGCRefs(db, "DELETE  FROM `Deleteschedule` WHERE `deletion_key`<=? AND `deletion_key` > 0")
 
-    , stmtStateInsert(db, "INSERT INTO \"State\" ( `ROWID`, `address`, "
-                          "`balance`) VALUES (?,?,?)")
-    , stmtStateDeleteFrom(db, "DELETE FROM `State` WHERE `ROWID`>=?")
-    , stmtStateSetBalance(db, "UPDATE `State` SET `balance`=? WHERE `ROWID`=?")
+    , stmtAccountInsert(db, "INSERT INTO `Accounts` ( `id`, `address`"
+                            ") VALUES (?,?)")
+    , stmtAccountDeleteFrom(db, "DELETE FROM `Accounts` WHERE `id`>=?")
 
     , stmtBadblockInsert(
           db, "INSERT INTO `Badblocks` (`height`, `header`) VALUES (?,?)")
     , stmtBadblockGet(db, "SELECT `height`, `header` FROM `Badblocks`")
     , stmtAccountLookup(
-          db, "SELECT `Address`, `Balance` FROM `State` WHERE ROWID=?")
+          db, "SELECT `Address`, `Balance` FROM `Accounts` WHERE id=?")
     , stmtRichlistLookup(
-          db, "SELECT Address, Balance FROM `State` ORDER BY `Balance` DESC LIMIT ?")
+          db, "SELECT Address, Balance FROM `Accounts` ORDER BY `Balance` DESC LIMIT ?")
     , stmtHistoryInsert(db, "INSERT INTO `History` (`id`,`hash`, `data`"
                             ") VALUES (?,?,?)")
     , stmtHistoryDeleteFrom(db, "DELETE FROM `History` WHERE `id`>=?")
@@ -121,10 +125,12 @@ ChainDB::ChainDB(const std::string& path)
     // BELOW STATEMENTS REQUIRED FOR INDEXING NODES
     //
     , stmtAddressLookup(
-          db, "SELECT `ROWID`,`balance` FROM `State` WHERE `address`=?")
+          db, "SELECT `ROWID`,`balance` FROM `Accounts` WHERE `address`=?")
     , stmtHistoryById(db, "SELECT h.id, `hash`,`data` FROM `History` `h` JOIN "
                           "`AccountHistory` `ah` ON h.id=`ah`.history_id WHERE "
                           "ah.`account_id`=? AND h.id<? ORDER BY h.id DESC LIMIT 100")
+    , stmtInsertForkEvent(db, "INSERT INTO \"ForkEvents\" (`id`, `height`, `totalTokens`) VALUES (?,?,?)")
+    , stmtDeleteForkEvents(db, "DELETE FROM \"ForkEvents\" WHERE `height`>=?")
 {
 
     //
@@ -132,23 +138,22 @@ ChainDB::ChainDB(const std::string& path)
     db.exec("UPDATE `Deleteschedule` SET `deletion_key`=1");
 }
 
-void ChainDB::insert_state_entry(const AddressView address, Funds balance,
-    AccountId verifyNextStateId)
+void ChainDB::insert_account(const AddressView address, AccountId verifyNextAccountId)
 {
-    if (cache.maxStateId + 1 != verifyNextStateId)
+    if (cache.maxAccountId + 1 != verifyNextAccountId)
         throw std::runtime_error("Internal error, state id inconsistent.");
-    stmtStateInsert.run(cache.maxStateId + 1, address, balance);
-    cache.maxStateId++;
+    stmtAccountInsert.run(cache.maxAccountId + 1, address);
+    cache.maxAccountId++;
 }
 
 void ChainDB::delete_state_from(AccountId fromAccountId)
 {
     assert(fromAccountId.value() > 0);
-    if (cache.maxStateId + 1 < fromAccountId) {
-        spdlog::error("BUG: Deleting nothing, fromAccountId = {} > {} = cache.maxStateId", fromAccountId.value(), cache.maxStateId.value());
+    if (cache.maxAccountId + 1 < fromAccountId) {
+        spdlog::error("BUG: Deleting nothing, fromAccountId = {} > {} = cache.maxAccountId", fromAccountId.value(), cache.maxAccountId.value());
     } else {
-        cache.maxStateId = fromAccountId - 1;
-        stmtStateDeleteFrom.run(fromAccountId);
+        cache.maxAccountId = fromAccountId - 1;
+        stmtAccountDeleteFrom.run(fromAccountId);
     }
 }
 
@@ -316,15 +321,20 @@ void ChainDB::insert_new_token(TokenId verifyNextTokenId, NonzeroHeight height, 
     cache.maxTokenId++;
 }
 
-void ChainDB::insert_token_balance(TokenId tokenId, AccountId accountId, Funds balance)
+BalanceId ChainDB::insert_token_balance(TokenId tokenId, AccountId accountId, Funds balance)
 {
-    stmtTokenInsertBalance.run(tokenId, accountId, balance);
+    stmtTokenInsertBalance.run(cache.nextBalanceId, tokenId, accountId, balance);
+    return cache.nextBalanceId++;
 }
 
-std::optional<Funds> ChainDB::get_token_balance(TokenId tokenId, AccountId accountId)
+std::optional<std::pair<BalanceId, Funds>> ChainDB::get_token_balance(TokenId tokenId, AccountId accountId)
 {
-    return stmtTokenSelectBalance.one(tokenId, accountId);
+    auto res { stmtTokenSelectBalance.one(tokenId, accountId) };
+    if (!res.has_value())
+        return {};
+    return std::pair { res.get<BalanceId>(0), res.get<Funds>(1) };
 }
+
 std::vector<std::pair<TokenId, Funds>> ChainDB::get_tokens(AccountId accountId, size_t limit)
 {
     std::vector<std::pair<TokenId, Funds>> res;
@@ -335,7 +345,8 @@ std::vector<std::pair<TokenId, Funds>> ChainDB::get_tokens(AccountId accountId, 
     return res;
 }
 
-void ChainDB::update_token_balance(TokenId tokenId, AccountId accountId, Funds balance){
+void ChainDB::set_token_balance(TokenId tokenId, AccountId accountId, Funds balance)
+{
     stmtTokenUpdateBalance.run(balance, tokenId, accountId);
 }
 
@@ -454,6 +465,16 @@ std::vector<std::tuple<HistoryId, Hash, std::vector<uint8_t>>> ChainDB::lookup_h
         },
         accountId, beforeId);
     return out;
+}
+
+void ChainDB::insert_fork_event(int64_t id, Height height, size_t totalTokens)
+{
+    stmtInsertForkEvent.run(id, height, totalTokens);
+}
+
+void ChainDB::delete_fork_events(Height fromHeight)
+{
+    stmtDeleteForkEvents.run(fromHeight);
 }
 
 AddressFunds ChainDB::fetch_account(AccountId id) const

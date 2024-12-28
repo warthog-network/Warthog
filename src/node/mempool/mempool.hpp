@@ -1,6 +1,6 @@
 #pragma once
 #include "comparators.hpp"
-#include "defi/token/id.hpp"
+#include "defi/token/account_token.hpp"
 #include "general/address_funds.hpp"
 #include "mempool/log.hpp"
 #include <set>
@@ -8,10 +8,6 @@ namespace chainserver {
 struct TransactionIds;
 }
 namespace mempool {
-struct AccountToken {
-    AccountId accId;
-    TokenId tokenId;
-};
 
 struct LockedBalance {
     LockedBalance(const Funds& balance)

@@ -1,7 +1,13 @@
 
 include_wh=[include_trezorcrypto,include_directories('./src')]
+
+src_defi = files([
+'./src/defi/matching.cpp'
+])
+
 src_wh=[
     src_trezorcrypto,
+    src_defi,
   files(
   [
     './platformassert.cpp',

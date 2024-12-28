@@ -419,7 +419,7 @@ api::Block BlockApplier::apply_block(const BodyView& bv, HeaderView hv, NonzeroH
 
         // insert new balances
         for (auto& [addr, bal, accId] : prepared.insertBalances) {
-            db.insert_state_entry(addr, bal, accId);
+            db.insert_account(addr, bal, accId);
             balanceUpdates.insert_or_assign(accId, bal);
         }
 
