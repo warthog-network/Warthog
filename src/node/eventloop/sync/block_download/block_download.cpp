@@ -246,7 +246,7 @@ bool Downloader::can_do_requests()
         && reachable_length() >= focus.height_begin();
 }
 
-void Downloader::do_peer_requests(RequestSender s) // OK?
+void Downloader::do_block_requests(RequestSender s) // OK?
 {
     if (!can_do_requests() || s.finished())
         return;

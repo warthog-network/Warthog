@@ -230,7 +230,7 @@ void Eventloop::update_chain(Append&& m)
     log_chain_length();
     for (auto c : connections.all()) {
         try {
-            if (c.initialized()) 
+            if (c.initialized())
                 c->chain.on_consensus_append(chains);
         } catch (ChainError e) {
             close(c, e);
@@ -251,7 +251,7 @@ void Eventloop::update_chain(Fork&& fork)
     log_chain_length();
     for (auto c : connections.all()) {
         try {
-            if (c.initialized()) 
+            if (c.initialized())
                 c->chain.on_consensus_fork(msg.forkHeight, chains);
             c.send(msg);
         } catch (ChainError e) {
@@ -270,7 +270,7 @@ void Eventloop::update_chain(RollbackData&& rd)
     if (msg) {
         log_chain_length();
         for (auto c : connections.all()) {
-            if (c.initialized()) 
+            if (c.initialized())
                 c->chain.on_consensus_shrink(chains);
             c.send(*msg);
         }
@@ -607,14 +607,14 @@ void Eventloop::send_requests(Conref cr, const std::vector<Request>& requests)
 
 void Eventloop::do_requests()
 {
-start:
-    auto offenders { headerDownload.do_requests(sender()) };
-    if (offenders.size() > 0) {
+    while (true) {
+        auto offenders { headerDownload.do_header_requests(sender()) };
+        if (offenders.size() == 0)
+            break;
         for (auto& o : offenders)
             close(o);
-        goto start;
-    }
-    blockDownload.do_peer_requests(sender());
+    };
+    blockDownload.do_block_requests(sender());
     headerDownload.do_probe_requests(sender());
     blockDownload.do_probe_requests(sender());
 }
