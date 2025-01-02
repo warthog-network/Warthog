@@ -1,5 +1,6 @@
 #pragma once
 #include <string>
+#include <cstdint>
 
 class ProtocolVersion;
 class NodeVersion {
