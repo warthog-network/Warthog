@@ -54,7 +54,7 @@ public:
     //////////////////////////////
     // Getters
     [[nodiscard]] std::optional<stage_operation::Operation> pop_stage();
-    void do_peer_requests(RequestSender);
+    void do_block_requests(RequestSender);
     void do_probe_requests(RequestSender);
     const Worksum& get_reachable_totalwork() const { return reachableWork; }
 

@@ -944,14 +944,14 @@ void Eventloop::send_requests(Conref cr, const std::vector<Request>& requests)
 
 void Eventloop::do_requests()
 {
-start:
-    auto offenders { headerDownload.do_requests(sender()) };
-    if (offenders.size() > 0) {
+    while (true) {
+        auto offenders { headerDownload.do_header_requests(sender()) };
+        if (offenders.size() == 0)
+            break;
         for (auto& o : offenders)
             close(o);
-        goto start;
-    }
-    blockDownload.do_peer_requests(sender());
+    };
+    blockDownload.do_block_requests(sender());
     headerDownload.do_probe_requests(sender());
     blockDownload.do_probe_requests(sender());
 }

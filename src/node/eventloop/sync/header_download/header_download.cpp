@@ -261,13 +261,14 @@ std::optional<Conref> Downloader::try_send(ConnectionFinder& f, std::vector<Chai
 
             // consider probe data if applicable
             if (pd && pd->qiter == rd.queueEntry.iter) {
+                assert(rd.slot.upper() + 1 > pd->fork_range().lower()); // condition from can_download
                 auto br { ProbeBalanced::slot_batch_request(*pd, pd->dsc,
                     rd.slot, rd.finalHeader) };
                 if (br) {
                     f.s.send(cr, *br);
                     clear_connection_probe(cr);
                     f.conIndex = index;
-                    return  cr;
+                    return cr;
                 }
             } else {
                 Batchrequest br(desc, rd.slot, rd.finalHeader);
@@ -286,6 +287,7 @@ bool Downloader::try_final_request(Lead_iter li, RequestSender& sender)
 {
     // convenience abbreviations
     LeaderNode& ln = *li;
+    auto& pd = ln.probeData;
     const NonzeroSnapshot& s = ln.snapshot;
     auto& desc = s.descripted;
     Batchslot descriptedSlot = desc->grid().slot_end();
@@ -299,15 +301,21 @@ bool Downloader::try_final_request(Lead_iter li, RequestSender& sender)
     {
         // consider updating probeData with cacheMatch
         if (ln.snapshot.descripted == ln.cr.chain().descripted()) {
-            auto& blfr = ln.cr.chain().stage_fork_range();
+
+            auto& sfr = ln.cr.chain().stage_fork_range();
+            if (pd.fork_range().lower() < sfr.lower())
+                pd = ProbeData { sfr, chains.stage_pin() };
+
             auto& cfr = ln.cr.chain().consensus_fork_range();
-            if (ln.probeData.fork_range().lower() < blfr.lower())
-                li->probeData = ProbeData { blfr, chains.stage_pin() };
-            else if (ln.probeData.fork_range().lower() < cfr.lower())
-                li->probeData = ProbeData { cfr, chains.consensus_pin() };
+            if (pd.fork_range().lower() < cfr.lower())
+                pd = ProbeData { cfr, chains.consensus_pin() };
         }
 
-        auto& pd = ln.probeData;
+        // same condition as in can_download
+        // a leader by definition must have more total work and 
+        // more total length than the chains we know
+        assert(s.length + 1 > pd.fork_range().lower()); 
+
         auto br { ProbeBalanced::final_partial_batch_request(pd, desc, s.length, ln.snapshot.worksum) };
         if (br) {
             sender.send(ln.cr, *br);
@@ -329,6 +337,7 @@ void Downloader::do_probe_requests(RequestSender s)
         const auto& pd { li.probeData };
         auto& dsc { li.snapshot.descripted };
         Height chainLength { li.snapshot.descripted->chain_length() };
+        assert(chainLength + 1 > pd.fork_range().lower()); // condition from can_download
         auto pr { ProbeBalanced::probe_request(pd, dsc, chainLength) };
         if (pr)
             s.send(cr, *pr);
@@ -339,39 +348,48 @@ void Downloader::do_probe_requests(RequestSender s)
         if (cr.job())
             continue;
         assert(data(cr).probeData);
-
         const auto& pd { *data(cr).probeData };
+
         // we want upper slot height as maxLength because complete batches are shared
         // automatically, such that probe requests can only succeed within that batch
         auto maxLength { Batchslot(pd.fork_range().lower()).upper() };
+        assert(maxLength + 1 > pd.fork_range().lower()); // condition from can_download
         auto pr { ProbeBalanced::probe_request(pd, pd.dsc, maxLength) };
         if (pr)
             s.send(cr, *pr);
     }
 }
 
-std::vector<ChainOffender> Downloader::do_requests(RequestSender s)
+// final requests are requests for partial header batches which are
+// not complete. They can only be handled by the leader itself, i.e.
+// are exclusive, because we cannot be sure other nodes have exactly
+// the same chain (especially last block).
+bool Downloader::do_exclusive_final_requests(RequestSender& s)
 {
-    std::vector<ChainOffender> res;
-
-    // highest priority for leaders to handle their own probe or final request
     for (Conref cr : connections) {
         if (s.finished())
-            return res;
-        if (cr.job()
-            || !is_leader(cr)
-            || try_final_request(data(cr).leaderIter, s))
-            continue;
+            return true;
+        if (!cr.job() && is_leader(cr))
+            try_final_request(data(cr).leaderIter, s);
     }
+    return s.finished();
+}
 
+// grid requests are requests for a complete batch that is identified
+// by a final hash (last hash in the batch) and saved in the grid
+// of chain hashes transmitted to us by each node.
+// Many connections can be used to retrieve the header batch.
+std::vector<ChainOffender> Downloader::do_shared_grid_requests(RequestSender& s)
+{
+    std::vector<ChainOffender> res;
     ConnectionFinder cf(s, connections);
     for (auto& ln : leaderList) {
         for (auto& q : ln.queued()) {
             if (s.finished())
                 return res;
-            ReqData rd(q);
             if (q.node().has_pending_request())
                 continue;
+            ReqData rd(q);
             if (q.is_solo()) {
                 // specifically deal with solo batches:
                 // cache for later request pins
@@ -384,6 +402,16 @@ std::vector<ChainOffender> Downloader::do_requests(RequestSender s)
         }
     }
     return res;
+}
+
+std::vector<ChainOffender> Downloader::do_header_requests(RequestSender s)
+{
+    // highest priority for exclusive requests
+    // to prevent these connections being busy with
+    // other requests
+    if (do_exclusive_final_requests(s))
+        return {};
+    return do_shared_grid_requests(s);
 }
 
 void Downloader::on_request_expire(Conref cr, const Batchrequest&)

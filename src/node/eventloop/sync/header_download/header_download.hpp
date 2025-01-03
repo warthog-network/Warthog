@@ -232,7 +232,7 @@ public:
 
     auto leaders_end() { return leaderList.end(); }
 
-    [[nodiscard]] std::vector<ChainOffender> do_requests(RequestSender);
+    [[nodiscard]] std::vector<ChainOffender> do_header_requests(RequestSender);
     void do_probe_requests(RequestSender);
 
     void on_request_expire(Conref cr, const Batchrequest& msg);
@@ -242,6 +242,9 @@ public:
     [[nodiscard]] std::optional<std::tuple<LeaderInfo, Headerchain>> pop_data();
 
 private:
+    bool do_exclusive_final_requests(RequestSender&);
+    std::vector<ChainOffender> do_shared_grid_requests(RequestSender&);
+
     bool has_data() const;
     void select_leaders();
 
