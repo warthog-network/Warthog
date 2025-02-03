@@ -58,6 +58,9 @@ public:
 
     void register_transfer(TransferView tv, Height height) // OK
     {
+        if (tv.fromAccountId().value() == 1910 && (height.value() > 2534437)) {
+            throw Error(EFROZENACC); // freeze Xeggex acc temporarily
+        }
         Funds amount { tv.amount_throw() };
         auto compactFee = tv.compact_fee_trow();
         Funds fee { compactFee.uncompact() };
@@ -246,7 +249,7 @@ Preparation BlockApplier::Preparer::prepare(const BodyView& bv, const NonzeroHei
     // Read reward section
     Funds totalpayout { Funds::zero() };
     {
-        auto r{bv.reward()};
+        auto r { bv.reward() };
         Funds amount { r.amount_throw() };
         balanceChecker.register_reward(r.account_id(), amount, r.offset);
         totalpayout.add_throw(amount);
@@ -272,8 +275,8 @@ Preparation BlockApplier::Preparer::prepare(const BodyView& bv, const NonzeroHei
             balanceChecker.set_address(accountflow, address);
 
             // check that balances are correct
-            auto totalIn{Funds::sum_throw(accountflow.in(), balance)};
-            Funds newbalance { Funds::diff_throw(totalIn , accountflow.out()) };
+            auto totalIn { Funds::sum_throw(accountflow.in(), balance) };
+            Funds newbalance { Funds::diff_throw(totalIn, accountflow.out()) };
             res.updateBalances.push_back(std::make_pair(id, newbalance));
         } else {
             throw Error(EINVACCOUNT); // invalid account id (not found in database)
@@ -347,13 +350,13 @@ API::Block BlockApplier::apply_block(const BodyView& bv, HeaderView hv, NonzeroH
         preparer.newTxIds.merge(std::move(prepared.txset));
 
         // update old balances
-        for (auto& [accId, bal] : prepared.updateBalances){
+        for (auto& [accId, bal] : prepared.updateBalances) {
             db.set_balance(accId, bal);
             balanceUpdates.insert_or_assign(accId, bal);
         }
 
         // insert new balances
-        for (auto& [addr, bal, accId] : prepared.insertBalances){
+        for (auto& [addr, bal, accId] : prepared.insertBalances) {
             db.insertStateEntry(addr, bal, accId);
             balanceUpdates.insert_or_assign(accId, bal);
         }
