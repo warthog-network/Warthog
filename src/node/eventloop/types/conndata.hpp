@@ -1,17 +1,23 @@
 #pragma once
 
+#include "communication/buffers/sndbuffer.hpp"
 #include "eventloop/peer_chain.hpp"
 #include "eventloop/sync/block_download/connection_data.hpp"
 #include "eventloop/sync/header_download/connection_data.hpp"
 #include "eventloop/timer.hpp"
 #include "mempool/subscription_declaration.hpp"
+#include <deque>
 
 class Timerref {
 public:
     Timerref(Timer& t)
-        : timer_iter(t.end()) {}
+        : timer_iter(t.end())
+    {
+    }
     Timerref(Timer::iterator iter)
-        : timer_iter(iter) {}
+        : timer_iter(iter)
+    {
+    }
     Timer::iterator& timer_ref() { return timer_iter; }
     void reset_expired(Timer& t)
     {
@@ -87,9 +93,10 @@ struct ConnectionJob : public Timerref {
             throw Error(EUNREQUESTED);
     }
 
-    [[nodiscard]] bool awaiting_init() const { 
+    [[nodiscard]] bool awaiting_init() const
+    {
         assert(!data_v.valueless_by_exception());
-        return std::holds_alternative<AwaitInit>(data_v); 
+        return std::holds_alternative<AwaitInit>(data_v);
     }
 
     void restart_expired(Timer::iterator iter, Timer& t)
@@ -154,7 +161,9 @@ private:
 
 struct Ping : public Timerref {
     Ping(Timer& end)
-        : Timerref(end) {}
+        : Timerref(end)
+    {
+    }
     void await_pong(PingMsg msg, Timer::iterator iter)
     {
         assert(!data);
@@ -185,6 +194,31 @@ struct Ping : public Timerref {
 
 private:
     std::optional<PingMsg> data;
+};
+
+struct Throttle {
+    using sc = std::chrono::steady_clock;
+
+    sc::duration replyDelay { 0 };
+    std::deque<Sndbuffer> rateLimitedOutput;
+    void insert_timer(Timerref t)
+    {
+        assert(!timer);
+        timer = t;
+    }
+
+    [[nodiscard]] Sndbuffer reset_timer_get_buf()
+    {
+        assert(timer);
+        assert(rateLimitedOutput.size() > 0);
+        timer.reset();
+        Sndbuffer tmp { std::move(rateLimitedOutput.front()) };
+        rateLimitedOutput.pop_front();
+        return tmp;
+    }
+
+private:
+    std::optional<Timerref> timer;
 };
 
 struct Ratelimit {
@@ -222,6 +256,7 @@ struct PeerState {
     ConnectionJob job;
     Height txSubscription { 0 };
     Ratelimit ratelimit;
+    Throttle throttle;
     SignedSnapshot::Priority acknowledgedSnapshotPriority;
     SignedSnapshot::Priority theirSnapshotPriority;
     uint32_t lastNonce;
@@ -255,8 +290,10 @@ Conref::operator const Connection*() const
 }
 const PeerChain& Conref::chain() const { return data.iter->second.chain; }
 PeerChain& Conref::chain() { return data.iter->second.chain; }
+const PeerState& Conref::state() const { return data.iter->second; }
+PeerState& Conref::state() { return data.iter->second; }
 auto& Conref::job() { return data.iter->second.job; }
-auto& Conref::job() const{ return data.iter->second.job; }
+auto& Conref::job() const { return data.iter->second.job; }
 auto& Conref::ping() { return data.iter->second.ping; }
 auto Conref::operator->() { return &(data.iter->second); }
 bool Conref::initialized() { return !data.iter->second.job.waiting_for_init(); }

@@ -13,6 +13,8 @@ public:
     };
     struct SendPing: public WithConnecitonId {
     };
+    struct SendThrottled: public WithConnecitonId {
+    };
     struct Expire: public WithConnecitonId {
     };
     struct Req {
@@ -24,7 +26,7 @@ public:
     };
     struct Connect {
     };
-    using Event = std::variant<SendPing, Expire, CloseNoReply,CloseNoPong, Connect>;
+    using Event = std::variant<SendPing, SendThrottled, Expire, CloseNoReply,CloseNoPong, Connect>;
 
 private:
     using time_point = std::chrono::steady_clock::time_point;

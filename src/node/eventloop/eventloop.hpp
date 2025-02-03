@@ -1,28 +1,25 @@
 #pragma once
 #include "address_manager/address_manager.hpp"
 #include "api/callbacks.hpp"
-#include "api/types/forward_declarations.hpp"
+#include "block/chain/offender.hpp"
 #include "block/chain/signed_snapshot.hpp"
 #include "chain_cache.hpp"
 #include "chainserver/state/update/update.hpp"
 #include "communication/stage_operation/result.hpp"
+#include "eventloop/sync/block_download/block_download.hpp"
+#include "eventloop/sync/header_download/header_download.hpp"
+#include "eventloop/sync/request_sender_declaration.hpp"
 #include "eventloop/timer.hpp"
 #include "mempool/mempool.hpp"
 #include "mempool/subscription_declaration.hpp"
 #include "peerserver/peerserver.hpp"
-#include "sync/sync.hpp"
 #include "sync/sync_state.hpp"
 #include "types/chainstate.hpp"
 #include "types/conndata.hpp"
 #include <condition_variable>
-#include <limits>
-#include <map>
 #include <mutex>
 #include <queue>
-#include <set>
 #include <thread>
-
-#include <algorithm>
 
 class Connection;
 class Rcvbuffer;
@@ -68,7 +65,7 @@ public:
 
     void api_get_peers(PeersCb&& cb);
     void api_get_synced(SyncedCb&& cb);
-    void api_get_hashrate(HashrateCb&& cb, size_t n=100);
+    void api_get_hashrate(HashrateCb&& cb, size_t n = 100);
     void api_get_hashrate_chart(HashrateChartCb&& cb);
     void api_get_hashrate_chart(NonzeroHeight from, NonzeroHeight to, size_t window, HashrateChartCb&& cb);
     void api_inspect(InspectorCb&&);
@@ -98,7 +95,7 @@ private:
     void close_by_id(uint64_t connectionId, int32_t reason);
     void close(const ChainOffender&);
     void close(Conref cr, ChainError);
-    void report(const ChainOffender&) {};
+    void report(const ChainOffender&) { };
 
     ////////////////////////
     // Handling incoming messages
@@ -158,6 +155,7 @@ private:
     void handle_timeout(T&&);
     void handle_timeout(Timer::Connect&&);
     void handle_connection_timeout(Conref, Timer::SendPing&&);
+    void handle_connection_timeout(Conref, Timer::SendThrottled&&);
     void handle_connection_timeout(Conref, Timer::Expire&&);
     void handle_connection_timeout(Conref, Timer::CloseNoReply&&);
     void handle_connection_timeout(Conref, Timer::CloseNoPong&&);
@@ -232,6 +230,9 @@ private:
     void handle_event(OnUnpinAddress&&);
     void handle_event(mempool::Log&&);
 
+    // scheduling 
+    void schedule_send(Conref cr, Sndbuffer);
+    
     // chain updates
     using Append = chainserver::state_update::Append;
     using Fork = chainserver::state_update::Fork;

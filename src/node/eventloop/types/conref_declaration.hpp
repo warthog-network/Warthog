@@ -2,6 +2,7 @@
 #include <cstdint>
 #include <map>
 #include <string>
+#include <chrono>
 struct PeerState;
 class PeerChain;
 class Connection;
@@ -14,6 +15,7 @@ class Conref {
         uint64_t val = 0;
         Coniter iter;
     };
+    using duration = std::chrono::steady_clock::duration;
 
 public:
     inline bool operator<(Conref other) const { return data.val < other.data.val; }
@@ -21,6 +23,8 @@ public:
     inline operator Connection*();
     inline operator const Connection*() const;
     inline const PeerChain& chain() const;
+    inline const PeerState& state() const;
+    inline PeerState& state();
     inline PeerChain& chain();
     operator bool() { return data.val != 0; };
     inline bool closed();

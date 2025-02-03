@@ -10,7 +10,6 @@
 #include "peerserver/peerserver.hpp"
 #include "spdlog/spdlog.h"
 
-#include <iostream>
 using namespace std;
 
 static void signal_caller(uv_signal_t* /*handle*/, int signum)

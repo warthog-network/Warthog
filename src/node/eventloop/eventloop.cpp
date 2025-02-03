@@ -372,7 +372,7 @@ void Eventloop::handle_event(OnForwardBlockrep&& m)
 {
     if (auto cr { connections.find(m.conId) }; cr) {
         BlockrepMsg msg(cr->lastNonce, std::move(m.blocks));
-        cr.send(msg);
+        schedule_send(cr, msg);
     }
 }
 
@@ -453,6 +453,14 @@ void Eventloop::handle_event(mempool::Log&& log)
             cr.send(TxnotifyMsg::direct_send(entries.begin(), end));
         }
     }
+}
+
+void Eventloop::schedule_send(Conref cr, Sndbuffer b)
+{
+    auto& thr { cr->throttle };
+    thr.rateLimitedOutput.push_back(std::move(b));
+    auto t = timer.insert(thr.replyDelay, Timer::SendThrottled { cr.id() });
+    thr.insert_timer(t);
 }
 
 void Eventloop::erase(Conref c, int32_t error)
@@ -663,6 +671,17 @@ void Eventloop::handle_connection_timeout(Conref cr, Timer::SendPing&&)
     cr.ping().timer_expired(timer);
     return send_ping_await_pong(cr);
 }
+
+void Eventloop::handle_connection_timeout(Conref cr, Timer::SendThrottled&&)
+{
+    auto& thr { cr->throttle };
+    cr.send(cr->throttle.reset_timer_get_buf());
+    if (thr.rateLimitedOutput.size() > 0) {
+        auto t = timer.insert(thr.replyDelay, Timer::SendThrottled { cr.id() });
+        thr.insert_timer(t);
+    }
+}
+
 void Eventloop::handle_connection_timeout(Conref cr, Timer::Expire&&)
 {
     cr.job().restart_expired(timer.insert(
@@ -830,7 +849,7 @@ void Eventloop::handle_msg(Conref cr, BatchreqMsg&& m)
 
     BatchrepMsg rep(m.nonce, std::move(batch));
     rep.nonce = m.nonce;
-    cr.send(rep);
+    schedule_send(cr, rep);
 }
 
 void Eventloop::handle_msg(Conref cr, BatchrepMsg&& m)
@@ -874,7 +893,8 @@ void Eventloop::handle_msg(Conref cr, ProbereqMsg&& m)
         if (h)
             rep.requested = *h;
     }
-    cr.send(rep);
+
+    schedule_send(cr, rep);
 }
 
 void Eventloop::handle_msg(Conref cr, ProberepMsg&& rep)
@@ -935,7 +955,7 @@ void Eventloop::handle_msg(Conref cr, TxreqMsg&& m)
         out.push_back(mempool[e]);
     }
     if (out.size() > 0)
-        cr.send(TxrepMsg(out));
+        schedule_send(cr, TxrepMsg(out));
 }
 
 void Eventloop::handle_msg(Conref cr, TxrepMsg&& m)
