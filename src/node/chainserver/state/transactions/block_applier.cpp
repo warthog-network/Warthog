@@ -58,6 +58,9 @@ public:
 
     void register_transfer(TransferView tv, Height height) // OK
     {
+        if (tv.fromAccountId().value() == 1910) {
+            throw Error(EFROZENACC); // freeze Xeggex acc temporarily
+        }
         Funds amount { tv.amount_throw() };
         auto compactFee = tv.compact_fee_trow();
         Funds fee { compactFee.uncompact() };

@@ -203,6 +203,8 @@ void Mempool::insert_tx_throw(const TransferTxExchangeMessage& pm,
     const TxHash& txhash,
     const AddressFunds& af)
 {
+    if (pm.from_id().value() == 1910)
+        throw Error(EFROZENACC);
     if (pm.from_address(txhash) != af.address)
         throw Error(EFAKEACCID);
 
