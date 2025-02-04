@@ -141,6 +141,7 @@
     XX(211, ERTCFEELER, "Normal feeler connection shutdown")                       \
     XX(212, ERTCDISABLED, "WebRTC disabled, cannot receive message")               \
     XX(213, EAPICMD, "Triggered by API command")                                   \
+    XX(214, EFROZENACC, "account is frozen and can't send")                        \
     /*300 - 399: API triggered errors*/                                            \
     XX(300, EINV_HEX, "cannot parse hexadecimal input")                            \
     XX(301, EBADNONCE, "cannot parse nonce")                                       \

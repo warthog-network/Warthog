@@ -435,6 +435,7 @@ void RequestSender::send(Conref cr, const T& req)
 {
     e.send_request(cr, req);
 }
+
 inline bool RequestSender::finished()
 {
     return e.maxRequests <= e.activeRequests;
