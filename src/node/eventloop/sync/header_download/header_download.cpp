@@ -1,11 +1,9 @@
 #include "header_download.hpp"
 #include "block/chain/consensus_headers.hpp"
-#include "eventloop/eventloop.hpp"
+#include "eventloop/chain_cache.hpp"
 #include "eventloop/types/peer_requests.hpp"
 #include "global/globals.hpp"
 #include "probe_balanced.hpp"
-#include <set>
-#include <stack>
 
 namespace HeaderDownload {
 
@@ -235,7 +233,7 @@ std::optional<Conref> Downloader::try_send(ConnectionFinder& f, std::vector<Chai
                 continue;
 
             // conveniene abbreviations
-            auto& pd = data(cr).probeData;
+            const auto& pd = data(cr).probeData;
             auto& desc = cr.chain().descripted();
             const Grid& g = desc->grid();
 
@@ -246,8 +244,8 @@ std::optional<Conref> Downloader::try_send(ConnectionFinder& f, std::vector<Chai
             // consider updating probe with cacheMatch
             if (rd.cacheMatch && (!pd || pd->qiter == rd.queueEntry.iter)) {
                 ForkRange& fr { rd.cacheMatch->fork_range(cr) };
-                try {
-                    fr.on_match(rd.slot.offset());
+                try { 
+                    fr.on_match(rd.slot.offset()); // TODO: check this
                 } catch (const ChainError& e) {
                     offenders.push_back({ e, cr });
                     continue;
@@ -302,7 +300,7 @@ bool Downloader::try_final_request(Lead_iter li, RequestSender& sender)
         // consider updating probeData with cacheMatch
         if (ln.snapshot.descripted == ln.cr.chain().descripted()) {
 
-            auto& sfr = ln.cr.chain().stage_fork_range();
+            auto& sfr = ln.cr.chain().stage_fork_range(); // TODO: check whether cr and chains are jointly updated to keep fork_range and pin in sync
             if (pd.fork_range().lower() < sfr.lower())
                 pd = ProbeData { sfr, chains.stage_pin() };
 

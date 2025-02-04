@@ -64,7 +64,6 @@ struct Batchrequest : public BatchreqMsg, public IsRequest {
         NonzeroHeight lower, NonzeroHeight upper, extra_t e)
         : BatchreqMsg { BatchSelector { pdescripted->descriptor, lower, uint16_t(upper - lower + 1) } }
         , minReturn(upper - lower + 1)
-
         , descripted(std::move(pdescripted))
         , extra(e)
     {
