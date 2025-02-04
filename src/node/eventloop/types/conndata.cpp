@@ -4,6 +4,20 @@
 
 using namespace std::chrono_literals;
 
+void Throttled::insert(Sndbuffer sb, Timer& t, uint64_t connectionId)
+{
+    rateLimitedOutput.push_back(std::move(sb));
+    update_timer(t, connectionId);
+}
+
+void Throttled::update_timer(Timer& t, uint64_t connectionId)
+{
+    // update timer if necessary
+    if (rateLimitedOutput.size() == 0 || timer.has_value())
+        return;
+    timer = t.insert(reply_delay(), Timer::ThrottledSend { connectionId });
+}
+
 ConnectionJob::ConnectionJob(uint64_t conId, Timer& t)
     : Timerref(t.insert(30s, Timer::CloseNoReply { conId }))
 {
@@ -22,7 +36,6 @@ void Conref::send(Sndbuffer b)
     if (!(*this)->c->eventloop_erased)
         data.iter->second.c->asyncsend(std::move(b));
 };
-
 
 Usage::Usage(HeaderDownload::Downloader& h, BlockDownload::Downloader& b)
     : data_headerdownload(h)

@@ -196,16 +196,33 @@ private:
     std::optional<PingMsg> data;
 };
 
-struct Throttle {
+struct ThrottleDelay {
+    using sc = std::chrono::steady_clock;
+    sc::duration get() const
+    {
+        using namespace std::chrono_literals;
+        auto n { sc::now() };
+        if (n < bucket)
+            return 0s;
+        auto d { (n - bucket) / 10 };
+        return std::min(d, sc::duration(25s));
+    }
+
+    sc::time_point add(sc::duration d)
+    {
+        return bucket = std::max(bucket, sc::now()) + d;
+    }
+
+private:
+    sc::time_point bucket;
+};
+
+struct Throttled {
     using sc = std::chrono::steady_clock;
 
-    sc::duration replyDelay { 0 };
-    std::deque<Sndbuffer> rateLimitedOutput;
-    void insert_timer(Timerref t)
-    {
-        assert(!timer);
-        timer = t;
-    }
+    auto reply_delay() const { return td.get(); }
+    void insert(Sndbuffer, Timer& t, uint64_t connectionId);
+    void update_timer(Timer& t, uint64_t connectionId);
 
     [[nodiscard]] Sndbuffer reset_timer_get_buf()
     {
@@ -218,6 +235,8 @@ struct Throttle {
     }
 
 private:
+    ThrottleDelay td;
+    std::deque<Sndbuffer> rateLimitedOutput;
     std::optional<Timerref> timer;
 };
 
@@ -256,7 +275,7 @@ struct PeerState {
     ConnectionJob job;
     Height txSubscription { 0 };
     Ratelimit ratelimit;
-    Throttle throttle;
+    Throttled throttled;
     SignedSnapshot::Priority acknowledgedSnapshotPriority;
     SignedSnapshot::Priority theirSnapshotPriority;
     uint32_t lastNonce;

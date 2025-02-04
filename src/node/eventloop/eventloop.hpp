@@ -155,7 +155,7 @@ private:
     void handle_timeout(T&&);
     void handle_timeout(Timer::Connect&&);
     void handle_connection_timeout(Conref, Timer::SendPing&&);
-    void handle_connection_timeout(Conref, Timer::SendThrottled&&);
+    void handle_connection_timeout(Conref, Timer::ThrottledSend&&);
     void handle_connection_timeout(Conref, Timer::Expire&&);
     void handle_connection_timeout(Conref, Timer::CloseNoReply&&);
     void handle_connection_timeout(Conref, Timer::CloseNoPong&&);
@@ -231,7 +231,7 @@ private:
     void handle_event(mempool::Log&&);
 
     // scheduling 
-    void schedule_send(Conref cr, Sndbuffer);
+    void send_throttled(Conref cr, Sndbuffer);
     
     // chain updates
     using Append = chainserver::state_update::Append;

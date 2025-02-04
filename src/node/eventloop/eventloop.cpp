@@ -370,10 +370,9 @@ void Eventloop::handle_event(stage_operation::Result&& r)
 
 void Eventloop::handle_event(OnForwardBlockrep&& m)
 {
-    if (auto cr { connections.find(m.conId) }; cr) {
-        BlockrepMsg msg(cr->lastNonce, std::move(m.blocks));
-        schedule_send(cr, msg);
-    }
+    if (auto cr { connections.find(m.conId) }; cr)
+        send_throttled(cr,
+            BlockrepMsg(cr->lastNonce, std::move(m.blocks)));
 }
 
 void Eventloop::handle_event(OnFailedAddressEvent&& e)
@@ -455,12 +454,9 @@ void Eventloop::handle_event(mempool::Log&& log)
     }
 }
 
-void Eventloop::schedule_send(Conref cr, Sndbuffer b)
+void Eventloop::send_throttled(Conref cr, Sndbuffer b)
 {
-    auto& thr { cr->throttle };
-    thr.rateLimitedOutput.push_back(std::move(b));
-    auto t = timer.insert(thr.replyDelay, Timer::SendThrottled { cr.id() });
-    thr.insert_timer(t);
+    cr->throttled.insert(std::move(b), timer, cr.id());
 }
 
 void Eventloop::erase(Conref c, int32_t error)
@@ -672,14 +668,10 @@ void Eventloop::handle_connection_timeout(Conref cr, Timer::SendPing&&)
     return send_ping_await_pong(cr);
 }
 
-void Eventloop::handle_connection_timeout(Conref cr, Timer::SendThrottled&&)
+void Eventloop::handle_connection_timeout(Conref cr, Timer::ThrottledSend&&)
 {
-    auto& thr { cr->throttle };
-    cr.send(cr->throttle.reset_timer_get_buf());
-    if (thr.rateLimitedOutput.size() > 0) {
-        auto t = timer.insert(thr.replyDelay, Timer::SendThrottled { cr.id() });
-        thr.insert_timer(t);
-    }
+    cr.send(cr->throttled.reset_timer_get_buf());
+    cr->throttled.update_timer(timer, cr.id());
 }
 
 void Eventloop::handle_connection_timeout(Conref cr, Timer::Expire&&)
@@ -849,7 +841,7 @@ void Eventloop::handle_msg(Conref cr, BatchreqMsg&& m)
 
     BatchrepMsg rep(m.nonce, std::move(batch));
     rep.nonce = m.nonce;
-    schedule_send(cr, rep);
+    send_throttled(cr, rep);
 }
 
 void Eventloop::handle_msg(Conref cr, BatchrepMsg&& m)
@@ -894,7 +886,7 @@ void Eventloop::handle_msg(Conref cr, ProbereqMsg&& m)
             rep.requested = *h;
     }
 
-    schedule_send(cr, rep);
+    send_throttled(cr, rep);
 }
 
 void Eventloop::handle_msg(Conref cr, ProberepMsg&& rep)
@@ -955,7 +947,7 @@ void Eventloop::handle_msg(Conref cr, TxreqMsg&& m)
         out.push_back(mempool[e]);
     }
     if (out.size() > 0)
-        schedule_send(cr, TxrepMsg(out));
+        send_throttled(cr, TxrepMsg(out));
 }
 
 void Eventloop::handle_msg(Conref cr, TxrepMsg&& m)
