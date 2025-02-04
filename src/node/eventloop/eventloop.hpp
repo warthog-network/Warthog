@@ -38,6 +38,8 @@ class Attorney;
 }
 
 class Eventloop {
+    using duration = std::chrono::steady_clock::duration;
+    using seconds = std::chrono::seconds;
     using StateUpdate = chainserver::state_update::StateUpdate;
     friend class BlockDownload::Attorney;
     friend class EndAttorney;
@@ -231,7 +233,7 @@ private:
     void handle_event(mempool::Log&&);
 
     // scheduling 
-    void send_throttled(Conref cr, Sndbuffer);
+    void send_throttled(Conref cr, Sndbuffer, duration d);
     
     // chain updates
     using Append = chainserver::state_update::Append;

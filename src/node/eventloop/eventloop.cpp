@@ -372,7 +372,7 @@ void Eventloop::handle_event(OnForwardBlockrep&& m)
 {
     if (auto cr { connections.find(m.conId) }; cr)
         send_throttled(cr,
-            BlockrepMsg(cr->lastNonce, std::move(m.blocks)));
+            BlockrepMsg(cr->lastNonce, std::move(m.blocks)), 1s);
 }
 
 void Eventloop::handle_event(OnFailedAddressEvent&& e)
@@ -454,9 +454,10 @@ void Eventloop::handle_event(mempool::Log&& log)
     }
 }
 
-void Eventloop::send_throttled(Conref cr, Sndbuffer b)
+void Eventloop::send_throttled(Conref cr, Sndbuffer b, duration d)
 {
     cr->throttled.insert(std::move(b), timer, cr.id());
+    cr->throttled.add_throttle(d);
 }
 
 void Eventloop::erase(Conref c, int32_t error)
@@ -841,7 +842,7 @@ void Eventloop::handle_msg(Conref cr, BatchreqMsg&& m)
 
     BatchrepMsg rep(m.nonce, std::move(batch));
     rep.nonce = m.nonce;
-    send_throttled(cr, rep);
+    send_throttled(cr, rep, 2s);
 }
 
 void Eventloop::handle_msg(Conref cr, BatchrepMsg&& m)
@@ -886,7 +887,7 @@ void Eventloop::handle_msg(Conref cr, ProbereqMsg&& m)
             rep.requested = *h;
     }
 
-    send_throttled(cr, rep);
+    send_throttled(cr, rep, 0s);
 }
 
 void Eventloop::handle_msg(Conref cr, ProberepMsg&& rep)
@@ -947,7 +948,7 @@ void Eventloop::handle_msg(Conref cr, TxreqMsg&& m)
         out.push_back(mempool[e]);
     }
     if (out.size() > 0)
-        send_throttled(cr, TxrepMsg(out));
+        send_throttled(cr, TxrepMsg(out), 1s);
 }
 
 void Eventloop::handle_msg(Conref cr, TxrepMsg&& m)

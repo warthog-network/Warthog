@@ -205,7 +205,7 @@ struct ThrottleDelay {
         if (n < bucket)
             return 0s;
         auto d { (n - bucket) / 10 };
-        return std::min(d, sc::duration(25s));
+        return std::min(d, sc::duration(20s));
     }
 
     sc::time_point add(sc::duration d)
@@ -219,7 +219,9 @@ private:
 
 struct Throttled {
     using sc = std::chrono::steady_clock;
+    using duration = sc::duration;
 
+    void add_throttle(duration d) { td.add(d); }
     auto reply_delay() const { return td.get(); }
     void insert(Sndbuffer, Timer& t, uint64_t connectionId);
     void update_timer(Timer& t, uint64_t connectionId);
