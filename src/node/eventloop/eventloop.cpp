@@ -832,6 +832,8 @@ void Eventloop::handle_msg(Conref cr, BatchreqMsg&& m)
     if (config().node.logCommunication)
         spdlog::info("{} handle batchreq [{},{}]", cr.str(), m.selector.startHeight.value(), (m.selector.startHeight + m.selector.length - 1).value());
     auto& s = m.selector;
+
+    // get batch
     Batch batch = [&]() {
         if (s.descriptor == consensus().descriptor()) {
             return consensus().headers().get_headers(s.startHeight, s.end());
@@ -839,6 +841,9 @@ void Eventloop::handle_msg(Conref cr, BatchreqMsg&& m)
             return stateServer.get_headers(s);
         }
     }();
+
+    // get throttle
+    // TODO
 
     BatchrepMsg rep(m.nonce, std::move(batch));
     rep.nonce = m.nonce;

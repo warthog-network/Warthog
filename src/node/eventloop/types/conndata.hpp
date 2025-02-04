@@ -243,21 +243,30 @@ private:
 };
 
 struct Ratelimit {
-    using sc = std::chrono::steady_clock;
-    void update() { valid_rate(lastUpdate, std::chrono::minutes(2)); }
-    void ping() { return valid_rate(lastUpdate, std::chrono::seconds(5)); }
-
 private:
-    void valid_rate(sc::time_point& last, auto duration)
-    {
-        auto n = sc::steady_clock::now();
-        using namespace std::chrono;
-        if (n < last + duration)
-            throw Error(EMSGFLOOD);
-        last = n;
-    }
-    sc::time_point lastUpdate = sc::time_point::min();
-    sc::time_point lastPing = sc::time_point::min();
+    using sc = std::chrono::steady_clock;
+
+    template <size_t seconds>
+    struct Limiter {
+        void operator()()
+        {
+            tick();
+        }
+        void tick()
+        {
+            auto n = sc::steady_clock::now();
+            using namespace std::chrono;
+            if (n < lastUpdate + std::chrono::seconds(seconds))
+                throw Error(EMSGFLOOD);
+            lastUpdate = n;
+        }
+    private:
+        sc::time_point lastUpdate = sc::time_point::min();
+    };
+
+public:
+    Limiter<2 * 60> update;
+    Limiter<5> ping;
 };
 
 struct Usage {
