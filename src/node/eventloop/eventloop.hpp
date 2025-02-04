@@ -2,32 +2,30 @@
 #include "address_manager/address_manager.hpp"
 #include "api/callbacks.hpp"
 #include "api/events/subscription_fwd.hpp"
-#include "api/types/forward_declarations.hpp"
+#include "block/chain/offender.hpp"
 #include "block/chain/signed_snapshot.hpp"
 #include "chain_cache.hpp"
 #include "chainserver/state/update/update.hpp"
 #include "communication/stage_operation/result.hpp"
+#include "eventloop/sync/block_download/block_download.hpp"
+#include "eventloop/sync/header_download/header_download.hpp"
+#include "eventloop/sync/request_sender_declaration.hpp"
 #include "eventloop/timer.hpp"
 #include "eventloop/types/rtc/rtc_state.hpp"
 #include "general/move_only_function.hpp"
 #include "mempool/mempool.hpp"
 #include "mempool/subscription_declaration.hpp"
 #include "peerserver/peerserver.hpp"
-#include "sync/sync.hpp"
 #include "sync/sync_state.hpp"
 #include "timer_element.hpp"
 #include "transport/connection_base.hpp"
 #include "types/chainstate.hpp"
 #include "types/conndata.hpp"
 #include <condition_variable>
-#include <limits>
-#include <map>
 #include <mutex>
 #include <queue>
-#include <set>
 #include <thread>
 
-#include <algorithm>
 
 class RTCPendingOutgoing;
 class RTCPendingIncoming;
