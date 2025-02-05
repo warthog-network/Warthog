@@ -217,6 +217,34 @@ private:
     sc::time_point bucket;
 };
 
+template <size_t window>
+struct BatchreqThrottler { // throttles if suspicios requests occur
+    using seconds = std::chrono::seconds;
+    using duration = std::chrono::steady_clock::duration;
+    duration register_request(Height lower, size_t n)
+    {
+        assert(n > 0);
+        Height upper = lower + n;
+        v1 = std::max(upper, v1);
+        v2 = std::min(v2, v1 + window);
+        v2 = std::max(v1, v2);
+        v2 = v2 + n;
+        return get_duration();
+    };
+
+    duration get_duration() const
+    {
+        if (v2 - v1 > window) {
+            return seconds(20); // throttle hard
+        }
+        return seconds(0);
+    }
+
+private:
+    Height v2 { Height::zero() };
+    Height v1 { Height::zero() };
+};
+
 struct Throttled {
     using sc = std::chrono::steady_clock;
     using duration = sc::duration;
@@ -235,6 +263,9 @@ struct Throttled {
         rateLimitedOutput.pop_front();
         return tmp;
     }
+
+    BatchreqThrottler<HEADERBATCHSIZE * 20> batchreq;
+    BatchreqThrottler<BLOCKBATCHSIZE * 20> blockreq;
 
 private:
     ThrottleDelay td;
@@ -260,6 +291,7 @@ private:
                 throw Error(EMSGFLOOD);
             lastUpdate = n;
         }
+
     private:
         sc::time_point lastUpdate = sc::time_point::min();
     };

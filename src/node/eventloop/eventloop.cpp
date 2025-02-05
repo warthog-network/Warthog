@@ -1,8 +1,9 @@
 #include "eventloop.hpp"
 #include "../asyncio/connection.hpp"
-#include "address_manager/address_manager_impl.hpp"
 #include "api/types/all.hpp"
 #include "block/chain/header_chain.hpp"
+#include "address_manager/address_manager_impl.hpp"
+#include "types/conref_impl.hpp"
 #include "block/header/batch.hpp"
 #include "block/header/view.hpp"
 #include "chainserver/server.hpp"
@@ -10,12 +11,8 @@
 #include "mempool/order_key.hpp"
 #include "peerserver/peerserver.hpp"
 #include "spdlog/spdlog.h"
-#include "types/conref_impl.hpp"
 #include "types/peer_requests.hpp"
 #include <algorithm>
-#include <future>
-#include <iostream>
-#include <sstream>
 
 using namespace std::chrono_literals;
 Eventloop::Eventloop(PeerServer& ps, ChainServer& cs, const Config& config)
@@ -370,9 +367,11 @@ void Eventloop::handle_event(stage_operation::Result&& r)
 
 void Eventloop::handle_event(OnForwardBlockrep&& m)
 {
-    if (auto cr { connections.find(m.conId) }; cr)
+
+    if (auto cr { connections.find(m.conId) }; cr) {
         send_throttled(cr,
-            BlockrepMsg(cr->lastNonce, std::move(m.blocks)), 1s);
+            BlockrepMsg(cr->lastNonce, std::move(m.blocks)), cr->throttled.blockreq.get_duration());
+    }
 }
 
 void Eventloop::handle_event(OnFailedAddressEvent&& e)
@@ -843,11 +842,11 @@ void Eventloop::handle_msg(Conref cr, BatchreqMsg&& m)
     }();
 
     // get throttle
-    // TODO
+    auto duration { cr->throttled.batchreq.register_request(m.selector.startHeight, m.selector.length) };
 
     BatchrepMsg rep(m.nonce, std::move(batch));
     rep.nonce = m.nonce;
-    send_throttled(cr, rep, 2s);
+    send_throttled(cr, rep, duration);
 }
 
 void Eventloop::handle_msg(Conref cr, BatchrepMsg&& m)
@@ -912,11 +911,13 @@ void Eventloop::handle_msg(Conref cr, ProberepMsg&& rep)
 void Eventloop::handle_msg(Conref cr, BlockreqMsg&& m)
 {
     using namespace std::placeholders;
+    cr->throttled.blockreq.register_request(m.range.lower, m.range.length());
+
     BlockreqMsg req(m);
     if (config().node.logCommunication)
         spdlog::info("{} handle_blockreq [{},{}]", cr.str(), req.range.lower.value(), req.range.upper.value());
     cr->lastNonce = req.nonce;
-    stateServer.async_get_blocks(req.range, std::bind(&Eventloop::async_forward_blockrep, this, cr.id(), _1));
+    stateServer.async_get_blocks(req.range, [&, id = cr.id()](auto blocks) { Eventloop::async_forward_blockrep(id, std::move(blocks)); });
 }
 
 void Eventloop::handle_msg(Conref cr, BlockrepMsg&& m)

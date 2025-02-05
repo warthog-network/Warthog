@@ -16,6 +16,7 @@ protected:
 public:
     using IsUint32::IsUint32;
     static Height undef() { return Height { 0 }; }
+    static Height zero() { return Height { 0 }; }
     Height retarget_floor()
     {
         return Height { ::retarget_floor(val) };
@@ -86,7 +87,6 @@ public:
         return h1.val == h;
     }
 };
-
 
 class NonzeroHeight : public IsUint32 {
     friend struct Batchslot;
@@ -187,7 +187,8 @@ class PrevHeight : public Height {
 public:
     explicit PrevHeight(NonzeroHeight h)
         : Height(h - 1)
-    {}
+    {
+    }
 };
 
 inline NonzeroHeight Height::nonzero_assert() const
