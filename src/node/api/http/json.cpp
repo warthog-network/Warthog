@@ -255,6 +255,15 @@ auto to_json_visit(const API::RewardTransaction& tx)
     return j;
 }
 
+json to_json(const PeerDB::BanEntry& item)
+{
+    return {
+        { "ip", item.ip.to_string().c_str() },
+        { "expires", item.banuntil },
+        { "reasion", item.offense.err_name() },
+    };
+}
+
 json to_json(const Hash& h)
 {
     json j;
@@ -461,23 +470,20 @@ json to_json(const OffenseEntry& e)
     };
 }
 
-std::string serialize(const std::vector<API::Peerinfo>& connected)
+json to_json(const API::Peerinfo& item)
 {
-    using namespace nlohmann;
-    json j = json::array();
-    for (auto& item : connected) {
-        json elem;
-        elem["connection"] = json {
+    return {
+            {"connection", json {
             { "ip", item.endpoint.ipv4.to_string().c_str() },
             { "port", item.endpoint.port },
             { "sinceTimestamp", item.since },
             { "sinceUtc", format_utc(item.since) }
-        };
-        elem["leaderPriority"] = json {
+        }},
+        {"leaderPriority", json {
             { "ack", json { { "importance", item.acknowledgedSnapshotPriority.importance }, { "height", item.acknowledgedSnapshotPriority.height } } },
             { "theirs", json { { "importance", item.theirSnapshotPriority.importance }, { "height", item.theirSnapshotPriority.height } } }
-        };
-        elem["chain"] = json {
+        }},
+        {"chain", json {
             { "length", item.chainstate.descripted()->chain_length() },
             { "forkLower", item.chainstate.consensus_fork_range().lower() },
             { "forkUpper", item.chainstate.consensus_fork_range().upper() },
@@ -485,10 +491,8 @@ std::string serialize(const std::vector<API::Peerinfo>& connected)
             { "worksum", item.chainstate.descripted()->worksum().getdouble() },
             { "worksumHex", item.chainstate.descripted()->worksum().to_string() },
             { "grid", grid_json(item.chainstate.descripted()->grid()) }
-        };
-        j.push_back(elem);
-    }
-    return j.dump(1);
+        }}
+    };
 }
 
 json to_json(const API::Balance& b)
