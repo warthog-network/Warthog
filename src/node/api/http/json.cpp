@@ -470,28 +470,35 @@ json to_json(const OffenseEntry& e)
     };
 }
 
-json to_json(const API::Peerinfo& item)
+json to_json(const API::Peerinfo& pi)
 {
+    auto& cs { pi.chainstate };
     return {
-            {"connection", json {
-            { "ip", item.endpoint.ipv4.to_string().c_str() },
-            { "port", item.endpoint.port },
-            { "sinceTimestamp", item.since },
-            { "sinceUtc", format_utc(item.since) }
-        }},
-        {"leaderPriority", json {
-            { "ack", json { { "importance", item.acknowledgedSnapshotPriority.importance }, { "height", item.acknowledgedSnapshotPriority.height } } },
-            { "theirs", json { { "importance", item.theirSnapshotPriority.importance }, { "height", item.theirSnapshotPriority.height } } }
-        }},
-        {"chain", json {
-            { "length", item.chainstate.descripted()->chain_length() },
-            { "forkLower", item.chainstate.consensus_fork_range().lower() },
-            { "forkUpper", item.chainstate.consensus_fork_range().upper() },
-            { "descriptor", item.chainstate.descripted()->descriptor },
-            { "worksum", item.chainstate.descripted()->worksum().getdouble() },
-            { "worksumHex", item.chainstate.descripted()->worksum().to_string() },
-            { "grid", grid_json(item.chainstate.descripted()->grid()) }
-        }}
+        { "connection",
+            json {
+                { "ip", pi.endpoint.ipv4.to_string().c_str() },
+                { "port", pi.endpoint.port },
+                { "sinceTimestamp", pi.since },
+                { "sinceUtc", format_utc(pi.since) } } },
+        { "leaderPriority",
+            json {
+                { "ack",
+                    json {
+                        { "importance", pi.acknowledgedSnapshotPriority.importance },
+                        { "height", pi.acknowledgedSnapshotPriority.height } } },
+                { "theirs",
+                    json {
+                        { "importance", pi.theirSnapshotPriority.importance },
+                        { "height", pi.theirSnapshotPriority.height } } } } },
+        { "chain",
+            json {
+                { "length", cs.descripted()->chain_length() },
+                { "forkLower", cs.consensus_fork_range().lower() },
+                { "forkUpper", cs.consensus_fork_range().upper() },
+                { "descriptor", cs.descripted()->descriptor },
+                { "worksum", cs.descripted()->worksum().getdouble() },
+                { "worksumHex", cs.descripted()->worksum().to_string() },
+                { "grid", grid_json(cs.descripted()->grid()) } } }
     };
 }
 
