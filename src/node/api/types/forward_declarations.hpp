@@ -23,5 +23,6 @@ struct AccountIdOrAddress;;
 struct Wallet;
 struct Rollback;
 struct Raw;
+struct ThrottleState;
 using Transaction = std::variant<RewardTransaction, TransferTransaction>;
 }

@@ -158,6 +158,7 @@ void HTTPEndpoint::work()
     get("/peers/unban", unban_peers, true);
     get_1("/peers/offenses/:page", get_offenses);
     get("/peers/connected", get_connected_peers2, true);
+    get("/peers/throttled", get_throttled_peers, true);
     get("/peers/connected/connection", get_connected_connection);
     get("/peers/endpoints", inspect_eventloop, jsonmsg::endpoints, true);
     get("/peers/connect_timers", inspect_eventloop, jsonmsg::connect_timers, true);

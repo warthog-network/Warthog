@@ -264,6 +264,28 @@ json to_json(const PeerDB::BanEntry& item)
     };
 }
 
+namespace {
+    json to_json(const API::ThrottleState::BatchThrottler& bt)
+    {
+        return {
+            { "h1", bt.h1.value() },
+            { "h2", bt.h2.value() },
+            { "window", bt.window }
+        };
+    }
+}
+
+json to_json(const API::ThrottleState& ts)
+{
+    using namespace std::chrono;
+    
+    return {
+        { "delay", duration_cast<seconds>(ts.delay).count() }, 
+        { "blockRequest", to_json(ts.blockreq) },
+        { "headerRequest", to_json(ts.batchreq) }
+    };
+}
+
 json to_json(const Hash& h)
 {
     json j;
@@ -474,6 +496,7 @@ json to_json(const API::Peerinfo& pi)
 {
     auto& cs { pi.chainstate };
     return {
+        { "throttle", to_json(pi.throttle) },
         { "connection",
             json {
                 { "ip", pi.endpoint.ipv4.to_string().c_str() },

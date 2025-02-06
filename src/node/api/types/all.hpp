@@ -1,5 +1,6 @@
 #pragma once
 
+#include "accountid_or_address.hpp"
 #include "block/body/primitives.hpp"
 #include "block/chain/history/index.hpp"
 #include "block/chain/signed_snapshot.hpp"
@@ -10,10 +11,10 @@
 #include "crypto/address.hpp"
 #include "db/offense_entry.hpp"
 #include "eventloop/peer_chain.hpp"
+#include "eventloop/types/conndata.hpp"
 #include "general/funds.hpp"
 #include "general/tcp_util.hpp"
 #include "height_or_hash.hpp"
-#include "accountid_or_address.hpp"
 #include <variant>
 #include <vector>
 namespace chainserver {
@@ -21,6 +22,7 @@ class AccountCache;
 }
 
 namespace API {
+using sc = std::chrono::steady_clock;
 struct ChainHead {
     std::optional<SignedSnapshot> signedSnapshot;
     Worksum worksum;
@@ -143,6 +145,30 @@ struct HashrateChart {
     std::vector<double> chart;
 };
 
+struct ThrottleState {
+    struct BatchThrottler {
+        Height h1;
+        Height h2;
+        size_t window;
+        template <size_t w>
+        BatchThrottler(const BatchreqThrottler<w>& bt)
+            : h1(bt.h1())
+            , h2(bt.h2())
+            , window(w)
+        {
+        }
+    };
+    sc::duration delay;
+    BatchThrottler batchreq;
+    BatchThrottler blockreq;
+    ThrottleState(const Throttled& t)
+        : delay(t.reply_delay())
+        , batchreq(t.batchreq)
+        , blockreq(t.blockreq)
+    {
+    }
+};
+
 struct Peerinfo {
     EndpointAddress endpoint;
     bool initialized;
@@ -150,6 +176,7 @@ struct Peerinfo {
     SignedSnapshot::Priority theirSnapshotPriority;
     SignedSnapshot::Priority acknowledgedSnapshotPriority;
     uint32_t since;
+    ThrottleState throttle;
 };
 
 struct Network {
@@ -165,14 +192,13 @@ struct Round16Bit {
     Funds original;
 };
 
-struct Wallet{
+struct Wallet {
     PrivKey pk;
 };
 
-struct Raw{
+struct Raw {
     std::string s;
 };
-
 
 using OffenseEntry = ::OffenseEntry;
 

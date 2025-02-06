@@ -65,7 +65,7 @@ public:
     void async_report_failed_outbound(EndpointAddress);
     void async_stage_action(stage_operation::Result);
 
-    void api_get_peers(PeersCb&& cb);
+    void api_get_peers(PeersCb&& cb, bool filterThrottled);
     void api_get_synced(SyncedCb&& cb);
     void api_get_hashrate(HashrateCb&& cb, size_t n = 100);
     void api_get_hashrate_chart(HashrateChartCb&& cb);
@@ -205,9 +205,13 @@ private:
         HashrateCb cb;
         size_t n;
     };
+    struct GetPeers{
+        PeersCb callback;
+        bool filterThrottled;
+    };
     // event queue
     using Event = std::variant<OnRelease, OnProcessConnection,
-        StateUpdate, SignedSnapshotCb, PeersCb, SyncedCb, stage_operation::Result,
+        StateUpdate, SignedSnapshotCb, GetPeers, SyncedCb, stage_operation::Result,
         OnForwardBlockrep, OnFailedAddressEvent, InspectorCb, GetHashrate, GetHashrateChart,
         OnPinAddress, OnUnpinAddress, mempool::Log>;
 
@@ -219,7 +223,7 @@ private:
     void handle_event(OnRelease&&);
     void handle_event(OnProcessConnection&&);
     void handle_event(StateUpdate&&);
-    void handle_event(PeersCb&&);
+    void handle_event(GetPeers&&);
     void handle_event(SyncedCb&&);
     void handle_event(SignedSnapshotCb&&);
     void handle_event(stage_operation::Result&&);

@@ -47,14 +47,18 @@ void get_offense_entries(ResultCb&& f)
 // }
 void get_connected_peers2(PeersCb&& cb)
 {
-    global().pel->api_get_peers(std::move(cb));
+    global().pel->api_get_peers(std::move(cb), false);
+}
+void get_throttled_peers(PeersCb&& cb)
+{
+    global().pel->api_get_peers(std::move(cb), true);
 }
 
 void get_connected_connection(ConnectedConnectionCB&& cb)
 {
     global().pel->api_get_peers([cb = std::move(cb)](const std::vector<API::Peerinfo>& pi) {
         cb({ pi });
-    });
+    }, false);
 }
 
 void get_round16bit_e8(uint64_t e8, RoundCb cb)

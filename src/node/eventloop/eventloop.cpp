@@ -1,9 +1,8 @@
 #include "eventloop.hpp"
 #include "../asyncio/connection.hpp"
+#include "address_manager/address_manager_impl.hpp"
 #include "api/types/all.hpp"
 #include "block/chain/header_chain.hpp"
-#include "address_manager/address_manager_impl.hpp"
-#include "types/conref_impl.hpp"
 #include "block/header/batch.hpp"
 #include "block/header/view.hpp"
 #include "chainserver/server.hpp"
@@ -11,6 +10,7 @@
 #include "mempool/order_key.hpp"
 #include "peerserver/peerserver.hpp"
 #include "spdlog/spdlog.h"
+#include "types/conref_impl.hpp"
 #include "types/peer_requests.hpp"
 #include <algorithm>
 
@@ -92,9 +92,9 @@ void Eventloop::async_mempool_update(mempool::Log&& s)
     defer(std::move(s));
 }
 
-void Eventloop::api_get_peers(PeersCb&& cb)
+void Eventloop::api_get_peers(PeersCb&& cb, bool filterThrottled)
 {
-    defer(std::move(cb));
+    defer(GetPeers { cb, filterThrottled });
 }
 
 void Eventloop::api_get_synced(SyncedCb&& cb)
@@ -326,20 +326,21 @@ void Eventloop::log_chain_length()
         spdlog::info("Synced. (height {}).", synced);
 }
 
-void Eventloop::handle_event(PeersCb&& cb)
+void Eventloop::handle_event(GetPeers&& e)
 {
     std::vector<API::Peerinfo> out;
     for (auto cr : connections.initialized()) {
-        out.push_back({
-            .endpoint { cr->c->peer_address() },
+        if (e.filterThrottled && cr->throttled.reply_delay() == 0s)
+            continue;
+        out.push_back({ .endpoint { cr->c->peer_address() },
             .initialized = cr.initialized(),
             .chainstate = cr.chain(),
             .theirSnapshotPriority = cr->theirSnapshotPriority,
             .acknowledgedSnapshotPriority = cr->acknowledgedSnapshotPriority,
             .since = cr->c->connected_since,
-        });
+            .throttle { cr->throttled } });
     }
-    cb(out);
+    e.callback(out);
 }
 
 void Eventloop::handle_event(SyncedCb&& cb)

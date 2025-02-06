@@ -15,6 +15,11 @@ void Throttled::update_timer(Timer& t, uint64_t connectionId)
     // update timer if necessary
     if (rateLimitedOutput.size() == 0 || timer.has_value())
         return;
+    using namespace std::chrono;
+    auto s { duration_cast<seconds>(reply_delay()).count() };
+    if (s != 0) {
+        spdlog::info("send throttled reply in {} seconds", s); // for debugging
+    }
     timer = t.insert(reply_delay(), Timer::ThrottledSend { connectionId });
 }
 

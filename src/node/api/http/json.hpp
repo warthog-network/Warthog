@@ -7,7 +7,9 @@ class TxHash;
 class Header;
 namespace jsonmsg {
 using namespace nlohmann;
+using namespace API;
 json to_json(const PeerDB::BanEntry&);
+json to_json(const API::ThrottleState&);
 json to_json(const API::Peerinfo&);
 json to_json(const API::Balance&);
 json to_json(const Grid&);

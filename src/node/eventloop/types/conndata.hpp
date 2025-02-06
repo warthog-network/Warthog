@@ -202,9 +202,9 @@ struct ThrottleDelay {
     {
         using namespace std::chrono_literals;
         auto n { sc::now() };
-        if (n < bucket)
+        if (n > bucket)
             return 0s;
-        auto d { (n - bucket) / 10 };
+        auto d { (bucket - n) / 10 };
         return std::min(d, sc::duration(20s));
     }
 
@@ -225,24 +225,26 @@ struct BatchreqThrottler { // throttles if suspicios requests occur
     {
         assert(n > 0);
         Height upper = lower + n;
-        v1 = std::max(upper, v1);
-        v2 = std::min(v2, v1 + window);
-        v2 = std::max(v1, v2);
-        v2 = v2 + n;
+        _h1 = std::max(upper, _h1);
+        _h2 = std::min(_h2, _h1 + window);
+        _h2 = std::max(_h1, _h2);
+        _h2 = _h2 + n;
         return get_duration();
     };
 
     duration get_duration() const
     {
-        if (v2 - v1 > window) {
+        if (_h1 - _h2 > window) {
             return seconds(20); // throttle hard
         }
         return seconds(0);
     }
+    auto h1() const { return _h1; }
+    auto h2() const { return _h2; }
 
 private:
-    Height v2 { Height::zero() };
-    Height v1 { Height::zero() };
+    Height _h2 { Height::zero() };
+    Height _h1 { window };
 };
 
 struct Throttled {
