@@ -500,6 +500,7 @@ json to_json(const API::Peerinfo& pi)
         { "connection",
             json {
                 { "ip", pi.endpoint.ipv4.to_string().c_str() },
+                { "id", pi.id },
                 { "port", pi.endpoint.port },
                 { "sinceTimestamp", pi.since },
                 { "sinceUtc", format_utc(pi.since) } } },

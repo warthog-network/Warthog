@@ -171,6 +171,7 @@ struct ThrottleState {
 
 struct Peerinfo {
     EndpointAddress endpoint;
+    uint64_t id;
     bool initialized;
     PeerChain chainstate;
     SignedSnapshot::Priority theirSnapshotPriority;

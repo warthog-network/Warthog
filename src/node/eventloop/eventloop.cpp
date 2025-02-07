@@ -346,6 +346,7 @@ void Eventloop::handle_event(GetPeers&& e)
         if (e.filterThrottled && cr->throttled.reply_delay() == 0s)
             continue;
         out.push_back({ .endpoint { cr->c->peer_address() },
+            .id = cr.id(),
             .initialized = cr.initialized(),
             .chainstate = cr.chain(),
             .theirSnapshotPriority = cr->theirSnapshotPriority,
@@ -643,7 +644,7 @@ void Eventloop::do_loadtest_requests()
         auto l { cr->loadtest.generate_load(cr) };
         if (!l)
             continue;
-        spdlog::info("Sending loadtest request to peer {}.",cr->c->peer_address().to_string());
+        spdlog::info("Sending loadtest request to peer {}.", cr->c->peer_address().to_string());
         std::visit([&](auto& request) {
             sender().send(cr, request);
         },
