@@ -31,6 +31,7 @@ struct NodeVersion {
 class Header;
 
 using PeersCb = std::function<void(const std::vector<API::Peerinfo>&)>;
+using ThrottledCb = std::function<void(const std::vector<API::ThrottledPeer>&)>;
 using SyncedCb = std::function<void(bool)>;
 using ResultCb = std::function<void(const tl::expected<void, int32_t>&)>;
 using ConnectedConnectionCB = std::function<void(const API::PeerinfoConnections&)>;

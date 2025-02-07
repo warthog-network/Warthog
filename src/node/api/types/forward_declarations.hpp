@@ -24,5 +24,6 @@ struct Wallet;
 struct Rollback;
 struct Raw;
 struct ThrottleState;
+struct ThrottledPeer;
 using Transaction = std::variant<RewardTransaction, TransferTransaction>;
 }

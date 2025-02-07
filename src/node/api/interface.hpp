@@ -28,7 +28,7 @@ void get_failed_addresses(PeerServer::BannedCB cb);
 void get_verified_addresses(PeerServer::BannedCB cb);
 
 void get_connected_peers2(PeersCb&& cb);
-void get_throttled_peers(PeersCb&& cb);
+void get_throttled_peers(ThrottledCb&& cb);
 void get_connected_connection(ConnectedConnectionCB&& cb);
 
 // tools functions

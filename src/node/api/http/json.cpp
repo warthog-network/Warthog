@@ -278,9 +278,9 @@ namespace {
 json to_json(const API::ThrottleState& ts)
 {
     using namespace std::chrono;
-    
+
     return {
-        { "delay", duration_cast<seconds>(ts.delay).count() }, 
+        { "delay", duration_cast<seconds>(ts.delay).count() },
         { "blockRequest", to_json(ts.blockreq) },
         { "headerRequest", to_json(ts.batchreq) }
     };
@@ -492,6 +492,18 @@ json to_json(const OffenseEntry& e)
     };
 }
 
+json to_json(const API::ThrottledPeer& pi)
+{
+    return {
+        { "throttle", to_json(pi.throttle) },
+        { "connection",
+            json {
+                { "ip", pi.endpoint.ipv4.to_string().c_str() },
+                { "id", pi.id },
+                { "port", pi.endpoint.port },
+            } },
+    };
+}
 json to_json(const API::Peerinfo& pi)
 {
     auto& cs { pi.chainstate };

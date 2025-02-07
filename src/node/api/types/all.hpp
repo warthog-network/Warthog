@@ -180,6 +180,12 @@ struct Peerinfo {
     ThrottleState throttle;
 };
 
+struct ThrottledPeer{
+    EndpointAddress endpoint;
+    uint64_t id;
+    ThrottleState throttle;
+};
+
 struct Network {
     /* data */
 };

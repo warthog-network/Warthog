@@ -35,6 +35,7 @@ json to_json(const std::optional<SignedSnapshot>&);
 json to_json(const chainserver::TransactionIds&);
 json to_json(const API::Round16Bit&);
 json to_json(const API::Rollback&);
+json to_json(const API::ThrottledPeer&);
 
 template <typename T>
 inline json to_json(const std::vector<T>& e, const auto& map)

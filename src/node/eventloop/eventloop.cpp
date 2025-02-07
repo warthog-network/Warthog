@@ -92,9 +92,14 @@ void Eventloop::async_mempool_update(mempool::Log&& s)
     defer(std::move(s));
 }
 
-void Eventloop::api_get_peers(PeersCb&& cb, bool filterThrottled)
+void Eventloop::api_get_peers(PeersCb&& cb)
 {
-    defer(GetPeers { cb, filterThrottled });
+    defer(GetPeers { cb });
+}
+
+void Eventloop::api_get_throttled(ThrottledCb&& cb)
+{
+    defer(GetThrottled { cb });
 }
 
 void Eventloop::api_get_synced(SyncedCb&& cb)
@@ -339,12 +344,23 @@ void Eventloop::log_chain_length()
         spdlog::info("Synced. (height {}).", synced);
 }
 
+void Eventloop::handle_event(GetThrottled&& e)
+{
+    std::vector<API::ThrottledPeer> out;
+    for (auto cr : connections.initialized()) {
+        if (cr->throttled.reply_delay() != 0s) {
+            out.push_back({ .endpoint { cr->c->peer_address() },
+                .id = cr.id(),
+                .throttle { cr->throttled } });
+        }
+    }
+    e.callback(out);
+}
+
 void Eventloop::handle_event(GetPeers&& e)
 {
     std::vector<API::Peerinfo> out;
     for (auto cr : connections.initialized()) {
-        if (e.filterThrottled && cr->throttled.reply_delay() == 0s)
-            continue;
         out.push_back({ .endpoint { cr->c->peer_address() },
             .id = cr.id(),
             .initialized = cr.initialized(),
