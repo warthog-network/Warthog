@@ -65,3 +65,6 @@ void get_account_richlist(RichlistCb cb);
 // endpoints function
 void inspect_eventloop(std::function<void(const Eventloop& e)>&&);
 void inspect_conman(std::function<void(const Conman& c)>&&);
+void loadtest_block(uint64_t conId, ResultCb);
+void loadtest_header(uint64_t conId, ResultCb);
+void loadtest_disable(uint64_t conId, ResultCb);

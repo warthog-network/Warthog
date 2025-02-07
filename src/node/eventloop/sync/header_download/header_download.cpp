@@ -271,7 +271,7 @@ Conref Downloader::try_send(ConnectionFinder& f, std::vector<ChainOffender> offe
                     return cr;
                 }
             } else {
-                Batchrequest br(desc, rd.slot, rd.finalHeader);
+                HeaderRequest br(desc, rd.slot, rd.finalHeader);
                 f.s.send(cr, br);
                 f.conIndex = index;
                 return cr;
@@ -414,7 +414,7 @@ std::vector<ChainOffender> Downloader::do_header_requests(RequestSender s)
     return do_shared_grid_requests(s);
 }
 
-void Downloader::on_request_expire(Conref cr, const Batchrequest&)
+void Downloader::on_request_expire(Conref cr, const HeaderRequest&)
 {
     if (data(cr).jobPtr) {
         data(cr).jobPtr->cr.clear();
@@ -599,7 +599,7 @@ void Downloader::verify_queued(Queued_iter qi, const Lead_set& leaders, std::vec
     }
 }
 
-auto Downloader::on_response(Conref cr, Batchrequest&& req, Batch&& res) -> std::vector<ChainOffender>
+auto Downloader::on_response(Conref cr, HeaderRequest&& req, Batch&& res) -> std::vector<ChainOffender>
 {
     // assert precondition
     assert(res.size() >= req.minReturn);

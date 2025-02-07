@@ -1,5 +1,6 @@
 #pragma once
 
+#include "block/header/batch.hpp"
 #include "communication/buffers/sndbuffer.hpp"
 #include "eventloop/peer_chain.hpp"
 #include "eventloop/sync/block_download/connection_data.hpp"
@@ -105,7 +106,7 @@ struct ConnectionJob : public Timerref {
         timer_iter = iter;
         return;
     }
-    using data_t = std::variant<AwaitInit, std::monostate, Proberequest, Batchrequest, Blockrequest>;
+    using data_t = std::variant<AwaitInit, std::monostate, Proberequest, HeaderRequest, BlockRequest>;
     data_t data_v;
 
     template <typename T>
@@ -151,11 +152,11 @@ private:
 
     template <std::same_as<BatchrepMsg> T>
     struct typemap<T> {
-        using type = Batchrequest;
+        using type = HeaderRequest;
     };
     template <std::same_as<BlockrepMsg> T>
     struct typemap<T> {
-        using type = Blockrequest;
+        using type = BlockRequest;
     };
 };
 
@@ -194,6 +195,45 @@ struct Ping : public Timerref {
 
 private:
     std::optional<PingMsg> data;
+};
+
+struct TimingLog {
+    using Milliseconds = std::chrono::milliseconds;
+    struct Entry {
+        RequestType type;
+        Milliseconds duration;
+    };
+    std::vector<Entry> entries;
+
+    void push(RequestType t, Milliseconds duration)
+    {
+        push({ t, duration });
+    }
+
+    void push(Entry e)
+    {
+        entries.push_back(std::move(e));
+        // periodic prune
+        if (entries.size() > 200)
+            entries.erase(entries.begin(), entries.begin() + 100);
+    }
+
+    auto mean() const
+    {
+        using namespace std::chrono_literals;
+        Milliseconds sum { 0ms };
+        for (auto& e : entries) {
+            sum += e.duration;
+        }
+        if (entries.size() > 0)
+            sum /= entries.size();
+        return sum;
+    }
+};
+
+struct Loadtest {
+    std::optional<RequestType> job;
+    [[nodiscard]] std::optional<Request> generate_load(Conref);
 };
 
 struct ThrottleDelay {
@@ -321,6 +361,7 @@ struct PeerState {
     Height txSubscription { 0 };
     Ratelimit ratelimit;
     Throttled throttled;
+    Loadtest loadtest;
     SignedSnapshot::Priority acknowledgedSnapshotPriority;
     SignedSnapshot::Priority theirSnapshotPriority;
     uint32_t lastNonce;

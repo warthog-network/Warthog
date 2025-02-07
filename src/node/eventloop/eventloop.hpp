@@ -71,6 +71,12 @@ public:
     void api_get_hashrate_chart(HashrateChartCb&& cb);
     void api_get_hashrate_chart(NonzeroHeight from, NonzeroHeight to, size_t window, HashrateChartCb&& cb);
     void api_inspect(InspectorCb&&);
+    void api_loadtest_block(uint64_t conId, ResultCb);
+    void api_loadtest_header(uint64_t conId, ResultCb);
+    void api_loadtest_disable(uint64_t conId, ResultCb);
+
+
+
 
     void start_async_loop();
 
@@ -125,6 +131,7 @@ private:
 
     ////////////////////////
     // assign work to connections
+    void do_loadtest_requests();
     void do_requests();
     void send_requests(Conref cr, const std::vector<Request>&);
 
@@ -162,8 +169,8 @@ private:
     void handle_connection_timeout(Conref, Timer::CloseNoReply&&);
     void handle_connection_timeout(Conref, Timer::CloseNoPong&&);
     void on_request_expired(Conref cr, const Proberequest&);
-    void on_request_expired(Conref cr, const Batchrequest&);
-    void on_request_expired(Conref cr, const Blockrequest&);
+    void on_request_expired(Conref cr, const HeaderRequest&);
+    void on_request_expired(Conref cr, const BlockRequest&);
 
     ////////////////////////
     // blockdownload result
@@ -209,11 +216,16 @@ private:
         PeersCb callback;
         bool filterThrottled;
     };
+    struct Loadtest{
+        uint64_t connId;
+        std::optional<RequestType> requestType;
+        ResultCb callback;
+    };
     // event queue
     using Event = std::variant<OnRelease, OnProcessConnection,
         StateUpdate, SignedSnapshotCb, GetPeers, SyncedCb, stage_operation::Result,
         OnForwardBlockrep, OnFailedAddressEvent, InspectorCb, GetHashrate, GetHashrateChart,
-        OnPinAddress, OnUnpinAddress, mempool::Log>;
+        OnPinAddress, OnUnpinAddress, mempool::Log, Loadtest>;
 
 public:
     bool defer(Event e);
@@ -235,6 +247,7 @@ private:
     void handle_event(OnPinAddress&&);
     void handle_event(OnUnpinAddress&&);
     void handle_event(mempool::Log&&);
+    void handle_event(Loadtest&&);
 
     // scheduling 
     void send_throttled(Conref cr, Sndbuffer, duration d);
@@ -247,6 +260,9 @@ private:
     void update_chain(Fork&&);
     void update_chain(RollbackData&&);
     void coordinate_sync();
+     
+    // load test
+    void try_start_loadtest(Conref cr);
 
     void initialize_block_download();
     ForkHeight set_stage_headers(Headerchain&&);

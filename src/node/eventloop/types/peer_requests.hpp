@@ -9,6 +9,7 @@
 struct IsRequest {
     static constexpr auto expiry_time = std::chrono::seconds(30);
     bool isActiveRequest = true;
+    bool isLoadtest = false;
     void unref_active_requests(size_t& activeRequests)
     {
         if (isActiveRequest) {
@@ -33,8 +34,15 @@ struct Proberequest : public ProbereqMsg, public IsRequest {
 
 struct AwaitInit {
 };
-struct Blockrequest : public BlockreqMsg, public IsRequest {
-    Blockrequest(std::shared_ptr<Descripted> pdescripted,
+struct BlockRequest : public BlockreqMsg, public IsRequest {
+    static constexpr const char name[] { "Block  Request" };
+    BlockRequest(std::shared_ptr<Descripted> pdescripted,
+        BlockRange range)
+        : BlockreqMsg(DescriptedBlockRange { pdescripted->descriptor, range.lower, range.upper })
+        , descripted(std::move(pdescripted))
+    {
+    }
+    BlockRequest(std::shared_ptr<Descripted> pdescripted,
         BlockRange range,
         Hash upperHash)
         : BlockreqMsg(DescriptedBlockRange { pdescripted->descriptor, range.lower, range.upper })
@@ -43,10 +51,11 @@ struct Blockrequest : public BlockreqMsg, public IsRequest {
     {
     }
     std::shared_ptr<Descripted> descripted;
-    Hash upperHash;
+    std::optional<Hash> upperHash; // nullopt for loadtest
 };
 
-struct Batchrequest : public BatchreqMsg, public IsRequest {
+struct HeaderRequest : public BatchreqMsg, public IsRequest {
+    static constexpr const char name[] { "Header Request" };
     uint16_t minReturn = 0;
     uint16_t max_return() { return BatchreqMsg::selector.length; }
     using Pindata = Headerchain::pin_t;
@@ -59,7 +68,7 @@ struct Batchrequest : public BatchreqMsg, public IsRequest {
     {
         return std::holds_alternative<Worksum>(extra);
     }
-    Batchrequest(std::shared_ptr<Descripted> pdescripted,
+    HeaderRequest(std::shared_ptr<Descripted> pdescripted,
         const Pindata& pinnedChain,
         NonzeroHeight lower, NonzeroHeight upper, extra_t e)
         : BatchreqMsg { BatchSelector { pdescripted->descriptor, lower, uint16_t(upper - lower + 1) } }
@@ -91,7 +100,7 @@ struct Batchrequest : public BatchreqMsg, public IsRequest {
         assert(isUpper != is_partial_request());
     }
 
-    Batchrequest(std::shared_ptr<Descripted> pdescripted,
+    HeaderRequest(std::shared_ptr<Descripted> pdescripted,
         Batchslot slot, uint16_t minElements, Worksum ws)
         : BatchreqMsg { BatchSelector { pdescripted->descriptor, slot.lower(), HEADERBATCHSIZE } }
         , minReturn(minElements)
@@ -99,7 +108,7 @@ struct Batchrequest : public BatchreqMsg, public IsRequest {
         , extra(ws)
     {
     }
-    Batchrequest(std::shared_ptr<Descripted> pdescripted, Batchslot slot, HeaderView h)
+    HeaderRequest(std::shared_ptr<Descripted> pdescripted, Batchslot slot, HeaderView h)
         : BatchreqMsg { BatchSelector { pdescripted->descriptor, slot.lower(), HEADERBATCHSIZE } }
         , minReturn(HEADERBATCHSIZE)
         , descripted(std::move(pdescripted))
@@ -107,4 +116,52 @@ struct Batchrequest : public BatchreqMsg, public IsRequest {
     {
     }
 };
-using Request = std::variant<Blockrequest, Batchrequest, Proberequest>;
+
+struct RequestType {
+private:
+    template <typename T>
+    struct Wrapper {
+        using type = T;
+        bool operator==(const Wrapper<T>&) const = default;
+        static const char* name()
+        {
+            return T::name;
+        }
+    };
+
+public:
+    template <typename... R>
+    using variant_wrapper = std::variant<Wrapper<R>...>;
+    using variant_t = variant_wrapper<HeaderRequest, BlockRequest>;
+
+    template <typename R>
+    bool is() const
+    {
+        return std::holds_alternative<Wrapper<R>>(variant);
+    }
+
+    template <typename T>
+    static RequestType make()
+    {
+        return { Wrapper<T> {} };
+    }
+
+    auto visit(auto visitor) const
+    {
+        return std::visit(visitor, variant);
+    }
+
+    const char* name() const
+    {
+        return visit([](auto t) { return t.name(); });
+    }
+
+private:
+    RequestType(auto a)
+        : variant(std::move(a))
+    {
+    }
+    variant_t variant;
+};
+
+using Request = std::variant<BlockRequest, HeaderRequest, Proberequest>;

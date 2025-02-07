@@ -39,7 +39,7 @@ const Headerchain& Focus::headers()
     return downloader.headers();
 }
 
-Blockrequest Focus::FocusSlot::link_request(Conref cr)
+BlockRequest Focus::FocusSlot::link_request(Conref cr)
 {
     assert(data(cr).focusIter == focus.map.end());
 
@@ -50,7 +50,7 @@ Blockrequest Focus::FocusSlot::link_request(Conref cr)
 
     // craft block request
     auto& descripted = data(cr).descripted();
-    return Blockrequest(descripted, r, focus.headers().hash_at(r.upper));
+    return BlockRequest(descripted, r, focus.headers().hash_at(r.upper));
 }
 
 bool Focus::has_data()

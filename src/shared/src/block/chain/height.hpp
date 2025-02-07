@@ -17,6 +17,7 @@ public:
     using IsUint32::IsUint32;
     static Height undef() { return Height { 0 }; }
     static Height zero() { return Height { 0 }; }
+    bool is_zero() const { return *this == zero(); }
     Height retarget_floor()
     {
         return Height { ::retarget_floor(val) };

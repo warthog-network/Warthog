@@ -23,6 +23,46 @@ void Throttled::update_timer(Timer& t, uint64_t connectionId)
     timer = t.insert(reply_delay(), Timer::ThrottledSend { connectionId });
 }
 
+namespace {
+
+template <std::same_as<HeaderRequest> T>
+std::optional<Request> gen_load(Conref cr)
+{
+    auto descripted { cr.chain().descripted() };
+    return HeaderRequest(descripted, Batchslot(descripted->chain_length()),
+        1, descripted->worksum());
+}
+
+template <std::same_as<BlockRequest> T>
+std::optional<Request> gen_load(Conref cr)
+{
+    auto& d { cr.chain().descripted() };
+    Height h { d->chain_length() };
+    if (h.is_zero())
+        return std::nullopt; // cannot send block request to this peer
+
+    auto l { d->chain_length() };
+    NonzeroHeight lower {
+        l.value() + 1 > BLOCKBATCHSIZE ? (l + 1 - BLOCKBATCHSIZE).nonzero_assert() : NonzeroHeight(1u)
+    };
+    NonzeroHeight upper { l };
+
+    return BlockRequest {
+        d, BlockRange { lower, upper }
+    };
+}
+}
+
+std::optional<Request> Loadtest::generate_load(Conref cr)
+{
+    if (!job.has_value())
+        return {};
+    return job.value().visit([&](auto r) {
+        using type = decltype(r)::type;
+        return gen_load<type>(cr);
+    });
+}
+
 ConnectionJob::ConnectionJob(uint64_t conId, Timer& t)
     : Timerref(t.insert(30s, Timer::CloseNoReply { conId }))
 {

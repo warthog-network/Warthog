@@ -296,7 +296,7 @@ std::optional<stage_operation::Operation> Downloader::pop_stage()
     }
 }
 
-void Downloader::on_blockreq_reply(Conref cr, BlockrepMsg&& rep, Blockrequest& req)
+void Downloader::on_blockreq_reply(Conref cr, BlockrepMsg&& rep, BlockRequest& req)
 { // OK
     focus.erase(cr);
 

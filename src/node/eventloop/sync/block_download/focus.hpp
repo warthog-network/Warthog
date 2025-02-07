@@ -83,7 +83,7 @@ struct Focus {
         FocusMap::iterator iter;
         BlockRange r;
         Focus& focus;
-        Blockrequest link_request(Conref cr);
+        BlockRequest link_request(Conref cr);
     };
     struct EndIterator {
     };

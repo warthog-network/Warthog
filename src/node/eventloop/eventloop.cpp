@@ -116,6 +116,19 @@ void Eventloop::api_get_hashrate_chart(NonzeroHeight from, NonzeroHeight to, siz
     defer(GetHashrateChart { std::move(cb), from, to, window });
 }
 
+void Eventloop::api_loadtest_block(uint64_t conId, ResultCb cb)
+{
+    defer(Loadtest { conId, RequestType::make<BlockRequest>(), std::move(cb) });
+}
+void Eventloop::api_loadtest_header(uint64_t conId, ResultCb cb)
+{
+    defer(Loadtest { conId, RequestType::make<HeaderRequest>(), std::move(cb) });
+}
+void Eventloop::api_loadtest_disable(uint64_t conId, ResultCb cb)
+{
+    defer(Loadtest { conId, std::nullopt, std::move(cb) });
+}
+
 void Eventloop::async_forward_blockrep(uint64_t conId, std::vector<BodyContainer>&& blocks)
 {
     defer(OnForwardBlockrep { conId, std::move(blocks) });
@@ -454,6 +467,18 @@ void Eventloop::handle_event(mempool::Log&& log)
     }
 }
 
+void Eventloop::handle_event(Loadtest&& e)
+{
+    if (auto cr { connections.find(e.connId) }) {
+        // start load test
+        cr->loadtest.job = e.requestType;
+        do_loadtest_requests();
+        e.callback({});
+    } else {
+        e.callback(tl::make_unexpected(ENOTFOUND));
+    }
+}
+
 void Eventloop::send_throttled(Conref cr, Sndbuffer b, duration d)
 {
     cr->throttled.insert(std::move(b), timer, cr.id());
@@ -610,11 +635,28 @@ void Eventloop::send_requests(Conref cr, const std::vector<Request>& requests)
     }
 }
 
+void Eventloop::do_loadtest_requests()
+{
+    for (auto cr : connections.initialized()) {
+        if (cr.job())
+            continue;
+        auto l { cr->loadtest.generate_load(cr) };
+        if (!l)
+            continue;
+        spdlog::info("Sending loadtest request to peer {}.",cr->c->peer_address().to_string());
+        std::visit([&](auto& request) {
+            sender().send(cr, request);
+        },
+            *l);
+    }
+}
+
 void Eventloop::do_requests()
 {
+    do_loadtest_requests();
     while (true) {
         auto offenders { headerDownload.do_header_requests(sender()) };
-        if (offenders.size() == 0)
+        if (offenders.empty())
             break;
         for (auto& o : offenders)
             close(o);
@@ -701,13 +743,13 @@ void Eventloop::on_request_expired(Conref cr, const Proberequest&)
     do_requests();
 }
 
-void Eventloop::on_request_expired(Conref cr, const Batchrequest& req)
+void Eventloop::on_request_expired(Conref cr, const HeaderRequest& req)
 {
     headerDownload.on_request_expire(cr, req);
     do_requests();
 }
 
-void Eventloop::on_request_expired(Conref cr, const Blockrequest&)
+void Eventloop::on_request_expired(Conref cr, const BlockRequest&)
 {
     blockDownload.on_blockreq_expire(cr);
     do_requests();
@@ -862,13 +904,14 @@ void Eventloop::handle_msg(Conref cr, BatchrepMsg&& m)
         close(ChainOffender(EBATCHSIZE, req.selector.startHeight, cr.id()));
         return;
     }
-    auto offenders = headerDownload.on_response(cr, std::move(req), std::move(m.batch));
-    for (auto& o : offenders) {
-        close(o);
+    if (!req.isLoadtest) {
+        auto offenders = headerDownload.on_response(cr, std::move(req), std::move(m.batch));
+        for (auto& o : offenders) {
+            close(o);
+        }
+        syncdebug_log().info("init blockdownload batch_rep");
+        initialize_block_download();
     }
-
-    syncdebug_log().info("init blockdownload batch_rep");
-    initialize_block_download();
 
     // assign work
     do_requests();
@@ -927,11 +970,13 @@ void Eventloop::handle_msg(Conref cr, BlockrepMsg&& m)
         spdlog::info("{} handle blockrep", cr.str());
     auto req = cr.job().pop_req(m, timer, activeRequests);
 
-    try {
-        blockDownload.on_blockreq_reply(cr, std::move(m), req);
-        process_blockdownload_stage();
-    } catch (Error e) {
-        close(cr, e);
+    if (!req.isLoadtest) {
+        try {
+            blockDownload.on_blockreq_reply(cr, std::move(m), req);
+            process_blockdownload_stage();
+        } catch (Error e) {
+            close(cr, e);
+        }
     }
     do_requests();
 }

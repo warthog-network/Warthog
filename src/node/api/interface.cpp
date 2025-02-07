@@ -307,3 +307,12 @@ void inspect_eventloop(std::function<void(const Eventloop& e)>&& cb)
 {
     global().pel->api_inspect(std::move(cb));
 }
+void loadtest_block(uint64_t conId, ResultCb cb){
+    global().pel->api_loadtest_block(conId, std::move(cb));
+}
+void loadtest_header(uint64_t conId, ResultCb cb){
+    global().pel->api_loadtest_header(conId, std::move(cb));
+}
+void loadtest_disable(uint64_t conId, ResultCb cb){
+    global().pel->api_loadtest_disable(conId, std::move(cb));
+}

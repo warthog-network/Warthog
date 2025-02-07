@@ -163,6 +163,7 @@ void HTTPEndpoint::work()
     get("/peers/endpoints", inspect_eventloop, jsonmsg::endpoints, true);
     get("/peers/connect_timers", inspect_eventloop, jsonmsg::connect_timers, true);
 
+
     indexGenerator.section("Tools Endpoints");
     get_1("/tools/encode16bit/from_e8/:feeE8", get_round16bit_e8);
     get_1("/tools/encode16bit/from_string/:string", get_round16bit_funds);
@@ -172,6 +173,9 @@ void HTTPEndpoint::work()
     get_1("/tools/janushash_number/:headerhex", get_janushash_number);
 
     indexGenerator.section("Debug Endpoints");
+    get_1("/loadtest/block_request/:conn_id", loadtest_block);
+    get_1("/loadtest/header_request/:conn_id", loadtest_header);
+    get_1("/loadtest/disable/:conn_id", loadtest_disable);
     get("/debug/header_download", inspect_eventloop, jsonmsg::header_download, true);
     app.ws<int>("/ws/chain_delta", {
                                        .open = [](auto* ws) {
