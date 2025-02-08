@@ -22,7 +22,7 @@ public:
     HeaderVerifier();
     HeaderVerifier(const Headerchain& hc, Height length);
     HeaderVerifier(const HeaderVerifier&, const Batch&, Height heightOffset);
-    tl::expected<HeaderVerifier, ChainError> copy_apply(const std::optional<SignedSnapshot>& sp, const HeaderRange&) const;
+    tl::expected<HeaderVerifier, ChainError> copy_apply(const std::optional<SignedSnapshot>& sp, const HeaderSpan&) const;
     HeaderVerifier(const SharedBatch&);
     // void clear();
     [[nodiscard]] auto prepare_append(const std::optional<SignedSnapshot>& sp, HeaderView hv) const -> tl::expected<PreparedAppend, int32_t>;

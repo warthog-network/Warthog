@@ -906,7 +906,7 @@ void Eventloop::handle_msg(Conref cr, BatchreqMsg&& m)
     // get batch
     Batch batch = [&]() {
         if (s.descriptor == consensus().descriptor()) {
-            return consensus().headers().get_headers(s.block_range());
+            return consensus().headers().get_headers(s.header_range());
         } else {
             return stateServer.get_headers(s);
         }
@@ -916,7 +916,7 @@ void Eventloop::handle_msg(Conref cr, BatchreqMsg&& m)
 
     // get throttle
     auto duration {
-        cr->throttled.headerreq.register_request(m.selector.block_range(),
+        cr->throttled.headerreq.register_request(m.selector.header_range(),
             ratelimit_spare())
     };
     send_throttled(cr, rep, duration);

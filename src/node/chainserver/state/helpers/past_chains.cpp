@@ -33,7 +33,7 @@ Batch BlockCache::get_batch(const BatchSelector& s) const
     auto iter = chains.find(s.descriptor);
     if (iter == chains.end())
         return {};
-    return iter->second.headers->get_headers(s.block_range());
+    return iter->second.headers->get_headers(s.header_range());
 }
 std::optional<HeaderView> BlockCache::get_header(Descriptor descriptor, Height height) const
 {

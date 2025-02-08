@@ -461,7 +461,7 @@ void Downloader::process_final(Lead_iter li, std::vector<Offender>& out)
         return;
     }
     bool fromGenesis = !li->verifier.has_value();
-    HeaderRange hrange { li->final_slot(), b };
+    HeaderSpan hrange { li->final_slot(), b };
 
     const HeaderVerifier parent {
         [&] {
@@ -502,7 +502,7 @@ bool Downloader::advance_verifier(const Ver_iter* vi, const Lead_set& leaders, c
 
     auto a {
         (vi ? (*vi)->second.verifier : HeaderVerifier {})
-            .copy_apply(chains.signed_snapshot(), HeaderRange((vi ? (*vi)->second.sb.next_slot() : Batchslot(0)), b))
+            .copy_apply(chains.signed_snapshot(), HeaderSpan((vi ? (*vi)->second.sb.next_slot() : Batchslot(0)), b))
     };
     if (!a.has_value()) {
         for (const Lead_iter& li : leaders) {

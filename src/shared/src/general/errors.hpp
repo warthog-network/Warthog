@@ -98,6 +98,8 @@
     XX(100, EMSGINTEGRITY, "message integrity check failed")            \
     XX(101, EADDRNOTFOUND, "address not found")                         \
     XX(102, EADDRIDNOTFOUND, "address id not found")                    \
+    XX(103, EFROZENACC, "account is frozen and can't send")             \
+    XX(104, EHEADERRANGE, "invalid header range")                       \
     XX(200, EINV_HEX, "cannot parse hexadecimal input")                 \
     XX(201, EBADNONCE, "cannot parse nonce")                            \
     XX(202, EBADFEE, "invalid fee")                                     \
@@ -106,7 +108,6 @@
     XX(205, EPARSESIG, "cannot parse signature")                        \
     XX(206, ENOTSYNCED, "node not synced yet")                          \
     XX(207, ECONNRATELIMIT, "connection rate limit exceeded")           \
-    XX(208, EFROZENACC, "account is frozen and can't send")             \
     XX(1000, ESIGTERM, "received SIGTERM")                              \
     XX(1001, ESIGHUP, "received SIGHUP")                                \
     XX(1002, ESIGINT, "received SIGINT")                                \
@@ -142,7 +143,7 @@ inline bool leads_to_ban(int32_t code)
 } // namespace errors
 
 struct Error { // error class for exceptions
-    Error(int32_t e = 0)
+    constexpr Error(int32_t e = 0)
         : e(e) { };
     const char* strerror() const { return errors::strerror(e); };
     const char* err_name() const { return errors::err_name(e); };

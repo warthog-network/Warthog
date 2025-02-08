@@ -271,7 +271,7 @@ struct BatchreqThrottler { // throttles if suspicios requests occur
         }
     }
 
-    duration register_request(BlockRange r, size_t spare)
+    duration register_request(HeightRange r, size_t spare)
     {
         assert(r.length() > 0);
         set_upper(r.upper(), spare);

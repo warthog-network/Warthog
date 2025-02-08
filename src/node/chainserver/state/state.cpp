@@ -233,7 +233,7 @@ Batch State::get_headers_concurrent(BatchSelector s)
 {
     std::unique_lock<std::mutex> lcons(chainstateMutex);
     if (s.descriptor == chainstate.descriptor()) {
-        return chainstate.headers().get_headers(s.block_range());
+        return chainstate.headers().get_headers(s.header_range());
     } else {
         return blockCache.get_batch(s);
     }

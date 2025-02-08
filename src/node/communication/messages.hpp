@@ -140,7 +140,7 @@ struct BatchSelector {
     Descriptor descriptor;
     NonzeroHeight startHeight;
     NonzeroHeight end() const { return startHeight + length; }
-    BlockRange block_range() const { return { startHeight, end() }; };
+    HeaderRange header_range() const { return { startHeight, end() }; };
     uint16_t length;
     BatchSelector(Descriptor d, NonzeroHeight s, uint16_t l)
         : descriptor(d)

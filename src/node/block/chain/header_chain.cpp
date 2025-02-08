@@ -177,9 +177,8 @@ API::HashrateChart Headerchain::hashrate_chart(NonzeroHeight reqmin, NonzeroHeig
     return { .range { .begin { min }, .end { max } }, .chart { std::move(chart) } };
 }
 
-Batch Headerchain::get_headers(BlockRange range) const
+Batch Headerchain::get_headers(HeaderRange range) const
 {
-    assert(range.length() <= HEADERBATCHSIZE);
     auto end { range.end() };
     if (end > length()) {
         end = (length() + 1).nonzero_assert();
@@ -237,7 +236,7 @@ ForkHeight fork_height(const Headerchain& h1, const Headerchain& h2, NonzeroHeig
     return { NonzeroHeight(uint32_t(f * HEADERBATCHSIZE + forkIndex + 1)), forked };
 }
 
-std::optional<NonzeroHeight> Headerchain::max_match_height(const HeaderRange& hrange) const
+std::optional<NonzeroHeight> Headerchain::max_match_height(const HeaderSpan& hrange) const
 {
     std::optional<NonzeroHeight> h;
     for (auto header1 : hrange) {
