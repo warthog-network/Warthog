@@ -268,8 +268,8 @@ namespace {
     json to_json(const API::ThrottleState::BatchThrottler& bt)
     {
         return {
-            { "h1", bt.h1.value() },
-            { "h2", bt.h2.value() },
+            { "h1", bt.h0.value() },
+            { "h2", bt.h1.value() },
             { "window", bt.window }
         };
     }

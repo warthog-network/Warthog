@@ -147,13 +147,13 @@ struct HashrateChart {
 
 struct ThrottleState {
     struct BatchThrottler {
+        Height h0;
         Height h1;
-        Height h2;
         size_t window;
         template <size_t w>
         BatchThrottler(const BatchreqThrottler<w>& bt)
-            : h1(bt.h1())
-            , h2(bt.h2())
+            : h0(bt.h0())
+            , h1(bt.h1())
             , window(w)
         {
         }

@@ -261,37 +261,39 @@ template <size_t window>
 struct BatchreqThrottler { // throttles if suspicios requests occur
     using seconds = std::chrono::seconds;
     using duration = std::chrono::steady_clock::duration;
+
+private:
     void set_upper(Height upper, size_t spare)
     {
         _u = std::max(upper, _u);
-        if (_u.value() + spare >= window) {
-            _l = std::max(_l, Height::zero());
-        } else {
+        if (_u.value() + spare >= window)
             _l = std::max(_l, _u + spare - window);
-        }
     }
 
+public:
     duration register_request(HeightRange r, size_t spare)
     {
         assert(r.length() > 0);
         set_upper(r.upper(), spare);
         _l = _l + r.length();
+        if (_l > _u + 1)
+            _l = _u + 1;
         return get_duration();
     }
 
     duration get_duration() const
     {
-        if (_u - _l > window) {
-            return seconds(20); // throttle hard
+        if (_l > _u) {
+            return seconds(20);
         }
         return seconds(0);
     }
+    auto h0() const { return _l; }
     auto h1() const { return _u; }
-    auto h2() const { return _l; }
 
 private:
     Height _l { Height::zero() };
-    Height _u { window };
+    Height _u { Height::zero() };
 };
 
 struct Throttled {
