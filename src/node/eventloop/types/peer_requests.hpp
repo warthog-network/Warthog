@@ -38,14 +38,14 @@ struct BlockRequest : public BlockreqMsg, public IsRequest {
     static constexpr const char name[] { "Block  Request" };
     BlockRequest(std::shared_ptr<Descripted> pdescripted,
         BlockRange range)
-        : BlockreqMsg(DescriptedBlockRange { pdescripted->descriptor, range.lower(), range.upper() })
+        : BlockreqMsg(DescriptedBlockRange { pdescripted->descriptor, range })
         , descripted(std::move(pdescripted))
     {
     }
     BlockRequest(std::shared_ptr<Descripted> pdescripted,
         BlockRange range,
         Hash upperHash)
-        : BlockreqMsg(DescriptedBlockRange { pdescripted->descriptor, range.lower(), range.upper() })
+        : BlockreqMsg(DescriptedBlockRange { pdescripted->descriptor, range })
         , descripted(std::move(pdescripted))
         , upperHash(std::move(upperHash))
     {

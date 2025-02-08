@@ -49,8 +49,8 @@ using HeaderRange = HeightRangeLimited<HEADERBATCHSIZE, Error(EHEADERRANGE)>;
 
 struct DescriptedBlockRange : public BlockRange {
     Descriptor descriptor;
-    DescriptedBlockRange(Descriptor descriptor, NonzeroHeight lowerHeight, NonzeroHeight upperHeight)
-        : BlockRange { lowerHeight, upperHeight }
+    DescriptedBlockRange(Descriptor descriptor, BlockRange br)
+        : BlockRange { std::move(br) }
         , descriptor(descriptor)
     {
     }

@@ -139,13 +139,15 @@ struct PongMsg : public WithNonce, public MsgCode<5> {
 struct BatchSelector {
     Descriptor descriptor;
     NonzeroHeight startHeight;
-    NonzeroHeight end() const { return startHeight + length; }
-    HeaderRange header_range() const { return { startHeight, end() }; };
+    HeaderRange header_range() const { return { startHeight, startHeight + (length - 1) }; };
     uint16_t length;
     BatchSelector(Descriptor d, NonzeroHeight s, uint16_t l)
         : descriptor(d)
         , startHeight(s)
-        , length(l) { };
+        , length(l)
+    {
+        assert(l > 0);
+    };
     BatchSelector(Reader& r);
 };
 
