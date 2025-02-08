@@ -7,7 +7,7 @@ struct HeightRange {
         : _lower(lower)
         , _upper(upper)
     {
-        assert(upper > lower);
+        assert(upper >= lower);
     }
 
     // data
