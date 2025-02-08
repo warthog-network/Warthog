@@ -63,7 +63,11 @@ void throw_if_inconsistent(Height length, Worksum worksum)
 BatchSelector::BatchSelector(Reader& r)
     : descriptor(r.uint32())
     , startHeight(Height(r).nonzero_throw(EBATCHHEIGHT))
-    , length(r) {}
+    , length(r) {
+    if (length == 0) {
+        throw Error(EBLOCKRANGE);
+    }
+}
 template <uint8_t M>
 MessageWriter MsgCode<M>::gen_msg(size_t len)
 {

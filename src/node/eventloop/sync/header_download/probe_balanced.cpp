@@ -26,7 +26,7 @@ std::optional<Proberequest> ProbeBalanced::probe_request(const ProbeData& pd, co
     auto u { pb.upper() };
 
     if (can_download(l, u, maxLength)) {
-        return HeaderRequest(desc, pd.headers(), slot.lower(), maxLength, h);
+        return HeaderRequest(desc, pd.headers(), BlockRange(slot.lower(), maxLength), h);
     }
     return {};
 }
@@ -44,7 +44,7 @@ std::optional<Proberequest> ProbeBalanced::probe_request(const ProbeData& pd, co
         if (slot.lower() > l) {
             return HeaderRequest(desc, slot, maxLength - slot.offset(), minWork);
         } else {
-            return HeaderRequest(desc, pd.headers(), l, maxLength, minWork);
+            return HeaderRequest(desc, pd.headers(), BlockRange(l, maxLength), minWork);
         }
     }
     return {};

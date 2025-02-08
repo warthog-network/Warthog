@@ -143,7 +143,7 @@ inline bool leads_to_ban(int32_t code)
 
 struct Error { // error class for exceptions
     Error(int32_t e = 0)
-        : e(e) {};
+        : e(e) { };
     const char* strerror() const { return errors::strerror(e); };
     const char* err_name() const { return errors::err_name(e); };
     bool is_error() const { return e != 0; }

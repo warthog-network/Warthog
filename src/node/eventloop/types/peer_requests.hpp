@@ -69,34 +69,31 @@ struct HeaderRequest : public BatchreqMsg, public IsRequest {
         return std::holds_alternative<Worksum>(extra);
     }
     HeaderRequest(std::shared_ptr<Descripted> pdescripted,
-        const Pindata& pinnedChain,
-        NonzeroHeight lower, NonzeroHeight upper, extra_t e)
-        : BatchreqMsg { BatchSelector { pdescripted->descriptor, lower, uint16_t(upper - lower + 1) } }
-        , minReturn(upper - lower + 1)
+        const Pindata& pinnedChain, BlockRange range, extra_t e)
+        : BatchreqMsg { BatchSelector { pdescripted->descriptor, range.lower(), uint16_t(range.length()) } }
+        , minReturn(range.length())
 
         , descripted(std::move(pdescripted))
         , extra(e)
     {
         static_assert(HEADERBATCHSIZE < std::numeric_limits<uint16_t>::max());
-        assert(upper >= lower);
         if (is_partial_request())
-            assert(upper - lower + 1 < HEADERBATCHSIZE);
+            assert(range.length() < HEADERBATCHSIZE);
         else
-            assert(upper - lower + 1 <= HEADERBATCHSIZE);
+            assert(range.length()  <= HEADERBATCHSIZE);
 
         assert(pinnedChain.data);
-        assert(pinnedChain->length() + 1 >= lower);
+        assert(pinnedChain->length() + 1 >= range.lower());
 
         // assign prefix
-        Batchslot bs(lower);
+        Batchslot bs(range.lower());
         const Batch* b = (*pinnedChain)[bs];
         assert(b);
         auto begin = b->begin();
-        auto end = begin + (lower - bs.lower());
+        auto end = begin + (range.lower() - bs.lower());
         prefix.assign(begin, end);
 
-        bool isUpper
-            = Batchslot(upper).upper() == upper;
+        bool isUpper = Batchslot(range.upper()).upper() == range.upper();
         assert(isUpper != is_partial_request());
     }
 
