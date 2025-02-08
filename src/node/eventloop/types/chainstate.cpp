@@ -20,9 +20,17 @@ std::pair<Height, AppendMsg> ConsensusSlave::apply(Append&& append)
     return res;
 };
 
+void ConsensusSlave::update_ratelimit_spare(Height newlength)
+{
+    assert(newlength < headers().length());
+    ratelimitSpare += headers().length() - newlength;
+}
+
 ForkMsg ConsensusSlave::apply(Fork&& fork)
 {
     assert(descriptor_ + 1 == fork.descriptor);
+
+    update_ratelimit_spare(fork.shrinkLength);
     descriptor_ = fork.descriptor;
     if (pinGenerator.use_count() > 1) {
         *pinGenerator = std::move(fork.prevChain);
@@ -35,10 +43,12 @@ ForkMsg ConsensusSlave::apply(Fork&& fork)
         assert(signedSnapshot->compatible(*headerchain));
     }
 
+    ratelimitSpare += headerchain->length() - fork.shrinkLength;
     auto res { headerchain->apply_fork(std::move(fork)) };
 
     return res;
 };
+
 
 auto ConsensusSlave::apply(const RollbackData& rd) -> std::optional<SignedPinRollbackMsg>
 {
@@ -52,6 +62,7 @@ auto ConsensusSlave::apply(const RollbackData& rd) -> std::optional<SignedPinRol
         auto& rollback { rd.data->rollback };
         assert(descriptor_ + 1 == rollback.descriptor);
         descriptor_ = rollback.descriptor;
+        update_ratelimit_spare(rollback.shrinkLength);
         headerchain->shrink(rollback.shrinkLength);
 
         // prevChain

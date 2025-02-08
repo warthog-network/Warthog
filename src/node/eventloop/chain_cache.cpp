@@ -52,6 +52,7 @@ AppendMsg StageAndConsensus::update_consensus(Append&& append)
 
 ForkMsg StageAndConsensus::update_consensus(Fork&& fork)
 {
+    consensus.headers().length();
     auto shrinkLength { fork.shrinkLength };
     auto msg = consensus.apply(std::move(fork));
     if (!scForkHeight.forked() || scForkHeight > shrinkLength) {

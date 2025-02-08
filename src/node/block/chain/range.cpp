@@ -3,18 +3,18 @@
 #include "general/writer.hpp"
 bool BlockRange::valid()
 {
-    return lower <= upper
-        && (upper - lower + 1 <= MAXBLOCKBATCHSIZE);
+    return _lower <= _upper
+        && (_upper - _lower + 1 <= MAXBLOCKBATCHSIZE);
 }
 
 Writer& operator<<(Writer& w, BlockRange br)
 {
-    return w << br.lower << br.upper;
+    return w << br._lower << br._upper;
 }
 
 BlockRange::BlockRange(Reader& r)
-    : lower(r)
-    , upper(r)
+    : _lower(r)
+    , _upper(r)
 {
     if (!valid())
         throw Error(EBLOCKRANGE);

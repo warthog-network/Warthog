@@ -340,7 +340,7 @@ BatchrepMsg::operator Sndbuffer() const
 
 std::string BlockreqMsg::log_str() const
 {
-    return "blockreq [" + std::to_string(range.lower) + "," + std::to_string(range.upper) + "]";
+    return "blockreq [" + std::to_string(range.lower()) + "," + std::to_string(range.upper()) + "]";
 }
 
 BlockreqMsg::operator Sndbuffer() const

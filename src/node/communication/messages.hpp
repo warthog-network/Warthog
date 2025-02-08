@@ -32,7 +32,7 @@ struct WithNonce {
 struct RandNonce : public WithNonce {
     RandNonce();
     RandNonce(uint32_t nonce)
-        : WithNonce { nonce } {};
+        : WithNonce { nonce } { };
 };
 
 namespace {
@@ -93,7 +93,7 @@ struct SignedPinRollbackMsg : public MsgCode<3> {
         : signedSnapshot(signedPin)
         , shrinkLength(newLength)
         , worksum(std::move(worksum))
-        , descriptor(descriptor) {};
+        , descriptor(descriptor) { };
     operator Sndbuffer() const;
 
     SignedSnapshot signedSnapshot;
@@ -108,13 +108,13 @@ struct PingMsg : public RandNonce, public MsgCode<4> {
     PingMsg(SignedSnapshot::Priority sp, uint16_t maxAddresses = 5, uint16_t maxTransactions = 100)
         : sp(sp)
         , maxAddresses(maxAddresses)
-        , maxTransactions(maxTransactions) {};
+        , maxTransactions(maxTransactions) { };
 
     PingMsg(uint32_t nonce, SignedSnapshot::Priority sp, uint16_t maxAddresses, uint16_t maxTransactions)
         : RandNonce(nonce)
         , sp(sp)
         , maxAddresses(maxAddresses)
-        , maxTransactions(maxTransactions) {};
+        , maxTransactions(maxTransactions) { };
     static PingMsg from_reader(Reader& r);
     SignedSnapshot::Priority sp;
     uint16_t maxAddresses;
@@ -128,7 +128,7 @@ struct PongMsg : public WithNonce, public MsgCode<5> {
     PongMsg(uint32_t nonce, std::vector<EndpointAddress> addresses, std::vector<TxidWithFee> txids)
         : WithNonce { nonce }
         , addresses(addresses)
-        , txids(std::move(txids)) {};
+        , txids(std::move(txids)) { };
     operator Sndbuffer() const;
 
     Error check(const PingMsg&) const;
@@ -140,11 +140,12 @@ struct BatchSelector {
     Descriptor descriptor;
     NonzeroHeight startHeight;
     NonzeroHeight end() const { return startHeight + length; }
+    BlockRange block_range() const { return { startHeight, end() }; };
     uint16_t length;
     BatchSelector(Descriptor d, NonzeroHeight s, uint16_t l)
         : descriptor(d)
         , startHeight(s)
-        , length(l) {};
+        , length(l) { };
     BatchSelector(Reader& r);
 };
 
@@ -153,10 +154,10 @@ struct BatchreqMsg : public RandNonce, public MsgCode<6> {
     std::string log_str() const;
     static BatchreqMsg from_reader(Reader& r);
     BatchreqMsg(BatchSelector selector)
-        : selector(selector) {};
+        : selector(selector) { };
     BatchreqMsg(uint32_t nonce, BatchSelector selector)
         : RandNonce(nonce)
-        , selector(selector) {};
+        , selector(selector) { };
     operator Sndbuffer() const;
     BatchSelector selector;
 };
@@ -202,14 +203,14 @@ struct ProberepMsg : public WithNonce, public MsgCode<9> {
     static ProberepMsg from_reader(Reader& r);
     ProberepMsg(uint32_t nonce, uint32_t currentDescriptor)
         : WithNonce { nonce }
-        , currentDescriptor(currentDescriptor) {};
+        , currentDescriptor(currentDescriptor) { };
     ProberepMsg(uint32_t nonce, uint32_t currentDescriptor,
         std::optional<Header> req,
         std::optional<Header> cur)
         : WithNonce { nonce }
         , currentDescriptor(currentDescriptor)
         , requested(std::move(req))
-        , current(std::move(cur)) {};
+        , current(std::move(cur)) { };
     operator Sndbuffer() const;
     Descriptor currentDescriptor;
     std::optional<Header> requested;
@@ -222,10 +223,10 @@ struct BlockreqMsg : public RandNonce, public MsgCode<10> {
     // methods
     std::string log_str() const;
     BlockreqMsg(DescriptedBlockRange range)
-        : range(range) {};
+        : range(range) { };
     BlockreqMsg(uint32_t nonce, DescriptedBlockRange range)
         : RandNonce(nonce)
-        , range(range) {};
+        , range(range) { };
     static BlockreqMsg from_reader(Reader& r);
     operator Sndbuffer() const;
 
@@ -240,7 +241,7 @@ struct BlockrepMsg : public WithNonce, public MsgCode<11> {
     static BlockrepMsg from_reader(Reader& r);
     BlockrepMsg(uint32_t nonce, std::vector<BodyContainer> b)
         : WithNonce { nonce }
-        , blocks(std::move(b)) {};
+        , blocks(std::move(b)) { };
     operator Sndbuffer() const;
     bool empty() const { return blocks.empty(); }
 
@@ -250,10 +251,10 @@ struct BlockrepMsg : public WithNonce, public MsgCode<11> {
 
 struct TxsubscribeMsg : public RandNonce, public MsgCode<12> {
     TxsubscribeMsg(Height upper)
-        : upper(upper) {};
+        : upper(upper) { };
     TxsubscribeMsg(uint32_t nonce, Height upper)
         : RandNonce(nonce)
-        , upper(upper) {};
+        , upper(upper) { };
     static TxsubscribeMsg from_reader(Reader& r);
     operator Sndbuffer() const;
     Height upper;
@@ -263,10 +264,10 @@ struct TxsubscribeMsg : public RandNonce, public MsgCode<12> {
 struct TxnotifyMsg : public RandNonce, public MsgCode<13> {
     static constexpr size_t MAXENTRIES = 5000;
     TxnotifyMsg(std::vector<TxidWithFee> txids)
-        : txids(std::move(txids)) {};
+        : txids(std::move(txids)) { };
     TxnotifyMsg(uint32_t nonce, std::vector<TxidWithFee> txids)
         : RandNonce(nonce)
-        , txids(std::move(txids)) {};
+        , txids(std::move(txids)) { };
     static TxnotifyMsg from_reader(Reader& r);
 
     using send_iter = std::vector<mempool::Entry>::iterator;
@@ -279,10 +280,10 @@ struct TxnotifyMsg : public RandNonce, public MsgCode<13> {
 struct TxreqMsg : public RandNonce, public MsgCode<14> {
     static constexpr size_t MAXENTRIES = 5000;
     TxreqMsg(std::vector<TransactionId> txids)
-        : txids(std::move(txids)) {};
+        : txids(std::move(txids)) { };
     TxreqMsg(uint32_t nonce, std::vector<TransactionId> txids)
         : RandNonce(nonce)
-        , txids(std::move(txids)) {};
+        , txids(std::move(txids)) { };
     static TxreqMsg from_reader(Reader& r);
     operator Sndbuffer() const;
     std::vector<TransactionId> txids;
@@ -291,10 +292,10 @@ struct TxreqMsg : public RandNonce, public MsgCode<14> {
 
 struct TxrepMsg : public RandNonce, public MsgCode<15> {
     TxrepMsg(std::vector<std::optional<TransferTxExchangeMessage>> txs)
-        : txs(txs) {};
+        : txs(txs) { };
     TxrepMsg(uint32_t nonce, std::vector<std::optional<TransferTxExchangeMessage>> txs)
         : RandNonce(nonce)
-        , txs(txs) {};
+        , txs(txs) { };
     static TxrepMsg from_reader(Reader& r);
     std::vector<std::optional<TransferTxExchangeMessage>> txs;
     operator Sndbuffer() const;
@@ -305,7 +306,7 @@ struct LeaderMsg : public MsgCode<16> {
     static constexpr size_t maxSize = 4 + 32 + 65;
     static LeaderMsg from_reader(Reader& r);
     LeaderMsg(SignedSnapshot snapshot)
-        : signedSnapshot(std::move(snapshot)) {};
+        : signedSnapshot(std::move(snapshot)) { };
     operator Sndbuffer() const;
     ///////
     // data

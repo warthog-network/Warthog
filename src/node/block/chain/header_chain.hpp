@@ -87,7 +87,7 @@ public:
     API::HashrateChart hashrate_chart(NonzeroHeight min, NonzeroHeight max, uint32_t nblocks) const;
 
     size_t nonempty_batch_size() const { return completeBatches.size() + (incompleteBatch.size() > 0 ? 1 : 0); }
-    Batch get_headers(NonzeroHeight begin, NonzeroHeight end) const;
+    Batch get_headers(BlockRange) const;
     GridView grid_view() const { return completeBatches; }
     std::optional<HeaderView> get_header(Height) const;
     [[nodiscard]] Height length() const

@@ -265,8 +265,8 @@ void Downloader::do_block_requests(RequestSender s) // OK?
 
         // found request
         auto& range { n->r };
-        if (forkIter->first <= range.upper)
-            forkIter = forks.lower_bound(range.upper + 1);
+        if (forkIter->first <= range.upper())
+            forkIter = forks.lower_bound(range.upper() + 1);
         while (true) {
             if (forkIter == forks.end())
                 return;
@@ -305,7 +305,7 @@ void Downloader::on_blockreq_reply(Conref cr, BlockrepMsg&& rep, BlockRequest& r
 
     if (rep.empty()) {
         if (!req.descripted->expired()) {
-            throw ChainError { EEMPTY, req.range.lower };
+            throw ChainError { EEMPTY, req.range.lower() };
         } else {
             return;
         }
@@ -321,19 +321,19 @@ void Downloader::on_blockreq_reply(Conref cr, BlockrepMsg&& rep, BlockRequest& r
         throw Error(EINV_BLOCKREPSIZE);
 
     // discard old replies
-    if (req.range.upper < focus.height_begin())
+    if (req.range.upper() < focus.height_begin())
         return;
 
     // check hash
-    if (headers().length() < req.range.upper)
+    if (headers().length() < req.range.upper())
         return;
-    if (headers().hash_at(req.range.upper) != req.upperHash)
+    if (headers().hash_at(req.range.upper()) != req.upperHash)
         return;
 
     // check merkle roots
-    size_t i0 = (req.range.lower < focus.height_begin() ? focus.height_begin() - req.range.lower : 0);
+    size_t i0 = (req.range.lower() < focus.height_begin() ? focus.height_begin() - req.range.lower() : 0);
     for (size_t i = i0; i < rep.blocks.size(); ++i) {
-        auto height { req.range.lower + i };
+        auto height { req.range.lower() + i };
         BodyView bv(rep.blocks[i].view(height));
         if (!bv.valid())
             throw Error(EINV_BODY);
@@ -341,8 +341,8 @@ void Downloader::on_blockreq_reply(Conref cr, BlockrepMsg&& rep, BlockRequest& r
             throw Error(EMROOT);
     }
 
-    const BlockSlot slot(req.range.lower);
-    focus.set_blocks(slot, req.range.lower, std::move(rep.blocks));
+    const BlockSlot slot(req.range.lower());
+    focus.set_blocks(slot, req.range.lower(), std::move(rep.blocks));
     return;
 }
 

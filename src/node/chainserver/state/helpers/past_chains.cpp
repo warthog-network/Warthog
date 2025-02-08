@@ -33,7 +33,7 @@ Batch BlockCache::get_batch(const BatchSelector& s) const
     auto iter = chains.find(s.descriptor);
     if (iter == chains.end())
         return {};
-    return iter->second.headers->get_headers(s.startHeight, s.end());
+    return iter->second.headers->get_headers(s.block_range());
 }
 std::optional<HeaderView> BlockCache::get_header(Descriptor descriptor, Height height) const
 {
@@ -79,11 +79,11 @@ std::vector<Hash> BlockCache::get_hashes(const DescriptedBlockRange& r) const
     if (iter == chains.end())
         return {};
     auto& chain = iter->second.headers;
-    if (chain->length() < r.upper)
+    if (chain->length() < r.upper())
         return {};
     std::vector<Hash> hashes(r.length());
-    for (NonzeroHeight h = r.lower; h < r.upper + 1; ++h) {
-        hashes[h - r.lower] = chain->hash_at(h);
+    for (NonzeroHeight h = r.lower(); h < r.upper() + 1; ++h) {
+        hashes[h - r.lower()] = chain->hash_at(h);
     }
     return hashes;
 }

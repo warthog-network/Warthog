@@ -16,7 +16,8 @@
 
 using namespace std::chrono_literals;
 Eventloop::Eventloop(PeerServer& ps, ChainServer& cs, const Config& config)
-    : stateServer(cs)
+    : startedAt(std::chrono::steady_clock::now())
+    , stateServer(cs)
     , chains(cs.get_chainstate())
     , mempool(false)
     , connections(ps, config.peers.connect)
@@ -502,6 +503,16 @@ void Eventloop::send_throttled(Conref cr, Sndbuffer b, duration d)
     cr->throttled.add_throttle(d);
 }
 
+size_t Eventloop::ratelimit_spare()
+{
+    using namespace std::chrono;
+    auto now { steady_clock::now() };
+
+    // 1 extra spare per minute
+    return consensus().ratelimit_spare()
+        + duration_cast<minutes>(now - startedAt).count();
+}
+
 void Eventloop::erase(Conref c, int32_t error)
 {
     if (c->c->eventloop_erased)
@@ -895,17 +906,19 @@ void Eventloop::handle_msg(Conref cr, BatchreqMsg&& m)
     // get batch
     Batch batch = [&]() {
         if (s.descriptor == consensus().descriptor()) {
-            return consensus().headers().get_headers(s.startHeight, s.end());
+            return consensus().headers().get_headers(s.block_range());
         } else {
             return stateServer.get_headers(s);
         }
     }();
 
-    // get throttle
-    auto duration { cr->throttled.batchreq.register_request(m.selector.startHeight, m.selector.length) };
-
     BatchrepMsg rep(m.nonce, std::move(batch));
-    rep.nonce = m.nonce;
+
+    // get throttle
+    auto duration {
+        cr->throttled.headerreq.register_request(m.selector.block_range(),
+            ratelimit_spare())
+    };
     send_throttled(cr, rep, duration);
 }
 
@@ -972,11 +985,11 @@ void Eventloop::handle_msg(Conref cr, ProberepMsg&& rep)
 void Eventloop::handle_msg(Conref cr, BlockreqMsg&& m)
 {
     using namespace std::placeholders;
-    cr->throttled.blockreq.register_request(m.range.lower, m.range.length());
+    cr->throttled.blockreq.register_request(m.range, ratelimit_spare());
 
     BlockreqMsg req(m);
     if (config().node.logCommunication)
-        spdlog::info("{} handle_blockreq [{},{}]", cr.str(), req.range.lower.value(), req.range.upper.value());
+        spdlog::info("{} handle_blockreq [{},{}]", cr.str(), req.range.lower().value(), req.range.upper().value());
     cr->lastNonce = req.nonce;
     stateServer.async_get_blocks(req.range, [&, id = cr.id()](auto blocks) { Eventloop::async_forward_blockrep(id, std::move(blocks)); });
 }

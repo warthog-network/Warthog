@@ -50,7 +50,7 @@ BlockRequest Focus::FocusSlot::link_request(Conref cr)
 
     // craft block request
     auto& descripted = data(cr).descripted();
-    return BlockRequest(descripted, r, focus.headers().hash_at(r.upper));
+    return BlockRequest(descripted, r, focus.headers().hash_at(r.upper()));
 }
 
 bool Focus::has_data()

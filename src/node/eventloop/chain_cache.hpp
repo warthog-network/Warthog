@@ -55,6 +55,7 @@ public:
     {
         return consensus.get_pin();
     }
+    auto ratelimit_spare() const { return consensus.ratelimit_spare(); }
 
 private:
     Headerchain::pin_t pin;

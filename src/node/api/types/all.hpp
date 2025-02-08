@@ -163,7 +163,7 @@ struct ThrottleState {
     BatchThrottler blockreq;
     ThrottleState(const Throttled& t)
         : delay(t.reply_delay())
-        , batchreq(t.batchreq)
+        , batchreq(t.headerreq)
         , blockreq(t.blockreq)
     {
     }

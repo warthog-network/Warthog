@@ -250,8 +250,9 @@ private:
     void handle_event(mempool::Log&&);
     void handle_event(Loadtest&&);
 
-    // scheduling
+    // throttling
     void send_throttled(Conref cr, Sndbuffer, duration d);
+    size_t ratelimit_spare();
 
     // chain updates
     using Append = chainserver::state_update::Append;
@@ -284,7 +285,7 @@ private:
     void update_sync_state();
 
 private: // private data
-    //
+    std::chrono::steady_clock::time_point startedAt;
     ChainServer& stateServer;
     // Conndatamap connections;
     StageAndConsensus chains;

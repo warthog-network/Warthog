@@ -261,30 +261,37 @@ template <size_t window>
 struct BatchreqThrottler { // throttles if suspicios requests occur
     using seconds = std::chrono::seconds;
     using duration = std::chrono::steady_clock::duration;
-    duration register_request(Height lower, size_t n)
+    void set_upper(Height upper, size_t spare)
     {
-        assert(n > 0);
-        Height upper = lower + n;
-        _h1 = std::max(upper, _h1);
-        _h2 = std::min(_h2, _h1 + window);
-        _h2 = std::max(_h1, _h2);
-        _h2 = _h2 + n;
+        _u = std::max(upper, _u);
+        if (_u.value() + spare >= window) {
+            _l = std::max(_l, Height::zero());
+        } else {
+            _l = std::max(_l, _u + spare - window);
+        }
+    }
+
+    duration register_request(BlockRange r, size_t spare)
+    {
+        assert(r.length() > 0);
+        set_upper(r.upper(), spare);
+        _l = _l + r.length();
         return get_duration();
-    };
+    }
 
     duration get_duration() const
     {
-        if (_h1 - _h2 > window) {
+        if (_u - _l > window) {
             return seconds(20); // throttle hard
         }
         return seconds(0);
     }
-    auto h1() const { return _h1; }
-    auto h2() const { return _h2; }
+    auto h1() const { return _u; }
+    auto h2() const { return _l; }
 
 private:
-    Height _h2 { Height::zero() };
-    Height _h1 { window };
+    Height _l { Height::zero() };
+    Height _u { window };
 };
 
 struct Throttled {
@@ -306,7 +313,7 @@ struct Throttled {
         return tmp;
     }
 
-    BatchreqThrottler<HEADERBATCHSIZE * 20> batchreq;
+    BatchreqThrottler<HEADERBATCHSIZE * 20> headerreq;
     BatchreqThrottler<BLOCKBATCHSIZE * 20> blockreq;
 
 private:

@@ -4,28 +4,33 @@
 
 struct BlockRange {
     BlockRange(NonzeroHeight lower, NonzeroHeight upper)
-        : lower(lower)
-        , upper(upper)
+        : _lower(lower)
+        , _upper(upper)
     {
         assert(valid());
     }
 
     // data
-    NonzeroHeight lower;
-    NonzeroHeight upper;
-    uint32_t length() const { return upper - lower + 1; }
+    NonzeroHeight lower() const { return _lower; }
+    NonzeroHeight upper() const { return _upper; }
+    NonzeroHeight end() const { return _upper + 1; }
+    uint32_t length() const { return _upper - _lower + 1; }
     BlockRange(Reader&);
     friend Writer& operator<<(Writer&, BlockRange);
 
 private:
+    NonzeroHeight _lower;
+    NonzeroHeight _upper;
     bool valid();
 };
 
-struct DescriptedBlockRange:public BlockRange {
+struct DescriptedBlockRange : public BlockRange {
     Descriptor descriptor;
     DescriptedBlockRange(Descriptor descriptor, NonzeroHeight lowerHeight, NonzeroHeight upperHeight)
-        : BlockRange{lowerHeight, upperHeight},
-            descriptor(descriptor) {}
+        : BlockRange { lowerHeight, upperHeight }
+        , descriptor(descriptor)
+    {
+    }
     DescriptedBlockRange(Reader& r);
     friend Writer& operator<<(Writer&, DescriptedBlockRange);
 };
