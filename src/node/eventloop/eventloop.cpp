@@ -600,7 +600,7 @@ void Eventloop::process_connection(std::shared_ptr<Connection> c)
     Conref cr { c->dataiter };
     for (auto& msg : messages) {
         try {
-            dispatch_message(cr, msg);
+            process_message(cr, msg);
             // active
         } catch (Error e) {
             close(cr, e.e);
@@ -786,7 +786,7 @@ void Eventloop::handle_timeout(Timer::Connect&&)
     update_wakeup();
 }
 
-void Eventloop::dispatch_message(Conref cr, Rcvbuffer& msg)
+void Eventloop::process_message(Conref cr, Rcvbuffer& msg)
 {
     using namespace messages;
     if (msg.verify() == false)
@@ -810,7 +810,7 @@ void Eventloop::dispatch_message(Conref cr, Rcvbuffer& msg)
 
 void Eventloop::dispatch_msg(Conref cr, messages::Msg&& msg)
 {
-    std::visit([&](auto&& e) { dispatch_msg(cr, std::move(e)); },
+    std::visit([&](auto&& e) { handle_msg(cr, std::move(e)); },
         std::move(msg));
 }
 
