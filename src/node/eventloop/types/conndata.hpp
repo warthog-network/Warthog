@@ -276,14 +276,14 @@ public:
         assert(r.length() > 0);
         set_upper(r.upper(), spare);
         _l = _l + r.length();
-        if (_l > _u + 1)
-            _l = _u + 1;
-        return get_duration();
+        if (_l > _u + spare + window)
+            _l = _u + spare + window;
+        return get_duration(spare);
     }
 
-    duration get_duration() const
+    duration get_duration(size_t spare) const
     {
-        if (_l > _u) {
+        if (_l > _u + spare) {
             return seconds(20);
         }
         return seconds(0);

@@ -402,7 +402,7 @@ void Eventloop::handle_event(OnForwardBlockrep&& m)
 
     if (auto cr { connections.find(m.conId) }; cr) {
         send_throttled(cr,
-            BlockrepMsg(cr->lastNonce, std::move(m.blocks)), cr->throttled.blockreq.get_duration());
+            BlockrepMsg(cr->lastNonce, std::move(m.blocks)), cr->throttled.blockreq.get_duration(ratelimit_spare()));
     }
 }
 
