@@ -161,7 +161,7 @@ struct ThrottleState {
     sc::duration delay;
     BatchThrottler batchreq;
     BatchThrottler blockreq;
-    ThrottleState(const Throttled& t)
+    ThrottleState(const ThrottleQueue& t)
         : delay(t.reply_delay())
         , batchreq(t.headerreq)
         , blockreq(t.blockreq)

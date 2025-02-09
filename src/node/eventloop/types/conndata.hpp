@@ -296,22 +296,22 @@ private:
     Height _u { Height::zero() };
 };
 
-struct Throttled {
-    using sc = std::chrono::steady_clock;
-    using duration = sc::duration;
+struct ThrottleQueue {
+
+    using duration = std::chrono::steady_clock::duration;
 
     void add_throttle(duration d) { td.add(d); }
     auto reply_delay() const { return td.get(); }
-    void insert(Sndbuffer, Timer& t, uint64_t connectionId);
+    void insert(messages::Msg, Timer& t, uint64_t connectionId);
     void update_timer(Timer& t, uint64_t connectionId);
 
-    [[nodiscard]] Sndbuffer reset_timer_get_buf()
+    [[nodiscard]] messages::Msg reset_timer_pop_msg()
     {
         assert(timer);
-        assert(rateLimitedOutput.size() > 0);
+        assert(rateLimitedInput.size() > 0);
         timer.reset();
-        Sndbuffer tmp { std::move(rateLimitedOutput.front()) };
-        rateLimitedOutput.pop_front();
+        auto tmp { std::move(rateLimitedInput.front()) };
+        rateLimitedInput.pop_front();
         return tmp;
     }
 
@@ -320,7 +320,7 @@ struct Throttled {
 
 private:
     ThrottleDelay td;
-    std::deque<Sndbuffer> rateLimitedOutput;
+    std::deque<messages::Msg> rateLimitedInput;
     std::optional<Timerref> timer;
 };
 
@@ -369,7 +369,7 @@ struct PeerState {
     ConnectionJob job;
     Height txSubscription { 0 };
     Ratelimit ratelimit;
-    Throttled throttled;
+    ThrottleQueue throttleQueue;
     Loadtest loadtest;
     SignedSnapshot::Priority acknowledgedSnapshotPriority;
     SignedSnapshot::Priority theirSnapshotPriority;

@@ -106,6 +106,7 @@ private:
     ////////////////////////
     // Handling incoming messages
     void dispatch_message(Conref cr, Rcvbuffer& rb);
+    void dispatch_msg(Conref cr, messages::Msg&&);
     void handle_msg(Conref cr, PingMsg&&);
     void handle_msg(Conref cr, PongMsg&&);
     void handle_msg(Conref cr, BatchreqMsg&&);
@@ -162,7 +163,7 @@ private:
     void handle_timeout(T&&);
     void handle_timeout(Timer::Connect&&);
     void handle_connection_timeout(Conref, Timer::SendPing&&);
-    void handle_connection_timeout(Conref, Timer::ThrottledSend&&);
+    void handle_connection_timeout(Conref, Timer::ThrottledProcessMsg&&);
     void handle_connection_timeout(Conref, Timer::Expire&&);
     void handle_connection_timeout(Conref, Timer::CloseNoReply&&);
     void handle_connection_timeout(Conref, Timer::CloseNoPong&&);
@@ -251,7 +252,6 @@ private:
     void handle_event(Loadtest&&);
 
     // throttling
-    void send_throttled(Conref cr, Sndbuffer, duration d);
     size_t ratelimit_spare();
 
     // chain updates
