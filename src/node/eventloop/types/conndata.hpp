@@ -276,8 +276,8 @@ public:
         assert(r.length() > 0);
         set_upper(r.upper(), spare);
         _l = _l + r.length();
-        if (_l > _u + spare + window)
-            _l = _u + spare + window;
+        if (_l > _u + spare + 1)
+            _l = _u + spare + 1;
         return get_duration(spare);
     }
 
