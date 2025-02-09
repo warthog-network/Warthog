@@ -601,7 +601,6 @@ void Eventloop::process_connection(std::shared_ptr<Connection> c)
     for (auto& msg : messages) {
         try {
             process_message(cr, msg);
-            // active
         } catch (Error e) {
             close(cr, e.e);
             do_requests();
@@ -912,10 +911,8 @@ void Eventloop::handle_msg(Conref cr, BatchreqMsg&& m)
 
     // get throttle
     auto duration {
-        cr->throttleQueue.headerreq.register_request(m.selector.header_range(),
-            ratelimit_spare())
+        cr->throttleQueue.headerreq.register_request(m.selector.header_range(), ratelimit_spare())
     };
-
     cr->throttleQueue.add_throttle(duration);
     cr.send(rep);
 }
@@ -982,13 +979,14 @@ void Eventloop::handle_msg(Conref cr, ProberepMsg&& rep)
 
 void Eventloop::handle_msg(Conref cr, BlockreqMsg&& m)
 {
-    using namespace std::placeholders;
-    cr->throttleQueue.blockreq.register_request(m.range, ratelimit_spare());
+    auto duration { cr->throttleQueue.blockreq.register_request(m.range, ratelimit_spare()) };
+    cr->throttleQueue.add_throttle(duration);
 
     BlockreqMsg req(m);
     if (config().node.logCommunication)
         spdlog::info("{} handle_blockreq [{},{}]", cr.str(), req.range.lower().value(), req.range.upper().value());
     cr->lastNonce = req.nonce;
+
     stateServer.async_get_blocks(req.range, [&, id = cr.id()](auto blocks) { Eventloop::async_forward_blockrep(id, std::move(blocks)); });
 }
 

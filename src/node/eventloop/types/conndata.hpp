@@ -271,7 +271,7 @@ private:
     }
 
 public:
-    duration register_request(HeightRange r, size_t spare)
+    [[nodiscard]] duration register_request(HeightRange r, size_t spare)
     {
         assert(r.length() > 0);
         set_upper(r.upper(), spare);
@@ -281,7 +281,7 @@ public:
         return get_duration(spare);
     }
 
-    duration get_duration(size_t spare) const
+    [[nodiscard]] duration get_duration(size_t spare) const
     {
         if (_l > _u + spare) {
             return seconds(20);
