@@ -1,52 +1,58 @@
 #pragma once
-#include "api/interface.hpp"
 #include "api/events/subscription.hpp"
+#include "api/interface.hpp"
 #include "general/errors.hpp"
 #include "nlohmann/json.hpp"
+#include "spdlog/fmt/bundled/format.h"
 struct Head;
 class Hash;
 class TxHash;
 class Header;
 namespace jsonmsg {
+using namespace nlohmann;
 
-nlohmann::json to_json(const TCPPeeraddr&);
-nlohmann::json to_json(const api::Balance&);
-nlohmann::json to_json(const Grid&);
-nlohmann::json to_json(const PrintNodeVersion&);
-nlohmann::json to_json(const Hash&);
-nlohmann::json to_json(const TxHash&);
-nlohmann::json to_json(const api::Head&);
-nlohmann::json to_json(const api::ChainHead&);
-nlohmann::json to_json(const Peeraddr&);
-nlohmann::json to_json(const std::pair<NonzeroHeight,Header>&);
-nlohmann::json to_json(const api::TransmissionTimeseries&);
-nlohmann::json to_json(const api::MiningState&);
-nlohmann::json to_json(const api::MempoolEntries&);
-nlohmann::json to_json(const api::Transaction&);
-nlohmann::json to_json(const api::PeerinfoConnections&);
-nlohmann::json to_json(const api::TransactionsByBlocks&);
-nlohmann::json to_json(const api::Block&);
-nlohmann::json to_json(const api::BlockSummary&);
-nlohmann::json to_json(const api::AccountHistory&);
-nlohmann::json to_json(const api::AddressCount&);
-nlohmann::json to_json(const api::Richlist&);
-nlohmann::json to_json(const api::Wallet&);
-nlohmann::json to_json(const api::HashrateInfo&);
-nlohmann::json to_json(const api::HashrateBlockChart&);
-nlohmann::json to_json(const api::HashrateTimeChart&);
-nlohmann::json to_json(const OffenseEntry& e);
-nlohmann::json to_json(const std::optional<SignedSnapshot>&);
-nlohmann::json to_json(const chainserver::TransactionIds&);
-nlohmann::json to_json(const api::Round16Bit&);
-nlohmann::json to_json(const api::Rollback&);
-nlohmann::json to_json(const api::IPCounter& ipc);
-nlohmann::json to_json(const api::NodeInfo& info);
-inline nlohmann::json to_json(const nlohmann::json& j){return j;}
+json to_json(const PeerDB::BanEntry&);
+json to_json(const api::ThrottleState&);
+json to_json(const api::ThrottledPeer&);
+json to_json(const api::Peerinfo&);
+json to_json(const TCPPeeraddr&);
+json to_json(const api::Balance&);
+json to_json(const Grid&);
+json to_json(const PrintNodeVersion&);
+json to_json(const Hash&);
+json to_json(const TxHash&);
+json to_json(const api::Head&);
+json to_json(const api::ChainHead&);
+json to_json(const Peeraddr&);
+json to_json(const std::pair<NonzeroHeight, Header>&);
+json to_json(const api::TransmissionTimeseries&);
+json to_json(const api::MiningState&);
+json to_json(const api::MempoolEntries&);
+json to_json(const api::Transaction&);
+json to_json(const api::PeerinfoConnections&);
+json to_json(const api::TransactionsByBlocks&);
+json to_json(const api::Block&);
+json to_json(const api::BlockSummary&);
+json to_json(const api::AccountHistory&);
+json to_json(const api::AddressCount&);
+json to_json(const api::Richlist&);
+json to_json(const api::Wallet&);
+json to_json(const api::HashrateInfo&);
+json to_json(const api::HashrateBlockChart&);
+json to_json(const api::HashrateTimeChart&);
+json to_json(const OffenseEntry& e);
+json to_json(const std::optional<SignedSnapshot>&);
+json to_json(const chainserver::TransactionIds&);
+json to_json(const api::Round16Bit&);
+json to_json(const api::Rollback&);
+json to_json(const api::IPCounter& ipc);
+json to_json(const api::NodeInfo& info);
+inline json to_json(const json& j) { return j; }
 
 template <typename T>
-inline nlohmann::json to_json(const std::vector<T>& e, const auto& map)
+inline json to_json(const std::vector<T>& e, const auto& map)
 {
-    nlohmann::json j = nlohmann::json::array();
+    json j = json::array();
     for (auto& item : e) {
         j.push_back(to_json(map(item)));
     }
@@ -54,9 +60,9 @@ inline nlohmann::json to_json(const std::vector<T>& e, const auto& map)
 }
 
 template <typename T>
-inline nlohmann::json to_json(const std::vector<T>& e)
+inline json to_json(const std::vector<T>& e)
 {
-    return to_json(e,std::identity());
+    return to_json(e, std::identity());
 }
 
 inline std::string status(Error e)
@@ -70,7 +76,6 @@ inline std::string status(Error e)
     }
     return j.dump(1);
 }
-
 
 inline std::string status(const tl::expected<void, Error>& e)
 {
@@ -90,16 +95,28 @@ inline std::string serialize(const tl::expected<void, Error>& e)
     }
 }
 
+template <typename T>
+inline json success_json(T&& t)
+{
+    return {
+        { "code", 0 },
+        { "data", std::move(t) }
+    };
+}
+
+inline std::string serialize(const tl::expected<json, Error>& e)
+{
+    if (!e.has_value())
+        return status(e.error());
+    return success_json(*e).dump(1);
+}
 
 template <typename T>
 std::string serialize(const tl::expected<T, Error>& e)
 {
     if (!e.has_value())
         return status(e.error());
-    return nlohmann::json {
-        { "code", 0 },
-        { "data", to_json(*e) }
-    }.dump(1);
+    return success_json(to_json(*e)).dump(1);
 }
 
 inline std::string serialize(const tl::unexpected<Error> e)
@@ -108,31 +125,31 @@ inline std::string serialize(const tl::unexpected<Error> e)
 }
 std::string serialize(const api::Raw& r);
 
-template<typename T>
-inline std::string serialize(T&& e){
-    return nlohmann::json {
+template <typename T>
+inline std::string serialize(T&& e)
+{
+    return json {
         { "code", 0 },
         { "data", to_json(std::forward<T>(e)) }
     }.dump(1);
 }
 
-inline std::string serialize(const std::vector<PeerDB::BanEntry>& banned)
-{
-    nlohmann::json j = nlohmann::json::array();
-    for (auto& item : banned) {
-        nlohmann::json elem;
-        elem["ip"] = item.ip.to_string().c_str();
-        elem["expires"] = item.banuntil;
-        elem["reason"] = item.offense.err_name();
-        j.push_back(elem);
-    }
-    return j.dump(1);
-}
+// inline std::string serialize(const std::vector<PeerDB::BanEntry>& banned)
+// {
+//     nlohmann::json j = nlohmann::json::array();
+//     for (auto& item : banned) {
+//         nlohmann::json elem;
+//         elem["ip"] = item.ip.to_string().c_str();
+//         elem["expires"] = item.banuntil;
+//         elem["reason"] = item.offense.err_name();
+//         j.push_back(elem);
+//     }
+//     return j.dump(1);
+// }
 
-std::string serialize(const std::vector<api::Peerinfo>& banned);
+// std::string serialize(const std::vector<api::Peerinfo>& banned);
 
 std::string endpoints(const Eventloop&);
 // std::string connect_timers(const Eventloop&);
 std::string header_download(const Eventloop&);
-
 }

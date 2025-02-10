@@ -42,7 +42,7 @@ public:
     void on_fork(Conref cr);
     void on_append(Conref cr);
     void on_rollback(Conref c);
-    void on_blockreq_reply(Conref, BlockrepMsg&&, Blockrequest&);
+    void on_blockreq_reply(Conref, BlockrepMsg&&, BlockRequest&);
     void on_blockreq_expire(Conref cr);
     void on_probe_reply(Conref cr, const ProbereqMsg&, const ProberepMsg&);
     void on_probe_expire(Conref cr);

@@ -19,6 +19,8 @@ protected:
 public:
     using IsUint32::IsUint32;
     static Height undef() { return Height { 0 }; }
+    static Height zero() { return Height { 0 }; }
+    bool is_zero() const { return *this == zero(); }
     Height retarget_floor()
     {
         return Height { ::retarget_floor(val) };
@@ -201,12 +203,20 @@ public:
 };
 
 struct HeightRange {
+protected:
+    HeightRange(NonzeroHeight hbegin, NonzeroHeight hend)
+        : hbegin(hbegin)
+        , hend(hend)
+    {
+        assert(hbegin <= hend);
+    }
+
+public:
     NonzeroHeight hbegin;
     NonzeroHeight hend;
-    HeightRange( NonzeroHeight hbegin, NonzeroHeight hend)
-    :hbegin(hbegin), hend(hend)
+    static HeightRange from_range(NonzeroHeight hbegin, NonzeroHeight hend)
     {
-        assert(hbegin<=hend);
+        return HeightRange(hbegin, hend);
     }
     struct Iterator {
         NonzeroHeight operator*()
@@ -221,6 +231,9 @@ struct HeightRange {
             return *this;
         }
     };
+    NonzeroHeight first() const { return hbegin; }
+    NonzeroHeight last() const { return (hend - 1).nonzero_assert(); }
+    uint32_t length() const { return hend - hbegin; }
     Iterator begin() { return { hbegin }; }
     Iterator end() { return { hend }; }
 };
@@ -228,10 +241,10 @@ struct HeightRange {
 inline HeightRange Height::latest(uint32_t n) const
 {
     auto u { add1() };
-    return {
+    return HeightRange::from_range (
         u.subtract_clamp1(n),
         u
-    };
+    );
 }
 
 inline HeightRange NonzeroHeight::latest(uint32_t n) const

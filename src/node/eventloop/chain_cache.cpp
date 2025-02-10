@@ -99,16 +99,16 @@ std::optional<ChaincacheMatch> StageAndConsensus::lookup(std::optional<ChainPin>
     return {};
 }
 
-std::optional<HeaderVerifier> StageAndConsensus::header_verifier(const HeaderRange& sb) const
+std::optional<HeaderVerifier> StageAndConsensus::header_verifier(const HeaderSpan& sb) const
 {
     struct Optimizer {
-        const HeaderRange& hr;
+        const HeaderSpan& hr;
         struct Optimal {
             const Headerchain* h;
             NonzeroHeight matchHeight;
         };
         std::optional<Optimal> optimal;
-        Optimizer(const HeaderRange& sb)
+        Optimizer(const HeaderSpan& sb)
             : hr(sb)
         {
         }

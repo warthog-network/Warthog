@@ -3,6 +3,7 @@
 #include "api/http/parse.hpp"
 #include "api/types/accountid_or_address.hpp"
 #include "api/types/all.hpp"
+#include "communication/rxtx_server/rxtx_server.hpp"
 #include "chainserver/transaction_ids.hpp"
 #include "communication/mining_task.hpp"
 #include "general/hex.hpp"
@@ -232,6 +233,7 @@ public:
         hook_get_1(t, "/peers/offenses/:page", get_offenses);
         hook_get(t, "/peers/connected", get_connected_peers2, true);
         hook_get_1(t, "/peers/disconnect/:id", disconnect_peer, true);
+        hook_get(t,"/peers/throttled", get_throttled_peers, true);
         hook_get(t, "/peers/connected/connection", get_connected_connection);
         hook_get(t, "/peers/connection_schedule", get_connection_schedule);
         hook_get(t, "/peers/transmission_hours", get_transmission_hours, true);
@@ -251,6 +253,9 @@ public:
 
         t.indexGenerator.section("Debug Endpoints");
         hook_get(t, "/debug/header_download", inspect_eventloop, jsonmsg::header_download, true);
+        hook_get_1(t, "/loadtest/block_request/:conn_id", loadtest_block);
+        hook_get_1(t, "/loadtest/header_request/:conn_id", loadtest_header);
+        hook_get_1(t, "/loadtest/disable/:conn_id", loadtest_disable);
     }
 };
 

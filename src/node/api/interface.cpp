@@ -45,9 +45,10 @@ void unban_peers(ResultCb&& f)
 {
     global().peerServer->async_unban(std::move(f));
 }
+
 void get_connection_schedule(JSONCb&& cb)
 {
-    global().core->api_get_connection_schedule(std::move(cb));
+    // global().core->api_get_connection_schedule(std::move(cb));
 }
 void get_offense_entries(ResultCb&& f)
 {
@@ -65,6 +66,10 @@ void get_connected_peers2(PeersCb&& cb)
 void disconnect_peer(uint64_t id, ResultCb&& cb)
 {
     global().core->api_disconnect_peer(id, std::move(cb));
+}
+void get_throttled_peers(ThrottledCb&& cb)
+{
+    global().core->api_get_throttled(std::move(cb));
 }
 
 void get_connected_connection(ConnectedConnectionCB&& cb)
@@ -372,4 +377,13 @@ void destroy_all_subscriptions(subscription_data_ptr p)
 {
     global().chainServer->destroy_subscriptions(p);
     global().core->destroy_subscriptions(p);
+}
+void loadtest_block(uint64_t conId, ResultCb cb){
+    global().core->api_loadtest_block(conId, std::move(cb));
+}
+void loadtest_header(uint64_t conId, ResultCb cb){
+    global().core->api_loadtest_header(conId, std::move(cb));
+}
+void loadtest_disable(uint64_t conId, ResultCb cb){
+    global().core->api_loadtest_disable(conId, std::move(cb));
 }

@@ -2,32 +2,51 @@
 #include "block/chain/height.hpp"
 #include "general/descriptor.hpp"
 
-struct BlockRange {
-    BlockRange(NonzeroHeight lower, NonzeroHeight upper)
-        : lower(lower)
-        , upper(upper)
+struct NonemptyHeightRange : public HeightRange {
+protected:
+    NonemptyHeightRange(NonzeroHeight hbegin, NonzeroHeight hend)
+        : HeightRange(hbegin, hend)
+    {
+        assert(hbegin < hend);
+    }
+public:
+    static constexpr size_t byte_size() { return 8; }
+    friend Writer& operator<<(Writer&, HeightRange);
+};
+
+template <size_t limit, Error error>
+struct HeightRangeLimited : public NonemptyHeightRange {
+    HeightRangeLimited(NonzeroHeight hbegin, NonzeroHeight hend)
+        : NonemptyHeightRange(hbegin, hend)
     {
         assert(valid());
     }
-
-    // data
-    NonzeroHeight lower;
-    NonzeroHeight upper;
-    uint32_t length() const { return upper - lower + 1; }
-    static constexpr size_t byte_size(){return NonzeroHeight::byte_size()*2;}
-    BlockRange(Reader&);
-    friend Writer& operator<<(Writer&, BlockRange);
+    HeightRangeLimited(Reader& r)
+        : HeightRangeLimited { NonzeroHeight(r), NonzeroHeight(r) + 1 } // end is past last element
+    {
+        if (!valid())
+            throw error;
+    }
 
 private:
-    bool valid();
+    bool valid()
+    {
+        return first() <= last()
+            && length() <= limit;
+    }
 };
 
-struct DescriptedBlockRange:public BlockRange {
+using BlockRange = HeightRangeLimited<MAXBLOCKSIZE, Error(EBLOCKRANGE)>;
+using HeaderRange = HeightRangeLimited<HEADERBATCHSIZE, Error(EHEADERRANGE)>;
+
+struct DescriptedBlockRange : public BlockRange {
     Descriptor descriptor;
-    static constexpr size_t byte_size(){return BlockRange::byte_size() + Descriptor::byte_size();}
-    DescriptedBlockRange(Descriptor descriptor, NonzeroHeight lowerHeight, NonzeroHeight upperHeight)
-        : BlockRange{lowerHeight, upperHeight},
-            descriptor(descriptor) {}
+    static constexpr size_t byte_size() { return BlockRange::byte_size() + Descriptor::byte_size(); }
+    DescriptedBlockRange(Descriptor descriptor, BlockRange br)
+        : BlockRange { std::move(br) }
+        , descriptor(descriptor)
+    {
+    }
     DescriptedBlockRange(Reader& r);
     friend Writer& operator<<(Writer&, DescriptedBlockRange);
 };

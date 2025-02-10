@@ -284,7 +284,7 @@ Batch State::get_headers_concurrent(BatchSelector s)
 {
     std::unique_lock<std::mutex> lcons(chainstateMutex);
     if (s.descriptor == chainstate.descriptor()) {
-        return chainstate.headers().get_headers(s.startHeight, s.end());
+        return chainstate.headers().get_headers(s.header_range());
     } else {
         return blockCache.get_batch(s);
     }
@@ -791,15 +791,15 @@ auto State::api_get_richlist(size_t N) const -> api::Richlist
 
 auto State::get_blocks(DescriptedBlockRange range) const -> std::vector<BodyContainer>
 {
-    assert(range.lower != 0);
-    assert(range.upper >= range.lower);
-    std::vector<Hash> hashes(range.upper - range.lower + 1);
+    assert(range.first() != 0);
+    assert(range.last() >= range.first());
+    std::vector<Hash> hashes(range.last() - range.first() + 1);
     std::vector<BodyContainer> res;
     if (range.descriptor == chainstate.descriptor()) {
-        if (chainstate.length() < range.upper)
+        if (chainstate.length() < range.last())
             return {};
-        for (Height h = range.lower; h < range.upper + 1; ++h) {
-            hashes[h - range.lower] = chainstate.headers().hash_at(h);
+        for (Height h = range.first(); h < range.last() + 1; ++h) {
+            hashes[h - range.first()] = chainstate.headers().hash_at(h);
         }
     } else {
         hashes = blockCache.get_hashes(range);

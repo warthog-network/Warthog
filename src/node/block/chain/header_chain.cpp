@@ -67,6 +67,7 @@ HeaderchainFork Headerchain::get_fork(ShrinkInfo shrink, Descriptor descriptor) 
 ForkMsg Headerchain::apply_fork(HeaderchainFork&& update)
 {
     Worksum prevWorksum = worksum;
+    assert(update.shrink.length < length());
     assert(update.completeBatches.size() > 0 || update.incompleteBatch.size() > 0);
 
     size_t nComplete = update.shrink.length.complete_batches();
@@ -80,6 +81,7 @@ ForkMsg Headerchain::apply_fork(HeaderchainFork&& update)
     incompleteBatch.swap(update.incompleteBatch);
     finalPin = std::move(update.finalPin);
     initialize_worksum();
+    assert(update.shrink.length == length());
     assert(worksum > prevWorksum);
     return ForkMsg(
         update.descriptor,
@@ -241,16 +243,17 @@ api::HashrateTimeChart Headerchain::hashrate_time_chart(uint32_t min, uint32_t m
     }
 }
 
-Batch Headerchain::get_headers(NonzeroHeight begin, NonzeroHeight end) const
+Batch Headerchain::get_headers(HeaderRange range) const
 {
-    assert(end - begin <= HEADERBATCHSIZE);
+    auto end { range.last() };
     if (end > length()) {
         end = (length() + 1).nonzero_assert();
     }
-    if (end <= begin)
+    Height h { range.first() };
+
+    if (end <= h)
         return Batch {};
 
-    Height h = begin;
     std::vector<uint8_t> tmp;
     while (h < end) {
         Batchslot bs(h);
@@ -299,7 +302,7 @@ ForkHeight fork_height(const Headerchain& h1, const Headerchain& h2, NonzeroHeig
     return { NonzeroHeight(uint32_t(f * HEADERBATCHSIZE + forkIndex + 1)), forked };
 }
 
-std::optional<NonzeroHeight> Headerchain::max_match_height(const HeaderRange& hrange) const
+std::optional<NonzeroHeight> Headerchain::max_match_height(const HeaderSpan& hrange) const
 {
     std::optional<NonzeroHeight> h;
     for (auto header1 : hrange) {

@@ -235,10 +235,10 @@ public:
     [[nodiscard]] std::vector<ChainOffender> do_header_requests(RequestSender);
     void do_probe_requests(RequestSender);
 
-    void on_request_expire(Conref cr, const Batchrequest& msg);
+    void on_request_expire(Conref cr, const HeaderRequest& msg);
     void on_proberep(Conref c, const Proberequest& req, const ProberepMsg&);
     void on_probe_request_expire(Conref cr);
-    [[nodiscard]] std::vector<ChainOffender> on_response(Conref cr, Batchrequest&&, Batch&&);
+    [[nodiscard]] std::vector<ChainOffender> on_response(Conref cr, HeaderRequest&&, Batch&&);
     [[nodiscard]] std::optional<std::tuple<LeaderInfo, Headerchain>> pop_data();
 
 private:

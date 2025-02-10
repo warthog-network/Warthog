@@ -270,7 +270,7 @@ std::optional<Conref> Downloader::try_send(ConnectionFinder& f, std::vector<Chai
                     return cr;
                 }
             } else {
-                Batchrequest br(desc, rd.slot, rd.finalHeader);
+                HeaderRequest br(desc, rd.slot, rd.finalHeader);
                 f.s.send(cr, br);
                 f.conIndex = index;
                 return cr;
@@ -413,7 +413,7 @@ std::vector<ChainOffender> Downloader::do_header_requests(RequestSender s)
     return do_shared_grid_requests(s);
 }
 
-void Downloader::on_request_expire(Conref cr, const Batchrequest&)
+void Downloader::on_request_expire(Conref cr, const HeaderRequest&)
 {
     if (data(cr).jobPtr) {
         data(cr).jobPtr->cr.reset();
@@ -460,7 +460,7 @@ void Downloader::process_final(Lead_iter li, std::vector<Offender>& out)
         return;
     }
     bool fromGenesis = !li->verifier.has_value();
-    HeaderRange hrange { li->final_slot(), b };
+    HeaderSpan hrange { li->final_slot(), b };
 
     const HeaderVerifier parent {
         [&] {
@@ -501,7 +501,7 @@ bool Downloader::advance_verifier(const Ver_iter* vi, const Lead_set& leaders, c
 
     auto a {
         (vi ? (*vi)->second.verifier : HeaderVerifier {})
-            .copy_apply(chains.signed_snapshot(), HeaderRange((vi ? (*vi)->second.sb.next_slot() : Batchslot(0)), b))
+            .copy_apply(chains.signed_snapshot(), HeaderSpan((vi ? (*vi)->second.sb.next_slot() : Batchslot(0)), b))
     };
     if (!a.has_value()) {
         for (const Lead_iter& li : leaders) {
@@ -598,7 +598,7 @@ void Downloader::verify_queued(Queued_iter qi, const Lead_set& leaders, std::vec
     }
 }
 
-auto Downloader::on_response(Conref cr, Batchrequest&& req, Batch&& res) -> std::vector<ChainOffender>
+auto Downloader::on_response(Conref cr, HeaderRequest&& req, Batch&& res) -> std::vector<ChainOffender>
 {
     // assert precondition
     assert(res.size() >= req.minReturn);

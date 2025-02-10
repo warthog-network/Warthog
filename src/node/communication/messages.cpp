@@ -99,7 +99,7 @@ std::string ProberepMsg::log_str() const
 
 std::string BlockreqMsg::log_str() const
 {
-    return fmt_lib::format("BlockreqMsg {}/[{},{}]", range().descriptor.value(), range().lower.value(), range().upper.value());
+    return fmt_lib::format("BlockreqMsg {}/[{},{}]", range().descriptor.value(), range().first().value(), range().last().value());
 }
 std::string BlockrepMsg::log_str() const
 {

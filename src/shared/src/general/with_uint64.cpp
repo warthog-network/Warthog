@@ -2,7 +2,6 @@
 #include "general/writer.hpp"
 #include "nlohmann/json.hpp"
 #include "reader.hpp"
-#include <limits>
 
 IsUint32::IsUint32(Reader& r)
     : val(r.uint32()) {};

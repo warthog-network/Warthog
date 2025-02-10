@@ -1,6 +1,7 @@
 #include "height.hpp"
 #include "general/errors.hpp"
 #include "general/writer.hpp"
+
 Writer& operator<<(Writer& w, Height h)
 {
     return w << h.value();

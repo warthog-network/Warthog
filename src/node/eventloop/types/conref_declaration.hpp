@@ -3,6 +3,7 @@
 #include <map>
 #include <string>
 class ConState;
+#include <chrono>
 class PeerChain;
 class TCPConnection;
 class Sndbuffer;
@@ -18,6 +19,7 @@ public:
     [[nodiscard]] const PeerChain& chain() const;
     [[nodiscard]] PeerChain& chain();
     [[nodiscard]] bool closed();
+    [[nodiscard]] auto& loadtest();
     [[nodiscard]] auto& job();
     [[nodiscard]] auto& job() const;
     [[nodiscard]] auto peer() const;
@@ -31,7 +33,7 @@ public:
 
     template<typename T>
     void send(T&&);
-
+    using duration = std::chrono::steady_clock::duration;
     Conref(Coniter iter)
         : iter(iter)
     {

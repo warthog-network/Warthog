@@ -30,5 +30,7 @@ struct Wallet;
 struct DBSize;
 struct NodeInfo;
 struct IPCounter;
+struct ThrottleState;
+struct ThrottledPeer;
 using Transaction = std::variant<RewardTransaction, TransferTransaction>;
 }

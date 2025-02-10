@@ -1,5 +1,7 @@
 #pragma once
 
+#include "block/header/batch.hpp"
+#include "communication/buffers/sndbuffer.hpp"
 #include "eventloop/peer_chain.hpp"
 #include "eventloop/sync/block_download/connection_data.hpp"
 #include "eventloop/sync/header_download/connection_data.hpp"
@@ -76,7 +78,7 @@ struct ConnectionJob {
     {
         timer = t;
     }
-    using data_t = std::variant<AwaitInit, std::monostate, Proberequest, Batchrequest, Blockrequest>;
+    using data_t = std::variant<AwaitInit, std::monostate, Proberequest, HeaderRequest, BlockRequest>;
     data_t data_v;
     std::optional<Timer> timer;
 
@@ -123,11 +125,11 @@ private:
 
     template <std::same_as<BatchrepMsg> T>
     struct typemap<T> {
-        using type = Batchrequest;
+        using type = HeaderRequest;
     };
     template <std::same_as<BlockrepMsg> T>
     struct typemap<T> {
-        using type = Blockrequest;
+        using type = BlockRequest;
     };
 };
 
@@ -196,22 +198,159 @@ private:
     std::variant<std::monostate, PingMsg, PingV2Data> data;
 };
 
-struct Ratelimit {
+struct TimingLog {
+    using Milliseconds = std::chrono::milliseconds;
+    struct Entry {
+        RequestType type;
+        Milliseconds duration;
+    };
+    std::vector<Entry> entries;
+
+    void push(RequestType t, Milliseconds duration)
+    {
+        push({ t, duration });
+    }
+
+    void push(Entry e)
+    {
+        entries.push_back(std::move(e));
+        // periodic prune
+        if (entries.size() > 200)
+            entries.erase(entries.begin(), entries.begin() + 100);
+    }
+
+    auto mean() const
+    {
+        using namespace std::chrono_literals;
+        Milliseconds sum { 0ms };
+        for (auto& e : entries) {
+            sum += e.duration;
+        }
+        if (entries.size() > 0)
+            sum /= entries.size();
+        return sum;
+    }
+};
+
+struct Loadtest {
+    std::optional<RequestType> job;
+    [[nodiscard]] std::optional<Request> generate_load(Conref);
+};
+
+struct ThrottleDelay {
     using sc = std::chrono::steady_clock;
-    void update() { valid_rate(lastUpdate, std::chrono::minutes(2)); }
-    void ping() { return valid_rate(lastUpdate, std::chrono::seconds(5)); }
+    sc::duration get() const
+    {
+        using namespace std::chrono_literals;
+        auto n { sc::now() };
+        if (n > bucket)
+            return 0s;
+        auto d { (bucket - n) / 10 };
+        return std::min(d, sc::duration(20s));
+    }
+
+    sc::time_point add(sc::duration d)
+    {
+        return bucket = std::max(bucket, sc::now()) + d;
+    }
 
 private:
-    void valid_rate(sc::time_point& last, auto duration)
+    sc::time_point bucket;
+};
+
+template <size_t window>
+struct BatchreqThrottler { // throttles if suspicios requests occur
+    using seconds = std::chrono::seconds;
+    using duration = std::chrono::steady_clock::duration;
+
+private:
+    void set_upper(Height upper, size_t spare)
     {
-        auto n = sc::steady_clock::now();
-        using namespace std::chrono;
-        if (n < last + duration)
-            throw Error(EMSGFLOOD);
-        last = n;
+        _u = std::max(upper, _u);
+        if (_u.value() + spare >= window)
+            _l = std::max(_l, _u + spare - window);
     }
-    sc::time_point lastUpdate = sc::time_point::min();
-    sc::time_point lastPing = sc::time_point::min();
+
+public:
+    [[nodiscard]] duration register_request(HeightRange r, size_t spare)
+    {
+        assert(r.length() > 0);
+        set_upper(r.last(), spare);
+        _l = _l + r.length();
+        if (_l > _u + spare + 1)
+            _l = _u + spare + 1;
+        return get_duration(spare);
+    }
+
+    [[nodiscard]] duration get_duration(size_t spare) const
+    {
+        if (_l > _u + spare) {
+            return seconds(20);
+        }
+        return seconds(0);
+    }
+    auto h0() const { return _l; }
+    auto h1() const { return _u; }
+
+private:
+    Height _l { Height::zero() };
+    Height _u { Height::zero() };
+};
+
+struct ThrottleQueue {
+
+    using duration = std::chrono::steady_clock::duration;
+
+    void add_throttle(duration d) { td.add(d); }
+    auto reply_delay() const { return td.get(); }
+    void insert(messages::Msg, eventloop::TimerSystem& t, uint64_t connectionId);
+    void update_timer(eventloop::TimerSystem& t, uint64_t connectionId);
+
+    [[nodiscard]] messages::Msg reset_timer_pop_msg()
+    {
+        assert(timer);
+        assert(rateLimitedInput.size() > 0);
+        timer.reset();
+        auto tmp { std::move(rateLimitedInput.front()) };
+        rateLimitedInput.pop_front();
+        return tmp;
+    }
+
+    BatchreqThrottler<HEADERBATCHSIZE * 20> headerreq;
+    BatchreqThrottler<BLOCKBATCHSIZE * 20> blockreq;
+
+private:
+    ThrottleDelay td;
+    std::deque<messages::Msg> rateLimitedInput;
+    std::optional<eventloop::Timer> timer;
+};
+
+struct Ratelimit {
+private:
+    using sc = std::chrono::steady_clock;
+
+    template <size_t seconds>
+    struct Limiter {
+        void operator()()
+        {
+            tick();
+        }
+        void tick()
+        {
+            auto n = sc::steady_clock::now();
+            using namespace std::chrono;
+            if (n < lastUpdate + std::chrono::seconds(seconds))
+                throw Error(EMSGFLOOD);
+            lastUpdate = n;
+        }
+
+    private:
+        sc::time_point lastUpdate = sc::time_point::min();
+    };
+
+public:
+    Limiter<2 * 60> update;
+    Limiter<5> ping;
 };
 
 struct Usage {
@@ -239,6 +378,8 @@ public:
     Height txSubscription { 0 };
     Ratelimit ratelimit;
     PeerRTCState rtcState;
+    ThrottleQueue throttleQueue;
+    Loadtest loadtest;
     SignedSnapshot::Priority acknowledgedSnapshotPriority;
     SignedSnapshot::Priority theirSnapshotPriority;
     uint32_t lastNonce;
@@ -261,6 +402,7 @@ private:
 inline bool Conref::operator==(const Conref& cr) const { return iter == cr.iter; }
 inline const PeerChain& Conref::chain() const { return iter->second.chain; }
 inline PeerChain& Conref::chain() { return iter->second.chain; }
+inline auto& Conref::loadtest() { return iter->second.loadtest; }
 inline auto& Conref::job() { return iter->second.job; }
 inline auto& Conref::job() const { return iter->second.job; }
 inline auto& Conref::rtc() { return iter->second.rtcState; }
@@ -272,6 +414,19 @@ inline auto Conref::protocol() const { return version().protocol();}
 inline bool Conref::initialized() const { return !iter->second.job.waiting_for_init(); }
 inline bool Conref::is_tcp() const { return iter->second.c->is_tcp(); }
 inline Conref::operator const ConnectionBase&() { return *iter->second.c; }
+
+// Conref::operator Connection*()
+// {
+//     if (valid())
+//         return data.iter->second.c.get();
+//     return nullptr;
+// }
+// Conref::operator const Connection*() const
+// {
+//     if (valid())
+//         return data.iter->second.c.get();
+//     return nullptr;
+// }
 inline uint64_t Conref::id() const
 {
     return iter->first;

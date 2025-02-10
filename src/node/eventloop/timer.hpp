@@ -12,7 +12,9 @@ namespace timer_events {
     };
     struct SendPing : public WithConnecitonId {
     };
-    struct Expire : public WithConnecitonId {
+    struct ThrottledProcessMsg: public WithConnecitonId {
+    };
+    struct Expire: public WithConnecitonId {
     };
     struct CloseNoReply : public WithConnecitonId {
     };
@@ -25,7 +27,7 @@ namespace timer_events {
     struct CallFunction {
         MoveOnlyFunction<void()> callback;
     };
-    using Event = std::variant<SendPing, Expire, CloseNoReply, CloseNoPong, ScheduledConnect, SendIdentityIps, CallFunction>;
+    using Event = std::variant<SendPing, ThrottledProcessMsg, Expire, CloseNoReply, CloseNoPong, ScheduledConnect, SendIdentityIps, CallFunction>;
 }
 
 class Timer;

@@ -44,7 +44,7 @@ public:
     void stage_clear();
     const auto& signed_snapshot() const { return consensus.get_signed_snapshot(); }
     ForkHeight fork_height() const { return scForkHeight; }
-    [[nodiscard]] std::optional<HeaderVerifier> header_verifier(const HeaderRange&) const;
+    [[nodiscard]] std::optional<HeaderVerifier> header_verifier(const HeaderSpan&) const;
 
     // pin header chains
     [[nodiscard]] Headerchain::pin_t stage_pin() const
@@ -55,6 +55,7 @@ public:
     {
         return consensus.get_pin();
     }
+    auto ratelimit_spare() const { return consensus.ratelimit_spare(); }
 
 private:
     Headerchain::pin_t pin;

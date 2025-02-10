@@ -32,6 +32,7 @@ void get_verified_addresses(PeerServer::banned_callback_t cb);
 
 void get_connected_peers2(PeersCb&& cb);
 void disconnect_peer(uint64_t, ResultCb&& cb);
+void get_throttled_peers(ThrottledCb&& cb);
 void get_connected_connection(ConnectedConnectionCB&& cb);
 
 // tools functions
@@ -80,3 +81,6 @@ void subscribe_account_event(SubscriptionRequest, Address);
 void subscribe_minerdist_event(SubscriptionRequest);
 void subscribe_log_event(SubscriptionRequest);
 void destroy_all_subscriptions(subscription_data_ptr);
+void loadtest_block(uint64_t conId, ResultCb);
+void loadtest_header(uint64_t conId, ResultCb);
+void loadtest_disable(uint64_t conId, ResultCb);

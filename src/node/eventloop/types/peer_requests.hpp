@@ -9,6 +9,7 @@
 struct IsRequest {
     static constexpr auto expiry_time = std::chrono::seconds(30);
     bool isActiveRequest = true;
+    bool isLoadtest = false;
     void unref_active_requests(size_t& activeRequests)
     {
         if (isActiveRequest) {
@@ -33,20 +34,28 @@ struct Proberequest : public ProbereqMsg, public IsRequest {
 
 struct AwaitInit {
 };
-struct Blockrequest : public BlockreqMsg, public IsRequest {
-    Blockrequest(std::shared_ptr<Descripted> pdescripted,
+struct BlockRequest : public BlockreqMsg, public IsRequest {
+    static constexpr const char name[] { "Block  Request" };
+    BlockRequest(std::shared_ptr<Descripted> pdescripted,
+        BlockRange range)
+        : BlockreqMsg(DescriptedBlockRange { pdescripted->descriptor, range })
+        , descripted(std::move(pdescripted))
+    {
+    }
+    BlockRequest(std::shared_ptr<Descripted> pdescripted,
         BlockRange range,
         Hash upperHash)
-        : BlockreqMsg(DescriptedBlockRange { pdescripted->descriptor, range.lower, range.upper })
+        : BlockreqMsg(DescriptedBlockRange { pdescripted->descriptor, range })
         , descripted(std::move(pdescripted))
         , upperHash(std::move(upperHash))
     {
     }
     std::shared_ptr<Descripted> descripted;
-    Hash upperHash;
+    std::optional<Hash> upperHash; // nullopt for loadtest
 };
 
-struct Batchrequest : public BatchreqMsg, public IsRequest {
+struct HeaderRequest : public BatchreqMsg, public IsRequest {
+    static constexpr const char name[] { "Header Request" };
     uint16_t minReturn = 0;
     uint16_t max_return() { return BatchreqMsg::selector().length; }
     using Pindata = Headerchain::pin_t;
@@ -59,38 +68,36 @@ struct Batchrequest : public BatchreqMsg, public IsRequest {
     {
         return std::holds_alternative<Worksum>(extra);
     }
-    Batchrequest(std::shared_ptr<Descripted> pdescripted,
+    HeaderRequest(std::shared_ptr<Descripted> pdescripted,
         const Pindata& pinnedChain,
-        NonzeroHeight lower, NonzeroHeight upper, extra_t e)
-        : BatchreqMsg { BatchSelector { pdescripted->descriptor, lower, uint16_t(upper - lower + 1) } }
-        , minReturn(upper - lower + 1)
+        HeaderRange range,  extra_t e)
+        : BatchreqMsg { BatchSelector { pdescripted->descriptor, range.first(), uint16_t(range.length()) } }
+        , minReturn(range.length())
         , descripted(std::move(pdescripted))
         , extra(e)
     {
         static_assert(HEADERBATCHSIZE < std::numeric_limits<uint16_t>::max());
-        assert(upper >= lower);
         if (is_partial_request())
-            assert(upper - lower + 1 < HEADERBATCHSIZE);
+            assert(range.length() < HEADERBATCHSIZE);
         else
-            assert(upper - lower + 1 <= HEADERBATCHSIZE);
+            assert(range.length()  <= HEADERBATCHSIZE);
 
         assert(pinnedChain.data);
-        assert(pinnedChain->length() + 1 >= lower);
+        assert(pinnedChain->length() + 1 >= range.first());
 
         // assign prefix
-        Batchslot bs(lower);
+        Batchslot bs(range.first());
         const Batch* b = (*pinnedChain)[bs];
         assert(b);
         auto begin = b->begin();
-        auto end = begin + (lower - bs.lower());
+        auto end = begin + (range.first() - bs.lower());
         prefix.assign(begin, end);
 
-        bool isUpper
-            = Batchslot(upper).upper() == upper;
+        bool isUpper = Batchslot(range.last()).upper() == range.last();
         assert(isUpper != is_partial_request());
     }
 
-    Batchrequest(std::shared_ptr<Descripted> pdescripted,
+    HeaderRequest(std::shared_ptr<Descripted> pdescripted,
         Batchslot slot, uint16_t minElements, Worksum ws)
         : BatchreqMsg { BatchSelector { pdescripted->descriptor, slot.lower(), HEADERBATCHSIZE } }
         , minReturn(minElements)
@@ -98,7 +105,7 @@ struct Batchrequest : public BatchreqMsg, public IsRequest {
         , extra(ws)
     {
     }
-    Batchrequest(std::shared_ptr<Descripted> pdescripted, Batchslot slot, HeaderView h)
+    HeaderRequest(std::shared_ptr<Descripted> pdescripted, Batchslot slot, HeaderView h)
         : BatchreqMsg { BatchSelector { pdescripted->descriptor, slot.lower(), HEADERBATCHSIZE } }
         , minReturn(HEADERBATCHSIZE)
         , descripted(std::move(pdescripted))
@@ -106,4 +113,52 @@ struct Batchrequest : public BatchreqMsg, public IsRequest {
     {
     }
 };
-using Request = std::variant<Blockrequest, Batchrequest, Proberequest>;
+
+struct RequestType {
+private:
+    template <typename T>
+    struct Wrapper {
+        using type = T;
+        bool operator==(const Wrapper<T>&) const = default;
+        static const char* name()
+        {
+            return T::name;
+        }
+    };
+
+public:
+    template <typename... R>
+    using variant_wrapper = std::variant<Wrapper<R>...>;
+    using variant_t = variant_wrapper<HeaderRequest, BlockRequest>;
+
+    template <typename R>
+    bool is() const
+    {
+        return std::holds_alternative<Wrapper<R>>(variant);
+    }
+
+    template <typename T>
+    static RequestType make()
+    {
+        return { Wrapper<T> {} };
+    }
+
+    auto visit(auto visitor) const
+    {
+        return std::visit(visitor, variant);
+    }
+
+    const char* name() const
+    {
+        return visit([](auto t) { return t.name(); });
+    }
+
+private:
+    RequestType(auto a)
+        : variant(std::move(a))
+    {
+    }
+    variant_t variant;
+};
+
+using Request = std::variant<BlockRequest, HeaderRequest, Proberequest>;

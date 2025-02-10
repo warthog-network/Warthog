@@ -34,6 +34,7 @@ struct TCPPeeraddr;
 
 using PeersCb = std::function<void(const std::vector<api::Peerinfo>&)>;
 using IpCounterCb = std::function<void(const api::IPCounter&)>;
+using ThrottledCb = std::function<void(const std::vector<api::ThrottledPeer>&)>;
 using SyncedCb = std::function<void(bool)>;
 using ResultCb = std::function<void(const tl::expected<void, Error>&)>;
 using ConnectedConnectionCB = std::function<void(const api::PeerinfoConnections&)>;

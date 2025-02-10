@@ -22,11 +22,8 @@
 #include "types/conref_impl.hpp"
 #include "types/peer_requests.hpp"
 #include <algorithm>
-#include <future>
-#include <iostream>
 #include <nlohmann/json.hpp>
 #include <random>
-#include <sstream>
 
 using SubscriptionEvent = subscription::events::Event;
 
@@ -46,7 +43,8 @@ void throw_if_rtc_disabled(Conref c)
 }
 
 Eventloop::Eventloop(Token, PeerServer& ps, ChainServer& cs, const ConfigParams& cfg)
-    : stateServer(cs)
+    : startedAt(std::chrono::steady_clock::now())
+    , stateServer(cs)
     , chains(cs.get_chainstate())
     , mempool(false)
 #ifndef DISABLE_LIBUV
@@ -153,7 +151,12 @@ void Eventloop::on_failed_connect(const ConnectRequest& r, Error reason)
 
 void Eventloop::api_get_peers(PeersCb&& cb)
 {
-    defer(std::move(cb));
+    defer(GetPeers { cb });
+}
+
+void Eventloop::api_get_throttled(ThrottledCb&& cb)
+{
+    defer(GetThrottled { cb });
 }
 
 void Eventloop::api_disconnect_peer(uint64_t id, ResultCb&& cb)
@@ -205,6 +208,19 @@ void Eventloop::api_get_hashrate_time_chart(uint32_t from, uint32_t to, size_t w
 void Eventloop::api_get_hashrate_block_chart(NonzeroHeight from, NonzeroHeight to, size_t window, HashrateBlockChartCb&& cb)
 {
     defer(GetHashrateBlockChart { std::move(cb), from, to, window });
+}
+
+void Eventloop::api_loadtest_block(uint64_t conId, ResultCb cb)
+{
+    defer(Loadtest { conId, RequestType::make<BlockRequest>(), std::move(cb) });
+}
+void Eventloop::api_loadtest_header(uint64_t conId, ResultCb cb)
+{
+    defer(Loadtest { conId, RequestType::make<HeaderRequest>(), std::move(cb) });
+}
+void Eventloop::api_loadtest_disable(uint64_t conId, ResultCb cb)
+{
+    defer(Loadtest { conId, std::nullopt, std::move(cb) });
 }
 
 void Eventloop::async_forward_blockrep(uint64_t conId, std::vector<BodyContainer>&& blocks)
@@ -445,20 +461,34 @@ void Eventloop::log_chain_length()
         spdlog::info("Synced. (height {}).", synced);
 }
 
-void Eventloop::handle_event(PeersCb&& cb)
+void Eventloop::handle_event(GetThrottled&& e)
+{
+    std::vector<api::ThrottledPeer> out;
+    for (auto cr : connections.initialized()) {
+        if (cr->throttleQueue.reply_delay() != 0s) {
+            out.push_back({ .endpoint { cr->c->peer_addr() },
+                .id = cr.id(),
+                .throttle { cr->throttleQueue } });
+        }
+    }
+    e.callback(out);
+}
+
+void Eventloop::handle_event(GetPeers&& e)
 {
     std::vector<api::Peerinfo> out;
     for (auto cr : connections.initialized()) {
         out.push_back(api::Peerinfo {
             .endpoint { cr.peer() },
+            .id = cr.id(),
             .initialized = cr.initialized(),
             .chainstate = cr.chain(),
             .theirSnapshotPriority = cr->theirSnapshotPriority,
             .acknowledgedSnapshotPriority = cr->acknowledgedSnapshotPriority,
             .since = cr->c->created_at_timestmap(),
-        });
+            .throttle { cr->throttleQueue } });
     }
-    cb(out);
+    e.callback(out);
 }
 
 void Eventloop::handle_event(SyncedCb&& cb)
@@ -486,6 +516,7 @@ void Eventloop::handle_event(stage_operation::Result&& r)
 
 void Eventloop::handle_event(OnForwardBlockrep&& m)
 {
+
     if (auto cr { connections.find(m.conId) }; cr) {
         BlockrepMsg msg((*cr)->lastNonce, std::move(m.blocks));
         cr->send(msg);
@@ -815,6 +846,28 @@ void Eventloop::handle_event(SampleVerifiedPeers&& p)
 #endif
 }
 
+void Eventloop::handle_event(Loadtest&& e)
+{
+    if (auto cr { connections.find(e.connId) }) {
+        // start load test
+        cr->loadtest().job = e.requestType;
+        do_loadtest_requests();
+        e.callback({});
+    } else {
+        e.callback(tl::make_unexpected(ENOTFOUND));
+    }
+}
+
+size_t Eventloop::ratelimit_spare()
+{
+    using namespace std::chrono;
+    auto now { steady_clock::now() };
+
+    // 1 extra spare per minute
+    return consensus().ratelimit_spare()
+        + duration_cast<minutes>(now - startedAt).count();
+}
+
 void Eventloop::erase_internal(Conref c, Error error)
 {
     if (c->c->eventloop_erased)
@@ -873,18 +926,17 @@ void Eventloop::process_connection(std::shared_ptr<ConnectionBase> c)
         return;
     assert(c->eventloop_registered);
     auto messages = c->pop_messages();
-    Conref cr { c->dataiter };
     for (auto& msg : messages) {
+        Conref cr { c->dataiter };
         try {
-            dispatch_message(cr, msg.parse());
+            process_message(cr, msg);
         } catch (Error e) {
             close(cr, e.code);
             do_requests();
             break;
         }
-        if (c->eventloop_erased) {
+        if (c->eventloop_erased)
             return;
-        }
     }
 }
 
@@ -942,11 +994,28 @@ void Eventloop::send_requests(Conref cr, const std::vector<Request>& requests)
     }
 }
 
+void Eventloop::do_loadtest_requests()
+{
+    for (auto cr : connections.initialized()) {
+        if (cr.job())
+            continue;
+        auto l { cr->loadtest.generate_load(cr) };
+        if (!l)
+            continue;
+        spdlog::info("Sending loadtest request to peer {}.", cr->c->peer_addr().to_string());
+        std::visit([&](auto& request) {
+            sender().send(cr, request);
+        },
+            *l);
+    }
+}
+
 void Eventloop::do_requests()
 {
+    do_loadtest_requests();
     while (true) {
         auto offenders { headerDownload.do_header_requests(sender()) };
-        if (offenders.size() == 0)
+        if (offenders.empty())
             break;
         for (auto& o : offenders)
             close(o);
@@ -1018,6 +1087,17 @@ void Eventloop::handle_connection_timeout(Conref cr, TimerEvent::SendPing&&)
     return send_ping_await_pong(cr);
 }
 
+void Eventloop::handle_connection_timeout(Conref cr, TimerEvent::ThrottledProcessMsg&&)
+{
+    try {
+        dispatch_message(cr, cr->throttleQueue.reset_timer_pop_msg());
+        cr->throttleQueue.update_timer(timerSystem, cr.id());
+    } catch (Error e) {
+        close(cr, e.code);
+        do_requests();
+    }
+}
+
 void Eventloop::handle_connection_timeout(Conref cr, TimerEvent::Expire&&)
 {
     cr.job().set_timer(timerSystem.insert(
@@ -1043,38 +1123,43 @@ void Eventloop::on_request_expired(Conref cr, const Proberequest&)
     do_requests();
 }
 
-void Eventloop::on_request_expired(Conref cr, const Batchrequest& req)
+void Eventloop::on_request_expired(Conref cr, const HeaderRequest& req)
 {
     headerDownload.on_request_expire(cr, req);
     do_requests();
 }
 
-void Eventloop::on_request_expired(Conref cr, const Blockrequest&)
+void Eventloop::on_request_expired(Conref cr, const BlockRequest&)
 {
     blockDownload.on_blockreq_expire(cr);
     do_requests();
 }
 
-void Eventloop::dispatch_message(Conref cr, messages::Msg&& m)
+void Eventloop::process_message(Conref cr, Rcvbuffer& msg)
 {
     using namespace messages;
 
+    auto m { msg.parse() };
     using namespace std;
     bool isInit = holds_alternative<InitMsgV1>(m) || holds_alternative<InitMsgV3>(m);
     // first message must be of type INIT (is_init() is only initially true)
     if (cr.job().awaiting_init()) {
         if (!isInit)
             throw Error(ENOINIT);
+        dispatch_message(cr, std::move(m));
     } else {
         if (isInit)
             throw Error(EINVINIT);
+        cr->throttleQueue.insert(std::move(m), timerSystem, cr.id());
     }
+}
 
-    std::visit([&](auto&& e) {
+void Eventloop::dispatch_message(Conref cr, messages::Msg&& msg)
+{
+    std::visit([&](auto&& e) { 
         communication_log().info("IN  {}: {}", cr.str(), e.log_str());
-        handle_msg(cr, std::move(e));
-    },
-        m);
+        handle_msg(cr, std::move(e)); },
+        std::move(msg));
 }
 
 void Eventloop::handle_msg(Conref c, InitMsgV1&& m)
@@ -1259,15 +1344,22 @@ void Eventloop::handle_msg(Conref cr, BatchreqMsg&& m)
 {
     log_communication("{} handle batchreq [{},{}]", cr.str(), m.selector().startHeight.value(), (m.selector().startHeight + m.selector().length - 1).value());
     auto& s = m.selector();
+    // get batch
     Batch batch = [&]() {
         if (s.descriptor == consensus().descriptor()) {
-            return consensus().headers().get_headers(s.startHeight, s.end());
+            return consensus().headers().get_headers(s.header_range());
         } else {
             return stateServer.get_headers(s);
         }
     }();
 
     BatchrepMsg rep(m.nonce(), std::move(batch));
+
+    // get throttle
+    auto duration {
+        cr->throttleQueue.headerreq.register_request(m.selector().header_range(), ratelimit_spare())
+    };
+    cr->throttleQueue.add_throttle(duration);
     cr.send(rep);
 }
 
@@ -1282,13 +1374,14 @@ void Eventloop::handle_msg(Conref cr, BatchrepMsg&& m)
         close(ChainOffender(EBATCHSIZE, req.selector().startHeight, cr.id()));
         return;
     }
-    auto offenders = headerDownload.on_response(cr, std::move(req), std::move(m.batch()));
-    for (auto& o : offenders) {
-        close(o);
+    if (!req.isLoadtest) {
+        auto offenders = headerDownload.on_response(cr, std::move(req), std::move(m.batch()));
+        for (auto& o : offenders) {
+            close(o);
+        }
+        syncdebug_log().info("init blockdownload batch_rep");
+        initialize_block_download();
     }
-
-    syncdebug_log().info("init blockdownload batch_rep");
-    initialize_block_download();
 
     // assign work
     do_requests();
@@ -1310,6 +1403,7 @@ void Eventloop::handle_msg(Conref cr, ProbereqMsg&& m)
         if (h)
             rep.requested() = *h;
     }
+
     cr.send(rep);
 }
 
@@ -1328,11 +1422,13 @@ void Eventloop::handle_msg(Conref cr, ProberepMsg&& rep)
 
 void Eventloop::handle_msg(Conref cr, BlockreqMsg&& m)
 {
-    using namespace std::placeholders;
+    auto duration { cr->throttleQueue.blockreq.register_request(m.range(), ratelimit_spare()) };
+    cr->throttleQueue.add_throttle(duration);
+
     BlockreqMsg req(m);
-    log_communication("{} handle_blockreq [{},{}]", cr.str(), req.range().lower.value(), req.range().upper.value());
+    log_communication("{} handle_blockreq [{},{}]", cr.str(), req.range().first().value(), req.range().last().value());
     cr->lastNonce = req.nonce();
-    stateServer.async_get_blocks(req.range(), std::bind(&Eventloop::async_forward_blockrep, this, cr.id(), _1));
+    stateServer.async_get_blocks(req.range(), [&, id = cr.id()](auto blocks) { Eventloop::async_forward_blockrep(id, std::move(blocks)); });
 }
 
 void Eventloop::handle_msg(Conref cr, BlockrepMsg&& m)
@@ -1340,11 +1436,13 @@ void Eventloop::handle_msg(Conref cr, BlockrepMsg&& m)
     log_communication("{} handle blockrep", cr.str());
     auto req = cr.job().pop_req(m, timerSystem, activeRequests);
 
-    try {
-        blockDownload.on_blockreq_reply(cr, std::move(m), req);
-        process_blockdownload_stage();
-    } catch (Error e) {
-        close(cr, e);
+    if (!req.isLoadtest) {
+        try {
+            blockDownload.on_blockreq_reply(cr, std::move(m), req);
+            process_blockdownload_stage();
+        } catch (Error e) {
+            close(cr, e);
+        }
     }
     do_requests();
 }

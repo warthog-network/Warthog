@@ -133,7 +133,7 @@ public:
     bool valid_inner_links();
 };
 
-class HeaderRange {
+class HeaderSpan {
     struct HeightHeader : public HeaderView {
         const NonzeroHeight height;
         HeightHeader(HeaderView hv, NonzeroHeight h)
@@ -146,12 +146,12 @@ class HeaderRange {
         const size_t numElements;
     };
     struct Iterator {
-        Iterator(const HeaderRange& b, size_t i)
+        Iterator(const HeaderSpan& b, size_t i)
             : b(b)
             , index(i)
         {
         }
-        const HeaderRange& b;
+        const HeaderSpan& b;
         uint32_t index;
         void operator++()
         {
@@ -168,7 +168,7 @@ class HeaderRange {
         }
     };
 
-    HeaderRange(const HeaderRange& hr, Height begin)
+    HeaderSpan(const HeaderSpan& hr, Height begin)
         : batchOffset(hr.batchOffset)
         , batch(hr.batch)
     {
@@ -177,11 +177,11 @@ class HeaderRange {
     }
 
 public:
-    HeaderRange sub_range(Height begin)
+    HeaderSpan sub_range(Height begin)
     {
         return { *this, begin };
     }
-    HeaderRange(Batchslot s, const Batch& b)
+    HeaderSpan(Batchslot s, const Batch& b)
         : batchOffset(s.offset())
         , batch(b)
     {

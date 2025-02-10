@@ -5,6 +5,7 @@
 #include "block/header/view.hpp"
 #include "chainserver/transaction_ids.hpp"
 #include "communication/mining_task.hpp"
+#include "communication/rxtx_server/api_types.hpp"
 #include "crypto/crypto.hpp"
 #include "eventloop/eventloop.hpp"
 #include "eventloop/sync/header_download/header_download.hpp"
@@ -108,19 +109,6 @@ json verified_json(const std::map<TCPPeeraddr, T>& map)
     }
     return e;
 }
-// json pending_json(const std::map<EndpointAddress, std::chrono::steady_clock::time_point>& m)
-// {
-//     auto now = steady_clock::now();
-//     json e = json::array();
-//     for (const auto& [ae, tp] : m) {
-//         json j = {
-//             { "endpoints", ae.to_string() },
-//             { "seconds", duration_cast<seconds>(now - tp).count() }
-//         };
-//         e.push_back(j);
-//     }
-//     return e;
-// }
 json endpoint_json(auto& v)
 {
     json e = json::array();
@@ -247,6 +235,37 @@ auto to_json_visit(const api::RewardTransaction& tx)
     jtx["type"] = "Reward";
     j["transaction"] = jtx;
     return j;
+}
+
+json to_json(const PeerDB::BanEntry& item)
+{
+    return {
+        { "ip", item.ip.to_string().c_str() },
+        { "expires", item.banuntil },
+        { "reasion", item.offense.err_name() },
+    };
+}
+
+namespace {
+    json to_json(const api::ThrottleState::BatchThrottler& bt)
+    {
+        return {
+            { "h1", bt.h0.value() },
+            { "h2", bt.h1.value() },
+            { "window", bt.window }
+        };
+    }
+}
+
+json to_json(const api::ThrottleState& ts)
+{
+    using namespace std::chrono;
+
+    return {
+        { "delay", duration_cast<seconds>(ts.delay).count() },
+        { "blockRequest", to_json(ts.blockreq) },
+        { "headerRequest", to_json(ts.batchreq) }
+    };
 }
 
 json to_json(const Hash& h)
@@ -520,39 +539,47 @@ json to_json(const OffenseEntry& e)
     };
 }
 
-std::string serialize(const std::vector<api::Peerinfo>& connected)
+json to_json(const api::ThrottledPeer& pi)
 {
-    using namespace nlohmann;
-    json j = json::array();
-    for (auto& item : connected) {
-        json elem;
-        auto conn = json {
-            { "port", item.endpoint.port() },
-            { "sinceTimestamp", item.since },
-            { "sinceUTC", format_utc(item.since) }
-        };
-        if (auto ip { item.endpoint.ip() }; ip.has_value())
-            conn["ip"] = ip->to_string();
-        else
-            conn["ip"] = nullptr;
-        elem["connection"] = conn;
+    return {
+        { "throttle", to_json(pi.throttle) },
+        { "connection",
+            json {
+                { "endpoint", pi.endpoint.to_string() },
+                { "id", pi.id },
+            } },
+    };
+}
+json to_json(const api::Peerinfo& pi)
+{
+    json elem;
+    auto conn = json {
+        { "port", pi.endpoint.port() },
+        { "sinceTimestamp", pi.since },
+        { "sinceUTC", format_utc(pi.since) }
+    };
+    if (auto ip { pi.endpoint.ip() }; ip.has_value())
+        conn["ip"] = ip->to_string();
+    else
+        conn["ip"] = nullptr;
 
-        elem["leaderPriority"] = json {
-            { "ack", json { { "importance", item.acknowledgedSnapshotPriority.importance }, { "height", item.acknowledgedSnapshotPriority.height } } },
-            { "theirs", json { { "importance", item.theirSnapshotPriority.importance }, { "height", item.theirSnapshotPriority.height } } }
-        };
-        elem["chain"] = json {
-            { "length", item.chainstate.descripted()->chain_length() },
-            { "forkLower", item.chainstate.consensus_fork_range().lower() },
-            { "forkUpper", item.chainstate.consensus_fork_range().upper() },
-            { "descriptor", item.chainstate.descripted()->descriptor },
-            { "worksum", item.chainstate.descripted()->worksum().getdouble() },
-            { "worksumHex", item.chainstate.descripted()->worksum().to_string() },
-            { "grid", grid_json(item.chainstate.descripted()->grid()) }
-        };
-        j.push_back(elem);
-    }
-    return j.dump(1);
+    elem["throttle"] = to_json(pi.throttle);
+    elem["connection"] = conn;
+
+    elem["leaderPriority"] = json {
+        { "ack", json { { "importance", pi.acknowledgedSnapshotPriority.importance }, { "height", pi.acknowledgedSnapshotPriority.height } } },
+        { "theirs", json { { "importance", pi.theirSnapshotPriority.importance }, { "height", pi.theirSnapshotPriority.height } } }
+    };
+    elem["chain"] = json {
+        { "length", pi.chainstate.descripted()->chain_length() },
+        { "forkLower", pi.chainstate.consensus_fork_range().lower() },
+        { "forkUpper", pi.chainstate.consensus_fork_range().upper() },
+        { "descriptor", pi.chainstate.descripted()->descriptor },
+        { "worksum", pi.chainstate.descripted()->worksum().getdouble() },
+        { "worksumHex", pi.chainstate.descripted()->worksum().to_string() },
+        { "grid", grid_json(pi.chainstate.descripted()->grid()) }
+    };
+    return elem;
 }
 
 json to_json(const TCPPeeraddr& a)

@@ -26,7 +26,6 @@
 #include <queue>
 #include <thread>
 
-
 class RTCPendingOutgoing;
 class RTCPendingIncoming;
 class TCPConnection;
@@ -58,6 +57,8 @@ class ConnectionInserter;
 class ConState;
 namespace TimerEvent = eventloop::timer_events;
 class Eventloop final : public std::enable_shared_from_this<Eventloop>, public RTCData {
+    using duration = std::chrono::steady_clock::duration;
+    using seconds = std::chrono::seconds;
     using StateUpdate = chainserver::state_update::StateUpdate;
     using TimerSystem = eventloop::TimerSystem;
     using Timer = eventloop::Timer;
@@ -117,12 +118,16 @@ public:
     void api_get_hashrate_block_chart(NonzeroHeight from, NonzeroHeight to, size_t window, HashrateBlockChartCb&& cb);
     void api_get_hashrate_time_chart(uint32_t from, uint32_t to, size_t window, HashrateTimeChartCb&& cb);
     void api_get_peers(PeersCb&& cb);
+    void api_get_throttled(ThrottledCb&& cb);
+    void api_loadtest_block(uint64_t conId, ResultCb);
+    void api_loadtest_header(uint64_t conId, ResultCb);
+    void api_loadtest_disable(uint64_t conId, ResultCb);
     void api_disconnect_peer(uint64_t id, ResultCb&& cb);
     void api_get_synced(SyncedCb&& cb);
     void api_inspect(InspectorCb&&);
     void api_count_ips(IpCounterCb&&);
     void api_get_connection_schedule(JSONCb&& cb);
-    void api_sample_verified_peers( size_t n, SampledPeersCb cb);
+    void api_sample_verified_peers(size_t n, SampledPeersCb cb);
     void start_timer(StartTimer);
     void cancel_timer(TimerSystem::key_t);
 
@@ -165,11 +170,12 @@ private:
     void close_by_id(uint64_t connectionId, Error reason);
     void close(const ChainOffender&);
     void close(Conref cr, ChainError);
-    void report(const ChainOffender&) {};
+    void report(const ChainOffender&) { };
 
     ////////////////////////
     // Handling incoming messages
     void dispatch_message(Conref cr, messages::Msg&& rb);
+    void process_message(Conref cr, Rcvbuffer& rb);
     void handle_msg(Conref cr, PingMsg&&);
     void handle_msg(Conref cr, PingV2Msg&&);
     void handle_msg(Conref cr, PongMsg&&);
@@ -209,6 +215,7 @@ private:
 
     ////////////////////////
     // assign work to connections
+    void do_loadtest_requests();
     void do_requests();
     void send_requests(Conref cr, const std::vector<Request>&);
 
@@ -242,16 +249,16 @@ private:
     requires std::derived_from<T, TimerEvent::WithConnecitonId>
     void handle_timeout(T&&);
     void handle_connection_timeout(Conref, TimerEvent::SendPing&&);
+    void handle_connection_timeout(Conref, TimerEvent::ThrottledProcessMsg&&);
     void handle_connection_timeout(Conref, TimerEvent::Expire&&);
     void handle_connection_timeout(Conref, TimerEvent::CloseNoReply&&);
     void handle_connection_timeout(Conref, TimerEvent::CloseNoPong&&);
     void handle_timeout(TimerEvent::ScheduledConnect&&);
     void handle_timeout(TimerEvent::CallFunction&&);
     void handle_timeout(TimerEvent::SendIdentityIps&&);
-
     void on_request_expired(Conref cr, const Proberequest&);
-    void on_request_expired(Conref cr, const Batchrequest&);
-    void on_request_expired(Conref cr, const Blockrequest&);
+    void on_request_expired(Conref cr, const HeaderRequest&);
+    void on_request_expired(Conref cr, const BlockRequest&);
 
     ////////////////////////
     // blockdownload result
@@ -318,11 +325,23 @@ private:
         SampledPeersCb cb;
     };
 
+    struct GetPeers {
+        PeersCb callback;
+    };
+    struct GetThrottled {
+        ThrottledCb callback;
+    };
+    struct Loadtest {
+        uint64_t connId;
+        std::optional<RequestType> requestType;
+        ResultCb callback;
+    };
+
     // event queue
     using Event = std::variant<Erase, OutboundClosed, OnHandshakeCompleted, OnProcessConnection,
-        StateUpdate, SignedSnapshotCb, PeersCb, SyncedCb, IpCounterCb, stage_operation::Result,
+        StateUpdate, SignedSnapshotCb, GetPeers, GetThrottled, SyncedCb, IpCounterCb, stage_operation::Result,
         OnForwardBlockrep, InspectorCb, GetHashrate, GetHashrateBlockChart, GetHashrateTimeChart, GetConnectionSchedule, FailedConnect,
-        mempool::Log, StartTimer, CancelTimer, RTCClosed, IdentityIps, GeneratedVerificationSdpOffer, GeneratedVerificationSdpAnswer, GeneratedSdpOffer, GeneratedSdpAnswer, SubscribeConnections, DestroySubscriptions, DisconnectPeer, SampleVerifiedPeers>;
+        mempool::Log, StartTimer, CancelTimer, RTCClosed, IdentityIps, GeneratedVerificationSdpOffer, GeneratedVerificationSdpAnswer, GeneratedSdpOffer, GeneratedSdpAnswer, SubscribeConnections, DestroySubscriptions, DisconnectPeer, SampleVerifiedPeers, Loadtest>;
 
 public:
     bool defer(Event e);
@@ -335,7 +354,8 @@ private:
     void handle_event(OnProcessConnection&&);
     void handle_event(StateUpdate&&);
     void handle_event(SignedSnapshotCb&&);
-    void handle_event(PeersCb&&);
+    void handle_event(GetPeers&&);
+    void handle_event(GetThrottled&&);
     void handle_event(SyncedCb&&);
     void handle_event(stage_operation::Result&&);
     void handle_event(OnForwardBlockrep&&);
@@ -359,6 +379,10 @@ private:
     void handle_event(DestroySubscriptions&&);
     void handle_event(DisconnectPeer&&);
     void handle_event(SampleVerifiedPeers&&);
+    void handle_event(Loadtest&&);
+
+    // throttling
+    size_t ratelimit_spare();
 
     // chain updates
     using Append = chainserver::state_update::Append;
@@ -368,6 +392,9 @@ private:
     void update_chain(Fork&&);
     void update_chain(RollbackData&&);
     void coordinate_sync();
+
+    // load test
+    void try_start_loadtest(Conref cr);
 
     void initialize_block_download();
     ForkHeight set_stage_headers(Headerchain&&);
@@ -390,7 +417,7 @@ private:
     void set_scheduled_connect_timer();
 
 private: // private data
-    //
+    std::chrono::steady_clock::time_point startedAt;
     ChainServer& stateServer;
     // Conndatamap connections;
     StageAndConsensus chains;

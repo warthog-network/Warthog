@@ -126,6 +126,8 @@
     XX(125, ECONNRATELIMIT, "connection rate limit exceeded")                      \
     XX(126, EINITV1, "Init V1 not allowed from this peer")                         \
     XX(127, EINITV3, "Init V3 not allowed from this peer")                         \
+    XX(128, EFROZENACC, "account is frozen and can't send")                        \
+    XX(129, EHEADERRANGE, "invalid header range")                                  \
     /*200 - 299: Errors not leading to ban*/                                       \
     XX(200, ERTCNOSIGNAL, "WebRTC signaling server was closed (offer)")            \
     XX(201, ERTCNOSIGNAL2, "WebRTC signaling server was closed (answer)")          \
@@ -141,7 +143,6 @@
     XX(211, ERTCFEELER, "Normal feeler connection shutdown")                       \
     XX(212, ERTCDISABLED, "WebRTC disabled, cannot receive message")               \
     XX(213, EAPICMD, "Triggered by API command")                                   \
-    XX(214, EFROZENACC, "account is frozen and can't send")                        \
     /*300 - 399: API triggered errors*/                                            \
     XX(300, EINV_HEX, "cannot parse hexadecimal input")                            \
     XX(301, EBADNONCE, "cannot parse nonce")                                       \
