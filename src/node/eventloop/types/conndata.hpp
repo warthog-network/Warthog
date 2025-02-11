@@ -54,7 +54,8 @@ struct ConnectionJob {
     void reset_notexpired(TimerSystem& ts)
     {
         assert(!data_v.valueless_by_exception());
-        assert(timer && ts.erase(*timer));
+        assert(timer);
+        ts.erase(*timer);
         timer.reset();
         bool b = !std::holds_alternative<T>(data_v);
         try {
