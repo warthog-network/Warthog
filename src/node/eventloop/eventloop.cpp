@@ -1100,6 +1100,8 @@ void Eventloop::handle_connection_timeout(Conref cr, TimerEvent::ThrottledProces
 
 void Eventloop::handle_connection_timeout(Conref cr, TimerEvent::Expire&&)
 {
+    if(!cr.job().active())
+        return;
     cr.job().set_timer(timerSystem.insert(
         (config().localDebug ? 10min : 2min), TimerEvent::CloseNoReply { cr.id() }));
     assert(!cr.job().data_v.valueless_by_exception());
