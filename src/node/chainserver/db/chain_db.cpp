@@ -4,6 +4,7 @@
 #include "block/chain/header_chain.hpp"
 #include "block/header/header_impl.hpp"
 #include "block/header/view_inline.hpp"
+#include "defi/token/info.hpp"
 #include "defi/token/token.hpp"
 #include "general/hex.hpp"
 #include "general/now.hpp"
@@ -16,9 +17,9 @@
 ChainDB::Cache ChainDB::Cache::init(SQLite::Database& db)
 {
     auto maxaAccountId = AccountId(int64_t(db.execAndGet("SELECT coalesce(max(id),0) FROM `Accounts`")
-                                               .getInt64()));
+            .getInt64()));
 
-    auto maxTokenId_i64 { int64_t(db.execAndGet("SELECT coalesce(max(ROWID),0) FROM `Tokens`").getInt64()) };
+    auto maxTokenId_i64 { int64_t(db.execAndGet("SELECT coalesce(max(id),0) FROM `Tokens`").getInt64()) };
     assert(maxTokenId_i64 >= 0 && maxTokenId_i64 < std::numeric_limits<uint32_t>::max());
     auto maxTokenId { TokenId(maxTokenId_i64) };
 
@@ -57,7 +58,9 @@ ChainDB::ChainDB(const std::string& path)
           db, "SELECT `height`, `header`, `body` FROM \"Blocks\" WHERE `ROWID`=?;")
     , stmtBlockByHash(
           db, "SELECT ROWID, `height`, `header`, `body` FROM \"Blocks\" WHERE `hash`=?;")
-    , stmtTokenInsert(db, "INSERT INTO \"Tokens\" ( `ROWID`, `height`, `creator_id`, `name`, `type`) VALUES (?,?,?,?,?)")
+    , stmtTokenInsert(db, "INSERT INTO \"Tokens\" ( `id`, `height`, `creator_id`, `name`, `hash`, `type`) VALUES (?,?,?,?,?,?)")
+    , stmtTokenLookup(db, "SELECT (name, hash) FROM `Tokens` WHERE `id`=?")
+    , stmtSelectBalanceId(db, "SELECT `account_id`, `token_id`, `balance` where `id`=?")
     , stmtTokenInsertBalance(db, "INSERT INTO \"Balance\" ( `id`, `token_id`, `account_id`, `balance`) VALUES (?,?,?)")
     , stmtTokenSelectBalance(db, "SELECT `id`, `balance` FROM `Balance` WHERE `token_id`=? AND `account_id`=?")
     , stmtAccountSelectTokens(db, "SELECT `token_id`, `balance` FROM `Balance` WHERE `account_id`=? LIMIT ?")
@@ -294,10 +297,16 @@ std::pair<BlockId, bool> ChainDB::insert_protect(const Block& b)
     }
 }
 
-std::optional<std::tuple<Header, RawBody, RawUndo>>
+std::optional<BlockUndoData>
 ChainDB::get_block_undo(BlockId id) const
 {
-    return stmtBlockGetUndo.one(id).process([](auto& a) { return std::tuple<Header, RawBody, RawUndo> { a[0], { a.get_vector(1) }, { a.get_vector(2) } }; });
+    return stmtBlockGetUndo.one(id).process([](auto& a) {
+        return BlockUndoData {
+            .header { a[0] },
+            .rawBody { a.get_vector(1) },
+            .rawUndo { a.get_vector(2) }
+        };
+    });
 }
 
 void ChainDB::set_block_undo(BlockId id, const std::vector<uint8_t>& undo)
@@ -311,13 +320,13 @@ void ChainDB::insert_consensus(NonzeroHeight height, BlockId blockId, HistoryId 
     stmtScheduleDelete2.run(blockId);
 }
 
-void ChainDB::insert_new_token(TokenId verifyNextTokenId, NonzeroHeight height, AccountId creatorId, TokenName name, TokenMintType type)
+void ChainDB::insert_new_token(TokenId verifyNextTokenId, NonzeroHeight height, AccountId creatorId, TokenName name, TokenHash hash, TokenMintType type)
 {
     auto id { cache.maxTokenId + 1 };
     if (id != verifyNextTokenId)
         throw std::runtime_error("Internal error, token id inconsistent.");
     std::string n { name.c_str() };
-    stmtTokenInsert.run(id, height, creatorId, n, static_cast<uint8_t>(type));
+    stmtTokenInsert.run(id, height, creatorId, n, hash, static_cast<uint8_t>(type));
     cache.maxTokenId++;
 }
 
@@ -477,6 +486,13 @@ void ChainDB::delete_fork_events(Height fromHeight)
     stmtDeleteForkEvents.run(fromHeight);
 }
 
+std::optional<AddressFunds> ChainDB::lookup_account(AccountId id) const
+{
+    return stmtAccountLookup.one(id).process([](auto& o) {
+        return AddressFunds { o[0], o[1] };
+    });
+}
+
 AddressFunds ChainDB::fetch_account(AccountId id) const
 {
     auto p = lookup_account(id);
@@ -486,11 +502,35 @@ AddressFunds ChainDB::fetch_account(AccountId id) const
     return *p;
 }
 
-std::optional<AddressFunds> ChainDB::lookup_account(AccountId id) const
+auto ChainDB::lookup_balance(BalanceId id) const -> std::optional<Balance>
 {
-    return stmtAccountLookup.one(id).process([](auto& o) {
-        return AddressFunds { o[0], o[1] };
+    return stmtSelectBalanceId.one(id).process([&](auto& o) {
+        return Balance {
+            .balanceId { id },
+            .accountId { o[0] },
+            .tokenId { o[1] },
+            .balance { o[2] }
+        };
     });
+}
+
+std::optional<TokenInfo> ChainDB::lookup_token(TokenId id) const
+{
+    return stmtTokenLookup.one(id).process([](auto& o) -> TokenInfo {
+        return {
+            .name { o[0] },
+            .hash { o[1] }
+        };
+    });
+}
+
+TokenInfo ChainDB::fetch_token(TokenId id) const
+{
+    auto p = lookup_token(id);
+    if (!p) {
+        throw std::runtime_error("Database corrupted (fetch_token(" + std::to_string(id.value()) + ")");
+    }
+    return *p;
 }
 
 api::Richlist ChainDB::lookup_richlist(uint32_t N) const

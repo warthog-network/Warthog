@@ -3,6 +3,14 @@
 #include "general/address_funds.hpp"
 
 namespace chainserver {
+const TokenInfo& TokenCache::operator[](TokenId id)
+{
+    auto iter = map.find(id);
+    if (iter != map.end())
+        return iter->second;
+    auto p = db.fetch_token(id);
+    return map.emplace(id, p).first->second;
+}
 const AddressFunds& AccountCache::operator[](AccountId id)
 {
     auto iter = map.find(id);

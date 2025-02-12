@@ -2,11 +2,11 @@
 
 #include "block/chain/height.hpp"
 #include "crypto/hash.hpp"
+#include "defi/token/id.hpp"
 #include <span>
 
 struct TokenCreationView;
-struct TransferView;
-struct TokenTransferView;
+struct WartTransferView;
 struct RewardView;
 class AddressView;
 
@@ -58,7 +58,7 @@ class BodyView {
         struct EndIterator {
         };
         struct Iterator {
-            TransferView operator*() const;
+            WartTransferView operator*() const;
             size_t index() { return i; }
 
             bool operator==(EndIterator) const
@@ -128,12 +128,31 @@ class BodyView {
         const BodyView& bv;
     };
 
+    struct TokenSection {
+        const uint8_t* begin;
+        TokenId tokenId;
+        size_t nTransfers;
+        const uint8_t* transfersBegin;
+        size_t nOrders;
+        const uint8_t* ordersBegin;
+        size_t nLiquidityAdd;
+        const uint8_t* liquidityAddBegin;
+        size_t nLiquidityRemove;
+        const uint8_t* liquidityRemoveBegin;
+        auto foreach_transfer(auto lambda) const;
+        auto foreach_order(auto lambda) const;
+        auto foreach_liquidity_add(auto lambda) const;
+        auto foreach_liquidity_remove(auto lambda) const;
+    };
+
 public:
     constexpr static size_t SIGLEN { 65 };
     constexpr static size_t AddressSize { 20 };
     constexpr static size_t RewardSize { 16 };
     constexpr static size_t TransferSize { 34 + SIGLEN };
-    constexpr static size_t TransferDefiSize { 34+4 + SIGLEN };
+    constexpr static size_t OrderSize { 26 + SIGLEN };
+    constexpr static size_t LiquidityAddSize { 34 + SIGLEN };
+    constexpr static size_t LiquidityRemoveSize { 26 + SIGLEN };
     constexpr static size_t TokenCreationSize { 8 + 8 + 5 + 2 + SIGLEN };
     BodyView(std::span<const uint8_t>, NonzeroHeight h);
     std::vector<Hash> merkle_leaves() const;
@@ -144,12 +163,12 @@ public:
     const uint8_t* data() const { return s.data(); }
 
     auto transfers() const { return Transfers { *this }; }
+    auto foreach_token(auto lambda) const;
     auto addresses() const { return Addresses { *this }; }
     auto token_creations() const { return NewTokens { *this }; }
     size_t getNAddresses() const { return nAddresses; };
     size_t getNNewTokens() const { return nNewTokens; };
-    TransferView get_transfer(size_t i) const;
-    TokenTransferView get_token_transfer(size_t i) const;
+    WartTransferView get_transfer(size_t i) const;
     TokenCreationView get_new_token(size_t i) const;
     RewardView reward() const;
     Funds fee_sum_assert() const;
@@ -162,10 +181,13 @@ private:
     std::span<const uint8_t> s;
     size_t nAddresses;
     size_t nTransfers { 0 };
+    size_t nTokens { 0 };
+    std::vector<TokenSection> tokensSections;
     size_t nNewTokens { 0 };
     size_t offsetAddresses { 0 };
     size_t offsetReward { 0 };
     size_t offsetTransfers { 0 };
+    size_t offsetTokens { 0 };
     size_t offsetNewTokens { 0 };
     bool isValid = false;
 };

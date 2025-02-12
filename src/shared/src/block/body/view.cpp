@@ -1,6 +1,8 @@
 #include "view.hpp"
+#include "block/body/parse.hpp"
 #include "crypto/crypto.hpp"
 #include "crypto/hasher_sha256.hpp"
+#include "defi/token/id.hpp"
 #include "general/hex.hpp"
 #include "general/is_testnet.hpp"
 #include "general/reader.hpp"
@@ -13,11 +15,13 @@ BodyView::BodyView(std::span<const uint8_t> s, NonzeroHeight h)
 {
     static_assert(SIGLEN == RecoverableSignature::length);
     Reader rd { s };
+    bool block_v3 = is_testnet() || h.value() >= TOKENSTARTHEIGHT;
+    bool block_v2 = is_testnet() || h.value() >= NEWBLOCKSTRUCUTREHEIGHT;
 
     if (s.size() > MAXBLOCKSIZE)
         return;
     const bool defiEnabled { true };
-    if (h.value() >= NEWBLOCKSTRUCUTREHEIGHT || is_testnet()) {
+    if (block_v2) {
         // Read new address section
         rd.skip(10); // for mining
         nAddresses = rd.uint16();
@@ -42,10 +46,58 @@ BodyView::BodyView(std::span<const uint8_t> s, NonzeroHeight h)
         offsetTransfers = rd.cursor() - s.data();
         rd.skip(nTransfers * TransferSize);
 
-        if (defiEnabled && rd.remaining() != 0) {
-            nNewTokens = rd.uint8();
+        if (block_v3) {
+            // read token sections
+            nTokens = rd.uint16();
+            for (size_t i = 0; i < nTokens; ++i) {
+                // TokenSection{
+                //     .nTransfers {rd.uint16()},
+                //     .transfersBegin {rd.cursor()};
+                //
+                // }
+                auto begin { rd.cursor() };
+                TokenId tokenId { rd.uint32() };
+
+                // 5 bytes for 4 10-bit length specifications
+                size_t nTransfers { rd.uint8() };
+                size_t nOrders { rd.uint8() };
+                size_t nLiquidityAdd { rd.uint8() };
+                size_t nLiquidityRemove { rd.uint8() };
+                size_t extend { rd.uint8() };
+                nTransfers += ((extend >> 6) & 0x03) << 8;
+                nOrders += ((extend >> 4) & 0x03) << 8;
+                nLiquidityAdd += ((extend >> 2) & 0x03) << 8;
+                nLiquidityRemove += ((extend)&0x03) << 8;
+
+                auto transfersBegin { rd.cursor() };
+                rd.skip(TransferSize * nTransfers);
+                auto ordersBegin { rd.cursor() };
+                rd.skip(OrderSize * nOrders);
+                auto liquidityAddBegin { rd.cursor() };
+                rd.skip(LiquidityAddSize * nLiquidityAdd);
+                auto liquidityRemoveBegin { rd.cursor() };
+                rd.skip(LiquidityRemoveSize * nLiquidityRemove);
+
+                tokensSections.push_back(
+                    TokenSection {
+                        .begin = begin,
+                        .tokenId = tokenId,
+                        .nTransfers = nTransfers,
+                        .transfersBegin = transfersBegin,
+                        .nOrders = nOrders,
+                        .ordersBegin = ordersBegin,
+                        .nLiquidityAdd = nLiquidityAdd,
+                        .liquidityAddBegin = liquidityAddBegin,
+                        .nLiquidityRemove = nLiquidityRemove,
+                        .liquidityRemoveBegin = liquidityRemoveBegin });
+            }
+
+            // read new token section
+            if (defiEnabled && rd.remaining() != 0) {
+                nNewTokens = rd.uint8();
+            }
+            offsetNewTokens = rd.cursor() - s.data();
         }
-        offsetNewTokens = rd.cursor() - s.data();
     } else {
         // Read new address section
         if (rd.remaining() < 8)
@@ -76,7 +128,7 @@ BodyView::BodyView(std::span<const uint8_t> s, NonzeroHeight h)
 
 std::vector<Hash> BodyView::merkle_leaves() const
 {
-    std::vector<Hash> hashes(nAddresses + 1 + nTransfers);
+    std::vector<Hash> hashes(nAddresses + 1 + nTransfers + nTokens);
 
     // hash addresses
     size_t idx = 0;
@@ -89,6 +141,21 @@ std::vector<Hash> BodyView::merkle_leaves() const
     // hash payments
     for (size_t i = 0; i < nTransfers; ++i)
         hashes[idx++] = hashSHA256(data() + offsetTransfers + i * TransferSize, TransferSize);
+    foreach_token([&](const TokenSection& ts) {
+        hashes[idx++] = hashSHA256(ts.begin, 4); // TokenId
+        ts.foreach_transfer([&](const TokenTransferView& ttv) {
+            hashes[idx++] = hashSHA256(ttv.data(), ttv.size()); // transfer
+        });
+        ts.foreach_order([&](const OrderView& ov) {
+            hashes[idx++] = hashSHA256(ov.data(), ov.size()); // order
+        });
+        ts.foreach_liquidity_add([&](const LiquidityAddView& lav) {
+            hashes[idx++] = hashSHA256(lav.data(), lav.size()); // liquidity add
+        });
+        ts.foreach_liquidity_remove([&](const LiquidityRemoveView& lrv) {
+            hashes[idx++] = hashSHA256(lrv.data(), lrv.size()); // liquidity remove
+        });
+    });
     return hashes;
 };
 

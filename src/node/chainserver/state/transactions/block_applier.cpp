@@ -61,7 +61,7 @@ public:
         ;
     }
 
-    void register_transfer(TransferView tv, Height height) // OK
+    void register_transfer(TokenId tokenId, WartTransferView tv, Height height) // OK
     {
         Funds amount { tv.amount_throw() };
         auto compactFee = tv.compact_fee_trow();
@@ -173,6 +173,11 @@ struct InsertHistoryEntry {
         , historyId(historyId)
     {
     }
+    InsertHistoryEntry(const VerifiedTokenTransfer& t, TokenId tokenId, HistoryId historyId)
+        : he(t, tokenId)
+        , historyId(historyId)
+    {
+    }
     InsertHistoryEntry(const VerifiedTransfer& t, HistoryId historyId)
         : he(t)
         , historyId(historyId)
@@ -201,6 +206,16 @@ struct HistoryEntries {
         return e;
     }
     [[nodiscard]] auto& push_transfer(const VerifiedTransfer& r)
+    {
+        auto& e { insertHistory.emplace_back(r, nextHistoryId) };
+        insertAccountHistory.emplace_back(r.ti.toAccountId, nextHistoryId);
+        if (r.ti.toAccountId != r.ti.fromAccountId) {
+            insertAccountHistory.emplace_back(r.ti.fromAccountId, nextHistoryId);
+        }
+        ++nextHistoryId;
+        return e;
+    }
+    [[nodiscard]] auto& push_token_transfer(const VerifiedTokenTransfer& r, TokenId tokenId, HashView tokenHash)
     {
         auto& e { insertHistory.emplace_back(r, nextHistoryId) };
         insertAccountHistory.emplace_back(r.ti.toAccountId, nextHistoryId);
@@ -288,9 +303,9 @@ Preparation BlockApplier::Preparer::prepare(const BodyView& bv, const NonzeroHei
         }()
     };
 
-    // Read transfer section
+    // Read transfer section for WART coins
     for (auto t : bv.transfers()) {
-        balanceChecker.register_transfer(t, height);
+        balanceChecker.register_transfer(TokenId(0), t, height);
     }
 
     // Read token creation section
@@ -410,6 +425,8 @@ api::Block BlockApplier::apply_block(const BodyView& bv, HeaderView hv, NonzeroH
 
     try {
         preparer.newTxIds.merge(std::move(prepared.txset));
+
+        // create new pools
 
         // update old balances
         for (auto& [accId, bal] : prepared.updateBalances) {

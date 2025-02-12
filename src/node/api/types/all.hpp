@@ -20,7 +20,7 @@
 #include <variant>
 #include <vector>
 namespace chainserver {
-class AccountCache;
+class DBCache;
 }
 
 namespace api {
@@ -101,6 +101,18 @@ struct Block {
         Address toAddress;
         Funds amount;
     };
+    struct TokenTransfer {
+        TokenId tokenId;
+        TokenHash tokenHash;
+        TokenName tokenName;
+        Address fromAddress;
+        Funds fee;
+        NonceId nonceId;
+        PinHeight pinHeight;
+        Hash txhash;
+        Address toAddress;
+        Funds amount;
+    };
     struct Reward {
         Hash txhash;
         Address toAddress;
@@ -120,10 +132,12 @@ struct Block {
 
 private:
     std::optional<Reward> _reward; // optional because account's history is also returned in block structure
+    
 public:
     std::vector<Transfer> transfers;
+    std::vector<TokenTransfer> tokenTransfers;
     void push_history(const Hash& txid,
-        const std::vector<uint8_t>& data, chainserver::AccountCache& cache,
+        const std::vector<uint8_t>& data, chainserver::DBCache& cache,
         PinFloor pinFloor);
 
     Block(Header header,

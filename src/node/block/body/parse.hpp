@@ -97,16 +97,32 @@ public:
     using View::View;
 };
 
-struct TokenTransferView : public View<BodyView::TransferDefiSize> {
+struct WartTransferView : public TransferView {
+    using TransferView::TransferView;
+};
+
+struct TokenTransferView : public TransferView {
+    TokenTransferView(TransferView v, TokenId id)
+        : TransferView(std::move(v))
+        , tokenId(id)
+    {
+    }
+    TokenId tokenId;
+};
+
+struct OrderView : public View<BodyView::OrderSize> {
 private:
+    TokenId tokenId;
     uint16_t fee_raw() const
     {
         return readuint16(pos + 16);
     }
 
 public:
-    using View::View;
-    AccountId fromAccountId() const
+    OrderView(const uint8_t* pos, TokenId tokenId)
+        : View(pos)
+        , tokenId(tokenId) {};
+    AccountId accountId() const
     {
         return AccountId(readuint64(pos));
     }
@@ -133,11 +149,68 @@ public:
     {
         return compact_fee_trow().uncompact();
     }
-    AccountId toAccountId() const
+    std::pair<bool, Funds> buy_amount_throw() const
     {
-        return AccountId(readuint64(pos + 18));
+        auto v { readuint64(pos + 18) };
+        bool buy { (v >> 63) != 0 };
+        auto f { Funds::from_value_throw(v & 0x7FFFFFFFFFFFFFFFull) };
+        return { buy, f };
     }
-    Funds amount_throw() const
+    auto signature() const { return View<65>(pos + 26); }
+    static_assert(65 == BodyView::SIGLEN);
+    TransactionId txid(PinHeight pinHeight) const
+    {
+        PinNonce pn = pin_nonce();
+        return { accountId(), pinHeight, pn.id };
+    }
+
+    using View::View;
+};
+
+struct LiquidityAddView : public View<BodyView::LiquidityAddSize> {
+private:
+    TokenId tokenId;
+    uint16_t fee_raw() const
+    {
+        return readuint16(pos + 16);
+    }
+
+public:
+    LiquidityAddView(const uint8_t* pos, TokenId tokenId)
+        : View(pos)
+        , tokenId(tokenId) {};
+    AccountId accountId() const
+    {
+        return AccountId(readuint64(pos));
+    }
+    PinNonce pin_nonce() const
+    {
+        Reader r({ pos + 8, pos + 16 });
+        return PinNonce(r);
+    }
+    PinHeight pinHeight(PinFloor pinFloor) const
+    {
+        return pin_nonce().pin_height(pinFloor);
+    }
+    CompactUInt compact_fee_trow() const
+    {
+        return CompactUInt::from_value_throw(fee_raw());
+    }
+
+    CompactUInt compact_fee_assert() const
+    {
+        return CompactUInt::from_value_assert(fee_raw());
+    }
+
+    Funds fee_throw() const
+    {
+        return compact_fee_trow().uncompact();
+    }
+    Funds amountQuoteWART() const
+    {
+        return Funds::from_value_throw(readuint64(pos + 18));
+    }
+    Funds amountBase() const
     {
         return Funds::from_value_throw(readuint64(pos + 26));
     }
@@ -146,8 +219,64 @@ public:
     TransactionId txid(PinHeight pinHeight) const
     {
         PinNonce pn = pin_nonce();
-        return { fromAccountId(), pinHeight, pn.id };
+        return { accountId(), pinHeight, pn.id };
     }
+
+    using View::View;
+};
+
+struct LiquidityRemoveView : public View<BodyView::LiquidityRemoveSize> {
+private:
+    TokenId tokenId;
+    uint16_t fee_raw() const
+    {
+        return readuint16(pos + 16);
+    }
+
+public:
+    LiquidityRemoveView(const uint8_t* pos, TokenId tokenId)
+        : View(pos)
+        , tokenId(tokenId) {};
+    AccountId accountId() const
+    {
+        return AccountId(readuint64(pos));
+    }
+    PinNonce pin_nonce() const
+    {
+        Reader r({ pos + 8, pos + 16 });
+        return PinNonce(r);
+    }
+    PinHeight pinHeight(PinFloor pinFloor) const
+    {
+        return pin_nonce().pin_height(pinFloor);
+    }
+    CompactUInt compact_fee_trow() const
+    {
+        return CompactUInt::from_value_throw(fee_raw());
+    }
+
+    CompactUInt compact_fee_assert() const
+    {
+        return CompactUInt::from_value_assert(fee_raw());
+    }
+
+    Funds fee_throw() const
+    {
+        return compact_fee_trow().uncompact();
+    }
+    Funds amountPooltoken() const
+    {
+        return Funds::from_value_throw(readuint64(pos + 18));
+    }
+    auto signature() const { return View<65>(pos + 26); }
+    static_assert(65 == BodyView::SIGLEN);
+    TransactionId txid(PinHeight pinHeight) const
+    {
+        PinNonce pn = pin_nonce();
+        return { accountId(), pinHeight, pn.id };
+    }
+
+    using View::View;
 };
 
 struct Transfer {
@@ -178,7 +307,7 @@ struct Transfer {
         return { fromId,
             pinHeight, pinNonce.id };
     }
-    Transfer(TransferView v)
+    Transfer(WartTransferView v)
         : fromId(v.fromAccountId())
         , pinNonce(v.pin_nonce())
         , compactFee(v.compact_fee_trow())
@@ -219,16 +348,10 @@ public:
     const uint16_t offset; // index in block
 };
 
-inline TransferView BodyView::get_transfer(size_t i) const
+inline WartTransferView BodyView::get_transfer(size_t i) const
 {
     assert(i < nTransfers);
-    return TransferView { data() + offsetTransfers + i * TransferView::size() };
-}
-
-inline TokenTransferView BodyView::get_token_transfer(size_t i) const
-{
-    assert(i < nTransfers);
-    return TokenTransferView { data() + offsetTransfers + i * TokenTransferView::size() };
+    return WartTransferView { data() + offsetTransfers + i * WartTransferView::size() };
 }
 
 inline TokenCreationView BodyView ::get_new_token(size_t i) const
@@ -259,11 +382,39 @@ inline AddressView BodyView::Addresses::Iterator::operator*() const
 {
     return bv.get_address(i);
 }
-inline TransferView BodyView::Transfers::Iterator::operator*() const
+inline WartTransferView BodyView::Transfers::Iterator::operator*() const
 {
     return bv.get_transfer(i);
 }
 inline TokenCreationView BodyView::NewTokens::Iterator::operator*() const
 {
     return bv.get_new_token(i);
+}
+
+inline auto BodyView::foreach_token(auto lambda) const
+{
+    for (auto& ts : tokensSections)
+        lambda(ts);
+}
+inline auto BodyView::TokenSection::foreach_transfer(auto lambda) const
+{
+    for (size_t i = 0; i < nTransfers; ++i)
+        lambda(TokenTransferView { TransferView { transfersBegin + i * TokenTransferView::size() }, tokenId });
+}
+
+inline auto BodyView::TokenSection::foreach_order(auto lambda) const
+{
+    for (size_t i = 0; i < nOrders; ++i)
+        lambda(OrderView { ordersBegin + i * OrderView::size(), tokenId });
+}
+
+inline auto BodyView::TokenSection::foreach_liquidity_add(auto lambda) const
+{
+    for (size_t i = 0; i < nLiquidityAdd; ++i)
+        lambda(LiquidityAddView { liquidityAddBegin + i * LiquidityAddView::size(), tokenId });
+}
+inline auto BodyView::TokenSection::foreach_liquidity_remove(auto lambda) const
+{
+    for (size_t i = 0; i < nLiquidityRemove; ++i)
+        lambda(LiquidityRemoveView { liquidityRemoveBegin + i * LiquidityRemoveView::size(), tokenId });
 }

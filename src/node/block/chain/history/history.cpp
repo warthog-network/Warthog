@@ -2,6 +2,51 @@
 #include "block/chain/header_chain.hpp"
 #include "general/writer.hpp"
 
+Hash RewardInternal::hash() const
+{
+    return HasherSHA256()
+        << toAddress
+        << amount
+        << height
+        << offset;
+}
+
+VerifiedTokenTransfer TokenTransferInternal::verify(const Headerchain& hc, NonzeroHeight height, HashView tokenHash) const
+{
+    assert(height <= hc.length() + 1);
+    assert(!fromAddress.is_null());
+    assert(!toAddress.is_null());
+    const PinFloor pinFloor { PrevHeight(height) };
+    PinHeight pinHeight(pinNonce.pin_height(pinFloor));
+    Hash pinHash { hc.hash_at(pinHeight) };
+    return VerifiedTokenTransfer(*this, pinHeight, pinHash, tokenHash);
+}
+
+bool VerifiedTokenTransfer::valid_signature() const
+{
+    assert(!ti.fromAddress.is_null());
+    assert(!ti.toAddress.is_null());
+    auto recovered = recover_address();
+    return recovered == ti.fromAddress;
+}
+
+VerifiedTokenTransfer::VerifiedTokenTransfer(const TokenTransferInternal& ti, PinHeight pinHeight, HashView pinHash, HashView tokenHash)
+    : ti(ti)
+    , id { ti.fromAccountId, pinHeight, ti.pinNonce.id }
+    , hash(HasherSHA256()
+          << tokenHash
+          << pinHash
+          << pinHeight
+          << ti.pinNonce.id
+          << ti.pinNonce.reserved
+          << ti.compactFee.uncompact()
+          << ti.toAddress
+          << ti.amount)
+{
+    if (!valid_signature())
+        throw Error(ECORRUPTEDSIG);
+}
+////////////////////////
 VerifiedTransfer TransferInternal::verify(const Headerchain& hc, NonzeroHeight height) const
 {
     assert(height <= hc.length() + 1);
@@ -13,15 +58,6 @@ VerifiedTransfer TransferInternal::verify(const Headerchain& hc, NonzeroHeight h
     return VerifiedTransfer(*this, pinHeight, pinHash);
 }
 
-Hash RewardInternal::hash() const
-{
-    return HasherSHA256()
-        << toAddress
-        << amount
-        << height
-        << offset;
-}
-
 bool VerifiedTransfer::valid_signature() const
 {
     assert(!ti.fromAddress.is_null());
@@ -29,6 +65,7 @@ bool VerifiedTransfer::valid_signature() const
     auto recovered = recover_address();
     return recovered == ti.fromAddress;
 }
+
 VerifiedTransfer::VerifiedTransfer(const TransferInternal& ti, PinHeight pinHeight, HashView pinHash)
     : ti(ti)
     , id { ti.fromAccountId, pinHeight, ti.pinNonce.id }
@@ -97,6 +134,31 @@ Entry::Entry(const VerifiedTransfer& p)
     hash = p.hash;
 }
 
+Entry::Entry(const VerifiedTokenTransfer& p, TokenId tokenId)
+{
+    data = serialize(TokenTransferData {
+        tokenId,
+        p.ti.fromAccountId,
+        p.ti.compactFee,
+        p.ti.toAccountId,
+        p.ti.amount,
+        p.ti.pinNonce });
+    hash = p.hash;
+}
+TokenTransferData TokenTransferData::parse(Reader& r)
+{
+    if (r.remaining() != bytesize)
+        throw std::runtime_error("Cannot parse TokenTransferData.");
+    return TokenTransferData {
+        .tokenId { r },
+        .fromAccountId { r },
+        .compactFee { CompactUInt::from_value_throw(r) },
+        .toAccountId { r },
+        .amount { Funds::from_value_throw(r) },
+        .pinNonce { r }
+    };
+}
+
 Entry::Entry(const VerifiedTokenCreation& p)
 {
     data = serialize(TokenCreationData {
@@ -108,6 +170,12 @@ Entry::Entry(const VerifiedTokenCreation& p)
     hash = p.hash;
 }
 
+void TokenTransferData::write(Writer& w) const
+{
+    assert(w.remaining() == bytesize);
+    w << tokenId << fromAccountId << compactFee << toAccountId
+      << amount << pinNonce;
+}
 void TransferData::write(Writer& w) const
 {
     assert(w.remaining() == bytesize);

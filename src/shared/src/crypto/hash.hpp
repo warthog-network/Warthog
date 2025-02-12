@@ -40,6 +40,10 @@ public:
     static Hash genesis();
 };
 
+class TokenHash: public Hash{
+    using Hash::Hash;
+};
+
 inline bool operator==(const Hash& h, const HashView& hv)
 {
     return (HashView(h) == hv);

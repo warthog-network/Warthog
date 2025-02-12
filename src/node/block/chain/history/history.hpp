@@ -59,6 +59,44 @@ public:
     const Hash hash;
 };
 
+class VerifiedTokenTransfer;
+struct TokenTransferInternal {
+    ValidAccountId fromAccountId;
+    ValidAccountId toAccountId;
+    Funds amount;
+    PinNonce pinNonce;
+    CompactUInt compactFee;
+    AddressView fromAddress { nullptr };
+    AddressView toAddress { nullptr };
+    RecoverableSignature signature;
+    [[nodiscard]] VerifiedTokenTransfer verify(const Headerchain&, NonzeroHeight, HashView tokenHash) const;
+    TokenTransferInternal(ValidAccountId from, CompactUInt compactFee, ValidAccountId to,
+        Funds amount, PinNonce pinNonce, View<65> signdata)
+        : fromAccountId(from)
+        , toAccountId(to)
+        , amount(amount)
+        , pinNonce(pinNonce)
+        , compactFee(compactFee)
+        , signature(signdata)
+    {
+    }
+};
+
+class VerifiedTokenTransfer {
+    friend struct TokenTransferInternal;
+    VerifiedTokenTransfer(const TokenTransferInternal&, PinHeight pinHeight, HashView pinHash, HashView tokenHash);
+    Address recover_address() const
+    {
+        return ti.signature.recover_pubkey(hash).address();
+    }
+    bool valid_signature() const;
+
+public:
+    const TokenTransferInternal& ti;
+    const TransactionId id;
+    const Hash hash;
+};
+
 class VerifiedTokenCreation;
 struct TokenCreationInternal {
     ValidAccountId creatorAccountId;
@@ -88,7 +126,6 @@ class VerifiedTokenCreation {
     }
 
     bool valid_signature() const;
-
 
 public:
     const TokenCreationInternal& tci;
@@ -130,10 +167,24 @@ struct TokenCreationData {
     void write(Writer& w) const;
 };
 
-using Data = std::variant<TransferData, RewardData, TokenCreationData>;
+struct TokenTransferData {
+    static TokenTransferData parse(Reader& r);
+    constexpr static uint8_t indicator = 4;
+    constexpr static uint8_t bytesize = 4 + 8 + 2 + 8 + 8 + 8; // without indicator
+    TokenId tokenId;
+    AccountId fromAccountId;
+    CompactUInt compactFee;
+    AccountId toAccountId;
+    Funds amount;
+    PinNonce pinNonce;
+    void write(Writer& w) const;
+};
+
+using Data = std::variant<TransferData, RewardData, TokenCreationData, TokenTransferData>;
 struct Entry {
     Entry(const RewardInternal& p);
     Entry(const VerifiedTransfer& p);
+    Entry(const VerifiedTokenTransfer& p, TokenId);
     Entry(const VerifiedTokenCreation& p);
     Hash hash;
     std::vector<uint8_t> data;

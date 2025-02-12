@@ -13,11 +13,12 @@
 class Reader;
 class Writer;
 
-constexpr auto DefaultTokenSupply {Funds::from_value_throw( (100000000 * COINUNIT))};
+constexpr auto DefaultTokenSupply { Funds::from_value_throw((100000000 * COINUNIT)) };
 
-enum class TokenMintType { 
+enum class TokenMintType {
     Ownall = 0,
-    Auction = 1 };
+    Auction = 1
+};
 
 class TokenName {
     TokenName(std::string s)
@@ -36,6 +37,15 @@ public:
         }
         return TokenName { std::move(s) };
     }
+
+    static TokenName parse_throw(std::string s)
+    {
+        if (auto o { from_string(s) }) {
+            return *o;
+        }
+        throw std::runtime_error("Cannot parse token name \"" + s + "\".");
+    }
+
     View<5> view() const { return View<5>(reinterpret_cast<const uint8_t*>(name)); }
     static constexpr size_t byte_size() { return 5; }
     TokenName(View<5>);

@@ -33,7 +33,7 @@ TxHash TransferTxExchangeMessage::txhash(HashView pinHash) const
         << amount);
 }
 
-TransferTxExchangeMessage::TransferTxExchangeMessage(TransferView t, PinHeight ph, AddressView toAddr)
+TransferTxExchangeMessage::TransferTxExchangeMessage(WartTransferView t, PinHeight ph, AddressView toAddr)
     : txid(t.txid(ph))
     , reserved(t.pin_nonce().reserved)
     , compactFee(t.compact_fee_trow())
@@ -99,7 +99,7 @@ TxHash TransferDefiMessage::txhash(HashView pinHash) const
         << amount);
 }
 
-TransferDefiMessage::TransferDefiMessage(TransferView t, PinHeight ph, AddressView toAddr)
+TransferDefiMessage::TransferDefiMessage(WartTransferView t, PinHeight ph, AddressView toAddr)
     : txid(t.txid(ph))
     , reserved(t.pin_nonce().reserved)
     , compactFee(t.compact_fee_trow())

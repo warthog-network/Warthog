@@ -1,4 +1,5 @@
 #pragma once
+
 #include "api/types/forward_declarations.hpp"
 #include "block/chain/range.hpp"
 #include "communication/messages.hpp"

@@ -8,7 +8,7 @@
 
 class Address;
 class HashView;
-struct TransferView;
+struct WartTransferView;
 
 class PaymentCreateMessage;
 
@@ -24,7 +24,7 @@ public:
     TransferTxExchangeMessage(ReaderCheck<bytesize> r);
     TransferTxExchangeMessage(AccountId fromId, const PaymentCreateMessage& pcm);
     TransferTxExchangeMessage(const TransactionId& txid, const mempool::EntryValue&);
-    TransferTxExchangeMessage(TransferView, PinHeight, AddressView toAddr);
+    TransferTxExchangeMessage(WartTransferView, PinHeight, AddressView toAddr);
 
     friend Writer& operator<<(Writer&, TransferTxExchangeMessage);
     [[nodiscard]] TxHash txhash(HashView pinHash) const;
@@ -51,7 +51,7 @@ public:
     TransferDefiMessage(ReaderCheck<bytesize> r);
     TransferDefiMessage(AccountId fromId, const PaymentCreateMessage& pcm);
     TransferDefiMessage(const TransactionId& txid, const mempool::EntryValue&);
-    TransferDefiMessage(TransferView, PinHeight, AddressView toAddr);
+    TransferDefiMessage(WartTransferView, PinHeight, AddressView toAddr);
 
     friend Writer& operator<<(Writer&, TransferDefiMessage);
     [[nodiscard]] TxHash txhash(HashView pinHash) const;

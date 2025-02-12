@@ -4,6 +4,7 @@
 #include "general/funds.hpp"
 #include "general/reader.hpp"
 #include "general/writer.hpp"
+#include <variant>
 
 struct IdBalance {
     BalanceId id;
@@ -12,7 +13,7 @@ struct IdBalance {
 
 class RollbackViewV1 {
 public:
-    RollbackViewV1(std::vector<uint8_t>& bytes)
+    RollbackViewV1(const std::vector<uint8_t>& bytes)
         : bytes(bytes)
     {
         if (bytes.size() < 8 || ((bytes.size() - 8) % 16) != 0) {
@@ -30,21 +31,19 @@ public:
         while (pos < end) {
             lambda(
                 IdBalance {
-                    .id {
-                        AccountId { readuint64(pos) },
-                        TokenId { 0 } },
+                    .id { readuint64(pos) },
                     .balance { Funds::from_value_throw(readuint64(pos + 8)) } });
             pos += 16;
         }
     }
 
 private:
-    std::vector<uint8_t>& bytes;
+    const std::vector<uint8_t>& bytes;
 };
 
 class RollbackViewV2 {
 public:
-    RollbackViewV2(std::vector<uint8_t>& bytes)
+    RollbackViewV2(const std::vector<uint8_t>& bytes)
         : bytes(bytes)
     {
         if (bytes.size() < 20 || (bytes.size() % 20) != 0) {
@@ -60,17 +59,15 @@ public:
         auto end { bytes.data() + bytes.size() };
         while (pos < end) {
             lambda(
-                AccountTokenBalance {
-                    .id {
-                        AccountId { readuint64(pos) },
-                        TokenId { readuint32(pos + 8) } },
-                    .balance { Funds::from_value_throw(readuint64(pos + 12)) } });
-            pos += 20;
+                IdBalance {
+                    .id { readuint64(pos) },
+                    .balance { Funds::from_value_throw(readuint64(pos + 8)) } });
+            pos += 16;
         }
     }
 
 private:
-    std::vector<uint8_t>& bytes;
+    const std::vector<uint8_t>& bytes;
 };
 
 class RollbackView {
@@ -79,7 +76,7 @@ class RollbackView {
     {
         return std::visit(lambda, variant);
     }
-    variant_t initialize(std::vector<uint8_t>& bytes, bool v1)
+    variant_t initialize(const std::vector<uint8_t>& bytes, bool v1)
     {
         if (v1) {
             return RollbackViewV1(bytes);
@@ -88,7 +85,7 @@ class RollbackView {
     }
 
 public:
-    RollbackView(std::vector<uint8_t>& bytes, bool v1)
+    RollbackView(const std::vector<uint8_t>& bytes, bool v1)
         : variant(initialize(bytes, v1))
     {
     }

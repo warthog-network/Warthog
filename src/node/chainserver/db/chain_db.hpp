@@ -14,6 +14,7 @@
 class ChainDBTransaction;
 class Batch;
 class TokenName;
+class TokenInfo;
 struct SignedSnapshot;
 class Headerchain;
 struct RawBody : public std::vector<uint8_t> {
@@ -26,6 +27,10 @@ struct Column2 : public SQLite::Column {
     operator Hash() const
     {
         return { get_array<32>() };
+    }
+    operator TokenHash() const
+    {
+        return static_cast<Hash>(*this);
     }
     operator Height() const
     {
@@ -68,6 +73,10 @@ struct Column2 : public SQLite::Column {
     operator Address() const
     {
         return get_array<20>();
+    }
+    operator TokenName()
+    {
+        return TokenName::parse_throw(static_cast<std::string>(*this));
     }
     operator BodyContainer() const
     {
@@ -281,6 +290,13 @@ public:
         reset();
     }
 };
+// (`id` INTEGER NOT NULL, `account_id` INTEGER NOT NULL, `token_id` INTEGER NOT NULL, `balance` INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(`id`))
+
+struct BlockUndoData {
+    Header header;
+    RawBody rawBody;
+    RawUndo rawUndo;
+};
 
 class ChainDB {
 private:
@@ -290,6 +306,13 @@ private:
     static constexpr int64_t SIGNEDPINID = -2;
 
 public:
+    // data types
+    struct Balance {
+        BalanceId balanceId;
+        AccountId accountId;
+        TokenId tokenId;
+        Funds balance;
+    };
     ChainDB(const std::string& path);
     [[nodiscard]] ChainDBTransaction transaction();
     void insert_account(const AddressView address, AccountId verifyNextStateId);
@@ -299,7 +322,7 @@ public:
     void insert_consensus(NonzeroHeight height, BlockId blockId, HistoryId historyCursor, AccountId accountCursor);
 
     // token functions
-    void insert_new_token(TokenId verifyNextTokenId, NonzeroHeight height, AccountId creatorId, TokenName name, TokenMintType type);
+    void insert_new_token(TokenId verifyNextTokenId, NonzeroHeight height, AccountId creatorId, TokenName name, TokenHash hash, TokenMintType type);
     [[nodiscard]] BalanceId insert_token_balance(TokenId, AccountId, Funds balance);
     void set_token_balance(TokenId, AccountId, Funds balance);
     std::optional<std::pair<BalanceId, Funds>> get_token_balance(TokenId, AccountId);
@@ -330,7 +353,7 @@ public:
     // get
     [[nodiscard]] std::optional<BlockId> lookup_block_id(const HashView hash) const;
     [[nodiscard]] std::optional<NonzeroHeight> lookup_block_height(const HashView hash) const;
-    [[nodiscard]] std::optional<std::tuple<Header, RawBody, RawUndo>> get_block_undo(BlockId id) const;
+    [[nodiscard]] std::optional<BlockUndoData> get_block_undo(BlockId id) const;
     [[nodiscard]] std::optional<Block> get_block(BlockId id) const;
     [[nodiscard]] std::optional<std::pair<BlockId, Block>> get_block(HashView hash) const;
     // set
@@ -344,6 +367,12 @@ public:
     [[nodiscard]] api::Richlist lookup_richlist(uint32_t N) const;
     [[nodiscard]] AddressFunds fetch_account(AccountId id) const;
 
+    /////////////////////
+    // Token functions
+
+    [[nodiscard]] std::optional<Balance> lookup_balance(BalanceId id) const;
+    [[nodiscard]] std::optional<TokenInfo> lookup_token(TokenId id) const;
+    [[nodiscard]] TokenInfo fetch_token(TokenId id) const;
     /////////////////////
     // Transactions functions
     [[nodiscard]] api::Richlist look(size_t N) const;
@@ -407,7 +436,7 @@ private:
                     "`undo` BLOB DEFAULT null, `hash` BLOB NOT NULL UNIQUE )");
 
             db.exec("CREATE TABLE IF NOT EXISTS \"Pools\" ( `tokenId` INTEGER "
-                    "NOT NULL, `base` INTEGER NOT NULL, `quote` INTEGER NOT NULL, " 
+                    "NOT NULL, `base` INTEGER NOT NULL, `quote` INTEGER NOT NULL, "
                     "PRIMARY KEY(`tokenId`))");
             db.exec("CREATE TABLE IF NOT EXISTS \"ForkEvents\" ( `id` INTEGER "
                     "NOT NULL, `height` INTEGER NOT NULL, `totalTokens` INTEGER"
@@ -419,8 +448,8 @@ private:
                     "NOT NULL, `eventId` INTEGER NOT NULL, `tokenId` INTEGER NOT "
                     "NULL, `forkedTokenId` INTEGER NOT NULL, PRIMARY KEY(`id`))");
             db.exec("CREATE TABLE IF NOT EXISTS \"Tokens\" ( `height` INTEGER NOT "
-                    "NULL, `creator_id` INTEGER NOT NULL, `name` TEXT NOT NULL UNIQUE, `type` INTEGER NOT NULL)");
-            db.exec("CREATE TABLE IF NOT EXISTS \"Balance\" (`id` INTEGER NOT NULL, `account_id` INTEGER NOT NULL, `token_id` INTEGER NOT NULL, `balance` INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(`id`))");
+                    "NULL, `creator_id` INTEGER NOT NULL, `name` TEXT NOT NULL UNIQUE, `hash` TEXT NOT NULL UNIQUE, `type` INTEGER NOT NULL)");
+            db.exec("CREATE TABLE IF NOT EXISTS \"Balance\" ((`id` INTEGER NOT NULL, `account_id` INTEGER NOT NULL, `token_id` INTEGER NOT NULL, `balance` INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(`id`))`id` INTEGER NOT NULL, `account_id` INTEGER NOT NULL, `token_id` INTEGER NOT NULL, `balance` INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(`id`))");
             db.exec("CREATE UNIQUE INDEX IF NOT EXISTS `Balance_index` ON "
                     "`Balance` (`account_id` ASC, `token_id` ASC)");
             db.exec("CREATE INDEX IF NOT EXISTS `Balance_index2` ON "
@@ -465,6 +494,8 @@ private:
 
     // Token functions
     mutable Statement2 stmtTokenInsert;
+    mutable Statement2 stmtTokenLookup;
+    mutable Statement2 stmtSelectBalanceId;
     mutable Statement2 stmtTokenInsertBalance;
     mutable Statement2 stmtTokenSelectBalance;
     mutable Statement2 stmtAccountSelectTokens;

@@ -1,6 +1,7 @@
 #pragma once
 #include "block/body/account_id.hpp"
-#include<map>
+#include "defi/token/info.hpp"
+#include <map>
 class ChainDB;
 struct AddressFunds;
 namespace chainserver {
@@ -17,4 +18,29 @@ private:
     std::map<AccountId, AddressFunds> map;
     const ChainDB& db;
 };
+class TokenCache {
+public:
+    TokenCache(const ChainDB& db)
+        : db(db)
+    {
+    }
+
+    const TokenInfo& operator[](TokenId id);
+
+private:
+    std::map<TokenId, TokenInfo> map;
+    const ChainDB& db;
+};
+
+class DBCache {
+public:
+    DBCache(const ChainDB& db)
+        : accounts(db)
+        , tokens(db)
+    {
+    }
+    AccountCache accounts;
+    TokenCache tokens;
+};
+
 }

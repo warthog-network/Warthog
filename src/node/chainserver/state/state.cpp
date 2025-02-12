@@ -93,7 +93,7 @@ std::optional<api::Block> State::api_get_block(Height zh) const
     auto header = chainstate.headers()[h];
     api::Block b(header, h, chainlength() - h + 1);
 
-    chainserver::AccountCache cache(db);
+    chainserver::DBCache cache(db);
     for (auto [hash, data] : entries) {
         b.push_history(hash, data, cache, pinFloor);
     }
@@ -217,7 +217,7 @@ auto State::api_get_transaction_range(HistoryId lower, HistoryId upper) const ->
     auto lookup { db.lookupHistoryRange(lower, upper) };
     assert(lookup.size() == upper - lower);
     if (chainlength() != 0) {
-        chainserver::AccountCache cache(db);
+        chainserver::DBCache cache(db);
         auto update_tmp = [&](HistoryId id) {
             auto h { chainstate.history_height(id) };
             PinFloor pinFloor { PrevHeight(h) };
@@ -402,65 +402,100 @@ auto State::add_stage(const std::vector<Block>& blocks, const Headerchain& hc) -
         return { { err }, {} };
     }
 }
+namespace {
+    class RollbackSession {
+    public:
+        const ChainDB& db;
+        const PinFloor newPinFloor;
+        const AccountId oldAccountStart;
+        const TokenId oldTokenStart;
+
+        std::map<AccountToken, Funds> balanceMap;
+        std::vector<TransferTxExchangeMessage> toMempool;
+        std::optional<BalanceId> oldBalanceStart;
+
+    private:
+        RollbackSession(const ChainDB& db, NonzeroHeight beginHeight,
+            const RollbackView& rbv)
+            : db(db)
+            , newPinFloor(PrevHeight(beginHeight))
+            , oldAccountStart(rbv.getBeginNewAccounts())
+            , oldTokenStart(rbv.getBeginNewTokens())
+        {
+        }
+
+        static BlockUndoData fetch_undo(const ChainDB& db, BlockId id)
+        {
+            auto u = db.get_block_undo(id);
+            if (!u)
+                throw std::runtime_error("Database corrupted (could not load block)");
+            return *u;
+        }
+
+    public:
+        RollbackSession(const ChainDB& db, NonzeroHeight beginHeight, BlockId firstId)
+            : RollbackSession(db, beginHeight, RollbackView(fetch_undo(db, firstId).rawUndo, true))
+        {
+        }
+
+        void rollback_block(BlockId id, NonzeroHeight height)
+        {
+            BlockUndoData d { fetch_undo(db, id) };
+            PinFloor pinFloor { PrevHeight(height) };
+            BodyView bv(d.rawBody, height);
+            if (!bv.valid())
+                throw std::runtime_error(
+                    "Database corrupted (invalid block body at height " + std::to_string(height) + ".");
+            for (auto t : bv.transfers()) {
+                PinHeight pinHeight = t.pinHeight(pinFloor);
+                if (pinHeight <= newPinFloor) {
+                    // extract transaction to mempool
+                    auto toAddress { db.lookup_account(t.toAccountId())->address };
+                    toMempool.push_back(TransferTxExchangeMessage(t, pinHeight, toAddress));
+                }
+            }
+
+            // roll back state modifications
+            RollbackView rbv(d.rawUndo, true);
+            rbv.foreach_balance_update(
+                [&](const IdBalance& entry) {
+                    const Funds& bal { entry.balance };
+                    const BalanceId& id { entry.id };
+                    auto b { db.lookup_balance(id) };
+                    if (!b.has_value())
+                        throw std::runtime_error("Database corrupted, cannot roll back");
+                    AccountToken at { b->accountId, b->tokenId };
+                    balanceMap.try_emplace(at, bal);
+                });
+        }
+    };
+
+}
 
 RollbackResult State::rollback(const Height newlength) const
 {
     const Height oldlength { chainlength() };
     spdlog::info("Rolling back chain");
-    std::vector<TransferTxExchangeMessage> toMempool;
     assert(newlength < chainlength());
     NonzeroHeight beginHeight = (newlength + 1).nonzero_assert();
-    const PinFloor newPinFloor { PrevHeight(beginHeight) };
     Height endHeight(chainlength() + 1);
 
     // load ids
     auto ids { db.consensus_block_ids(beginHeight, endHeight) };
     assert(ids.size() == endHeight - beginHeight);
-    std::optional<AccountId> oldAccountStart;
-    std::optional<TokenId> oldTokenStart;
-    std::map<AccountToken, Funds> balanceMap;
+    assert(ids.size() > 0);
+
+    RollbackSession rs(db, beginHeight, ids[0]);
+
     for (size_t i = 0; i < ids.size(); ++i) {
-        const auto id { ids[i] };
         NonzeroHeight height = beginHeight + i;
-        PinFloor pinFloor { PrevHeight(height) };
-        auto u = db.get_block_undo(id);
-        if (!u)
-            throw std::runtime_error("Database corrupted (could not load block)");
-        auto& [header, body, undo] = *u;
-
-        BodyView bv(body, height);
-        if (!bv.valid())
-            throw std::runtime_error(
-                "Database corrupted (invalid block body at height " + std::to_string(height) + ".");
-
-        for (auto t : bv.transfers()) {
-            PinHeight pinHeight = t.pinHeight(pinFloor);
-            if (pinHeight <= newPinFloor) {
-                // extract transaction to mempool
-                auto toAddress { db.lookup_account(t.toAccountId())->address };
-                toMempool.push_back(
-                    TransferTxExchangeMessage(t, pinHeight, toAddress));
-            }
-        }
-
-        // roll back state modifications
-        RollbackView rbv(undo, true);
-        if (i == 0) {
-            oldAccountStart = rbv.getBeginNewAccounts();
-            oldTokenStart = rbv.getBeginNewTokens();
-        }
-        rbv.foreach_balance_update(
-            [&](const IdBalance& entry) {
-                const Funds& bal { entry.balance };
-                const AccountToken& id { entry.id };
-                if (id.accId < oldAccountStart.value() && id.tokenId < oldTokenStart) {
-                    balanceMap.try_emplace(id, bal);
-                }
-            });
+        rs.rollback_block(ids[i], height);
     }
+
     db.delete_history_from((newlength + 1).nonzero_assert());
-    db.delete_state_from(*oldAccountStart);
+    db.delete_state_from(rs.oldAccountStart);
     auto dk { db.delete_consensus_from((newlength + 1).nonzero_assert()) };
+
     // write balances to db
     for (auto& p : balanceMap) {
         db.set_balance(p.first, p.second);
@@ -706,7 +741,7 @@ auto State::api_get_history(Address a, int64_t beforeId) const -> std::optional<
     PinFloor pinFloor { 0 };
     auto firstHistoryId = HistoryId { 0 };
     auto nextHistoryOffset = HistoryId { 0 };
-    chainserver::AccountCache cache(db);
+    chainserver::DBCache cache(db);
 
     auto prevHistoryId = HistoryId { 0 };
     for (auto iter = entries_desc.rbegin(); iter != entries_desc.rend(); ++iter) {
