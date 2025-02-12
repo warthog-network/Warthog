@@ -23,18 +23,10 @@ struct ConnectionJob {
     {
         assert(!active());
         timer = t;
-        try {
-            assert(!data_v.valueless_by_exception());
-            data_v = req;
-            assert(data_v.valueless_by_exception() == false);
-        } catch (...) {
-            assert(0 == 1);
-        }
-        assert(!data_v.valueless_by_exception());
+        data_v = req;
     }
     bool active() const
     {
-        assert(data_v.valueless_by_exception() == false);
         return !std::holds_alternative<std::monostate>(data_v);
     }
     operator bool()
@@ -43,7 +35,6 @@ struct ConnectionJob {
     }
     bool waiting_for_init() const
     {
-        assert(data_v.valueless_by_exception() == false);
         return std::holds_alternative<AwaitInit>(data_v);
     }
 
@@ -53,25 +44,17 @@ struct ConnectionJob {
     template <typename T>
     void reset_notexpired(TimerSystem& ts)
     {
-        assert(!data_v.valueless_by_exception());
         assert(timer);
         ts.erase(*timer);
         timer.reset();
         bool b = !std::holds_alternative<T>(data_v);
-        try {
-            data_v = std::monostate();
-            assert(data_v.valueless_by_exception() == false);
-        } catch (...) {
-            assert(0 == 1);
-        }
-        assert(!data_v.valueless_by_exception());
+        data_v = std::monostate();
         if (b)
             throw Error(EUNREQUESTED);
     }
 
     [[nodiscard]] bool awaiting_init() const
     {
-        assert(!data_v.valueless_by_exception());
         return std::holds_alternative<AwaitInit>(data_v);
     }
 
@@ -88,12 +71,10 @@ struct ConnectionJob {
     auto pop_req(T& rep, TimerSystem& t, size_t& activeRequests)
     {
         using type = typename typemap<T>::type;
-        assert(!data_v.valueless_by_exception());
         if (!std::holds_alternative<type>(data_v)) {
             throw Error(EUNREQUESTED);
         }
         auto out = std::get<type>(data_v);
-        assert(!data_v.valueless_by_exception());
         out.unref_active_requests(activeRequests);
         if (rep.nonce() != out.nonce()) {
             throw Error(EUNREQUESTED);
@@ -103,14 +84,12 @@ struct ConnectionJob {
     }
     void unref_active_requests(size_t& activeRequests)
     {
-        assert(!data_v.valueless_by_exception());
         std::visit([&](auto& e) {
             if constexpr (std::is_base_of_v<IsRequest, std::decay_t<decltype(e)>>) {
                 e.unref_active_requests(activeRequests);
             }
         },
             data_v);
-        assert(!data_v.valueless_by_exception());
     }
 
 private:

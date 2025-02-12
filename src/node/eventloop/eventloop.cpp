@@ -1104,7 +1104,6 @@ void Eventloop::handle_connection_timeout(Conref cr, TimerEvent::Expire&&)
         return;
     cr.job().set_timer(timerSystem.insert(
         (config().localDebug ? 10min : 2min), TimerEvent::CloseNoReply { cr.id() }));
-    assert(!cr.job().data_v.valueless_by_exception());
     std::visit(
         [&]<typename T>(T& v) {
             if constexpr (std::is_base_of_v<IsRequest, T>) {
@@ -1115,7 +1114,6 @@ void Eventloop::handle_connection_timeout(Conref cr, TimerEvent::Expire&&)
             }
         },
         cr.job().data_v);
-    assert(!cr.job().data_v.valueless_by_exception());
 }
 
 void Eventloop::on_request_expired(Conref cr, const Proberequest&)
