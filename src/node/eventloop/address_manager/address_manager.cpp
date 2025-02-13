@@ -96,7 +96,10 @@ std::optional<Conref> AddressManager::find(uint64_t id) const
     auto iter = conndatamap.find(id);
     if (iter == conndatamap.end())
         return {};
-    return ConrefIter { iter };
+    ConrefIter cr { iter };
+    if (cr->second.c->eventloop_erased) // don't return erased connections
+        return {};
+    return cr;
 }
 
 auto AddressManager::insert(ConnectionBase::ConnectionVariant& convar, const ConnectionInserter& h) -> tl::expected<Conref, Error>

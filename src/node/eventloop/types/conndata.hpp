@@ -285,6 +285,7 @@ struct ThrottleQueue {
     auto reply_delay() const { return td.get(); }
     void insert(messages::Msg, eventloop::TimerSystem& t, uint64_t connectionId);
     void update_timer(eventloop::TimerSystem& t, uint64_t connectionId);
+    void reset_timer(eventloop::TimerSystem& t);
 
     [[nodiscard]] messages::Msg reset_timer_pop_msg()
     {

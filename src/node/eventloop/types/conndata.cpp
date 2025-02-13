@@ -68,6 +68,11 @@ void ThrottleQueue::update_timer(eventloop::TimerSystem& t, uint64_t connectionI
     timer = t.insert(reply_delay(), eventloop::timer_events::ThrottledProcessMsg { connectionId });
 }
 
+void ThrottleQueue::reset_timer(eventloop::TimerSystem& t)
+{
+    t.erase(timer);
+}
+
 ConnectionJob::ConnectionJob(uint64_t conId, TimerSystem& t)
     : timer(t.insert(30s, TimerEvent::CloseNoReply { conId }))
 {

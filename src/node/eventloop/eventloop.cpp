@@ -877,6 +877,7 @@ void Eventloop::erase_internal(Conref c, Error error)
     c.job().unref_active_requests(activeRequests);
     timerSystem.erase(c.ping().timer);
     timerSystem.erase(c.job().timer);
+    c->throttleQueue.reset_timer(timerSystem);
     if (headerDownload.erase(c) && !closeReason) {
         spdlog::info("Connected to {} peers (closed connection to {} version {}, reason: {})", headerDownload.size(), c.peer().to_string(), c.version().to_string(), Error(error).err_name());
         emit_disconnect(headerDownload.size(), c.id());
