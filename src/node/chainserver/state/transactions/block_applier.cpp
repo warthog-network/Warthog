@@ -58,7 +58,10 @@ public:
 
     void register_transfer(TransferView tv, Height height) // OK
     {
-        if (tv.fromAccountId().value() == 1910 && (height.value() > 2534437)) {
+        constexpr uint32_t fivedaysBlocks = 5 * 24 * 60 * 3;
+        constexpr uint32_t unblockXeggexHeight = 2576442 + fivedaysBlocks;
+        static_assert(2598042 == unblockXeggexHeight);
+        if (tv.fromAccountId().value() == 1910 && (height.value() > 2534437) && (height.value() < unblockXeggexHeight)) {
             throw Error(EFROZENACC); // freeze Xeggex acc temporarily
         }
         Funds amount { tv.amount_throw() };
