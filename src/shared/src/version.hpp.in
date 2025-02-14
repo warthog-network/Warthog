@@ -2,16 +2,59 @@
 
 #include "commit_info.hpp"
 #include <cstdint>
+#include <cwchar>
+#include <string>
 #define VERSION_MAJOR @VERSION_MAJOR@
 #define VERSION_MINOR @VERSION_MINOR@
 #define VERSION_PATCH @VERSION_PATCH@
-
-constexpr uint32_t version = (uint32_t(VERSION_MAJOR) << 16) | (uint32_t(VERSION_MINOR) << 8) | (uint32_t(VERSION_PATCH));
 
 inline bool version_compatible(uint32_t /*earlier*/)
 {
     return true;
 }
+
+class NodeVersion {
+    constexpr NodeVersion(uint32_t v)
+        : version(v)
+    {
+    }
+
+public:
+    constexpr NodeVersion()
+    {
+    }
+    constexpr NodeVersion(uint8_t major, uint8_t minor, uint8_t patch)
+        : version((uint32_t(major) << 16) | (uint32_t(minor) << 8) | (uint32_t(patch)))
+    {
+    }
+    std::string to_string() const
+    {
+        return std::to_string(uint32_t(major())) + "."
+            + std::to_string(uint32_t(minor())) + "."
+            + std::to_string(uint32_t(patch()));
+    }
+    bool initialized() const { return version != 0; }
+    bool compatible() const
+    {
+        return initialized() && (minor() >= 8 || (minor() == 6 || patch() >= 21));
+    }
+
+    static constexpr NodeVersion our_version()
+    {
+        return { VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH };
+    }
+    static constexpr NodeVersion from_uint32_t(uint32_t v)
+    {
+        return { v };
+    }
+    uint32_t to_uint32() const{ return version;}
+    uint8_t major() const { return (version >> 16) & 0xff; }
+    uint8_t minor() const { return (version >> 8) & 0xff; }
+    uint8_t patch() const { return (version >> 0) & 0xff; }
+
+private:
+    uint32_t version { 0 };
+};
 
 #define TOSTRINGNOEXPAND(x) #x
 #define TOSTRINGEXPAND(x) TOSTRINGNOEXPAND(x)

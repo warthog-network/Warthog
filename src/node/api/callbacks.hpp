@@ -23,8 +23,7 @@ class Downloader;
 namespace chainserver {
 struct TransactionIds;
 }
-struct NodeVersion {
-    /* data */
+struct PrintNodeVersion {
 };
 
 
@@ -59,6 +58,6 @@ using BlockCb = std::function<void(const tl::expected<API::Block, int32_t>&)>;
 using HistoryCb = std::function<void(const tl::expected<API::AccountHistory, int32_t>&)>;
 using RichlistCb = std::function<void(const tl::expected<API::Richlist, int32_t>&)>;
 
-using VersionCb = std::function<void(const tl::expected<NodeVersion, int32_t>&)>;
+using VersionCb = std::function<void(const tl::expected<PrintNodeVersion, int32_t>&)>;
 using WalletCb = std::function<void(const tl::expected<API::Wallet, int32_t>&)>;
 using RawCb = std::function<void(const API::Raw&)>;

@@ -555,7 +555,7 @@ nlohmann::json to_json(const API::Round16Bit& e)
     };
 };
 
-nlohmann::json to_json(const NodeVersion&)
+nlohmann::json to_json(const PrintNodeVersion&)
 {
     return json {
         { "name", CMDLINE_PARSER_VERSION },

@@ -1,4 +1,5 @@
 #pragma once
+#include "version.hpp"
 #include "communication/buffers/recvbuffer.hpp"
 #include "communication/buffers/sndbuffer.hpp"
 #include "conman.hpp"
@@ -109,7 +110,7 @@ private:
         static constexpr const char accept_grunt_testnet[] = "TESTNET GRUNT!";
         uint8_t pos = 0;
         bool handshakesent = false;
-        uint32_t version(bool inbound);
+        NodeVersion version(bool inbound);
         uint16_t port(bool inbound)
         {
             assert(inbound);
@@ -192,7 +193,7 @@ private:
     Conman& conman;
     Rcvbuffer stagebuffer;
     std::unique_ptr<Handshakedata> handshakedata;
-    uint32_t peerVersion;
+    NodeVersion peerVersion;
     int64_t logrow = -1;
     State state = State::CONNECTING;
     EndpointAddress peerAddress;

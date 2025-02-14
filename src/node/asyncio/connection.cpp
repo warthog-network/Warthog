@@ -39,7 +39,7 @@ void Connection::read_cb(ssize_t nread, const uv_buf_t* /*buf*/)
             if (hb.pos == hb.size(inbound)) {
                 if (hb.waitForAck) {
                     assert(hb.pos == 25);
-                    spdlog::debug("Handshake valid, peer version {}", peerVersion);
+                    spdlog::debug("Handshake valid, peer version {}", peerVersion.to_string());
                     timeoutTimer.cancel();
                     handshakedata.reset(nullptr);
                     state = State::CONNECTED;
@@ -51,16 +51,16 @@ void Connection::read_cb(ssize_t nread, const uv_buf_t* /*buf*/)
                     assert(hb.pos == 24);
                     assert(handshakedata->handshakesent == false);
                     peerVersion = hb.version(inbound);
-                    if (peerVersion == 0) {
+                    if (!peerVersion.initialized()) {
                         close(EHANDSHAKE);
+                        return;
+                    }
+                    if (!peerVersion.compatible()) {
+                        close(EVERSION);
                         return;
                     }
                     if (inbound) {
                         peerEndpointPort = hb.port(inbound);
-                    }
-                    if (!version_compatible(peerVersion)) {
-                        close(EVERSION);
-                        return;
                     }
                     send_handshake();
                     hb.waitForAck = true;
@@ -69,15 +69,15 @@ void Connection::read_cb(ssize_t nread, const uv_buf_t* /*buf*/)
         } else {
             if (hb.pos == hb.size(inbound)) {
                 peerVersion = hb.version(inbound);
-                if (peerVersion == 0) {
+                if (!peerVersion.initialized()) {
                     close(EHANDSHAKE);
                     return;
                 }
-                if (!version_compatible(peerVersion)) {
+                if (!peerVersion.compatible()) {
                     close(EVERSION);
                     return;
                 }
-                spdlog::debug("Handshake valid, peer version {}", peerVersion);
+                spdlog::debug("Handshake valid, peer version {}", peerVersion.to_string());
                 if (handshakedata->handshakesent == false)
                     send_handshake();
                 timeoutTimer.cancel();
@@ -164,18 +164,18 @@ Connection::~Connection()
 {
 }
 
-uint32_t Connection::Handshakedata::version(bool inbound)
+NodeVersion Connection::Handshakedata::version(bool inbound)
 { // return value 0 indicates error
     if (is_testnet()) {
         if (memcmp(recvbuf.data(), (inbound ? connect_grunt_testnet : accept_grunt_testnet), 14) != 0)
-            return 0;
+            return NodeVersion::from_uint32_t(0);
     } else {
         if (memcmp(recvbuf.data(), (inbound ? connect_grunt : accept_grunt), 14) != 0)
-            return 0;
+            return NodeVersion::from_uint32_t(0);
     }
     uint32_t tmp;
     memcpy(&tmp, recvbuf.data() + 14, 4);
-    return hton32(tmp);
+    return NodeVersion::from_uint32_t(hton32(tmp));
 }
 
 void Connection::send_handshake()
@@ -186,7 +186,7 @@ void Connection::send_handshake()
     } else {
         memcpy(data, (inbound ? Handshakedata::accept_grunt : Handshakedata::connect_grunt), 14);
     }
-    uint32_t nver = hton32(version);
+    uint32_t nver{hton32(NodeVersion::our_version().to_uint32())};
     memcpy(data + 14, &nver, 4);
     memset(data + 18, 0, 4);
     if (!inbound) {
@@ -307,7 +307,7 @@ void Connection::close(int errcode)
 {
     if (state == State::CLOSING)
         return;
-    
+
     if (state != State::CONNECTING) {
         conman.perIpCounter.erase(peerAddress.ipv4);
     }
