@@ -150,6 +150,7 @@ public:
     void asyncsend(Sndbuffer&& msg);
     void async_close(int errcode);
     [[nodiscard]] EndpointAddress peer_address() { return peerAddress; }
+    [[nodiscard]] NodeVersion peer_version() const { return peerVersion; }
     [[nodiscard]] EndpointAddress peer_endpoint() { return EndpointAddress { peerAddress.ipv4, peerEndpointPort }; }
 
     Connection(Conman& conman, bool inbound, std::optional<uint32_t> reconnectSeconds = {});
