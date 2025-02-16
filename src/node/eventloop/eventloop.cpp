@@ -879,7 +879,7 @@ void Eventloop::erase_internal(Conref c, Error error)
     timerSystem.erase(c.job().timer);
     c->throttleQueue.reset_timer(timerSystem);
     if (headerDownload.erase(c) && !closeReason) {
-        spdlog::info("Connected to {} peers (disconnected {}, v{} reason: {})",
+        spdlog::info("Connected to {} peers (disconnected {}, {} reason: {})",
             headerDownload.size(), c.peer().to_string(), c.version().to_string(), Error(error).err_name());
         emit_disconnect(headerDownload.size(), c.id());
     }
@@ -1175,7 +1175,7 @@ void Eventloop::handle_msg(Conref c, InitMsgV1&& m)
     headerDownload.insert(c);
     blockDownload.insert(c);
     emit_connect(headerDownload.size(), c);
-    spdlog::info("Connected to {} peers (new peer {} version {})", headerDownload.size(), c.peer().to_string(), c.version().to_string());
+    spdlog::info("Connected to {} peers (new peer {}, {})", headerDownload.size(), c.peer().to_string(), c.version().to_string());
     if (rtc_enabled(c)) {
         if (rtc.ips && c.protocol().v2()) {
             c->rtcState.enanabled = true; // v2 has rtc enabled by default
@@ -1200,7 +1200,7 @@ void Eventloop::handle_msg(Conref c, InitMsgV3&& m)
     headerDownload.insert(c);
     blockDownload.insert(c);
     emit_connect(headerDownload.size(), c);
-    spdlog::info("Connected to {} peers (new peer {})", headerDownload.size(), c.peer().to_string());
+    spdlog::info("Connected to {} peers (new peer {}, {})", headerDownload.size(), c.peer().to_string(), c.version().to_string());
     if (rtc_enabled(c)) {
         if (rtc.ips) { // TODO V2
             log_rtc("Sending own identity");
