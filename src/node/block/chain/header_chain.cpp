@@ -81,7 +81,7 @@ ForkMsg Headerchain::apply_fork(HeaderchainFork&& update)
     incompleteBatch.swap(update.incompleteBatch);
     finalPin = std::move(update.finalPin);
     initialize_worksum();
-    assert(update.shrink.length == length());
+    assert(update.shrink.length < length()); // Rafiki, I think this needs to be <
     assert(worksum > prevWorksum);
     return ForkMsg(
         update.descriptor,
