@@ -6,7 +6,7 @@
 #include "spdlog/spdlog.h"
 #include "toml++/toml.hpp"
 #include "transport/helpers/tcp_sockaddr.hpp"
-#include "version.hpp"
+#include "version_def.hpp"
 #include <filesystem>
 #include <iostream>
 #include <limits>

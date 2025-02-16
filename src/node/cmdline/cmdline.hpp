@@ -1,3 +1,3 @@
 #pragma once
-#include "version.hpp"
+#include "version_def.hpp"
 #include "cmdline.h"

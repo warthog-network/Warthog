@@ -36,8 +36,8 @@ conf_version = configuration_data()
 conf_version.set('VERSION_MAJOR', versions.get(0))
 conf_version.set('VERSION_MINOR', versions.get(1))
 conf_version.set('VERSION_PATCH', versions.get(2))
-configure_file(input : './src/version.hpp.in',
-               output : 'version.hpp',
+configure_file(input : './src/version_def.hpp.in',
+               output : 'version_def.hpp',
                configuration : conf_version)
 
 

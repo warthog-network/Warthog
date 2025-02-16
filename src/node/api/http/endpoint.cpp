@@ -1,9 +1,6 @@
 #include "endpoint.hpp"
 #include "api/events/subscription.hpp"
 #include "api/hook_endpoints.hxx"
-#include "version.hpp"
-#include <iostream>
-#include <type_traits>
 using namespace std::placeholders;
 
 namespace {

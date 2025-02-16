@@ -1,6 +1,5 @@
 #include "header_download.hpp"
 #include "block/chain/consensus_headers.hpp"
-#include "eventloop/eventloop.hpp"
 #include "eventloop/chain_cache.hpp"
 #include "eventloop/types/peer_requests.hpp"
 #include "global/globals.hpp"
@@ -133,11 +132,16 @@ bool Downloader::can_insert_leader(Conref cr)
 {
     auto& id { data(cr).ignoreDescriptor };
     auto& d { cr.chain().descripted() };
+    auto version_ok =[](Conref cr){
+        auto v{cr->c->node_version()};
+            return (v.minor() >= 8 || (v.minor() == 6 && v.patch() >= 21));
+    };
 
     bool res = !is_leader(cr)
         && leaderList.size() < maxLeaders // free leader slots
         && d->worksum() > minWork // provides more work
         && d->grid().valid_checkpoint() // valid checkpoint
+        && version_ok(cr)
         && (!id || id != d->descriptor); // no signed pin fail for this descriptor
 
     if (res) {

@@ -49,6 +49,8 @@ struct AckState {
     AckState(HandshakeState::Parsed p)
         : handshakeData(std::move(p))
     {
+        if (!p.version.compatible()) 
+            throw Error(EVERSION);
     }
     HandshakeState::Parsed handshakeData;
 };

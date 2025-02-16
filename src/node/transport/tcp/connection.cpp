@@ -1,11 +1,7 @@
 #include "connection.hpp"
 #include "eventloop/eventloop.hpp"
-#include "general/is_testnet.hpp"
 #include "global/globals.hpp"
-#include "transport/helpers/peer_addr.hpp"
 #include "uwebsockets/MoveOnlyFunction.h"
-#include "version.hpp"
-#include <chrono>
 
 uint16_t TCPConnection::listen_port() const
 {

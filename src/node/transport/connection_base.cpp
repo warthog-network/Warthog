@@ -11,7 +11,7 @@
 #endif
 #include "transport/webrtc/rtc_connection.hpp"
 #include "transport/ws/connection.hpp"
-#include "version.hpp"
+#include "version_def.hpp"
 #include <chrono>
 
 namespace {
@@ -212,7 +212,7 @@ auto HandshakeState::parse(bool inbound) -> Parsed
     uint32_t tmp;
     memcpy(&tmp, recvbuf.data() + 14, 4);
     Parsed p {
-        .version { hton32(tmp) },
+        .version { NodeVersion::from_uint32_t(hton32(tmp)) },
         .port {}
     };
     if (inbound) {
@@ -231,7 +231,7 @@ void ConnectionBase::send_handshake()
     } else {
         memcpy(data, (inbound() ? HandshakeState::accept_grunt : HandshakeState::connect_grunt), 14);
     }
-    uint32_t nver = hton32(NODE_VERSION);
+    uint32_t nver = hton32(NodeVersion::our_version().to_uint32());
     memcpy(data + 14, &nver, 4);
     memset(data + 18, 0, 4);
     if (!inbound()) {

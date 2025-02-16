@@ -1,17 +1,11 @@
 #pragma once
 
 #include "commit_info.hpp"
-#include <cstdint>
+#include <cwchar>
 #define VERSION_MAJOR @VERSION_MAJOR@
 #define VERSION_MINOR @VERSION_MINOR@
 #define VERSION_PATCH @VERSION_PATCH@
 
-constexpr uint32_t NODE_VERSION = (uint32_t(VERSION_MAJOR) << 16) | (uint32_t(VERSION_MINOR) << 8) | (uint32_t(VERSION_PATCH));
-
-inline bool version_compatible(uint32_t /*earlier*/)
-{
-    return true;
-}
 
 #define TOSTRINGNOEXPAND(x) #x
 #define TOSTRINGEXPAND(x) TOSTRINGNOEXPAND(x)

@@ -14,7 +14,6 @@
 #include "general/hex.hpp"
 #include "general/is_testnet.hpp"
 #include "transport/helpers/tcp_sockaddr.hpp"
-#include "version.hpp"
 #include <nlohmann/json.hpp>
 #include <ranges>
 
