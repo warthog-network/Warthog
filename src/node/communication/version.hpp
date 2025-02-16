@@ -51,9 +51,9 @@ private:
         : NodeVersion(nv) { };
 
 public:
-    bool v1() { return version < 0x500 || ((version >> 8) == 6); /*0.5.00 */ }
+    bool v1() { return version < 0x500 || ((version >> 8) == 8) || ((version >> 8) == 6); /*0.5.00 */ }
     bool v2() { return !v1() && (version <= ((7 << 8) + 54)); /*<=0.7.54 */ }
-    bool v3() { return version > ((7 << 8) + 54); /*>0.7.54 */ }
+    bool v3() { return !v1() && !v2(); }//version > ((7 << 8) + 54); /*>0.7.54 */ }
 };
 
 inline ProtocolVersion NodeVersion::protocol()
