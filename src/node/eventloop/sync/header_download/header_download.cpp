@@ -4,8 +4,6 @@
 #include "eventloop/types/peer_requests.hpp"
 #include "global/globals.hpp"
 #include "probe_balanced.hpp"
-#include <set>
-#include <stack>
 
 namespace HeaderDownload {
 
@@ -136,6 +134,7 @@ bool Downloader::can_insert_leader(Conref cr)
     auto& d { cr.chain().descripted() };
 
     bool res = !is_leader(cr)
+        && data(cr).mustDisconnect == false
         && leaderList.size() < maxLeaders // free leader slots
         && d->worksum() > minWork // provides more work
         && d->grid().valid_checkpoint() // valid checkpoint
@@ -312,9 +311,9 @@ bool Downloader::try_final_request(Lead_iter li, RequestSender& sender)
         }
 
         // same condition as in can_download
-        // a leader by definition must have more total work and 
+        // a leader by definition must have more total work and
         // more total length than the chains we know
-        assert(s.length + 1 > pd.fork_range().lower()); 
+        assert(s.length + 1 > pd.fork_range().lower());
 
         auto br { ProbeBalanced::final_partial_batch_request(pd, desc, s.length, ln.snapshot.worksum) };
         if (br) {
@@ -448,6 +447,15 @@ void Downloader::on_probe_request_expire(Conref /*cr*/)
     // do nothing
 }
 
+bool Downloader::flag_connection(Conref cr)
+{
+    auto& d { data(cr) };
+    if (d.mustDisconnect)
+        return false;
+    d.mustDisconnect = true;
+    return true;
+}
+
 void Downloader::process_final(Lead_iter li, std::vector<Offender>& out)
 {
     const auto& b = li->finalBatch.batch;
@@ -490,9 +498,15 @@ void Downloader::process_final(Lead_iter li, std::vector<Offender>& out)
     }
 
     // update maximizer
-    if (!maximizer.has_value() || std::get<2>(maximizer.value()) < worksum) {
+    if (!maximizer || maximizer->worksum < worksum) {
         auto sb = (fromGenesis ? SharedBatch {} : (*li->verifier)->second.sb);
-        maximizer = { { li->cr, li->snapshot.descripted }, HeaderchainSkeleton(std::move(sb), b), worksum };
+        HeaderchainSkeleton hs(std::move(sb), b);
+        if (auto ce { rogueHeaders.find_rogue_in(hs) }; ce.has_value()) {
+            if (flag_connection(li->cr))
+                out.push_back(Offender { *ce, li->cr });
+        } else {
+            maximizer = { { li->cr, li->snapshot.descripted }, hs, worksum };
+        }
     }
 }
 
@@ -515,7 +529,7 @@ bool Downloader::advance_verifier(const Ver_iter* vi, const Lead_set& leaders, c
 
     // update maximizer
     Worksum worksum = sharedBatch.total_work();
-    if (!maximizer.has_value() || std::get<2>(maximizer.value()) < worksum) {
+    if (!maximizer || maximizer->worksum < worksum) {
         Lead_iter li = *leaders.begin();
         maximizer = { { li->cr, li->snapshot.descripted }, HeaderchainSkeleton(sharedBatch, {}), worksum };
     }
@@ -667,17 +681,18 @@ auto Downloader::on_response(Conref cr, Batchrequest&& req, Batch&& res) -> std:
     if (!has_data()) {
         return {};
     }
-    auto& val = maximizer.value();
-    LeaderInfo& li = std::get<0>(val);
-    Headerchain chain { std::get<1>(val) };
-    assert(chain.total_work() == std::get<2>(val));
+    auto& m = maximizer.value();
+
+    Headerchain chain { m.headers };
+    assert(chain.total_work() == m.worksum);
     set_min_worksum(chain.total_work());
-    return std::tuple<LeaderInfo, Headerchain> { li, chain };
+
+    return std::tuple<LeaderInfo, Headerchain> { maximizer->leaderInfo, chain };
 }
 
 bool Downloader::has_data() const
 {
-    return maximizer.has_value() && std::get<2>(maximizer.value()) > minWork;
+    return maximizer.has_value() && maximizer->worksum > minWork;
 }
 
 bool Downloader::erase(Conref cr)
@@ -685,7 +700,7 @@ bool Downloader::erase(Conref cr)
     bool erased = std::erase(connections, cr);
 
     clear_connection_probe(cr);
-    if (maximizer.has_value() && std::get<0>(maximizer.value()).cr == cr)
+    if (maximizer.has_value() && maximizer->leaderInfo.cr == cr)
         maximizer.reset();
     const auto& leaderIter = data(cr).leaderIter;
     if (leaderIter != leaderList.end()) {
@@ -716,10 +731,51 @@ void Downloader::insert(Conref cr)
     consider_insert_leader(cr);
 }
 
+std::vector<ChainOffender> Downloader::on_rogue_header(const RogueHeaderData& hhw)
+{
+    std::vector<ChainOffender> res;
+    if (hhw.worksum > minWork && rogueHeaders.add(hhw)) {
+        for (auto li = leaderList.begin(); li != leaderList.end();) {
+            if (has_header(*li, hhw)) {
+                if (flag_connection(li->cr)) 
+                    res.push_back({hhw.chain_error(), li->cr});
+                erase_leader(li++);
+            } else
+                ++li;
+        }
+        select_leaders();
+    }
+    return res;
+}
+
+bool Downloader::has_header(LeaderNode& ln, HeightHeader hh)
+{
+    const NonzeroHeight h { hh.height };
+
+    // check if final slot contains h
+    const auto& fs { ln.final_slot() };
+    const auto& fb { ln.finalBatch.batch };
+    if (h >= fs.lower() && (h <= fs.upper())
+        && (h < fs.lower() + fb.size())) {
+        size_t index { h - fs.lower() };
+        assert(index < fb.size());
+        return hh.header == fb[index];
+    }
+
+    // check other slots
+    if (ln.verifier) {
+        auto header { (*ln.verifier)->second.sb.search_header_recursive(h) };
+        return header == hh.header;
+    }
+
+    return false;
+}
+
 void Downloader::set_min_worksum(const Worksum& ws)
 {
     if (minWork != ws) {
         spdlog::debug("Set downloader minWork = {}", ws.getdouble());
+        rogueHeaders.prune(ws);
         minWork = ws;
         prune_leaders();
         select_leaders();
@@ -729,15 +785,13 @@ void Downloader::set_min_worksum(const Worksum& ws)
 void Downloader::prune_leaders()
 {
     Worksum threshold { minWork };
-    if (maximizer.has_value()) {
-        Worksum& w = std::get<2>(maximizer.value());
-        if (w > threshold) {
-            threshold = w;
-        }
-    }
+
+    if (maximizer && threshold < maximizer->worksum)
+        threshold = maximizer->worksum;
+
     for (auto li = leaderList.begin(); li != leaderList.end();) {
         auto& s = li->snapshot;
-        if (s.worksum <= minWork) {
+        if (s.worksum <= threshold) {
             erase_leader(li++);
         } else {
             ++li;
@@ -767,7 +821,7 @@ void Downloader::on_signed_snapshot_update()
 {
     if (maximizer.has_value()) {
         // verify
-        auto hc { std::get<1>(*maximizer) };
+        auto hc { maximizer->headers };
         if (!chains.signed_snapshot()->compatible_inefficient(hc)) {
             maximizer.reset();
         };

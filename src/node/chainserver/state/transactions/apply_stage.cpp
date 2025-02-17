@@ -14,7 +14,7 @@ ApplyStageTransaction::ApplyStageTransaction(const State& s, ChainDBTransaction&
 {
 }
 
-[[nodiscard]] std::pair<std::vector<API::Block>, ChainError> ApplyStageTransaction::apply_stage_blocks()
+[[nodiscard]] std::pair<std::vector<API::Block>, ApplyResult> ApplyStageTransaction::apply_stage_blocks()
 {
     assert(!applyResult);
     applyResult = AppendBlocksResult {};
@@ -45,7 +45,7 @@ ApplyStageTransaction::ApplyStageTransaction(const State& s, ChainDBTransaction&
             std::ofstream f(fname);
             f << serialize_hex(b.body.data());
             res.newTxIds = ba.move_new_txids();
-            return { apiBlocks, { e, h } };
+            return { apiBlocks, {e,h} };
         }
         res.newHistoryOffsets.push_back(historyId);
         res.newAccountOffsets.push_back(accountId);
@@ -53,7 +53,7 @@ ApplyStageTransaction::ApplyStageTransaction(const State& s, ChainDBTransaction&
     }
     res.newTxIds = ba.move_new_txids();
     res.balanceUpdates = ba.move_balance_updates();
-    return { apiBlocks, { Error(0), (ccs.stage.length() + 1).nonzero_assert() } };
+    return { apiBlocks, { Error(), (ccs.stage.length() + 1).nonzero_assert()} };
 }
 
 void ApplyStageTransaction::consider_rollback(Height shrinkLength)

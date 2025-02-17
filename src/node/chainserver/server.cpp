@@ -2,7 +2,6 @@
 #include "api/types/all.hpp"
 #include "block/header/header_impl.hpp"
 #include "eventloop/eventloop.hpp"
-#include "general/hex.hpp"
 #include "global/globals.hpp"
 #include "spdlog/spdlog.h"
 
@@ -363,7 +362,9 @@ void ChainServer::handle_event(stage_operation::StageSetOperation&& r)
 void ChainServer::handle_event(stage_operation::StageAddOperation&& r)
 {
     auto t{timing->time("StageAdd")};
-    auto [stageAddResult, delta] { state.add_stage(r.blocks, r.headers) };
+    auto [stageAddResult, rogueHeaderInfo, delta] { state.add_stage(r.blocks, r.headers) };
+    if (rogueHeaderInfo) 
+        global().pel->async_push_rogue(*rogueHeaderInfo);
     if (delta) {
         global().pel->async_state_update(std::move(*delta));
         dispatch_mining_subscriptions();

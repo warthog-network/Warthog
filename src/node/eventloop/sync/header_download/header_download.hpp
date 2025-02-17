@@ -2,6 +2,7 @@
 #include "../request_sender_declaration.hpp"
 #include "block/chain/consensus_headers.hpp"
 #include "block/chain/offender.hpp"
+#include "eventloop/sync/header_download/rogue_headerheights.hpp"
 #include "eventloop/types/conndata.hpp"
 #include "eventloop/types/peer_requests.hpp"
 #include <deque>
@@ -184,7 +185,7 @@ class Downloader {
         Conref internal;
         Offender(ChainError ce, Conref cr)
             : co(ce, cr.id())
-            , internal(cr) {};
+            , internal(cr) { };
     };
 
 public:
@@ -220,6 +221,7 @@ private:
     void process_req_iter(Req_iter, std::vector<Offender>&);
 
 public:
+    std::vector<ChainOffender> on_rogue_header(const RogueHeaderData& rogueHeaderData);
     [[nodiscard]] bool is_active() const
     {
         return leaderList.size() > 0;
@@ -286,12 +288,21 @@ private:
     bool can_insert_leader(Conref cr);
 
     bool valid_shared_batch(const SharedBatch&);
+    bool has_header(LeaderNode&, HeightHeader);
+    bool contains_rogue_blocks(const HeaderchainSkeleton&);
+    bool flag_connection(Conref);
 
 private: // data
     VerifierMap verifierMap;
-    std::optional<std::tuple<LeaderInfo, HeaderchainSkeleton, Worksum>> maximizer;
+    struct Maximizer {
+        LeaderInfo leaderInfo;
+        HeaderchainSkeleton headers;
+        Worksum worksum;
+    };
+    std::optional<Maximizer> maximizer;
     size_t pendingDepth = 10;
     size_t maxLeaders = 10;
+    RogueHeaders rogueHeaders;
 
     Lead_list leaderList;
     std::vector<Conref> connections;

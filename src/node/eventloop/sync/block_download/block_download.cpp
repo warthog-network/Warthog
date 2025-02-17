@@ -32,7 +32,7 @@ Downloader::Downloader(Attorney attorney, size_t windowLength)
 std::vector<ChainOffender> Downloader::handle_stage_result(stage_operation::StageAddResult&& a)
 {
     auto offenders { stageState.on_result(a) };
-    if (a.ce)
+    if (a.err.is_error())
         reset();
     return offenders;
 }

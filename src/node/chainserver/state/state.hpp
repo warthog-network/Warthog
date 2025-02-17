@@ -1,11 +1,13 @@
 #pragma once
 #include "api/types/forward_declarations.hpp"
+#include "block/chain/height_header_work.hpp"
 #include "block/chain/range.hpp"
 #include "communication/messages.hpp"
 #include "communication/mining_task.hpp"
 #include "communication/stage_operation/result.hpp"
 #include "helpers/consensus.hpp"
 #include "helpers/past_chains.hpp"
+#include "transactions/apply_result.hpp"
 #include <chrono>
 
 class ChainDB;
@@ -73,7 +75,10 @@ public:
 
     // stage methods
     auto set_stage(Headerchain&& hc) -> stage_operation::StageSetResult;
-    auto add_stage(const std::vector<Block>& blocks, const Headerchain&) -> std::pair<stage_operation::StageAddResult, std::optional<StateUpdate>>;
+    auto add_stage(const std::vector<Block>& blocks, const Headerchain&) -> std::tuple<
+        stage_operation::StageAddResult,
+        std::optional<RogueHeaderData>,
+        std::optional<StateUpdate>>;
 
     // synced state notification
     void set_sync_state(bool synced)
@@ -115,7 +120,7 @@ private:
     NonzeroHeight next_height() const { return (chainlength() + 1).nonzero_assert(); }
 
     // transactions
-    [[nodiscard]] auto apply_stage(ChainDBTransaction&& t) -> std::tuple<ChainError, std::optional<StateUpdate>, std::vector<API::Block>>;
+    [[nodiscard]] auto apply_stage(ChainDBTransaction&& t) -> std::tuple<chainserver::ApplyResult, std::optional<StateUpdate>, std::vector<API::Block>>;
 
 public:
     [[nodiscard]] auto apply_signed_snapshot(SignedSnapshot&& sp) -> std::optional<StateUpdate>;

@@ -23,7 +23,7 @@ bool SignedSnapshot::compatible(const Headerchain& hc) const
 
 bool SignedSnapshot::compatible_inefficient(const HeaderchainSkeleton& hc) const
 {
-    return (hc.length() < priority.height) || hc.inefficient_get_header(priority.height).value().hash() == hash;
+    return (hc.length() < priority.height) || hc.inefficient_search_header(priority.height).value().hash() == hash;
 }
 
 

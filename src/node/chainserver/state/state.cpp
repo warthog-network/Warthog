@@ -354,14 +354,17 @@ stage_operation::StageSetResult State::set_stage(Headerchain&& hc)
     return { h };
 }
 
-auto State::add_stage(const std::vector<Block>& blocks, const Headerchain& hc) -> std::pair<stage_operation::StageAddResult, std::optional<StateUpdate>>
+auto State::add_stage(const std::vector<Block>& blocks, const Headerchain& hc) -> std::tuple<
+    stage_operation::StageAddResult,
+    std::optional<RogueHeaderData>,
+    std::optional<StateUpdate>>
 {
     if (signedSnapshot && !signedSnapshot->compatible(stage)) {
-        return { { { ELEADERMISMATCH, signedSnapshot->height() } }, {} };
+        return { { { ELEADERMISMATCH, signedSnapshot->height() } }, {}, {} };
     }
 
     assert(blocks.size() > 0);
-    ChainError err { Error(0), blocks.back().height + 1 };
+    ChainError ce { Error(0), blocks.back().height + 1 };
     auto transaction = db.transaction();
 
     assert(hc.length() >= stage.length());
@@ -369,21 +372,22 @@ auto State::add_stage(const std::vector<Block>& blocks, const Headerchain& hc) -
     for (auto& b : blocks) {
         assert(hc.length() >= b.height);
         assert(hc[b.height] == b.header);
-
         assert(b.height == stage.length() + 1);
 
         auto prepared { stage.prepare_append(signedSnapshot, b.header) };
         if (!prepared.has_value()) {
-            err = { prepared.error(), b.height };
+            ce = { prepared.error(), b.height };
             break;
         }
         BodyView bv(b.body_view());
-        if (b.header.merkleroot() != bv.merkle_root(b.height)) {
-            err = { EMROOT, b.height };
+        if (!bv.valid()) {
+            ce = { EINV_BODY, b.height };
             break;
         }
-        if (!bv.valid()) {
-            err = { EINV_BODY, b.height };
+        if (b.header.merkleroot() != bv.merkle_root(b.height)) {
+            // pass {} as header because we cannot conclude the block body
+            // made the header invalid, since the body does not fit to the header
+            ce = { EMROOT, b.height };
             break;
         }
         db.insert_protect(b);
@@ -394,13 +398,25 @@ auto State::add_stage(const std::vector<Block>& blocks, const Headerchain& hc) -
 
         publish_websocket_events(update, apiBlocks);
 
-        if (error.is_error())
-            return { { error }, update };
-        else
-            return { { err }, update };
+        if (error.is_error()) {
+            // Something went wrong on block body level so block header must be also tainted
+            // as we checked for correct merkleroot already
+            // => we need to collect data on rogue header
+            RogueHeaderData rogueHeaderData(
+                error,
+                stage[error.height()],
+                stage.total_work_at(error.height()));
+            return { { error }, rogueHeaderData, update };
+        } else {
+            // pass {} as header arg because we can't to block any headers when
+            // we have a wrong body (EINV_BODY or EMROOT)
+            return { { ce }, {}, update };
+        }
     } else {
+        // pass {} as header arg because we can't to block any headers when
+        // we have a wrong body (EINV_BODY or EMROOT)
         transaction.commit();
-        return { { err }, {} };
+        return { { ce }, {}, {} };
     }
 }
 
@@ -494,7 +510,7 @@ void State::publish_websocket_events(const std::optional<StateUpdate>& update, c
         http_endpoint().push_event(b);
     }
 }
-auto State::apply_stage(ChainDBTransaction&& t) -> std::tuple<ChainError, std::optional<StateUpdate>, std::vector<API::Block>>
+auto State::apply_stage(ChainDBTransaction&& t) -> std::tuple<chainserver::ApplyResult, std::optional<StateUpdate>, std::vector<API::Block>>
 {
     dbCacheValidity += 1;
     assert(!signedSnapshot || signedSnapshot->compatible(stage));
@@ -504,14 +520,15 @@ auto State::apply_stage(ChainDBTransaction&& t) -> std::tuple<ChainError, std::o
     chainserver::ApplyStageTransaction tr { *this, std::move(t) };
     tr.consider_rollback(fh - 1);
     auto [apiBlocks, error] { tr.apply_stage_blocks() };
-    if (error) {
+    if (error.is_error()) {
         if (global().conf.localDebug) {
             assert(0 == 1); // In local debug mode no errors should occurr (no bad actors)
         }
-        for (auto h { error.height() }; h < stage.length(); ++h)
+        const auto nextHeight { error.height() };
+        for (auto h { nextHeight }; h < stage.length(); ++h)
             db.delete_bad_block(stage.hash_at(h));
         stage.shrink(error.height() - 1);
-        if (stage.total_work_at(error.height() - 1) <= chainstate.headers().total_work()) {
+        if (stage.total_work_at(nextHeight - 1) <= chainstate.headers().total_work()) {
             return { error, {}, {} };
         }
     }
@@ -849,5 +866,4 @@ MiningCache::CacheValidity State::mining_cache_validity()
 {
     return { dbCacheValidity, chainstate.mempool().cache_validity(), now_timestamp() };
 }
-
 }

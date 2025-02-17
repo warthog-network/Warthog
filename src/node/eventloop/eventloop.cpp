@@ -455,6 +455,14 @@ void Eventloop::handle_event(mempool::Log&& log)
     }
 }
 
+void Eventloop::handle_event(PushRogue&& pr)
+{
+    auto disconnectList { headerDownload.on_rogue_header(pr.rogueHeaderData) };
+    for (ChainOffender& o : disconnectList) {
+        close(o);
+    };
+}
+
 void Eventloop::erase(Conref c, int32_t error)
 {
     if (c->c->eventloop_erased)
@@ -988,6 +996,11 @@ void Eventloop::process_blockdownload_stage()
     auto r { blockDownload.pop_stage() };
     if (r)
         stateServer.async_stage_request(*r);
+}
+
+void Eventloop::async_push_rogue(const RogueHeaderData& rogueHeaderData)
+{
+    defer(PushRogue { std::move(rogueHeaderData) });
 }
 
 void Eventloop::async_stage_action(stage_operation::Result r)

@@ -64,6 +64,11 @@ SharedBatch::SharedBatch(iter_type iter) noexcept
     nd.refcount += 1;
 }
 
+std::optional<HeaderView> SharedBatch::search_header_recursive(NonzeroHeight h) const
+{
+    return HeaderSearchRecursive(prev(), getBatch()).find_prev(h);
+}
+
 HeaderVerifier SharedBatch::verifier() const
 {
     return *this;

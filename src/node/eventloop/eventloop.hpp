@@ -1,5 +1,6 @@
 #pragma once
 #include "address_manager/address_manager.hpp"
+#include "block/chain/height_header_work.hpp"
 #include "api/callbacks.hpp"
 #include "api/types/forward_declarations.hpp"
 #include "block/chain/signed_snapshot.hpp"
@@ -65,6 +66,7 @@ public:
     void async_shutdown(int32_t reason);
     void async_report_failed_outbound(EndpointAddress);
     void async_stage_action(stage_operation::Result);
+    void async_push_rogue(const RogueHeaderData&);
 
     void api_get_peers(PeersCb&& cb);
     void api_get_synced(SyncedCb&& cb);
@@ -205,11 +207,14 @@ private:
         HashrateCb cb;
         size_t n;
     };
+    struct PushRogue {
+        RogueHeaderData rogueHeaderData;
+    };
     // event queue
     using Event = std::variant<OnRelease, OnProcessConnection,
         StateUpdate, SignedSnapshotCb, PeersCb, SyncedCb, stage_operation::Result,
         OnForwardBlockrep, OnFailedAddressEvent, InspectorCb, GetHashrate, GetHashrateChart,
-        OnPinAddress, OnUnpinAddress, mempool::Log>;
+        OnPinAddress, OnUnpinAddress, mempool::Log, PushRogue>;
 
 public:
     bool defer(Event e);
@@ -231,6 +236,7 @@ private:
     void handle_event(OnPinAddress&&);
     void handle_event(OnUnpinAddress&&);
     void handle_event(mempool::Log&&);
+    void handle_event(PushRogue&&);
 
     // chain updates
     using Append = chainserver::state_update::Append;

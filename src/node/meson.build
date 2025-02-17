@@ -50,6 +50,7 @@ src= [
   './eventloop/sync/header_download/connection_data.cpp',
   './eventloop/sync/header_download/header_download.cpp',
   './eventloop/sync/header_download/probe_balanced.cpp',
+  './eventloop/sync/header_download/rogue_headerheights.cpp',
   './eventloop/timer.cpp',
   './eventloop/types/chainstate.cpp',
   './eventloop/types/conndata.cpp',

@@ -29,8 +29,11 @@ public:
         : finalPin(std::move(finalPin))
         , incompleteBatch(std::move(incompleteBatch)) {};
 
-    std::optional<HeaderView> inefficient_get_header(NonzeroHeight h) const;
+    std::optional<HeaderView> inefficient_search_header(NonzeroHeight h) const;
     Height length() const { return finalPin.upper_height() + incompleteBatch.size(); };
+    HeaderSearchRecursive header_search_recursive() const{
+        return {finalPin, incompleteBatch};
+    }
     const Batch& incomplete_batch() { return incompleteBatch; }
 
 protected:

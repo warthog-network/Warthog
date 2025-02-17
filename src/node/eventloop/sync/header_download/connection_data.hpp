@@ -27,6 +27,7 @@ private:
     std::optional<ProbeInfo> probeData;
     HeaderDownload::QueueBatchNode* jobPtr = nullptr;
     std::optional<Descriptor> ignoreDescriptor;
+    bool mustDisconnect { false };
 
     friend class HeaderDownload::Downloader;
 };

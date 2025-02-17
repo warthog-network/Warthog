@@ -43,19 +43,19 @@ void StageState::set_stale_from(Height from)
 std::vector<ChainOffender> StageState::on_result(const stage_operation::StageAddResult& r)
 {
     auto data { pendingOperation.pop_add_data() };
-    auto& e = r.ce;
-    stageSetAck = r.ce.height() - 1;
+    auto& e = r.err;
+    stageSetAck = e.height() - 1;
     std::vector<ChainOffender> offenders;
     if (e) {
         if (e.e != ELEADERMISMATCH) { // is peer's fault
             for (auto& p : data.banMemory) {
-                if (p.forkHeight > r.ce.height()) {
+                if (p.forkHeight > e.height()) {
                     offenders.push_back({ e, p.connId });
                 }
             }
         }
     }
-    if (staleFrom.has_value() && *staleFrom < r.ce.height())
+    if (staleFrom.has_value() && *staleFrom < e.height())
         clear_non_pending();
     return offenders;
 }

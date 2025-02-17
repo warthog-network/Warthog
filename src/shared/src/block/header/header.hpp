@@ -41,3 +41,9 @@ public:
         return HEADERBYTELENGTH;
     }
 };
+
+struct HeightHeader{
+    NonzeroHeight height;
+    Header header;
+    bool operator==(const HeightHeader&) const = default;
+};
