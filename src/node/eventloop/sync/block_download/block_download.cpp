@@ -1,9 +1,6 @@
 #include "block_download.hpp"
-#include "../sync.hpp"
 #include "attorney.hpp"
 #include "block/body/view.hpp"
-#include "block/chain/binary_forksearch.hpp"
-#include "chainserver/server.hpp"
 #include "eventloop/address_manager/address_manager_impl.hpp"
 #include "eventloop/chain_cache.hpp"
 #include "eventloop/eventloop.hpp"
@@ -32,7 +29,7 @@ Downloader::Downloader(Attorney attorney, size_t windowLength)
 std::vector<ChainOffender> Downloader::handle_stage_result(stage_operation::StageAddStatus&& a)
 {
     auto offenders { stageState.on_result(a) };
-    if (a.ce)
+    if (a.ce.is_error())
         reset();
     return offenders;
 }

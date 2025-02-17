@@ -607,6 +607,14 @@ void Eventloop::handle_event(mempool::Log&& log)
     }
 }
 
+void Eventloop::handle_event(PushRogue&& pr)
+{
+    auto disconnectList { headerDownload.on_rogue_header(pr.rogueHeaderData) };
+    for (ChainOffender& o : disconnectList) {
+        close(o);
+    };
+}
+
 void Eventloop::handle_event(StartTimer&& st)
 {
     auto now = std::chrono::steady_clock::now();
@@ -1786,6 +1794,11 @@ void Eventloop::process_blockdownload_stage()
 {
     if (auto r { blockDownload.pop_stage() })
         stateServer.async_stage_request(*r);
+}
+
+void Eventloop::async_push_rogue(const RogueHeaderData& rogueHeaderData)
+{
+    defer(PushRogue { std::move(rogueHeaderData) });
 }
 
 void Eventloop::async_stage_action(stage_operation::Result r)

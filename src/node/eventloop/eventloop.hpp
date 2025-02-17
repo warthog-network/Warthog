@@ -1,5 +1,6 @@
 #pragma once
 #include "address_manager/address_manager.hpp"
+#include "block/chain/height_header_work.hpp"
 #include "api/callbacks.hpp"
 #include "api/events/subscription_fwd.hpp"
 #include "block/chain/offender.hpp"
@@ -117,6 +118,7 @@ public:
     void api_get_hashrate(HashrateCb&& cb, size_t n = 100);
     void api_get_hashrate_block_chart(NonzeroHeight from, NonzeroHeight to, size_t window, HashrateBlockChartCb&& cb);
     void api_get_hashrate_time_chart(uint32_t from, uint32_t to, size_t window, HashrateTimeChartCb&& cb);
+    void async_push_rogue(const RogueHeaderData&);
     void api_get_peers(PeersCb&& cb);
     void api_get_throttled(ThrottledCb&& cb);
     void api_loadtest_block(uint64_t conId, ResultCb);
@@ -336,12 +338,15 @@ private:
         std::optional<RequestType> requestType;
         ResultCb callback;
     };
+    struct PushRogue {
+        RogueHeaderData rogueHeaderData;
+    };
 
     // event queue
     using Event = std::variant<Erase, OutboundClosed, OnHandshakeCompleted, OnProcessConnection,
         StateUpdate, SignedSnapshotCb, GetPeers, GetThrottled, SyncedCb, IpCounterCb, stage_operation::Result,
         OnForwardBlockrep, InspectorCb, GetHashrate, GetHashrateBlockChart, GetHashrateTimeChart, GetConnectionSchedule, FailedConnect,
-        mempool::Log, StartTimer, CancelTimer, RTCClosed, IdentityIps, GeneratedVerificationSdpOffer, GeneratedVerificationSdpAnswer, GeneratedSdpOffer, GeneratedSdpAnswer, SubscribeConnections, DestroySubscriptions, DisconnectPeer, SampleVerifiedPeers, Loadtest>;
+        mempool::Log, StartTimer, CancelTimer, RTCClosed, IdentityIps, GeneratedVerificationSdpOffer, GeneratedVerificationSdpAnswer, GeneratedSdpOffer, GeneratedSdpAnswer, SubscribeConnections, DestroySubscriptions, DisconnectPeer, SampleVerifiedPeers, Loadtest, PushRogue>;
 
 public:
     bool defer(Event e);
@@ -380,6 +385,7 @@ private:
     void handle_event(DisconnectPeer&&);
     void handle_event(SampleVerifiedPeers&&);
     void handle_event(Loadtest&&);
+    void handle_event(PushRogue&&);
 
     // throttling
     size_t ratelimit_spare();

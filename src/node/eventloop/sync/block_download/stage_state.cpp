@@ -49,13 +49,13 @@ std::vector<ChainOffender> StageState::on_result(const stage_operation::StageAdd
     if (e) {
         if (e.code != ELEADERMISMATCH) { // is peer's fault
             for (auto& p : data.banMemory) {
-                if (p.forkHeight > r.ce.height()) {
+                if (p.forkHeight > e.height()) {
                     offenders.push_back({ e, p.connId });
                 }
             }
         }
     }
-    if (staleFrom.has_value() && *staleFrom < r.ce.height())
+    if (staleFrom.has_value() && *staleFrom < e.height())
         clear_non_pending();
     return offenders;
 }

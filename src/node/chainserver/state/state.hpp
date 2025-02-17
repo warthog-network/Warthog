@@ -1,11 +1,13 @@
 #pragma once
 #include "api/types/forward_declarations.hpp"
+#include "block/chain/height_header_work.hpp"
 #include "block/chain/range.hpp"
 #include "communication/messages.hpp"
 #include "communication/mining_task.hpp"
 #include "communication/stage_operation/result.hpp"
 #include "helpers/consensus.hpp"
 #include "helpers/past_chains.hpp"
+#include "transactions/apply_result.hpp"
 #include <chrono>
 
 class ChainDB;
@@ -76,6 +78,7 @@ public:
     auto set_stage(Headerchain&& hc) -> stage_operation::StageSetStatus;
     struct StageActionResult {
         stage_operation::StageAddStatus status;
+        std::optional<RogueHeaderData> rogueHeaderData;
         std::optional<state_update::StateUpdateWithAPIBlocks> update;
     };
     auto add_stage(const std::vector<Block>& blocks, const Headerchain&) -> StageActionResult;
@@ -125,7 +128,11 @@ private:
 
     // transactions
 
-    [[nodiscard]] auto apply_stage(ChainDBTransaction&& t) -> StageActionResult;
+    struct ApplyStageResult {
+        stage_operation::StageAddStatus status;
+        std::optional<state_update::StateUpdateWithAPIBlocks> update;
+    };
+    [[nodiscard]] auto apply_stage(ChainDBTransaction&& t) -> ApplyStageResult;
 
 public:
     [[nodiscard]] auto apply_signed_snapshot(SignedSnapshot&& sp) -> std::optional<StateUpdateWithAPIBlocks>;

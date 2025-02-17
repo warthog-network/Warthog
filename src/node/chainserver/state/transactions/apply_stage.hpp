@@ -4,6 +4,7 @@
 #include "chainserver/db/chain_db.hpp"
 
 namespace chainserver {
+
 class ApplyStageTransaction {
     using StateUpdate = state_update::StateUpdate;
     using commit_t = state_update::StateUpdateWithAPIBlocks;

@@ -12,7 +12,6 @@
 #include "eventloop/types/peer_requests.hpp"
 #include "focus.hpp"
 #include "stage_state.hpp"
-#include <array>
 namespace HeaderDownload {
 struct LeaderInfo;
 }

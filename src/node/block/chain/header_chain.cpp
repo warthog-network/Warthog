@@ -8,19 +8,10 @@
 #include <stdexcept>
 using namespace std;
 
-std::optional<HeaderView> HeaderchainSkeleton::inefficient_get_header(NonzeroHeight h) const
+
+std::optional<HeaderView> HeaderchainSkeleton::inefficient_search_header(NonzeroHeight h) const
 {
-    const SharedBatch* p = &finalPin;
-    const Batch* b = &incompleteBatch;
-    Height bStart { p->upper_height() + 1 };
-    while (h <= p->upper_height()) {
-        // assert(p->slot().has_value());
-        bStart = p->lower_height();
-        b = &p->getBatch();
-        p = &p->prev();
-    }
-    assert(h >= bStart);
-    return b->get_header(h - bStart);
+    return HeaderSearchRecursive(finalPin, incompleteBatch).find_prev(h);
 }
 
 HeaderchainAppend Headerchain::get_append(Height prevLength) const

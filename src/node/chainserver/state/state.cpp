@@ -408,11 +408,11 @@ stage_operation::StageSetStatus State::set_stage(Headerchain&& hc)
 auto State::add_stage(const std::vector<Block>& blocks, const Headerchain& hc) -> StageActionResult
 {
     if (signedSnapshot && !signedSnapshot->compatible(stage)) {
-        return { { { ELEADERMISMATCH, signedSnapshot->height() } }, {} };
+        return { { { ELEADERMISMATCH, signedSnapshot->height() } }, {}, {} };
     }
 
     assert(blocks.size() > 0);
-    ChainError err { Error(0), blocks.back().height + 1 };
+    ChainError ce { Error(0), blocks.back().height + 1 };
     auto transaction = db.transaction();
 
     assert(hc.length() >= stage.length());
@@ -420,31 +420,49 @@ auto State::add_stage(const std::vector<Block>& blocks, const Headerchain& hc) -
     for (auto& b : blocks) {
         assert(hc.length() >= b.height);
         assert(hc[b.height] == b.header);
-
         assert(b.height == stage.length() + 1);
 
         auto prepared { stage.prepare_append(signedSnapshot, b.header) };
         if (!prepared.has_value()) {
-            err = { prepared.error(), b.height };
+            ce = { prepared.error(), b.height };
             break;
         }
         BodyView bv(b.body_view());
-        if (b.header.merkleroot() != bv.merkle_root(b.height)) {
-            err = { EMROOT, b.height };
+        if (!bv.valid()) {
+            ce = { EINV_BODY, b.height };
             break;
         }
-        if (!bv.valid()) {
-            err = { EINV_BODY, b.height };
+        if (b.header.merkleroot() != bv.merkle_root(b.height)) {
+            // pass {} as header because we cannot conclude the block body
+            // made the header invalid, since the body does not fit to the header
+            ce = { EMROOT, b.height };
             break;
         }
         db.insert_protect(b);
         stage.append(prepared.value(), batchRegistry);
     }
     if (stage.total_work() > chainstate.headers().total_work()) {
-        return apply_stage(std::move(transaction));
+        auto [status, update] { apply_stage(std::move(transaction)) };
+
+        if (status.ce.is_error()) {
+            // Something went wrong on block body level so block header must be also tainted
+            // as we checked for correct merkleroot already
+            // => we need to collect data on rogue header
+            RogueHeaderData rogueHeaderData(
+                status.ce,
+                stage[status.ce.height()],
+                stage.total_work_at(status.ce.height()));
+            return { { status }, rogueHeaderData, update };
+        } else {
+            // pass {} as header arg because we can't to block any headers when
+            // we have a wrong body (EINV_BODY or EMROOT)
+            return { { ce }, {}, update };
+        }
     } else {
+        // pass {} as header arg because we can't to block any headers when
+        // we have a wrong body (EINV_BODY or EMROOT)
         transaction.commit();
-        return { { err }, {} };
+        return { { ce }, {}, {} };
     }
 }
 
@@ -518,7 +536,7 @@ RollbackResult State::rollback(const Height newlength) const
     };
 }
 
-auto State::apply_stage(ChainDBTransaction&& t) -> StageActionResult
+auto State::apply_stage(ChainDBTransaction&& t) -> ApplyStageResult
 {
     dbCacheValidity += 1;
     assert(!signedSnapshot || signedSnapshot->compatible(stage));
@@ -881,7 +899,8 @@ MiningCache::CacheValidity State::mining_cache_validity()
     return { dbCacheValidity, chainstate.mempool().cache_validity(), now_timestamp() };
 }
 
-size_t State::api_db_size() const{
+size_t State::api_db_size() const
+{
     return db.byte_size();
 }
 

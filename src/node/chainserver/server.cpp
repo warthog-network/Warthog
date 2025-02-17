@@ -4,7 +4,6 @@
 #include "api/types/all.hpp"
 #include "block/header/header_impl.hpp"
 #include "eventloop/eventloop.hpp"
-#include "general/hex.hpp"
 #include "global/globals.hpp"
 
 bool ChainServer::is_busy()
@@ -432,6 +431,8 @@ void ChainServer::handle_event(stage_operation::StageAddOperation&& r)
     auto res { state.add_stage(r.blocks, r.headers) };
     if (res.update)
         on_chain_changed(std::move(*res.update));
+    if (res.rogueHeaderData) 
+        global().core->async_push_rogue(*res.rogueHeaderData);
     global().core->async_stage_action(res.status);
 }
 
