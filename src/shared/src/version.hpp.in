@@ -36,7 +36,7 @@ public:
     bool initialized() const { return version != 0; }
     bool compatible() const
     {
-        return initialized() && (minor() >= 8 || (minor() == 6 || patch() >= 21));
+        return true; // initialized() && (minor() >= 8 || (minor() == 6 && patch() >= 21));
     }
 
     static constexpr NodeVersion our_version()

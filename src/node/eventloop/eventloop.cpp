@@ -477,7 +477,8 @@ void Eventloop::erase(Conref c, int32_t error)
     }
     assert(c.valid());
     if (headerDownload.erase(c) && !closeReason) {
-        spdlog::info("Connected to {} peers (closed connection to {}, reason: {})", headerDownload.size(), c->c->peer_endpoint().to_string(), Error(error).err_name());
+        spdlog::info("Connected to {} peers (disconnected {}, v{} reason: {})",
+            headerDownload.size(), c->c->peer_endpoint().to_string(), c->c->peer_version().to_string(), Error(error).err_name());
     }
     if (blockDownload.erase(c))
         coordinate_sync();
@@ -495,7 +496,7 @@ bool Eventloop::insert(Conref c, const InitMsg& data)
     c->chain.initialize(data, chains);
     headerDownload.insert(c);
     blockDownload.insert(c);
-    spdlog::info("Connected to {} peers (new peer {})", headerDownload.size(), c->c->peer_address().to_string());
+    spdlog::info("Connected to {} peers (connected {}, v{})", headerDownload.size(), c->c->peer_address().to_string() , c->c->peer_version().to_string());
     send_ping_await_pong(c);
     // LATER: return whether doRequests is necessary;
     return doRequests;
