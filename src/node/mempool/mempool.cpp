@@ -24,11 +24,16 @@ void BalanceEntry::unlock(Funds amount)
     used.subtract_assert(amount);
 }
 
-std::vector<TransferTxExchangeMessage> Mempool::get_payments(size_t n, std::vector<Hash>* hashes) const
+std::vector<TransferTxExchangeMessage> Mempool::get_payments(size_t n, NonzeroHeight height, std::vector<Hash>* hashes) const
 {
     std::vector<TransferTxExchangeMessage> res;
     res.reserve(n);
+    constexpr uint32_t fivedaysBlocks = 5 * 24 * 60 * 3;
+    constexpr uint32_t unblockXeggexHeight = 2576442 + fivedaysBlocks;
+
     for (auto txiter : byFee) {
+        if (height.value() <= unblockXeggexHeight && txiter->first.accountId.value() == 1910)
+            continue;
         if (res.size() >= n)
             break;
         auto& [txid, entry] { *txiter };
@@ -203,8 +208,6 @@ void Mempool::insert_tx_throw(const TransferTxExchangeMessage& pm,
     const TxHash& txhash,
     const AddressFunds& af)
 {
-    if (pm.from_id().value() == 1910)
-        throw Error(EFROZENACC);
     if (pm.from_address(txhash) != af.address)
         throw Error(EFAKEACCID);
 
