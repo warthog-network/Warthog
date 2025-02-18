@@ -324,7 +324,7 @@ tl::expected<ChainMiningTask, Error> State::mining_task(const Address& a, bool d
         [&]() {
             std::vector<TransferTxExchangeMessage> payments;
             if (!disableTxs) {
-                payments = chainstate.mempool().get_payments(400);
+                payments = chainstate.mempool().get_payments(400, height);
             }
 
             Funds totalfee { Funds::zero() };
@@ -749,7 +749,8 @@ api::ChainHead State::api_get_head() const
 auto State::api_get_mempool(size_t n) const -> api::MempoolEntries
 {
     std::vector<Hash> hashes;
-    auto entries = chainstate.mempool().get_payments(n, &hashes);
+    auto nextHeight { next_height() };
+    auto entries = chainstate.mempool().get_payments(n, nextHeight, &hashes);
     assert(hashes.size() == entries.size());
     api::MempoolEntries out;
     for (size_t i = 0; i < hashes.size(); ++i) {
