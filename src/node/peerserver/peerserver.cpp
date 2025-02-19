@@ -10,7 +10,7 @@ using namespace std::chrono_literals;
 namespace {
 std::optional<ErrorTimepoint> ban_data(Error offense)
 {
-    if (errors::leads_to_ban(offense))
+    if (errors::leads_to_ban(offense.e))
         return ErrorTimepoint::from_duration(offense, 20min);
     return std::nullopt;
 }
