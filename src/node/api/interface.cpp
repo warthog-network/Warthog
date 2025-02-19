@@ -48,7 +48,7 @@ void unban_peers(ResultCb&& f)
 
 void get_connection_schedule(JSONCb&& cb)
 {
-    // global().core->api_get_connection_schedule(std::move(cb));
+    global().core->api_get_connection_schedule(std::move(cb));
 }
 void get_offense_entries(ResultCb&& f)
 {
