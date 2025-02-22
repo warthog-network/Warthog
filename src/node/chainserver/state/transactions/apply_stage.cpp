@@ -2,6 +2,7 @@
 #include "api/types/all.hpp"
 #include "block/body/view.hpp"
 #include "block_applier.hpp"
+#include "block/header/header_impl.hpp"
 #include "general/hex.hpp"
 #include "general/now.hpp"
 #include <fstream>
@@ -33,11 +34,11 @@ ApplyStageTransaction::ApplyStageTransaction(const State& s, ChainDBTransaction&
         }
         BlockId blockId { p->first };
         Block& b = p->second;
-        BodyView bv(b.body.view(h));
-        assert(bv.valid());
 
         try {
-            auto apiBlock { ba.apply_block(bv, b.header, h, blockId) };
+            auto bv(b.body.parse_structure(h, b.header.version()));
+            assert(bv.has_value());
+            auto apiBlock { ba.apply_block(*bv, b.header, h, blockId) };
             apiBlocks.push_back(std::move(apiBlock));
         } catch (Error e) {
             std::string fname { std::to_string(now_timestamp()) + "_" + std::to_string(h.value()) + "_failed.block" };

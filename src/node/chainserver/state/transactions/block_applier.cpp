@@ -10,7 +10,7 @@ namespace {
 
 class BalanceChecker {
 
-    class AccountFlow {
+    class FundFlow {
         friend class BalanceChecker;
 
     public:
@@ -23,12 +23,29 @@ class BalanceChecker {
         std::vector<size_t> referredTokenCreator;
         std::vector<size_t> referredFrom;
         std::vector<size_t> referredTo;
-        bool isMiner { false };
     };
 
-    class OldAccountFlow : public AccountFlow {
+    class OldAccountFlow : public FundFlow {
         friend class BalanceChecker;
         Address address;
+    };
+
+    using TokenFlow = std::map<TokenId, FundFlow>;
+    struct AccountData {
+        bool isMiner { false };
+        TokenFlow tokenFlow;
+    };
+
+    class OldAccountData:public AccountData {
+    public:
+        OldAccountData(Address address)
+            : _address(std::move(address))
+        {
+        }
+        auto& address() { return _address; }
+
+    private:
+        Address _address;
     };
 
 public:
@@ -55,7 +72,7 @@ public:
         if (r.to >= beginNewAccountId) {
             reward.toAddress = get_new_address(r.to - beginNewAccountId);
         } // otherwise wait for db lookup later
-        auto& refTo = account_flow(r.to);
+        auto& refTo = account_data(r.to);
         refTo._in.add_throw(r.amount);
         refTo.isMiner = true;
         ;
@@ -114,7 +131,7 @@ public:
     {
         return accountId.validate_throw(endNewAccountId);
     }
-    int set_address(OldAccountFlow& af, AddressView address) // OK
+    int set_address(OldAccountData& af, AddressView address) // OK
     {
         af.address = address;
         for (size_t i : af.referredTokenCreator)
@@ -131,7 +148,7 @@ public:
         return 0;
     }
     auto& getOldAccounts() { return oldAccounts; } // OK
-    const std::vector<AccountFlow>& get_new_accounts() const { return newAccounts; } // OK
+    const std::vector<FundFlow>& get_new_accounts() const { return newAccounts; } // OK
     AccountId get_account_id(size_t newElementOffset) // OK
     {
         assert(newElementOffset < newAccounts.size());
@@ -143,7 +160,7 @@ public:
     const auto& get_reward() { return reward; };
 
 protected:
-    AccountFlow& account_flow(AccountId i)
+    AccountData& account_data(AccountId i)
     {
         if (i < beginNewAccountId) {
             return oldAccounts[i];
@@ -158,8 +175,8 @@ private:
     AccountId beginNewAccountId;
     AccountId endNewAccountId;
     const BodyView& bv;
-    std::map<AccountId, OldAccountFlow> oldAccounts;
-    std::vector<AccountFlow> newAccounts;
+    std::map<AccountId, OldAccountData> oldAccounts;
+    std::vector<AccountData> newAccounts;
     NonzeroHeight height;
     RewardInternal reward;
     std::vector<TransferInternal> payments;
@@ -248,7 +265,7 @@ struct Preparation {
     std::set<TransactionId> txset;
     std::vector<std::pair<AccountId, Funds>> updateBalances;
     std::vector<std::tuple<AddressView, Funds, AccountId>> insertBalances;
-    std::vector<std::tuple<TokenId, AccountId, TokenName>> insertTokenCreations;
+    std::vector<std::tuple<AccountToken, TokenName>> insertTokenCreations;
     std::optional<api::Block::Reward> apiReward;
     std::vector<api::Block::Transfer> apiTransfers;
     std::vector<api::Block::TokenCreation> apiTokenCreations;
@@ -263,8 +280,6 @@ struct Preparation {
 
 Preparation BlockApplier::Preparer::prepare(const BodyView& bv, const NonzeroHeight height) const
 {
-    if (!bv.valid())
-        throw Error(EINV_BODY);
     // Things to do in this function
     // * check corrupted data (avoid read overflow) OK
     // * sum up payouts OK
@@ -338,7 +353,7 @@ Preparation BlockApplier::Preparer::prepare(const BodyView& bv, const NonzeroHei
     }
 
     // loop through new accounts
-    auto& newAccounts = balanceChecker.get_new_accounts();
+    const auto& newAccounts = balanceChecker.get_new_accounts();
     for (size_t i = 0; i < newAccounts.size(); ++i) {
         auto& acc = newAccounts[i];
         if (acc.in().is_zero()) {
@@ -394,7 +409,7 @@ Preparation BlockApplier::Preparer::prepare(const BodyView& bv, const NonzeroHei
         auto& tc { balanceChecker.token_creations()[i] };
         auto tokenId { beginNewTokenId + i };
         const auto verified { tc.verify(hc, height, tokenId) };
-        res.insertTokenCreations.push_back({ tokenId, tc.creatorAccountId, tc.tokenName });
+        res.insertTokenCreations.push_back({ { tc.creatorAccountId, tokenId }, tc.tokenName });
         res.apiTokenCreations.push_back(
             {
                 .creatorAddress { verified.tci.creatorAddress },
@@ -412,9 +427,9 @@ Preparation BlockApplier::Preparer::prepare(const BodyView& bv, const NonzeroHei
     return res;
 }
 
-api::Block BlockApplier::apply_block(const BodyView& bv, HeaderView hv, NonzeroHeight height, BlockId blockId)
+api::Block BlockApplier::apply_block(const ParsedBlock& b, BlockId blockId)
 {
-    auto prepared { preparer.prepare(bv, height) }; // call const function
+    auto prepared { preparer.prepare(b.body_view(), b.height) }; // call const function
 
     // ABOVE NO DB MODIFICATIONS
     //////////////////////////////
@@ -443,7 +458,7 @@ api::Block BlockApplier::apply_block(const BodyView& bv, HeaderView hv, NonzeroH
         // insert token creations
         for (auto& [tokenId, creatorId, tokenName] : prepared.insertTokenCreations) {
             db.insert_new_token(tokenId, height, creatorId, tokenName, TokenMintType::Ownall);
-            db.insert_token_balance(tokenId, creatorId, DefaultTokenSupply);
+            db.insert_token_balance({ creatorId, tokenId }, DefaultTokenSupply);
         }
 
         // write undo data

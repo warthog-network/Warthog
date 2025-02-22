@@ -116,14 +116,15 @@ VerifiedTokenCreation::VerifiedTokenCreation(const TokenCreationInternal& tci, P
 
 namespace history {
 Entry::Entry(const RewardInternal& p)
+    : hash(p.hash())
 {
     data = serialize(RewardData {
         p.toAccountId,
         p.amount });
-    hash = p.hash();
 }
 
 Entry::Entry(const VerifiedTransfer& p)
+    : hash(p.hash)
 {
     data = serialize(TransferData {
         p.ti.fromAccountId,
@@ -131,10 +132,10 @@ Entry::Entry(const VerifiedTransfer& p)
         p.ti.toAccountId,
         p.ti.amount,
         p.ti.pinNonce });
-    hash = p.hash;
 }
 
 Entry::Entry(const VerifiedTokenTransfer& p, TokenId tokenId)
+    : hash(p.hash)
 {
     data = serialize(TokenTransferData {
         tokenId,
@@ -143,7 +144,6 @@ Entry::Entry(const VerifiedTokenTransfer& p, TokenId tokenId)
         p.ti.toAccountId,
         p.ti.amount,
         p.ti.pinNonce });
-    hash = p.hash;
 }
 TokenTransferData TokenTransferData::parse(Reader& r)
 {
@@ -160,6 +160,7 @@ TokenTransferData TokenTransferData::parse(Reader& r)
 }
 
 Entry::Entry(const VerifiedTokenCreation& p)
+    : hash(p.hash)
 {
     data = serialize(TokenCreationData {
         .creatorAccountId { p.tci.creatorAccountId },
@@ -167,7 +168,6 @@ Entry::Entry(const VerifiedTokenCreation& p)
         .tokenName { p.tci.tokenName },
         .compactFee { p.tci.compactFee },
         .tokenIndex { p.tokenIndex } });
-    hash = p.hash;
 }
 
 void TokenTransferData::write(Writer& w) const

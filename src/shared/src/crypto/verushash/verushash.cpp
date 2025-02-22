@@ -70,21 +70,21 @@ private:
 };
 bool can_optimize()
 {
-// #if defined(__arm__) || defined(__aarch64__)
-//     // long hwcaps = getauxval(AT_HWCAP);
-//     //
-//     // if ((hwcaps & HWCAP_AES) && (hwcaps & HWCAP_PMULL))
-//     //     return true;
-//     // else
-//         return false;
-// #else
-//     unsigned int eax, ebx, ecx, edx;
-//     if (!__get_cpuid(1, &eax, &ebx, &ecx, &edx)) {
-//         return false;
-//     } else {
-//         return ((ecx & (bit_AVX | bit_AES | bit_PCLMUL)) == (bit_AVX | bit_AES | bit_PCLMUL));
-//     }
-// #endif
+    // #if defined(__arm__) || defined(__aarch64__)
+    //     // long hwcaps = getauxval(AT_HWCAP);
+    //     //
+    //     // if ((hwcaps & HWCAP_AES) && (hwcaps & HWCAP_PMULL))
+    //     //     return true;
+    //     // else
+    //         return false;
+    // #else
+    //     unsigned int eax, ebx, ecx, edx;
+    //     if (!__get_cpuid(1, &eax, &ebx, &ecx, &edx)) {
+    //         return false;
+    //     } else {
+    //         return ((ecx & (bit_AVX | bit_AES | bit_PCLMUL)) == (bit_AVX | bit_AES | bit_PCLMUL));
+    //     }
+    // #endif
     return false;
 }
 
@@ -182,7 +182,7 @@ Hash VerusHasher::finalize(bool useV2_2)
     FillExtra(&intermediate);
 
     // get the final hash with a mutated dynamic key for each hash result
-    Hash out;
+    Hash out { Hash::uninitialized() };
     constexpr uint64_t mask16 = keyMask >> 4;
 
     haraka512_port_keyed(out.data(), curBuf,

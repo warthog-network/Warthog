@@ -6,7 +6,7 @@
 #include "defi/token/token.hpp"
 #include "general/reader.hpp"
 
-struct TokenCreationView : public View<BodyView::TokenCreationSize> {
+struct TokenCreationView : public View<BodyStructure::TokenCreationSize> {
 private:
     uint16_t fee_raw() const
     {
@@ -14,7 +14,7 @@ private:
     }
 
 public:
-    using View<BodyView::TokenCreationSize>::View;
+    using View<BodyStructure::TokenCreationSize>::View;
     // AccountId fromAccountId; 8 at 0
     // PinNonce pinNonce; 8 at 8
     // TokenName tokenName; 5 at 16
@@ -43,7 +43,7 @@ public:
     }
     auto signature() const { return View<65>(pos + 27); }
 };
-struct TransferView : public View<BodyView::TransferSize> {
+struct TransferView : public View<BodyStructure::TransferSize> {
 private:
     uint16_t fee_raw() const
     {
@@ -87,7 +87,7 @@ public:
         return Funds::from_value_throw(readuint64(pos + 26));
     }
     auto signature() const { return View<65>(pos + 34); }
-    static_assert(65 == BodyView::SIGLEN);
+    static_assert(65 == BodyStructure::SIGLEN);
     TransactionId txid(PinHeight pinHeight) const
     {
         PinNonce pn = pin_nonce();
@@ -110,7 +110,7 @@ struct TokenTransferView : public TransferView {
     TokenId tokenId;
 };
 
-struct OrderView : public View<BodyView::OrderSize> {
+struct OrderView : public View<BodyStructure::OrderSize> {
 private:
     TokenId tokenId;
     uint16_t fee_raw() const
@@ -157,7 +157,7 @@ public:
         return { buy, f };
     }
     auto signature() const { return View<65>(pos + 26); }
-    static_assert(65 == BodyView::SIGLEN);
+    static_assert(65 == BodyStructure::SIGLEN);
     TransactionId txid(PinHeight pinHeight) const
     {
         PinNonce pn = pin_nonce();
@@ -167,7 +167,7 @@ public:
     using View::View;
 };
 
-struct LiquidityAddView : public View<BodyView::LiquidityAddSize> {
+struct LiquidityAddView : public View<BodyStructure::LiquidityAddSize> {
 private:
     TokenId tokenId;
     uint16_t fee_raw() const
@@ -215,7 +215,7 @@ public:
         return Funds::from_value_throw(readuint64(pos + 26));
     }
     auto signature() const { return View<65>(pos + 34); }
-    static_assert(65 == BodyView::SIGLEN);
+    static_assert(65 == BodyStructure::SIGLEN);
     TransactionId txid(PinHeight pinHeight) const
     {
         PinNonce pn = pin_nonce();
@@ -225,7 +225,7 @@ public:
     using View::View;
 };
 
-struct LiquidityRemoveView : public View<BodyView::LiquidityRemoveSize> {
+struct LiquidityRemoveView : public View<BodyStructure::LiquidityRemoveSize> {
 private:
     TokenId tokenId;
     uint16_t fee_raw() const
@@ -269,7 +269,7 @@ public:
         return Funds::from_value_throw(readuint64(pos + 18));
     }
     auto signature() const { return View<65>(pos + 26); }
-    static_assert(65 == BodyView::SIGLEN);
+    static_assert(65 == BodyStructure::SIGLEN);
     TransactionId txid(PinHeight pinHeight) const
     {
         PinNonce pn = pin_nonce();
@@ -318,7 +318,7 @@ struct Transfer {
     }
 };
 
-struct RewardView : public View<BodyView::RewardSize> {
+struct RewardView : public View<BodyStructure::RewardSize> {
 private:
     auto funds_value() const
     {
@@ -350,19 +350,19 @@ public:
 
 inline WartTransferView BodyView::get_transfer(size_t i) const
 {
-    assert(i < nTransfers);
-    return WartTransferView { data() + offsetTransfers + i * WartTransferView::size() };
+    assert(i < bodyStructure.nTransfers);
+    return WartTransferView { data() + bodyStructure.offsetTransfers + i * WartTransferView::size() };
 }
 
 inline TokenCreationView BodyView ::get_new_token(size_t i) const
 {
-    assert(i < nNewTokens);
-    return TokenCreationView { data() + offsetNewTokens + i * TokenCreationView::size() };
+    assert(i < bodyStructure.nNewTokens);
+    return TokenCreationView { data() + bodyStructure.offsetNewTokens + i * TokenCreationView::size() };
 }
 
 inline RewardView BodyView::reward() const
 {
-    return { data() + offsetReward, 0 };
+    return { data() + bodyStructure.offsetReward, 0 };
 }
 
 inline Funds BodyView::fee_sum_assert() const
@@ -374,9 +374,9 @@ inline Funds BodyView::fee_sum_assert() const
 }
 inline AddressView BodyView::get_address(size_t i) const
 {
-    static_assert(AddressView::size() == BodyView::AddressSize);
-    assert(i < nAddresses);
-    return AddressView(data() + offsetAddresses + i * AddressView::size());
+    static_assert(AddressView::size() == BodyStructure::AddressSize);
+    assert(i < bodyStructure.nAddresses);
+    return AddressView(data() + bodyStructure.offsetAddresses + i * AddressView::size());
 }
 inline AddressView BodyView::Addresses::Iterator::operator*() const
 {
@@ -393,28 +393,29 @@ inline TokenCreationView BodyView::NewTokens::Iterator::operator*() const
 
 inline auto BodyView::foreach_token(auto lambda) const
 {
-    for (auto& ts : tokensSections)
-        lambda(ts);
-}
-inline auto BodyView::TokenSection::foreach_transfer(auto lambda) const
-{
-    for (size_t i = 0; i < nTransfers; ++i)
-        lambda(TokenTransferView { TransferView { transfersBegin + i * TokenTransferView::size() }, tokenId });
+    for (auto& ts : bodyStructure.tokensSections)
+        lambda(BodyStructure::TokenSectionView{ts,data()});
 }
 
-inline auto BodyView::TokenSection::foreach_order(auto lambda) const
+inline auto BodyStructure::TokenSectionView::foreach_transfer(auto lambda) const
 {
-    for (size_t i = 0; i < nOrders; ++i)
-        lambda(OrderView { ordersBegin + i * OrderView::size(), tokenId });
+    for (size_t i = 0; i < ts.nTransfers; ++i)
+        lambda(TokenTransferView { TransferView { dataBody + ts.transfersOffset + i * TransferView::size() }, ts.tokenId });
 }
 
-inline auto BodyView::TokenSection::foreach_liquidity_add(auto lambda) const
+inline auto BodyStructure::TokenSectionView::foreach_order(auto lambda) const
 {
-    for (size_t i = 0; i < nLiquidityAdd; ++i)
-        lambda(LiquidityAddView { liquidityAddBegin + i * LiquidityAddView::size(), tokenId });
+    for (size_t i = 0; i < ts.nOrders; ++i)
+        lambda(OrderView { dataBody + ts.ordersOffset + i * OrderView::size(), ts.tokenId });
 }
-inline auto BodyView::TokenSection::foreach_liquidity_remove(auto lambda) const
+
+inline auto BodyStructure::TokenSectionView::foreach_liquidity_add(auto lambda) const
 {
-    for (size_t i = 0; i < nLiquidityRemove; ++i)
-        lambda(LiquidityRemoveView { liquidityRemoveBegin + i * LiquidityRemoveView::size(), tokenId });
+    for (size_t i = 0; i < ts.nLiquidityAdd; ++i)
+        lambda(LiquidityAddView { dataBody + ts.liquidityAddBegin + i * LiquidityAddView::size(), ts.tokenId });
+}
+inline auto BodyStructure::TokenSectionView::foreach_liquidity_remove(auto lambda) const
+{
+    for (size_t i = 0; i < ts.nLiquidityRemove; ++i)
+        lambda(LiquidityRemoveView { dataBody + ts.liquidityRemoveOffset + i * LiquidityRemoveView::size(), ts.tokenId });
 }

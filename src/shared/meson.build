@@ -11,6 +11,7 @@ src_wh=[
   files(
   [
     './platformassert.cpp',
+    './src/block/block.cpp',
     './src/block/body/container.cpp',
     './src/block/body/nonce.cpp',
     './src/block/body/transaction_id.cpp',
@@ -19,8 +20,8 @@ src_wh=[
     './src/block/chain/worksum.cpp',
     './src/block/header/generator.cpp',
     './src/block/header/header.cpp',
-    './src/block/header/view.cpp',
     './src/block/header/pow_version.cpp',
+    './src/block/header/view.cpp',
     './src/communication/create_payment.cpp',
     './src/crypto/address.cpp',
     './src/crypto/crypto.cpp',
@@ -30,9 +31,9 @@ src_wh=[
     './src/defi/token/token.cpp',
     './src/general/compact_uint.cpp',
     './src/general/errors.cpp',
-    './src/general/is_testnet.cpp',
     './src/general/funds.cpp',
     './src/general/hex.cpp',
+    './src/general/is_testnet.cpp',
     './src/general/with_uint64.cpp',
   ]
   )]

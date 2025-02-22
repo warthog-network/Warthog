@@ -4,6 +4,7 @@
 #include "block/chain/header_chain.hpp"
 #include "block/header/header_impl.hpp"
 #include "block/header/view_inline.hpp"
+#include "defi/token/account_token.hpp"
 #include "defi/token/info.hpp"
 #include "defi/token/token.hpp"
 #include "general/hex.hpp"
@@ -196,15 +197,15 @@ void ChainDB::set_signed_snapshot(const SignedSnapshot& ss)
     stmtConsensusSetProperty.run(SIGNEDPINID, v);
 }
 
-std::vector<BlockId> ChainDB::consensus_block_ids(Height begin,
-    Height end) const
+std::vector<BlockId> ChainDB::consensus_block_ids(HeightRange range) const
 {
-    assert(end >= begin);
     std::vector<BlockId> out;
     stmtConsensusSelectRange.for_each([&](Statement2::Row& r) {
         out.push_back(r[0]);
     },
-        begin, end);
+        range.hbegin, range.hend);
+    if (out.size() != range.hend - range.hbegin)
+        throw std::runtime_error("Cannot find block ids in database: " + std::to_string(range.hbegin.value()) + "-" + std::to_string(range.hend.value()));
     return out;
 }
 
@@ -255,16 +256,21 @@ DeletionKey ChainDB::delete_consensus_from(NonzeroHeight height)
     return dk;
 }
 
-std::optional<Block> ChainDB::get_block(BlockId id) const
+std::optional<ParsedBlock> ChainDB::get_block(BlockId id) const
 {
     auto o { stmtBlockById.one(id) };
     if (!o.has_value())
         return {};
-    return Block {
-        .height = o[0],
-        .header = o[1],
-        .body = o[2]
-    };
+    try {
+        return Block {
+            .height = o[0],
+            .header = o[1],
+            .body = o[2]
+        }
+            .parse_throw();
+    } catch (...) {
+        throw std::runtime_error("Cannot load block with id " + std::to_string(id.value()) + ". ");
+    }
 }
 
 std::optional<std::pair<BlockId, Block>> ChainDB::get_block(HashView hash) const
@@ -281,16 +287,16 @@ std::optional<std::pair<BlockId, Block>> ChainDB::get_block(HashView hash) const
     };
 }
 
-std::pair<BlockId, bool> ChainDB::insert_protect(const Block& b)
+std::pair<BlockId, bool> ChainDB::insert_protect(const ParsedBlock& b)
 {
-    auto hash { b.header.hash() };
+    auto hash { b.header().hash() };
 
     auto blockId { lookup_block_id(hash) };
     if (blockId.has_value()) {
-        assert(schedule_exists(*blockId) || consensus_exists(b.height, *blockId));
+        assert(schedule_exists(*blockId) || consensus_exists(b.height(), *blockId));
         return { blockId.value(), false };
     } else {
-        stmtBlockInsert.run(b.height, b.header, b.body.data(), hash);
+        stmtBlockInsert.run(b.height(), b.header(), b.body().data(), hash);
         auto lastId { db.getLastInsertRowid() };
         stmtScheduleInsert.run(lastId, 0);
         return { BlockId(lastId), true };
@@ -320,13 +326,13 @@ void ChainDB::insert_consensus(NonzeroHeight height, BlockId blockId, HistoryId 
     stmtScheduleDelete2.run(blockId);
 }
 
-void ChainDB::insert_new_token(TokenId verifyNextTokenId, NonzeroHeight height, AccountId creatorId, TokenName name, TokenHash hash, TokenMintType type)
+void ChainDB::insert_new_token(CreatorToken ct, NonzeroHeight height, TokenName name, TokenHash hash, TokenMintType type)
 {
     auto id { cache.maxTokenId + 1 };
-    if (id != verifyNextTokenId)
+    if (id != ct.token_id())
         throw std::runtime_error("Internal error, token id inconsistent.");
     std::string n { name.c_str() };
-    stmtTokenInsert.run(id, height, creatorId, n, hash, static_cast<uint8_t>(type));
+    stmtTokenInsert.run(id, height, ct.creator_id(), n, hash, static_cast<uint8_t>(type));
     cache.maxTokenId++;
 }
 
@@ -354,9 +360,9 @@ std::vector<std::pair<TokenId, Funds>> ChainDB::get_tokens(AccountId accountId, 
     return res;
 }
 
-void ChainDB::set_token_balance(TokenId tokenId, AccountId accountId, Funds balance)
+void ChainDB::set_balance(AccountToken at, Funds balance)
 {
-    stmtTokenUpdateBalance.run(balance, tokenId, accountId);
+    stmtTokenUpdateBalance.run(balance, at.token_id(), at.account_id());
 }
 
 std::vector<std::pair<AccountId, Funds>> ChainDB::get_richlist(TokenId tokenId, size_t limit)
@@ -568,38 +574,17 @@ void ChainDB::delete_bad_block(HashView blockhash)
     stmtScheduleDelete2.run(id);
 }
 
-namespace {
-std::vector<TransactionId> read_tx_ids(const BodyContainer& body,
-    NonzeroHeight height)
-{
-    BodyView bv(body.view(height));
-    if (!bv.valid())
-        throw std::runtime_error(
-            "Database corrupted (invalid block body at height " + std::to_string(height) + ".");
-    PinFloor pinFloor { PrevHeight(height) };
-
-    std::vector<TransactionId> out;
-    for (auto t : bv.transfers()) {
-        auto txid { t.txid(t.pinHeight(pinFloor)) };
-        out.push_back(txid);
-    }
-    return out;
-}
-} // namespace
-
 chainserver::TransactionIds ChainDB::fetch_tx_ids(Height height) const
 {
-    const auto [begin, end] = chainserver::TransactionIds::block_range(height);
+    const auto r = chainserver::TransactionIds::block_range(height);
     chainserver::TransactionIds out;
-    spdlog::debug("Loading nonces from blocks {} to {} into cache...", begin.value(), end.value());
-    auto ids { consensus_block_ids(begin, end) };
-    if (ids.size() != end - begin)
-        throw std::runtime_error("Cannot load block ids.");
-    for (size_t i = 0; i < end - begin; ++i) {
+    spdlog::debug("Loading nonces from blocks {} to {} into cache...", r.hbegin.value(), r.hend.value());
+    auto ids { consensus_block_ids(r) };
+    for (size_t i = 0; i < r.length(); ++i) {
         if ((i & 15) == 0 && shutdownSignal) {
             throw std::runtime_error("Shutdown initiated");
         }
-        Height height = begin + i;
+        Height height = r.hbegin + i;
         auto id = ids[i];
         auto b = get_block(id);
         if (!b) {
@@ -607,7 +592,7 @@ chainserver::TransactionIds ChainDB::fetch_tx_ids(Height height) const
         }
         assert(height == b->height);
         assert(b->body.size() > 0);
-        for (auto& tid : read_tx_ids(b->body, b->height)) {
+        for (auto& tid : b->read_tx_ids()) {
             if (out.emplace(tid).second == false) {
                 throw std::runtime_error(
                     "Database corrupted (duplicate transaction id in chain)");

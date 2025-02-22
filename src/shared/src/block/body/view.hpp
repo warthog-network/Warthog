@@ -1,6 +1,8 @@
 #pragma once
 
+#include "block/body/container.hpp"
 #include "block/chain/height.hpp"
+#include "block/header/header.hpp"
 #include "crypto/hash.hpp"
 #include "defi/token/id.hpp"
 #include <span>
@@ -9,8 +11,59 @@ struct TokenCreationView;
 struct WartTransferView;
 struct RewardView;
 class AddressView;
+class BodyView;
+
+class BodyStructure {
+    friend BodyView;
+    struct TokenSection {
+        size_t beginOffset;
+        TokenId tokenId;
+        size_t nTransfers;
+        size_t transfersOffset;
+        size_t nOrders;
+        size_t ordersOffset;
+        size_t nLiquidityAdd;
+        size_t liquidityAddBegin;
+        size_t nLiquidityRemove;
+        size_t liquidityRemoveOffset;
+    };
+    struct TokenSectionView {
+        const TokenSection& ts;
+        const uint8_t* dataBody;
+        auto foreach_transfer(auto lambda) const;
+        auto foreach_order(auto lambda) const;
+        auto foreach_liquidity_add(auto lambda) const;
+        auto foreach_liquidity_remove(auto lambda) const;
+    };
+    BodyStructure() { };
+
+public:
+    static std::optional<BodyStructure> parse(std::span<const uint8_t> s, NonzeroHeight h, BlockVersion version);
+    static BodyStructure parse_throw(std::span<const uint8_t> s, NonzeroHeight h, BlockVersion version);
+    constexpr static size_t SIGLEN { 65 };
+    constexpr static size_t AddressSize { 20 };
+    constexpr static size_t RewardSize { 16 };
+    constexpr static size_t TransferSize { 34 + SIGLEN };
+    constexpr static size_t OrderSize { 26 + SIGLEN };
+    constexpr static size_t LiquidityAddSize { 34 + SIGLEN };
+    constexpr static size_t LiquidityRemoveSize { 26 + SIGLEN };
+    constexpr static size_t TokenCreationSize { 8 + 8 + 5 + 2 + SIGLEN };
+
+private:
+    size_t nAddresses;
+    size_t nTransfers { 0 };
+    size_t nTokens { 0 };
+    std::vector<TokenSection> tokensSections;
+    size_t nNewTokens { 0 };
+    size_t offsetAddresses { 0 };
+    size_t offsetReward { 0 };
+    size_t offsetTransfers { 0 };
+    size_t offsetTokens { 0 };
+    size_t offsetNewTokens { 0 };
+};
 
 class BodyView {
+    friend class BodyView;
     struct Addresses {
         Addresses(const BodyView& bv)
             : bv(bv)
@@ -128,46 +181,23 @@ class BodyView {
         const BodyView& bv;
     };
 
-    struct TokenSection {
-        const uint8_t* begin;
-        TokenId tokenId;
-        size_t nTransfers;
-        const uint8_t* transfersBegin;
-        size_t nOrders;
-        const uint8_t* ordersBegin;
-        size_t nLiquidityAdd;
-        const uint8_t* liquidityAddBegin;
-        size_t nLiquidityRemove;
-        const uint8_t* liquidityRemoveBegin;
-        auto foreach_transfer(auto lambda) const;
-        auto foreach_order(auto lambda) const;
-        auto foreach_liquidity_add(auto lambda) const;
-        auto foreach_liquidity_remove(auto lambda) const;
-    };
-
 public:
-    constexpr static size_t SIGLEN { 65 };
-    constexpr static size_t AddressSize { 20 };
-    constexpr static size_t RewardSize { 16 };
-    constexpr static size_t TransferSize { 34 + SIGLEN };
-    constexpr static size_t OrderSize { 26 + SIGLEN };
-    constexpr static size_t LiquidityAddSize { 34 + SIGLEN };
-    constexpr static size_t LiquidityRemoveSize { 26 + SIGLEN };
-    constexpr static size_t TokenCreationSize { 8 + 8 + 5 + 2 + SIGLEN };
-    BodyView(std::span<const uint8_t>, NonzeroHeight h);
+    using TokenSectionView = BodyStructure::TokenSectionView;
+    BodyView(const BodyContainer& bodyContainer, const BodyStructure& bodyStructure)
+        : bodyContainer(bodyContainer)
+        , bodyStructure(bodyStructure) { };
     std::vector<Hash> merkle_leaves() const;
     Hash merkle_root(Height h) const;
     std::vector<uint8_t> merkle_prefix() const;
-    bool valid() const { return isValid; }
-    size_t size() const { return s.size(); }
-    const uint8_t* data() const { return s.data(); }
+    size_t size() const { return bodyContainer.size(); }
+    const uint8_t* data() const { return bodyContainer.data().data(); }
 
     auto transfers() const { return Transfers { *this }; }
-    auto foreach_token(auto lambda) const;
+    inline auto foreach_token(auto lambda) const;
     auto addresses() const { return Addresses { *this }; }
     auto token_creations() const { return NewTokens { *this }; }
-    size_t getNAddresses() const { return nAddresses; };
-    size_t getNNewTokens() const { return nNewTokens; };
+    size_t getNAddresses() const { return bodyStructure.nAddresses; };
+    size_t getNNewTokens() const { return bodyStructure.nNewTokens; };
     WartTransferView get_transfer(size_t i) const;
     TokenCreationView get_new_token(size_t i) const;
     RewardView reward() const;
@@ -175,19 +205,9 @@ public:
     AddressView get_address(size_t i) const;
 
 private:
-    size_t getNTransfers() const { return nTransfers; };
+    size_t getNTransfers() const { return bodyStructure.nTransfers; };
 
 private:
-    std::span<const uint8_t> s;
-    size_t nAddresses;
-    size_t nTransfers { 0 };
-    size_t nTokens { 0 };
-    std::vector<TokenSection> tokensSections;
-    size_t nNewTokens { 0 };
-    size_t offsetAddresses { 0 };
-    size_t offsetReward { 0 };
-    size_t offsetTransfers { 0 };
-    size_t offsetTokens { 0 };
-    size_t offsetNewTokens { 0 };
-    bool isValid = false;
+    const BodyContainer& bodyContainer;
+    const BodyStructure& bodyStructure;
 };

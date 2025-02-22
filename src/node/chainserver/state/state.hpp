@@ -47,7 +47,7 @@ public:
         stage_operation::StageAddStatus status;
         std::optional<state_update::StateUpdateWithAPIBlocks> update;
     };
-    auto add_stage(const std::vector<Block>& blocks, const Headerchain&) -> StageActionResult;
+    auto add_stage(const std::vector<ParsedBlock>& blocks, const Headerchain&) -> StageActionResult;
 
     // synced state notification
     void set_sync_state(bool synced)
@@ -98,7 +98,7 @@ private:
 public:
     [[nodiscard]] auto apply_signed_snapshot(SignedSnapshot&& sp) -> std::optional<StateUpdateWithAPIBlocks>;
     //  stageUpdate;
-    [[nodiscard]] auto append_mined_block(const Block&) -> StateUpdateWithAPIBlocks;
+    [[nodiscard]] auto append_mined_block(const ParsedBlock&) -> StateUpdateWithAPIBlocks;
 
 private:
     // transaction helpers

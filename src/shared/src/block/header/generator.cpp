@@ -1,36 +1,37 @@
 #include "generator.hpp"
 #include "block/body/view.hpp"
-#include "block/header/view_inline.hpp"
 #include "general/is_testnet.hpp"
 namespace {
-uint32_t header_version(NonzeroHeight h)
+BlockVersion block_version(NonzeroHeight h)
 {
     if (is_testnet()) {
         if (h.value() <= 2)
-            return 2;
-        return 3;
+            return 3;
+        return 4;
     } else {
-        if (h.value() <= JANUSV8BLOCKV3START)
-            return 2;
-        return 3;
+        if (h.value() <= TOKENSTARTHEIGHT)
+            return 3;
+        return 4;
     }
 }
 }
 HeaderGenerator::HeaderGenerator(std::array<uint8_t, 32> prevhash,
     const BodyView& bv, Target target,
     uint32_t timestamp, NonzeroHeight height)
-    : version(target.is_janushash() ? header_version(height) : 1)
+    : version(block_version(height))
     , prevhash(prevhash)
     , merkleroot(bv.merkle_root(height))
     , timestamp(timestamp)
     , target(target)
-    , nonce(0u) {
+    , nonce(0u)
+{
+    assert(target.is_janushash());
+}
 
-    };
-[[nodiscard]] Header HeaderGenerator::serialize(uint32_t nonce) const
+[[nodiscard]] Header HeaderGenerator::make_header(uint32_t nonce) const
 {
     Header out;
-    uint32_t nversion = hton32(version);
+    uint32_t nversion = hton32(version.value());
     memcpy(out.data() + HeaderView::offset_version, &nversion, 4);
     memcpy(out.data() + HeaderView::offset_prevhash, prevhash.data(), 32);
     memcpy(out.data() + HeaderView::offset_merkleroot, merkleroot.data(), 32);

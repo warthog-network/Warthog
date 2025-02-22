@@ -8,12 +8,11 @@
 #include "difficulty.hpp"
 #include "general/hex.hpp"
 #include "general/reader.hpp"
-#include <iostream>
 
 
-inline uint32_t HeaderView::version() const
+inline BlockVersion HeaderView::version() const
 {
-    return readuint32(data() + offset_version);
+    return BlockVersion(readuint32(data() + offset_version));
 }
 inline HashView HeaderView::prevhash() const
 {

@@ -79,7 +79,7 @@ std::vector<Block> Focus::pop_data()
             out.push_back(Block {
                 .height = h,
                 .header = headers()[h],
-                .body = std::move(from[j]) });
+                ._body = std::move(from[j]) });
         }
         if (downloadLength < node.batch_upper()) {
             from.clear();

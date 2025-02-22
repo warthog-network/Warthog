@@ -1,9 +1,5 @@
 #include "mempool.hpp"
 #include "api/events/emit.hpp"
-#include "chainserver/transaction_ids.hpp"
-#include <algorithm>
-#include <numeric>
-#include <random>
 namespace mempool {
 bool LockedBalance::set_avail(Funds amount)
 {
@@ -177,7 +173,7 @@ void Mempool::set_balance(AccountToken ac, Funds newBalance)
     if (balanceEntry.set_avail(newBalance))
         return;
 
-    auto iterators { txs.by_fee_inc(ac.accId) };
+    auto iterators { txs.by_fee_inc(ac.accountId) };
 
     for (size_t i = 0; i < iterators.size(); ++i) {
         bool allErased = erase_internal(iterators[i], b_iter);

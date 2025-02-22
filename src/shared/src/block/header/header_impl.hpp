@@ -23,7 +23,7 @@ inline void Header::set_merkleroot(std::array<uint8_t, 32> a)
 {
     memcpy(data() + HeaderView::offset_merkleroot, a.data(), 32);
 }
-inline uint32_t Header::version() const
+inline BlockVersion Header::version() const
 {
     return static_cast<HeaderView>(*this).version();
 }

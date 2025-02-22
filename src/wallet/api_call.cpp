@@ -46,9 +46,9 @@ std::pair<PinHeight, Hash> Endpoint::get_pin()
         json parsed = json::parse(out);
         std::string h = parsed["data"]["pinHash"].get<std::string>();
         auto pinHeight = Height(parsed["data"]["pinHeight"].get<int32_t>()).pin_height();
-        Hash pinHash;
-        if (pinHeight && parse_hex(h, pinHash))
-            return make_pair(*pinHeight, pinHash);
+        auto pinHash{Hash::parse_string(h)};
+        if (pinHeight && pinHash)
+            return make_pair(*pinHeight, *pinHash);
     } catch (...) {
     }
     throw std::runtime_error("API request failed, response is malformed. Is the node version compatible with this wallet?");

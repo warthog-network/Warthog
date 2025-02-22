@@ -12,9 +12,15 @@ BodyContainer::BodyContainer(std::span<const uint8_t> s)
     }
 }
 
-BodyView BodyContainer::view(NonzeroHeight h) const
+std::optional<BodyStructure> BodyContainer::parse_structure(NonzeroHeight h, BlockVersion v) const
 {
-    return { bytes, h };
+    return BodyStructure::parse(bytes, h, v);
+}
+
+BodyStructure BodyContainer::parse_structure_throw(NonzeroHeight h, BlockVersion v) const{
+    if (auto p{parse_structure(h,v)}) 
+        return *p;
+    throw Error(EINV_BODY);
 }
 
 BodyContainer::BodyContainer(Reader& r)

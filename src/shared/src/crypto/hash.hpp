@@ -1,15 +1,16 @@
 #pragma once
 #include "general/params.hpp"
 #include "general/view.hpp"
-#include <string>
 #include <array>
 #include <cstring>
+#include <optional>
+#include <string>
 
 class Hash;
 class HashView : public View<32> {
 public:
     inline HashView(const uint8_t* pos)
-        : View<32>(pos) {};
+        : View<32>(pos) { };
     inline bool operator==(HashView hv) const
     {
         return View::operator==(hv);
@@ -17,10 +18,16 @@ public:
 };
 
 class Hash : public std::array<uint8_t, 32> {
-public:
     Hash() = default;
-    Hash(const std::array<uint8_t, 32>& other)
-        : array(other)
+
+public:
+    static std::optional<Hash> parse_string(std::string_view);
+    static Hash uninitialized()
+    {
+        return {};
+    }
+    Hash(std::array<uint8_t, 32> other)
+        : array(std::move(other))
     {
     }
     Hash(const Hash&) = default;
@@ -40,7 +47,7 @@ public:
     static Hash genesis();
 };
 
-class TokenHash: public Hash{
+class TokenHash : public Hash {
     using Hash::Hash;
 };
 

@@ -1,12 +1,12 @@
 #pragma once
-#include "crypto/address.hpp"
 #include "../../transaction_ids.hpp"
 #include "api/types/forward_declarations.hpp"
+#include "defi/token/account_token.hpp"
 class ChainDB;
 class Headerchain;
 class BodyView;
 class BlockId;
-class HeaderView;
+class ParsedBlock;
 
 namespace chainserver {
 struct Preparation;
@@ -19,7 +19,7 @@ struct BlockApplier {
     }
     TransactionIds&& move_new_txids() { return std::move(preparer.newTxIds); };
     auto&& move_balance_updates() { return std::move(balanceUpdates); };
-    [[nodiscard]] api::Block apply_block(const BodyView& bv, HeaderView, NonzeroHeight height, BlockId blockId);
+    [[nodiscard]] api::Block apply_block(const ParsedBlock& bv, BlockId blockId);
 
 private: // private methods
     struct Preparer {
@@ -32,7 +32,7 @@ private: // private methods
 
 private: // private data
     Preparer preparer;
-    std::map<AccountId,Funds> balanceUpdates;
+    std::map<AccountToken,Funds> balanceUpdates;
     ChainDB& db;
     bool fromStage;
 };

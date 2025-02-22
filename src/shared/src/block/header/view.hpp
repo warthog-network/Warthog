@@ -5,8 +5,8 @@
 #include <cstdint>
 #include <cstring>
 #include "pow_version.hpp"
-#include <optional>
 class HeaderGenerator;
+class BlockVersion;
 class HashView;
 class TargetV1;
 class TargetV2;
@@ -37,7 +37,7 @@ public:
     double janus_number() const;
     Hash verus2_1_hash() const;
     Hash verus2_2_hash() const;
-    inline uint32_t version() const;
+    inline BlockVersion version() const;
     inline HashView prevhash() const;
     inline HashView merkleroot() const;
     inline uint32_t timestamp() const;

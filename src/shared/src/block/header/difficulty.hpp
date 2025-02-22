@@ -4,10 +4,7 @@
 #include "difficulty_declaration.hpp"
 #include "general/byte_order.hpp"
 #include "general/hex.hpp"
-#include "general/params.hpp"
 #include "general/reader.hpp"
-#include "spdlog/spdlog.h"
-// #include <arpa/inet.h>
 #include <array>
 #include <cassert>
 #include <cmath>

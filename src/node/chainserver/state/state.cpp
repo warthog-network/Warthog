@@ -301,15 +301,15 @@ tl::expected<ChainMiningTask, Error> State::mining_task(const Address& a)
                                       // fee sum is < sum of mempool payers' balances
 
     // mempool should have deleted out of window transactions
-    auto body { generate_body(db, height, a, payments) };
-    BodyView bv(body.view(height));
+    auto [body, version] { generate_body(db, height, a, payments) };
+    BodyView bv(body.parse_structure(height, version));
     if (!bv.valid())
         spdlog::error("Cannot create mining task, body invalid");
 
     HeaderGenerator hg(md.prevhash, bv, md.target, md.timestamp, height);
     return ChainMiningTask { .block {
         .height = height,
-        .header = hg.serialize(0),
+        .header = hg.make_header(0),
         .body = std::move(body),
     } };
 }
@@ -360,7 +360,7 @@ stage_operation::StageSetStatus State::set_stage(Headerchain&& hc)
     return { h };
 }
 
-auto State::add_stage(const std::vector<Block>& blocks, const Headerchain& hc) -> StageActionResult
+auto State::add_stage(const std::vector<ParsedBlock>& blocks, const Headerchain& hc) -> StageActionResult
 {
     if (signedSnapshot && !signedSnapshot->compatible(stage)) {
         return { { { ELEADERMISMATCH, signedSnapshot->height() } }, {} };
@@ -386,10 +386,6 @@ auto State::add_stage(const std::vector<Block>& blocks, const Headerchain& hc) -
         BodyView bv(b.body_view());
         if (b.header.merkleroot() != bv.merkle_root(b.height)) {
             err = { EMROOT, b.height };
-            break;
-        }
-        if (!bv.valid()) {
-            err = { EINV_BODY, b.height };
             break;
         }
         db.insert_protect(b);
@@ -497,13 +493,13 @@ RollbackResult State::rollback(const Height newlength) const
     auto dk { db.delete_consensus_from((newlength + 1).nonzero_assert()) };
 
     // write balances to db
-    for (auto& p : balanceMap) {
+    for (auto& p : rs.balanceMap) {
         db.set_balance(p.first, p.second);
     }
     return chainserver::RollbackResult {
         .shrink { newlength, oldlength - newlength },
-        .toMempool { std::move(toMempool) },
-        .balanceUpdates { std::move(balanceMap) },
+        .toMempool { std::move(rs.toMempool) },
+        .balanceUpdates { std::move(rs.balanceMap) },
         .chainTxIds { db.fetch_tx_ids(newlength) },
         .deletionKey { dk }
     };
@@ -585,19 +581,14 @@ auto State::apply_signed_snapshot(SignedSnapshot&& ssnew) -> std::optional<State
     return res;
 }
 
-auto State::append_mined_block(const Block& b) -> StateUpdateWithAPIBlocks
+auto State::append_mined_block(const ParsedBlock& b) -> StateUpdateWithAPIBlocks
 {
     auto nextHeight { next_height() };
     if (nextHeight != b.height)
         throw Error(EMINEDDEPRECATED);
-    BodyView bv(b.body_view());
     auto prepared { chainstate.prepare_append(signedSnapshot, b.header) };
     if (!prepared.has_value())
         throw Error(prepared.error());
-    if (b.header.merkleroot() != bv.merkle_root(b.height))
-        throw Error(EMROOT);
-    if (!bv.valid())
-        throw Error(EINV_BODY);
     if (chainlength() + 1 != b.height)
         throw Error(EBADHEIGHT);
 
@@ -614,7 +605,7 @@ auto State::append_mined_block(const Block& b) -> StateUpdateWithAPIBlocks
     }
 
     chainserver::BlockApplier e { db, chainstate.headers(), chainstate.txids(), false };
-    auto apiBlock { e.apply_block(bv, b.header, nextHeight, blockId) };
+    auto apiBlock { e.apply_block(b, blockId) };
     db.set_consensus_work(chainstate.work_with_new_block());
     transaction.commit();
 

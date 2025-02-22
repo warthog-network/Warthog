@@ -134,6 +134,11 @@ public:
 
     NonzeroHeight& operator=(const NonzeroHeight&) = default;
 
+    auto pin_begin() const
+    {
+        return Height(value()).pin_begin();
+    }
+
     bool is_retarget_height() const
     {
         return *this == retarget_floor();
@@ -203,11 +208,13 @@ public:
 struct HeightRange {
     NonzeroHeight hbegin;
     NonzeroHeight hend;
-    HeightRange( NonzeroHeight hbegin, NonzeroHeight hend)
-    :hbegin(hbegin), hend(hend)
+    HeightRange(NonzeroHeight hbegin, NonzeroHeight hend)
+        : hbegin(hbegin)
+        , hend(hend)
     {
-        assert(hbegin<=hend);
+        assert(hbegin <= hend);
     }
+    size_t length() const { return hend - hbegin; }
     struct Iterator {
         NonzeroHeight operator*()
         {

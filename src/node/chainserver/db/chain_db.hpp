@@ -11,6 +11,8 @@
 #include "deletion_key.hpp"
 #include "general/address_funds.hpp"
 #include "general/filelock/filelock.hpp"
+struct CreatorToken;
+struct AccountToken;
 class ChainDBTransaction;
 class Batch;
 class TokenName;
@@ -322,9 +324,9 @@ public:
     void insert_consensus(NonzeroHeight height, BlockId blockId, HistoryId historyCursor, AccountId accountCursor);
 
     // token functions
-    void insert_new_token(TokenId verifyNextTokenId, NonzeroHeight height, AccountId creatorId, TokenName name, TokenHash hash, TokenMintType type);
+    void insert_new_token(CreatorToken, NonzeroHeight height, TokenName name, TokenHash hash, TokenMintType type);
     [[nodiscard]] BalanceId insert_token_balance(TokenId, AccountId, Funds balance);
-    void set_token_balance(TokenId, AccountId, Funds balance);
+    void set_balance(AccountToken, Funds balance);
     std::optional<std::pair<BalanceId, Funds>> get_token_balance(TokenId, AccountId);
     std::vector<std::pair<TokenId, Funds>> get_tokens(AccountId, size_t limit);
     std::vector<std::pair<AccountId, Funds>> get_richlist(TokenId, size_t limit);
@@ -337,7 +339,7 @@ public:
     void set_consensus_work(const Worksum& ws);
     std::optional<SignedSnapshot> get_signed_snapshot() const;
     void set_signed_snapshot(const SignedSnapshot&);
-    [[nodiscard]] std::vector<BlockId> consensus_block_ids(Height begin, Height end) const;
+    [[nodiscard]] std::vector<BlockId> consensus_block_ids(HeightRange) const;
 
     //////////////////
     // delete schedule functiosn
@@ -354,10 +356,10 @@ public:
     [[nodiscard]] std::optional<BlockId> lookup_block_id(const HashView hash) const;
     [[nodiscard]] std::optional<NonzeroHeight> lookup_block_height(const HashView hash) const;
     [[nodiscard]] std::optional<BlockUndoData> get_block_undo(BlockId id) const;
-    [[nodiscard]] std::optional<Block> get_block(BlockId id) const;
+    [[nodiscard]] std::optional<ParsedBlock> get_block(BlockId id) const;
     [[nodiscard]] std::optional<std::pair<BlockId, Block>> get_block(HashView hash) const;
     // set
-    std::pair<BlockId, bool> insert_protect(const Block&);
+    std::pair<BlockId, bool> insert_protect(const ParsedBlock&);
     void set_block_undo(BlockId id, const std::vector<uint8_t>& undo);
 
     /////////////////////
@@ -449,7 +451,7 @@ private:
                     "NULL, `forkedTokenId` INTEGER NOT NULL, PRIMARY KEY(`id`))");
             db.exec("CREATE TABLE IF NOT EXISTS \"Tokens\" ( `height` INTEGER NOT "
                     "NULL, `creator_id` INTEGER NOT NULL, `name` TEXT NOT NULL UNIQUE, `hash` TEXT NOT NULL UNIQUE, `type` INTEGER NOT NULL)");
-            db.exec("CREATE TABLE IF NOT EXISTS \"Balance\" ((`id` INTEGER NOT NULL, `account_id` INTEGER NOT NULL, `token_id` INTEGER NOT NULL, `balance` INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(`id`))`id` INTEGER NOT NULL, `account_id` INTEGER NOT NULL, `token_id` INTEGER NOT NULL, `balance` INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(`id`))");
+            db.exec("CREATE TABLE IF NOT EXISTS \"Balance\" (`id` INTEGER NOT NULL, `account_id` INTEGER NOT NULL, `token_id` INTEGER NOT NULL, `balance` INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(`id`))");
             db.exec("CREATE UNIQUE INDEX IF NOT EXISTS `Balance_index` ON "
                     "`Balance` (`account_id` ASC, `token_id` ASC)");
             db.exec("CREATE INDEX IF NOT EXISTS `Balance_index2` ON "

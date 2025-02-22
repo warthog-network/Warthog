@@ -6,7 +6,6 @@ Header::Header(const char* v)
 {
 }
 
-
 void Header::set_timestamp(std::array<uint8_t, 4> arr)
 {
     std::copy(arr.begin(), arr.end(), begin() + HeaderView::offset_timestamp);

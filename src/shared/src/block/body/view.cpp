@@ -3,59 +3,55 @@
 #include "crypto/crypto.hpp"
 #include "crypto/hasher_sha256.hpp"
 #include "defi/token/id.hpp"
-#include "general/hex.hpp"
 #include "general/is_testnet.hpp"
 #include "general/reader.hpp"
-#include <iostream>
 #include <vector>
 using namespace std;
 
-BodyView::BodyView(std::span<const uint8_t> s, NonzeroHeight h)
-    : s(s)
+std::optional<BodyStructure> BodyStructure::parse(std::span<const uint8_t> s, NonzeroHeight h, BlockVersion version)
 {
+    BodyStructure bs;
     static_assert(SIGLEN == RecoverableSignature::length);
     Reader rd { s };
-    bool block_v3 = is_testnet() || h.value() >= TOKENSTARTHEIGHT;
+    auto current_offset = [data = s.data(), &rd]() -> size_t {
+        return rd.cursor() - data;
+    };
+    bool block_v4 { version >= 4 };
     bool block_v2 = is_testnet() || h.value() >= NEWBLOCKSTRUCUTREHEIGHT;
 
     if (s.size() > MAXBLOCKSIZE)
-        return;
+        return {};
     const bool defiEnabled { true };
     if (block_v2) {
         // Read new address section
         rd.skip(10); // for mining
-        nAddresses = rd.uint16();
-        offsetAddresses = rd.cursor() - s.data();
-        if (rd.remaining() < nAddresses * AddressSize)
-            return;
-        rd.skip(nAddresses * AddressSize);
+        bs.nAddresses = rd.uint16();
+        bs.offsetAddresses = current_offset();
+        if (rd.remaining() < bs.nAddresses * AddressSize)
+            return {};
+        rd.skip(bs.nAddresses * AddressSize);
 
         // Read reward section
         if (rd.remaining() < RewardSize)
-            return;
-        offsetReward = rd.cursor() - s.data();
+            return {};
+        bs.offsetReward = current_offset();
         rd.skip(16);
 
         // Read payment section
         if (rd.remaining() != 0) {
-            nTransfers = rd.uint32();
+            bs.nTransfers = rd.uint32();
             // Make sure that it has correct length
-            if (rd.remaining() < (TransferSize)*nTransfers)
-                return;
+            if (rd.remaining() < (TransferSize)*bs.nTransfers)
+                return {};
         }
-        offsetTransfers = rd.cursor() - s.data();
-        rd.skip(nTransfers * TransferSize);
+        bs.offsetTransfers = current_offset();
+        rd.skip(bs.nTransfers * TransferSize);
 
-        if (block_v3) {
+        if (block_v4) {
             // read token sections
-            nTokens = rd.uint16();
-            for (size_t i = 0; i < nTokens; ++i) {
-                // TokenSection{
-                //     .nTransfers {rd.uint16()},
-                //     .transfersBegin {rd.cursor()};
-                //
-                // }
-                auto begin { rd.cursor() };
+            bs.nTokens = rd.uint16();
+            for (size_t i = 0; i < bs.nTokens; ++i) {
+                auto beginOffset { current_offset() };
                 TokenId tokenId { rd.uint32() };
 
                 // 5 bytes for 4 10-bit length specifications
@@ -67,95 +63,110 @@ BodyView::BodyView(std::span<const uint8_t> s, NonzeroHeight h)
                 nTransfers += ((extend >> 6) & 0x03) << 8;
                 nOrders += ((extend >> 4) & 0x03) << 8;
                 nLiquidityAdd += ((extend >> 2) & 0x03) << 8;
-                nLiquidityRemove += ((extend)&0x03) << 8;
+                nLiquidityRemove += ((extend) & 0x03) << 8;
 
-                auto transfersBegin { rd.cursor() };
+                auto transfersOffset { current_offset() };
                 rd.skip(TransferSize * nTransfers);
-                auto ordersBegin { rd.cursor() };
+                auto ordersOffset { current_offset() };
                 rd.skip(OrderSize * nOrders);
-                auto liquidityAddBegin { rd.cursor() };
+                auto liquidityAddOffset { current_offset() };
                 rd.skip(LiquidityAddSize * nLiquidityAdd);
-                auto liquidityRemoveBegin { rd.cursor() };
+                auto liquidityRemoveOffset { current_offset() };
                 rd.skip(LiquidityRemoveSize * nLiquidityRemove);
 
-                tokensSections.push_back(
+                bs.tokensSections.push_back(
                     TokenSection {
-                        .begin = begin,
+                        .beginOffset = beginOffset,
                         .tokenId = tokenId,
                         .nTransfers = nTransfers,
-                        .transfersBegin = transfersBegin,
+                        .transfersOffset = transfersOffset,
                         .nOrders = nOrders,
-                        .ordersBegin = ordersBegin,
+                        .ordersOffset = ordersOffset,
                         .nLiquidityAdd = nLiquidityAdd,
-                        .liquidityAddBegin = liquidityAddBegin,
+                        .liquidityAddBegin = liquidityAddOffset,
                         .nLiquidityRemove = nLiquidityRemove,
-                        .liquidityRemoveBegin = liquidityRemoveBegin });
+                        .liquidityRemoveOffset = liquidityRemoveOffset });
             }
 
             // read new token section
             if (defiEnabled && rd.remaining() != 0) {
-                nNewTokens = rd.uint8();
+                bs.nNewTokens = rd.uint8();
             }
-            offsetNewTokens = rd.cursor() - s.data();
+            bs.offsetNewTokens = current_offset();
         }
     } else {
         // Read new address section
         if (rd.remaining() < 8)
-            return;
+            return {};
         rd.skip(4); // for mining
-        nAddresses = rd.uint32();
-        offsetAddresses = rd.cursor() - s.data();
-        if (rd.remaining() < nAddresses * AddressSize + 4)
-            return;
-        rd.skip(nAddresses * AddressSize);
+        bs.nAddresses = rd.uint32();
+        bs.offsetAddresses = current_offset();
+        if (rd.remaining() < bs.nAddresses * AddressSize + 4)
+            return {};
+        rd.skip(bs.nAddresses * AddressSize);
 
         // Read reward section
         rd.skip(2);
         if (rd.remaining() < RewardSize + 4)
-            return;
-        offsetReward = rd.cursor() - s.data();
+            return {};
+        bs.offsetReward = current_offset();
         rd.skip(16);
 
         // Read payment section
-        nTransfers = rd.uint32();
+        bs.nTransfers = rd.uint32();
         // Make sure that it has correct length
-        if (rd.remaining() != (TransferSize)*nTransfers)
-            return;
-        offsetTransfers = rd.cursor() - s.data();
+        if (rd.remaining() != (TransferSize)*bs.nTransfers)
+            return {};
+        bs.offsetTransfers = current_offset();
     }
-    isValid = true;
+    return bs;
 };
+
+BodyStructure BodyStructure::parse_throw(std::span<const uint8_t> s, NonzeroHeight h, BlockVersion version)
+{
+    if (auto p { parse(s, h, version) })
+        return *p;
+    throw Error(EINV_BODY);
+}
 
 std::vector<Hash> BodyView::merkle_leaves() const
 {
-    std::vector<Hash> hashes(nAddresses + 1 + nTransfers + nTokens);
+    auto& bs { bodyStructure };
+    std::vector<Hash> hashes;
+    hashes.reserve(bs.nAddresses + 1 + bs.nTransfers + bs.nTokens);
+    auto add_hash { [&](const uint8_t* data, size_t len) {
+        hashes.push_back(hashSHA256(data, len));
+    } };
 
     // hash addresses
-    size_t idx = 0;
-    for (size_t i = 0; i < nAddresses; ++i)
-        hashes[idx++] = hashSHA256(s.data() + offsetAddresses + i * AddressSize, AddressSize);
+    for (size_t i = 0; i < bs.nAddresses; ++i)
+        add_hash(data() + bs.offsetAddresses + i * bs.AddressSize, bs.AddressSize);
 
     // hash rewards
     for (size_t i = 0; i < 1; ++i)
-        hashes[idx++] = hashSHA256(data() + offsetReward + i * RewardSize, RewardSize);
+        add_hash(data() + bs.offsetReward + i * bs.RewardSize, bs.RewardSize);
+
     // hash payments
-    for (size_t i = 0; i < nTransfers; ++i)
-        hashes[idx++] = hashSHA256(data() + offsetTransfers + i * TransferSize, TransferSize);
-    foreach_token([&](const TokenSection& ts) {
-        hashes[idx++] = hashSHA256(ts.begin, 4); // TokenId
+    for (size_t i = 0; i < bs.nTransfers; ++i)
+        add_hash(data() + bs.offsetTransfers + i * bs.TransferSize, bs.TransferSize);
+
+    // hash tokens
+    foreach_token([&](const TokenSectionView& ts) {
+        add_hash(ts.dataBody + ts.ts.beginOffset, 4); // TokenId
         ts.foreach_transfer([&](const TokenTransferView& ttv) {
-            hashes[idx++] = hashSHA256(ttv.data(), ttv.size()); // transfer
+            add_hash(ttv.data(), ttv.size()); // transfer
         });
         ts.foreach_order([&](const OrderView& ov) {
-            hashes[idx++] = hashSHA256(ov.data(), ov.size()); // order
+            add_hash(ov.data(), ov.size()); // order
         });
         ts.foreach_liquidity_add([&](const LiquidityAddView& lav) {
-            hashes[idx++] = hashSHA256(lav.data(), lav.size()); // liquidity add
+            add_hash(lav.data(), lav.size()); // liquidity add
         });
         ts.foreach_liquidity_remove([&](const LiquidityRemoveView& lrv) {
-            hashes[idx++] = hashSHA256(lrv.data(), lrv.size()); // liquidity remove
+            add_hash(lrv.data(), lrv.size()); // liquidity remove
         });
     });
+
     return hashes;
 };
 
@@ -167,10 +178,12 @@ std::vector<uint8_t> BodyView::merkle_prefix() const
     to = &tmp;
 
     do {
-        to->resize((from->size() + 1) / 2);
+        const size_t I { (from->size() + 1) / 2 };
+        to->clear();
+        to->reserve(I);
         size_t j = 0;
-        for (size_t i = 0; i < (from->size() + 1) / 2; ++i) {
-            if (to->size() == 1) {
+        for (size_t i = 0; i < I; ++i) {
+            if (I == 1) {
                 std::vector<uint8_t> res;
                 std::copy((*from)[j].begin(), (*from)[j].end(), std::back_inserter(res));
                 if (j + 1 < from->size()) {
@@ -184,7 +197,7 @@ std::vector<uint8_t> BodyView::merkle_prefix() const
                 hasher.write((*from)[j + 1].data(), 32);
             }
 
-            (*to)[i] = std::move(hasher);
+            to->push_back(std::move(hasher));
             j += 2;
         }
         std::swap(from, to);
@@ -194,7 +207,6 @@ std::vector<uint8_t> BodyView::merkle_prefix() const
 
 Hash BodyView::merkle_root(Height h) const
 {
-    assert(isValid);
     std::vector<Hash> hashes(merkle_leaves());
     std::vector<Hash> tmp, *from, *to;
     from = &hashes;
@@ -204,18 +216,20 @@ Hash BodyView::merkle_root(Height h) const
     bool block_v2 = is_testnet() || h.value() >= NEWBLOCKSTRUCUTREHEIGHT;
     if (new_root_type) {
         do {
-            to->resize((from->size() + 1) / 2);
+            const size_t I { (from->size() + 1) / 2 };
+            to->clear();
+            to->reserve(I);
             size_t j = 0;
-            for (size_t i = 0; i < (from->size() + 1) / 2; ++i) {
+            for (size_t i = 0; i < I; ++i) {
                 HasherSHA256 hasher {};
                 hasher.write((*from)[j].data(), 32);
                 if (j + 1 < from->size()) {
                     hasher.write((*from)[j + 1].data(), 32);
                 }
 
-                if (to->size() == 1)
+                if (I == 1)
                     hasher.write(data(), block_v2 ? 10 : 4);
-                (*to)[i] = std::move(hasher);
+                to->push_back(std::move(hasher));
                 j += 2;
             }
             std::swap(from, to);
@@ -225,7 +239,9 @@ Hash BodyView::merkle_root(Height h) const
         bool includedSeed = false;
         bool finish = false;
         do {
-            to->resize((from->size() + 1) / 2);
+            const size_t I { (from->size() + 1) / 2 };
+            to->clear();
+            to->reserve(I);
             if (from->size() <= 2 && !includedSeed) {
 
                 HasherSHA256 hasher {};
@@ -235,7 +251,7 @@ Hash BodyView::merkle_root(Height h) const
                 }
                 hasher.write(data(), 4);
                 includedSeed = true;
-                (*to)[0] = std::move(hasher);
+                to->push_back(std::move(hasher));
             } else {
                 if (from->size() == 1)
                     finish = true;
@@ -246,7 +262,7 @@ Hash BodyView::merkle_root(Height h) const
                     if (j + 1 < from->size()) {
                         hasher.write((*from)[j + 1].data(), 32);
                     }
-                    (*to)[i] = std::move(hasher);
+                    to->push_back(std::move(hasher));
                     j += 2;
                 }
             }

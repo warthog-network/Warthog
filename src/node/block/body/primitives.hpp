@@ -11,6 +11,7 @@ class HashView;
 struct WartTransferView;
 
 class PaymentCreateMessage;
+class TokenPaymentCreateMessage;
 
 namespace mempool {
 struct EntryValue;
@@ -49,9 +50,9 @@ public:
     static constexpr size_t bytesize = 16 + 3 + 2 + 32 + 20 + 8 + 65;
     static constexpr size_t byte_size() { return bytesize; }
     TransferDefiMessage(ReaderCheck<bytesize> r);
-    TransferDefiMessage(AccountId fromId, const PaymentCreateMessage& pcm);
+    TransferDefiMessage(AccountId fromId, const TokenPaymentCreateMessage& pcm);
     TransferDefiMessage(const TransactionId& txid, const mempool::EntryValue&);
-    TransferDefiMessage(WartTransferView, PinHeight, AddressView toAddr);
+    TransferDefiMessage(WartTransferView, Hash tokenHash, PinHeight, AddressView toAddr);
 
     friend Writer& operator<<(Writer&, TransferDefiMessage);
     [[nodiscard]] TxHash txhash(HashView pinHash) const;
@@ -65,7 +66,7 @@ public:
     TransactionId txid;
     NonceReserved reserved;
     CompactUInt compactFee;
-    Hash tokenHash;
+    TokenHash tokenHash;
     Address toAddr;
     Funds amount;
     RecoverableSignature signature;

@@ -6,6 +6,7 @@
 #include "eventloop/eventloop.hpp"
 #include "general/hex.hpp"
 #include "global/globals.hpp"
+#include "spdlog/spdlog.h"
 
 bool ChainServer::is_busy()
 {
@@ -41,7 +42,7 @@ ChainServer::~ChainServer()
     wait_for_shutdown();
 }
 
-void ChainServer::api_mining_append(Block&& block, ResultCb callback)
+void ChainServer::api_mining_append(ParsedBlock&& block, ResultCb callback)
 {
     defer_maybe_busy(MiningAppend { std::move(block), std::move(callback) });
 }

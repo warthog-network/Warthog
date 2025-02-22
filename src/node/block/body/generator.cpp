@@ -1,4 +1,5 @@
 #include "generator.hpp"
+#include "block/body/view.hpp"
 #include "chainserver/db/chain_db.hpp"
 #include "general/is_testnet.hpp"
 #include "general/writer.hpp"
@@ -116,14 +117,14 @@ public:
         : nas(db)
     {
     }
-    BodyContainer gen_block(NonzeroHeight height, const Address& miner,
+    std::pair<BodyContainer,BlockVersion> gen_block(NonzeroHeight height, const Address& miner,
         const std::vector<TransferTxExchangeMessage>& payments);
 
 private:
     NewAddressSection_v2 nas;
 };
 
-BodyContainer BlockGenerator::gen_block(NonzeroHeight height,
+std::pair<BodyContainer, BlockVersion> BlockGenerator::gen_block(NonzeroHeight height,
     const Address& miner,
     const std::vector<TransferTxExchangeMessage>& transfers)
 {
@@ -181,7 +182,7 @@ BodyContainer BlockGenerator::gen_block(NonzeroHeight height,
     p = nas.write(p);
     p = pos.write(p);
     trs.write(p);
-    return out;
+    return {out, BlockVersion(3)};
 }
 
 uint8_t* BlockGenerator::NewAddressSection_v2::write(uint8_t* out)
@@ -215,14 +216,13 @@ void BlockGenerator::TransferSection::add_payment(
 }
 }
 
-BodyContainer generate_body(const ChainDB& db, NonzeroHeight height, const Address& miner, const std::vector<TransferTxExchangeMessage>& payments)
+std::pair<BodyContainer,BlockVersion> generate_body(const ChainDB& db, NonzeroHeight height, const Address& miner, const std::vector<TransferTxExchangeMessage>& payments)
 {
     BlockGenerator bg(db);
-    auto body{bg.gen_block(height, miner, payments)};
-    BodyView bv{body.view(height)};
+    auto [body,version]{bg.gen_block(height, miner, payments)};
     // should be valid
-    if (bv.valid()) 
-        return body;
+    if (body.parse_structure(height,version)) 
+        return {body,version};
     
     // disable transactions as fallback
     return BlockGenerator(db).gen_block(height, miner, {});

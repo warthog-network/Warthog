@@ -3,5 +3,5 @@
 #include "block/block.hpp"
 
 struct ChainMiningTask {
-    Block block;
+    ParsedBlock block;
 };

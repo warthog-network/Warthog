@@ -3,6 +3,7 @@
 #include "block/chain/height.hpp"
 #include <optional>
 #include <variant>
+class BlockVersion;
 class POWVersion {
     struct NonV2_2 {
         static constexpr bool verusv2_2 = false;
@@ -22,7 +23,7 @@ public:
     struct Janus7 : public NonV2_2 { };
     struct Janus8 : public V2_2 { };
     [[nodiscard]] static std::optional<POWVersion> from_params(
-        NonzeroHeight height, uint32_t version, bool testnet);
+        NonzeroHeight height, BlockVersion version, bool testnet);
     auto visit(const auto& lambda) const
     {
         return std::visit(lambda, data);

@@ -12,10 +12,10 @@ struct ByPinHeight {
     }
 };
 struct TransactionIds : public std::set<TransactionId, ByPinHeight> {
-    static std::pair<Height, Height> block_range(Height length)
+    static HeightRange block_range(Height length)
     {
-        Height end { length + 1 }; // height of next block
-        Height begin = end.pin_begin() + 1; // +1 because at pin_begin we cannot have
+        auto end { length.add1() }; // height of next block
+        auto begin = end.pin_begin().add1(); // +1 because at pin_begin we cannot have
                                               // the same pinHeight
         return { begin, end };
     }

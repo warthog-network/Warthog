@@ -67,7 +67,7 @@ namespace messages {
         std::string jobId;
         Hash prevHash;
         std::vector<uint8_t> merklePrefix;
-        uint32_t version;
+        BlockVersion version;
         uint32_t nbits;
         uint32_t ntime;
         bool clean { false };
@@ -87,7 +87,7 @@ namespace messages {
                 jobId,
                 serialize_hex(prevHash),
                 serialize_hex(merklePrefix),
-                serialize_hex(version),
+                serialize_hex(version.value()),
                 serialize_hex(nbits),
                 serialize_hex(ntime),
                 clean);
@@ -315,7 +315,7 @@ void Connection::process_line()
 }
 
 StratumServer::AddressData::AddressData(std::function<Subscription()> generator)
-    : subscription(generator()) {};
+    : subscription(generator()) { };
 
 void StratumServer::handle_event(SubscriptionFeed&& fe)
 {
@@ -415,7 +415,8 @@ StratumServer::StratumServer(TCPPeeraddr endpointAddress)
     });
     acceptor(endpointAddress);
 }
-void StratumServer::start(){
+void StratumServer::start()
+{
     assert(!worker.joinable());
     worker = std::thread([&]() { loop->run(); });
 }
@@ -423,7 +424,7 @@ void StratumServer::start(){
 StratumServer::~StratumServer()
 {
     shutdown();
-    if (worker.joinable()) 
+    if (worker.joinable())
         worker.join();
 }
 
@@ -498,8 +499,7 @@ void StratumServer::unlink_authorized(const Address& a, stratum::Connection* c)
     assert(iter != addressData.end());
     auto& addrConnections { iter->second.connections };
     assert(std::erase(addrConnections, c) == 1);
-    if (addrConnections.size() == 0) {
+    if (addrConnections.size() == 0)
         addressData.erase(iter);
-    }
 }
 #endif /* ifndef  */

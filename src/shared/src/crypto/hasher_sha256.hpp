@@ -1,7 +1,7 @@
 #pragma once
 
-#include "general/with_uint64.hpp"
 #include "general/byte_order.hpp"
+#include "general/with_uint64.hpp"
 #include "hash.hpp"
 #include "sha2.hpp"
 #include <array>
@@ -57,7 +57,7 @@ public:
     }
     operator Hash() &&
     {
-        Hash tmp;
+        Hash tmp { Hash::uninitialized() };
         finalize(tmp.data());
         return tmp;
     }
@@ -77,7 +77,7 @@ private:
 
 inline Hash hashSHA256(const uint8_t* data, size_t len)
 {
-    Hash res;
+    Hash res { Hash::uninitialized() };
     sha256_Raw(data, len, res.data());
     return res;
 }

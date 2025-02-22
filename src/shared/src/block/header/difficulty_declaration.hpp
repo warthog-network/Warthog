@@ -2,7 +2,6 @@
 #include "block/chain/height.hpp"
 #include "general/byte_order.hpp"
 #include "general/params.hpp"
-#include <cstddef>
 #include <cstdint>
 #include <variant>
 

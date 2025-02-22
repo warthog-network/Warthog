@@ -1,6 +1,5 @@
 #include "parse.hpp"
 #include "general/hex.hpp"
-#include "general/reader.hpp"
 #include "nlohmann/json.hpp"
 
 using namespace nlohmann;
@@ -9,14 +8,11 @@ ChainMiningTask parse_mining_task(const std::vector<uint8_t>& s)
     try {
         json parsed = json::parse(s);
         ChainMiningTask mt {
-            .block {
-                .height { Height(parsed["height"].get<uint32_t>()).nonzero_throw(EBADHEIGHT) },
-                .header { hex_to_arr<80>(parsed["header"].get<std::string>()) },
-                .body { hex_to_vec(parsed["body"].get<std::string>()) },
-            }
+            .block { ParsedBlock::create_throw(
+                Height(parsed["height"].get<uint32_t>()).nonzero_throw(EBADHEIGHT),
+                hex_to_arr<80>(parsed["header"].get<std::string>()),
+                hex_to_vec(parsed["body"].get<std::string>())) }
         };
-        if (mt.block.body.size() > MAXBLOCKSIZE)
-            throw Error(EBLOCKSIZE);
         return mt;
     } catch (const json::exception& e) {
         throw Error(EINV_ARGS);

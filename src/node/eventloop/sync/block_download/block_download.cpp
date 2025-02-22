@@ -334,10 +334,11 @@ void Downloader::on_blockreq_reply(Conref cr, BlockrepMsg&& rep, Blockrequest& r
     size_t i0 = (req.range().lower < focus.height_begin() ? focus.height_begin() - req.range().lower : 0);
     for (size_t i = i0; i < rep.blocks().size(); ++i) {
         auto height { req.range().lower + i };
-        BodyView bv(rep.blocks()[i].view(height));
-        if (!bv.valid())
-            throw Error(EINV_BODY);
-        if (bv.merkle_root(height) != headers()[height].merkleroot())
+        auto header { headers()[height] };
+        const auto& body { rep.blocks()[i] };
+        auto structure { body.parse_structure_throw(height, header.version()) };
+        auto mrootBody{BodyView (body,structure).merkle_root(height)};
+        if (mrootBody != headers()[height].merkleroot())
             throw Error(EMROOT);
     }
 
@@ -368,7 +369,7 @@ bool Downloader::erase(Conref cr)
 { // OK
     forks.erase(cr);
     focus.erase(cr);
-    if (!initialized) 
+    if (!initialized)
         return false;
     return update_reachable();
 }
