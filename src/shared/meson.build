@@ -2,7 +2,9 @@
 include_wh=[include_trezorcrypto,include_directories('./src')]
 
 src_defi = files([
-'./src/defi/matching.cpp'
+    './src/defi/defi.cpp',
+    './src/defi/uint64/matcher.cpp',
+    './src/defi/uint64/orderbook.cpp',
 ])
 
 src_wh=[
@@ -28,7 +30,6 @@ src_wh=[
     './src/crypto/hash.cpp',
     './src/crypto/verushash/verus_clhash_port.cpp',
     './src/crypto/verushash/verushash.cpp',
-    './src/defi/token/token.cpp',
     './src/general/compact_uint.cpp',
     './src/general/errors.cpp',
     './src/general/funds.cpp',

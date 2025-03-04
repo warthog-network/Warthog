@@ -1,7 +1,6 @@
 #pragma once
 #include <bit>
 #include <cassert>
-#include <compare>
 #include <cstdint>
 #include <optional>
 class Prod192;
@@ -181,6 +180,10 @@ protected:
   uint64_t lower;
 };
 
+struct Ratio128 {
+    Prod128 numerator, denominator;
+};
+
 class Prod192 : protected Prod128 {
 public:
   auto operator<=>(const Prod192 &) const = default;
@@ -191,6 +194,7 @@ public:
       upper = shiftl(upper, lower, s);
       lower = shiftl(lower, lowest, s);
       lowest = lowest << s;
+      break;
     case 1:
       upper = shiftl(lower, lowest, s);
       lower = lowest << s;
