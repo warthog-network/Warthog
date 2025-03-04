@@ -7,7 +7,7 @@ class Writer;
 struct IsUint32 {
 public:
     IsUint32(Reader& r);
-    static constexpr size_t byte_size(){return sizeof(val);}
+    static constexpr size_t byte_size() { return sizeof(val); }
     // explicit IsUint32(int64_t w);
     // explicit IsUint32(int w)
     //     : IsUint32((int64_t)(w)) {};
@@ -15,7 +15,7 @@ public:
     //     : IsUint32((int64_t)(w)) {};
     // explicit IsUint32(size_t w);
     constexpr explicit IsUint32(uint32_t val)
-        : val(val) {};
+        : val(val) { };
 
     bool operator==(const IsUint32&) const = default;
     auto operator<=>(const IsUint32&) const = default;
@@ -34,14 +34,15 @@ struct IsUint64 {
 public:
     explicit IsUint64(int64_t w);
     IsUint64(Reader& r);
+    static constexpr size_t byte_size() { return sizeof(val); }
     explicit IsUint64(int w)
-        : IsUint64((int64_t)(w)) {};
+        : IsUint64((int64_t)(w)) { };
     // explicit IsUint64(long long w)
     //     : IsUint64((int64_t)(w)) {};
     explicit constexpr IsUint64(uint64_t val)
-        : val(val) {};
+        : val(val) { };
     // explicit IsUint64(unsigned long long val)
-        // : val(val) {};
+    // : val(val) {};
 
     bool operator==(const IsUint64&) const = default;
     auto operator<=>(const IsUint64&) const = default;

@@ -133,12 +133,12 @@ std::optional<api::Transaction> State::api_get_tx(const HashView txHash) const
             auto& d = std::get<history::TransferData>(parsed);
             return api::TransferTransaction {
                 .txhash = txHash,
-                .toAddress = db.fetch_account(d.toAccountId).address,
+                .toAddress = db.fetch_address(d.toAccountId).address,
                 .confirmations = (chainlength() - h) + 1,
                 .height = h,
                 .timestamp = chainstate.headers()[h].timestamp(),
                 .amount = d.amount,
-                .fromAddress = db.fetch_account(d.fromAccountId).address,
+                .fromAddress = db.fetch_address(d.fromAccountId).address,
                 .fee = d.compactFee.uncompact(),
                 .nonceId = d.pinNonce.id,
                 .pinHeight = d.pinNonce.pin_height((PinFloor(PrevHeight(h))))
@@ -148,7 +148,7 @@ std::optional<api::Transaction> State::api_get_tx(const HashView txHash) const
             auto& d = std::get<history::RewardData>(parsed);
             return api::RewardTransaction {
                 .txhash = txHash,
-                .toAddress = db.fetch_account(d.toAccountId).address,
+                .toAddress = db.fetch_address(d.toAccountId).address,
                 .confirmations = (chainlength() - h) + 1,
                 .height = h,
                 .timestamp = chainstate.headers()[h].timestamp(),
@@ -188,7 +188,7 @@ auto State::api_get_miner(NonzeroHeight h) const -> std::optional<api::AddressWi
     assert(std::holds_alternative<history::RewardData>(parsed));
     auto minerId { std::get<history::RewardData>(parsed).toAccountId };
     return api::AddressWithId {
-        db.fetch_account(minerId).address,
+        db.fetch_address(minerId).address,
         minerId
     };
 }
@@ -373,19 +373,12 @@ auto State::add_stage(const std::vector<ParsedBlock>& blocks, const Headerchain&
     assert(hc.length() >= stage.length());
     assert(hc.hash_at(stage.length()) == stage.hash_at(stage.length()));
     for (auto& b : blocks) {
-        assert(hc.length() >= b.height);
-        assert(hc[b.height] == b.header);
-
+        assert(hc.get_header(b.height) == b.header);
         assert(b.height == stage.length() + 1);
 
         auto prepared { stage.prepare_append(signedSnapshot, b.header) };
         if (!prepared.has_value()) {
             err = { prepared.error(), b.height };
-            break;
-        }
-        BodyView bv(b.body_view());
-        if (b.header.merkleroot() != bv.merkle_root(b.height)) {
-            err = { EMROOT, b.height };
             break;
         }
         db.insert_protect(b);
@@ -454,10 +447,10 @@ namespace {
             // roll back state modifications
             RollbackView rbv(d.rawUndo, true);
             rbv.foreach_balance_update(
-                [&](const IdBalance& entry) {
+                [&](const AccountTokenBalance& entry) {
                     const Funds& bal { entry.balance };
                     const BalanceId& id { entry.id };
-                    auto b { db.lookup_balance(id) };
+                    auto b { db.get_token_balance(id) };
                     if (!b.has_value())
                         throw std::runtime_error("Database corrupted, cannot roll back");
                     AccountToken at { b->accountId, b->tokenId };
@@ -661,7 +654,7 @@ api::Balance State::api_get_address(AddressView address) const
 
 api::Balance State::api_get_address(AccountId accountId) const
 {
-    if (auto p = db.lookup_account(accountId); p) {
+    if (auto p = db.lookup_address(accountId); p) {
         return api::Balance {
             api::AddressWithId {
                 p->address,

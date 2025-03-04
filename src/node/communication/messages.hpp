@@ -159,7 +159,7 @@ struct BlockrepMsg : public MsgCombineReply<11, messages::VectorRest<BodyContain
 
     bool empty() const { return blocks().empty(); }
     [[nodiscard]] const messages::VectorRest<BodyContainer>& blocks() const { return get<0>(); }
-    messages::VectorRest<BodyContainer>& blocks() { return get<0>(); }
+    messages::VectorRest<BodyContainer>& block_bodies() { return get<0>(); }
 };
 
 struct TxsubscribeMsg : public MsgCombineRequest<12, Height> {

@@ -230,7 +230,7 @@ TxHash Chainstate::insert_tx(const TransferTxExchangeMessage& pm)
     if (pm.from_address(txHash) == pm.toAddr)
         throw Error(ESELFSEND);
 
-    auto p = db.lookup_account(pm.from_id());
+    auto p = db.lookup_address(pm.from_id());
     if (!p)
         throw Error(ENOTFOUND);
     TransactionHeight th(pm.pin_height(), account_height(pm.from_id()));

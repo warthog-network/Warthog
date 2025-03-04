@@ -312,12 +312,11 @@ void Downloader::on_blockreq_reply(Conref cr, BlockrepMsg&& rep, Blockrequest& r
     }
 
     // check for failed requests
-    if (rep.blocks().size() == 0) {
+    if (rep.block_bodies().size() == 0)
         throw Error(EEMPTY);
-    }
 
     // check for correct length
-    if (rep.blocks().size() != req.range().length())
+    if (rep.block_bodies().size() != req.range().length())
         throw Error(EINV_BLOCKREPSIZE);
 
     // discard old replies
@@ -325,25 +324,21 @@ void Downloader::on_blockreq_reply(Conref cr, BlockrepMsg&& rep, Blockrequest& r
         return;
 
     // check hash
-    if (headers().length() < req.range().upper)
-        return;
-    if (headers().hash_at(req.range().upper) != req.upperHash)
+    if (headers().get_hash(req.range().upper) != req.upperHash)
         return;
 
-    // check merkle roots
-    size_t i0 = (req.range().lower < focus.height_begin() ? focus.height_begin() - req.range().lower : 0);
-    for (size_t i = i0; i < rep.blocks().size(); ++i) {
+    // check body structure and merkle roots
+    auto beginNewHeight { std::max(req.range().lower, focus.height_begin()) };
+    size_t i0 { beginNewHeight - req.range().lower };
+    std::vector<ParsedBlock> parsedBlocks;
+    for (size_t i = i0; i < rep.block_bodies().size(); ++i) {
         auto height { req.range().lower + i };
         auto header { headers()[height] };
-        const auto& body { rep.blocks()[i] };
-        auto structure { body.parse_structure_throw(height, header.version()) };
-        auto mrootBody{BodyView (body,structure).merkle_root(height)};
-        if (mrootBody != headers()[height].merkleroot())
-            throw Error(EMROOT);
+        auto& body { rep.block_bodies()[i] };
+        parsedBlocks.push_back(ParsedBlock::create_throw(height, header, std::move(body)));
     }
 
-    const BlockSlot slot(req.range().lower);
-    focus.set_blocks(slot, req.range().lower, std::move(rep.blocks()));
+    focus.set_slot_blocks(std::move(parsedBlocks));
     return;
 }
 

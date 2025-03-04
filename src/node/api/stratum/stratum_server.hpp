@@ -43,7 +43,7 @@ public:
     void on_message(std::string_view msg);
     ~Connection();
 
-    void on_append_result(int64_t stratumId, tl::expected<void, Error>);
+    void send_result(int64_t stratumId, tl::expected<void, Error>);
 private:
     void handle_message(messages::MiningSubscribe&& s);
     void handle_message(messages::MiningSubmit&& m);
@@ -82,7 +82,7 @@ class StratumServer {
             clean = true;
         }
         Block* find_block(const std::string& jobId);
-        Block* add_block(const std::string& jobId, Block&& b);
+        Block* add_block(const std::string& jobId, ParsedBlock&& b);
         private:
         std::map<std::string, Block> blocks;
     };

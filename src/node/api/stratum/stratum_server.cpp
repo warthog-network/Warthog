@@ -1,3 +1,4 @@
+#include "spdlog/spdlog.h"
 #ifndef DISABLE_LIBUV
 #include "stratum_server.hpp"
 
@@ -9,7 +10,6 @@
 #include <list>
 #include <memory>
 #include <optional>
-#include <span>
 #include <uvw.hpp>
 #include <variant>
 
@@ -43,7 +43,8 @@ namespace messages {
         {
             std::copy(extra2prefix.begin(), extra2prefix.end(), b.body.data().begin());
             std::copy(extranonce2.begin(), extranonce2.end(), b.body.data().begin() + 4);
-            b.header.set_merkleroot(b.body_view().merkle_root(b.height));
+            auto structure { b.body.parse_structure_throw(b.height, b.header.version()) };
+            b.header.set_merkleroot(BodyView(b.body, structure).merkle_root(b.height));
             b.header.set_nonce(nonce);
             b.header.set_timestamp(ntime);
         }
@@ -71,10 +72,15 @@ namespace messages {
         uint32_t nbits;
         uint32_t ntime;
         bool clean { false };
+        static auto merkle_prefix(const Block& b)
+        {
+            auto structure { b.body.parse_structure_throw(b.height, b.header.version()) };
+            return BodyView(b.body, structure).merkle_prefix();
+        }
         MiningNotify(std::string jobId, const Block& b, bool clean)
             : jobId(std::move(jobId))
             , prevHash { b.header.prevhash() }
-            , merklePrefix(b.body_view().merkle_prefix())
+            , merklePrefix(merkle_prefix(b))
             , version(b.header.version())
             , nbits(hton32(b.header.target_v2().binary()))
             , ntime(b.header.timestamp())
@@ -220,7 +226,7 @@ void Connection::on_message(std::string_view msg)
     stratumLine += msg.substr(lower, msg.size() - lower);
 };
 
-void Connection::on_append_result(int64_t stratumId, tl::expected<void, Error> result)
+void Connection::send_result(int64_t stratumId, tl::expected<void, Error> result)
 {
     if (result.has_value()) {
         write() << messages::OK(stratumId);
@@ -248,10 +254,14 @@ void Connection::handle_message(messages::MiningSubmit&& m)
         return;
     }
     m.apply_to(extra2prefix, *b);
-    put_chain_append({ *b },
-        [&, p = shared_from_this(), id = m.id](const tl::expected<void, Error>& res) {
-            server.on_append_result({ .p = p, .stratumId = id, .result { res } });
-        });
+    try {
+        put_chain_append({ std::move(*b).parse_throw() },
+            [&, p = shared_from_this(), id = m.id](const tl::expected<void, Error>& res) {
+                server.on_append_result({ .p = p, .stratumId = id, .result { res } });
+            });
+    } catch (const Error& e) {
+        send_result(m.id, tl::make_unexpected(e));
+    }
 }
 
 void Connection::send_work(std::string jobId, const Block& block, bool clean)
@@ -345,7 +355,7 @@ void StratumServer::handle_event(ShutdownEvent&&)
 void StratumServer::handle_event(AppendResult&& ar)
 {
     auto p { ar.p.lock() };
-    p->on_append_result(ar.stratumId, ar.result);
+    p->send_result(ar.stratumId, ar.result);
 }
 
 void StratumServer::handle_events()
@@ -442,7 +452,7 @@ Block* StratumServer::AddressData::find_block(const std::string& jobId)
         return nullptr;
     return &iter->second;
 }
-Block* StratumServer::AddressData::add_block(const std::string& jobId, Block&& b)
+Block* StratumServer::AddressData::add_block(const std::string& jobId, ParsedBlock&& b)
 {
     // delete old blocks when new block is available
     if (!blocks.empty() && blocks.begin()->second.header.prevhash() != b.header.prevhash()) {

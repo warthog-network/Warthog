@@ -11,7 +11,7 @@ struct StageSetOperation {
 
 struct StageAddOperation {
     Headerchain headers;// LATER: remove if no more bugs
-    std::vector<Block> blocks;
+    std::vector<ParsedBlock> blocks;
 };
 
 using Operation = std::variant<StageSetOperation, StageAddOperation>;

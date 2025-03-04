@@ -3,6 +3,7 @@
 #include "api/events/subscription.hpp"
 #include "api/types/all.hpp"
 #include "block/header/header_impl.hpp"
+#include "chainserver/db/chain_db.hpp"
 #include "eventloop/eventloop.hpp"
 #include "general/hex.hpp"
 #include "global/globals.hpp"
@@ -445,3 +446,4 @@ void ChainServer::handle_event(DestroySubscriptions&& s)
     addressSubscriptions.erase_all(s.p);
     chainSubscriptions.erase_all(s.p);
 }
+

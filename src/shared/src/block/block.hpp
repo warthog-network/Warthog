@@ -3,13 +3,12 @@
 #include "block/body/view.hpp"
 #include "block/chain/height.hpp"
 #include "block/header/header.hpp"
-#include <optional>
 
 struct TransactionId;
 
 class ParsedBody : public ParsableBodyContainer {
 private:
-    ParsedBody(BodyContainer, NonzeroHeight, HeaderView);
+    ParsedBody(NonzeroHeight, HeaderView, BodyContainer);
 
 public:
     [[nodiscard]] static ParsedBody create_throw(NonzeroHeight, HeaderView, BodyContainer);
@@ -31,7 +30,7 @@ struct ParsedBlock {
     NonzeroHeight height;
     Header header;
     ParsedBody body;
-    [[nodiscard]] static ParsedBody create_throw(NonzeroHeight, HeaderView, BodyContainer);
+    [[nodiscard]] static ParsedBlock create_throw(NonzeroHeight, HeaderView, BodyContainer);
 
 private:
     ParsedBlock(NonzeroHeight h, HeaderView v, BodyContainer bc);

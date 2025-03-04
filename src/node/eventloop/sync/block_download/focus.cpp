@@ -16,7 +16,7 @@ public:
     }
     auto& blocks() const
     {
-        return iter->second.blockBodies;
+        return iter->second.blocks;
     }
     bool covers_next(Height downloadLength) const
     {
@@ -63,10 +63,10 @@ bool Focus::has_data()
     return false;
 }
 
-std::vector<Block> Focus::pop_data()
+std::vector<ParsedBlock> Focus::pop_data()
 {
     assert(has_data());
-    std::vector<Block> out;
+    std::vector<ParsedBlock> out;
     for (auto iter = map.begin(); iter != map.end();) {
         Node node { .iter = iter };
         if (!node.covers_next(downloadLength))
@@ -75,11 +75,9 @@ std::vector<Block> Focus::pop_data()
         out.reserve(out.size() + from.size());
         for (size_t j = 0; j < from.size(); ++j) {
             ++downloadLength;
-            auto h { downloadLength.nonzero_assert() };
-            out.push_back(Block {
-                .height = h,
-                .header = headers()[h],
-                ._body = std::move(from[j]) });
+            auto& block { from[j] };
+            assert(downloadLength == block.height);
+            out.push_back(std::move(block));
         }
         if (downloadLength < node.batch_upper()) {
             from.clear();
@@ -117,7 +115,7 @@ void Focus::fork(NonzeroHeight fh)
         if (iter->first == bs) {
             Height batchBegin { bs.lower_height() };
             assert(batchBegin <= fh);
-            auto& b = iter->second.blockBodies;
+            auto& b = iter->second.blocks;
             size_t newsize = fh - batchBegin;
             if (b.size() > newsize)
                 b.erase(b.begin() + newsize, b.end());
@@ -209,30 +207,28 @@ void Focus::set_offset(Height newOffset)
     }
 }
 
-void Focus::set_blocks(BlockSlot slot, Height reqBegin, std::vector<BodyContainer>&& blocks)
+void Focus::set_slot_blocks(std::vector<ParsedBlock>&& blocks)
 {
-    auto [iter, created] { map.try_emplace(slot) };
-    FocusNode& fn { iter->second };
-    if (created) {
-        if (reqBegin != slot.lower_height()) {
-            spdlog::debug("Discarding block batch, slotStart: {}, lowerHeight: {}",
-                slot.lower_height().value(), reqBegin.value());
-            return;
-        }
-        fn.blockBodies = std::move(blocks);
-    } else { // already present
-        auto& blockBodies = fn.blockBodies;
-        auto missingStart = std::max(slot.lower_height(), (downloadLength + 1).nonzero_assert()) + blockBodies.size();
-        if (missingStart < reqBegin) {
-            spdlog::debug("Discarding block batch, missingStart: {}, lowerHeight: {}",
-                missingStart.value(), reqBegin.value());
-            return;
-        }
-
-        for (size_t i = missingStart - reqBegin; i < blocks.size(); ++i) {
-            blockBodies.push_back(std::move(blocks[i]));
-        }
-        assert(blockBodies.size() <= BLOCKBATCHSIZE);
+    if (blocks.size() == 0)
+        return;
+    auto beginHeight { blocks.front().height };
+    const BlockSlot slot(beginHeight);
+    assert(slot == BlockSlot(blocks.back().height)); // all shall be within the same slot
+    FocusNode& fn { map[slot] };
+    auto missingStart = std::max(slot.lower_height(), height_begin()) + fn.blocks.size();
+    if (missingStart < beginHeight) {
+        spdlog::debug("Discarding block batch, missingStart: {}, beginHeight: {}",
+            missingStart.value(), beginHeight.value());
+        return;
     }
+
+    if (fn.blocks.empty()) {
+        fn.blocks = std::move(blocks);
+    } else {
+        for (size_t i = missingStart - beginHeight; i < blocks.size(); ++i) {
+            fn.blocks.push_back(std::move(blocks[i]));
+        }
+    }
+    assert(fn.blocks.size() <= BLOCKBATCHSIZE);
 }
 }

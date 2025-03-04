@@ -1,8 +1,8 @@
 #include "apply_stage.hpp"
 #include "api/types/all.hpp"
 #include "block/body/view.hpp"
-#include "block_applier.hpp"
 #include "block/header/header_impl.hpp"
+#include "block_applier.hpp"
 #include "general/hex.hpp"
 #include "general/now.hpp"
 #include <fstream>
@@ -32,18 +32,20 @@ ApplyStageTransaction::ApplyStageTransaction(const State& s, ChainDBTransaction&
                 + ". Cannot get block with hash " + serialize_hex(hash)
                 + " at height " + std::to_string(h) + " from database.");
         }
-        BlockId blockId { p->first };
-        Block& b = p->second;
+        auto [blockId, block] = *p;
+        assert(block.height == h);
 
         try {
-            auto bv(b.body.parse_structure(h, b.header.version()));
-            assert(bv.has_value());
-            auto apiBlock { ba.apply_block(*bv, b.header, h, blockId) };
+            auto apiBlock { ba.apply_block(block, blockId) };
             apiBlocks.push_back(std::move(apiBlock));
         } catch (Error e) {
-            std::string fname { std::to_string(now_timestamp()) + "_" + std::to_string(h.value()) + "_failed.block" };
+            std::string fname { std::to_string(now_timestamp())
+                + "_" + std::to_string(h.value())
+                + "_" + std::string(e.err_name())
+                + "_failed.block" };
             std::ofstream f(fname);
-            f << serialize_hex(b.body.data());
+            f << serialize_hex(block.header) << '\n'
+              << serialize_hex(block.body.data());
             res.newTxIds = ba.move_new_txids();
             return { e, h };
         }

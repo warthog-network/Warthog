@@ -17,9 +17,9 @@ ParsedBody::ParsedBody(NonzeroHeight height, HeaderView header, BodyContainer bc
         throw Error(EMROOT);
 }
 
-ParsedBody ParsedBody::create_throw(NonzeroHeight h, HeaderView v, BodyContainer bc)
+ParsedBody ParsedBody::create_throw(NonzeroHeight h, HeaderView hv, BodyContainer bc)
 {
-    return { std::move(bc), h, v };
+    return { h, hv, std::move(bc) };
 }
 
 BodyView ParsedBody::view() const
@@ -32,6 +32,11 @@ ParsedBlock::ParsedBlock(NonzeroHeight h, HeaderView v, BodyContainer bc)
     , header(v)
     , body(ParsedBody::create_throw(height, header, std::move(bc)))
 {
+}
+
+ParsedBlock ParsedBlock::create_throw(NonzeroHeight h, HeaderView hv, BodyContainer b)
+{
+    return ParsedBlock { h, hv, std::move(b) };
 }
 
 std::vector<TransactionId> ParsedBlock::read_tx_ids()

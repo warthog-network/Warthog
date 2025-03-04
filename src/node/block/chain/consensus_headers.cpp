@@ -6,6 +6,7 @@
 
 HeaderVerifier::HeaderVerifier(const SharedBatch& b)
     : nextTarget(TargetV1())
+    , finalHash(Hash::uninitialized())
 {
     length = b.upper_height();
     HeaderView finalHeader { b.getBatch().last() };
@@ -191,7 +192,7 @@ void HeaderVerifier::initialize(const Headerchain& hc,
     // now fill timestamp vaildator
     if (hc.incompleteBatch.size() >= timeValidator.N) {
         for (size_t i = hc.incompleteBatch.size() - timeValidator.N;
-             i < hc.incompleteBatch.size(); ++i) {
+            i < hc.incompleteBatch.size(); ++i) {
             timeValidator.append(hc.incompleteBatch[i].timestamp());
         }
     } else {

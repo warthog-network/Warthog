@@ -20,33 +20,40 @@ class BalanceChecker {
     private:
         Funds _in { Funds::zero() };
         Funds _out { Funds::zero() };
-        std::vector<size_t> referredTokenCreator;
-        std::vector<size_t> referredFrom;
-        std::vector<size_t> referredTo;
-    };
-
-    class OldAccountFlow : public FundFlow {
-        friend class BalanceChecker;
-        Address address;
     };
 
     using TokenFlow = std::map<TokenId, FundFlow>;
     struct AccountData {
         bool isMiner { false };
+        std::vector<size_t> referredTokenCreator;
+        std::vector<size_t> referredFrom;
+        std::vector<size_t> referredTo;
         TokenFlow tokenFlow;
     };
 
-    class OldAccountData:public AccountData {
+    class OldAccountData : public AccountData {
     public:
         OldAccountData(Address address)
-            : _address(std::move(address))
+            : address(std::move(address))
         {
         }
-        auto& address() { return _address; }
-
-    private:
-        Address _address;
+        Address address;
     };
+
+protected:
+    AccountData& account_data(AccountId i)
+    {
+        if (i < beginNewAccountId) {
+            return oldAccounts[i];
+        } else {
+            assert(i < endNewAccountId);
+            return newAccounts[i.value() - beginNewAccountId.value()];
+        }
+    }
+    auto& token_flow(AccountId aid, TokenId tid)
+    {
+        return account_data(aid).tokenFlow[tid];
+    }
 
 public:
     struct RewardArgument {
@@ -72,10 +79,9 @@ public:
         if (r.to >= beginNewAccountId) {
             reward.toAddress = get_new_address(r.to - beginNewAccountId);
         } // otherwise wait for db lookup later
-        auto& refTo = account_data(r.to);
-        refTo._in.add_throw(r.amount);
-        refTo.isMiner = true;
-        ;
+        auto& a = account_data(r.to);
+        a.tokenFlow[TokenId::WART]._in.add_throw(r.amount);
+        a.isMiner = true;
     }
 
     void register_transfer(TokenId tokenId, WartTransferView tv, Height height) // OK
@@ -99,14 +105,19 @@ public:
         if (to >= beginNewAccountId) {
             ref.toAddress = get_new_address(to - beginNewAccountId);
         } // otherwise wait for db lookup later
-        auto& refTo = account_flow(to);
-        refTo._in.add_throw(amount);
-        refTo.referredTo.push_back(i);
 
-        auto& refFrom = account_flow(from);
-        refFrom._out.add_throw(Funds::sum_throw(amount, fee));
-        totalfee.add_throw(fee);
-        refFrom.referredFrom.push_back(i);
+        { // destination balance
+            auto& ad { account_data(to) };
+            ad.referredTo.push_back(i);
+            ad.tokenFlow[tokenId]._in.add_throw(amount);
+        }
+        { // source balance
+            auto& ad { account_data(from) };
+            ad.referredFrom.push_back(i);
+            ad.tokenFlow[tokenId]._out.add_throw(amount);
+            ad.tokenFlow[TokenId::WART]._out.add_throw(fee);
+            totalfee.add_throw(fee);
+        }
     }
     void register_token_creation(TokenCreationView tc, Height)
     {
@@ -121,11 +132,12 @@ public:
             ref.creatorAddress = get_new_address(from - beginNewAccountId);
         } // otherwise wait for db lookup later
 
-        auto& refFrom = account_flow(from);
-        refFrom._out.add_throw(fee);
+        auto& ad = account_data(from);
+        ad.tokenFlow[TokenId::WART]._out.add_throw(fee);
         totalfee.add_throw(fee);
-        refFrom.referredTokenCreator.push_back(i);
+        ad.referredTokenCreator.push_back(i);
     }
+
     Funds getTotalFee() { return totalfee; }; // OK
     ValidAccountId validate_id(AccountId accountId) const // OK
     {
@@ -148,7 +160,7 @@ public:
         return 0;
     }
     auto& getOldAccounts() { return oldAccounts; } // OK
-    const std::vector<FundFlow>& get_new_accounts() const { return newAccounts; } // OK
+    const std::vector<AccountData>& get_new_accounts() const { return newAccounts; } // OK
     AccountId get_account_id(size_t newElementOffset) // OK
     {
         assert(newElementOffset < newAccounts.size());
@@ -158,17 +170,6 @@ public:
     auto& token_creations() const { return tokenCreations; }
     const std::vector<TransferInternal>& get_transfers() { return payments; };
     const auto& get_reward() { return reward; };
-
-protected:
-    AccountData& account_data(AccountId i)
-    {
-        if (i < beginNewAccountId) {
-            return oldAccounts[i];
-        } else {
-            assert(i < endNewAccountId);
-            return newAccounts[i.value() - beginNewAccountId.value()];
-        }
-    }
 
 private:
     Funds totalfee { Funds::zero() };
@@ -271,9 +272,9 @@ struct Preparation {
     std::vector<api::Block::TokenCreation> apiTokenCreations;
     HistoryEntries historyEntries;
     RollbackGenerator rg;
-    Preparation(HistoryId nextHistoryId, AccountId beginNewAccountId)
+    Preparation(HistoryId nextHistoryId, AccountId beginNewAccountId, BalanceId beginNewBalanceId)
         : historyEntries(nextHistoryId)
-        , rg(beginNewAccountId)
+        , rg(beginNewAccountId, beginNewBalanceId)
     {
     }
 };
@@ -335,18 +336,23 @@ Preparation BlockApplier::Preparer::prepare(const BodyView& bv, const NonzeroHei
     // loop through old accounts and
     // load previous balances and addresses from database
     auto& oldAccounts = balanceChecker.getOldAccounts();
-    for (auto& [id, accountflow] : oldAccounts) {
-        if (auto p = db.lookup_account(id); p) {
-            // account lookup successful
+    for (auto& [accountId, accountData] : oldAccounts) {
+        if (auto address { db.lookup_address(accountId) }; address) {
+            // address lookup successful
+            balanceChecker.set_address(accountData, *address);
 
-            auto& [address, balance] = *p;
-            res.rg.register_balance(id, p->funds);
-            balanceChecker.set_address(accountflow, address);
+            for (auto& [tokenId, tokenFlow] : accountData.tokenFlow) {
+                if (auto p { db.get_balance({ accountId, tokenId }) }) {
+                    const auto& [balanceId, balance] { *p };
+                    res.rg.register_balance(balanceId, balance);
+                }
+            }
 
             // check that balances are correct
-            auto totalIn { Funds::sum_throw(accountflow.in(), balance) };
-            Funds newbalance { Funds::diff_throw(totalIn, accountflow.out()) };
-            res.updateBalances.push_back(std::make_pair(id, newbalance));
+            auto& wartFlow { accountData.tokenFlow[TokenId::WART] };
+            auto totalIn { Funds::sum_throw(wartFlow.in(), balance) };
+            Funds newbalance { Funds::diff_throw(totalIn, wartFlow.out()) };
+            res.updateBalances.push_back(std::make_pair(accountId, newbalance));
         } else {
             throw Error(EINVACCOUNT); // invalid account id (not found in database)
         }

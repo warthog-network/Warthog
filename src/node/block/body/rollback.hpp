@@ -4,49 +4,18 @@
 #include "general/funds.hpp"
 #include "general/reader.hpp"
 #include "general/writer.hpp"
-#include <variant>
 
-struct IdBalance {
+struct BalanceIdFunds {
     BalanceId id;
     Funds balance;
 };
 
-class RollbackViewV1 {
+class RollbackView {
 public:
-    RollbackViewV1(const std::vector<uint8_t>& bytes)
+    RollbackView(const std::vector<uint8_t>& bytes)
         : bytes(bytes)
     {
-        if (bytes.size() < 8 || ((bytes.size() - 8) % 16) != 0) {
-            throw std::runtime_error("Database corrupted (invalid rollback data)");
-        }
-    };
-    AccountId getBeginNewAccounts() const { return AccountId(readuint64(bytes.data())); }
-    TokenId getBeginNewTokens() const { return TokenId(0); }
-    BalanceId getBeginAccountTokens() const { return BalanceId(0); }
-
-    void foreach_balance_update(const auto& lambda) const
-    {
-        auto pos { bytes.data() + 8 };
-        auto end { bytes.data() + bytes.size() };
-        while (pos < end) {
-            lambda(
-                IdBalance {
-                    .id { readuint64(pos) },
-                    .balance { Funds::from_value_throw(readuint64(pos + 8)) } });
-            pos += 16;
-        }
-    }
-
-private:
-    const std::vector<uint8_t>& bytes;
-};
-
-class RollbackViewV2 {
-public:
-    RollbackViewV2(const std::vector<uint8_t>& bytes)
-        : bytes(bytes)
-    {
-        if (bytes.size() < 20 || (bytes.size() % 20) != 0) {
+        if (bytes.size() < 20 || ((bytes.size() - 20) % 16) != 0) {
             throw std::runtime_error("Database corrupted (invalid rollback data)");
         }
     };
@@ -59,7 +28,7 @@ public:
         auto end { bytes.data() + bytes.size() };
         while (pos < end) {
             lambda(
-                IdBalance {
+                BalanceIdFunds {
                     .id { readuint64(pos) },
                     .balance { Funds::from_value_throw(readuint64(pos + 8)) } });
             pos += 16;
@@ -70,76 +39,39 @@ private:
     const std::vector<uint8_t>& bytes;
 };
 
-class RollbackView {
-    using variant_t = std::variant<RollbackViewV1, RollbackViewV2>;
-    auto visit(auto lambda) const
-    {
-        return std::visit(lambda, variant);
-    }
-    variant_t initialize(const std::vector<uint8_t>& bytes, bool v1)
-    {
-        if (v1) {
-            return RollbackViewV1(bytes);
-        }
-        return RollbackViewV2(bytes);
-    }
-
-public:
-    RollbackView(const std::vector<uint8_t>& bytes, bool v1)
-        : variant(initialize(bytes, v1))
-    {
-    }
-
-    void foreach_balance_update(const auto& lambda) const
-    {
-        visit([&](auto& v) { return v.foreach_balance_update(lambda); });
-    }
-    AccountId getBeginNewAccounts() const
-    {
-        return visit([&](auto& v) {
-            return v.getBeginNewAccounts();
-        });
-    }
-    BalanceId getBeginTokenBalance() const
-    {
-        return visit([&](auto& v) {
-            return v.getBeginAccountTokens();
-        });
-    }
-    TokenId getBeginNewTokens() const
-    {
-        return visit([&](auto& v) {
-            return v.getBeginNewTokens();
-        });
-    }
-
-private:
-    variant_t variant;
-};
-
 class RollbackGenerator {
 public:
-    RollbackGenerator(AccountId beginNewAccounts)
+    RollbackGenerator(AccountId beginNewAccounts, BalanceId beginNewBalance, TokenId beginNewTokens)
         : beginNewAccounts(beginNewAccounts)
+        , beginNewBalance(beginNewBalance)
+        , beginNewTokens(beginNewTokens)
     {
     }
-    void register_balance(AccountId accountId, Funds originalBalance)
+    void register_balance(BalanceId balanceId, Funds originalBalance)
     {
-        if (accountId >= beginNewAccounts)
+        if (balanceId >= beginNewBalance)
             return;
-        assert(originalBalances.insert_or_assign(accountId, originalBalance).second);
-        ;
+        assert(originalBalances.insert_or_assign(balanceId, originalBalance).second);
     }
     std::vector<uint8_t> serialze()
     {
-        size_t bytesize = 8 + 16 * originalBalances.size();
+
+        static_assert(std::is_base_of_v<IsUint64, decltype(beginNewAccounts)>);
+        static_assert(std::is_base_of_v<IsUint64, decltype(beginNewBalance)>);
+        static_assert(std::is_base_of_v<IsUint32, decltype(beginNewTokens)>); // 4 bytes
+        constexpr size_t size_per_balance {
+            BalanceId::byte_size()
+            + Funds::byte_size()
+        };
+        size_t bytesize = beginNewAccounts.byte_size()
+            + beginNewBalance.byte_size()
+            + beginNewTokens.byte_size()
+            + size_per_balance * originalBalances.size();
         std::vector<uint8_t> res(bytesize);
         Writer w(res.data(), res.size());
-        w << beginNewAccounts;
-        for (auto p : originalBalances) {
-            AccountId accountId = p.first;
-            Funds balance = p.second;
-            w << accountId << balance;
+        w << beginNewAccounts << beginNewBalance << beginNewTokens;
+        for (auto& [balanceId, balance] : originalBalances) {
+            w << balanceId << balance;
         }
         return res;
     }
@@ -147,6 +79,8 @@ public:
     AccountId begin_new_accounts() const { return beginNewAccounts; };
 
 private:
-    std::map<AccountId, Funds> originalBalances;
+    std::map<BalanceId, Funds> originalBalances;
     const AccountId beginNewAccounts;
+    const BalanceId beginNewBalance;
+    const TokenId beginNewTokens;
 };

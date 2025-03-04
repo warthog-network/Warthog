@@ -14,6 +14,7 @@
 
 class ChainServer : public std::enable_shared_from_this<ChainServer> {
     using getBlocksCb = std::function<void(std::vector<BodyContainer>&&)>;
+
 public:
     // can be called concurrently
     Batch get_headers(BatchSelector selector);
@@ -257,6 +258,7 @@ private:
     void handle_event(SubscribeChain&&);
     void handle_event(SubscribeMinerdist&&);
     void handle_event(DestroySubscriptions&&);
+
 
     using StateUpdateWithAPIBlocks = chainserver::state_update::StateUpdateWithAPIBlocks;
     void on_chain_changed(StateUpdateWithAPIBlocks&&);

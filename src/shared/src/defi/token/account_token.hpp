@@ -9,7 +9,8 @@ public:
     {
     }
     auto account_id() const { return accountId; }
-    auto token_id() const { return tokenId; }
+    auto& token_id() const { return tokenId; }
+    auto& token_id() { return tokenId; }
     auto operator<=>(const AccountToken&) const = default;
 
 private:

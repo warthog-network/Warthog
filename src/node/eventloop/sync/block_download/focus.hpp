@@ -55,7 +55,7 @@ private:
 };
 
 struct FocusNode {
-    std::vector<BodyContainer> blockBodies;
+    std::vector<ParsedBlock> blocks;
     bool activeRequest() const { return c.has_value(); }
     void register_downloader(Conref);
 
@@ -72,12 +72,12 @@ class Focus {
 
     NonzeroHeight height_begin();
     void fork(NonzeroHeight);
-    std::vector<Block> pop_data();
+    std::vector<ParsedBlock> pop_data();
     auto map_end() { return map.end(); }
     void clear(); // precondition: reset all connections focusIter
     void erase(Conref cr);
     void set_offset(Height);
-    void set_blocks(BlockSlot, Height reqBegin, std::vector<BodyContainer>&& blocks);
+    void set_slot_blocks(std::vector<ParsedBlock>&& blocks);
 
     struct FocusSlot {
         FocusMap::iterator iter;
@@ -100,7 +100,7 @@ class Focus {
         {
             auto slot { downloadSlot + i };
             auto iter { focus.map.try_emplace(slot).first };
-            size_t presentBlocks { iter->second.blockBodies.size() };
+            size_t presentBlocks { iter->second.blocks.size() };
             auto upper { std::min(slot.upper_height(), hc.length()) };
             NonzeroHeight lower { std::max(slot.lower_height(), focus.height_begin()) + presentBlocks };
             assert(lower <= upper + 1);

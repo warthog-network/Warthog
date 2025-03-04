@@ -16,7 +16,7 @@ const AddressFunds& AccountCache::operator[](AccountId id)
     auto iter = map.find(id);
     if (iter != map.end())
         return iter->second;
-    auto p = db.fetch_account(id);
+    auto p = db.fetch_address(id);
     return map.emplace(id, p).first->second;
 }
 
