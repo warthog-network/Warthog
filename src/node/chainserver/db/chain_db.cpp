@@ -51,6 +51,10 @@ ChainDB::ChainDB(const std::string& path)
           db, "SELECT `height`, `header`, `body` FROM \"Blocks\" WHERE `ROWID`=?;")
     , stmtBlockByHash(
           db, "SELECT ROWID, `height`, `header`, `body` FROM \"Blocks\" WHERE `hash`=?;")
+    , stmtInsertBaseSellOrder(db, "INSERT INTO SellOrders (id, account_id,token_id, totalBase, filledBase, price) VALUES(?,?,?,?,?,?)")
+    , stmtInsertQuoteBuyOrder(db, "INSERT INTO BuyOrders (id, account_id,token_id, totalQuote, filledQuote, price) VALUES(?,?,?,?,?,?)")
+    , stmtSelectBaseSellOrderAsc(db, "SELECT (id, account_id, totalBase, filledBase, price) FROM SellOrders WHERE token_id=? ORDER BY price ASC")
+    , stmtSelectQuoteBuyOrderDesc(db, "SELECT (id, account_id, totalQuote, filledQuote, price) FROM SellOrders WHERE token_id=? ORDER BY price DESC")
     , stmtTokenForkBalanceInsert(db, "INSERT INTO TokenForkBalances "
                                      "(id, account_id, token_id, height, balance) "
                                      "VALUES (?,?,?,?)")
@@ -323,6 +327,26 @@ void ChainDB::set_block_undo(BlockId id, const std::vector<uint8_t>& undo)
 {
     stmtUndoSet.run(undo, id);
 }
+void ChainDB::insert_buy_order(OrderId oid, AccountId aid, TokenId tid, Funds totalBase, Funds filledBase, Price_uint64 price)
+{
+    stmtInsertBaseSellOrder.run(oid, aid, tid, totalBase, filledBase, price);
+}
+void ChainDB::insert_quote_order(OrderId oid, AccountId aid, TokenId tid, Funds totalBase, Funds filledBase, Price_uint64 price)
+{
+    stmtInsertQuoteBuyOrder.run(oid, aid, tid, totalBase, filledBase, price);
+}
+
+OrderLoader ChainDB::base_order_loader(TokenId tid)
+{
+    stmtSelectBaseSellOrderAsc.bind_multiple(tid);
+    return { stmtSelectBaseSellOrderAsc };
+}
+
+OrderLoader ChainDB::quote_order_loader(TokenId tid)
+{
+    stmtSelectQuoteBuyOrderDesc.bind_multiple(tid);
+    return { stmtSelectBaseSellOrderAsc };
+}
 
 void ChainDB::insert_consensus(NonzeroHeight height, BlockId blockId, HistoryId historyCursor, AccountId accountCursor)
 {
@@ -337,10 +361,10 @@ void ChainDB::insert_token_fork_balance(TokenForkBalanceId id, TokenId tokenId, 
 
 bool ChainDB::fork_balance_exists(AccountToken at, NonzeroHeight h)
 {
-    auto res{stmtTokenForkBalanceEntryExists.one(at.account_id(), at.token_id(), h)
-        .process([](auto& o) {
-            return o.has_value();
-        })};
+    auto res { stmtTokenForkBalanceEntryExists.one(at.account_id(), at.token_id(), h)
+            .process([](auto& o) {
+                return o.has_value();
+            }) };
 }
 
 std::optional<std::pair<NonzeroHeight, Funds>> ChainDB::get_balance_snapshot_after(TokenId tokenId, NonzeroHeight minHegiht)

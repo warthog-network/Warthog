@@ -1,29 +1,37 @@
 #pragma once
-#include "uint64/prod.hpp"
+#include "prod.hpp"
 #include <bit>
 #include <cassert>
 #include <cmath>
 #include <cstdint>
 #include <optional>
 #include <string>
-struct Price {
+struct Price_uint64 {
 private:
-    Price(uint16_t m, uint8_t e)
+    Price_uint64(uint16_t m, uint8_t e)
         : _e(e)
         , _m(m)
     {
     }
 
-    [[nodiscard]] static std::optional<Price> compose(auto mantissa, int e)
+    [[nodiscard]] static std::optional<Price_uint64> compose(auto mantissa, int e)
     {
         if (!is_exponent(e) || !is_mantissa(mantissa))
             return {};
-        return Price(mantissa, e);
+        return Price_uint64(mantissa, e);
     }
 
 public:
-    [[nodiscard]] static Price zero() { return Price { 0, 0 }; }
-    [[nodiscard]] static Price max() { return Price { 0xFFFFu, 127 }; }
+    static auto from_uint32(uint32_t data)
+    {
+        return compose(data & 0x0000FFFFu, data >> 16);
+    }
+    uint32_t to_uint32() const
+    {
+        return uint32_t(_m) + (uint32_t(_e) << 16);
+    }
+    [[nodiscard]] static Price_uint64 zero() { return Price_uint64 { 0, 0 }; }
+    [[nodiscard]] static Price_uint64 max() { return Price_uint64 { 0xFFFFu, 127 }; }
     [[nodiscard]] static bool is_mantissa(uint32_t m)
     {
         return m <= mantissaMask && ((m >> (mantissaPrecision - 1)) != 0);
@@ -40,40 +48,40 @@ public:
         auto b(mantissa_exponent());
         return std::ldexp(a, b);
     }
-    [[nodiscard]] static std::optional<Price>
+    [[nodiscard]] static std::optional<Price_uint64>
     from_mantissa_exponent(uint32_t mantissa, int exponent)
     {
         exponent += 63;
         return compose(mantissa, exponent);
     }
 
-    std::optional<Price> prev_step() const
+    std::optional<Price_uint64> prev_step() const
     {
         auto m { _m - 1 };
         if (is_mantissa(m))
-            return Price(m, _e);
+            return Price_uint64(m, _e);
         m = (_m << 1) - 1;
         assert(is_mantissa(m));
         auto e { _e - 1 };
         if (!is_exponent(e))
             return {};
-        return Price(m, e);
+        return Price_uint64(m, e);
     }
-    std::optional<Price> next_step() const
+    std::optional<Price_uint64> next_step() const
     {
         auto m { _m + 1 };
         if (is_mantissa(m))
-            return Price(m, _e);
+            return Price_uint64(m, _e);
         m >>= 1;
         auto e { _e + 1 };
         if (!is_exponent(e)) // cannot represent with 8 bits exponent
             return {};
-        return Price(m, e);
+        return Price_uint64(m, e);
     }
 
-    auto operator<=>(const Price&) const = default;
+    auto operator<=>(const Price_uint64&) const = default;
 
-    static std::optional<Price> from_double(double d)
+    static std::optional<Price_uint64> from_double(double d)
     {
         if (d <= 0.0)
             return {};
@@ -83,7 +91,7 @@ public:
         return from_mantissa_exponent(mantissa32, exp);
     }
 
-    static std::optional<Price> from_string(std::string s)
+    static std::optional<Price_uint64> from_string(std::string s)
     {
         try {
             return from_double(std::stod(s));
@@ -96,28 +104,29 @@ private:
     uint8_t _e; // exponent
     uint16_t _m; // mantissa
 };
-struct PriceRelative { // gives details relative to price grid
-    PriceRelative(Price price, bool exact = true)
+
+struct PriceRelative_uint64 { // gives details relative to price grid
+    PriceRelative_uint64(Price_uint64 price, bool exact = true)
         : price(std::move(price))
         , exact(std::move(exact))
     {
     }
-    auto operator<=>(Price p2) const
+    auto operator<=>(Price_uint64 p2) const
     {
         if (!exact && price == p2)
             return std::strong_ordering::greater;
         return price.operator<=>(p2);
     }
-    const Price& floor() const { return price; }
-    std::optional<Price> ceil() const
+    const Price_uint64& floor() const { return price; }
+    std::optional<Price_uint64> ceil() const
     {
         if (exact) {
             return price;
         }
         return price.next_step();
     }
-    auto& operator=(Price p) { return *this = PriceRelative { p }; }
-    auto operator<=>(PriceRelative p2) const
+    auto& operator=(Price_uint64 p) { return *this = PriceRelative_uint64 { p }; }
+    auto operator<=>(PriceRelative_uint64 p2) const
     {
         auto rel { price.operator<=>(p2.price) };
         if (rel == std::strong_ordering::equal) {
@@ -128,15 +137,15 @@ struct PriceRelative { // gives details relative to price grid
         }
         return rel;
     }
-    [[nodiscard]] static std::optional<PriceRelative> from_fraction(uint64_t numerator,
+    [[nodiscard]] static std::optional<PriceRelative_uint64> from_fraction(uint64_t numerator,
         uint64_t denominator)
     { // OK
         if (numerator == 0) {
-            if (denominator == 0) 
+            if (denominator == 0)
                 return {}; // no price for degenerate pool (no liquidity at all)
-            return PriceRelative { Price::zero(), true };
+            return PriceRelative_uint64 { Price_uint64::zero(), true };
         } else if (denominator == 0)
-            return PriceRelative { Price::max(), false };
+            return PriceRelative_uint64 { Price_uint64::max(), false };
 
         int e { 0 };
         { // shift numerator
@@ -150,7 +159,7 @@ struct PriceRelative { // gives details relative to price grid
             e += z;
         }
 
-        constexpr uint64_t shiftr { (Price::mantissaPrecision) };
+        constexpr uint64_t shiftr { (Price_uint64::mantissaPrecision) };
         constexpr uint64_t mask { (1 << shiftr) - 1 };
         auto denominatorRest = denominator & mask;
         denominator >>= shiftr;
@@ -166,24 +175,26 @@ struct PriceRelative { // gives details relative to price grid
         if (rest != subtract)
             exact = false;
         auto r { 64 - std::countl_zero(d) };
-        if (r != Price::mantissaPrecision) {
+        if (r != Price_uint64::mantissaPrecision) {
             if ((d & 1) != 0)
                 exact = false;
             d >>= 1;
             e += 1;
             r -= 1;
         }
-        assert(r == Price::mantissaPrecision);
+        assert(r == Price_uint64::mantissaPrecision);
 
-        auto p { Price::from_mantissa_exponent(d, e) };
+        auto p { Price_uint64::from_mantissa_exponent(d, e) };
         assert(p);
-        return PriceRelative { *p, exact };
+        return PriceRelative_uint64 { *p, exact };
     }
-    bool operator==(Price p2) const { return exact && price == p2; }
-    Price price;
+    bool operator==(Price_uint64 p2) const { return exact && price == p2; }
+private:
+    Price_uint64 price;
     bool exact;
 };
-inline std::optional<uint64_t> divide(uint64_t a, Price p, bool ceil)
+
+inline std::optional<uint64_t> divide(uint64_t a, Price_uint64 p, bool ceil)
 { // OK
     if (a == 0)
         return 0ull;
@@ -215,24 +226,24 @@ inline std::optional<uint64_t> divide(uint64_t a, Price p, bool ceil)
     return res;
 }
 
-[[nodiscard]] inline std::optional<uint64_t> divide_floor(uint64_t a, Price p)
+[[nodiscard]] inline std::optional<uint64_t> divide_floor(uint64_t a, Price_uint64 p)
 {
     return divide(a, p, false);
 }
-[[nodiscard]] inline std::optional<uint64_t> divide_ceil(uint64_t a, Price p)
+[[nodiscard]] inline std::optional<uint64_t> divide_ceil(uint64_t a, Price_uint64 p)
 {
     return divide(a, p, true);
 }
-inline std::optional<uint64_t> multiply_floor(uint64_t a, Price p)
+inline std::optional<uint64_t> multiply_floor(uint64_t a, Price_uint64 p)
 {
     return Prod128(p.mantissa(), a).pow2_64(p.mantissa_exponent(), false);
 }
 
-inline std::optional<uint64_t> multiply_ceil(uint64_t a, Price p)
+inline std::optional<uint64_t> multiply_ceil(uint64_t a, Price_uint64 p)
 {
     return Prod128(p.mantissa(), a).pow2_64(p.mantissa_exponent(), true);
 }
-inline std::strong_ordering compare_fraction(Ratio128 ratio, Price p)
+inline std::strong_ordering compare_fraction(Ratio128 ratio, Price_uint64 p)
 { // compares ratio with p
     auto a { ratio.numerator };
     auto b { ratio.denominator };

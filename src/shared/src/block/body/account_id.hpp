@@ -30,7 +30,7 @@ public:
     [[nodiscard]] ValidAccountId validate_throw(AccountId beginInvalid) const;
 };
 
-class BalanceId : public IsUint64 { // NOTE: >=0 is important for AccountHeights
+class BalanceId : public IsUint64 { // NOTE: >=0 is important for BalanceId
 public:
     using IsUint64::IsUint64;
     bool operator==(const BalanceId&) const = default;

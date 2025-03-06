@@ -1,8 +1,7 @@
 #pragma once
 #include "pool.hpp"
 #include "types.hpp"
-
-#include "src/defi/price.hpp"
+#include <numeric>
 
 namespace defi {
 
@@ -47,7 +46,7 @@ public:
     // - increase matched quote amount or
     // - decrease matched base amount or
     // - decrease price argument
-    bool bisection_step(Price p)
+    bool bisection_step(Price_uint64 p)
     {
         Delta_uint64 toPool { in.excess(p) };
         if (!pool.modified_pool_price_exceeds(toPool, p)) {
@@ -60,17 +59,20 @@ public:
     };
 
     FillResult_uint64 bisect_fixed_price(const bool isQuote,
-        const uint64_t fill0,
-        const uint64_t fill1, Price p)
+        const Funds_uint64 fill0,
+        const Funds_uint64 fill1, Price_uint64 p)
     {
         assert(toPool0.has_value() // by the time this function is executed,
             && toPool1.has_value()); // we have seen both cases.
-        auto v0 { fill0 };
-        auto v1 { fill1 };
+        Funds_uint64 v0 { fill0 };
+        Funds_uint64 v1 { fill1 };
         auto& v { isQuote ? in.quote : in.base };
-        while (v1 + 1 != v0 && v0 + 1 != v1) {
-            v = (v0 + v1) / 2;
+        while (true) {
+            Funds_uint64 tmp { std::midpoint(v0.value(), v1.value()) };
+            if (tmp == v0)
+                break;
 
+            v = tmp;
             if (bisection_step(p))
                 v0 = v;
             else

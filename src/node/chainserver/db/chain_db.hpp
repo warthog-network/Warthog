@@ -3,14 +3,18 @@
 #include "SQLiteCpp/SQLiteCpp.h"
 #include "api/types/forward_declarations.hpp"
 #include "block/block.hpp"
+#include "block/body/order_id.hpp"
 #include "block/chain/offsts.hpp"
 #include "block/chain/worksum.hpp"
 #include "block/id.hpp"
 #include "chainserver/transaction_ids.hpp"
+#include "defi/price.hpp"
 #include "defi/token/token.hpp"
 #include "deletion_key.hpp"
 #include "general/address_funds.hpp"
 #include "general/filelock/filelock.hpp"
+#include "order_loader.hpp"
+#include "statement.hpp"
 struct CreatorToken;
 struct AccountToken;
 class ChainDBTransaction;
@@ -23,283 +27,6 @@ struct RawBody : public std::vector<uint8_t> {
 };
 struct RawUndo : public std::vector<uint8_t> {
 };
-
-struct Column2 : public SQLite::Column {
-
-    operator Hash() const
-    {
-        return { get_array<32>() };
-    }
-    operator TokenHash() const
-    {
-        return static_cast<Hash>(*this);
-    }
-    operator Height() const
-    {
-        int64_t h = getInt64();
-        if (h < 0) {
-            throw std::runtime_error("Database corrupted. Negative height h="
-                + std::to_string(h) + " observed");
-        }
-        return Height(h);
-    }
-    operator HistoryId() const
-    {
-        int64_t h = getInt64();
-        if (h <= 0) {
-            throw std::runtime_error("Database corrupted. HistoryId not positive.");
-        }
-        return HistoryId { uint64_t(h) };
-    }
-    template <size_t size>
-    std::array<uint8_t, size> get_array() const
-    {
-        std::array<uint8_t, size> res;
-        if (getBytes() != size)
-            throw std::runtime_error(
-                "Database corrupted, cannot load " + std::to_string(size) + " bytes");
-        memcpy(res.data(), getBlob(), size);
-        return res;
-    }
-
-    std::vector<uint8_t> get_vector() const
-    {
-        std::vector<uint8_t> res(getBytes());
-        memcpy(res.data(), getBlob(), getBytes());
-        return res;
-    }
-    operator std::vector<uint8_t>() const
-    {
-        return get_vector();
-    }
-    operator Address() const
-    {
-        return get_array<20>();
-    }
-    operator TokenName()
-    {
-        return TokenName::parse_throw(static_cast<std::string>(*this));
-    }
-    operator BodyContainer() const
-    {
-        return { std::vector<uint8_t>(*this) };
-    }
-    operator Header() const
-    {
-        return get_array<80>();
-        ;
-    }
-    operator NonzeroHeight() const
-    {
-        Height h { *this };
-        return h.nonzero_throw("Database corrupted, block has height 0");
-    }
-    operator int64_t() const
-    {
-        return getInt64();
-    }
-    operator AccountId() const
-    {
-        return AccountId(int64_t(getInt64()));
-    }
-    operator TokenId() const
-    {
-        return TokenId(int64_t(getInt64()));
-    }
-    operator IsUint64() const
-    {
-        return IsUint64(int64_t(getInt64()));
-    }
-    operator BlockId() const
-    {
-        return BlockId(getInt64());
-    }
-    operator Funds() const
-    {
-        auto v { Funds::from_value(int64_t(getInt64())) };
-        if (!v.has_value())
-            throw std::runtime_error("Database corrupted, invalid funds");
-        return *v;
-    }
-    operator uint64_t() const
-    {
-        auto i { getInt64() };
-        if (i < 0)
-            throw std::runtime_error("Database corrupted, expected nonnegative entry");
-        return (uint64_t)i;
-    }
-    template <typename T>
-    operator std::optional<T>() const
-    {
-        if (isNull())
-            return {};
-        return static_cast<T>(*this);
-    }
-};
-
-struct Statement2 : public SQLite::Statement {
-    using SQLite::Statement::Statement;
-
-    using SQLite::Statement::bind;
-    Column2 getColumn(const int aIndex)
-    {
-        return { Statement::getColumn(aIndex) };
-    }
-    void bind(const int index, const Worksum& ws)
-    {
-        bind(index, ws.to_bytes());
-    };
-    void bind(const int index, const std::vector<uint8_t>& v)
-    {
-        SQLite::Statement::bind(index, v.data(), v.size());
-    }
-    template <size_t N>
-    void bind(const int index, std::array<uint8_t, N> a)
-    {
-        SQLite::Statement::bind(index, a.data(), a.size());
-    }
-    template <size_t N>
-    void bind(const int index, View<N> v)
-    {
-        SQLite::Statement::bind(index, v.data(), v.size());
-    }
-    void bind(const int index, Funds f)
-    {
-        SQLite::Statement::bind(index, (int64_t)f.E8());
-    };
-    void bind(const int index, uint64_t id)
-    {
-        assert(id < std::numeric_limits<uint64_t>::max());
-        SQLite::Statement::bind(index, (int64_t)id);
-    };
-    void bind(const int index, IsUint64 id)
-    {
-        SQLite::Statement::bind(index, (int64_t)id.value());
-    };
-    void bind(const int index, IsUint32 id)
-    {
-        SQLite::Statement::bind(index, (int64_t)id.value());
-    };
-    void bind(const int index, BlockId id)
-    {
-        SQLite::Statement::bind(index, (int64_t)id.value());
-    };
-    void bind(const int index, Height id)
-    {
-        SQLite::Statement::bind(index, (int64_t)id.value());
-    };
-    template <size_t i>
-    void recursive_bind()
-    {
-    }
-    template <size_t i, typename T, typename... Types>
-    void recursive_bind(T&& t, Types&&... types)
-    {
-        bind(i, std::forward<T>(t));
-        recursive_bind<i + 1>(std::forward<Types>(types)...);
-    }
-    template <typename... Types>
-    uint32_t run(Types&&... types)
-    {
-        recursive_bind<1>(std::forward<Types>(types)...);
-        auto nchanged = exec();
-        reset();
-        assert(nchanged >= 0);
-        return nchanged;
-    }
-
-    // private:
-    struct Row {
-        Column2 operator[](int index) const
-        {
-            value_assert();
-            return st.getColumn(index);
-        }
-
-        template <typename T>
-        T get(int index)
-        {
-            return operator[](index);
-        }
-
-        template <size_t N>
-        std::array<uint8_t, N> get_array(int index) const
-        {
-            value_assert();
-            return st.getColumn(index);
-        }
-        std::vector<uint8_t> get_vector(int index) const
-        {
-            value_assert();
-            return st.getColumn(index);
-        }
-
-        template <typename T>
-        operator std::optional<T>()
-        {
-            if (!hasValue)
-                return {};
-            return get<T>(0);
-        }
-        bool has_value() const { return hasValue; }
-        auto process(auto lambda) const
-        {
-            using ret_t = std::remove_cvref_t<decltype(lambda(*this))>;
-            std::optional<ret_t> r;
-            if (has_value())
-                r = lambda(*this);
-            return r;
-        }
-
-    private:
-        void value_assert() const
-        {
-            if (!hasValue) {
-                throw std::runtime_error(
-                    "Database error: trying to access empty result.");
-            }
-        }
-        friend struct Statement2;
-        Row(Statement2& st)
-            : st(st)
-        {
-            hasValue = st.executeStep();
-        }
-        Statement2& st;
-        bool hasValue;
-    };
-    struct SingleResult : public Row {
-        using Row::Row;
-        ~SingleResult()
-        {
-            if (hasValue)
-                assert(st.executeStep() == false);
-            st.reset();
-        }
-    };
-
-public:
-    template <typename... Types>
-    [[nodiscard]] SingleResult one(Types&&... types)
-    {
-        recursive_bind<1>(std::forward<Types>(types)...);
-        return SingleResult { *this };
-    }
-
-    template <typename... Types, typename Lambda>
-    void for_each(Lambda lambda, Types&&... types)
-    {
-        recursive_bind<1>(std::forward<Types>(types)...);
-        while (true) {
-            auto r { Row(*this) };
-            if (!r.has_value())
-                break;
-            lambda(r);
-        }
-        reset();
-    }
-};
-// (`id` INTEGER NOT NULL, `account_id` INTEGER NOT NULL, `token_id` INTEGER NOT NULL, `balance` INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(`id`))
 
 struct BlockUndoData {
     Header header;
@@ -362,6 +89,14 @@ public:
     void set_block_undo(BlockId id, const std::vector<uint8_t>& undo);
 
     /////////////////////
+    // Order functions
+    void insert_buy_order(OrderId id, AccountId, TokenId, Funds totalBase, Funds filledBase, Price_uint64 price);
+    void insert_quote_order(OrderId id, AccountId, TokenId, Funds totalQuote, Funds filledQuote, Price_uint64 price);
+
+    OrderLoader base_order_loader(TokenId);
+    OrderLoader quote_order_loader(TokenId);
+
+    /////////////////////
     // Account functions
     // get
     [[nodiscard]] std::optional<Address> lookup_address(AccountId id) const;
@@ -409,10 +144,14 @@ public:
     // set
     void insert_bad_block(NonzeroHeight height, const HeaderView header);
 
-    AccountId next_state_id() const {
-        return AccountId(cache.maxStateId + 1); };
-    TokenId next_token_id() const {
-        return TokenId(cache.maxStateId + 1); };
+    AccountId next_state_id() const
+    {
+        return AccountId(cache.maxStateId + 1);
+    };
+    TokenId next_token_id() const
+    {
+        return TokenId(cache.maxStateId + 1);
+    };
     HistoryId insertHistory(const HashView hash,
         const std::vector<uint8_t>& data);
     void delete_history_from(NonzeroHeight);
@@ -421,8 +160,10 @@ public:
     std::vector<std::pair<Hash, std::vector<uint8_t>>>
     lookupHistoryRange(HistoryId lower, HistoryId upper);
     void insertAccountHistory(AccountId accountId, HistoryId historyId);
-    HistoryId next_history_id() const {
-        return cache.nextHistoryId; }
+    HistoryId next_history_id() const
+    {
+        return cache.nextHistoryId;
+    }
 
     struct TokenLookupTrace { // for debugging
         struct Step {
@@ -453,7 +194,7 @@ private:
     SQLite::Database db;
     Filelock fl;
     struct CreateTables {
-        CreateTables(SQLite::Database & db)
+        CreateTables(SQLite::Database& db)
         {
             db.exec("PRAGMA foreign_keys = ON");
             db.exec("CREATE TABLE IF NOT EXISTS Metadata ("
@@ -474,6 +215,30 @@ private:
                     "NOT NULL, `base` INTEGER NOT NULL, `quote` INTEGER NOT NULL, "
                     "PRIMARY KEY(`tokenId`))");
 
+            // Sell orders
+            db.exec("CREATE TABLE IF NOT EXISTS SellOrders ("
+                    "id INTEGER NOT NULL, "
+                    "account_id INTEGER NOT NULL, "
+                    "token_id INTEGER NOT NULL, "
+                    "totalBase INTEGER NOT NULL, "
+                    "filledBase INTEGER NOT NULL, "
+                    "price NOT NULL DEFAULT 0, "
+                    "PRIMARY KEY(`id`))");
+            db.exec("CREATE INDEX IF NOT EXISTS `SellOrderIndex` ON "
+                    "`SellOrders` (token_id, price ASC)");
+
+            // Buy orders
+            db.exec("CREATE TABLE IF NOT EXISTS BuyOrders ("
+                    "id INTEGER NOT NULL, "
+                    "account_id INTEGER NOT NULL, "
+                    "token_id INTEGER NOT NULL, "
+                    "totalQuote INTEGER NOT NULL, "
+                    "filledQuote INTEGER NOT NULL, "
+                    "price NOT NULL DEFAULT 0, "
+                    "PRIMARY KEY(`id`))");
+            db.exec("CREATE INDEX IF NOT EXISTS `BuyOrderIndex` ON "
+                    "`BuyOrders` (price DESC)");
+
             // Peg
             db.exec("CREATE TABLE IF NOT EXISTS Peg ("
                     "id INTEGER NOT NULL, "
@@ -483,21 +248,11 @@ private:
                     "out_paid INTEGER NOT NULL DEFAULT 0, "
                     "in_total INTEGER NOT NULL, "
                     "in_burnt INTEGER NOT NULL DEFAULT 0"
-                    "in_token_id INTEGER NOT NULL UNIQUE, " 
-                    "expiration_height INTEGER NOT NULL, " 
+                    "in_token_id INTEGER NOT NULL UNIQUE, "
+                    "expiration_height INTEGER NOT NULL, "
                     "PRIMARY KEY(`id`))");
             db.exec("CREATE INDEX IF NOT EXISTS `PegIndex` ON "
                     "`Peg` (expiration_height)");
-
-            // TokenForkBalances
-            db.exec("CREATE TABLE IF NOT EXISTS Orders ("
-                    "id INTEGER NOT NULL, "
-                    "account_id INTEGER NOT NULL, "
-                    "base_token_id INTEGER NOT NULL UNIQUE, " 
-                    "price INTEGER NOT NULL, "
-                    "total INTEGER NOT NULL, "
-                    "filled INTEGER NOT NULL, "
-                    "PRIMARY KEY(`id`))");
 
             // TokenForkBalances
             db.exec("CREATE TABLE IF NOT EXISTS TokenForkBalances ("
@@ -560,13 +315,19 @@ private:
         uint64_t nextStateId;
         HistoryId nextHistoryId;
         DeletionKey deletionKey;
-        static Cache init(SQLite::Database & db);
+        static Cache init(SQLite::Database& db);
     } cache;
     Statement2 stmtBlockInsert;
     Statement2 stmtUndoSet;
     mutable Statement2 stmtBlockGetUndo;
     mutable Statement2 stmtBlockById;
     mutable Statement2 stmtBlockByHash;
+
+    // Orders statements
+    mutable Statement2 stmtInsertBaseSellOrder;
+    mutable Statement2 stmtInsertQuoteBuyOrder;
+    mutable Statement2 stmtSelectBaseSellOrderAsc;
+    mutable Statement2 stmtSelectQuoteBuyOrderDesc;
 
     // TokenForks statements
     Statement2 stmtTokenForkBalanceInsert;

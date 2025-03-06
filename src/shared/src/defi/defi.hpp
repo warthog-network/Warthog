@@ -1,12 +1,12 @@
 #pragma once
-#include "../funds.hpp"
+#include "general/funds.hpp"
 #include "uint64/orderbook.hpp"
 #include "uint64/pool.hpp"
 namespace defi {
 
 struct Order {
     Funds amount;
-    Price limit;
+    Price_uint64 limit;
 };
 
 class Pool {

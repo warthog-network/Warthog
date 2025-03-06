@@ -5,8 +5,61 @@
 #include "block/chain/header_chain.hpp"
 #include "block/chain/history/history.hpp"
 #include "chainserver/db/chain_db.hpp"
+#include "defi/defi.hpp"
 
 namespace {
+
+struct OrderAggregator {
+    OrderAggregator(OrderLoader l)
+        : l(std::move(l))
+    {
+        load_next();
+    }
+    std::optional<Order> next()
+    {
+        if (finished)
+            return {};
+        Order o { loaded.back().order };
+        while (true) {
+            load_next();
+            if (finished)
+                break;
+            o.amount.add_assert(loaded.back().order.amount);
+        }
+        return o;
+    }
+    std::optional<defi::Order_uint64> operator()(){
+        auto o{next()};
+        if (!o) 
+            return {};
+        return defi::Order_uint64
+    }
+
+private:
+    void load_next()
+    {
+        if (finished == true)
+            return;
+        auto nextOrder { this->l.load_next() };
+        if (!nextOrder) {
+            finished = true;
+            return;
+        }
+        loaded.push_back(*nextOrder);
+    }
+
+private:
+    bool finished { false };
+    std::vector<OrderData> loaded;
+    OrderLoader l;
+};
+
+void match(ChainDB& db, TokenId tid, defi::Pool p)
+{
+    OrderAggregator baseSellAggregator{db.base_order_loader(tid)};
+    OrderAggregator quoteBuyAggregator{db.quote_order_loader(tid)};
+    defi::match_lazy()
+}
 
 class BalanceChecker {
 

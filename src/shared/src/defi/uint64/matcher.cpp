@@ -1,5 +1,6 @@
 #include "matcher.hpp"
-#include<variant>
+#include <numeric>
+#include <variant>
 
 namespace defi {
 std::optional<Delta_uint64> FilledAndPool::balance_pool_interaction() const
@@ -22,8 +23,8 @@ std::optional<Delta_uint64> FilledAndPool::balance_pool_interaction() const
 
         // if we subtract `baseToPool` from `in.base`,
         // new in price is in_numerator/in_denominator
-        auto in_numerator { in.quote };
-        auto in_denominator { in.base - baseToPool };
+        auto in_numerator { in.quote.value() };
+        auto in_denominator { in.base.value() - baseToPool };
 
         // to compare the prices we compare these products
         auto pool_price_score { poolRatio.numerator * in_denominator };
@@ -52,8 +53,8 @@ std::optional<Delta_uint64> FilledAndPool::balance_pool_interaction() const
 
         // if we subtract `quoteToPool` from `in.quote`,
         // new in price is in_numerator/in_denominator
-        auto in_numerator { in.quote - quoteToPool };
-        auto in_denominator { in.base };
+        auto in_numerator { in.quote.value() - quoteToPool };
+        auto in_denominator { in.base.value() };
 
         // to compare the prices we compare these products
         auto pool_price_score { poolRatio.numerator * in_denominator };
@@ -82,8 +83,10 @@ std::optional<Delta_uint64> FilledAndPool::balance_pool_interaction() const
             return v1;
         auto ratio1 { r.get_exceeded_ratio() };
         uint64_t v0 { 0 };
-        while (v0 + 1 < v1) {
-            uint64_t v { (v1 + v0) / 2 };
+        while (true) {
+            uint64_t v { std::midpoint(v0, v1) };
+            if (v0 == v)
+                break;
             ret_t ret = asc_fun(v);
             if (ret.exceeded()) {
                 v1 = v;
@@ -109,7 +112,7 @@ std::optional<Delta_uint64> FilledAndPool::balance_pool_interaction() const
         // need to push quote to pool
         assert(quoteRet.rel == std::strong_ordering::less);
         uint64_t toPoolAmount {
-            bisect(quoteRet.get_unexceeded_ratio(), in.quote,
+            bisect(quoteRet.get_unexceeded_ratio(), in.quote.value(),
                 [&](uint64_t toPool) { return nondecreasing_releation_quote(toPool); })
         };
         return make_toPool(true, toPoolAmount);
@@ -117,7 +120,7 @@ std::optional<Delta_uint64> FilledAndPool::balance_pool_interaction() const
         assert(quoteRet.rel != std::strong_ordering::less);
         // need to push base to pool
         auto toPoolAmount {
-            bisect(baseRet.get_unexceeded_ratio(), in.base,
+            bisect(baseRet.get_unexceeded_ratio(), in.base.value(),
                 [&](uint64_t toPool) { return nondecreasing_relation_base(toPool); })
         };
         return make_toPool(false, toPoolAmount);

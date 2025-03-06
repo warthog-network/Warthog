@@ -5,7 +5,6 @@
 #include "block/header/header_impl.hpp"
 #include "chainserver/db/chain_db.hpp"
 #include "eventloop/eventloop.hpp"
-#include "general/hex.hpp"
 #include "global/globals.hpp"
 #include "spdlog/spdlog.h"
 

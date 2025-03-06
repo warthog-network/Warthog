@@ -15,7 +15,7 @@ struct PreparedExtradata {
         uint64_t cumsumQuote { 0 };
         const size_t J { b.base_asc_sell().size() };
         const size_t I { b.quote_desc_buy().size() };
-        uint64_t cumsumBase { b.base_asc_sell().total_push() };
+        uint64_t cumsumBase { b.base_asc_sell().total_push().value() };
         size_t j { 0 };
         extraBase.resize(0);
         for (size_t i = 0; i < I; ++i) {
@@ -25,14 +25,14 @@ struct PreparedExtradata {
                 if (ob.limit <= oq.limit)
                     break;
                 extraBase.push_back({ cumsumBase, i });
-                cumsumBase -= ob.amount;
+                cumsumBase -= ob.amount.value();
             }
             extraQuote.push_back({ cumsumQuote, j });
-            cumsumQuote += oq.amount;
+            cumsumQuote += oq.amount.value();
         }
         for (; j < J; ++j) {
             extraBase.push_back({ cumsumBase, I });
-            cumsumBase -= b.base_asc_sell()[J - 1 - j].amount;
+            cumsumBase -= b.base_asc_sell()[J - 1 - j].amount.value();
         }
     }
     std::vector<ExtraData> extraQuote;
@@ -42,9 +42,28 @@ struct PreparedExtradata {
 auto Orderbook_uint64::match(const PoolLiquidity_uint64& p) const
     -> MatchResult_uint64
 {
+    // using namespace std;
+    // auto print_vec {
+    //     [](auto& vec) {
+    //         for (size_t i { 0 }; i < vec.size(); ++i) {
+    //             cout << "Limit: " << vec[i].limit.to_double() << " amount: " << vec[i].amount.value() << endl;
+    //         }
+    //     }
+    // };
+
+    // cout << "Base sell" << endl;
+    // print_vec(base_asc_sell());
+    // cout << "Quote buy" << endl;
+    // print_vec(quote_desc_buy());
     PreparedExtradata prepared { *this };
     const auto& extraQuote { prepared.extraQuote };
     const auto& extraBase { prepared.extraBase };
+    // for (auto &e : extraQuote) {
+    //     cout<< "cumsum: "<<e.cumsum<<" K="<<e.upperBoundCounterpart<<endl;
+    // }
+    // for (auto &e : extraBase) {
+    //     cout<< "cumsum: "<<e.cumsum<<" K="<<e.upperBoundCounterpart<<endl;
+    // }
     const size_t I { pushQuoteDesc.size() };
     const size_t J { pushBaseAsc.size() };
     size_t i0 { 0 };
@@ -76,7 +95,7 @@ auto Orderbook_uint64::match(const PoolLiquidity_uint64& p) const
             return m.bisect_dynamic_price();
         } else {
             auto j { j1 - 1 };
-            m.in.base = extraBase[j].cumsum - pushBaseAsc[J - 1 - j].amount;
+            m.in.base = extraBase[j].cumsum - pushBaseAsc[J - 1 - j].amount.value();
             auto price { pushBaseAsc[J - 1 - j].limit };
             if (m.bisection_step(price)) {
                 return m.bisect_dynamic_price();
@@ -96,7 +115,7 @@ auto Orderbook_uint64::match(const PoolLiquidity_uint64& p) const
         auto price { pushQuoteDesc[i].limit };
         auto j { eq.upperBoundCounterpart };
         m.in.base = (j == J ? 0 : extraBase[j].cumsum);
-        m.in.quote = eq.cumsum + pushQuoteDesc[i].amount;
+        m.in.quote = eq.cumsum + pushQuoteDesc[i].amount.value();
         size_t j0 = extraQuote[i].upperBoundCounterpart;
         if (m.bisection_step(price)) {
             size_t j1 = (i1 < I ? extraQuote[i1].upperBoundCounterpart : J);
