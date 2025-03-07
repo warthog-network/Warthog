@@ -8,11 +8,11 @@
 #include "block/chain/worksum.hpp"
 #include "block/id.hpp"
 #include "chainserver/transaction_ids.hpp"
-#include "defi/price.hpp"
 #include "defi/token/token.hpp"
 #include "deletion_key.hpp"
 #include "general/address_funds.hpp"
 #include "general/filelock/filelock.hpp"
+#include "general/timestamp.hpp"
 #include "order_loader.hpp"
 #include "statement.hpp"
 struct CreatorToken;
@@ -26,6 +26,23 @@ class Headerchain;
 struct RawBody : public std::vector<uint8_t> {
 };
 struct RawUndo : public std::vector<uint8_t> {
+};
+struct Candle {
+    Timestamp timestamp;
+    Price_uint64 open;
+    Price_uint64 high;
+    Price_uint64 low;
+    Price_uint64 close;
+    Funds_uint64 quantity;
+    Funds_uint64 volume;
+};
+
+struct PoolData {
+    TokenId shareId; // pool shares id
+    TokenId tokenId;
+    Funds_uint64 base;
+    Funds_uint64 quote;
+    Funds_uint64 shares;
 };
 
 struct BlockUndoData {
@@ -90,6 +107,16 @@ public:
 
     /////////////////////
     // Order functions
+    void prune_candles(Timestamp timestamp);
+    void insert_candles_5m(TokenId, const Candle&);
+    std::optional<Candle> select_candle_5m(TokenId, Timestamp);
+    std::vector<Candle> select_candles_5m(TokenId, Timestamp from, Timestamp to);
+    void insert_candles_1h(TokenId, const Candle&);
+    std::optional<Candle> select_candle_1h(TokenId, Timestamp);
+    std::vector<Candle> select_candles_1h(TokenId, Timestamp from, Timestamp to);
+
+    /////////////////////
+    // Order functions
     void insert_buy_order(OrderId id, AccountId, TokenId, Funds totalBase, Funds filledBase, Price_uint64 price);
     void insert_quote_order(OrderId id, AccountId, TokenId, Funds totalQuote, Funds filledQuote, Price_uint64 price);
 
@@ -101,6 +128,12 @@ public:
     // get
     [[nodiscard]] std::optional<Address> lookup_address(AccountId id) const;
     [[nodiscard]] Address fetch_address(AccountId id) const;
+
+    /////////////////////
+    // Pool functions
+    void insert_pool(TokenId shareId, TokenId tokenId);
+    std::optional<PoolData> select_pool(TokenId shareIdOrTokenId) const;
+    void update_pool(TokenId shareId, Funds_uint64 base, Funds_uint64 quote, Funds_uint64 shares);
 
     /////////////////////
     // Token fork balance functions
@@ -146,11 +179,11 @@ public:
 
     AccountId next_state_id() const
     {
-        return AccountId(cache.maxStateId + 1);
+        return AccountId(cache.nextStateId);
     };
     TokenId next_token_id() const
     {
-        return TokenId(cache.maxStateId + 1);
+        return TokenId(cache.nextStateId);
     };
     HistoryId insertHistory(const HashView hash,
         const std::vector<uint8_t>& data);
@@ -211,9 +244,33 @@ private:
                     "NOT NULL, `header` BLOB NOT NULL, `body` BLOB NOT NULL, "
                     "`undo` BLOB DEFAULT NULL, `hash` BLOB NOT NULL UNIQUE )");
 
-            db.exec("CREATE TABLE IF NOT EXISTS \"Pools\" ( `tokenId` INTEGER "
-                    "NOT NULL, `base` INTEGER NOT NULL, `quote` INTEGER NOT NULL, "
-                    "PRIMARY KEY(`tokenId`))");
+            // candles 5m
+            db.exec("CREATE TABLE IF NOT EXISTS Candles5m ("
+                    "tokenId INTEGER NOT NULL, "
+                    "timestamp INTEGER NOT NULL, " // start timestamp
+                    "open INTEGER NOT NULL, "
+                    "high INTEGER NOT NULL, "
+                    "low INTEGER NOT NULL, "
+                    "close INTEGER NOT NULL, "
+                    "quantity INTEGER NOT NULL, " // base amount traded
+                    "volume INTEGER NOT NULL, " // quote amount traded
+                    "PRIMARY KEY(token_id, timestamp))");
+            db.exec("CREATE INDEX IF NOT EXISTS `Candles5mIndex` ON "
+                    "`Candles5m` (timestamp)");
+
+            // candles 1h
+            db.exec("CREATE TABLE IF NOT EXISTS Candles1h ("
+                    "tokenId INTEGER NOT NULL, "
+                    "timestamp INTEGER NOT NULL, " // start timestamp
+                    "open INTEGER NOT NULL, "
+                    "high INTEGER NOT NULL, "
+                    "low INTEGER NOT NULL, "
+                    "close INTEGER NOT NULL, "
+                    "quantity INTEGER NOT NULL, " // base amount traded
+                    "volume INTEGER NOT NULL, " // quote amount traded
+                    "PRIMARY KEY(token_id, timestamp))");
+            db.exec("CREATE INDEX IF NOT EXISTS `Candles1hIndex` ON "
+                    "`Candles1h` (timestamp)");
 
             // Sell orders
             db.exec("CREATE TABLE IF NOT EXISTS SellOrders ("
@@ -225,7 +282,7 @@ private:
                     "price NOT NULL DEFAULT 0, "
                     "PRIMARY KEY(`id`))");
             db.exec("CREATE INDEX IF NOT EXISTS `SellOrderIndex` ON "
-                    "`SellOrders` (token_id, price ASC)");
+                    "`SellOrders` (token_id, price ASC, id ASC)");
 
             // Buy orders
             db.exec("CREATE TABLE IF NOT EXISTS BuyOrders ("
@@ -237,7 +294,16 @@ private:
                     "price NOT NULL DEFAULT 0, "
                     "PRIMARY KEY(`id`))");
             db.exec("CREATE INDEX IF NOT EXISTS `BuyOrderIndex` ON "
-                    "`BuyOrders` (price DESC)");
+                    "`BuyOrders` (token_id, price DESC, id ASC)");
+
+            // Pools
+            db.exec("CREATE TABLE IF NOT EXISTS Pools ("
+                    "id INTEGER NOT NULL, " // this one is also share id
+                    "token_id INTEGER UNIQUE NOT NULL, "
+                    "`liquidity_token` INTEGER NOT NULL, "
+                    "`liquidity_wart` INTEGER NOT NULL, "
+                    "`pool_shares` INTEGER NOT NULL, "
+                    "PRIMARY KEY(`id`))");
 
             // Peg
             db.exec("CREATE TABLE IF NOT EXISTS Peg ("
@@ -323,11 +389,26 @@ private:
     mutable Statement2 stmtBlockById;
     mutable Statement2 stmtBlockByHash;
 
+    // Candles statements
+    Statement2 stmtPruneCandles5m;
+    Statement2 stmtInsertCandles5m;
+    Statement2 stmtUpdateCandles5m;
+    Statement2 stmtSelectCandles5m;
+    Statement2 stmtPruneCandles1h;
+    Statement2 stmtInsertCandles1h;
+    Statement2 stmtUpdateCandles1h;
+    Statement2 stmtSelectCandles1h;
+
     // Orders statements
-    mutable Statement2 stmtInsertBaseSellOrder;
-    mutable Statement2 stmtInsertQuoteBuyOrder;
+    Statement2 stmtInsertBaseSellOrder;
+    Statement2 stmtInsertQuoteBuyOrder;
     mutable Statement2 stmtSelectBaseSellOrderAsc;
     mutable Statement2 stmtSelectQuoteBuyOrderDesc;
+
+    // Pool statements
+    Statement2 stmtInsertPool;
+    mutable Statement2 stmtSelectPool;
+    Statement2 stmtUpdatePool;
 
     // TokenForks statements
     Statement2 stmtTokenForkBalanceInsert;

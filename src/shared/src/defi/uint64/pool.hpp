@@ -44,6 +44,46 @@ struct PoolLiquidity_uint64 : public BaseQuote_uint64 {
         else
             return rel_base_price(toPool.amount.value(), p) != std::strong_ordering::less;
     }
+
+    [[nodiscard]] Funds_uint64 sell(Funds_uint64 baseAdd, uint64_t feeE4 = 10)
+    {
+        auto quoteDelta = swapped_amount(base.value(), baseAdd.value(), quote.value(), feeE4);
+        quote.subtract_assert(quoteDelta);
+        base.add_assert(baseAdd);
+        return quoteDelta;
+    }
+
+    [[nodiscard]] Funds_uint64 buy(Funds_uint64 quoteAdd, uint64_t feeE4 = 10)
+    {
+        auto baseDelta = swapped_amount(quote.value(), quoteAdd.value(), base.value(), feeE4);
+        base.subtract_assert(baseDelta);
+        quote.add_assert(quoteAdd);
+        return baseDelta;
+    }
+
+private:
+    static uint64_t discount(uint64_t value, uint16_t feeE4)
+    {
+        if (value == 0)
+            return 0;
+        auto shift = std::countl_zero(value);
+        auto v { value << shift };
+        constexpr size_t E4 { 10000 };
+
+        auto a = E4 - feeE4;
+        auto b = E4;
+        return ((v / b) * a + ((v % b) * a) / b) >> shift;
+    }
+
+    static uint64_t swapped_amount(uint64_t a0, uint64_t a_add, uint64_t b0, uint64_t feeE4)
+    {
+        auto bnew { Prod128(a0, b0).divide_ceil(a0 + a_add) };
+        assert(bnew.has_value()); // cannot overflow
+        const auto b1 { *bnew };
+        assert(b1 <= b0);
+        uint64_t bDelta { b0 - b1 };
+        return discount(bDelta, feeE4);
+    }
 };
 
 class Pool_uint64 : public PoolLiquidity_uint64 {
@@ -52,22 +92,6 @@ public:
         : PoolLiquidity_uint64(base, quote)
     {
         assert(base != 0 && quote != 0);
-    }
-
-    [[nodiscard]] uint64_t sell(uint64_t baseAdd, uint64_t feeE4 = 10)
-    {
-        auto quoteDelta = swapped_amount(base.value(), baseAdd, quote.value(), feeE4);
-        quote.subtract_assert(quoteDelta);
-        base.add_assert(baseAdd);
-        return quoteDelta;
-    }
-
-    [[nodiscard]] uint64_t buy(uint64_t quoteAdd, uint64_t feeE4 = 10)
-    {
-        auto baseDelta = swapped_amount(quote.value(), quoteAdd, base.value(), feeE4);
-        base.subtract_assert(baseDelta);
-        quote.add_assert(quoteAdd);
-        return baseDelta;
     }
 
     [[nodiscard]] uint64_t deposit(Funds_uint64 addBase, Funds_uint64 addQuote)
@@ -105,30 +129,6 @@ public:
 
     auto base_total() const { return base; }
     auto quote_total() const { return quote; }
-
-private:
-    static uint64_t discount(uint64_t value, uint16_t feeE4)
-    {
-        if (value == 0)
-            return 0;
-        auto shift = std::countl_zero(value);
-        auto v { value << shift };
-        constexpr size_t E4 { 10000 };
-
-        auto a = E4 - feeE4;
-        auto b = E4;
-        return ((v / b) * a + ((v % b) * a) / b) >> shift;
-    }
-
-    static uint64_t swapped_amount(uint64_t a0, uint64_t a_add, uint64_t b0, uint64_t feeE4)
-    {
-        auto bnew { Prod128(a0, b0).divide_ceil(a0 + a_add) };
-        assert(bnew.has_value()); // cannot overflow
-        const auto b1 { *bnew };
-        assert(b1 <= b0);
-        uint64_t bDelta { b0 - b1 };
-        return discount(bDelta, feeE4);
-    }
 
 private:
     uint64_t tokensTotal { 0 };

@@ -1,17 +1,17 @@
 #pragma once
-
 #include "defi/order.hpp"
+
 struct Statement2;
 class ChainDB;
 class OrderLoader {
     friend class ChainDB;
-    OrderLoader(Statement2* stmt)
-        : stmt(stmt)
+    OrderLoader(Statement2& stmt)
+        : stmt(&stmt)
     {
     }
 
 public:
-    std::optional<OrderData> load_next();
+    [[nodiscard]] std::optional<OrderData> operator()() const;
 
     OrderLoader(const OrderLoader&) = delete;
     OrderLoader(OrderLoader&& other)
@@ -22,5 +22,7 @@ public:
     ~OrderLoader();
 
 private:
+private:
     Statement2* stmt;
+    std::optional<OrderData> loaded;
 };

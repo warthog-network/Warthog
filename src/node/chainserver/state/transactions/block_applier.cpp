@@ -5,7 +5,8 @@
 #include "block/chain/header_chain.hpp"
 #include "block/chain/history/history.hpp"
 #include "chainserver/db/chain_db.hpp"
-#include "defi/defi.hpp"
+#include "defi/uint64/lazy_matching.hpp"
+#include "defi/uint64/pool.hpp"
 
 namespace {
 
@@ -15,37 +16,42 @@ struct OrderAggregator {
     {
         load_next();
     }
-    std::optional<Order> next()
+    defi::Order_uint64 load_next_order()
     {
-        if (finished)
-            return {};
-        Order o { loaded.back().order };
+        assert(!finished);
+        auto o { last_inserted().order };
         while (true) {
             load_next();
-            if (finished)
+            if (finished || last_inserted().order.limit != o.limit)
                 break;
-            o.amount.add_assert(loaded.back().order.amount);
+            o.amount.add_assert(last_inserted().remaining());
         }
         return o;
     }
-    std::optional<defi::Order_uint64> operator()(){
-        auto o{next()};
-        if (!o) 
+    std::optional<Price_uint64> next_price() const
+    {
+        if (finished)
             return {};
-        return defi::Order_uint64
+        return last_inserted().order.limit;
     }
+    auto& orders() const { return loaded; }
 
 private:
+    const OrderData& last_inserted() const
+    {
+        return loaded.back();
+    }
     void load_next()
     {
         if (finished == true)
             return;
-        auto nextOrder { this->l.load_next() };
-        if (!nextOrder) {
+
+        auto o { l() };
+        if (!o) {
             finished = true;
             return;
         }
-        loaded.push_back(*nextOrder);
+        loaded.push_back(*o);
     }
 
 private:
@@ -54,11 +60,60 @@ private:
     OrderLoader l;
 };
 
-void match(ChainDB& db, TokenId tid, defi::Pool p)
+void match(ChainDB& db, TokenId tid, defi::PoolLiquidity_uint64 p)
 {
-    OrderAggregator baseSellAggregator{db.base_order_loader(tid)};
-    OrderAggregator quoteBuyAggregator{db.quote_order_loader(tid)};
-    defi::match_lazy()
+    OrderAggregator baseSellAggregator { db.base_order_loader(tid) };
+    OrderAggregator quoteBuyAggregator { db.quote_order_loader(tid) };
+    const auto m { defi::match_lazy(baseSellAggregator, quoteBuyAggregator, p) };
+
+    auto returned { m.filled };
+    Funds_uint64 fromPool { 0 };
+    if (m.toPool) {
+        auto pa { m.toPool->amount };
+        if (m.toPool->isQuote) {
+            returned.quote.subtract_assert(pa);
+            fromPool = p.buy(pa, 50);
+            returned.base.add_assert(fromPool);
+        } else {
+            returned.base.subtract_assert(pa);
+            fromPool = p.sell(pa, 50);
+            returned.quote.add_assert(fromPool);
+        }
+    }
+    { // seller match
+        Funds_uint64 quoteDistributed { 0 };
+        auto remaining { m.filled.base };
+        for (auto& o : baseSellAggregator.orders()) {
+            if (remaining == 0)
+                break;
+            auto a { std::min(remaining, o.remaining()) };
+            remaining.subtract_assert(a);
+
+            // compute return of that order
+            auto q { Prod128(a, returned.quote).divide_floor(m.filled.base.value()) };
+            assert(q.has_value());
+            quoteDistributed.add_assert(*q);
+        }
+        assert(remaining == 0);
+        returned.quote.subtract_assert(quoteDistributed);
+    }
+    { // buyer match
+        Funds_uint64 baseDistributed { 0 };
+        auto remaining { m.filled.quote };
+        for (auto& o : quoteBuyAggregator.orders()) {
+            if (remaining == 0)
+                break;
+            auto a { std::min(remaining, o.remaining()) };
+            remaining.subtract_assert(a);
+
+            // compute return of that order
+            auto b { Prod128(a, returned.base).divide_floor(m.filled.quote.value()) };
+            assert(b.has_value());
+            baseDistributed.add_assert(*b);
+        }
+        assert(remaining == 0);
+        returned.base.subtract_assert(baseDistributed);
+    }
 }
 
 class BalanceChecker {

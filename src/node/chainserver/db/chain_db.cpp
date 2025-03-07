@@ -51,10 +51,20 @@ ChainDB::ChainDB(const std::string& path)
           db, "SELECT `height`, `header`, `body` FROM \"Blocks\" WHERE `ROWID`=?;")
     , stmtBlockByHash(
           db, "SELECT ROWID, `height`, `header`, `body` FROM \"Blocks\" WHERE `hash`=?;")
+    , stmtPruneCandles5m(db, "DELETE FROM Candles5m WHERE timestamp >=?")
+    , stmtInsertCandles5m(db, "INSERT OR REPLACE INTO Candles5m (tokenId, timestamp, open, high, low, close, quantity, volume) VALUES (?,?,?,?,?,?,?,?)")
+    , stmtSelectCandles5m(db, "SELECT (timestamp, open, high, low, close, quantity, volume) FROM Candles5m WHERE token_id=? AND timestamp>=? AND timestamp<=?")
+    , stmtPruneCandles1h(db, "DELETE FROM Candles1h WHERE timestamp >=?")
+    , stmtInsertCandles1h(db, "INSERT OR REPLACE INTO Candles1h (tokenId, timestamp, open, high, low, close, quantity, volume) VALUES (?,?,?,?,?,?,?,?)")
+    , stmtSelectCandles1h(db, "SELECT (timestamp, open, high, low, close, quantity, volume) FROM Candles1h WHERE token_id=? AND timestamp>=? AND timestamp<=?")
+
     , stmtInsertBaseSellOrder(db, "INSERT INTO SellOrders (id, account_id,token_id, totalBase, filledBase, price) VALUES(?,?,?,?,?,?)")
     , stmtInsertQuoteBuyOrder(db, "INSERT INTO BuyOrders (id, account_id,token_id, totalQuote, filledQuote, price) VALUES(?,?,?,?,?,?)")
-    , stmtSelectBaseSellOrderAsc(db, "SELECT (id, account_id, totalBase, filledBase, price) FROM SellOrders WHERE token_id=? ORDER BY price ASC")
-    , stmtSelectQuoteBuyOrderDesc(db, "SELECT (id, account_id, totalQuote, filledQuote, price) FROM SellOrders WHERE token_id=? ORDER BY price DESC")
+    , stmtSelectBaseSellOrderAsc(db, "SELECT (id, account_id, totalBase, filledBase, price) FROM SellOrders WHERE token_id=? ORDER BY price ASC, id ASC")
+    , stmtSelectQuoteBuyOrderDesc(db, "SELECT (id, account_id, totalQuote, filledQuote, price) FROM BuyOrders WHERE token_id=? ORDER BY price DESC, id ASC")
+    , stmtInsertPool(db, "INSERT INTO Pools (id, token_id, pool_wart, pool_token, pool_shares) VALUES (?,?,0,0,0)")
+    , stmtSelectPool(db, "SELECT (id, token_id, liquidity_token, liquidity_wart, pool_shares) FROM Pools WHERE token_id=? OR id=?")
+    , stmtUpdatePool(db, "Update Pools SET liquidity_base=?, liquidity_quote=?, pool_shares=? WHERE id=?")
     , stmtTokenForkBalanceInsert(db, "INSERT INTO TokenForkBalances "
                                      "(id, account_id, token_id, height, balance) "
                                      "VALUES (?,?,?,?)")
@@ -327,6 +337,83 @@ void ChainDB::set_block_undo(BlockId id, const std::vector<uint8_t>& undo)
 {
     stmtUndoSet.run(undo, id);
 }
+
+void ChainDB::prune_candles(Timestamp timestamp)
+{
+    stmtPruneCandles5m.run(timestamp);
+    stmtPruneCandles1h.run(timestamp);
+}
+
+void ChainDB::insert_candles_5m(TokenId tid, const Candle& c)
+{
+    stmtInsertCandles5m.run(tid, c.timestamp, c.open, c.high, c.low, c.close, c.quantity, c.volume);
+}
+
+std::optional<Candle> ChainDB::select_candle_5m(TokenId tid, Timestamp ts)
+{
+    stmtSelectCandles5m.one(tid, ts, ts).process([](auto& o) {
+        return Candle {
+            .timestamp { o[0] },
+            .open { o[1] },
+            .high { o[2] },
+            .low { o[3] },
+            .close { o[4] },
+            .quantity { o[5] },
+            .volume { o[6] },
+        };
+    });
+}
+
+std::vector<Candle> ChainDB::select_candles_5m(TokenId tid, Timestamp from, Timestamp to)
+{
+    stmtSelectCandles5m.for_each(tid, from, to, [](auto& o) {
+        return Candle {
+            .timestamp { o[0] },
+            .open { o[1] },
+            .high { o[2] },
+            .low { o[3] },
+            .close { o[4] },
+            .quantity { o[5] },
+            .volume { o[6] },
+        };
+    });
+}
+
+void ChainDB::insert_candles_1h(TokenId tid, const Candle& c)
+{
+    stmtInsertCandles1h.run(tid, c.timestamp, c.open, c.high, c.low, c.close, c.quantity, c.volume);
+}
+
+std::optional<Candle> ChainDB::select_candle_1h(TokenId tid, Timestamp ts)
+{
+    stmtSelectCandles1h.one(tid, ts, ts).process([](auto& o) {
+        return Candle {
+            .timestamp { o[0] },
+            .open { o[1] },
+            .high { o[2] },
+            .low { o[3] },
+            .close { o[4] },
+            .quantity { o[5] },
+            .volume { o[6] },
+        };
+    });
+}
+
+std::vector<Candle> ChainDB::select_candles_1h(TokenId tid, Timestamp from, Timestamp to)
+{
+    stmtSelectCandles1h.for_each(tid, from, to, [](auto& o) {
+        return Candle {
+            .timestamp { o[0] },
+            .open { o[1] },
+            .high { o[2] },
+            .low { o[3] },
+            .close { o[4] },
+            .quantity { o[5] },
+            .volume { o[6] },
+        };
+    });
+}
+
 void ChainDB::insert_buy_order(OrderId oid, AccountId aid, TokenId tid, Funds totalBase, Funds filledBase, Price_uint64 price)
 {
     stmtInsertBaseSellOrder.run(oid, aid, tid, totalBase, filledBase, price);
@@ -354,6 +441,28 @@ void ChainDB::insert_consensus(NonzeroHeight height, BlockId blockId, HistoryId 
     stmtScheduleDelete2.run(blockId);
 }
 
+void ChainDB::insert_pool(TokenId shareId, TokenId tokenId)
+{
+    stmtInsertPool.run(shareId, tokenId);
+}
+std::optional<PoolData> ChainDB::select_pool(TokenId shareIdOrTokenId) const
+{
+    return stmtSelectPool.one(shareIdOrTokenId).process([](auto o) {
+        return PoolData {
+            .shareId { o[0] },
+            .tokenId { o[1] },
+            .base { o[2] },
+            .quote { o[3] },
+            .shares { o[4] }
+        };
+    });
+}
+
+void ChainDB::update_pool(TokenId shareId, Funds_uint64 base, Funds_uint64 quote, Funds_uint64 shares)
+{
+    stmtUpdatePool.run(base, quote, shares, shareId);
+}
+
 void ChainDB::insert_token_fork_balance(TokenForkBalanceId id, TokenId tokenId, TokenForkId forkId, Funds balance)
 {
     stmtTokenForkBalanceInsert.run(id, tokenId, forkId, balance);
@@ -361,10 +470,10 @@ void ChainDB::insert_token_fork_balance(TokenForkBalanceId id, TokenId tokenId, 
 
 bool ChainDB::fork_balance_exists(AccountToken at, NonzeroHeight h)
 {
-    auto res { stmtTokenForkBalanceEntryExists.one(at.account_id(), at.token_id(), h)
-            .process([](auto& o) {
-                return o.has_value();
-            }) };
+    return stmtTokenForkBalanceEntryExists.one(at.account_id(), at.token_id(), h)
+        .process([](auto& o) {
+            return o.has_value();
+        });
 }
 
 std::optional<std::pair<NonzeroHeight, Funds>> ChainDB::get_balance_snapshot_after(TokenId tokenId, NonzeroHeight minHegiht)

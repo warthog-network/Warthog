@@ -125,6 +125,10 @@ struct Column2 : public SQLite::Column {
     {
         return BlockId(getInt64());
     }
+    operator Funds_uint64() const
+    {
+        return Funds_uint64(getUInt());
+    }
     operator Funds() const
     {
         auto v { Funds::from_value(int64_t(getInt64())) };

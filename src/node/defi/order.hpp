@@ -5,20 +5,19 @@
 #include "defi/uint64/types.hpp"
 #include "general/funds.hpp"
 
-struct Order {
-    Price_uint64 price;
-    Funds amount;
-};
-
 struct OrderData {
     OrderId id;
     AccountId aid;
-    Order order;
-    Funds filled;
-    OrderData(OrderId id, AccountId aid, Funds amount, Funds filled, Price_uint64 p)
+    defi::Order_uint64 order;
+    Funds_uint64 filled;
+    Funds_uint64 remaining() const
+    {
+        return Funds_uint64::diff_assert(order.amount, filled);
+    }
+    OrderData(OrderId id, AccountId aid, Funds_uint64 amount, Funds_uint64 filled, Price_uint64 p)
         : id(id)
         , aid(aid)
-        , order { p, amount }
+        , order { amount, p }
         , filled(filled)
     {
         if (filled > amount)
