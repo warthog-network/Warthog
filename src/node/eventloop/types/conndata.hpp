@@ -1,5 +1,7 @@
 #pragma once
 
+#include "block/header/batch.hpp"
+#include "communication/buffers/sndbuffer.hpp"
 #include "eventloop/peer_chain.hpp"
 #include "eventloop/sync/block_download/connection_data.hpp"
 #include "eventloop/sync/header_download/connection_data.hpp"
@@ -9,59 +11,22 @@
 #include "rtc/peer_rtc_state.hpp"
 #include "transport/connection_base.hpp"
 
-class Timerref {
-public:
-    Timerref(Timer& t)
-        : timer_iter(t.end())
-    {
-    }
-    Timerref(Timer::iterator iter)
-        : timer_iter(iter)
-    {
-    }
-    Timer::iterator& timer_ref() { return timer_iter; }
-    void reset_expired(Timer& t)
-    {
-        assert(timer_iter != t.end());
-        timer_iter = t.end();
-    }
-    void reset_notexpired(Timer& t)
-    {
-        assert(timer_iter != t.end());
-        t.cancel(timer_iter);
-        timer_iter = t.end();
-    }
-    bool has_timerref(Timer& timer) { return timer_iter != timer.end(); }
-    Timer::iterator timer() { return timer_iter; }
-
-protected:
-    Timer::iterator timer_iter;
-};
-
-struct ConnectionJob : public Timerref {
+struct ConnectionJob {
+    using TimerSystem = eventloop::TimerSystem;
+    using Timer = eventloop::Timer;
     using time_point = std::chrono::steady_clock::time_point;
-    using Timerref::Timerref;
-    ConnectionJob(uint64_t conId, Timer& t);
+    ConnectionJob(uint64_t conId, TimerSystem& t);
 
     template <typename T>
     requires std::derived_from<T, IsRequest>
-    void assign(Timer::iterator iter, Timer& t, T& req)
+    void assign(Timer t, T& req)
     {
         assert(!active());
-        assert(t.end() != iter);
-        timer_iter = iter;
-        try {
-            assert(!data_v.valueless_by_exception());
-            data_v = req;
-            assert(data_v.valueless_by_exception() == false);
-        } catch (...) {
-            assert(0 == 1);
-        }
-        assert(!data_v.valueless_by_exception());
+        timer = t;
+        data_v = req;
     }
     bool active() const
     {
-        assert(data_v.valueless_by_exception() == false);
         return !std::holds_alternative<std::monostate>(data_v);
     }
     operator bool()
@@ -70,7 +35,6 @@ struct ConnectionJob : public Timerref {
     }
     bool waiting_for_init() const
     {
-        assert(data_v.valueless_by_exception() == false);
         return std::holds_alternative<AwaitInit>(data_v);
     }
 
@@ -78,48 +42,39 @@ struct ConnectionJob : public Timerref {
     // data
 
     template <typename T>
-    void reset_notexpired(Timer& t)
+    void reset_notexpired(TimerSystem& ts)
     {
-        assert(!data_v.valueless_by_exception());
-        Timerref::reset_notexpired(t);
+        assert(timer);
+        ts.erase(*timer);
+        timer.reset();
         bool b = !std::holds_alternative<T>(data_v);
-        try {
-            data_v = std::monostate();
-            assert(data_v.valueless_by_exception() == false);
-        } catch (...) {
-            assert(0 == 1);
-        }
-        assert(!data_v.valueless_by_exception());
+        data_v = std::monostate();
         if (b)
             throw Error(EUNREQUESTED);
     }
 
     [[nodiscard]] bool awaiting_init() const
     {
-        assert(!data_v.valueless_by_exception());
         return std::holds_alternative<AwaitInit>(data_v);
     }
 
-    void restart_expired(Timer::iterator iter, Timer& t)
+    void set_timer(Timer t)
     {
-        assert(timer_iter != t.end());
-        timer_iter = iter;
-        return;
+        timer = t;
     }
-    using data_t = std::variant<AwaitInit, std::monostate, Proberequest, Batchrequest, Blockrequest>;
+    using data_t = std::variant<AwaitInit, std::monostate, Proberequest, HeaderRequest, BlockRequest>;
     data_t data_v;
+    std::optional<Timer> timer;
 
     template <typename T>
-    // requires T::is_reply // TODO
-    auto pop_req(T& rep, Timer& t, size_t& activeRequests)
+    requires T::is_reply
+    auto pop_req(T& rep, TimerSystem& t, size_t& activeRequests)
     {
         using type = typename typemap<T>::type;
-        assert(!data_v.valueless_by_exception());
         if (!std::holds_alternative<type>(data_v)) {
             throw Error(EUNREQUESTED);
         }
         auto out = std::get<type>(data_v);
-        assert(!data_v.valueless_by_exception());
         out.unref_active_requests(activeRequests);
         if (rep.nonce() != out.nonce()) {
             throw Error(EUNREQUESTED);
@@ -129,14 +84,12 @@ struct ConnectionJob : public Timerref {
     }
     void unref_active_requests(size_t& activeRequests)
     {
-        assert(!data_v.valueless_by_exception());
         std::visit([&](auto& e) {
             if constexpr (std::is_base_of_v<IsRequest, std::decay_t<decltype(e)>>) {
                 e.unref_active_requests(activeRequests);
             }
         },
             data_v);
-        assert(!data_v.valueless_by_exception());
     }
 
 private:
@@ -152,15 +105,17 @@ private:
 
     template <std::same_as<BatchrepMsg> T>
     struct typemap<T> {
-        using type = Batchrequest;
+        using type = HeaderRequest;
     };
     template <std::same_as<BlockrepMsg> T>
     struct typemap<T> {
-        using type = Blockrequest;
+        using type = BlockRequest;
     };
 };
 
-struct Ping : public Timerref {
+struct Ping {
+    using TimerSystem = eventloop::TimerSystem;
+    using Timer = eventloop::Timer;
     struct PingV2Data {
         struct ExtraData {
             ExtraData(uint64_t signalingListDiscardIndex)
@@ -171,33 +126,29 @@ struct Ping : public Timerref {
         } extraData;
         PingV2Msg msg;
     };
-    Ping(Timer& end)
-        : Timerref(end)
-    {
-    }
-    void await_pong(PingMsg msg, Timer::iterator iter)
+    void await_pong(PingMsg msg, Timer t)
     {
         assert(!has_value());
         data = std::move(msg);
-        timer_iter = iter;
+        timer = t;
     }
-    void await_pong_v2(PingV2Data d, Timer::iterator iter)
+    void await_pong_v2(PingV2Data d, Timer t)
     {
         assert(!has_value());
         data = std::move(d);
-        timer_iter = iter;
+        timer = t;
     }
-    Timer::iterator sleep(Timer::iterator iter)
+    std::optional<Timer> sleep(Timer t)
     {
-        auto tmp = timer_iter;
+        auto tmp = timer;
         assert(has_value());
         data = std::monostate();
-        timer_iter = iter;
+        timer = t;
         return tmp;
     }
-    void timer_expired(Timer& timer)
+    void reset_timer()
     {
-        timer_iter = timer.end();
+        timer.reset();
     }
     auto& check(const PongV2Msg& m)
     {
@@ -220,27 +171,167 @@ struct Ping : public Timerref {
         return d;
     }
 
+    std::optional<eventloop::Timer> timer;
+
 private:
     bool has_value() const { return !std::holds_alternative<std::monostate>(data); }
     std::variant<std::monostate, PingMsg, PingV2Data> data;
 };
 
-struct Ratelimit {
+struct TimingLog {
+    using Milliseconds = std::chrono::milliseconds;
+    struct Entry {
+        RequestType type;
+        Milliseconds duration;
+    };
+    std::vector<Entry> entries;
+
+    void push(RequestType t, Milliseconds duration)
+    {
+        push({ t, duration });
+    }
+
+    void push(Entry e)
+    {
+        entries.push_back(std::move(e));
+        // periodic prune
+        if (entries.size() > 200)
+            entries.erase(entries.begin(), entries.begin() + 100);
+    }
+
+    auto mean() const
+    {
+        using namespace std::chrono_literals;
+        Milliseconds sum { 0ms };
+        for (auto& e : entries) {
+            sum += e.duration;
+        }
+        if (entries.size() > 0)
+            sum /= entries.size();
+        return sum;
+    }
+};
+
+struct Loadtest {
+    std::optional<RequestType> job;
+    [[nodiscard]] std::optional<Request> generate_load(Conref);
+};
+
+struct ThrottleDelay {
     using sc = std::chrono::steady_clock;
-    void update() { valid_rate(lastUpdate, std::chrono::minutes(2)); }
-    void ping() { return valid_rate(lastUpdate, std::chrono::seconds(5)); }
+    sc::duration get() const
+    {
+        using namespace std::chrono_literals;
+        auto n { sc::now() };
+        if (n > bucket)
+            return 0s;
+        auto d { (bucket - n) / 10 };
+        return std::min(d, sc::duration(20s));
+    }
+
+    sc::time_point add(sc::duration d)
+    {
+        return bucket = std::max(bucket, sc::now()) + d;
+    }
 
 private:
-    void valid_rate(sc::time_point& last, auto duration)
+    sc::time_point bucket;
+};
+
+template <size_t window>
+struct BatchreqThrottler { // throttles if suspicios requests occur
+    using seconds = std::chrono::seconds;
+    using duration = std::chrono::steady_clock::duration;
+
+private:
+    void set_upper(Height upper, size_t spare)
     {
-        auto n = sc::steady_clock::now();
-        using namespace std::chrono;
-        if (n < last + duration)
-            throw Error(EMSGFLOOD);
-        last = n;
+        _u = std::max(upper, _u);
+        if (_u.value() + spare >= window)
+            _l = std::max(_l, _u + spare - window);
     }
-    sc::time_point lastUpdate = sc::time_point::min();
-    sc::time_point lastPing = sc::time_point::min();
+
+public:
+    [[nodiscard]] duration register_request(HeightRange r, size_t spare)
+    {
+        assert(r.length() > 0);
+        set_upper(r.last(), spare);
+        _l = _l + r.length();
+        if (_l > _u + spare + 1)
+            _l = _u + spare + 1;
+        return get_duration(spare);
+    }
+
+    [[nodiscard]] duration get_duration(size_t spare) const
+    {
+        if (_l > _u + spare) {
+            return seconds(20);
+        }
+        return seconds(0);
+    }
+    auto h0() const { return _l; }
+    auto h1() const { return _u; }
+
+private:
+    Height _l { Height::zero() };
+    Height _u { Height::zero() };
+};
+
+struct ThrottleQueue {
+
+    using duration = std::chrono::steady_clock::duration;
+
+    void add_throttle(duration d) { td.add(d); }
+    auto reply_delay() const { return td.get(); }
+    void insert(messages::Msg, eventloop::TimerSystem& t, uint64_t connectionId);
+    void update_timer(eventloop::TimerSystem& t, uint64_t connectionId);
+    void reset_timer(eventloop::TimerSystem& t);
+
+    [[nodiscard]] messages::Msg reset_timer_pop_msg()
+    {
+        assert(timer);
+        assert(rateLimitedInput.size() > 0);
+        timer.reset();
+        auto tmp { std::move(rateLimitedInput.front()) };
+        rateLimitedInput.pop_front();
+        return tmp;
+    }
+
+    BatchreqThrottler<HEADERBATCHSIZE * 20> headerreq;
+    BatchreqThrottler<BLOCKBATCHSIZE * 20> blockreq;
+
+private:
+    ThrottleDelay td;
+    std::deque<messages::Msg> rateLimitedInput;
+    std::optional<eventloop::Timer> timer;
+};
+
+struct Ratelimit {
+private:
+    using sc = std::chrono::steady_clock;
+
+    template <size_t seconds>
+    struct Limiter {
+        void operator()()
+        {
+            tick();
+        }
+        void tick()
+        {
+            auto n = sc::steady_clock::now();
+            using namespace std::chrono;
+            if (n < lastUpdate + std::chrono::seconds(seconds))
+                throw Error(EMSGFLOOD);
+            lastUpdate = n;
+        }
+
+    private:
+        sc::time_point lastUpdate = sc::time_point::min();
+    };
+
+public:
+    Limiter<2 * 60> update;
+    Limiter<5> ping;
 };
 
 struct Usage {
@@ -254,21 +345,29 @@ namespace BlockDownload {
 class Attorney;
 }
 
-class PeerState {
+class Eventloop;
+class ConnectionInserter;
+class ConState {
+    ConState(std::shared_ptr<ConnectionBase> c, Eventloop&);
+
 public:
-    PeerState(std::shared_ptr<ConnectionBase> c, HeaderDownload::Downloader& h, BlockDownload::Downloader& b, Timer& t);
+    ConState(std::shared_ptr<ConnectionBase> c, const ConnectionInserter&);
     std::shared_ptr<ConnectionBase> c;
     std::optional<mempool::SubscriptionIter> subscriptionIter;
+    ConState(ConState&&) = default;
     ConnectionJob job;
     Height txSubscription { 0 };
     Ratelimit ratelimit;
     PeerRTCState rtcState;
+    ThrottleQueue throttleQueue;
+    Loadtest loadtest;
     SignedSnapshot::Priority acknowledgedSnapshotPriority;
     SignedSnapshot::Priority theirSnapshotPriority;
     uint32_t lastNonce;
     bool verifiedEndpoint = false;
     Ping ping;
     Usage usage;
+    friend class ConnectionInserter;
     friend class Eventloop;
     friend class BlockDownload::Downloader;
     friend class BlockDownload::Forks;
@@ -284,16 +383,31 @@ private:
 inline bool Conref::operator==(const Conref& cr) const { return iter == cr.iter; }
 inline const PeerChain& Conref::chain() const { return iter->second.chain; }
 inline PeerChain& Conref::chain() { return iter->second.chain; }
+inline auto& Conref::loadtest() { return iter->second.loadtest; }
 inline auto& Conref::job() { return iter->second.job; }
 inline auto& Conref::job() const { return iter->second.job; }
 inline auto& Conref::rtc() { return iter->second.rtcState; }
 inline auto Conref::peer() const { return iter->second.c->peer_addr(); }
 inline auto& Conref::ping() { return iter->second.ping; }
 inline auto Conref::operator->() { return &(iter->second); }
-inline auto Conref::version() const { return iter->second.c->protocol_version(); }
+inline auto Conref::version() const { return iter->second.c->node_version(); }
+inline auto Conref::protocol() const { return version().protocol();}
 inline bool Conref::initialized() const { return !iter->second.job.waiting_for_init(); }
 inline bool Conref::is_tcp() const { return iter->second.c->is_tcp(); }
 inline Conref::operator const ConnectionBase&() { return *iter->second.c; }
+
+// Conref::operator Connection*()
+// {
+//     if (valid())
+//         return data.iter->second.c.get();
+//     return nullptr;
+// }
+// Conref::operator const Connection*() const
+// {
+//     if (valid())
+//         return data.iter->second.c.get();
+//     return nullptr;
+// }
 inline uint64_t Conref::id() const
 {
     return iter->first;

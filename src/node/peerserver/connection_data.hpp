@@ -1,5 +1,6 @@
 #pragma once
 #include "eventloop/types/conref_declaration.hpp"
+#include "general/start_time_points.hpp"
 #include "transport/connect_request.hpp"
 #include "transport/helpers/peer_addr.hpp"
 #include "transport/helpers/tcp_sockaddr.hpp"
@@ -12,15 +13,15 @@ class AddressManager;
 class EventloopVariables {
     friend class Eventloop;
     friend class Conref;
-    friend class TCPConnectionSchedule;
-    friend class PeerState;
+    friend class ConState;
     friend class AddressManager;
     bool failed_to_connect() const { return !eventloop_registered; }
 
 private:
+    StartTimePoints startTimePoints;
     std::atomic<bool> eventloop_registered { false };
     bool eventloop_erased { false };
-    bool successfulConnection { false };
+    bool addedToSchedule { false };
     Coniter dataiter;
 };
 
@@ -30,13 +31,16 @@ namespace connection_schedule {
 class ConnectionSchedule;
 }
 
+namespace tcpconnection_schedule{
 class TCPConnectionSchedule;
+}
+
 namespace peerserver {
 using duration = std::chrono::steady_clock::duration;
 
 class ConnectionData : public EventloopVariables {
     friend class ::PeerServer;
-    friend class ::TCPConnectionSchedule;
+    friend class tcpconnection_schedule::TCPConnectionSchedule;
     int64_t logrow = 0;
 
 public:

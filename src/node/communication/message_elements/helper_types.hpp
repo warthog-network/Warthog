@@ -1,5 +1,6 @@
 #pragma once
 #include "block/chain/height.hpp"
+#include "block/chain/range.hpp"
 #include "general/errors_forward.hpp"
 #include "block/header/header.hpp"
 #include "general/descriptor.hpp"
@@ -121,6 +122,7 @@ struct BatchSelector {
     NonzeroHeight startHeight;
     NonzeroHeight end() const { return startHeight + length; }
     uint16_t length;
+    HeaderRange header_range() const { return HeaderRange( startHeight, startHeight + length ); };
     BatchSelector(Descriptor d, NonzeroHeight s, uint16_t l)
         : descriptor(d)
         , startHeight(s)

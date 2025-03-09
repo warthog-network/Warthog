@@ -47,11 +47,14 @@ const char *gengetopt_args_info_detailed_help[] = {
   "  This option starts the node with a temporary empty chain database.",
   "      --testnet              Enable testnet",
   "      --disable-tx-mining    Don't mine transactions (in case of bugs)",
+  "      --enable-webrtc        Enable WebRTC connectivity",
   "\nData file options:",
   "      --chain-db=STRING      specify chain data file",
   "  Defaults to ~/.warthog/chain.db3 in Linux, %LOCALAPPDATA%/Warthog/chain.db3\n  on Windows.",
   "      --peers-db=STRING      specify data file",
   "  Defaults to ~/.warthog/peers.db3 in Linux, %LOCALAPPDATA%/Warthog/peers.db3\n  on Windows",
+  "      --rxtx-db=STRING       specify rxtx database file (logging bytes\n                               transmitted)",
+  "  Defaults to ~/.warthog/rxtx.db3 in Linux, %LOCALAPPDATA%/Warthog/rxtx.db3 on\n  Windows",
   "\nWebsocket server options:",
   "      --ws-port=INT          Websocket port",
   "  Public websocket nodes support communication over websocket",
@@ -93,29 +96,31 @@ init_help_array(void)
   gengetopt_args_info_help[9] = gengetopt_args_info_detailed_help[12];
   gengetopt_args_info_help[10] = gengetopt_args_info_detailed_help[13];
   gengetopt_args_info_help[11] = gengetopt_args_info_detailed_help[14];
-  gengetopt_args_info_help[12] = gengetopt_args_info_detailed_help[16];
-  gengetopt_args_info_help[13] = gengetopt_args_info_detailed_help[18];
+  gengetopt_args_info_help[12] = gengetopt_args_info_detailed_help[15];
+  gengetopt_args_info_help[13] = gengetopt_args_info_detailed_help[17];
   gengetopt_args_info_help[14] = gengetopt_args_info_detailed_help[19];
   gengetopt_args_info_help[15] = gengetopt_args_info_detailed_help[21];
-  gengetopt_args_info_help[16] = gengetopt_args_info_detailed_help[23];
-  gengetopt_args_info_help[17] = gengetopt_args_info_detailed_help[25];
-  gengetopt_args_info_help[18] = gengetopt_args_info_detailed_help[27];
-  gengetopt_args_info_help[19] = gengetopt_args_info_detailed_help[29];
+  gengetopt_args_info_help[16] = gengetopt_args_info_detailed_help[22];
+  gengetopt_args_info_help[17] = gengetopt_args_info_detailed_help[24];
+  gengetopt_args_info_help[18] = gengetopt_args_info_detailed_help[26];
+  gengetopt_args_info_help[19] = gengetopt_args_info_detailed_help[28];
   gengetopt_args_info_help[20] = gengetopt_args_info_detailed_help[30];
-  gengetopt_args_info_help[21] = gengetopt_args_info_detailed_help[31];
-  gengetopt_args_info_help[22] = gengetopt_args_info_detailed_help[32];
-  gengetopt_args_info_help[23] = gengetopt_args_info_detailed_help[33];
-  gengetopt_args_info_help[24] = gengetopt_args_info_detailed_help[34];
-  gengetopt_args_info_help[25] = gengetopt_args_info_detailed_help[35];
-  gengetopt_args_info_help[26] = gengetopt_args_info_detailed_help[36];
-  gengetopt_args_info_help[27] = gengetopt_args_info_detailed_help[37];
-  gengetopt_args_info_help[28] = gengetopt_args_info_detailed_help[38];
-  gengetopt_args_info_help[29] = gengetopt_args_info_detailed_help[39];
-  gengetopt_args_info_help[30] = 0; 
+  gengetopt_args_info_help[21] = gengetopt_args_info_detailed_help[32];
+  gengetopt_args_info_help[22] = gengetopt_args_info_detailed_help[33];
+  gengetopt_args_info_help[23] = gengetopt_args_info_detailed_help[34];
+  gengetopt_args_info_help[24] = gengetopt_args_info_detailed_help[35];
+  gengetopt_args_info_help[25] = gengetopt_args_info_detailed_help[36];
+  gengetopt_args_info_help[26] = gengetopt_args_info_detailed_help[37];
+  gengetopt_args_info_help[27] = gengetopt_args_info_detailed_help[38];
+  gengetopt_args_info_help[28] = gengetopt_args_info_detailed_help[39];
+  gengetopt_args_info_help[29] = gengetopt_args_info_detailed_help[40];
+  gengetopt_args_info_help[30] = gengetopt_args_info_detailed_help[41];
+  gengetopt_args_info_help[31] = gengetopt_args_info_detailed_help[42];
+  gengetopt_args_info_help[32] = 0; 
   
 }
 
-const char *gengetopt_args_info_help[31];
+const char *gengetopt_args_info_help[33];
 
 typedef enum {ARG_NO
   , ARG_STRING
@@ -147,8 +152,10 @@ void clear_given (struct gengetopt_args_info *args_info)
   args_info->temporary_given = 0 ;
   args_info->testnet_given = 0 ;
   args_info->disable_tx_mining_given = 0 ;
+  args_info->enable_webrtc_given = 0 ;
   args_info->chain_db_given = 0 ;
   args_info->peers_db_given = 0 ;
+  args_info->rxtx_db_given = 0 ;
   args_info->ws_port_given = 0 ;
   args_info->ws_tls_cert_given = 0 ;
   args_info->ws_tls_key_given = 0 ;
@@ -176,6 +183,8 @@ void clear_args (struct gengetopt_args_info *args_info)
   args_info->chain_db_orig = NULL;
   args_info->peers_db_arg = NULL;
   args_info->peers_db_orig = NULL;
+  args_info->rxtx_db_arg = NULL;
+  args_info->rxtx_db_orig = NULL;
   args_info->ws_port_orig = NULL;
   args_info->ws_tls_cert_arg = NULL;
   args_info->ws_tls_cert_orig = NULL;
@@ -206,21 +215,23 @@ void init_args_info(struct gengetopt_args_info *args_info)
   args_info->temporary_help = gengetopt_args_info_detailed_help[9] ;
   args_info->testnet_help = gengetopt_args_info_detailed_help[11] ;
   args_info->disable_tx_mining_help = gengetopt_args_info_detailed_help[12] ;
-  args_info->chain_db_help = gengetopt_args_info_detailed_help[14] ;
-  args_info->peers_db_help = gengetopt_args_info_detailed_help[16] ;
-  args_info->ws_port_help = gengetopt_args_info_detailed_help[19] ;
-  args_info->ws_tls_cert_help = gengetopt_args_info_detailed_help[21] ;
-  args_info->ws_tls_key_help = gengetopt_args_info_detailed_help[23] ;
-  args_info->ws_x_forwarded_for_help = gengetopt_args_info_detailed_help[25] ;
-  args_info->ws_bind_localhost_help = gengetopt_args_info_detailed_help[27] ;
-  args_info->debug_help = gengetopt_args_info_detailed_help[30] ;
-  args_info->rpc_help = gengetopt_args_info_detailed_help[32] ;
-  args_info->publicrpc_help = gengetopt_args_info_detailed_help[33] ;
-  args_info->stratum_help = gengetopt_args_info_detailed_help[34] ;
-  args_info->enable_public_help = gengetopt_args_info_detailed_help[35] ;
-  args_info->config_help = gengetopt_args_info_detailed_help[37] ;
-  args_info->test_help = gengetopt_args_info_detailed_help[38] ;
-  args_info->dump_config_help = gengetopt_args_info_detailed_help[39] ;
+  args_info->enable_webrtc_help = gengetopt_args_info_detailed_help[13] ;
+  args_info->chain_db_help = gengetopt_args_info_detailed_help[15] ;
+  args_info->peers_db_help = gengetopt_args_info_detailed_help[17] ;
+  args_info->rxtx_db_help = gengetopt_args_info_detailed_help[19] ;
+  args_info->ws_port_help = gengetopt_args_info_detailed_help[22] ;
+  args_info->ws_tls_cert_help = gengetopt_args_info_detailed_help[24] ;
+  args_info->ws_tls_key_help = gengetopt_args_info_detailed_help[26] ;
+  args_info->ws_x_forwarded_for_help = gengetopt_args_info_detailed_help[28] ;
+  args_info->ws_bind_localhost_help = gengetopt_args_info_detailed_help[30] ;
+  args_info->debug_help = gengetopt_args_info_detailed_help[33] ;
+  args_info->rpc_help = gengetopt_args_info_detailed_help[35] ;
+  args_info->publicrpc_help = gengetopt_args_info_detailed_help[36] ;
+  args_info->stratum_help = gengetopt_args_info_detailed_help[37] ;
+  args_info->enable_public_help = gengetopt_args_info_detailed_help[38] ;
+  args_info->config_help = gengetopt_args_info_detailed_help[40] ;
+  args_info->test_help = gengetopt_args_info_detailed_help[41] ;
+  args_info->dump_config_help = gengetopt_args_info_detailed_help[42] ;
   
 }
 
@@ -327,6 +338,8 @@ cmdline_parser_release (struct gengetopt_args_info *args_info)
   free_string_field (&(args_info->chain_db_orig));
   free_string_field (&(args_info->peers_db_arg));
   free_string_field (&(args_info->peers_db_orig));
+  free_string_field (&(args_info->rxtx_db_arg));
+  free_string_field (&(args_info->rxtx_db_orig));
   free_string_field (&(args_info->ws_port_orig));
   free_string_field (&(args_info->ws_tls_cert_arg));
   free_string_field (&(args_info->ws_tls_cert_orig));
@@ -388,10 +401,14 @@ cmdline_parser_dump(FILE *outfile, struct gengetopt_args_info *args_info)
     write_into_file(outfile, "testnet", 0, 0 );
   if (args_info->disable_tx_mining_given)
     write_into_file(outfile, "disable-tx-mining", 0, 0 );
+  if (args_info->enable_webrtc_given)
+    write_into_file(outfile, "enable-webrtc", 0, 0 );
   if (args_info->chain_db_given)
     write_into_file(outfile, "chain-db", args_info->chain_db_orig, 0);
   if (args_info->peers_db_given)
     write_into_file(outfile, "peers-db", args_info->peers_db_orig, 0);
+  if (args_info->rxtx_db_given)
+    write_into_file(outfile, "rxtx-db", args_info->rxtx_db_orig, 0);
   if (args_info->ws_port_given)
     write_into_file(outfile, "ws-port", args_info->ws_port_orig, 0);
   if (args_info->ws_tls_cert_given)
@@ -683,8 +700,10 @@ cmdline_parser_internal (
         { "temporary",	0, NULL, 0 },
         { "testnet",	0, NULL, 0 },
         { "disable-tx-mining",	0, NULL, 0 },
+        { "enable-webrtc",	0, NULL, 0 },
         { "chain-db",	1, NULL, 0 },
         { "peers-db",	1, NULL, 0 },
+        { "rxtx-db",	1, NULL, 0 },
         { "ws-port",	1, NULL, 0 },
         { "ws-tls-cert",	1, NULL, 0 },
         { "ws-tls-key",	1, NULL, 0 },
@@ -853,6 +872,20 @@ cmdline_parser_internal (
               goto failure;
           
           }
+          /* Enable WebRTC connectivity.  */
+          else if (strcmp (long_options[option_index].name, "enable-webrtc") == 0)
+          {
+          
+          
+            if (update_arg( 0 , 
+                 0 , &(args_info->enable_webrtc_given),
+                &(local_args_info.enable_webrtc_given), optarg, 0, 0, ARG_NO,
+                check_ambiguity, override, 0, 0,
+                "enable-webrtc", '-',
+                additional_error))
+              goto failure;
+          
+          }
           /* specify chain data file.  */
           else if (strcmp (long_options[option_index].name, "chain-db") == 0)
           {
@@ -877,6 +910,20 @@ cmdline_parser_internal (
                 &(local_args_info.peers_db_given), optarg, 0, 0, ARG_STRING,
                 check_ambiguity, override, 0, 0,
                 "peers-db", '-',
+                additional_error))
+              goto failure;
+          
+          }
+          /* specify rxtx database file (logging bytes transmitted).  */
+          else if (strcmp (long_options[option_index].name, "rxtx-db") == 0)
+          {
+          
+          
+            if (update_arg( (void *)&(args_info->rxtx_db_arg), 
+                 &(args_info->rxtx_db_orig), &(args_info->rxtx_db_given),
+                &(local_args_info.rxtx_db_given), optarg, 0, 0, ARG_STRING,
+                check_ambiguity, override, 0, 0,
+                "rxtx-db", '-',
                 additional_error))
               goto failure;
           

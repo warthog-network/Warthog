@@ -5,8 +5,7 @@ ConsensusSlave::ConsensusSlave(std::optional<SignedSnapshot> sp, Descriptor desc
     , descriptor_(descriptor)
     , headerchain(std::make_shared<Headerchain>(std::move(headerchain)))
 {
-    return;
-};
+}
 
 std::pair<Height, AppendMsg> ConsensusSlave::apply(Append&& append)
 {
@@ -18,11 +17,19 @@ std::pair<Height, AppendMsg> ConsensusSlave::apply(Append&& append)
         assert(signedSnapshot->compatible(*headerchain));
     }
     return res;
-};
+}
+
+void ConsensusSlave::update_ratelimit_spare(Height newlength)
+{
+    assert(newlength < headers().length());
+    ratelimitSpare += headers().length() - newlength;
+}
 
 ForkMsg ConsensusSlave::apply(Fork&& fork)
 {
     assert(descriptor_ + 1 == fork.descriptor);
+
+    update_ratelimit_spare(fork.shrink.length);
     descriptor_ = fork.descriptor;
     if (pinGenerator.use_count() > 1) {
         *pinGenerator = std::move(fork.prevChain);
@@ -35,10 +42,12 @@ ForkMsg ConsensusSlave::apply(Fork&& fork)
         assert(signedSnapshot->compatible(*headerchain));
     }
 
+    ratelimitSpare += headerchain->length() - fork.shrink.length;
     auto res { headerchain->apply_fork(std::move(fork)) };
 
     return res;
 };
+
 
 auto ConsensusSlave::apply(const RollbackData& rd) -> std::optional<SignedPinRollbackMsg>
 {
@@ -53,6 +62,7 @@ auto ConsensusSlave::apply(const RollbackData& rd) -> std::optional<SignedPinRol
         assert(descriptor_ + 1 == rollback.descriptor);
         descriptor_ = rollback.descriptor;
         headerchain->shrink(rollback.shrink.length);
+        update_ratelimit_spare(rollback.shrink.length);
 
         // prevChain
         if (pinGenerator.use_count() > 1) {
@@ -71,7 +81,7 @@ auto ConsensusSlave::apply(const RollbackData& rd) -> std::optional<SignedPinRol
 
     assert(signedSnapshot->compatible(*headerchain));
     return res;
-};
+}
 
 Headerchain::pin_t ConsensusSlave::get_pin() const
 {
@@ -79,7 +89,7 @@ Headerchain::pin_t ConsensusSlave::get_pin() const
         pinGenerator = make_shared<std::shared_ptr<Headerchain>>(headerchain);
     }
     return { pinGenerator };
-};
+}
 const SignedSnapshot::Priority ConsensusSlave::get_signed_snapshot_priority() const
 {
     if (signedSnapshot)

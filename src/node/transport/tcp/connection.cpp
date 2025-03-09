@@ -1,11 +1,7 @@
 #include "connection.hpp"
 #include "eventloop/eventloop.hpp"
-#include "general/is_testnet.hpp"
 #include "global/globals.hpp"
-#include "transport/helpers/peer_addr.hpp"
 #include "uwebsockets/MoveOnlyFunction.h"
-#include "version.hpp"
-#include <chrono>
 
 uint16_t TCPConnection::listen_port() const
 {
@@ -59,13 +55,11 @@ void TCPConnection::close_internal(Error e)
         return;
     tcpHandle->close();
     connection_log().info("{} closed: {}", tag_string(), e.format());
-    on_close({
-        .error = e,
-    });
+    on_close(e);
 }
 
 // CALLED BY OTHER THREAD
-void TCPConnection::async_send(std::unique_ptr<char[]> data, size_t size)
+void TCPConnection::send_impl(std::unique_ptr<char[]> data, size_t size)
 {
     conman.async_call([w = weak_from_this(), data = std::move(data), size]() mutable {
         if (auto c { w.lock() }; c && !c->tcpHandle->closing()) {

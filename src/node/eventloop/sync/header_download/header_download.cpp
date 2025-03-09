@@ -1,11 +1,9 @@
 #include "header_download.hpp"
 #include "block/chain/consensus_headers.hpp"
-#include "eventloop/eventloop.hpp"
+#include "eventloop/chain_cache.hpp"
 #include "eventloop/types/peer_requests.hpp"
 #include "global/globals.hpp"
 #include "probe_balanced.hpp"
-#include <set>
-#include <stack>
 
 namespace HeaderDownload {
 
@@ -134,11 +132,17 @@ bool Downloader::can_insert_leader(Conref cr)
 {
     auto& id { data(cr).ignoreDescriptor };
     auto& d { cr.chain().descripted() };
+    auto version_ok =[](Conref cr){
+        auto v{cr->c->node_version()};
+            return (v.minor() >= 8 || (v.minor() == 6 && v.patch() >= 21));
+    };
 
     bool res = !is_leader(cr)
+        && data(cr).mustDisconnect == false
         && leaderList.size() < maxLeaders // free leader slots
         && d->worksum() > minWork // provides more work
         && d->grid().valid_checkpoint() // valid checkpoint
+        && version_ok(cr)
         && (!id || id != d->descriptor); // no signed pin fail for this descriptor
 
     if (res) {
@@ -235,7 +239,7 @@ std::optional<Conref> Downloader::try_send(ConnectionFinder& f, std::vector<Chai
                 continue;
 
             // conveniene abbreviations
-            auto& pd = data(cr).probeData;
+            const auto& pd = data(cr).probeData;
             auto& desc = cr.chain().descripted();
             const Grid& g = desc->grid();
 
@@ -246,8 +250,8 @@ std::optional<Conref> Downloader::try_send(ConnectionFinder& f, std::vector<Chai
             // consider updating probe with cacheMatch
             if (rd.cacheMatch && (!pd || pd->qiter == rd.queueEntry.iter)) {
                 ForkRange& fr { rd.cacheMatch->fork_range(cr) };
-                try {
-                    fr.on_match(rd.slot.offset());
+                try { 
+                    fr.on_match(rd.slot.offset()); // TODO: check this
                 } catch (const ChainError& e) {
                     offenders.push_back({ e, cr });
                     continue;
@@ -261,16 +265,17 @@ std::optional<Conref> Downloader::try_send(ConnectionFinder& f, std::vector<Chai
 
             // consider probe data if applicable
             if (pd && pd->qiter == rd.queueEntry.iter) {
+                assert(rd.slot.upper() + 1 > pd->fork_range().lower()); // condition from can_download
                 auto br { ProbeBalanced::slot_batch_request(*pd, pd->dsc,
                     rd.slot, rd.finalHeader) };
                 if (br) {
                     f.s.send(cr, *br);
                     clear_connection_probe(cr);
                     f.conIndex = index;
-                    return  cr;
+                    return cr;
                 }
             } else {
-                Batchrequest br(desc, rd.slot, rd.finalHeader);
+                HeaderRequest br(desc, rd.slot, rd.finalHeader);
                 f.s.send(cr, br);
                 f.conIndex = index;
                 return cr;
@@ -286,6 +291,7 @@ bool Downloader::try_final_request(Lead_iter li, RequestSender& sender)
 {
     // convenience abbreviations
     LeaderNode& ln = *li;
+    auto& pd = ln.probeData;
     const NonzeroSnapshot& s = ln.snapshot;
     auto& desc = s.descripted;
     Batchslot descriptedSlot = desc->grid().slot_end();
@@ -299,15 +305,21 @@ bool Downloader::try_final_request(Lead_iter li, RequestSender& sender)
     {
         // consider updating probeData with cacheMatch
         if (ln.snapshot.descripted == ln.cr.chain().descripted()) {
-            auto& blfr = ln.cr.chain().stage_fork_range();
+
+            auto& sfr = ln.cr.chain().stage_fork_range(); // TODO: check whether cr and chains are jointly updated to keep fork_range and pin in sync
+            if (pd.fork_range().lower() < sfr.lower())
+                pd = ProbeData { sfr, chains.stage_pin() };
+
             auto& cfr = ln.cr.chain().consensus_fork_range();
-            if (ln.probeData.fork_range().lower() < blfr.lower())
-                li->probeData = ProbeData { blfr, chains.stage_pin() };
-            else if (ln.probeData.fork_range().lower() < cfr.lower())
-                li->probeData = ProbeData { cfr, chains.consensus_pin() };
+            if (pd.fork_range().lower() < cfr.lower())
+                pd = ProbeData { cfr, chains.consensus_pin() };
         }
 
-        auto& pd = ln.probeData;
+        // same condition as in can_download
+        // a leader by definition must have more total work and
+        // more total length than the chains we know
+        assert(s.length + 1 > pd.fork_range().lower());
+
         auto br { ProbeBalanced::final_partial_batch_request(pd, desc, s.length, ln.snapshot.worksum) };
         if (br) {
             sender.send(ln.cr, *br);
@@ -329,6 +341,7 @@ void Downloader::do_probe_requests(RequestSender s)
         const auto& pd { li.probeData };
         auto& dsc { li.snapshot.descripted };
         Height chainLength { li.snapshot.descripted->chain_length() };
+        assert(chainLength + 1 > pd.fork_range().lower()); // condition from can_download
         auto pr { ProbeBalanced::probe_request(pd, dsc, chainLength) };
         if (pr)
             s.send(cr, *pr);
@@ -339,39 +352,48 @@ void Downloader::do_probe_requests(RequestSender s)
         if (cr.job())
             continue;
         assert(data(cr).probeData);
-
         const auto& pd { *data(cr).probeData };
+
         // we want upper slot height as maxLength because complete batches are shared
         // automatically, such that probe requests can only succeed within that batch
         auto maxLength { Batchslot(pd.fork_range().lower()).upper() };
+        assert(maxLength + 1 > pd.fork_range().lower()); // condition from can_download
         auto pr { ProbeBalanced::probe_request(pd, pd.dsc, maxLength) };
         if (pr)
             s.send(cr, *pr);
     }
 }
 
-std::vector<ChainOffender> Downloader::do_requests(RequestSender s)
+// final requests are requests for partial header batches which are
+// not complete. They can only be handled by the leader itself, i.e.
+// are exclusive, because we cannot be sure other nodes have exactly
+// the same chain (especially last block).
+bool Downloader::do_exclusive_final_requests(RequestSender& s)
 {
-    std::vector<ChainOffender> res;
-
-    // highest priority for leaders to handle their own probe or final request
     for (Conref cr : connections) {
         if (s.finished())
-            return res;
-        if (cr.job()
-            || !is_leader(cr)
-            || try_final_request(data(cr).leaderIter, s))
-            continue;
+            return true;
+        if (!cr.job() && is_leader(cr))
+            try_final_request(data(cr).leaderIter, s);
     }
+    return s.finished();
+}
 
+// grid requests are requests for a complete batch that is identified
+// by a final hash (last hash in the batch) and saved in the grid
+// of chain hashes transmitted to us by each node.
+// Many connections can be used to retrieve the header batch.
+std::vector<ChainOffender> Downloader::do_shared_grid_requests(RequestSender& s)
+{
+    std::vector<ChainOffender> res;
     ConnectionFinder cf(s, connections);
     for (auto& ln : leaderList) {
         for (auto& q : ln.queued()) {
             if (s.finished())
                 return res;
-            ReqData rd(q);
             if (q.node().has_pending_request())
                 continue;
+            ReqData rd(q);
             if (q.is_solo()) {
                 // specifically deal with solo batches:
                 // cache for later request pins
@@ -386,7 +408,17 @@ std::vector<ChainOffender> Downloader::do_requests(RequestSender s)
     return res;
 }
 
-void Downloader::on_request_expire(Conref cr, const Batchrequest&)
+std::vector<ChainOffender> Downloader::do_header_requests(RequestSender s)
+{
+    // highest priority for exclusive requests
+    // to prevent these connections being busy with
+    // other requests
+    if (do_exclusive_final_requests(s))
+        return {};
+    return do_shared_grid_requests(s);
+}
+
+void Downloader::on_request_expire(Conref cr, const HeaderRequest&)
 {
     if (data(cr).jobPtr) {
         data(cr).jobPtr->cr.reset();
@@ -420,6 +452,15 @@ void Downloader::on_probe_request_expire(Conref /*cr*/)
     // do nothing
 }
 
+bool Downloader::flag_connection(Conref cr)
+{
+    auto& d { data(cr) };
+    if (d.mustDisconnect)
+        return false;
+    d.mustDisconnect = true;
+    return true;
+}
+
 void Downloader::process_final(Lead_iter li, std::vector<Offender>& out)
 {
     const auto& b = li->finalBatch.batch;
@@ -433,7 +474,7 @@ void Downloader::process_final(Lead_iter li, std::vector<Offender>& out)
         return;
     }
     bool fromGenesis = !li->verifier.has_value();
-    HeaderRange hrange { li->final_slot(), b };
+    HeaderSpan hrange { li->final_slot(), b };
 
     const HeaderVerifier parent {
         [&] {
@@ -462,9 +503,15 @@ void Downloader::process_final(Lead_iter li, std::vector<Offender>& out)
     }
 
     // update maximizer
-    if (!maximizer.has_value() || std::get<2>(maximizer.value()) < worksum) {
+    if (!maximizer || maximizer->worksum < worksum) {
         auto sb = (fromGenesis ? SharedBatch {} : (*li->verifier)->second.sb);
-        maximizer = { { li->cr, li->snapshot.descripted }, HeaderchainSkeleton(std::move(sb), b), worksum };
+        HeaderchainSkeleton hs(std::move(sb), b);
+        if (auto ce { rogueHeaders.find_rogue_in(hs) }; ce.has_value()) {
+            if (flag_connection(li->cr))
+                out.push_back(Offender { *ce, li->cr });
+        } else {
+            maximizer = { { li->cr, li->snapshot.descripted }, hs, worksum };
+        }
     }
 }
 
@@ -474,7 +521,7 @@ bool Downloader::advance_verifier(const Ver_iter* vi, const Lead_set& leaders, c
 
     auto a {
         (vi ? (*vi)->second.verifier : HeaderVerifier {})
-            .copy_apply(chains.signed_snapshot(), HeaderRange((vi ? (*vi)->second.sb.next_slot() : Batchslot(0)), b))
+            .copy_apply(chains.signed_snapshot(), HeaderSpan((vi ? (*vi)->second.sb.next_slot() : Batchslot(0)), b))
     };
     if (!a.has_value()) {
         for (const Lead_iter& li : leaders) {
@@ -487,7 +534,7 @@ bool Downloader::advance_verifier(const Ver_iter* vi, const Lead_set& leaders, c
 
     // update maximizer
     Worksum worksum = sharedBatch.total_work();
-    if (!maximizer.has_value() || std::get<2>(maximizer.value()) < worksum) {
+    if (!maximizer || maximizer->worksum < worksum) {
         Lead_iter li = *leaders.begin();
         maximizer = { { li->cr, li->snapshot.descripted }, HeaderchainSkeleton(sharedBatch, {}), worksum };
     }
@@ -571,7 +618,7 @@ void Downloader::verify_queued(Queued_iter qi, const Lead_set& leaders, std::vec
     }
 }
 
-auto Downloader::on_response(Conref cr, Batchrequest&& req, Batch&& res) -> std::vector<ChainOffender>
+auto Downloader::on_response(Conref cr, HeaderRequest&& req, Batch&& res) -> std::vector<ChainOffender>
 {
     // assert precondition
     assert(res.size() >= req.minReturn);
@@ -639,17 +686,18 @@ auto Downloader::on_response(Conref cr, Batchrequest&& req, Batch&& res) -> std:
     if (!has_data()) {
         return {};
     }
-    auto& val = maximizer.value();
-    LeaderInfo& li = std::get<0>(val);
-    Headerchain chain { std::get<1>(val) };
-    assert(chain.total_work() == std::get<2>(val));
+    auto& m = maximizer.value();
+
+    Headerchain chain { m.headers };
+    assert(chain.total_work() == m.worksum);
     set_min_worksum(chain.total_work());
-    return std::tuple<LeaderInfo, Headerchain> { li, chain };
+
+    return std::tuple<LeaderInfo, Headerchain> { maximizer->leaderInfo, chain };
 }
 
 bool Downloader::has_data() const
 {
-    return maximizer.has_value() && std::get<2>(maximizer.value()) > minWork;
+    return maximizer.has_value() && maximizer->worksum > minWork;
 }
 
 bool Downloader::erase(Conref cr)
@@ -658,7 +706,7 @@ bool Downloader::erase(Conref cr)
         return false;
 
     clear_connection_probe(cr);
-    if (maximizer.has_value() && std::get<0>(maximizer.value()).cr == cr)
+    if (maximizer.has_value() && maximizer->leaderInfo.cr == cr)
         maximizer.reset();
     const auto& leaderIter = data(cr).leaderIter;
     if (leaderIter != leaderList.end()) {
@@ -689,10 +737,51 @@ void Downloader::insert(Conref cr)
     consider_insert_leader(cr);
 }
 
+std::vector<ChainOffender> Downloader::on_rogue_header(const RogueHeaderData& hhw)
+{
+    std::vector<ChainOffender> res;
+    if (hhw.worksum > minWork && rogueHeaders.add(hhw)) {
+        for (auto li = leaderList.begin(); li != leaderList.end();) {
+            if (has_header(*li, hhw)) {
+                if (flag_connection(li->cr)) 
+                    res.push_back({hhw.chain_error(), li->cr});
+                erase_leader(li++);
+            } else
+                ++li;
+        }
+        select_leaders();
+    }
+    return res;
+}
+
+bool Downloader::has_header(LeaderNode& ln, HeightHeader hh)
+{
+    const NonzeroHeight h { hh.height };
+
+    // check if final slot contains h
+    const auto& fs { ln.final_slot() };
+    const auto& fb { ln.finalBatch.batch };
+    if (h >= fs.lower() && (h <= fs.upper())
+        && (h < fs.lower() + fb.size())) {
+        size_t index { h - fs.lower() };
+        assert(index < fb.size());
+        return hh.header == fb[index];
+    }
+
+    // check other slots
+    if (ln.verifier) {
+        auto header { (*ln.verifier)->second.sb.search_header_recursive(h) };
+        return header == hh.header;
+    }
+
+    return false;
+}
+
 void Downloader::set_min_worksum(const Worksum& ws)
 {
     if (minWork != ws) {
         spdlog::debug("Set downloader minWork = {}", ws.getdouble());
+        rogueHeaders.prune(ws);
         minWork = ws;
         prune_leaders();
         select_leaders();
@@ -702,15 +791,13 @@ void Downloader::set_min_worksum(const Worksum& ws)
 void Downloader::prune_leaders()
 {
     Worksum threshold { minWork };
-    if (maximizer.has_value()) {
-        Worksum& w = std::get<2>(maximizer.value());
-        if (w > threshold) {
-            threshold = w;
-        }
-    }
+
+    if (maximizer && threshold < maximizer->worksum)
+        threshold = maximizer->worksum;
+
     for (auto li = leaderList.begin(); li != leaderList.end();) {
         auto& s = li->snapshot;
-        if (s.worksum <= minWork) {
+        if (s.worksum <= threshold) {
             erase_leader(li++);
         } else {
             ++li;
@@ -740,7 +827,7 @@ void Downloader::on_signed_snapshot_update()
 {
     if (maximizer.has_value()) {
         // verify
-        auto hc { std::get<1>(*maximizer) };
+        auto hc { maximizer->headers };
         if (!chains.signed_snapshot()->compatible_inefficient(hc)) {
             maximizer.reset();
         };

@@ -42,7 +42,7 @@ private:
     };
 
 public:
-    bool async_register_close(std::shared_ptr<peerserver::ConnectionData> con, Error offense)
+    bool on_close(std::shared_ptr<peerserver::ConnectionData> con, Error offense)
     {
         if (offense.code == EREFUSED)
             return false;
@@ -149,11 +149,11 @@ private:
     void handle_event(GetRecentPeers&&);
     void handle_event(Inspect&&);
 
-    void on_close(const OnClose&, const WebRTCPeeraddr&);
+    void on_close_internal(const OnClose&, const WebRTCPeeraddr&);
 #ifndef DISABLE_LIBUV
-    void on_close(const OnClose&, const Sockaddr&);
+    void on_close_internal(const OnClose&, const Sockaddr&);
 #else
-    void on_close(const OnClose&, const WSUrladdr&);
+    void on_close_internal(const OnClose&, const WSUrladdr&);
 #endif
 
     ////////////////

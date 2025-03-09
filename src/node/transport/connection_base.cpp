@@ -1,5 +1,6 @@
 #include "connection_base.hpp"
 #include "communication/buffers/sndbuffer.hpp"
+#include "communication/rxtx_server/rxtx_server.hpp"
 #include "eventloop/eventloop.hpp"
 #include "general/is_testnet.hpp"
 #include "global/globals.hpp"
@@ -10,13 +11,14 @@
 #endif
 #include "transport/webrtc/rtc_connection.hpp"
 #include "transport/ws/connection.hpp"
-#include "version.hpp"
+#include "version_def.hpp"
 #include <chrono>
 
 namespace {
 std::mutex statechangeMutex;
 std::atomic<uint64_t> connectionCounter { 1 }; // global counter of ids
 }
+
 ConnectionBase::ConnectionBase()
     : peerserver::Connection()
     , id(connectionCounter++)
@@ -97,6 +99,7 @@ void ConnectionBase::handshake_timer_expired()
 
 void ConnectionBase::on_message(std::span<uint8_t> s)
 {
+    global().rxtxServer->add_rx(this->peer_addr().host(), s.size());
     try {
         while (s.size() > 0) {
             s = std::visit([&](auto& mode) { return process_message(s, mode); }, state);
@@ -116,7 +119,7 @@ std::span<uint8_t> ConnectionBase::process_message(std::span<uint8_t> data, Hand
 {
     auto r { p.remaining(inbound()) };
     auto s { data.size() };
-    if (r <= s) {
+    if (s <= r) {
         std::ranges::copy(data, p.data() + p.pos);
         p.pos += s;
         if (r == s) {
@@ -128,7 +131,7 @@ std::span<uint8_t> ConnectionBase::process_message(std::span<uint8_t> data, Hand
                 send_handshake_ack();
                 std::lock_guard l(statechangeMutex);
                 state.emplace<MessageState>(p.parse(inbound()));
-                global().core->async_register(get_shared_variant());
+                global().core->on_handshake_completed(get_shared_variant());
             }
         }
         return {};
@@ -141,7 +144,7 @@ std::span<uint8_t> ConnectionBase::process_message(std::span<uint8_t> s, AckStat
 {
     std::lock_guard l(statechangeMutex);
     state.emplace<MessageState>(as);
-    global().core->async_register(get_shared_variant());
+    global().core->on_handshake_completed(get_shared_variant());
     return { s.begin() + 1, s.end() }; // skip 1 byte
 }
 
@@ -180,16 +183,21 @@ std::span<uint8_t> ConnectionBase::process_message(std::span<uint8_t> s, Message
 void ConnectionBase::send(Sndbuffer&& msg)
 {
     msg.writeChecksum();
-    async_send(std::move(msg.ptr), msg.fullsize());
+    send_track_bytes(std::move(msg.ptr), msg.fullsize());
 }
 
-void ConnectionBase::on_close(const CloseState& cs)
+void ConnectionBase::send_track_bytes(std::unique_ptr<char[]> data, size_t size)
 {
-    global().core->erase(get_shared(), cs.error);
-    // l->async_register_close(peerAddress.ipv4, errcode, logrow); // TODO: logrow
-    global().peerServer->async_register_close(get_shared(), cs.error); // TODO: use failed outbound
+    global().rxtxServer->add_tx(this->peer_addr().host(), size);
+    send_impl(std::move(data), size);
+}
+
+void ConnectionBase::on_close(Error error)
+{
+    global().core->erase(get_shared(), error);
+    global().peerServer->on_close(get_shared(), error);
     if (!inbound())
-        global().core->on_outbound_closed(get_shared(), cs.error);
+        global().core->on_outbound_closed(get_shared(), error);
 }
 
 auto HandshakeState::parse(bool inbound) -> Parsed
@@ -204,7 +212,7 @@ auto HandshakeState::parse(bool inbound) -> Parsed
     uint32_t tmp;
     memcpy(&tmp, recvbuf.data() + 14, 4);
     Parsed p {
-        .version { hton32(tmp) },
+        .version { NodeVersion::from_uint32_t(hton32(tmp)) },
         .port {}
     };
     if (inbound) {
@@ -223,15 +231,15 @@ void ConnectionBase::send_handshake()
     } else {
         memcpy(data, (inbound() ? HandshakeState::accept_grunt : HandshakeState::connect_grunt), 14);
     }
-    uint32_t nver = hton32(NODE_VERSION);
+    uint32_t nver = hton32(NodeVersion::our_version().to_uint32());
     memcpy(data + 14, &nver, 4);
     memset(data + 18, 0, 4);
     if (!inbound()) {
         uint16_t portBe = hton16(listen_port());
         memcpy(data + 22, &portBe, 2);
-        async_send(std::unique_ptr<char[]>(data), 24);
+        send_track_bytes(std::unique_ptr<char[]>(data), 24);
     } else {
-        async_send(std::unique_ptr<char[]>(data), 22);
+        send_track_bytes(std::unique_ptr<char[]>(data), 22);
     }
 }
 
@@ -239,7 +247,7 @@ void ConnectionBase::send_handshake_ack()
 {
     char* data = new char[1];
     memcpy(data, "\0", 1);
-    async_send(std::unique_ptr<char[]>(data), 1);
+    send_track_bytes(std::unique_ptr<char[]>(data), 1);
 }
 
 void ConnectionBase::on_connected()
@@ -257,7 +265,7 @@ uint16_t ConnectionBase::asserted_port() const
     return std::get<MessageState>(state).handshakeData.port.value();
 }
 
-ProtocolVersion ConnectionBase::protocol_version() const
+NodeVersion ConnectionBase::node_version() const
 {
     return std::get<MessageState>(state).handshakeData.version;
 }

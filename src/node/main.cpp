@@ -1,9 +1,14 @@
 #include "chainserver/db/chain_db.hpp"
 #include "chainserver/server.hpp"
+#include "communication/rxtx_server/rxtx_server.hpp"
 #include "eventloop/eventloop.hpp"
 #include "general/errors.hpp"
+#include "general/logger/log_memory.hpp"
 #include "global/globals.hpp"
 #include "peerserver/peerserver.hpp"
+#include "spdlog/sinks/ansicolor_sink.h"
+#include "spdlog/sinks/callback_sink.h"
+#include "spdlog/sinks/stdout_color_sinks.h"
 #include "spdlog/spdlog.h"
 #include "transport/ws/native/ws_conman.hpp"
 
@@ -36,6 +41,9 @@ static void signal_caller(uv_signal_t* /*handle*/, int signum)
 static uv_signal_t sigint, sighup, sigterm;
 void setup_signals(uv_loop_t* l)
 {
+#if defined(SIGPIPE)
+    signal(SIGPIPE, SIG_IGN); // as per recommendation of https://docs.libuv.org/en/v1.x/_sources/guide/filesystem.rst.txt
+#endif
     int i;
     if ((i = uv_signal_init(l, &sigint) < 0))
         goto error;
@@ -54,7 +62,7 @@ void setup_signals(uv_loop_t* l)
     uv_unref((uv_handle_t*)&sigterm);
     return;
 error:
-    throw std::runtime_error("Cannot setup signals: " + std::string(errors::err_name(i)));
+    throw std::runtime_error("Cannot setup signals: " + std::string(Error(i).err_name()));
 }
 void free_signals()
 {
@@ -69,6 +77,7 @@ static void shutdown(Error reason)
     global().core->shutdown(reason);
     global().chainServer->shutdown();
     global().peerServer->shutdown();
+    global().rxtxServer->shutdown();
 #ifndef DISABLE_LIBUV
     global().conman->shutdown(reason);
     global().wsconman->shutdown(reason);
@@ -80,28 +89,17 @@ static void shutdown(Error reason)
 }
 #endif
 
-void initialize_srand()
+int run_app(int argc, char** argv)
 {
-    using namespace std::chrono;
-    srand(duration_cast<milliseconds>(steady_clock::now().time_since_epoch()).count());
-}
-
-struct ECC {
-    ECC() { ECC_Start(); }
-    ~ECC() { ECC_Stop(); }
-};
-
-int main(int argc, char** argv)
-{
-    ECC ecc;
-    initialize_srand();
     int i = init_config(argc, argv);
     if (i <= 0)
         return i; // >0 means continue with execution
     BatchRegistry breg;
 
+    // spdlog::set_default_logger
     spdlog::info("Chain database: {}", config().data.chaindb);
     spdlog::info("Peers database: {}", config().data.peersdb);
+    spdlog::info("Rxtx database: {}", config().data.rxtxdb);
 
     // spdlog::flush_on(spdlog::level::debug);
 #ifndef DISABLE_LIBUV
@@ -109,22 +107,22 @@ int main(int argc, char** argv)
     auto l { uvw::loop::create() };
 #endif
 
-    spdlog::debug("Opening peers database \"{}\"", config().data.peersdb);
     PeerDB pdb(config().data.peersdb);
     PeerServer ps(pdb, config());
 
-    spdlog::debug("Opening chain database \"{}\"", config().data.chaindb);
     ChainDB db(config().data.chaindb);
     auto cs = ChainServer::make_chain_server(db, breg, config().node.snapshotSigner);
+
+    rxtx::Server rxtxServer;
 
     auto el { Eventloop::create(ps, *cs, config()) };
 
 #ifndef DISABLE_LIBUV
     std::optional<StratumServer> stratumServer;
     if (config().stratumPool) {
-        stratumServer.emplace(config().stratumPool->bind);
+        stratumServer.emplace(*config().stratumPool);
     }
-    auto cm{ TCPConnectionManager::make_shared(l, ps, config())};
+    auto cm { TCPConnectionManager::make_shared(l, ps, config()) };
     WSConnectionManager wscm(ps, config().websocketServer);
     // setup signals
     setup_signals(l->raw());
@@ -133,9 +131,9 @@ int main(int argc, char** argv)
     HTTPEndpoint endpoint { config().jsonrpc.bind };
     auto endpointPublic { HTTPEndpoint::make_public_endpoint(config()) };
 
-    global_init(&breg, &ps, &*cs, cm.get(), &wscm, el.get(), &endpoint);
+    global_init(&breg, &rxtxServer, &ps, &*cs, cm.get(), &wscm, el.get(), &endpoint);
 #else
-    global_init(&breg, &ps, &*cs, el.get());
+    global_init(&breg, &rxtxServer, &ps, &*cs, el.get());
 #endif
 
     // setup globals
@@ -144,6 +142,7 @@ int main(int argc, char** argv)
     ps.start();
     cs->start();
     el->start();
+    rxtxServer.start();
 
 #ifdef DISABLE_LIBUV
     virtual_endpoint_initialize();
@@ -153,6 +152,8 @@ int main(int argc, char** argv)
     return 0;
 #else
     endpoint.start();
+    if (endpointPublic)
+        endpointPublic->start();
     wscm.start();
     if (stratumServer)
         stratumServer->start();
@@ -166,7 +167,15 @@ int main(int argc, char** argv)
     l->close();
     return 0;
 error:
-    spdlog::error("libuv error:", errors::err_name(i));
+    spdlog::error("libuv error: {}", Error(i).err_name());
     return i;
 #endif
+}
+
+int main(int argc, char** argv)
+{
+    global_startup();
+    auto i { run_app(argc, argv) };
+    global_cleanup();
+    return i;
 }

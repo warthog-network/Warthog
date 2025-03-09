@@ -1,5 +1,6 @@
 #pragma once
 #include "block/chain/height.hpp"
+#include "block/version.hpp"
 #include <cstdint>
 #include <span>
 #include <vector>
@@ -21,6 +22,7 @@ public:
     size_t size() const { return bytes.size(); }
     auto& data() const { return bytes; }
     auto& data() { return bytes; }
+    operator std::span<const uint8_t>() const { return bytes; }
     [[nodiscard]] std::optional<BodyStructure> parse_structure(NonzeroHeight h, BlockVersion v) const;
     [[nodiscard]] BodyStructure parse_structure_throw(NonzeroHeight h, BlockVersion v) const;
     bool operator==(const BodyContainer&) const = default;
@@ -36,4 +38,10 @@ private:
         : BodyContainer(std::move(bc))
     {
     }
+};
+
+class BodyContainerV3 : public BodyContainer {
+public:
+    using BodyContainer::BodyContainer;
+    static constexpr BlockVersion block_version() { return { 3 }; }
 };

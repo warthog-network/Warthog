@@ -14,6 +14,7 @@
 #include "general/timestamp.hpp"
 #include "order_loader.hpp"
 #include "statement.hpp"
+#include "general/sqlite.hpp"
 struct CreatorToken;
 struct AccountToken;
 class ChainDBTransaction;
@@ -52,6 +53,7 @@ struct BlockUndoData {
 
 class ChainDB {
 private:
+    using Statement = sqlite::Statement;
     friend class ChainDBTransaction;
     // ids to save additional information in tables
     static constexpr int64_t WORKSUMID = -1;
@@ -213,6 +215,7 @@ public:
     // BELOW METHODS REQUIRED FOR INDEXING NODES
     std::optional<AccountFunds> lookup_address(const AddressView address) const; // for indexing nodes
     std::vector<std::tuple<HistoryId, Hash, std::vector<uint8_t>>> lookup_history_100_desc(AccountId account_id, int64_t beforeId);
+    size_t byte_size() const;
 
 private:
     [[nodiscard]] bool schedule_exists(BlockId dk);
@@ -370,6 +373,8 @@ private:
                     "`AccountHistory` (`history_id` ASC)");
             db.exec("CREATE TABLE IF NOT EXISTS `History` ( `id` INTEGER NOT NULL, "
                     "`hash` BLOB NOT NULL, `data` BLOB NOT NULL, PRIMARY KEY(`id`))");
+            db.exec("CREATE INDEX IF NOT EXISTS `history_index` ON "
+                    "`History` (`hash` ASC)");
         }
     } createTables;
     struct Cache {
@@ -380,93 +385,94 @@ private:
         DeletionKey deletionKey;
         static Cache init(SQLite::Database& db);
     } cache;
-    Statement2 stmtBlockInsert;
-    Statement2 stmtUndoSet;
-    mutable Statement2 stmtBlockGetUndo;
-    mutable Statement2 stmtBlockById;
-    mutable Statement2 stmtBlockByHash;
+    Statement stmtBlockInsert;
+    Statement stmtUndoSet;
+    mutable Statement stmtBlockGetUndo;
+    mutable Statement stmtBlockById;
+    mutable Statement stmtBlockByHash;
 
     // Candles statements
-    Statement2 stmtPruneCandles5m;
-    Statement2 stmtInsertCandles5m;
-    Statement2 stmtUpdateCandles5m;
-    Statement2 stmtSelectCandles5m;
-    Statement2 stmtPruneCandles1h;
-    Statement2 stmtInsertCandles1h;
-    Statement2 stmtUpdateCandles1h;
-    Statement2 stmtSelectCandles1h;
+    Statement stmtPruneCandles5m;
+    Statement stmtInsertCandles5m;
+    Statement stmtUpdateCandles5m;
+    Statement stmtSelectCandles5m;
+    Statement stmtPruneCandles1h;
+    Statement stmtInsertCandles1h;
+    Statement stmtUpdateCandles1h;
+    Statement stmtSelectCandles1h;
 
     // Orders statements
-    Statement2 stmtInsertBaseSellOrder;
-    Statement2 stmtInsertQuoteBuyOrder;
-    mutable Statement2 stmtSelectBaseSellOrderAsc;
-    mutable Statement2 stmtSelectQuoteBuyOrderDesc;
+    Statement stmtInsertBaseSellOrder;
+    Statement stmtInsertQuoteBuyOrder;
+    mutable Statement stmtSelectBaseSellOrderAsc;
+    mutable Statement stmtSelectQuoteBuyOrderDesc;
 
     // Pool statements
-    Statement2 stmtInsertPool;
-    mutable Statement2 stmtSelectPool;
-    Statement2 stmtUpdatePool;
+    Statement stmtInsertPool;
+    mutable Statement stmtSelectPool;
+    Statement stmtUpdatePool;
 
     // TokenForks statements
-    Statement2 stmtTokenForkBalanceInsert;
-    mutable Statement2 stmtTokenForkBalanceEntryExists;
-    mutable Statement2 stmtTokenForkBalanceSelect;
-    Statement2 stmtTokenForkBalancePrune;
+    Statement stmtTokenForkBalanceInsert;
+    mutable Statement stmtTokenForkBalanceEntryExists;
+    mutable Statement stmtTokenForkBalanceSelect;
+    Statement stmtTokenForkBalancePrune;
 
     // Token statements
-    Statement2 stmtTokenInsert;
-    Statement2 stmtTokenPrune;
-    mutable Statement2 stmtTokenMaxSnapshotHeight;
-    mutable Statement2 stmtTokenSelectForkHeight;
-    mutable Statement2 stmtTokenLookup;
-    mutable Statement2 stmtSelectBalanceId;
+    Statement stmtTokenInsert;
+    Statement stmtTokenPrune;
+    mutable Statement stmtTokenMaxSnapshotHeight;
+    mutable Statement stmtTokenSelectForkHeight;
+    mutable Statement stmtTokenLookup;
+    mutable Statement stmtSelectBalanceId;
 
     // Balance statements
-    Statement2 stmtTokenInsertBalance;
-    Statement2 stmtBalancePrune;
-    mutable Statement2 stmtTokenSelectBalance;
-    mutable Statement2 stmtAccountSelectTokens;
-    Statement2 stmtTokenUpdateBalance;
-    mutable Statement2 stmtTokenSelectRichlist;
+    Statement stmtTokenInsertBalance;
+    Statement stmtBalancePrune;
+    mutable Statement stmtTokenSelectBalance;
+    mutable Statement stmtAccountSelectTokens;
+    Statement stmtTokenUpdateBalance;
+    mutable Statement stmtTokenSelectRichlist;
 
     // Consensus table functions
-    mutable Statement2 stmtConsensusHeaders;
-    Statement2 stmtConsensusInsert;
-    // Statement2 stmtConsensusSet;
-    Statement2 stmtConsensusSetProperty;
-    mutable Statement2 stmtConsensusSelect;
-    mutable Statement2 stmtConsensusSelectRange;
-    mutable Statement2 stmtConsensusSelectHistory;
-    mutable Statement2 stmtConsensusHead;
-    Statement2 stmtConsensusDeleteFrom;
+    mutable Statement stmtConsensusHeaders;
+    Statement stmtConsensusInsert;
+    // Statement stmtConsensusSet;
+    Statement stmtConsensusSetProperty;
+    mutable Statement stmtConsensusSelect;
+    mutable Statement stmtConsensusSelectRange;
+    mutable Statement stmtConsensusSelectHistory;
+    mutable Statement stmtConsensusHead;
+    Statement stmtConsensusDeleteFrom;
 
-    Statement2 stmtScheduleExists;
-    Statement2 stmtScheduleInsert;
-    Statement2 stmtScheduleBlock;
-    Statement2 stmtScheduleProtected;
-    Statement2 stmtScheduleDelete2;
-    Statement2 stmtScheduleConsensus;
-    Statement2 stmtDeleteGCBlocks;
-    Statement2 stmtDeleteGCRefs;
+    Statement stmtScheduleExists;
+    Statement stmtScheduleInsert;
+    Statement stmtScheduleBlock;
+    Statement stmtScheduleProtected;
+    Statement stmtScheduleDelete2;
+    Statement stmtScheduleConsensus;
+    Statement stmtDeleteGCBlocks;
+    Statement stmtDeleteGCRefs;
 
-    Statement2 stmtAccountsInsert;
-    Statement2 stmtAccountsDeleteFrom;
-    Statement2 stmtBadblockInsert;
-    mutable Statement2 stmtBadblockGet;
-    mutable Statement2 stmtAccountsLookup;
-    Statement2 stmtHistoryInsert;
-    Statement2 stmtHistoryDeleteFrom;
-    mutable Statement2 stmtHistoryLookup;
-    mutable Statement2 stmtHistoryLookupRange;
-    Statement2 stmtAccountHistoryInsert;
-    Statement2 stmtAccountHistoryDeleteFrom;
+    Statement stmtAccountsInsert;
+    Statement stmtAccountsDeleteFrom;
+    Statement stmtBadblockInsert;
+    mutable Statement stmtBadblockGet;
+    mutable Statement stmtAccountsLookup;
+    Statement stmtHistoryInsert;
+    Statement stmtHistoryDeleteFrom;
+    mutable Statement stmtHistoryLookup;
+    mutable Statement stmtHistoryLookupRange;
+    Statement stmtAccountHistoryInsert;
+    Statement stmtAccountHistoryDeleteFrom;
 
-    mutable Statement2 stmtBlockIdSelect;
-    mutable Statement2 stmtBlockHeightSelect;
-    Statement2 stmtBlockDelete;
+    mutable Statement stmtBlockIdSelect;
+    mutable Statement stmtBlockHeightSelect;
+    Statement stmtBlockDelete;
 
-    mutable Statement2 stmtAddressLookup;
-    mutable Statement2 stmtHistoryById;
+    mutable Statement stmtAddressLookup;
+    mutable Statement stmtHistoryById;
+    mutable Statement stmtGetDBSize;
 };
 class ChainDBTransaction {
 public:

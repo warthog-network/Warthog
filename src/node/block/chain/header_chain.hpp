@@ -39,8 +39,11 @@ public:
         : finalPin(std::move(finalPin))
         , incompleteBatch(std::move(incompleteBatch)) {};
 
-    std::optional<HeaderView> inefficient_get_header(NonzeroHeight h) const;
+    std::optional<HeaderView> inefficient_search_header(NonzeroHeight h) const;
     Height length() const { return finalPin.upper_height() + incompleteBatch.size(); };
+    HeaderSearchRecursive header_search_recursive() const{
+        return {finalPin, incompleteBatch};
+    }
     const Batch& incomplete_batch() { return incompleteBatch; }
 
 protected:
@@ -99,7 +102,7 @@ public:
     api::HashrateTimeChart hashrate_time_chart(uint32_t min, uint32_t max, uint32_t interval) const;
 
     size_t nonempty_batch_size() const { return completeBatches.size() + (incompleteBatch.size() > 0 ? 1 : 0); }
-    Batch get_headers(NonzeroHeight begin, NonzeroHeight end) const;
+    Batch get_headers(HeaderRange) const;
     GridView grid_view() const { return completeBatches; }
     std::optional<HeaderView> get_header(Height) const;
     [[nodiscard]] Height length() const
@@ -147,7 +150,7 @@ public:
 
     void clear();
     friend ForkHeight fork_height(const Headerchain& h1, const Headerchain& h2, NonzeroHeight startHeight);
-    std::optional<NonzeroHeight> max_match_height(const HeaderRange&) const;
+    std::optional<NonzeroHeight> max_match_height(const HeaderSpan&) const;
 
 protected: // methods
     void initialize_worksum();

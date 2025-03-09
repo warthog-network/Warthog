@@ -77,7 +77,7 @@ struct TCPPeeraddr : public Sockaddr4 {
     {
         return { Sockaddr4::from_sql_id(id) };
     }
-    static constexpr std::optional<TCPPeeraddr> parse(const std::string_view& sv)
+    [[nodiscard]] static constexpr std::optional<TCPPeeraddr> parse(const std::string_view& sv)
     {
         auto p { Sockaddr4::parse(sv) };
         if (p) {

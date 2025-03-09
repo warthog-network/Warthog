@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <cstring>
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -46,13 +47,13 @@ struct Range {
 
 class Writer {
 public:
-    Writer(std::vector<uint8_t>& v)
-        : Writer(v.data(), v.data() + v.size()) {};
     Writer(uint8_t* pos, size_t n)
-        : Writer(pos, pos + n) {};
-    Writer(uint8_t* pos, uint8_t* end)
         : pos(pos)
-        , end(end)
+        , end(pos + n)
+    {
+    }
+    Writer(std::span<uint8_t> s)
+        : Writer(s.data(), s.size())
     {
     }
     ~Writer() { assert(pos <= end); }

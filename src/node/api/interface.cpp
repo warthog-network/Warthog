@@ -1,11 +1,13 @@
 #include "interface.hpp"
 #include "api/types/all.hpp"
 #include "block/header/header_impl.hpp"
-#include <nlohmann/json.hpp>
 #include "chainserver/server.hpp"
+#include "communication/rxtx_server/rxtx_server.hpp"
 #include "eventloop/eventloop.hpp"
+#include "general/logger/log_memory.hpp"
 #include "global/globals.hpp"
 #include "transport/tcp/conman.hpp"
+#include <nlohmann/json.hpp>
 
 // mempool functions
 void put_mempool(PaymentCreateMessage&& m, MempoolInsertCb cb)
@@ -28,7 +30,12 @@ void get_latest_transactions(LatestTxsCb f)
     global().chainServer->api_lookup_latest_txs(std::move(f));
 };
 
-// peer db functions
+// peer functions
+
+void get_ip_count(IpCounterCb&& cb)
+{
+    global().core->api_count_ips(std::move(cb));
+}
 
 void get_banned_peers(PeerServer::banned_callback_t&& f)
 {
@@ -38,7 +45,9 @@ void unban_peers(ResultCb&& f)
 {
     global().peerServer->async_unban(std::move(f));
 }
-void get_connection_schedule(JSONCb&& cb){
+
+void get_connection_schedule(JSONCb&& cb)
+{
     global().core->api_get_connection_schedule(std::move(cb));
 }
 void get_offense_entries(ResultCb&& f)
@@ -54,8 +63,13 @@ void get_connected_peers2(PeersCb&& cb)
     global().core->api_get_peers(std::move(cb));
 }
 
-void disconnect_peer(uint64_t id, ResultCb&& cb){
+void disconnect_peer(uint64_t id, ResultCb&& cb)
+{
     global().core->api_disconnect_peer(id, std::move(cb));
+}
+void get_throttled_peers(ThrottledCb&& cb)
+{
+    global().core->api_get_throttled(std::move(cb));
 }
 
 void get_connected_connection(ConnectedConnectionCB&& cb)
@@ -74,9 +88,17 @@ void get_round16bit_funds(Funds f, RoundCb cb)
 {
     cb(api::Round16Bit { f });
 }
+
 void get_version(VersionCb cb)
 {
-    cb(NodeVersion {});
+    cb(PrintNodeVersion {});
+}
+void get_info(InfoCb cb)
+{
+    global().chainServer->api_get_db_size(
+        [cb = std::move(cb)](tl::expected<api::DBSize, Error> s) {
+            cb(std::move(s).transform([](api::DBSize&& s) { return api::NodeInfo { std::move(s) }; }));
+        });
 }
 
 void get_wallet_new(WalletCb cb)
@@ -104,6 +126,10 @@ void get_janushash_number(std::string_view sv, RawCb cb)
         return s;
     };
     cb({ double_to_string(h.janus_number()) });
+}
+void sample_verified_peers(size_t n, SampledPeersCb cb)
+{
+    global().core->api_sample_verified_peers(n, std::move(cb));
 }
 
 namespace {
@@ -306,6 +332,20 @@ void get_account_richlist(RichlistCb f)
 {
     global().chainServer->api_get_richlist(f);
 }
+void get_transmission_minutes(TransmissionCb cb)
+{
+    using namespace std::chrono;
+    auto begin { duration_cast<seconds>((system_clock::now() - days(1)).time_since_epoch()).count() };
+    global().rxtxServer->api_get_aggregate_minutes({ .cb { std::move(cb) },
+        .range { begin, std::numeric_limits<uint32_t>::max() } });
+}
+void get_transmission_hours(TransmissionCb cb)
+{
+    using namespace std::chrono;
+    auto begin { duration_cast<seconds>((system_clock::now() - days(10)).time_since_epoch()).count() };
+    global().rxtxServer->api_get_aggregate_hours({ .cb { std::move(cb) },
+        .range { begin, std::numeric_limits<uint32_t>::max() } });
+}
 
 void inspect_eventloop(std::function<void(const Eventloop& e)>&& cb)
 {
@@ -324,11 +364,26 @@ void subscribe_account_event(SubscriptionRequest r, Address a)
 {
     global().chainServer->subscribe_account_event(std::move(r), std::move(a));
 }
-void subscribe_minerdist_event(SubscriptionRequest r){
+void subscribe_minerdist_event(SubscriptionRequest r)
+{
     global().chainServer->subscribe_minerdist_event(std::move(r));
 }
+void subscribe_log_event(SubscriptionRequest r)
+{
+    logging::logMemory.subscribe(std::move(r));
+}
+
 void destroy_all_subscriptions(subscription_data_ptr p)
 {
     global().chainServer->destroy_subscriptions(p);
     global().core->destroy_subscriptions(p);
+}
+void loadtest_block(uint64_t conId, ResultCb cb){
+    global().core->api_loadtest_block(conId, std::move(cb));
+}
+void loadtest_header(uint64_t conId, ResultCb cb){
+    global().core->api_loadtest_header(conId, std::move(cb));
+}
+void loadtest_disable(uint64_t conId, ResultCb cb){
+    global().core->api_loadtest_disable(conId, std::move(cb));
 }

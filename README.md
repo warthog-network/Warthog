@@ -74,7 +74,10 @@ Use at your own risk.
 - <a href="https://exbitron.com/">Exbitron exchange</a><br>
 - <a href="https://xeggex.com/market/WART_USDT">Xeggex exchange</a>
 - <a href="https://tradeogre.com/exchange/WART-USDT">TradeOgre exchange</a>
+- <a href="https://www.coinex.com/en/exchange/WART-USDT">CoinEx exchange</a>
+- <a href="https://www.bit.com/spot?pair=WART-USDT">Bit.com Exchange</a>
 - <a href="https://www.caldera.trade/get-started">Caldera OTC bot</a>
+
 
 ## 📦 Component overview
 
@@ -143,13 +146,13 @@ NOTE:  This is a highly experimental project not backed by any institution or fo
  People can join and leave any time at their will.
 
 ## 📖 Documentation
-* [API Reference](https://www.warthog.network/docs/developers/api/)
-* [Wallet Integration Guide](https://www.warthog.network/docs/developers/integrations/wallet-integration/)
-* [Pool Integration Guide](https://www.warthog.network/docs/developers/integrations/pools/)
-* [Miner Integration Guide](https://www.warthog.network/docs/developers/integrations/miners/)
-* [Janushash algorithm](https://www.warthog.network/docs/janushash/interpreting-hashes-as-numbers/). First Proof of Balanced Work mining algorithm in the world.
+* [API Reference](https://docs.warthog.network/developers/api/)
+* [Wallet Integration Guide](https://docs.warthog.network/developers/integrations/wallet-integration/)
+* [Pool Integration Guide](https://docs.warthog.network/developers/integrations/pools/)
+* [Miner Integration Guide](https://docs.warthog.network/developers/integrations/miners/)
+* [Janushash algorithm](https://docs.warthog.network/janushash/interpreting-hashes-as-numbers/). First Proof of Balanced Work mining algorithm in the world.
 
 ## Useful Links
-* [See here](https://www.warthog.network/docs/links/)
+* [See here](https://docs.warthog.network/links/)
 
 

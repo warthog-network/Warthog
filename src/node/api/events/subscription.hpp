@@ -3,6 +3,7 @@
 #include "block/chain/height.hpp"
 #include "block/chain/worksum.hpp"
 #include "crypto/address.hpp"
+#include "general/logger/log_entry.hpp"
 #include "subscription_fwd.hpp"
 
 // struct Subscription
@@ -28,7 +29,7 @@ namespace events {
     /// Connection events
     struct Connection {
         uint64_t id;
-        int32_t since;
+        StartTimePoints since;
         std::string peerAddr;
         bool inbound;
     };
@@ -74,6 +75,14 @@ namespace events {
         static constexpr auto eventName { "minerdist.delta" };
         std::vector<api::AddressCount> deltas;
     };
+    struct LogState {
+        static constexpr auto eventName { "log.state" };
+        std::vector<LogEntry> lines;
+    };
+    struct LogLine {
+        static constexpr auto eventName { "log.line" };
+        LogEntry line;
+    };
     struct Event {
         using variant_t = std::variant<
             AccountState,
@@ -85,7 +94,9 @@ namespace events {
             ChainAppend,
             ChainFork,
             MinerdistState,
-            MinerdistDelta>;
+            MinerdistDelta,
+            LogState,
+            LogLine>;
         std::string json_str() const;
         void send(std::vector<subscription_ptr>) &&;
         void send(subscription_ptr) &&;

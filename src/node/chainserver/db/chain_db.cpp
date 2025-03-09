@@ -18,6 +18,7 @@ namespace {
 enum METATYPES { MAXSTATE = 0 };
 }
 
+using namespace std::string_literals;
 ChainDB::Cache ChainDB::Cache::init(SQLite::Database& db)
 {
     auto get_uint64 {
@@ -48,7 +49,9 @@ ChainDBTransaction ChainDB::transaction()
     return ChainDBTransaction(*this);
 }
 ChainDB::ChainDB(const std::string& path)
-    : db(path, SQLite::OPEN_READWRITE | SQLite::OPEN_CREATE)
+    : db([&]() -> auto& {
+    spdlog::debug("Opening chain database \"{}\"", path);
+    return path; }(), SQLite::OPEN_READWRITE | SQLite::OPEN_CREATE)
     , fl(path)
     , createTables(db)
     , cache(Cache::init(db))
@@ -164,6 +167,7 @@ ChainDB::ChainDB(const std::string& path)
     , stmtHistoryById(db, "SELECT h.id, `hash`,`data` FROM `History` `h` JOIN "
                           "`AccountHistory` `ah` ON h.id=`ah`.history_id WHERE "
                           "ah.`account_id`=? AND h.id<? ORDER BY h.id DESC LIMIT 100")
+    , stmtGetDBSize(db, "SELECT page_count * page_size FROM pragma_page_count(), pragma_page_size();")
 {
 
     //
@@ -217,7 +221,7 @@ std::optional<SignedSnapshot> ChainDB::get_signed_snapshot() const
     try {
         return SignedSnapshot(r);
     } catch (Error e) {
-        throw std::runtime_error(fmt::format("Database corrupted. Signed snapshot invalid: {}", e.strerror()));
+        throw std::runtime_error("Database corrupted. Signed snapshot invalid: "s + std::string(e.strerror()));
     }
 }
 
@@ -232,7 +236,7 @@ void ChainDB::set_signed_snapshot(const SignedSnapshot& ss)
 std::vector<BlockId> ChainDB::consensus_block_ids(HeightRange range) const
 {
     std::vector<BlockId> out;
-    stmtConsensusSelectRange.for_each([&](Statement2::Row& r) {
+    stmtConsensusSelectRange.for_each([&](sqlite::Row& r) {
         out.push_back(r[0]);
     },
         range.hbegin, range.hend);
@@ -556,7 +560,7 @@ std::tuple<std::vector<Batch>, HistoryHeights, AccountHeights> ChainDB::getConse
     HistoryHeights historyHeights;
     AccountHeights accountHeights;
     Batch b;
-    stmtConsensusHeaders.for_each([&](Statement2::Row& r) {
+    stmtConsensusHeaders.for_each([&](sqlite::Row& r) {
         if (h != r.get<Height>(0)) { // corrupted
             throw std::runtime_error("Database corrupted, block height not consecutive");
         }
@@ -587,7 +591,7 @@ std::vector<std::pair<Height, Header>>
 ChainDB::getBadblocks() const
 {
     std::vector<std::pair<Height, Header>> res;
-    stmtBadblockGet.for_each([&](Statement2::Row& r) {
+    stmtBadblockGet.for_each([&](sqlite::Row& r) {
         res.push_back({ r[0], r[1] });
     });
     return res;
@@ -619,12 +623,17 @@ std::optional<std::pair<std::vector<uint8_t>, HistoryId>> ChainDB::lookup_histor
     });
 }
 
+size_t ChainDB::byte_size() const
+{
+    return stmtGetDBSize.one().get<int64_t>(0);
+}
+
 std::vector<std::pair<Hash, std::vector<uint8_t>>> ChainDB::lookupHistoryRange(HistoryId lower, HistoryId upper)
 {
     std::vector<std::pair<Hash, std::vector<uint8_t>>> out;
     int64_t l = lower.value();
     int64_t u = (upper == HistoryId { 0 } ? std::numeric_limits<int64_t>::max() : upper.value());
-    stmtHistoryLookupRange.for_each([&](Statement2::Row& r) {
+    stmtHistoryLookupRange.for_each([&](sqlite::Row& r) {
         out.push_back({ r[0], r[1] });
     },
         l, u);
@@ -648,7 +657,7 @@ std::vector<std::tuple<HistoryId, Hash, std::vector<uint8_t>>> ChainDB::lookup_h
 {
     std::vector<std::tuple<HistoryId, Hash, std::vector<uint8_t>>> out;
     stmtHistoryById.for_each(
-        [&](Statement2::Row& row) {
+        [&](sqlite::Row& row) {
             out.push_back({ row[0], row[1], row[2] });
         },
         accountId, beforeId);

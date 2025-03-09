@@ -31,7 +31,7 @@ void WSSession::on_close(Error reason)
         return;
     closing = true;
     if (connection)
-        connection->on_close({ .error = reason });
+        connection->on_close(reason);
 }
 void WSSession::close(Error reason)
 {

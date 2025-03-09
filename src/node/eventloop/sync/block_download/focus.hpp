@@ -63,11 +63,11 @@ struct FocusNode {
     std::vector<Conref> refs;
 };
 class Focus {
-    public:
+public:
     using FocusMap = std::map<BlockSlot, FocusNode>;
     Focus(const Downloader& dl, size_t windowWidth)
         : downloader(dl)
-        , width(windowWidth) {};
+        , width(windowWidth) { };
     bool has_data();
 
     NonzeroHeight height_begin();
@@ -83,7 +83,7 @@ class Focus {
         FocusMap::iterator iter;
         BlockRange r;
         Focus& focus;
-        Blockrequest link_request(Conref cr);
+        BlockRequest link_request(Conref cr);
     };
     struct EndIterator {
     };
@@ -109,7 +109,7 @@ class Focus {
             }
             return FocusSlot {
                 .iter { iter },
-                .r { lower, upper.nonzero_assert() },
+                .r { BlockRange { lower, upper.nonzero_assert() + 1 } },
                 .focus { focus }
             };
         }

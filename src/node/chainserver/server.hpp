@@ -7,6 +7,7 @@
 #include "chainserver/subscription_state.hpp"
 #include "communication/create_payment.hpp"
 #include "communication/stage_operation/request.hpp"
+#include "general/logging.hpp"
 #include "state/state.hpp"
 #include <condition_variable>
 #include <queue>
@@ -91,6 +92,9 @@ public:
     struct GetTxcache {
         TxcacheCb callback;
     };
+    struct GetDBSize {
+        DBSizeCB callback;
+    };
     struct GetBlocks {
         DescriptedBlockRange range;
         getBlocksCb callback;
@@ -138,6 +142,7 @@ public:
         SubscribeMining,
         UnsubscribeMining,
         GetTxcache,
+        GetDBSize,
         GetBlocks,
         stage_operation::StageAddOperation,
         stage_operation::StageSetOperation,
@@ -211,6 +216,7 @@ public:
     [[nodiscard]] mining_subscription::MiningSubscription api_subscribe_mining(Address address, mining_subscription::callback_t callback);
     void api_unsubscribe_mining(mining_subscription::SubscriptionId);
     void api_get_txcache(TxcacheCb callback);
+    void api_get_db_size(DBSizeCB callback);
 
     void subscribe_account_event(SubscriptionRequest, Address a);
     void subscribe_chain_event(SubscriptionRequest);
@@ -249,6 +255,7 @@ private:
     void handle_event(SubscribeMining&&);
     void handle_event(UnsubscribeMining&&);
     void handle_event(GetTxcache&&);
+    void handle_event(GetDBSize&&);
     void handle_event(GetBlocks&&);
     void handle_event(stage_operation::StageSetOperation&&);
     void handle_event(stage_operation::StageAddOperation&&);
@@ -271,6 +278,7 @@ private:
 
     // state variables
     chainserver::State state;
+    std::optional<logging::TimingSession> timing;
 
     // mutex protected variables
     std::mutex mutex;

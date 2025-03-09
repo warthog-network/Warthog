@@ -1,12 +1,13 @@
 #pragma once
+#include "api/http/json.hpp"
 #include "api/http/parse.hpp"
 #include "api/types/accountid_or_address.hpp"
 #include "api/types/all.hpp"
+#include "communication/rxtx_server/rxtx_server.hpp"
 #include "chainserver/transaction_ids.hpp"
 #include "communication/mining_task.hpp"
 #include "general/hex.hpp"
 #include "http/json.hpp"
-#include "api/http/json.hpp"
 #include "spdlog/spdlog.h"
 #include <charconv>
 #include <string>
@@ -226,14 +227,17 @@ public:
         hook_get(t, "/account/richlist", get_account_richlist);
 
         t.indexGenerator.section("Peers Endpoints");
-        // get("/peers/ip_count", inspect_conman, jsonmsg::ip_counter); // TODO
+        hook_get(t, "/peers/ip_count", get_ip_count);
         hook_get(t, "/peers/banned", get_banned_peers);
         hook_get(t, "/peers/unban", unban_peers, true);
         hook_get_1(t, "/peers/offenses/:page", get_offenses);
         hook_get(t, "/peers/connected", get_connected_peers2, true);
         hook_get_1(t, "/peers/disconnect/:id", disconnect_peer, true);
+        hook_get(t,"/peers/throttled", get_throttled_peers, true);
         hook_get(t, "/peers/connected/connection", get_connected_connection);
         hook_get(t, "/peers/connection_schedule", get_connection_schedule);
+        hook_get(t, "/peers/transmission_hours", get_transmission_hours, true);
+        hook_get(t, "/peers/transmission_minutes", get_transmission_minutes, true);
         // hook_get(t,"/peers/endpoints", inspect_eventloop, jsonmsg::endpoints, true);
         // hook_get(t,"/peers/connect_timers", inspect_eventloop, jsonmsg::connect_timers, true);
 
@@ -241,12 +245,17 @@ public:
         hook_get_1(t, "/tools/encode16bit/from_e8/:feeE8", get_round16bit_e8);
         hook_get_1(t, "/tools/encode16bit/from_string/:string", get_round16bit_funds);
         hook_get(t, "/tools/version", get_version);
+        hook_get(t, "/tools/info", get_info);
         hook_get(t, "/tools/wallet/new", get_wallet_new);
         hook_get_1(t, "/tools/wallet/from_privkey/:privkey", get_wallet_from_privkey);
         hook_get_1(t, "/tools/janushash_number/:headerhex", get_janushash_number);
+        hook_get_1(t, "/tools/sample_verified_peers/:number", sample_verified_peers);
 
         t.indexGenerator.section("Debug Endpoints");
         hook_get(t, "/debug/header_download", inspect_eventloop, jsonmsg::header_download, true);
+        hook_get_1(t, "/loadtest/block_request/:conn_id", loadtest_block);
+        hook_get_1(t, "/loadtest/header_request/:conn_id", loadtest_header);
+        hook_get_1(t, "/loadtest/disable/:conn_id", loadtest_disable);
     }
 };
 

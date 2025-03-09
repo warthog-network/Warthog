@@ -1,16 +1,15 @@
 #include "communication/buffers/sndbuffer.hpp"
 #include "general/writer.hpp"
-#include "messages.hpp"
-#include "message_elements/packer_impl.hpp"
 #include "message_elements/byte_size.hpp"
 #include "message_elements/helper_types_impl.hpp"
-
+#include "message_elements/packer_impl.hpp"
+#include "messages.hpp"
 
 namespace {
 struct MessageWriter {
     MessageWriter(uint8_t msgtype, size_t msglen)
         : sb(msgtype, msglen)
-        , writer(sb.msgdata(), sb.msgdata() + sb.msgsize())
+        , writer(sb.msg())
     {
     }
     operator Sndbuffer()
@@ -48,7 +47,7 @@ private:
     Writer writer;
 };
 } // namespace
-  
+
 template <uint8_t M>
 MessageWriter MsgCode<M>::gen_msg(size_t len)
 {

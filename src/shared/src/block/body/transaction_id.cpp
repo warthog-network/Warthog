@@ -19,7 +19,7 @@ TransactionId::TransactionId(Reader& r)
 std::string TransactionId::hex_string() const
 {
     std::array<uint8_t, bytesize> bytes;
-    Writer w(bytes.data(), bytesize);
+    Writer w(bytes);
     w << *this;
     return serialize_hex(bytes);
 }

@@ -207,13 +207,15 @@ int process(gengetopt_args_info& ai)
             cout << "pinHash: " << serialize_hex(pin.second) << endl;
             std::string msg;
 
-            auto [code,error] = endpoint.send_transaction(m);
+            auto e = endpoint.send_transaction(m);
 
-            if (code) {
-                cout << "Transaction rejected (code " << code << "): " << error;
+            if (std::holds_alternative<Endpoint::Error>(e)) {
+                auto& err { std::get<Endpoint::Error>(e) };
+                cout << "Transaction rejected (code " << err.code << "): " << err.message;
                 return -1;
             } else {
-                cout << "Transaction accepted.";
+                cout << "Transaction accepted.\n"
+                     << "Hash: " << serialize_hex(std::get<TxHash>(e)) << endl;
                 return 0;
             }
         }

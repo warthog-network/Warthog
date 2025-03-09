@@ -7,6 +7,7 @@ struct ProbeData {
         : _forkRange(fr)
         , _headers(std::move(headers))
     {
+        assert(fr.lower() <= _headers->length() + 1);
     }
     void match(NonzeroHeight h, HeaderView hv)
     {

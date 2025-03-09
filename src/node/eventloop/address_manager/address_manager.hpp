@@ -1,13 +1,14 @@
 #pragma once
+#include "eventloop/connection_inserter.hpp"
 #ifndef DISABLE_LIBUV
 #include "tcp_connections.hpp"
 #else
 #include "websocket_outbound_schedule.hpp"
 #endif
 
-#include "init_arg.hpp"
 #include "../types/conndata.hpp"
 #include "expected.hpp"
+#include "init_arg.hpp"
 #include "transport/helpers/per_ip_counter.hpp"
 #include <chrono>
 #include <map>
@@ -24,10 +25,11 @@ public:
     friend struct ::Inspector;
     using InitArg = address_manager::InitArg;
     struct OutboundClosedEvent {
-        OutboundClosedEvent( std::shared_ptr<ConnectionBase> c, Error reason);
+        OutboundClosedEvent(std::shared_ptr<ConnectionBase> c, Error reason);
         std::shared_ptr<ConnectionBase> c;
         Error reason;
     };
+
 private:
     class ConrefIter : public Coniter {
     public:
@@ -116,25 +118,22 @@ public:
     InitializedRange initialized() const { return { *this }; }
     AllRange all() const { return { *this }; }
 
-    void outbound_failed(const ConnectRequest& r);
+    void outbound_failed(const ConnectRequest& r, Error e);
     void outbound_closed(OutboundClosedEvent);
-    json to_json()const;
+    json to_json() const;
 
-    void verify(std::vector<TCPPeeraddr>, IPv4 source); // TODO call this function
+    void verify(std::vector<TCPPeeraddr>, IPv4 source);
     [[nodiscard]] std::optional<Conref> find(uint64_t id) const;
     size_t size() const { return conndatamap.size(); }
     size_t ip_count(const IP& ip) const { return ipCounter.count(ip); };
     bool erase(Conref); // returns whether is pinned
 
-    struct InsertData {
-        ConnectionBase::ConnectionVariant& convar;
-        HeaderDownload::Downloader& headerDownload;
-        BlockDownload::Downloader& blockDownload;
-        Timer& timer;
-        std::function<void(Conref evictionCandidate)> evict_cb;
-    };
-    auto insert(InsertData) -> tl::expected<Conref, Error>;
+    auto insert(
+        ConnectionBase::ConnectionVariant& convar,
+        const ConnectionInserter& h)
+        -> tl::expected<Conref, Error>;
 
+    api::IPCounter api_count_ips() const;
 #ifndef DISABLE_LIBUV
     auto sample_verified_tcp(size_t N)
     {
@@ -159,7 +158,7 @@ private:
     std::vector<Conref> inboundConnections;
 #ifndef DISABLE_LIBUV
     TCPConnectionSchedule tcpConnectionSchedule;
-#else 
+#else
     WSConnectionSchedule wsConnectionSchedule;
 #endif
 

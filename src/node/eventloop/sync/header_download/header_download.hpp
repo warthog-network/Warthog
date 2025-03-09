@@ -2,6 +2,7 @@
 #include "../request_sender_declaration.hpp"
 #include "block/chain/consensus_headers.hpp"
 #include "block/chain/offender.hpp"
+#include "eventloop/sync/header_download/rogue_headerheights.hpp"
 #include "eventloop/types/conndata.hpp"
 #include "eventloop/types/peer_requests.hpp"
 #include <deque>
@@ -174,7 +175,7 @@ class Downloader {
         Conref internal;
         Offender(ChainError ce, Conref cr)
             : co(ce, cr.id())
-            , internal(cr) {};
+            , internal(cr) { };
     };
 
 public:
@@ -209,6 +210,7 @@ private:
     std::pair<Lead_set, Lead_set> split_leaders(const Lead_set& leaders, HeaderView h, size_t batchIndex);
 
 public:
+    std::vector<ChainOffender> on_rogue_header(const RogueHeaderData& rogueHeaderData);
     [[nodiscard]] bool is_active() const
     {
         return leaderList.size() > 0;
@@ -232,16 +234,19 @@ public:
 
     auto leaders_end() { return leaderList.end(); }
 
-    [[nodiscard]] std::vector<ChainOffender> do_requests(RequestSender);
+    [[nodiscard]] std::vector<ChainOffender> do_header_requests(RequestSender);
     void do_probe_requests(RequestSender);
 
-    void on_request_expire(Conref cr, const Batchrequest& msg);
+    void on_request_expire(Conref cr, const HeaderRequest& msg);
     void on_proberep(Conref c, const Proberequest& req, const ProberepMsg&);
     void on_probe_request_expire(Conref cr);
-    [[nodiscard]] std::vector<ChainOffender> on_response(Conref cr, Batchrequest&&, Batch&&);
+    [[nodiscard]] std::vector<ChainOffender> on_response(Conref cr, HeaderRequest&&, Batch&&);
     [[nodiscard]] std::optional<std::tuple<LeaderInfo, Headerchain>> pop_data();
 
 private:
+    bool do_exclusive_final_requests(RequestSender&);
+    std::vector<ChainOffender> do_shared_grid_requests(RequestSender&);
+
     bool has_data() const;
     void select_leaders();
 
@@ -272,12 +277,21 @@ private:
     bool can_insert_leader(Conref cr);
 
     bool valid_shared_batch(const SharedBatch&);
+    bool has_header(LeaderNode&, HeightHeader);
+    bool contains_rogue_blocks(const HeaderchainSkeleton&);
+    bool flag_connection(Conref);
 
 private: // data
     VerifierMap verifierMap;
-    std::optional<std::tuple<LeaderInfo, HeaderchainSkeleton, Worksum>> maximizer;
+    struct Maximizer {
+        LeaderInfo leaderInfo;
+        HeaderchainSkeleton headers;
+        Worksum worksum;
+    };
+    std::optional<Maximizer> maximizer;
     size_t pendingDepth = 10;
     size_t maxLeaders = 10;
+    RogueHeaders rogueHeaders;
 
     Lead_list leaderList;
     std::vector<Conref> connections;

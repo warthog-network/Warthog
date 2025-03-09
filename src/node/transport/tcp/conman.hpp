@@ -1,6 +1,5 @@
 #pragma once
 #ifndef DISABLE_LIBUV
-#include "../helpers/per_ip_counter.hpp"
 #include "connect_request.hpp"
 #include "general/move_only_function.hpp"
 #include "peerserver/peerserver.hpp"
@@ -30,7 +29,7 @@ private:
 
     //////////////////////////////
     // Private methods
-    TCPConnection& insert_connection(std::shared_ptr<uvw::tcp_handle> h, const TCPConnectRequest& r);
+    std::shared_ptr<TCPConnection> insert_connection(std::shared_ptr<uvw::tcp_handle> h, const TCPConnectRequest& r);
     void on_wakeup();
 
     // ip counting
@@ -79,7 +78,6 @@ private:
     const TCPPeeraddr bindAddress;
     //--------------------------------------
     // data accessed by libuv thread
-    PerIpCounter perIpCounter;
     std::set<std::shared_ptr<TCPConnection>> tcpConnections;
     bool closing = false;
     std::shared_ptr<uvw::tcp_handle> listener;

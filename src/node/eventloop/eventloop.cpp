@@ -9,6 +9,10 @@
 #include "chainserver/server.hpp"
 #include "communication/buffers/sndbuffer.hpp"
 #include "communication/messages_impl.hpp"
+#include "config/browser.hpp"
+#include "connection_inserter.hpp"
+#include "eventloop/connection_inserter.hpp"
+#include "general/logging.hpp"
 #include "global/globals.hpp"
 #include "mempool/order_key.hpp"
 #include "peerserver/peerserver.hpp"
@@ -18,33 +22,40 @@
 #include "types/conref_impl.hpp"
 #include "types/peer_requests.hpp"
 #include <algorithm>
-#include <future>
-#include <iostream>
 #include <nlohmann/json.hpp>
 #include <random>
-#include <sstream>
 
 using SubscriptionEvent = subscription::events::Event;
-template <typename... Args>
-inline void log_communication(spdlog::format_string_t<Args...> fmt, Args&&... args)
-{
-    if (config().logCommunication)
-        spdlog::info(fmt, std::forward<Args>(args)...);
-}
 
 using namespace std::chrono_literals;
-Eventloop::Eventloop(Token, PeerServer& ps, ChainServer& cs, const ConfigParams& config)
-    : stateServer(cs)
+namespace TimerEvent = eventloop::timer_events;
+namespace {
+bool rtc_enabled(Conref c)
+{
+    return config().node.enableWebRTC && c->rtcState.enanabled;
+}
+void throw_if_rtc_disabled(Conref c)
+{
+    if (!rtc_enabled(c))
+        throw Error(ERTCDISABLED);
+}
+
+}
+
+Eventloop::Eventloop(Token, PeerServer& ps, ChainServer& cs, const ConfigParams& cfg)
+    : startedAt(std::chrono::steady_clock::now())
+    , stateServer(cs)
     , chains(cs.get_chainstate())
     , mempool(false)
 #ifndef DISABLE_LIBUV
-    , connections({ ps, config.peers.connect })
+    , connections({ ps, cfg.peers.connect })
 #else
-    , connections({ ps, config.peers.connect })
+    , connections({ ps, cfg.peers.connect })
 #endif
     , headerDownload(chains, consensus().total_work())
     , blockDownload(*this)
 {
+    spdlog::info("Experimental WebRTC support {}", config().node.enableWebRTC ? "enabled" : "disabled");
     auto& ss = consensus().get_signed_snapshot();
     spdlog::info("Chain info: length {}, work {}, ", consensus().headers().length().value(), consensus().total_work().getdouble());
     if (ss.has_value()) {
@@ -85,9 +96,9 @@ bool Eventloop::async_process(std::shared_ptr<ConnectionBase> c)
     return defer(OnProcessConnection { std::move(c) });
 }
 
-bool Eventloop::async_register(ConnectionBase::ConnectionVariant con)
+bool Eventloop::on_handshake_completed(ConnectionBase::ConnectionVariant con)
 {
-    return defer(RegisterConnection(std::move(con)));
+    return defer(OnHandshakeCompleted(std::move(con)));
 }
 
 void Eventloop::shutdown(Error reason)
@@ -128,7 +139,7 @@ void Eventloop::start_timer(StartTimer st)
     defer(std::move(st));
 }
 
-void Eventloop::cancel_timer(const Timer::key_t& k)
+void Eventloop::cancel_timer(TimerSystem::key_t k)
 {
     defer(CancelTimer { k });
 }
@@ -140,7 +151,12 @@ void Eventloop::on_failed_connect(const ConnectRequest& r, Error reason)
 
 void Eventloop::api_get_peers(PeersCb&& cb)
 {
-    defer(std::move(cb));
+    defer(GetPeers { cb });
+}
+
+void Eventloop::api_get_throttled(ThrottledCb&& cb)
+{
+    defer(GetThrottled { cb });
 }
 
 void Eventloop::api_disconnect_peer(uint64_t id, ResultCb&& cb)
@@ -154,6 +170,10 @@ void Eventloop::api_get_synced(SyncedCb&& cb)
 }
 
 void Eventloop::api_inspect(InspectorCb&& cb)
+{
+    defer(std::move(cb));
+}
+void Eventloop::api_count_ips(IpCounterCb&& cb)
 {
     defer(std::move(cb));
 }
@@ -175,6 +195,10 @@ void Eventloop::api_get_connection_schedule(JSONCb&& cb)
 {
     defer(GetConnectionSchedule(std::move(cb)));
 }
+void Eventloop::api_sample_verified_peers(size_t n, SampledPeersCb cb)
+{
+    defer(SampleVerifiedPeers { n, std::move(cb) });
+}
 
 void Eventloop::api_get_hashrate_time_chart(uint32_t from, uint32_t to, size_t window, HashrateTimeChartCb&& cb)
 {
@@ -184,6 +208,19 @@ void Eventloop::api_get_hashrate_time_chart(uint32_t from, uint32_t to, size_t w
 void Eventloop::api_get_hashrate_block_chart(NonzeroHeight from, NonzeroHeight to, size_t window, HashrateBlockChartCb&& cb)
 {
     defer(GetHashrateBlockChart { std::move(cb), from, to, window });
+}
+
+void Eventloop::api_loadtest_block(uint64_t conId, ResultCb cb)
+{
+    defer(Loadtest { conId, RequestType::make<BlockRequest>(), std::move(cb) });
+}
+void Eventloop::api_loadtest_header(uint64_t conId, ResultCb cb)
+{
+    defer(Loadtest { conId, RequestType::make<HeaderRequest>(), std::move(cb) });
+}
+void Eventloop::api_loadtest_disable(uint64_t conId, ResultCb cb)
+{
+    defer(Loadtest { conId, std::nullopt, std::move(cb) });
 }
 
 void Eventloop::async_forward_blockrep(uint64_t conId, std::vector<BodyContainer>&& blocks)
@@ -199,23 +236,25 @@ void Eventloop::notify_closed_rtc(std::shared_ptr<RTCConnection> rtc)
 bool Eventloop::has_work()
 {
     auto now = std::chrono::steady_clock::now();
-    return haswork || (now > timer.next());
+    return haswork || (now > timerSystem.next());
 }
 
 void Eventloop::loop()
 {
-    RTCConnection::fetch_id([w = weak_from_this()](IdentityIps&& ips) {
-        if (auto p { w.lock() })
-            p->defer(std::move(ips));
-    },
-        true);
+    if (config().node.enableWebRTC) {
+        RTCConnection::fetch_id([w = weak_from_this()](IdentityIps&& ips) {
+            if (auto p { w.lock() })
+                p->defer(std::move(ips));
+        },
+            true);
+    }
 
     connections.start();
     while (true) {
         {
             std::unique_lock<std::mutex> ul(mutex);
             while (!has_work()) {
-                auto until = timer.next();
+                auto until = timerSystem.next();
                 using namespace std::chrono;
                 auto count = duration_cast<seconds>(until.time_since_epoch()).count();
                 spdlog::debug("Eventloop wait until {} ms", count);
@@ -233,11 +272,11 @@ void Eventloop::loop()
 void Eventloop::work()
 {
     decltype(events) tmp;
-    std::vector<Timer::Event> expired;
+    std::vector<TimerSystem::Event> expired;
     {
         std::unique_lock<std::mutex> l(mutex);
         std::swap(tmp, events);
-        expired = timer.pop_expired();
+        expired = timerSystem.pop_expired();
     }
     // process expired
     for (auto& data : expired) {
@@ -289,11 +328,9 @@ void Eventloop::handle_event(OutboundClosed&& e)
     connections.outbound_closed(std::move(e));
 }
 
-void Eventloop::handle_event(RegisterConnection&& m)
+void Eventloop::handle_event(OnHandshakeCompleted&& m)
 {
-    auto r { try_register(std::move(m)) };
-
-    if (r.has_value()) {
+    if (auto r { try_insert_connection(std::move(m)) }) {
         send_init(r.value());
     } else {
         auto c { m.convar.base() };
@@ -424,20 +461,34 @@ void Eventloop::log_chain_length()
         spdlog::info("Synced. (height {}).", synced);
 }
 
-void Eventloop::handle_event(PeersCb&& cb)
+void Eventloop::handle_event(GetThrottled&& e)
+{
+    std::vector<api::ThrottledPeer> out;
+    for (auto cr : connections.initialized()) {
+        if (cr->throttleQueue.reply_delay() != 0s) {
+            out.push_back({ .endpoint { cr->c->peer_addr() },
+                .id = cr.id(),
+                .throttle { cr->throttleQueue } });
+        }
+    }
+    e.callback(out);
+}
+
+void Eventloop::handle_event(GetPeers&& e)
 {
     std::vector<api::Peerinfo> out;
     for (auto cr : connections.initialized()) {
         out.push_back(api::Peerinfo {
             .endpoint { cr.peer() },
+            .id = cr.id(),
             .initialized = cr.initialized(),
             .chainstate = cr.chain(),
             .theirSnapshotPriority = cr->theirSnapshotPriority,
             .acknowledgedSnapshotPriority = cr->acknowledgedSnapshotPriority,
             .since = cr->c->created_at_timestmap(),
-        });
+            .throttle { cr->throttleQueue } });
     }
-    cb(out);
+    e.callback(out);
 }
 
 void Eventloop::handle_event(SyncedCb&& cb)
@@ -465,6 +516,7 @@ void Eventloop::handle_event(stage_operation::Result&& r)
 
 void Eventloop::handle_event(OnForwardBlockrep&& m)
 {
+
     if (auto cr { connections.find(m.conId) }; cr) {
         BlockrepMsg msg((*cr)->lastNonce, std::move(m.blocks));
         cr->send(msg);
@@ -474,6 +526,11 @@ void Eventloop::handle_event(OnForwardBlockrep&& m)
 void Eventloop::handle_event(InspectorCb&& cb)
 {
     cb(*this);
+}
+
+void Eventloop::handle_event(IpCounterCb&& cb)
+{
+    cb(connections.api_count_ips());
 }
 
 void Eventloop::handle_event(GetHashrate&& e)
@@ -501,7 +558,7 @@ void Eventloop::handle_event(GetConnectionSchedule&& e)
 void Eventloop::handle_event(FailedConnect&& e)
 {
     spdlog::warn("Cannot connect to {}: {}", e.connectRequest.address().to_string(), Error(e.reason).err_name());
-    connections.outbound_failed(e.connectRequest);
+    connections.outbound_failed(e.connectRequest, e.reason);
 }
 
 void Eventloop::handle_event(mempool::Log&& log)
@@ -540,13 +597,22 @@ void Eventloop::handle_event(mempool::Log&& log)
             bounds.push_back({ entries.end(), miter->second });
             ++miter;
         }
-    finished:
+    finished:;
 
+        // TODO
         // send subscription individually
-        for (auto& [end, cr] : bounds) {
-            cr.send(TxnotifyMsg::direct_send(entries.begin(), end));
-        }
+        // for (auto& [end, cr] : bounds) {
+        //     cr.send(TxnotifyMsg::direct_send(entries.begin(), end));
+        // }
     }
+}
+
+void Eventloop::handle_event(PushRogue&& pr)
+{
+    auto disconnectList { headerDownload.on_rogue_header(pr.rogueHeaderData) };
+    for (ChainOffender& o : disconnectList) {
+        close(o);
+    };
 }
 
 void Eventloop::handle_event(StartTimer&& st)
@@ -556,19 +622,21 @@ void Eventloop::handle_event(StartTimer&& st)
         st.on_expire();
         return;
     }
-    auto iter = timer.insert(st.wakeup, Timer::CallFunction(std::move(st.on_expire)));
-    st.on_timerstart({ iter->first });
+    auto t { timerSystem.insert(st.wakeup, TimerEvent::CallFunction(std::move(st.on_expire))) };
+    st.on_timerstart(t.key());
 }
 
 void Eventloop::handle_event(CancelTimer&& ct)
 {
-    timer.cancel(ct.timer);
+    timerSystem.erase(ct.key);
 }
 
 void Eventloop::handle_event(RTCClosed&& ct)
 {
+    assert(config().node.enableWebRTC);
     if (auto conId { ct.con->verification_con_id() }; conId != 0) { // conId id verified in this RTC connection
         if (auto con { connections.find(conId) }) {
+            assert(rtc_enabled(*con));
             con->rtc().our.pendingVerification.done();
             rtc.verificationSchedule.add(*con);
         }
@@ -579,13 +647,15 @@ void Eventloop::handle_event(RTCClosed&& ct)
 
 void Eventloop::handle_event(IdentityIps&& ips)
 {
-    spdlog::info("Webrtc identity IPv4: {}", ips.get_ip4() ? ips.get_ip4().value().to_string() : "N/A");
-    spdlog::info("Webrtc identity IPv6: {}", ips.get_ip6() ? ips.get_ip6().value().to_string() : "N/A");
+    assert(config().node.enableWebRTC);
+    log_rtc("WebRTC identity IPv4: {}", ips.get_ip4() ? ips.get_ip4().value().to_string() : "N/A");
+    log_rtc("WebRTC identity IPv6: {}", ips.get_ip6() ? ips.get_ip6().value().to_string() : "N/A");
 
     assert(rtc.ips.has_value() == false);
     for (auto cr : connections.initialized()) {
-        if (cr.version().v2()) {
-            spdlog::info("Sending own identity");
+        // if (cr.version().v2()) { TODO
+        if (rtc_enabled(cr)) {
+            log_rtc("Sending own identity");
             cr.send(RTCIdentity(ips));
         }
     }
@@ -600,6 +670,7 @@ void Eventloop::handle_event(IdentityIps&& ips)
 
 void Eventloop::handle_event(GeneratedVerificationSdpAnswer&& m)
 {
+    assert(config().node.enableWebRTC);
     auto l { m.con.lock() };
     if (!l)
         return;
@@ -620,11 +691,13 @@ void Eventloop::handle_event(GeneratedVerificationSdpAnswer&& m)
     }
     auto& sdp = *filtered;
 
-    spdlog::info("send RTCVerificationAnswer, ip: {}", m.ownIp.to_string());
+    log_rtc("send RTCVerificationAnswer, ip: {}", m.ownIp.to_string());
     originCon.send(RTCVerificationAnswer { sdp });
 }
+
 void Eventloop::handle_event(GeneratedSdpAnswer&& m)
 {
+    assert(config().node.enableWebRTC);
     auto l { m.con.lock() };
     if (!l)
         return;
@@ -635,6 +708,7 @@ void Eventloop::handle_event(GeneratedSdpAnswer&& m)
         return;
     }
     auto& signalingServer { sig.value() };
+    assert(rtc_enabled(signalingServer));
 
     // filter
     auto filtered { sdp_filter::only_udp_ip(m.ownIp, m.sdp) };
@@ -661,7 +735,7 @@ void Eventloop::emit_connect(size_t n, Conref c)
     events::Event { events::ConnectionsAdd {
                         .connection {
                             .id = c.id(),
-                            .since = 0,
+                            .since = c->c->startTimePoints,
                             .peerAddr { c->c->peer_addr().to_string() },
                             .inbound = c->c->inbound() },
                         .total = n } }
@@ -690,7 +764,7 @@ void Eventloop::handle_event(SubscribeConnections&& c)
         std::vector<subscription::events::Connection> v;
         for (auto c : connections.initialized()) {
             v.push_back({ .id = c.id(),
-                .since = 0,
+                .since = c->c->startTimePoints,
                 .peerAddr { c->c->peer_addr().to_string() },
                 .inbound = c->c->inbound() });
         }
@@ -710,6 +784,7 @@ void Eventloop::handle_event(DestroySubscriptions&& d)
 void Eventloop::handle_event(GeneratedVerificationSdpOffer&& m)
 {
     auto l { m.con.lock() };
+    assert(config().node.enableWebRTC);
     if (!l)
         return;
     auto& rtcCon { *l };
@@ -720,6 +795,7 @@ void Eventloop::handle_event(GeneratedVerificationSdpOffer&& m)
         return;
     }
     auto& c { o.value() };
+    assert(rtc_enabled(c));
     const auto& verifyIp { rtcCon.native_peer_addr().ip };
 
     auto ips { IdentityIps::from_sdp(m.sdp) };
@@ -730,7 +806,7 @@ void Eventloop::handle_event(GeneratedVerificationSdpOffer&& m)
         return;
     }
 
-    spdlog::info("GeneratedVerificationSdpOffer: with IP {}", selected->to_string());
+    log_rtc("GeneratedVerificationSdpOffer: with IP {}", selected->to_string());
     auto filtered { sdp_filter::only_udp_ip(*selected, m.sdp) };
     assert(filtered.has_value());
     c.send(RTCVerificationOffer { verifyIp, filtered.value() });
@@ -739,7 +815,7 @@ void Eventloop::handle_event(GeneratedVerificationSdpOffer&& m)
 void Eventloop::handle_event(GeneratedSdpOffer&& m)
 {
     auto l { m.con.lock() };
-    if (!l)
+    if (!config().node.enableWebRTC || !l)
         return;
     auto& rtcCon { *l };
 
@@ -749,6 +825,7 @@ void Eventloop::handle_event(GeneratedSdpOffer&& m)
         return;
     }
     auto& signalingServer { sig.value() };
+    assert(rtc_enabled(signalingServer));
 
     auto key { m.signalingListKey };
     // only send if the signaling server still supports the same list where
@@ -768,6 +845,37 @@ void Eventloop::handle_event(DisconnectPeer&& dp)
     dp.cb(tl::make_unexpected(Error(ENOTFOUND)));
 }
 
+void Eventloop::handle_event(SampleVerifiedPeers&& p)
+{
+#ifndef DISABLE_LIBUV
+    p.cb(connections.sample_verified_tcp(p.n));
+#else
+    p.cb({});
+#endif
+}
+
+void Eventloop::handle_event(Loadtest&& e)
+{
+    if (auto cr { connections.find(e.connId) }) {
+        // start load test
+        cr->loadtest().job = e.requestType;
+        do_loadtest_requests();
+        e.callback({});
+    } else {
+        e.callback(tl::make_unexpected(ENOTFOUND));
+    }
+}
+
+size_t Eventloop::ratelimit_spare()
+{
+    using namespace std::chrono;
+    auto now { steady_clock::now() };
+
+    // 1 extra spare per minute
+    return consensus().ratelimit_spare()
+        + duration_cast<minutes>(now - startedAt).count();
+}
+
 void Eventloop::erase_internal(Conref c, Error error)
 {
     if (c->c->eventloop_erased)
@@ -775,13 +883,12 @@ void Eventloop::erase_internal(Conref c, Error error)
     c->c->eventloop_erased = true;
     bool doRequests = false;
     c.job().unref_active_requests(activeRequests);
-    if (c.ping().has_timerref(timer))
-        timer.cancel(c.ping().timer());
-    if (c.job().has_timerref(timer)) {
-        timer.cancel(c.job().timer());
-    }
+    timerSystem.erase(c.ping().timer);
+    timerSystem.erase(c.job().timer);
+    c->throttleQueue.reset_timer(timerSystem);
     if (headerDownload.erase(c) && !closeReason) {
-        spdlog::info("Connected to {} peers (closed connection to {}, reason: {})", headerDownload.size(), c.peer().to_string(), Error(error).err_name());
+        spdlog::info("Connected to {} peers (disconnected {}, {} reason: {})",
+            headerDownload.size(), c.peer().to_string(), c.version().to_string(), Error(error).err_name());
         emit_disconnect(headerDownload.size(), c.id());
     }
     if (blockDownload.erase(c))
@@ -793,28 +900,8 @@ void Eventloop::erase_internal(Conref c, Error error)
     }
 }
 
-bool Eventloop::insert(Conref c, const InitMsg& data)
-{
-    bool doRequests = true;
-
-    c->chain.initialize(data, chains);
-    headerDownload.insert(c);
-    blockDownload.insert(c);
-    emit_connect(headerDownload.size(), c);
-    spdlog::info("Connected to {} peers (new peer {})", headerDownload.size(), c.peer().to_string());
-    if (rtc.ips && c.version().v2()) {
-        spdlog::info("Sending own identity");
-        c.send(RTCIdentity(*rtc.ips));
-    } else
-        spdlog::info("NOT sending own identity");
-    send_ping_await_pong(c);
-    // LATER: return whether doRequests is necessary;
-    return doRequests;
-}
-
 void Eventloop::close(Conref cr, Error reason)
 {
-    spdlog::info("close {}: {}", cr.peer().to_string(), reason.err_name());
     if (!cr->c->eventloop_registered)
         return;
     cr->c->close(reason);
@@ -849,18 +936,17 @@ void Eventloop::process_connection(std::shared_ptr<ConnectionBase> c)
         return;
     assert(c->eventloop_registered);
     auto messages = c->pop_messages();
-    Conref cr { c->dataiter };
     for (auto& msg : messages) {
+        Conref cr { c->dataiter };
         try {
-            dispatch_message(cr, msg.parse());
+            process_message(cr, msg);
         } catch (Error e) {
             close(cr, e.code);
             do_requests();
             break;
         }
-        if (c->eventloop_erased) {
+        if (c->eventloop_erased)
             return;
-        }
     }
 }
 
@@ -870,6 +956,7 @@ void Eventloop::send_ping_await_pong(Conref c)
     c.rtc().our.pendingForwards.prune([&](const rtc_state::PendingForwards::Entry& e) {
         if (auto con { connections.find(e.fromConId) }) {
             if (con->rtc().their.forwardRequests.is_accepted_key(e.fromKey)) {
+                assert(rtc_enabled(*con));
                 con->send(RTCForwardOfferDenied(e.fromKey, 1));
             }
         }
@@ -877,9 +964,9 @@ void Eventloop::send_ping_await_pong(Conref c)
 
     // send
     log_communication("{} Sending Ping", c.str());
-    auto t = timer.insert(
-        (config().localDebug ? 10min : 1min),
-        Timer::CloseNoPong { c.id() });
+    auto t = timerSystem.insert(
+        (config().localDebug ? 10min : 2min),
+        TimerEvent::CloseNoPong { c.id() });
 
     uint16_t maxTCPAddressess { 0 };
 #ifndef DISABLE_LIBUV
@@ -887,7 +974,7 @@ void Eventloop::send_ping_await_pong(Conref c)
         maxTCPAddressess = 5; // only accept TCP addresses from TCP peers and only if we are TCP node ourselves
 #endif
 
-    if (c.version().v1()) {
+    if (c.protocol().v1()) {
         PingMsg p(signed_snapshot() ? signed_snapshot()->priority : SignedSnapshot::Priority {}, maxTCPAddressess);
         c.ping().await_pong(p, t);
         c.send(p);
@@ -903,9 +990,8 @@ void Eventloop::send_ping_await_pong(Conref c)
 
 void Eventloop::received_pong_sleep_ping(Conref c)
 {
-    auto t = timer.insert(10s, Timer::SendPing { c.id() });
-    auto old_t = c.ping().sleep(t);
-    cancel_timer(old_t);
+    auto t = timerSystem.insert(10s, TimerEvent::SendPing { c.id() });
+    timerSystem.erase(c.ping().sleep(t));
 }
 
 void Eventloop::send_requests(Conref cr, const std::vector<Request>& requests)
@@ -918,16 +1004,33 @@ void Eventloop::send_requests(Conref cr, const std::vector<Request>& requests)
     }
 }
 
+void Eventloop::do_loadtest_requests()
+{
+    for (auto cr : connections.initialized()) {
+        if (cr.job())
+            continue;
+        auto l { cr->loadtest.generate_load(cr) };
+        if (!l)
+            continue;
+        spdlog::info("Sending loadtest request to peer {}.", cr->c->peer_addr().to_string());
+        std::visit([&](auto& request) {
+            sender().send(cr, request);
+        },
+            *l);
+    }
+}
+
 void Eventloop::do_requests()
 {
-start:
-    auto offenders { headerDownload.do_requests(sender()) };
-    if (offenders.size() > 0) {
+    do_loadtest_requests();
+    while (true) {
+        auto offenders { headerDownload.do_header_requests(sender()) };
+        if (offenders.empty())
+            break;
         for (auto& o : offenders)
             close(o);
-        goto start;
-    }
-    blockDownload.do_peer_requests(sender());
+    };
+    blockDownload.do_block_requests(sender());
     headerDownload.do_probe_requests(sender());
     blockDownload.do_probe_requests(sender());
 }
@@ -936,8 +1039,8 @@ template <typename T>
 void Eventloop::send_request(Conref c, const T& req)
 {
     log_communication("{} send {}", c.str(), req.log_str());
-    auto t = timer.insert(req.expiry_time, Timer::Expire { c.id() });
-    c.job().assign(t, timer, req);
+    auto t = timerSystem.insert(req.expiry_time, TimerEvent::Expire { c.id() });
+    c.job().assign(t, req);
     if (req.isActiveRequest) {
         assert(activeRequests < maxRequests);
         activeRequests += 1;
@@ -947,55 +1050,70 @@ void Eventloop::send_request(Conref c, const T& req)
 
 void Eventloop::send_init(Conref cr)
 {
-    cr.send(InitMsg::serialize_chainstate(consensus()));
+    if (cr.protocol().v1() || cr.protocol().v2()) {
+        cr.send(InitMsgGeneratorV1(consensus()));
+    } else {
+        cr.send(InitMsgGeneratorV3(consensus(), config().node.enableWebRTC));
+    }
 }
 
 template <typename T>
-requires std::derived_from<T, Timer::WithConnecitonId>
+requires std::derived_from<T, TimerEvent::WithConnecitonId>
 void Eventloop::handle_timeout(T&& t)
 {
     if (auto cr { connections.find(t.conId) }; cr.has_value()) {
         handle_connection_timeout(*cr, std::move(t));
     }
 }
-void Eventloop::handle_connection_timeout(Conref cr, Timer::CloseNoReply&&)
+void Eventloop::handle_connection_timeout(Conref cr, TimerEvent::CloseNoReply&&)
 {
-    cr.job().reset_expired(timer);
-    close(cr, ETIMEOUT);
-}
-void Eventloop::handle_connection_timeout(Conref cr, Timer::CloseNoPong&&)
-{
-    cr.ping().reset_expired(timer);
+    cr.job().timer.reset();
     close(cr, ETIMEOUT);
 }
 
-void Eventloop::handle_timeout(Timer::ScheduledConnect&&)
+void Eventloop::handle_connection_timeout(Conref cr, TimerEvent::CloseNoPong&&)
+{
+    close(cr, ETIMEOUT);
+}
+
+void Eventloop::handle_timeout(TimerEvent::ScheduledConnect&&)
 {
     connections.start_scheduled_connections();
 }
 
-void Eventloop::handle_timeout(Timer::CallFunction&& cf)
+void Eventloop::handle_timeout(TimerEvent::CallFunction&& cf)
 {
     cf.callback();
 }
 
-void Eventloop::handle_timeout(Timer::SendIdentityIps&&)
+void Eventloop::handle_timeout(TimerEvent::SendIdentityIps&&)
 {
     send_schedule_signaling_lists();
 }
 
-void Eventloop::handle_connection_timeout(Conref cr, Timer::SendPing&&)
+void Eventloop::handle_connection_timeout(Conref cr, TimerEvent::SendPing&&)
 {
-    cr.ping().timer_expired(timer);
+    cr.ping().reset_timer();
     return send_ping_await_pong(cr);
 }
 
-void Eventloop::handle_connection_timeout(Conref cr, Timer::Expire&&)
+void Eventloop::handle_connection_timeout(Conref cr, TimerEvent::ThrottledProcessMsg&&)
 {
-    cr.job().restart_expired(timer.insert(
-                                 (config().localDebug ? 10min : 2min), Timer::CloseNoReply { cr.id() }),
-        timer);
-    assert(!cr.job().data_v.valueless_by_exception());
+    try {
+        dispatch_message(cr, cr->throttleQueue.reset_timer_pop_msg());
+        cr->throttleQueue.update_timer(timerSystem, cr.id());
+    } catch (Error e) {
+        close(cr, e.code);
+        do_requests();
+    }
+}
+
+void Eventloop::handle_connection_timeout(Conref cr, TimerEvent::Expire&&)
+{
+    if(!cr.job().active())
+        return;
+    cr.job().set_timer(timerSystem.insert(
+        (config().localDebug ? 10min : 2min), TimerEvent::CloseNoReply { cr.id() }));
     std::visit(
         [&]<typename T>(T& v) {
             if constexpr (std::is_base_of_v<IsRequest, T>) {
@@ -1006,7 +1124,6 @@ void Eventloop::handle_connection_timeout(Conref cr, Timer::Expire&&)
             }
         },
         cr.job().data_v);
-    assert(!cr.job().data_v.valueless_by_exception());
 }
 
 void Eventloop::on_request_expired(Conref cr, const Proberequest&)
@@ -1016,44 +1133,92 @@ void Eventloop::on_request_expired(Conref cr, const Proberequest&)
     do_requests();
 }
 
-void Eventloop::on_request_expired(Conref cr, const Batchrequest& req)
+void Eventloop::on_request_expired(Conref cr, const HeaderRequest& req)
 {
     headerDownload.on_request_expire(cr, req);
     do_requests();
 }
 
-void Eventloop::on_request_expired(Conref cr, const Blockrequest&)
+void Eventloop::on_request_expired(Conref cr, const BlockRequest&)
 {
     blockDownload.on_blockreq_expire(cr);
     do_requests();
 }
 
-void Eventloop::dispatch_message(Conref cr, messages::Msg&& m)
+void Eventloop::process_message(Conref cr, Rcvbuffer& msg)
 {
     using namespace messages;
 
+    auto m { msg.parse() };
+    using namespace std;
+    bool isInit = holds_alternative<InitMsgV1>(m) || holds_alternative<InitMsgV3>(m);
     // first message must be of type INIT (is_init() is only initially true)
     if (cr.job().awaiting_init()) {
-        if (!std::holds_alternative<InitMsg>(m)) {
+        if (!isInit)
             throw Error(ENOINIT);
-        }
+        dispatch_message(cr, std::move(m));
     } else {
-        if (std::holds_alternative<InitMsg>(m))
+        if (isInit)
             throw Error(EINVINIT);
+        cr->throttleQueue.insert(std::move(m), timerSystem, cr.id());
     }
-
-    std::visit([&](auto&& e) {
-        handle_msg(cr, std::move(e));
-    },
-        m);
 }
 
-void Eventloop::handle_msg(Conref cr, InitMsg&& m)
+void Eventloop::dispatch_message(Conref cr, messages::Msg&& msg)
 {
-    log_communication("{} handle init: height {}, work {}", cr.str(), m.chainLength.value(), m.worksum.getdouble());
-    cr.job().reset_notexpired<AwaitInit>(timer);
-    if (insert(cr, m))
-        do_requests();
+    std::visit([&](auto&& e) { 
+        communication_log().info("IN  {}: {}", cr.str(), e.log_str());
+        handle_msg(cr, std::move(e)); },
+        std::move(msg));
+}
+
+void Eventloop::handle_msg(Conref c, InitMsgV1&& m)
+{
+    log_communication("{} handle init: height {}, work {}", c.str(), m.chainLength.value(), m.worksum.getdouble());
+    c.job().reset_notexpired<AwaitInit>(timerSystem);
+
+    if (!c.protocol().v1() && !c.protocol().v2()) // must have at least version 3 for this message type
+        throw Error(EINITV1);
+    c->chain.initialize(m, chains);
+    headerDownload.insert(c);
+    blockDownload.insert(c);
+    emit_connect(headerDownload.size(), c);
+    spdlog::info("Connected to {} peers (new peer {}, {})", headerDownload.size(), c.peer().to_string(), c.version().to_string());
+    if (rtc_enabled(c)) {
+        if (rtc.ips && c.protocol().v2()) {
+            c->rtcState.enanabled = true; // v2 has rtc enabled by default
+            log_rtc("Sending own identity");
+            c.send(RTCIdentity(*rtc.ips));
+        } else
+            log_rtc("NOT sending own identity");
+    }
+    send_ping_await_pong(c);
+    // LATER: return whether doRequests is necessary;
+    do_requests();
+}
+
+void Eventloop::handle_msg(Conref c, InitMsgV3&& m)
+{
+    log_communication("{} handle init: height {}, work {}", c.str(), m.chain_length().value(), m.worksum().getdouble());
+    if (c.protocol().v1() || c.protocol().v2()) // must have at least version 3 for this message type
+        throw Error(EINITV3);
+    c.job().reset_notexpired<AwaitInit>(timerSystem);
+    c->rtcState.enanabled = m.rtc_enabled();
+    c->chain.initialize(m, chains);
+    headerDownload.insert(c);
+    blockDownload.insert(c);
+    emit_connect(headerDownload.size(), c);
+    spdlog::info("Connected to {} peers (new peer {}, {})", headerDownload.size(), c.peer().to_string(), c.version().to_string());
+    if (rtc_enabled(c)) {
+        if (rtc.ips) { // TODO V2
+            log_rtc("Sending own identity");
+            c.send(RTCIdentity(*rtc.ips));
+        } else
+            log_rtc("NOT sending own identity");
+    }
+    send_ping_await_pong(c);
+    // LATER: return whether doRequests is necessary;
+    do_requests();
 }
 
 void Eventloop::handle_msg(Conref cr, AppendMsg&& m)
@@ -1088,7 +1253,7 @@ void Eventloop::handle_msg(Conref c, PingMsg&& m)
 {
     log_communication("{} handle ping", c.str());
     c->ratelimit.ping();
-#ifndef DISABLE_LIBUV // TODO: replace TCPSockaddr by something else for emscrpiten build (no TCP connections available in browsers)
+#ifndef DISABLE_LIBUV
     size_t nAddr { std::min(uint16_t(20), m.maxAddresses()) };
     if (!c.is_tcp())
         nAddr = 0;
@@ -1109,7 +1274,7 @@ void Eventloop::handle_msg(Conref c, PingV2Msg&& m)
 
     log_communication("{} handle ping", c.str());
     c->ratelimit.ping();
-#ifndef DISABLE_LIBUV // TODO: replace TCPSockaddr by something else for emscrpiten build (no TCP connections available in browsers)
+#ifndef DISABLE_LIBUV
     size_t nAddr { std::min(uint16_t(20), m.maxAddresses()) };
     if (!c.is_tcp())
         nAddr = 0;
@@ -1126,15 +1291,18 @@ void Eventloop::handle_msg(Conref c, PingV2Msg&& m)
     c.rtc().their.forwardRequests.discard(m.discarded_forward_requests());
 };
 
+// only process received addresses when we are a native node (not browser nodes)
+#ifndef DISABLE_LIBUV
 void Eventloop::on_received_addresses(Conref cr, const messages::Vector16<TCPPeeraddr>& addresses)
 {
-    // only process received addresses when we are a native node (not browser nodes)
-#ifndef DISABLE_LIBUV
     if (auto ip { cr.peer().ip() }; ip.has_value() && cr.is_tcp()) {
         spdlog::debug("{} Received {} addresses", cr.str(), addresses.size());
         if (ip->is_v4())
             connections.verify(addresses, ip->get_v4());
     }
+#else
+void Eventloop::on_received_addresses(Conref, const messages::Vector16<TCPPeeraddr>&)
+{
 #endif
 }
 
@@ -1186,15 +1354,22 @@ void Eventloop::handle_msg(Conref cr, BatchreqMsg&& m)
 {
     log_communication("{} handle batchreq [{},{}]", cr.str(), m.selector().startHeight.value(), (m.selector().startHeight + m.selector().length - 1).value());
     auto& s = m.selector();
+    // get batch
     Batch batch = [&]() {
         if (s.descriptor == consensus().descriptor()) {
-            return consensus().headers().get_headers(s.startHeight, s.end());
+            return consensus().headers().get_headers(s.header_range());
         } else {
             return stateServer.get_headers(s);
         }
     }();
 
     BatchrepMsg rep(m.nonce(), std::move(batch));
+
+    // get throttle
+    auto duration {
+        cr->throttleQueue.headerreq.register_request(m.selector().header_range(), ratelimit_spare())
+    };
+    cr->throttleQueue.add_throttle(duration);
     cr.send(rep);
 }
 
@@ -1202,20 +1377,21 @@ void Eventloop::handle_msg(Conref cr, BatchrepMsg&& m)
 {
     log_communication("{} handle_batchrep", cr.str());
     // check nonce and get associated data
-    auto req = cr.job().pop_req(m, timer, activeRequests);
+    auto req = cr.job().pop_req(m, timerSystem, activeRequests);
 
     // save batch
     if (m.batch().size() < req.minReturn || m.batch().size() > req.max_return()) {
         close(ChainOffender(EBATCHSIZE, req.selector().startHeight, cr.id()));
         return;
     }
-    auto offenders = headerDownload.on_response(cr, std::move(req), std::move(m.batch()));
-    for (auto& o : offenders) {
-        close(o);
+    if (!req.isLoadtest) {
+        auto offenders = headerDownload.on_response(cr, std::move(req), std::move(m.batch()));
+        for (auto& o : offenders) {
+            close(o);
+        }
+        syncdebug_log().info("init blockdownload batch_rep");
+        initialize_block_download();
     }
-
-    syncdebug_log().info("init blockdownload batch_rep");
-    initialize_block_download();
 
     // assign work
     do_requests();
@@ -1237,13 +1413,14 @@ void Eventloop::handle_msg(Conref cr, ProbereqMsg&& m)
         if (h)
             rep.requested() = *h;
     }
+
     cr.send(rep);
 }
 
 void Eventloop::handle_msg(Conref cr, ProberepMsg&& rep)
 {
     log_communication("{} handle_proberep", cr.str());
-    auto req = cr.job().pop_req(rep, timer, activeRequests);
+    auto req = cr.job().pop_req(rep, timerSystem, activeRequests);
     if (!rep.requested().has_value() && !req.descripted->expired()) {
         throw ChainError { EEMPTY, req.height() };
     }
@@ -1255,23 +1432,27 @@ void Eventloop::handle_msg(Conref cr, ProberepMsg&& rep)
 
 void Eventloop::handle_msg(Conref cr, BlockreqMsg&& m)
 {
-    using namespace std::placeholders;
+    auto duration { cr->throttleQueue.blockreq.register_request(m.range(), ratelimit_spare()) };
+    cr->throttleQueue.add_throttle(duration);
+
     BlockreqMsg req(m);
-    log_communication("{} handle_blockreq [{},{}]", cr.str(), req.range().lower.value(), req.range().upper.value());
+    log_communication("{} handle_blockreq [{},{}]", cr.str(), req.range().first().value(), req.range().last().value());
     cr->lastNonce = req.nonce();
-    stateServer.async_get_blocks(req.range(), std::bind(&Eventloop::async_forward_blockrep, this, cr.id(), _1));
+    stateServer.async_get_blocks(req.range(), [&, id = cr.id()](auto blocks) { Eventloop::async_forward_blockrep(id, std::move(blocks)); });
 }
 
 void Eventloop::handle_msg(Conref cr, BlockrepMsg&& m)
 {
     log_communication("{} handle blockrep", cr.str());
-    auto req = cr.job().pop_req(m, timer, activeRequests);
+    auto req = cr.job().pop_req(m, timerSystem, activeRequests);
 
-    try {
-        blockDownload.on_blockreq_reply(cr, std::move(m), req);
-        process_blockdownload_stage();
-    } catch (Error e) {
-        close(cr, e);
+    if (!req.isLoadtest) {
+        try {
+            blockDownload.on_blockreq_reply(cr, std::move(m), req);
+            process_blockdownload_stage();
+        } catch (Error e) {
+            close(cr, e);
+        }
     }
     do_requests();
 }
@@ -1328,17 +1509,19 @@ void Eventloop::handle_msg(Conref cr, LeaderMsg&& msg)
 
 void Eventloop::send_schedule_signaling_lists()
 {
+    if (!config().node.enableWebRTC)
+        return;
     // build map
     std::vector<std::pair<Conref, size_t>> quotasVec;
     std::vector<Conref> conrefs;
     for (auto c : connections.initialized()) {
-        if (c.version().v1())
+        if (c.protocol().v1())
             continue;
         auto avail { c.rtc().their.quota.available() };
         quotasVec.push_back({ c, avail });
         conrefs.push_back(c);
     }
-    spdlog::info("send_schedule_signaling_lists to {} peers", conrefs.size());
+    log_rtc("send_schedule_signaling_lists to {} peers", conrefs.size());
 
     // shuffle connections
     std::random_device rd;
@@ -1350,6 +1533,8 @@ void Eventloop::send_schedule_signaling_lists()
 
     // send and save
     for (auto& c : conrefs) {
+        if (!rtc_enabled(c))
+            continue;
         auto& identity { c.rtc().their.identity };
         auto v4 { identity.verified_ip4() };
         auto v6 { identity.verified_ip6() };
@@ -1382,12 +1567,13 @@ void Eventloop::send_schedule_signaling_lists()
         c.rtc().our.signalingList.set(conIds);
         c.send(RTCSignalingList(std::move(ips)));
     }
-    timer.insert(1min, Timer::SendIdentityIps {});
+    timerSystem.insert(1min, TimerEvent::SendIdentityIps {});
 }
 
 void Eventloop::handle_msg(Conref c, RTCIdentity&& msg)
 {
-    spdlog::info("Received rtc identity");
+    throw_if_rtc_disabled(c);
+    log_rtc("Received rtc identity");
     // TODO: restrict number of identity messages
     c.rtc().their.identity.set(msg.ips());
 
@@ -1397,12 +1583,15 @@ void Eventloop::handle_msg(Conref c, RTCIdentity&& msg)
 
 void Eventloop::handle_msg(Conref c, RTCQuota&& msg)
 {
+    throw_if_rtc_disabled(c);
+    log_rtc("Received RTCQuota increase {} bytes", msg.increase());
     c.rtc().their.quota.increase_allowed(msg.increase());
 }
 
 void Eventloop::handle_msg(Conref c, RTCSignalingList&& s)
 {
-    spdlog::warn("Received RTCSignalingList");
+    throw_if_rtc_disabled(c);
+    log_rtc("Received RTCSignalingList");
     const auto& ips { s.ips() };
     const auto offset {
         c.rtc().their.signalingList.set_new_list_size(ips.size())
@@ -1432,6 +1621,7 @@ void Eventloop::handle_msg(Conref c, RTCSignalingList&& s)
 
 void Eventloop::handle_msg(Conref cr, RTCRequestForwardOffer&& r)
 {
+    throw_if_rtc_disabled(cr);
     auto dstId { cr.rtc().our.signalingList.get_con_id(r.signaling_list_key()) };
     auto key { cr.rtc().their.forwardRequests.create() };
     if (!dstId) {
@@ -1455,9 +1645,10 @@ void Eventloop::handle_msg(Conref cr, RTCRequestForwardOffer&& r)
 
 void Eventloop::handle_msg(Conref cr, RTCForwardedOffer&& m)
 {
+    throw_if_rtc_disabled(cr);
     // check our quota assigned to that peeer
     auto key { cr.rtc().our.quota.take_one() };
-    OneIpSdp oneIpSdp { std::move(m.offer()) };
+    OneIpSdp oneIpSdp { m.offer() };
     auto inType { oneIpSdp.ip().type() };
     auto ownIp { rtc.get_ip(inType) };
     if (!ownIp)
@@ -1480,7 +1671,10 @@ void Eventloop::handle_msg(Conref cr, RTCForwardedOffer&& m)
 
 void Eventloop::handle_msg(Conref cr, RTCVerificationOffer&& m)
 {
-    OneIpSdp oneIpSdp { std::move(m.offer()) };
+    throw_if_rtc_disabled(cr);
+    OneIpSdp oneIpSdp { m.offer() };
+    if (!cr.rtc().their.identity.contains(oneIpSdp.ip()))
+        throw Error(ERTCIDIP);
     // TODO: check m.ip() ip was indeed offered before by us as identity
     // TODO: rate limit this function
     rtc.connections.insert(
@@ -1500,6 +1694,7 @@ void Eventloop::handle_msg(Conref cr, RTCVerificationOffer&& m)
 
 void Eventloop::handle_msg(Conref cr, RTCRequestForwardAnswer&& r)
 {
+    throw_if_rtc_disabled(cr);
     auto fwdInfo { cr.rtc().our.pendingForwards.get(r.key()) };
     auto ip { sdp_filter::load_ip(r.answer().data) };
     if (!ip)
@@ -1517,6 +1712,7 @@ void Eventloop::handle_msg(Conref cr, RTCRequestForwardAnswer&& r)
 
 void Eventloop::handle_msg(Conref cr, RTCForwardOfferDenied&& m)
 {
+    throw_if_rtc_disabled(cr);
     auto wcon { cr.rtc().our.pendingOutgoing.get_rtc_con(m.key()) };
     if (auto pcon { wcon.lock() })
         pcon->close(ERTCFWDREJECT); // TODO count pending per node
@@ -1524,6 +1720,7 @@ void Eventloop::handle_msg(Conref cr, RTCForwardOfferDenied&& m)
 
 void Eventloop::handle_msg(Conref cr, RTCForwardedAnswer&& a)
 {
+    throw_if_rtc_disabled(cr);
     auto w { cr.rtc().our.pendingOutgoing.get_rtc_con(a.key()) };
     auto c { w.lock() };
     if (!c)
@@ -1536,7 +1733,8 @@ void Eventloop::handle_msg(Conref cr, RTCForwardedAnswer&& a)
 
 void Eventloop::handle_msg(Conref cr, RTCVerificationAnswer&& m)
 {
-    spdlog::info("received RTCVerificationAnswer");
+    throw_if_rtc_disabled(cr);
+    log_rtc("Received RTCVerificationAnswer");
     // TODO:
     // - clear pending on main connection close
     // - callback on connection fail
@@ -1551,8 +1749,12 @@ void Eventloop::handle_msg(Conref cr, RTCVerificationAnswer&& m)
 
 void Eventloop::try_verify_rtc_identities()
 {
-    spdlog::info("try_verify_rtc_identities {}", rtc.connections.can_insert_feeler());
-    if (rtc.verificationSchedule.empty() || rtc.ips->has_value() == false)
+    assert(config().node.enableWebRTC);
+    log_rtc("try_verify_rtc_identities {}", rtc.connections.can_insert_feeler());
+    if (!rtc.ips.has_value() // only verify peers when you know your identity
+        || rtc.verificationSchedule.empty()
+        || !rtc.ips
+        || rtc.ips->has_value() == false)
         return;
     while (rtc.connections.can_insert_feeler()) {
         auto p { rtc.ips->pattern() };
@@ -1561,6 +1763,7 @@ void Eventloop::try_verify_rtc_identities()
         if (!b)
             return;
         auto& [c, ip] = *o;
+        assert(rtc_enabled(c));
         auto newCon { RTCConnection::connect_new_verification(
             *this,
             [this, peerId = c.id()](RTCConnection& con, std::string sdp) {
@@ -1577,7 +1780,6 @@ void Eventloop::try_verify_rtc_identities()
 
 void Eventloop::consider_send_snapshot(Conref c)
 {
-    // spdlog::info("
     if (signed_snapshot().has_value()) {
         auto theirPriority = c->theirSnapshotPriority;
         auto snapshotPriority = signed_snapshot()->priority;
@@ -1590,20 +1792,18 @@ void Eventloop::consider_send_snapshot(Conref c)
 
 void Eventloop::process_blockdownload_stage()
 {
-    auto r { blockDownload.pop_stage() };
-    if (r)
+    if (auto r { blockDownload.pop_stage() })
         stateServer.async_stage_request(*r);
+}
+
+void Eventloop::async_push_rogue(const RogueHeaderData& rogueHeaderData)
+{
+    defer(PushRogue { std::move(rogueHeaderData) });
 }
 
 void Eventloop::async_stage_action(stage_operation::Result r)
 {
     defer(std::move(r));
-}
-
-void Eventloop::cancel_timer(Timer::iterator& ref)
-{
-    timer.cancel(ref);
-    ref = timer.end();
 }
 
 void Eventloop::verify_rollback(Conref cr, const SignedPinRollbackMsg& m)
@@ -1620,34 +1820,30 @@ void Eventloop::verify_rollback(Conref cr, const SignedPinRollbackMsg& m)
     }
 }
 
-tl::expected<Conref, Error> Eventloop::try_register(RegisterConnection&& m)
+tl::expected<Conref, Error> Eventloop::try_insert_connection(OnHandshakeCompleted&& m)
 {
     auto c { m.convar.base() };
     c->eventloop_registered = true;
 
     if (m.convar.is_rtc()) {
+        if (config().node.enableWebRTC)
+            tl::make_unexpected(ERTCDISABLED);
         auto& c { m.convar.get_rtc() };
-        auto& conId { m.convar.get_rtc()->verification_con_id() };
+        auto& conId { c->verification_con_id() };
         if (conId != 0) { // conId id verified in this RTC connection
             if (auto o { connections.find(conId) }) {
                 auto ip { c->native_peer_addr().ip };
                 auto& parent = *o;
                 parent.rtc().their.identity.set_verified(ip);
-                spdlog::info("verified RTC ip {} for {}", ip.to_string(), parent.peer().to_string());
+                log_rtc("verified RTC ip {} for {}", ip.to_string(), parent.peer().to_string());
             }
             conId = 0;
             return tl::make_unexpected(ERTCFEELER);
         }
     }
 
-    return connections.insert({ .convar { m.convar },
-        .headerDownload { headerDownload },
-        .blockDownload { blockDownload },
-        .timer { timer },
-        .evict_cb {
-            [this](Conref evictionCandidate) {
-                close(evictionCandidate, EEVICTED);
-            } } });
+    ConnectionInserter h(*this);
+    return connections.insert(m.convar, h);
 }
 void Eventloop::update_sync_state()
 {
@@ -1667,9 +1863,9 @@ void Eventloop::set_scheduled_connect_timer()
     auto& tp { *t };
 
     if (wakeupTimer) {
-        if ((*wakeupTimer)->first.wakeup_tp <= tp)
+        if (wakeupTimer->wakeup_tp() <= tp)
             return;
-        timer.cancel(*wakeupTimer);
+        timerSystem.erase(*wakeupTimer);
     }
-    timer.insert(tp, Timer::ScheduledConnect {});
+    timerSystem.insert(tp, TimerEvent::ScheduledConnect {});
 }

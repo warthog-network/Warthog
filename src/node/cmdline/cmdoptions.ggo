@@ -13,10 +13,12 @@ option "isolated" - "Do not allow peers (for testing purposes, do not use in pro
 option "temporary" - "Use temporary database (for testing purposes, do not use in production)" details="This option starts the node with a temporary empty chain database." optional
 option "testnet" - "Enable testnet" optional
 option "disable-tx-mining" - "Don't mine transactions (in case of bugs)" optional
+option "enable-webrtc" - "Enable WebRTC connectivity" optional
 
 section "Data file options"
 option "chain-db" - "specify chain data file" details="Defaults to ~/.warthog/chain.db3 in Linux, %LOCALAPPDATA%/Warthog/chain.db3 on Windows." optional string 
 option "peers-db" - "specify data file" details="Defaults to ~/.warthog/peers.db3 in Linux, %LOCALAPPDATA%/Warthog/peers.db3 on Windows"optional string 
+option "rxtx-db" - "specify rxtx database file (logging bytes transmitted)" details="Defaults to ~/.warthog/rxtx.db3 in Linux, %LOCALAPPDATA%/Warthog/rxtx.db3 on Windows"optional string 
 
 section "Websocket server options"
 option "ws-port" - "Websocket port" details="Public websocket nodes support communication over websocket" optional int

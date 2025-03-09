@@ -24,13 +24,16 @@ class Downloader;
 namespace chainserver {
 struct TransactionIds;
 }
-struct NodeVersion {
-    /* data */
+struct PrintNodeVersion {
 };
 
+
 class Header;
+struct TCPPeeraddr;
 
 using PeersCb = std::function<void(const std::vector<api::Peerinfo>&)>;
+using IpCounterCb = std::function<void(const api::IPCounter&)>;
+using ThrottledCb = std::function<void(const std::vector<api::ThrottledPeer>&)>;
 using SyncedCb = std::function<void(bool)>;
 using ResultCb = std::function<void(const tl::expected<void, Error>&)>;
 using ConnectedConnectionCB = std::function<void(const api::PeerinfoConnections&)>;
@@ -61,6 +64,10 @@ using BlockCb = std::function<void(const tl::expected<api::Block, Error>&)>;
 using HistoryCb = std::function<void(const tl::expected<api::AccountHistory, Error>&)>;
 using RichlistCb = std::function<void(const tl::expected<api::Richlist, Error>&)>;
 
-using VersionCb = std::function<void(const tl::expected<NodeVersion, Error>&)>;
+using VersionCb = std::function<void(const tl::expected<PrintNodeVersion, Error>&)>;
 using WalletCb = std::function<void(const tl::expected<api::Wallet, Error>&)>;
 using RawCb = std::function<void(const api::Raw&)>;
+using DBSizeCB = std::function<void(const tl::expected<api::DBSize, Error>&)>;
+using InfoCb = std::function<void(const tl::expected<api::NodeInfo, Error>&)>;
+using SampledPeersCb = std::function<void(const std::vector<TCPPeeraddr>&)>;
+using TransmissionCb = std::function<void(const api::TransmissionTimeseries&)>;

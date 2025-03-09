@@ -56,9 +56,13 @@ src= [
   './communication/buffers/sndbuffer.cpp',
   './communication/message_elements/helper_types.cpp',
   './communication/messages.cpp',
+  './communication/rxtx_server/rxtx_db.cpp',
+  './communication/rxtx_server/rxtx_server.cpp',
+  './communication/version.cpp',
   './config/config.cpp',
   './eventloop/address_manager/address_manager.cpp',
   './eventloop/chain_cache.cpp',
+  './eventloop/connection_inserter.cpp',
   './eventloop/eventloop.cpp',
   './eventloop/peer_chain.cpp',
   './eventloop/sync/block_download/attorney.cpp',
@@ -70,6 +74,7 @@ src= [
   './eventloop/sync/header_download/connection_data.cpp',
   './eventloop/sync/header_download/header_download.cpp',
   './eventloop/sync/header_download/probe_balanced.cpp',
+  './eventloop/sync/header_download/rogue_headerheights.cpp',
   './eventloop/timer.cpp',
   './eventloop/timer_element.cpp',
   './eventloop/types/chainstate.cpp',
@@ -77,6 +82,7 @@ src= [
   './eventloop/types/rtc/peer_rtc_state.cpp',
   './eventloop/types/rtc/rtc_state.cpp',
   './general/descriptor.cpp',
+  './general/logger/log_memory.cpp',
   './global/globals.cpp',
   './mempool/mempool.cpp',
   './mempool/subscription.cpp',
@@ -100,15 +106,15 @@ src= [
 ]
 
 
-deps = [json_dep, libdatachannel_dep, sqlite3_dep]
+deps = [json_dep, libdatachannel_dep, sqlite3_dep, spdlog_dep]
 if get_option('emscripten')
   src = [src, src_browser]
-  include_thirdparty=[include_trezorcrypto,include_wh,include_secp256k1,include_sqlitecpp, include_spdlog,include_tomlplusplus, include_tl]
+  include_thirdparty=[include_trezorcrypto,include_wh,include_secp256k1,include_sqlitecpp,include_tomlplusplus, include_tl]
   lib_thirdparty=[libsecp256k1]
 else
   src = [src, src_libuv]
-  deps =  [deps, sqlite3_dep,  libuv_dep, uvw_dep, libwebsockets_dep, libmbedtls_dep ]
-  include_thirdparty=[include_trezorcrypto,include_wh,include_secp256k1,include_sqlitecpp, include_spdlog,include_usockets,include_uwebsockets,include_tomlplusplus, include_tl]
+  deps =  [deps, sqlite3_dep,  libuv_dep, uvw_dep, libwebsockets_dep, libmbedtls_dep, spdlog_dep]
+  include_thirdparty=[include_trezorcrypto,include_wh,include_secp256k1,include_sqlitecpp, include_usockets,include_uwebsockets,include_tomlplusplus, include_tl]
   lib_thirdparty=[libsecp256k1, libusockets]
 endif
 
@@ -128,7 +134,7 @@ foreach file : files('./api/wasm/api.js')
     link_args +=[  '--js-library='+ file.full_path()]
 endforeach
 
-executable('wart-node', vcs_dep, [src,'./main.cpp', src_spdlog],
+executable('wart-node', vcs_dep, [src,'./main.cpp'],
   include_directories:['./' ,include_thirdparty],
   link_with: lib_thirdparty,
   dependencies: deps,
@@ -158,7 +164,7 @@ else
 #   dependencies: deps,
 #   install : true)
 
-executable('wart-node', vcs_dep, [src,'./main.cpp', src_spdlog],
+executable('wart-node', vcs_dep, [src,'./main.cpp'],
   include_directories:['./' ,include_thirdparty],
   link_with: lib_thirdparty,
   cpp_args: [rtcstatic,],

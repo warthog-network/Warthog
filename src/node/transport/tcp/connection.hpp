@@ -9,7 +9,7 @@ class TCPConnection final : public AuthenticatableConnection, public std::enable
 
     friend class TCPConnectionManager;
 
-    void async_send(std::unique_ptr<char[]> data, size_t size) override;
+    void send_impl(std::unique_ptr<char[]> data, size_t size) override;
     uint16_t listen_port() const override;
     std::optional<ConnectRequest> connect_request() const override;
 

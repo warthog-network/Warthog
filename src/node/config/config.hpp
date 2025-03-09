@@ -2,19 +2,20 @@
 
 #include "block/chain/signed_snapshot.hpp"
 #include "expected.hpp"
+#include "general/start_time_points.hpp"
 #include "transport/helpers/peer_addr.hpp"
 #include "transport/helpers/tcp_sockaddr.hpp"
 #include "transport/helpers/transport_types.hpp"
 #include "types.hpp"
 #include <atomic>
 struct gengetopt_args_info;
-struct EndpointVector : public std::vector<TCPPeeraddr> {
-    EndpointVector() { }
-    EndpointVector(std::vector<TCPPeeraddr> v)
+struct Endpoints : public std::vector<TCPPeeraddr> {
+    Endpoints() { }
+    Endpoints(std::vector<TCPPeeraddr> v)
         : vector(std::move(v))
     {
     }
-    EndpointVector(std::initializer_list<std::string> l)
+    Endpoints(std::initializer_list<std::string> l)
     {
         for (auto& s : l) {
             push_back(TCPPeeraddr { s });
@@ -55,18 +56,13 @@ struct ConfigParams {
     struct Data {
         std::string chaindb;
         std::string peersdb;
+        std::string rxtxdb;
     } data;
     struct JSONRPC {
         TCPPeeraddr bind { localhost, 3000 };
     } jsonrpc;
-    struct PublicAPI {
-        TCPPeeraddr bind;
-    };
-    struct StratumPool {
-        TCPPeeraddr bind;
-    };
-    std::optional<PublicAPI> publicAPI;
-    std::optional<StratumPool> stratumPool;
+    std::optional<TCPPeeraddr> publicAPI;
+    std::optional<TCPPeeraddr> stratumPool;
     WebsocketServerConfig websocketServer;
     struct Node {
         static constexpr TCPPeeraddr default_endpoint { localhost, DEFAULT_ENDPOINT_PORT };
@@ -74,27 +70,39 @@ struct ConfigParams {
         TCPPeeraddr bind { default_endpoint };
         bool isolated { false };
         bool disableTxsMining { false }; // don't mine transactions
+        bool enableWebRTC { false }; // don't use WebRTC
         bool logCommunicationVal { false };
+        bool logRTC { false };
     } node;
     struct Peers {
         bool allowLocalhostIp = false; // do not ignore 127.xxx.xxx.xxx peer node addresses provided by peers
 #ifndef DISABLE_LIBUV
-        EndpointVector connect;
+        Endpoints connect;
 #else
         std::vector<WSUrladdr> connect;
 #endif
         bool enableBan { true };
     } peers;
     bool localDebug { false };
-
     static std::string get_default_datadir();
     std::string dump();
     [[nodiscard]] static tl::expected<ConfigParams, int> from_args(int argc, char** argv);
 
 private:
+    ConfigParams() {};
+    void prepare_warthog_dir(const std::string&, bool log);
+    void assign_defaults();
     int init(const gengetopt_args_info&);
+    void process_args(const gengetopt_args_info& ai);
+    std::optional<int> process_config_file(const gengetopt_args_info& ai, bool silent);
 };
+
 struct Config : public ConfigParams {
     Config(ConfigParams&&);
     std::atomic<bool> logCommunication { false };
+    std::atomic<bool> logRTC { false };
+    auto& started_at() const { return startedAt; }
+
+private:
+    StartTimePoints startedAt;
 };

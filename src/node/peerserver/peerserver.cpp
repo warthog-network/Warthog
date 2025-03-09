@@ -2,16 +2,12 @@
 #include "config/config.hpp"
 #include "connection_data.hpp"
 #include "db/peer_db.hpp"
+#include "general/error_time.hpp"
 #include "general/now.hpp"
 #include "global/globals.hpp"
 #include "spdlog/spdlog.h"
 
-namespace {
-uint32_t bantime(Error /*offense*/)
-{
-    return 20 * 60; // 20 minutes;
-}
-} // namespace
+using namespace std::chrono_literals;
 
 PeerServer::PeerServer(PeerDB& db, const ConfigParams& config)
     : db(db)
@@ -63,7 +59,7 @@ void PeerServer::handle_event(OnClose&& o)
 {
     o.con->peer_addr().visit(
         [this, &o](auto&& socketAddr) -> void {
-            on_close(o, socketAddr);
+            on_close_internal(o, socketAddr);
         });
 }
 
@@ -82,7 +78,6 @@ void PeerServer::handle_event(GetOffenses&& go)
 
 void PeerServer::handle_event(AuthenticateInbound&& nc)
 {
-    // return EMAXCONNECTIONS; TODO: handle max connections
     auto& con = *nc.c;
     auto& ip = nc.ip;
     if (!config().allowedInboundTransports.allowed(nc.ip, nc.transportType)) {
@@ -92,7 +87,7 @@ void PeerServer::handle_event(AuthenticateInbound&& nc)
     }
     auto bannedUntil = [this, &ip]() -> std::optional<Timestamp> {
         if (auto res { bancache.get_expiration(ip) }) {
-            return Timestamp::from_time_point(*res);
+            return res->timestamp();
         }
         if (auto res { db.get_peer(ip) }) {
             return res->banUntil;
@@ -103,6 +98,7 @@ void PeerServer::handle_event(AuthenticateInbound&& nc)
         db.insert_refuse(ip, now);
         con.close(EREFUSED);
     } else {
+        bancache.ban(ip, ErrorTimepoint::from_duration(ECONNRATELIMIT, 30s));
         db.insert_clear_ban(ip);
         con.logrow = db.insert_connect(ip, true, now);
         con.start_read();
@@ -137,8 +133,7 @@ void PeerServer::handle_event(GetRecentPeers&& e)
     for (auto& [addr, lastseen] : db.recent_peers(e.maxEntries))
         res.push_back({ addr, lastseen });
 #else
-    // WS peers
-    // TODO
+    // WS peers will be added manually from javascript side.
 #endif
     e.cb(std::move(res));
 }
@@ -147,37 +142,37 @@ void PeerServer::handle_event(Inspect&& e)
     e.cb(*this);
 }
 
-void PeerServer::on_close(const OnClose&, const WebRTCPeeraddr& /*addr*/)
+void PeerServer::on_close_internal(const OnClose&, const WebRTCPeeraddr& /*addr*/)
 {
     // do nothing
 }
 
 #ifndef DISABLE_LIBUV
-void PeerServer::on_close(const OnClose& o, const Sockaddr& addr)
+void PeerServer::on_close_internal(const OnClose& o, const Sockaddr& addr)
 {
     auto ip { addr.ip };
     auto offense { o.offense };
     if (!ip.is_loopback() // don't ban localhost
-        && errors::leads_to_ban(offense)) {
-        uint32_t banuntil = now + bantime(offense);
+        && offense.triggers_ban()) {
+        uint32_t banuntil = now + offense.bantime();
         if (ip.is_v4()) {
-            auto ip4{ip.get_v4()};
+            auto ip4 { ip.get_v4() };
             db.set_ban(ip4, banuntil, offense);
             db.insert_offense(ip4, offense);
-        }else{
-            auto ip6{ip.get_v6()};
+        } else {
+            auto ip6 { ip.get_v6() };
             db.set_ban(ip6.block48_view(), banuntil, offense);
             db.insert_offense(ip6, offense);
         }
 
-        bancache.set(ip, banuntil);
+        bancache.ban(ip, { offense, banuntil });
     }
     if (o.con->logrow >= 0)
         db.insert_disconnect(o.con->logrow, now, offense);
 }
 #else
-void PeerServer::on_close(const OnClose& o, const WSUrladdr&)
+void PeerServer::on_close_internal(const OnClose& o, const WSUrladdr&)
 {
-    // TODO
+    // do nothing, it was an outbound websocket connection from our browser
 }
 #endif

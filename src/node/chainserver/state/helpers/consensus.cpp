@@ -232,7 +232,7 @@ TxHash Chainstate::insert_tx(const TransferTxExchangeMessage& pm)
 
     auto p = db.lookup_address(pm.from_id());
     if (!p)
-        throw Error(ENOTFOUND);
+        throw Error(EADDRIDNOTFOUND);
     TransactionHeight th(pm.pin_height(), account_height(pm.from_id()));
      _mempool.insert_tx_throw(pm, th, txHash, *p);
     return txHash;
@@ -254,7 +254,7 @@ TxHash Chainstate::insert_tx(const PaymentCreateMessage& m)
         throw Error(ESELFSEND);
     auto p = db.lookup_address(fromAddr);
     if (!p)
-        throw Error(ENOTFOUND);
+        throw Error(EADDRNOTFOUND);
     auto& [accountId, balance] = *p;
     AddressFunds af { fromAddr, balance };
     TransferTxExchangeMessage pm(accountId, m);

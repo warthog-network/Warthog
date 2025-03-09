@@ -21,18 +21,6 @@ namespace chainserver {
 class State;
 }
 
-class SubscriptionVector {
-
-private:
-    using vector_t = std::vector<subscription_ptr>;
-    vector_t data;
-
-public:
-    bool erase(subscription_data_ptr p);
-    bool insert(subscription_ptr p);
-    size_t size() const { return data.size(); }
-    auto entries() const -> vector_t;
-};
 
 namespace chain_subscription {
 class ChainSubscriptionState {

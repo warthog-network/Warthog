@@ -66,6 +66,7 @@ plog_dep = subproject('plog', default_options : ['warning_level=0', 'werror=fals
 libjuice_dep = subproject('libjuice', default_options : ['warning_level=0', 'werror=false']).get_variable('libjuice_dep')
 usrsctp_dep = subproject('usrsctp', default_options : ['warning_level=0', 'werror=false']).get_variable('usrsctp_dep')
 libmbedtls_dep = subproject('mbedtls', default_options : ['warning_level=0', 'werror=false']).get_variable('libmbedtls_dep')
+thread_dep = dependency('threads')
 
 
 
@@ -78,6 +79,7 @@ libdatachannel = library(
     plog_dep, 
     libmbedtls_dep,
     usrsctp_dep,
+    thread_dep,
     libjuice_dep],
   include_directories: ['./src', './include/', './include/rtc']
 )

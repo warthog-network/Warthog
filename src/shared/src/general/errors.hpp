@@ -22,6 +22,7 @@
 // Other codes, range [1000-1999]
 #define ADDITIONAL_ERRNO_MAP(XX)                                                   \
     /*001 - 200: Errors*/                                                          \
+    XX(0, ENOERROR, "no error")                                                    \
     XX(1, EMSGTYPE, "invalid message type")                                        \
     XX(2, EMSGLEN, "invalid message length")                                       \
     XX(4, ECHECKSUM, "bad message checksum")                                       \
@@ -120,6 +121,13 @@
     XX(120, ERTCUNVERIFIEDIP, "WebRTC ip not verified")                            \
     XX(121, ERTCDUP_DATACHANNEL, "WebRTC ip not verified")                         \
     XX(122, ERTCUNEXP_VA, "Unexpected WebRTC verification answer")                 \
+    XX(123, EADDRNOTFOUND, "address not found")                                    \
+    XX(124, EADDRIDNOTFOUND, "address id not found")                               \
+    XX(125, ECONNRATELIMIT, "connection rate limit exceeded")                      \
+    XX(126, EINITV1, "Init V1 not allowed from this peer")                         \
+    XX(127, EINITV3, "Init V3 not allowed from this peer")                         \
+    XX(128, EFROZENACC, "account is frozen and can't send")                        \
+    XX(129, EHEADERRANGE, "invalid header range")                                  \
     /*200 - 299: Errors not leading to ban*/                                       \
     XX(200, ERTCNOSIGNAL, "WebRTC signaling server was closed (offer)")            \
     XX(201, ERTCNOSIGNAL2, "WebRTC signaling server was closed (answer)")          \
@@ -131,8 +139,10 @@
     XX(207, ERTCCHANNEL_CLOSED, "WebRTC datachannel closed")                       \
     XX(208, ERTCNOPEER, "WebRTC verification peer already closed")                 \
     XX(209, ERTCNOIP, "Cannot select own WebRTC ip")                               \
-    XX(210, ERTCFEELER, "Normal feeler connection shutdown")                       \
-    XX(211, EAPICMD, "Triggered by API command")                                   \
+    XX(210, ERTCIDIP, "IP in verification offer is not announced as identity")     \
+    XX(211, ERTCFEELER, "Normal feeler connection shutdown")                       \
+    XX(212, ERTCDISABLED, "WebRTC disabled, cannot receive message")               \
+    XX(213, EAPICMD, "Triggered by API command")                                   \
     /*300 - 399: API triggered errors*/                                            \
     XX(300, EINV_HEX, "cannot parse hexadecimal input")                            \
     XX(301, EBADNONCE, "cannot parse nonce")                                       \
@@ -145,7 +155,6 @@
     XX(1001, ESIGHUP, "received SIGHUP")                                           \
     XX(1002, ESIGINT, "received SIGINT")                                           \
     XX(1003, EREFUSED, "connection refused due to ban")                            \
-    XX(1004, EMAXCONNECTIONS, "too many connections from this ip")                 \
     XX(1005, EDUPLICATECONNECTION, "duplicate connection")                         \
     XX(1006, EEVICTED, "connection was evicted")                                   \
     XX(2000, EBUG, "bug-related error")
@@ -153,29 +162,3 @@
 #define ERR_DEFINE(code, name, _) constexpr int32_t name = code;
 ADDITIONAL_ERRNO_MAP(ERR_DEFINE)
 #undef ERR_DEFINE
-
-namespace errors {
-const char* strerror(int32_t code);
-const char* err_name(int32_t code);
-inline bool leads_to_ban(int32_t code)
-{
-    if (code <= 0 || code >= 200)
-        return false;
-    switch (code) {
-    case ECHECKSUM:
-        //
-        // We are not sure the following are triggered by evil behavior or bug.
-        // Let's observe for some more time before enable banning on them.
-    case EEMPTY:
-    case EPROBEDESCRIPTOR:
-        return false;
-    default:
-        return true;
-    }
-    return code != ECHECKSUM;
-}
-} // namespace errors
-
-inline const char* Error::strerror() const { return errors::strerror(code); }
-inline const char* Error::err_name() const { return errors::err_name(code); }
-inline std::string Error::format() const { return std::string(err_name()) + " (" + strerror() + ")"; }

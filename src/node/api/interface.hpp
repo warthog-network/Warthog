@@ -14,7 +14,8 @@ void lookup_tx(const Hash hash, TxCb f);
 
 void get_latest_transactions(LatestTxsCb f);
 
-// peer db functions
+// peer functions
+void get_ip_count(IpCounterCb&& cb);
 void get_banned_peers(PeerServer::banned_callback_t&& cb);
 void unban_peers(ResultCb&& cb);
 void get_connection_schedule(JSONCb&& cb);
@@ -31,15 +32,18 @@ void get_verified_addresses(PeerServer::banned_callback_t cb);
 
 void get_connected_peers2(PeersCb&& cb);
 void disconnect_peer(uint64_t, ResultCb&& cb);
+void get_throttled_peers(ThrottledCb&& cb);
 void get_connected_connection(ConnectedConnectionCB&& cb);
 
 // tools functions
 void get_round16bit_e8(uint64_t e8, RoundCb cb);
 void get_round16bit_funds(Funds e8, RoundCb cb);
 void get_version(VersionCb cb);
+void get_info(InfoCb cb);
 void get_wallet_new(WalletCb cb);
 void get_wallet_from_privkey(const PrivKey& pk, WalletCb cb);
 void get_janushash_number(std::string_view, RawCb cb);
+void sample_verified_peers(size_t n, SampledPeersCb cb);
 
 // chain functions
 void get_block_head(HeadCb cb);
@@ -65,6 +69,9 @@ void get_account_balance(const api::AccountIdOrAddress& address, BalanceCb cb);
 void get_account_history(const Address& address, uint64_t end, HistoryCb cb);
 void get_account_richlist(RichlistCb cb);
 
+void get_transmission_minutes(TransmissionCb cb);
+void get_transmission_hours(TransmissionCb cb);
+
 // endpoints function
 void inspect_eventloop(std::function<void(const Eventloop& e)>&&);
 
@@ -72,4 +79,8 @@ void subscribe_chain_event(SubscriptionRequest);
 void subscribe_connection_event(SubscriptionRequest);
 void subscribe_account_event(SubscriptionRequest, Address);
 void subscribe_minerdist_event(SubscriptionRequest);
+void subscribe_log_event(SubscriptionRequest);
 void destroy_all_subscriptions(subscription_data_ptr);
+void loadtest_block(uint64_t conId, ResultCb);
+void loadtest_header(uint64_t conId, ResultCb);
+void loadtest_disable(uint64_t conId, ResultCb);

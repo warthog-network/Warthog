@@ -6,7 +6,8 @@
 #include <memory>
 
 class Headerchain;
-struct InitMsg;
+struct InitMsgV1;
+struct InitMsgV3;
 struct AppendMsg;
 struct ForkMsg;
 struct ProberepMsg;
@@ -22,7 +23,8 @@ enum class PeerchainMatch {
 
 class PeerChain {
 public:
-    void initialize(const InitMsg& parsed, const StageAndConsensus&);
+    void initialize(const InitMsgV1& parsed, const StageAndConsensus&);
+    void initialize(const InitMsgV3& parsed, const StageAndConsensus&);
 
     // the following functions may throw ChainError
     void on_peer_append(const AppendMsg& msg, const StageAndConsensus&);

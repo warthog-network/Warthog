@@ -24,6 +24,28 @@
 
 namespace chainserver {
 
+void MiningCache::update_validity(CacheValidity cv)
+{
+    if (cacheValidity != cv)
+        cache.clear();
+    cacheValidity = cv;
+}
+const BodyContainerV3* MiningCache::lookup(const Address& a, bool disableTxs) const
+{
+    auto iter { std::find_if(cache.begin(), cache.end(), [&](const Item& i) {
+        return i.address == a && i.disableTxs == disableTxs;
+    }) };
+    if (iter != cache.end())
+        return &iter->b;
+    return nullptr;
+}
+
+const BodyContainerV3& MiningCache::insert(const Address& a, bool disableTxs, BodyContainerV3 b)
+{
+    cache.push_back({ a, disableTxs, std::move(b) });
+    return cache.back().b;
+}
+
 State::State(ChainDB& db, BatchRegistry& br, std::optional<SnapshotSigner> snapshotSigner)
     : db(db)
     , batchRegistry(br)
@@ -31,6 +53,7 @@ State::State(ChainDB& db, BatchRegistry& br, std::optional<SnapshotSigner> snaps
     , signedSnapshot(db.get_signed_snapshot())
     , chainstate(db, br)
     , nextGarbageCollect(std::chrono::steady_clock::now())
+    , _miningCache(mining_cache_validity())
 {
 }
 
@@ -261,7 +284,7 @@ Batch State::get_headers_concurrent(BatchSelector s)
 {
     std::unique_lock<std::mutex> lcons(chainstateMutex);
     if (s.descriptor == chainstate.descriptor()) {
-        return chainstate.headers().get_headers(s.startHeight, s.end());
+        return chainstate.headers().get_headers(s.header_range());
     } else {
         return blockCache.get_batch(s);
     }
@@ -285,33 +308,57 @@ ConsensusSlave State::get_chainstate_concurrent()
 
 tl::expected<ChainMiningTask, Error> State::mining_task(const Address& a)
 {
+    return mining_task(a, config().node.disableTxsMining);
+}
+
+tl::expected<ChainMiningTask, Error> State::mining_task(const Address& a, bool disableTxs)
+{
 
     auto md = chainstate.mining_data();
 
     NonzeroHeight height { next_height() };
     if (height.value() < NEWBLOCKSTRUCUTREHEIGHT && !is_testnet())
         return tl::make_unexpected(Error(ENOTSYNCED));
-    std::vector<TransferTxExchangeMessage> payments;
-    if (!config().node.disableTxsMining) {
-        payments = chainstate.mempool().get_payments(400);
-    }
-    Funds totalfee { Funds::zero() };
-    for (auto& p : payments)
-        totalfee.add_assert(p.fee()); // assert because
-                                      // fee sum is < sum of mempool payers' balances
 
-    // mempool should have deleted out of window transactions
-    auto [body, version] { generate_body(db, height, a, payments) };
-    BodyView bv(body.parse_structure(height, version));
-    if (!bv.valid())
-        spdlog::error("Cannot create mining task, body invalid");
+    auto make_body {
+        [&]() {
+            std::vector<TransferTxExchangeMessage> payments;
+            if (!disableTxs) {
+                payments = chainstate.mempool().get_payments(400, height);
+            }
+
+            Funds totalfee { Funds::zero() };
+            for (auto& p : payments)
+                totalfee.add_assert(p.fee()); // assert because
+            // fee sum is < sum of mempool payers' balances
+
+            // mempool should have deleted out of window transactions
+            auto body { generate_body(db, height, a, payments) };
+            return body;
+        }
+    };
+
+    const auto b {
+        [&]() -> const BodyContainerV3& {
+            _miningCache.update_validity(mining_cache_validity());
+            if (auto* p { _miningCache.lookup(a, disableTxs) }; p != nullptr) {
+                return *p;
+            } else {
+                auto body { make_body() };
+                auto& b { _miningCache.insert(a, disableTxs, std::move(body)) };
+                return b;
+            }
+        }()
+    };
+
+    auto structure { BodyStructure::parse(b, height, b.block_version()) };
+    if (!structure) {
+        return tl::make_unexpected(Error(EBUG));
+    }
+    BodyView bv(b, *structure);
 
     HeaderGenerator hg(md.prevhash, bv, md.target, md.timestamp, height);
-    return ChainMiningTask { .block {
-        .height = height,
-        .header = hg.make_header(0),
-        .body = std::move(body),
-    } };
+    return ChainMiningTask { ParsedBlock::create_throw(height, hg.make_header(0), std::move(b)) };
 }
 
 stage_operation::StageSetStatus State::set_stage(Headerchain&& hc)
@@ -363,32 +410,50 @@ stage_operation::StageSetStatus State::set_stage(Headerchain&& hc)
 auto State::add_stage(const std::vector<ParsedBlock>& blocks, const Headerchain& hc) -> StageActionResult
 {
     if (signedSnapshot && !signedSnapshot->compatible(stage)) {
-        return { { { ELEADERMISMATCH, signedSnapshot->height() } }, {} };
+        return { { { ELEADERMISMATCH, signedSnapshot->height() } }, {}, {} };
     }
 
     assert(blocks.size() > 0);
-    ChainError err { Error(0), blocks.back().height + 1 };
+    ChainError ce { Error(0), blocks.back().height + 1 };
     auto transaction = db.transaction();
 
     assert(hc.length() >= stage.length());
     assert(hc.hash_at(stage.length()) == stage.hash_at(stage.length()));
     for (auto& b : blocks) {
-        assert(hc.get_header(b.height) == b.header);
+        assert(hc.length() >= b.height);
+        assert(hc[b.height] == b.header);
         assert(b.height == stage.length() + 1);
 
         auto prepared { stage.prepare_append(signedSnapshot, b.header) };
         if (!prepared.has_value()) {
-            err = { prepared.error(), b.height };
+            ce = { prepared.error(), b.height };
             break;
         }
         db.insert_protect(b);
         stage.append(prepared.value(), batchRegistry);
     }
     if (stage.total_work() > chainstate.headers().total_work()) {
-        return apply_stage(std::move(transaction));
+        auto [status, update] { apply_stage(std::move(transaction)) };
+
+        if (status.ce.is_error()) {
+            // Something went wrong on block body level so block header must be also tainted
+            // as we checked for correct merkleroot already
+            // => we need to collect data on rogue header
+            RogueHeaderData rogueHeaderData(
+                status.ce,
+                stage[status.ce.height()],
+                stage.total_work_at(status.ce.height()));
+            return { { status }, rogueHeaderData, update };
+        } else {
+            // pass {} as header arg because we can't to block any headers when
+            // we have a wrong body (EINV_BODY or EMROOT)
+            return { { ce }, {}, update };
+        }
     } else {
+        // pass {} as header arg because we can't to block any headers when
+        // we have a wrong body (EINV_BODY or EMROOT)
         transaction.commit();
-        return { { err }, {} };
+        return { { ce }, {}, {} };
     }
 }
 namespace {
@@ -498,8 +563,9 @@ RollbackResult State::rollback(const Height newlength) const
     };
 }
 
-auto State::apply_stage(ChainDBTransaction&& t) -> StageActionResult
+auto State::apply_stage(ChainDBTransaction&& t) -> ApplyStageResult
 {
+    dbCacheValidity += 1;
     assert(!signedSnapshot || signedSnapshot->compatible(stage));
     assert(stage.total_work() > chainstate.headers().total_work());
     const NonzeroHeight fh { fork_height(chainstate.headers(), stage) }; // first different height
@@ -532,6 +598,7 @@ auto State::apply_signed_snapshot(SignedSnapshot&& ssnew) -> std::optional<State
     if (signedSnapshot >= ssnew) {
         return {};
     }
+    dbCacheValidity += 1;
     syncdebug_log().info("SetSignedPin {} new", ssnew.height().value());
     signedSnapshot = std::move(ssnew);
 
@@ -612,6 +679,7 @@ auto State::append_mined_block(const ParsedBlock& b) -> StateUpdateWithAPIBlocks
         .nextStateId = nextStateId });
     ul.unlock();
 
+    dbCacheValidity += 1;
     return { .update {
                  .chainstateUpdate { state_update::Append {
                      headerchainAppend,
@@ -703,7 +771,8 @@ api::ChainHead State::api_get_head() const
 auto State::api_get_mempool(size_t n) const -> api::MempoolEntries
 {
     std::vector<Hash> hashes;
-    auto entries = chainstate.mempool().get_payments(n, &hashes);
+    auto nextHeight { next_height() };
+    auto entries = chainstate.mempool().get_payments(n, nextHeight, &hashes);
     assert(hashes.size() == entries.size());
     api::MempoolEntries out;
     for (size_t i = 0; i < hashes.size(); ++i) {
@@ -763,15 +832,15 @@ auto State::api_get_richlist(size_t N) const -> api::Richlist
 
 auto State::get_blocks(DescriptedBlockRange range) const -> std::vector<BodyContainer>
 {
-    assert(range.lower != 0);
-    assert(range.upper >= range.lower);
-    std::vector<Hash> hashes(range.upper - range.lower + 1);
+    assert(range.first() != 0);
+    assert(range.last() >= range.first());
+    std::vector<Hash> hashes(range.last() - range.first() + 1);
     std::vector<BodyContainer> res;
     if (range.descriptor == chainstate.descriptor()) {
-        if (chainstate.length() < range.upper)
+        if (chainstate.length() < range.last())
             return {};
-        for (Height h = range.lower; h < range.upper + 1; ++h) {
-            hashes[h - range.lower] = chainstate.headers().hash_at(h);
+        for (Height h = range.first(); h < range.last() + 1; ++h) {
+            hashes[h - range.first()] = chainstate.headers().hash_at(h);
         }
     } else {
         hashes = blockCache.get_hashes(range);
@@ -847,4 +916,15 @@ std::optional<SignedSnapshot> State::try_sign_chainstate()
     }
     return {};
 }
+
+MiningCache::CacheValidity State::mining_cache_validity()
+{
+    return { dbCacheValidity, chainstate.mempool().cache_validity(), now_timestamp() };
+}
+
+size_t State::api_db_size() const
+{
+    return db.byte_size();
+}
+
 }

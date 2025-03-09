@@ -1,6 +1,6 @@
 #pragma once
 #include "block/body/account_id.hpp"
-#include "defi/token/account_token.hpp"
+#include "defi/token/id.hpp"
 #include "general/funds.hpp"
 #include "general/reader.hpp"
 #include "general/writer.hpp"

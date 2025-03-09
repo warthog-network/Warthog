@@ -1,0 +1,4 @@
+
+namespace api {
+struct TransmissionTimeseries;
+}

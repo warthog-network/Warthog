@@ -12,18 +12,20 @@
 #include "communication/mining_task.hpp"
 #include "crypto/address.hpp"
 #include "eventloop/peer_chain.hpp"
+#include "eventloop/types/conndata.hpp"
 #include "general/funds.hpp"
+#include "general/start_time_points.hpp"
 #include "height_or_hash.hpp"
 #include "peerserver/db/offense_entry.hpp"
 #include "transport/helpers/peer_addr.hpp"
 #include "transport/helpers/tcp_sockaddr.hpp"
-#include <variant>
 #include <vector>
 namespace chainserver {
 class DBCache;
 }
 
 namespace api {
+using sc = std::chrono::steady_clock;
 struct ChainHead {
     std::optional<SignedSnapshot> signedSnapshot;
     Worksum worksum;
@@ -154,7 +156,7 @@ public:
     auto& reward() const { return _reward; }
 };
 
-struct AddressCount{
+struct AddressCount {
     Address address;
     int64_t count;
 };
@@ -204,13 +206,45 @@ struct HashrateTimeChart {
     std::vector<std::tuple<uint32_t, Height, uint64_t>> chartReversed;
 };
 
+struct ThrottleState {
+    struct BatchThrottler {
+        Height h0;
+        Height h1;
+        size_t window;
+        template <size_t w>
+        BatchThrottler(const BatchreqThrottler<w>& bt)
+            : h0(bt.h0())
+            , h1(bt.h1())
+            , window(w)
+        {
+        }
+    };
+    sc::duration delay;
+    BatchThrottler batchreq;
+    BatchThrottler blockreq;
+    ThrottleState(const ThrottleQueue& t)
+        : delay(t.reply_delay())
+        , batchreq(t.headerreq)
+        , blockreq(t.blockreq)
+    {
+    }
+};
+
 struct Peerinfo {
     Peeraddr endpoint;
+    uint64_t id;
     bool initialized;
     PeerChain chainstate;
     SignedSnapshot::Priority theirSnapshotPriority;
     SignedSnapshot::Priority acknowledgedSnapshotPriority;
     uint32_t since;
+    ThrottleState throttle;
+};
+
+struct ThrottledPeer {
+    Peeraddr endpoint;
+    uint64_t id;
+    ThrottleState throttle;
 };
 
 struct Network {
@@ -234,6 +268,16 @@ struct Raw {
     std::string s;
 };
 
+struct IPCounter {
+    std::vector<std::pair<IP, size_t>> vector;
+};
+
 using OffenseEntry = ::OffenseEntry;
 
+struct DBSize {
+    size_t dbSize;
+};
+
+struct NodeInfo : public DBSize {
+};
 }

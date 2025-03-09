@@ -1,6 +1,7 @@
 #pragma once
 #include "general/with_uint64.hpp"
-struct HistoryId : public IsUint64 {
+class HistoryId : public IsUint64 {
+public:
     using IsUint64::IsUint64;
     static HistoryId smallest() { return HistoryId(1); }
     bool operator==(const HistoryId&) const = default;

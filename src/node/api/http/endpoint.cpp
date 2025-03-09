@@ -1,9 +1,6 @@
 #include "endpoint.hpp"
 #include "api/events/subscription.hpp"
 #include "api/hook_endpoints.hxx"
-#include "version.hpp"
-#include <iostream>
-#include <type_traits>
 using namespace std::placeholders;
 
 namespace {
@@ -123,7 +120,7 @@ std::optional<HTTPEndpoint> HTTPEndpoint::make_public_endpoint(const ConfigParam
     auto& pAPI { config().publicAPI };
     if (!pAPI)
         return {};
-    return std::optional<HTTPEndpoint> { std::in_place, pAPI->bind, true };
+    return std::optional<HTTPEndpoint> { std::in_place, *pAPI, true };
 };
 
 HTTPEndpoint::HTTPEndpoint(TCPPeeraddr bind, bool isPublic)

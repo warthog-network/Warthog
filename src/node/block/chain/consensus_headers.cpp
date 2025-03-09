@@ -59,7 +59,7 @@ HeaderVerifier::HeaderVerifier(const SharedBatch& b)
     }
 }
 
-tl::expected<HeaderVerifier, ChainError> HeaderVerifier::copy_apply(const std::optional<SignedSnapshot>& sp, const HeaderRange& hrange) const
+tl::expected<HeaderVerifier, ChainError> HeaderVerifier::copy_apply(const std::optional<SignedSnapshot>& sp, const HeaderSpan& hrange) const
 {
     HeaderVerifier res { *this };
     assert(hrange.begin_height() == length + 1);

@@ -1,23 +1,11 @@
 #include "range.hpp"
 #include "general/reader.hpp"
 #include "general/writer.hpp"
-bool BlockRange::valid()
-{
-    return lower <= upper
-        && (upper - lower + 1 <= MAXBLOCKBATCHSIZE);
-}
 
-Writer& operator<<(Writer& w, BlockRange br)
-{
-    return w << br.lower << br.upper;
-}
 
-BlockRange::BlockRange(Reader& r)
-    : lower(r)
-    , upper(r)
+Writer& operator<<(Writer& w, NonemptyHeightRange br)
 {
-    if (!valid())
-        throw Error(EBLOCKRANGE);
+    return w << br.first() << br.last();
 }
 
 DescriptedBlockRange::DescriptedBlockRange(Reader& r)

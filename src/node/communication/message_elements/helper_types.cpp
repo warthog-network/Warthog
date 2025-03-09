@@ -106,4 +106,6 @@ BatchSelector::BatchSelector(Reader& r)
     , startHeight(Height(r).nonzero_throw(EBATCHHEIGHT))
     , length(r)
 {
+    if (length == 0) 
+        throw Error(EBLOCKRANGE);
 }

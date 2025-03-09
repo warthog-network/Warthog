@@ -15,9 +15,9 @@ inline IP::BanHandle get_banhandle(SQLite::Column col0)
 
     assert(col0.isBlob());
     size_t n(col0.size());
-    if (n==32) {
+    if (n==4) {
         return IPv6::BanHandle32((const uint8_t*)col0.getBlob(),n);
-    }else if (n == 48){
+    }else if (n == 6){
         return IPv6::BanHandle48((const uint8_t*)col0.getBlob(),n);
     }
     throw std::runtime_error("Peers database error in, cannot get ban handle");
@@ -81,7 +81,7 @@ public:
             insertClearBan.bind(1, ip.get_v4().data);
         } else {
             auto block48 { ip.get_v6().block48_view() };
-            peerban.bindNoCopy(1, block48.data(), block48.size());
+            insertClearBan.bindNoCopy(1, block48.data(), block48.size());
         }
         insertClearBan.exec();
         insertClearBan.reset();

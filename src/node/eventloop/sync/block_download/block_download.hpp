@@ -12,7 +12,6 @@
 #include "eventloop/types/peer_requests.hpp"
 #include "focus.hpp"
 #include "stage_state.hpp"
-#include <array>
 namespace HeaderDownload {
 struct LeaderInfo;
 }
@@ -42,7 +41,7 @@ public:
     void on_fork(Conref cr);
     void on_append(Conref cr);
     void on_rollback(Conref c);
-    void on_blockreq_reply(Conref, BlockrepMsg&&, Blockrequest&);
+    void on_blockreq_reply(Conref, BlockrepMsg&&, BlockRequest&);
     void on_blockreq_expire(Conref cr);
     void on_probe_reply(Conref cr, const ProbereqMsg&, const ProberepMsg&);
     void on_probe_expire(Conref cr);
@@ -54,7 +53,7 @@ public:
     //////////////////////////////
     // Getters
     [[nodiscard]] std::optional<stage_operation::Operation> pop_stage();
-    void do_peer_requests(RequestSender);
+    void do_block_requests(RequestSender);
     void do_probe_requests(RequestSender);
     const Worksum& get_reachable_totalwork() const { return reachableWork; }
 

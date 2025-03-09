@@ -1,12 +1,14 @@
 #pragma once
 
 #include "api/types/forward_declarations.hpp"
+#include "block/chain/height_header_work.hpp"
 #include "block/chain/range.hpp"
 #include "communication/messages.hpp"
 #include "communication/mining_task.hpp"
 #include "communication/stage_operation/result.hpp"
 #include "helpers/consensus.hpp"
 #include "helpers/past_chains.hpp"
+#include "transactions/apply_result.hpp"
 #include <chrono>
 
 class ChainDB;
@@ -14,6 +16,37 @@ struct Block;
 
 class ChainDBTransaction;
 namespace chainserver {
+struct MiningCache {
+    struct CacheValidity {
+        int db { 0 };
+        int mempool { 0 };
+        uint32_t timestamp;
+        bool operator==(const CacheValidity&) const = default;
+        CacheValidity(int db, int mempool, uint32_t timestamp)
+            : db(db)
+            , mempool(mempool)
+            , timestamp(timestamp)
+        {
+        }
+    };
+    MiningCache(CacheValidity cacheValidity)
+        : cacheValidity(cacheValidity)
+    {
+    }
+
+    struct Item {
+        Address address;
+        bool disableTxs;
+        BodyContainerV3 b;
+    };
+
+    CacheValidity cacheValidity;
+    uint32_t timestamp;
+    void update_validity(CacheValidity);
+    [[nodiscard]] const BodyContainerV3* lookup(const Address&, bool disableTxs) const;
+    const BodyContainerV3& insert(const Address& a, bool disableTxs, BodyContainerV3);
+    std::vector<Item> cache;
+};
 class State {
     friend class ApplyStageTransaction;
     friend class SetSignedPinTransaction;
@@ -34,6 +67,7 @@ public:
     // normal methods
     void garbage_collect();
     auto mining_task(const Address& a) -> tl::expected<ChainMiningTask, Error>;
+    auto mining_task(const Address& a, bool disableTxs) -> tl::expected<ChainMiningTask, Error>;
 
     auto append_gentx(const PaymentCreateMessage&) -> std::pair<mempool::Log, TxHash>;
     auto chainlength() const -> Height { return chainstate.headers().length(); }
@@ -45,6 +79,7 @@ public:
     auto set_stage(Headerchain&& hc) -> stage_operation::StageSetStatus;
     struct StageActionResult {
         stage_operation::StageAddStatus status;
+        std::optional<RogueHeaderData> rogueHeaderData;
         std::optional<state_update::StateUpdateWithAPIBlocks> update;
     };
     auto add_stage(const std::vector<ParsedBlock>& blocks, const Headerchain&) -> StageActionResult;
@@ -84,6 +119,7 @@ public:
     auto api_get_header(api::HeightOrHash& h) const -> std::optional<std::pair<NonzeroHeight, Header>>;
     auto api_get_block(const api::HeightOrHash& h) const -> std::optional<api::Block>;
     auto api_tx_cache() const -> const TransactionIds;
+    size_t api_db_size() const;
 
 private:
     // delegated getters
@@ -93,7 +129,11 @@ private:
 
     // transactions
 
-    [[nodiscard]] auto apply_stage(ChainDBTransaction&& t) -> StageActionResult;
+    struct ApplyStageResult {
+        stage_operation::StageAddStatus status;
+        std::optional<state_update::StateUpdateWithAPIBlocks> update;
+    };
+    [[nodiscard]] auto apply_stage(ChainDBTransaction&& t) -> ApplyStageResult;
 
 public:
     [[nodiscard]] auto apply_signed_snapshot(SignedSnapshot&& sp) -> std::optional<StateUpdateWithAPIBlocks>;
@@ -108,6 +148,7 @@ private:
     [[nodiscard]] auto commit_fork(RollbackResult&& rr, AppendBlocksResult&&) -> StateUpdate;
     [[nodiscard]] auto commit_append(AppendBlocksResult&& abr) -> StateUpdate;
     std::optional<SignedSnapshot> try_sign_chainstate();
+    MiningCache::CacheValidity mining_cache_validity();
 
 private:
     using tp = std::chrono::steady_clock::time_point;
@@ -116,6 +157,8 @@ private:
 
     std::optional<SnapshotSigner> snapshotSigner;
     std::optional<SignedSnapshot> signedSnapshot;
+
+    int dbCacheValidity { 0 };
     tp signAfter { tp::max() };
     bool signingEnabled { true };
 
@@ -125,5 +168,7 @@ private:
 
     ExtendableHeaderchain stage;
     std::chrono::steady_clock::time_point nextGarbageCollect;
+
+    MiningCache _miningCache;
 };
 }

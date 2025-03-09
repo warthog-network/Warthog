@@ -2,11 +2,12 @@
 #include <cstdint>
 #include <map>
 #include <string>
-class PeerState;
+class ConState;
+#include <chrono>
 class PeerChain;
 class TCPConnection;
 class Sndbuffer;
-using Conndatamap = std::map<uint64_t, PeerState>;
+using Conndatamap = std::map<uint64_t, ConState>;
 using Coniter = Conndatamap::iterator;
 class ConnectionBase;
 
@@ -18,6 +19,7 @@ public:
     [[nodiscard]] const PeerChain& chain() const;
     [[nodiscard]] PeerChain& chain();
     [[nodiscard]] bool closed();
+    [[nodiscard]] auto& loadtest();
     [[nodiscard]] auto& job();
     [[nodiscard]] auto& job() const;
     [[nodiscard]] auto peer() const;
@@ -25,14 +27,18 @@ public:
     [[nodiscard]] auto& ping();
     [[nodiscard]] auto operator->();
     [[nodiscard]] auto version() const;
+    [[nodiscard]] auto protocol() const;
     [[nodiscard]] bool initialized() const;
     [[nodiscard]] bool is_tcp() const;
-    void send(Sndbuffer);
+
+    template<typename T>
+    void send(T&&);
+    using duration = std::chrono::steady_clock::duration;
     Conref(Coniter iter)
         : iter(iter)
     {
     }
-    operator const ConnectionBase& ();
+    operator const ConnectionBase&();
     Coniter iterator() { return iter; };
     uint64_t id() const;
     std::string str() const;
@@ -45,4 +51,6 @@ public:
 
     template <typename... Args>
     inline void warn(const char* fmt, Args&&... args);
+private:
+    void send_buffer(Sndbuffer);
 };

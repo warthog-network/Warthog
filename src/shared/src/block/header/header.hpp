@@ -1,17 +1,9 @@
 #pragma once
 #include "block/header/view.hpp"
+#include "block/version.hpp"
 #include <array>
 #include <cstdint>
 
-class BlockVersion : public IsUint32 {
-public:
-    BlockVersion(uint32_t v)
-        : IsUint32(v)
-    {
-    }
-    auto operator<=>(uint32_t v) const { return value() <=> v; }
-    bool operator==(uint32_t v) const { return value() == v; }
-};
 
 class Height;
 class POWVersion;
@@ -50,4 +42,10 @@ public:
     {
         return HEADERBYTELENGTH;
     }
+};
+
+struct HeightHeader{
+    NonzeroHeight height;
+    Header header;
+    bool operator==(const HeightHeader&) const = default;
 };

@@ -3,7 +3,7 @@
 #include "block/chain/header_chain.hpp"
 #include "chain_cache.hpp"
 #include "general/errors.hpp"
-void PeerChain::initialize(const InitMsg& msg, const StageAndConsensus& sac)
+void PeerChain::initialize(const InitMsgV1& msg, const StageAndConsensus& sac)
 {
     if (msg.chainLength.complete_batches() != msg.grid.size()) {
         throw Error(EINV_INITGRID);
@@ -17,6 +17,21 @@ void PeerChain::initialize(const InitMsg& msg, const StageAndConsensus& sac)
     consensusForkRange = ForkRange { sac.consensus_state().headers(), d.grid() };
     stageForkRange = ForkRange { sac.stage_headers(), desc->grid() };
     priority = msg.sp;
+}
+void PeerChain::initialize(const InitMsgV3& msg, const StageAndConsensus& sac)
+{
+    if (msg.chain_length().complete_batches() != msg.grid().size()) {
+        throw Error(EINV_INITGRID);
+    }
+    desc = std::make_shared<Descripted>(
+        msg.descriptor(),
+        msg.chain_length(),
+        msg.worksum(),
+        msg.grid());
+    auto& d = *desc.get();
+    consensusForkRange = ForkRange { sac.consensus_state().headers(), d.grid() };
+    stageForkRange = ForkRange { sac.stage_headers(), desc->grid() };
+    priority = msg.sp();
 }
 
 void PeerChain::on_peer_append(const AppendMsg& msg, const StageAndConsensus& sac)

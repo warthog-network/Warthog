@@ -3,9 +3,10 @@
 #include <optional>
 
 class TimerElement {
+    using key_t = eventloop::TimerSystem::key_t;
 public:
     TimerElement() {};
-    TimerElement(Timer::key_t key)
+    TimerElement(key_t key)
         : key(key)
     {
     }
@@ -24,5 +25,5 @@ public:
     ~TimerElement();
 
 private:
-    std::optional<Timer::key_t> key;
+    std::optional<key_t> key;
 };

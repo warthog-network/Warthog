@@ -73,13 +73,13 @@ class BlockGenerator {
             const TransferTxExchangeMessage&);
         size_t binarysize()
         {
-            if (buf.size() == 0) 
+            if (buf.size() == 0)
                 return 0;
             return 4 + buf.size();
         }
         uint8_t* write(uint8_t* out)
         {
-            if (buf.size() == 0) 
+            if (buf.size() == 0)
                 return out;
             out = bewrite(out, nTransfers);
             memcpy(out, buf.data(), buf.size());
@@ -109,7 +109,7 @@ class BlockGenerator {
         }
 
     private:
-        std::array<uint8_t,16> buf;
+        std::array<uint8_t, 16> buf;
     };
 
 public:
@@ -117,14 +117,14 @@ public:
         : nas(db)
     {
     }
-    std::pair<BodyContainer,BlockVersion> gen_block(NonzeroHeight height, const Address& miner,
+    BodyContainerV3 gen_block(NonzeroHeight height, const Address& miner,
         const std::vector<TransferTxExchangeMessage>& payments);
 
 private:
     NewAddressSection_v2 nas;
 };
 
-std::pair<BodyContainer, BlockVersion> BlockGenerator::gen_block(NonzeroHeight height,
+BodyContainerV3 BlockGenerator::gen_block(NonzeroHeight height,
     const Address& miner,
     const std::vector<TransferTxExchangeMessage>& transfers)
 {
@@ -182,7 +182,7 @@ std::pair<BodyContainer, BlockVersion> BlockGenerator::gen_block(NonzeroHeight h
     p = nas.write(p);
     p = pos.write(p);
     trs.write(p);
-    return {out, BlockVersion(3)};
+    return out;
 }
 
 uint8_t* BlockGenerator::NewAddressSection_v2::write(uint8_t* out)
@@ -216,14 +216,16 @@ void BlockGenerator::TransferSection::add_payment(
 }
 }
 
-std::pair<BodyContainer,BlockVersion> generate_body(const ChainDB& db, NonzeroHeight height, const Address& miner, const std::vector<TransferTxExchangeMessage>& payments)
+BodyContainerV3 generate_body(const ChainDB& db, NonzeroHeight height, const Address& miner, const std::vector<TransferTxExchangeMessage>& payments)
 {
     BlockGenerator bg(db);
-    auto [body,version]{bg.gen_block(height, miner, payments)};
+    auto body { bg.gen_block(height, miner, payments) };
     // should be valid
-    if (body.parse_structure(height,version)) 
-        return {body,version};
-    
+    if (body.parse_structure(height, body.block_version()))
+        return body;
+
     // disable transactions as fallback
     return BlockGenerator(db).gen_block(height, miner, {});
+    if (!body.parse_structure(height, body.block_version()))
+        spdlog::error("Cannot create mining task, body invalid");
 }

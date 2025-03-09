@@ -6,6 +6,7 @@
 #include "general/writer.hpp"
 
 BodyContainer::BodyContainer(std::span<const uint8_t> s)
+    : bytes(s.begin(), s.end())
 {
     if (s.size() > MAXBLOCKSIZE) {
         throw Error(EBLOCKSIZE);

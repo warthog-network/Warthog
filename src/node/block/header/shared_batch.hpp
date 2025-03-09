@@ -15,7 +15,7 @@ class SharedBatchView {
 
 public:
     SharedBatchView()
-        : data { .raw = 0 } {};
+        : data { .raw = 0 } { };
     bool valid() const { return data.raw != 0; }
     size_t size() const;
     Height upper_height() const;
@@ -28,7 +28,7 @@ public:
 
 private:
     SharedBatchView(iter_type iter)
-        : data { .iter = iter } {};
+        : data { .iter = iter } { };
     union { // @Rafiki What is this? Emulate nullable iterator? This is undefined behavior! :( But I think it should work this way because iter will be actually a pointer and non-zero if it points to something useful.
         iter_type iter;
 #ifdef DISABLE_LIBUV
@@ -65,6 +65,7 @@ public:
     Batchslot next_slot() const { return slot().value_or(Batchslot(0)) + 1; }
     Height lower_height() const { return view().lower_height(); }
     std::optional<HeaderView> getHeader(size_t id) const { return view().getHeader(id); }
+    [[nodiscard]] std::optional<HeaderView> search_header_recursive(NonzeroHeight h) const;
     [[nodiscard]] HeaderView operator[](Height h) const { return getHeader(h - lower_height()).value(); }
     const Batch& getBatch() const { return view().getBatch(); }
     const Worksum total_work() const { return view().total_work(); }
@@ -166,6 +167,30 @@ inline const SharedBatch& SharedBatch::prev() const
     assert(valid());
     return data.iter->second.prev;
 }
+
+struct HeaderSearchRecursive {
+    HeaderSearchRecursive(const SharedBatch& sb, const Batch& b)
+        : psb(&sb)
+        , pb(&b)
+    {
+    }
+
+    std::optional<HeaderView> find_prev(NonzeroHeight h)
+    {
+        Height bStart { psb->upper_height() + 1 };
+        while (h <= psb->upper_height()) {
+            bStart = psb->lower_height();
+            pb = &psb->getBatch();
+            psb = &psb->prev();
+        }
+        assert(h >= bStart);
+        return pb->get_header(h - bStart);
+    }
+
+private:
+    const SharedBatch* psb;
+    const Batch* pb;
+};
 
 class BatchRegistry {
     friend class SharedBatch;

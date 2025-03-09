@@ -33,7 +33,7 @@ WSConnection::WSConnection(CreationToken, const WSBrowserConnectRequest& r, Emsc
                 } } });
 }
 
-void WSConnection::async_send(std::unique_ptr<char[]> data, size_t size)
+void WSConnection::send_impl(std::unique_ptr<char[]> data, size_t size)
 {
     emscriptenConnection.send_binary({ (uint8_t*)data.get(), size });
 }
@@ -68,7 +68,7 @@ void WSConnection::notify_closed(Error reason)
 {
     if (!closed) {
         closed = true;
-        ConnectionBase::on_close({ .error = reason });
+        ConnectionBase::on_close(reason);
     }
 }
 

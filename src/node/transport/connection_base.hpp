@@ -39,7 +39,7 @@ struct HandshakeState {
     uint8_t pos = 0;
     bool handshakesent = false;
     struct Parsed {
-        ProtocolVersion version;
+        NodeVersion version;
         std::optional<uint16_t> port;
     };
     Parsed parse(bool inboound);
@@ -49,6 +49,8 @@ struct AckState {
     AckState(HandshakeState::Parsed p)
         : handshakeData(std::move(p))
     {
+        if (!p.version.compatible()) 
+            throw Error(EVERSION);
     }
     HandshakeState::Parsed handshakeData;
 };
@@ -76,10 +78,16 @@ public:
         [[nodiscard]] ConnectionBase* base();
         [[nodiscard]] const ConnectionBase* base() const;
 #ifndef DISABLE_LIBUV
-        bool is_tcp() const { return std::holds_alternative<std::shared_ptr<TCPConnection>>(*this); }
+        bool is_tcp() const
+        {
+            return std::holds_alternative<std::shared_ptr<TCPConnection>>(*this);
+        }
         auto& get_tcp() { return std::get<std::shared_ptr<TCPConnection>>(*this); }
 #endif
-        bool is_rtc() const { return std::holds_alternative<std::shared_ptr<RTCConnection>>(*this); }
+        bool is_rtc() const
+        {
+            return std::holds_alternative<std::shared_ptr<RTCConnection>>(*this);
+        }
         auto& get_rtc() { return std::get<std::shared_ptr<RTCConnection>>(*this); }
         auto visit(auto lambda) const
         {
@@ -89,9 +97,6 @@ public:
         {
             return std::visit(lambda, *this);
         }
-    };
-    struct CloseState {
-        Error error;
     };
     // for inbound connections
     ConnectionBase();
@@ -111,7 +116,7 @@ public:
     virtual void close(Error) = 0;
     void send(Sndbuffer&& msg);
     [[nodiscard]] std::vector<Rcvbuffer> pop_messages();
-    [[nodiscard]] ProtocolVersion protocol_version() const;
+    [[nodiscard]] NodeVersion node_version() const;
 
     virtual std::shared_ptr<ConnectionBase> get_shared() = 0;
 
@@ -120,10 +125,11 @@ protected:
     virtual ConnectionVariant get_shared_variant() = 0;
     virtual std::weak_ptr<ConnectionBase> get_weak() = 0;
     virtual uint16_t listen_port() const = 0;
-    virtual void async_send(std::unique_ptr<char[]> data, size_t size) = 0;
+    virtual void send_impl(std::unique_ptr<char[]> data, size_t size) = 0;
+    void send_track_bytes(std::unique_ptr<char[]> data, size_t size);
 
     // callback methods called from transport implementation thread
-    void on_close(const CloseState& cs);
+    void on_close(Error);
     void on_message(std::span<uint8_t>);
     void on_connected();
     [[nodiscard]] uint16_t asserted_port() const;

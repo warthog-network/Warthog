@@ -43,6 +43,7 @@ public:
     }
     bool has_fork_data() const { return forkData.has_value(); }
     ConnectionData(const ConnectionData&) = delete;
+    ConnectionData(ConnectionData&&) = default;
     auto fork_range() const { return forkData.value().range(); }
     auto fork_iter() const { return forkData.value().iter(); }
     auto& descripted() const { return forkData.value().descripted(); }

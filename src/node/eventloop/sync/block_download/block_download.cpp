@@ -1,9 +1,6 @@
 #include "block_download.hpp"
-#include "../sync.hpp"
 #include "attorney.hpp"
 #include "block/body/view.hpp"
-#include "block/chain/binary_forksearch.hpp"
-#include "chainserver/server.hpp"
 #include "eventloop/address_manager/address_manager_impl.hpp"
 #include "eventloop/chain_cache.hpp"
 #include "eventloop/eventloop.hpp"
@@ -32,7 +29,7 @@ Downloader::Downloader(Attorney attorney, size_t windowLength)
 std::vector<ChainOffender> Downloader::handle_stage_result(stage_operation::StageAddStatus&& a)
 {
     auto offenders { stageState.on_result(a) };
-    if (a.ce)
+    if (a.ce.is_error())
         reset();
     return offenders;
 }
@@ -246,7 +243,7 @@ bool Downloader::can_do_requests()
         && reachable_length() >= focus.height_begin();
 }
 
-void Downloader::do_peer_requests(RequestSender s) // OK?
+void Downloader::do_block_requests(RequestSender s) // OK?
 {
     if (!can_do_requests() || s.finished())
         return;
@@ -265,8 +262,8 @@ void Downloader::do_peer_requests(RequestSender s) // OK?
 
         // found request
         auto& range { n->r };
-        if (forkIter->first <= range.upper)
-            forkIter = forks.lower_bound(range.upper + 1);
+        if (forkIter->first <= range.last())
+            forkIter = forks.lower_bound(range.last() + 1);
         while (true) {
             if (forkIter == forks.end())
                 return;
@@ -296,7 +293,7 @@ std::optional<stage_operation::Operation> Downloader::pop_stage()
     }
 }
 
-void Downloader::on_blockreq_reply(Conref cr, BlockrepMsg&& rep, Blockrequest& req)
+void Downloader::on_blockreq_reply(Conref cr, BlockrepMsg&& rep, BlockRequest& req)
 { // OK
     focus.erase(cr);
 
@@ -305,7 +302,7 @@ void Downloader::on_blockreq_reply(Conref cr, BlockrepMsg&& rep, Blockrequest& r
 
     if (rep.empty()) {
         if (!req.descripted->expired()) {
-            throw ChainError { EEMPTY, req.range().lower };
+            throw ChainError { EEMPTY, req.range().first() };
         } else {
             return;
         }
@@ -320,19 +317,19 @@ void Downloader::on_blockreq_reply(Conref cr, BlockrepMsg&& rep, Blockrequest& r
         throw Error(EINV_BLOCKREPSIZE);
 
     // discard old replies
-    if (req.range().upper < focus.height_begin())
+    if (req.range().last() < focus.height_begin())
         return;
 
     // check hash
-    if (headers().get_hash(req.range().upper) != req.upperHash)
+    if (headers().get_hash(req.range().last()) != req.upperHash)
         return;
 
     // check body structure and merkle roots
-    auto beginNewHeight { std::max(req.range().lower, focus.height_begin()) };
-    size_t i0 { beginNewHeight - req.range().lower };
+    auto beginNewHeight { std::max(req.range().first(), focus.height_begin()) };
+    size_t i0 { beginNewHeight - req.range().first() };
     std::vector<ParsedBlock> parsedBlocks;
     for (size_t i = i0; i < rep.block_bodies().size(); ++i) {
-        auto height { req.range().lower + i };
+        auto height { req.range().first() + i };
         auto header { headers()[height] };
         auto& body { rep.block_bodies()[i] };
         parsedBlocks.push_back(ParsedBlock::create_throw(height, header, std::move(body)));

@@ -1,7 +1,7 @@
 #pragma once
 #include "conndata.hpp"
 
-inline bool PeerState::erased()
+inline bool ConState::erased()
 {
     return this->c->eventloop_erased;
 }
