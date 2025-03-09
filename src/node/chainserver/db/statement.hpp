@@ -199,9 +199,10 @@ struct Statement2 : public SQLite::Statement {
         recursive_bind<i + 1>(std::forward<Types>(types)...);
     }
     template <typename... Types>
-    void bind_multiple(Types&&... types)
+    auto& bind_multiple(Types&&... types)
     {
         recursive_bind<1>(std::forward<Types>(types)...);
+        return *this;
     }
 
     template <typename... Types>

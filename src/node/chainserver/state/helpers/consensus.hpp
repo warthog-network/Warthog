@@ -45,7 +45,7 @@ struct Chainstate {
         HeaderVerifier::PreparedAppend prepared;
         TransactionIds&& newTxIds;
         HistoryId newHistoryOffset;
-        AccountId newAccountOffset;
+        uint64_t nextStateId;
     };
     Chainstate(const ChainDB& db, BatchRegistry& br);
 

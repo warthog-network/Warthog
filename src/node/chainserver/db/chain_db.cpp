@@ -20,16 +20,26 @@ enum METATYPES { MAXSTATE = 0 };
 
 ChainDB::Cache ChainDB::Cache::init(SQLite::Database& db)
 {
-    auto nextStateId = uint64_t(int64_t(db.execAndGet("SELECT COALESCE(0,value)+1 FROM Metadata WHERE key=" + std::to_string(METATYPES::MAXSTATE))));
+    auto get_uint64 {
+        [&db](const std::string& s) { return int64_t(db.execAndGet(s).getInt64()); }
+    };
+
+    auto nextStateId = get_uint64("SELECT COALESCE(0,value)+1 FROM Metadata WHERE key=" + std::to_string(METATYPES::MAXSTATE));
+
+    auto nextAccountId = AccountId(get_uint64("SELECT coalesce(max(ROWID),0) FROM `Accounts`"));
+    auto nextTokenId = TokenId(get_uint64("SELECT coalesce(max(ROWID),0) FROM `Tokens`"));
 
     int64_t hid = db.execAndGet("SELECT coalesce(max(id)+1,1) FROM History")
                       .getInt64();
     if (hid < 0)
         throw std::runtime_error("Database corrupted, negative history id.");
     return {
-        .nextStateId = nextStateId,
+        .nextAccountId{nextAccountId},
+        .nextTokenId{nextTokenId},
+        .nextStateId =nextStateId,
         .nextHistoryId = HistoryId { uint64_t(hid) },
         .deletionKey { 2 }
+
     };
 }
 
@@ -84,7 +94,7 @@ ChainDB::ChainDB(const std::string& path)
     , stmtTokenSelectForkHeight(db, "SELECT height FROM Tokens WHERE parent_id=? AND height>=? ORDER BY height DESC LIMIT 1")
     , stmtTokenLookup(db, "SELECT (height, owner_account_id, total_supply, group_id, parent_id, name, hash, data) FROM Tokens WHERE `id`=?")
     , stmtSelectBalanceId(db, "SELECT `account_id`, `token_id`, `balance` FROM `Balances` WHERE `id`=?")
-    , stmtTokenInsertBalance(db, "INSERT INTO `Balances` ( `token_id`, `account_id`, `balance`) VALUES (?,?,?)")
+    , stmtTokenInsertBalance(db, "INSERT INTO `Balances` ( id, `token_id`, `account_id`, `balance`) VALUES (?,?,?,?)")
     , stmtBalancePrune(db, "DELETE FROM Balances WHERE id>=?")
     , stmtTokenSelectBalance(db, "SELECT `id`, `balance` FROM `Balances` WHERE `token_id`=? AND `account_id`=?")
     , stmtAccountSelectTokens(db, "SELECT `token_id`, `balance` FROM `Balances` WHERE `account_id`=? LIMIT ?")
@@ -423,21 +433,19 @@ void ChainDB::insert_quote_order(OrderId oid, AccountId aid, TokenId tid, Funds 
     stmtInsertQuoteBuyOrder.run(oid, aid, tid, totalBase, filledBase, price);
 }
 
-OrderLoader ChainDB::base_order_loader(TokenId tid)
+OrderLoader ChainDB::base_order_loader(TokenId tid) const
 {
-    stmtSelectBaseSellOrderAsc.bind_multiple(tid);
-    return { stmtSelectBaseSellOrderAsc };
+    return { stmtSelectBaseSellOrderAsc.bind_multiple(tid) };
 }
 
-OrderLoader ChainDB::quote_order_loader(TokenId tid)
+OrderLoader ChainDB::quote_order_loader(TokenId tid) const
 {
-    stmtSelectQuoteBuyOrderDesc.bind_multiple(tid);
-    return { stmtSelectBaseSellOrderAsc };
+    return { stmtSelectQuoteBuyOrderDesc.bind_multiple(tid) };
 }
 
-void ChainDB::insert_consensus(NonzeroHeight height, BlockId blockId, HistoryId historyCursor, AccountId accountCursor)
+void ChainDB::insert_consensus(NonzeroHeight height, BlockId blockId, HistoryId historyCursor, uint64_t stateId)
 {
-    stmtConsensusInsert.run(height, blockId, historyCursor, accountCursor);
+    stmtConsensusInsert.run(height, blockId, historyCursor, stateId);
     stmtScheduleDelete2.run(blockId);
 }
 
@@ -501,10 +509,10 @@ std::optional<NonzeroHeight> ChainDB::get_latest_fork_height(TokenId tid, Height
     return NonzeroHeight { res[0] };
 }
 
-BalanceId ChainDB::insert_token_balance(TokenId tokenId, AccountId accountId, Funds balance)
+void ChainDB::insert_token_balance(AccountToken at, Funds balance)
 {
-    stmtTokenInsertBalance.run(cache.nextStateId, tokenId, accountId, balance);
-    return BalanceId(cache.nextStateId++);
+    stmtTokenInsertBalance.run(cache.nextStateId, at.token_id(), at.account_id(), balance);
+    cache.nextStateId++;
 }
 
 std::optional<std::pair<BalanceId, Funds>> ChainDB::get_balance(AccountToken at) const

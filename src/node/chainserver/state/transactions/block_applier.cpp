@@ -60,7 +60,7 @@ private:
     OrderLoader l;
 };
 
-void match(ChainDB& db, TokenId tid, defi::PoolLiquidity_uint64 p)
+void match(const ChainDB& db, TokenId tid, defi::PoolLiquidity_uint64 p)
 {
     OrderAggregator baseSellAggregator { db.base_order_loader(tid) };
     OrderAggregator quoteBuyAggregator { db.quote_order_loader(tid) };
@@ -86,13 +86,15 @@ void match(ChainDB& db, TokenId tid, defi::PoolLiquidity_uint64 p)
         for (auto& o : baseSellAggregator.orders()) {
             if (remaining == 0)
                 break;
-            auto a { std::min(remaining, o.remaining()) };
-            remaining.subtract_assert(a);
+            auto b { std::min(remaining, o.remaining()) };
+            remaining.subtract_assert(b);
 
             // compute return of that order
-            auto q { Prod128(a, returned.quote).divide_floor(m.filled.base.value()) };
+            auto q { Prod128(b, returned.quote).divide_floor(m.filled.base.value()) };
             assert(q.has_value());
             quoteDistributed.add_assert(*q);
+
+            // order swapped b -> q
         }
         assert(remaining == 0);
         returned.quote.subtract_assert(quoteDistributed);
@@ -103,13 +105,15 @@ void match(ChainDB& db, TokenId tid, defi::PoolLiquidity_uint64 p)
         for (auto& o : quoteBuyAggregator.orders()) {
             if (remaining == 0)
                 break;
-            auto a { std::min(remaining, o.remaining()) };
-            remaining.subtract_assert(a);
+            auto q { std::min(remaining, o.remaining()) };
+            remaining.subtract_assert(q);
 
             // compute return of that order
-            auto b { Prod128(a, returned.base).divide_floor(m.filled.quote.value()) };
+            auto b { Prod128(q, returned.base).divide_floor(m.filled.quote.value()) };
             assert(b.has_value());
             baseDistributed.add_assert(*b);
+
+            // order swapped q -> b
         }
         assert(remaining == 0);
         returned.base.subtract_assert(baseDistributed);
@@ -175,9 +179,9 @@ public:
         {
         }
     };
-    BalanceChecker(AccountId beginNewAccountId,
+    BalanceChecker(uint64_t nextStateId,
         const BodyView& bv, NonzeroHeight height, RewardArgument r)
-        : beginNewAccountId(beginNewAccountId)
+        : beginNewAccountId(nextStateId)
         , endNewAccountId(beginNewAccountId + bv.getNAddresses())
         , bv(bv)
         , newAccounts(endNewAccountId - beginNewAccountId)
@@ -278,6 +282,7 @@ public:
     auto& token_creations() const { return tokenCreations; }
     const std::vector<TransferInternal>& get_transfers() { return payments; };
     const auto& get_reward() { return reward; };
+    TokenId first_token_id() { return TokenId { endNewAccountId.value() }; }
 
 private:
     Funds totalfee { Funds::zero() };
@@ -371,23 +376,22 @@ struct HistoryEntries {
 
 namespace chainserver {
 struct Preparation {
+    HistoryEntries historyEntries;
+    RollbackGenerator rg;
     std::set<TransactionId> txset;
-    std::vector<std::pair<AccountId, Funds>> updateBalances;
-    std::vector<std::tuple<AddressView, Funds, AccountId>> insertBalances;
+    std::vector<std::tuple<BalanceId, AccountToken, Funds>> updateBalances;
+    std::vector<std::tuple<AccountToken, Funds>> insertBalances;
+    std::vector<std::tuple<AddressView, AccountId>> insertAccounts;
     std::vector<std::tuple<AccountToken, TokenName>> insertTokenCreations;
     std::optional<api::Block::Reward> apiReward;
     std::vector<api::Block::Transfer> apiTransfers;
     std::vector<api::Block::TokenCreation> apiTokenCreations;
-    HistoryEntries historyEntries;
-    RollbackGenerator rg;
-    Preparation(HistoryId nextHistoryId, AccountId beginNewAccountId, BalanceId beginNewBalanceId)
-        : historyEntries(nextHistoryId)
-        , rg(beginNewAccountId, beginNewBalanceId)
-    {
-    }
+    Preparation(const BlockApplier::Preparer& preparer, const ParsedBlock& b);
 };
 
-Preparation BlockApplier::Preparer::prepare(const BodyView& bv, const NonzeroHeight height) const
+Preparation::Preparation(const BlockApplier::Preparer& preparer, const ParsedBlock& b)
+    : historyEntries(preparer.db.next_history_id())
+    , rg(preparer.db.next_state_id())
 {
     // Things to do in this function
     // * check corrupted data (avoid read overflow) OK
@@ -397,13 +401,19 @@ Preparation BlockApplier::Preparer::prepare(const BodyView& bv, const NonzeroHei
     // * check every new address is indeed new OK
     // * check signatures OK
 
+    // abbreviations
+    const ChainDB& db { preparer.db };
+    const Headerchain& hc { preparer.hc };
+    auto& baseTxIds { preparer.baseTxIds };
+    auto& newTxIds { preparer.newTxIds };
+    auto bv { b.body.view() };
+    auto height { b.height };
+
     ////////////////////////////////////////////////////////////
     /// Read block sections
     ////////////////////////////////////////////////////////////
 
     // Read new address section
-    const AccountId beginNewAccountId = db.next_state_id(); // they start from this index
-    Preparation res(db.next_history_id(), beginNewAccountId);
 
     { // verify address policy
         std::set<AddressView> newAddresses;
@@ -423,7 +433,7 @@ Preparation BlockApplier::Preparer::prepare(const BodyView& bv, const NonzeroHei
             auto r { bv.reward() };
             Funds amount { r.amount_throw() };
             totalpayout.add_throw(amount);
-            return BalanceChecker { beginNewAccountId, bv, height, { r.account_id(), amount, r.offset } };
+            return BalanceChecker { db.next_state_id(), bv, height, { r.account_id(), amount, r.offset } };
         }()
     };
 
@@ -440,6 +450,13 @@ Preparation BlockApplier::Preparer::prepare(const BodyView& bv, const NonzeroHei
     ////////////////////////////////////////////////////////////
     /// Process block sections
     ////////////////////////////////////////////////////////////
+    auto process_new_balance { [this](auto tokenId, const auto& tokenFlow, auto accountId) {
+        if (tokenFlow.out() > Funds::zero()) // We do not allow resend of newly inserted balance
+            throw Error(EBALANCE); // insufficient balance
+        assert(tokenFlow.out().is_zero());
+        Funds balance = tokenFlow.in();
+        insertBalances.push_back({ { accountId, tokenId }, balance });
+    } };
 
     // loop through old accounts and
     // load previous balances and addresses from database
@@ -452,15 +469,15 @@ Preparation BlockApplier::Preparer::prepare(const BodyView& bv, const NonzeroHei
             for (auto& [tokenId, tokenFlow] : accountData.tokenFlow) {
                 if (auto p { db.get_balance({ accountId, tokenId }) }) {
                     const auto& [balanceId, balance] { *p };
-                    res.rg.register_balance(balanceId, balance);
+                    rg.register_balance(balanceId, balance);
+                    // check that balances are correct
+                    auto totalIn { Funds::sum_throw(tokenFlow.in(), balance) };
+                    Funds newbalance { Funds::diff_throw(totalIn, tokenFlow.out()) };
+                    updateBalances.push_back({ balanceId, { accountId, tokenId }, newbalance });
+                } else {
+                    process_new_balance(tokenId, tokenFlow, accountId);
                 }
             }
-
-            // check that balances are correct
-            auto& wartFlow { accountData.tokenFlow[TokenId::WART] };
-            auto totalIn { Funds::sum_throw(wartFlow.in(), balance) };
-            Funds newbalance { Funds::diff_throw(totalIn, wartFlow.out()) };
-            res.updateBalances.push_back(std::make_pair(accountId, newbalance));
         } else {
             throw Error(EINVACCOUNT); // invalid account id (not found in database)
         }
@@ -470,16 +487,18 @@ Preparation BlockApplier::Preparer::prepare(const BodyView& bv, const NonzeroHei
     const auto& newAccounts = balanceChecker.get_new_accounts();
     for (size_t i = 0; i < newAccounts.size(); ++i) {
         auto& acc = newAccounts[i];
-        if (acc.in().is_zero()) {
+        AccountId accountId = balanceChecker.get_account_id(i);
+        bool referred { false };
+        for (auto& [tokenId, tokenFlow] : acc.tokenFlow) {
+            if (!tokenFlow.in().is_zero())
+                referred = true;
+            process_new_balance(tokenId, tokenFlow, accountId);
+        }
+        if (!referred) {
             throw Error(EIDPOLICY); // id was not referred
         }
-        if (acc.out() > Funds::zero()) // Not (acc.out() > acc.in()) because we do not like chains of new accounts
-            throw Error(EBALANCE); // insufficient balance
-        assert(acc.out().is_zero());
-        Funds balance = acc.in();
         AddressView address = balanceChecker.get_new_address(i);
-        AccountId accountId = balanceChecker.get_account_id(i);
-        res.insertBalances.emplace_back(address, balance, accountId);
+        insertAccounts.push_back({ address, accountId });
     }
 
     // generate history for payments and check signatures
@@ -488,8 +507,8 @@ Preparation BlockApplier::Preparer::prepare(const BodyView& bv, const NonzeroHei
     { // reward
         auto& r { balanceChecker.get_reward() };
         assert(!r.toAddress.is_null());
-        auto& ref { res.historyEntries.push_reward(r) };
-        res.apiReward = api::Block::Reward {
+        auto& ref { historyEntries.push_reward(r) };
+        apiReward = api::Block::Reward {
             .txhash { ref.he.hash },
             .toAddress { r.toAddress },
             .amount { r.amount },
@@ -502,12 +521,12 @@ Preparation BlockApplier::Preparer::prepare(const BodyView& bv, const NonzeroHei
         TransactionId tid { verified.id };
 
         // check for duplicate txid (also within current block)
-        if (baseTxIds.contains(tid) || newTxIds.contains(tid) || res.txset.emplace(tid).second == false) {
+        if (baseTxIds.contains(tid) || newTxIds.contains(tid) || txset.emplace(tid).second == false) {
             throw Error(ENONCE);
         }
 
-        auto& ref { res.historyEntries.push_transfer(verified) };
-        res.apiTransfers.push_back({
+        auto& ref { historyEntries.push_transfer(verified) };
+        apiTransfers.push_back({
             .fromAddress { tr.fromAddress },
             .fee { tr.compactFee.uncompact() },
             .nonceId { tr.pinNonce.id },
@@ -523,8 +542,8 @@ Preparation BlockApplier::Preparer::prepare(const BodyView& bv, const NonzeroHei
         auto& tc { balanceChecker.token_creations()[i] };
         auto tokenId { beginNewTokenId + i };
         const auto verified { tc.verify(hc, height, tokenId) };
-        res.insertTokenCreations.push_back({ { tc.creatorAccountId, tokenId }, tc.tokenName });
-        res.apiTokenCreations.push_back(
+        insertTokenCreations.push_back({ { tc.creatorAccountId, tokenId }, tc.tokenName });
+        apiTokenCreations.push_back(
             {
                 .creatorAddress { verified.tci.creatorAddress },
                 .nonceId { verified.tci.pinNonce.id },
@@ -537,13 +556,16 @@ Preparation BlockApplier::Preparer::prepare(const BodyView& bv, const NonzeroHei
 
     if (totalpayout > Funds::sum_throw(height.reward(), balanceChecker.getTotalFee()))
         throw Error(EBALANCE);
+}
 
-    return res;
+Preparation BlockApplier::Preparer::prepare(const ParsedBlock& b) const
+{
+    return Preparation(db, hc, baseTxIds, b);
 }
 
 api::Block BlockApplier::apply_block(const ParsedBlock& b, BlockId blockId)
 {
-    auto prepared { preparer.prepare(b.body_view(), b.height) }; // call const function
+    auto prepared { preparer.prepare(b) }; // call const function
 
     // ABOVE NO DB MODIFICATIONS
     //////////////////////////////
@@ -556,34 +578,36 @@ api::Block BlockApplier::apply_block(const ParsedBlock& b, BlockId blockId)
         preparer.newTxIds.merge(std::move(prepared.txset));
 
         // create new pools
+        // create new tokens
 
         // update old balances
-        for (auto& [accId, bal] : prepared.updateBalances) {
-            db.set_balance(accId, bal);
-            balanceUpdates.insert_or_assign(accId, bal);
+        for (auto& [balId, accountToken, bal] : prepared.updateBalances) {
+            db.set_balance(balId, bal);
+            balanceUpdates.insert_or_assign(accountToken, bal);
         }
 
-        // insert new balances
-        for (auto& [addr, bal, accId] : prepared.insertBalances) {
-            db.insert_account(addr, bal, accId);
-            balanceUpdates.insert_or_assign(accId, bal);
-        }
+        // new accounts
+        for (auto& [address, accId] : prepared.insertAccounts)
+            db.insert_account(address, accId);
 
         // insert token creations
-        for (auto& [tokenId, creatorId, tokenName] : prepared.insertTokenCreations) {
-            db.insert_new_token(tokenId, height, creatorId, tokenName, TokenMintType::Ownall);
-            db.insert_token_balance({ creatorId, tokenId }, DefaultTokenSupply);
+        for (auto& [at, tokenName] : prepared.insertTokenCreations)
+            db.insert_new_token(at.token_id(), b.height, at.account_id(), tokenName, TokenMintType::Ownall);
+
+        // insert new balances
+        for (auto& [at, bal] : prepared.insertBalances) {
+            db.insert_token_balance(at, bal);
+            balanceUpdates.insert_or_assign(at, bal);
         }
 
         // write undo data
         db.set_block_undo(blockId, prepared.rg.serialze());
 
         // write consensus data
-        db.insert_consensus(height, blockId, db.next_history_id(), prepared.rg.begin_new_accounts());
+        db.insert_consensus(b.height, blockId, db.next_history_id(), prepared.rg.next_state_id());
 
         prepared.historyEntries.write(db);
-        api::Block b(hv, height, 0, std::move(prepared.apiReward), std::move(prepared.apiTransfers));
-        return b;
+        return api::Block(b.header, b.height, 0, std::move(prepared.apiReward), std::move(prepared.apiTransfers));
     } catch (Error e) {
         throw std::runtime_error(std::string("Unexpected exception: ") + __PRETTY_FUNCTION__ + ":" + e.strerror());
     }

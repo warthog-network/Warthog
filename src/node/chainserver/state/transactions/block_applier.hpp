@@ -22,12 +22,13 @@ struct BlockApplier {
     [[nodiscard]] api::Block apply_block(const ParsedBlock& bv, BlockId blockId);
 
 private: // private methods
+    friend struct Preparation;
     struct Preparer {
         const ChainDB& db; // preparer cannot modify db!
         const Headerchain& hc;
         const std::set<TransactionId, ByPinHeight>& baseTxIds;
         TransactionIds newTxIds;
-        Preparation prepare(const BodyView& bv, const NonzeroHeight height) const;
+        Preparation prepare(const ParsedBlock&) const;
     };
 
 private: // private data

@@ -585,7 +585,7 @@ auto State::append_mined_block(const ParsedBlock& b) -> StateUpdateWithAPIBlocks
     if (chainlength() + 1 != b.height)
         throw Error(EBADHEIGHT);
 
-    const auto nextAccountId { db.next_state_id() };
+    const auto nextStateId { db.next_state_id() };
     const auto nextHistoryId { db.next_history_id() };
 
     // do db transaction for new block
@@ -609,7 +609,7 @@ auto State::append_mined_block(const ParsedBlock& b) -> StateUpdateWithAPIBlocks
         .prepared { prepared.value() },
         .newTxIds { e.move_new_txids() },
         .newHistoryOffset { nextHistoryId },
-        .newAccountOffset { nextAccountId } });
+        .nextStateId = nextStateId });
     ul.unlock();
 
     return { .update {

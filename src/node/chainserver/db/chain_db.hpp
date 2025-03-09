@@ -1,6 +1,5 @@
 #pragma once
 
-#include "SQLiteCpp/SQLiteCpp.h"
 #include "api/types/forward_declarations.hpp"
 #include "block/block.hpp"
 #include "block/body/order_id.hpp"
@@ -72,7 +71,7 @@ public:
 
     void delete_state_from(uint64_t fromStateId);
     // void setStateBalance(AccountId accountId, Funds balance);
-    void insert_consensus(NonzeroHeight height, BlockId blockId, HistoryId historyCursor, AccountId accountCursor);
+    void insert_consensus(NonzeroHeight height, BlockId blockId, HistoryId historyCursor, uint64_t stateId);
 
     std::tuple<std::vector<Batch>, HistoryHeights, AccountHeights>
     getConsensusHeaders() const;
@@ -120,8 +119,8 @@ public:
     void insert_buy_order(OrderId id, AccountId, TokenId, Funds totalBase, Funds filledBase, Price_uint64 price);
     void insert_quote_order(OrderId id, AccountId, TokenId, Funds totalQuote, Funds filledQuote, Price_uint64 price);
 
-    OrderLoader base_order_loader(TokenId);
-    OrderLoader quote_order_loader(TokenId);
+    OrderLoader base_order_loader(TokenId) const;
+    OrderLoader quote_order_loader(TokenId) const;
 
     /////////////////////
     // Account functions
@@ -150,7 +149,7 @@ public:
     [[nodiscard]] std::optional<std::pair<BalanceId, Funds>> get_balance(AccountToken) const;
     [[nodiscard]] std::optional<TokenInfo> lookup_token(TokenId id) const;
     [[nodiscard]] TokenInfo fetch_token(TokenId id) const;
-    [[nodiscard]] BalanceId insert_token_balance(TokenId, AccountId, Funds balance);
+    void insert_token_balance(AccountToken, Funds balance);
     void set_balance(BalanceId, Funds balance);
     std::vector<std::pair<TokenId, Funds>> get_tokens(AccountId, size_t limit);
     [[nodiscard]] api::Richlist lookup_richlist(TokenId, size_t limit) const;
@@ -177,13 +176,9 @@ public:
     // set
     void insert_bad_block(NonzeroHeight height, const HeaderView header);
 
-    AccountId next_state_id() const
+    auto next_state_id() const
     {
-        return AccountId(cache.nextStateId);
-    };
-    TokenId next_token_id() const
-    {
-        return TokenId(cache.nextStateId);
+        return cache.nextStateId;
     };
     HistoryId insertHistory(const HashView hash,
         const std::vector<uint8_t>& data);
@@ -378,7 +373,9 @@ private:
         }
     } createTables;
     struct Cache {
-        uint64_t nextStateId;
+        AccountId nextAccountId;
+        TokenId nextTokenId;
+        uint64_t nextStateId; // incremental id for tables other than Accounts and Tokens
         HistoryId nextHistoryId;
         DeletionKey deletionKey;
         static Cache init(SQLite::Database& db);

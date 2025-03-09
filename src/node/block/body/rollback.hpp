@@ -41,46 +41,50 @@ private:
 
 class RollbackGenerator {
 public:
-    RollbackGenerator(AccountId beginNewAccounts, BalanceId beginNewBalance, TokenId beginNewTokens)
-        : beginNewAccounts(beginNewAccounts)
-        , beginNewBalance(beginNewBalance)
-        , beginNewTokens(beginNewTokens)
+    RollbackGenerator(
+        AccountId nextAccountId,
+        TokenId nextTokenId,
+        uint64_t cursor)
+        : nextAccountId(nextAccountId)
+        , nextTokenId(nextTokenId)
+        , cursor(cursor)
     {
     }
+
     void register_balance(BalanceId balanceId, Funds originalBalance)
     {
-        if (balanceId >= beginNewBalance)
+        if (balanceId.value() >= cursor)
             return;
         assert(originalBalances.insert_or_assign(balanceId, originalBalance).second);
     }
     std::vector<uint8_t> serialze()
     {
 
-        static_assert(std::is_base_of_v<IsUint64, decltype(beginNewAccounts)>);
-        static_assert(std::is_base_of_v<IsUint64, decltype(beginNewBalance)>);
-        static_assert(std::is_base_of_v<IsUint32, decltype(beginNewTokens)>); // 4 bytes
+        constexpr size_t cursorSizes {
+            AccountId::byte_size()
+            + TokenId::byte_size()
+            + 8
+        };
         constexpr size_t size_per_balance {
             BalanceId::byte_size()
             + Funds::byte_size()
         };
-        size_t bytesize = beginNewAccounts.byte_size()
-            + beginNewBalance.byte_size()
-            + beginNewTokens.byte_size()
-            + size_per_balance * originalBalances.size();
+        size_t bytesize = cursorSizes + size_per_balance * originalBalances.size();
         std::vector<uint8_t> res(bytesize);
         Writer w(res.data(), res.size());
-        w << beginNewAccounts << beginNewBalance << beginNewTokens;
-        for (auto& [balanceId, balance] : originalBalances) {
+        w << nextAccountId << nextTokenId << cursor;
+        for (auto& [balanceId, balance] : originalBalances)
             w << balanceId << balance;
-        }
         return res;
     }
 
-    AccountId begin_new_accounts() const { return beginNewAccounts; };
+    auto next_state_id() const { return cursor; };
+    auto next_account_id() const { return nextAccountId; };
+    auto next_token_id() const { return nextTokenId; };
 
 private:
+    AccountId nextAccountId;
+    TokenId nextTokenId;
+    uint64_t cursor;
     std::map<BalanceId, Funds> originalBalances;
-    const AccountId beginNewAccounts;
-    const BalanceId beginNewBalance;
-    const TokenId beginNewTokens;
 };
