@@ -73,7 +73,7 @@ inline Column Row::operator[](int index) const
 }
 
 template <typename T>
-inline T Row::get(int index)
+inline T Row::get(int index) const
 {
     return operator[](index);
 }
@@ -188,6 +188,7 @@ void Statement::for_each(Lambda lambda, Types&&... types)
     }
     reset();
 }
+
 
 // template <typename... Types>
 // auto Statement::loop(Types&&... types)

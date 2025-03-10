@@ -30,7 +30,7 @@ public:
     friend class RunningStatement;
     Column operator[](int index) const;
     template <typename T>
-    T get(int index);
+    T get(int index) const;
     template <size_t N>
     std::array<uint8_t, N> get_array(int index) const;
     std::vector<uint8_t> get_vector(int index) const;
@@ -85,6 +85,21 @@ public:
 
     template <typename... Types, typename Lambda>
     void for_each(Lambda lambda, Types&&... types);
+
+    template <typename... Types, typename Lambda>
+    [[nodiscard]] auto all(Lambda lambda, Types&&... types)
+    {
+        using ret_t = decltype(lambda(next_row()));
+        std::vector<ret_t> res;
+        for_each([&](const auto& row) {
+            res.push_back(lambda(row));
+        },
+            types...);
+        return res;
+    }
+
+    template <typename... Types, typename Lambda>
+    auto make_vector(Lambda lambda, Types&&... types);
 
     template <typename... Types>
     auto loop(Types&&... types);

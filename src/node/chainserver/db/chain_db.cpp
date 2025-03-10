@@ -1,10 +1,10 @@
 #include "chain_db.hpp"
 #include "api/types/all.hpp"
-#include "db/sqlite.hpp"
 #include "block/body/parse.hpp"
 #include "block/chain/header_chain.hpp"
 #include "block/header/header_impl.hpp"
 #include "block/header/view_inline.hpp"
+#include "db/sqlite.hpp"
 #include "defi/token/account_token.hpp"
 #include "defi/token/info.hpp"
 #include "defi/token/token.hpp"
@@ -22,23 +22,23 @@ enum METATYPES { MAXSTATE = 0 };
 using namespace std::string_literals;
 ChainDB::Cache ChainDB::Cache::init(SQLite::Database& db)
 {
-    auto get_uint64 {
+    auto get_int64 {
         [&db](const std::string& s) { return int64_t(db.execAndGet(s).getInt64()); }
     };
 
-    auto nextStateId = get_uint64("SELECT COALESCE(0,value)+1 FROM Metadata WHERE key=" + std::to_string(METATYPES::MAXSTATE));
+    auto nextStateId = get_int64("SELECT COALESCE(0,value)+1 FROM Metadata WHERE key=" + std::to_string(METATYPES::MAXSTATE));
 
-    auto nextAccountId = AccountId(get_uint64("SELECT coalesce(max(ROWID),0) FROM `Accounts`"));
-    auto nextTokenId = TokenId(get_uint64("SELECT coalesce(max(ROWID),0) FROM `Tokens`"));
+    auto nextAccountId = AccountId(get_int64("SELECT coalesce(max(ROWID),0) FROM `Accounts`"));
+    auto nextTokenId = TokenId(get_int64("SELECT coalesce(max(ROWID),0) FROM `Tokens`"));
 
     int64_t hid = db.execAndGet("SELECT coalesce(max(id)+1,1) FROM History")
                       .getInt64();
     if (hid < 0)
         throw std::runtime_error("Database corrupted, negative history id.");
     return {
-        .nextAccountId{nextAccountId},
-        .nextTokenId{nextTokenId},
-        .nextStateId =nextStateId,
+        .nextAccountId { nextAccountId },
+        .nextTokenId { nextTokenId },
+        .nextStateId = uint64_t(nextStateId),
         .nextHistoryId = HistoryId { uint64_t(hid) },
         .deletionKey { 2 }
 
@@ -236,11 +236,10 @@ void ChainDB::set_signed_snapshot(const SignedSnapshot& ss)
 
 std::vector<BlockId> ChainDB::consensus_block_ids(HeightRange range) const
 {
-    std::vector<BlockId> out;
-    stmtConsensusSelectRange.for_each([&](sqlite::Row& r) {
-        out.push_back(r[0]);
+    auto out { stmtConsensusSelectRange.all([&](const sqlite::Row& r) {
+        return BlockId { r[0] };
     },
-        range.hbegin, range.hend);
+        range.hbegin, range.hend) };
     if (out.size() != range.hend - range.hbegin)
         throw std::runtime_error("Cannot find block ids in database: " + std::to_string(range.hbegin.value()) + "-" + std::to_string(range.hend.value()));
     return out;
@@ -366,7 +365,7 @@ void ChainDB::insert_candles_5m(TokenId tid, const Candle& c)
 
 std::optional<Candle> ChainDB::select_candle_5m(TokenId tid, Timestamp ts)
 {
-    stmtSelectCandles5m.one(tid, ts, ts).process([](auto& o) {
+    return stmtSelectCandles5m.one(tid, ts, ts).process([](auto& o) {
         return Candle {
             .timestamp { o[0] },
             .open { o[1] },
@@ -381,17 +380,19 @@ std::optional<Candle> ChainDB::select_candle_5m(TokenId tid, Timestamp ts)
 
 std::vector<Candle> ChainDB::select_candles_5m(TokenId tid, Timestamp from, Timestamp to)
 {
-    stmtSelectCandles5m.for_each(tid, from, to, [](auto& o) {
-        return Candle {
-            .timestamp { o[0] },
-            .open { o[1] },
-            .high { o[2] },
-            .low { o[3] },
-            .close { o[4] },
-            .quantity { o[5] },
-            .volume { o[6] },
-        };
-    });
+    return stmtSelectCandles5m.all(
+        [](const auto& o) {
+            return Candle {
+                .timestamp { o[0] },
+                .open { o[1] },
+                .high { o[2] },
+                .low { o[3] },
+                .close { o[4] },
+                .quantity { o[5] },
+                .volume { o[6] },
+            };
+        },
+        tid, from, to);
 }
 
 void ChainDB::insert_candles_1h(TokenId tid, const Candle& c)
@@ -401,7 +402,7 @@ void ChainDB::insert_candles_1h(TokenId tid, const Candle& c)
 
 std::optional<Candle> ChainDB::select_candle_1h(TokenId tid, Timestamp ts)
 {
-    stmtSelectCandles1h.one(tid, ts, ts).process([](auto& o) {
+    return stmtSelectCandles1h.one(tid, ts, ts).process([](auto& o) {
         return Candle {
             .timestamp { o[0] },
             .open { o[1] },
@@ -416,7 +417,7 @@ std::optional<Candle> ChainDB::select_candle_1h(TokenId tid, Timestamp ts)
 
 std::vector<Candle> ChainDB::select_candles_1h(TokenId tid, Timestamp from, Timestamp to)
 {
-    stmtSelectCandles1h.for_each(tid, from, to, [](auto& o) {
+    return stmtSelectCandles1h.all([](const auto& o) {
         return Candle {
             .timestamp { o[0] },
             .open { o[1] },
@@ -426,7 +427,8 @@ std::vector<Candle> ChainDB::select_candles_1h(TokenId tid, Timestamp from, Time
             .quantity { o[5] },
             .volume { o[6] },
         };
-    });
+    },
+        tid, from, to);
 }
 
 void ChainDB::insert_buy_order(OrderId oid, AccountId aid, TokenId tid, Funds totalBase, Funds filledBase, Price_uint64 price)
@@ -481,13 +483,13 @@ void ChainDB::insert_token_fork_balance(TokenForkBalanceId id, TokenId tokenId, 
     stmtTokenForkBalanceInsert.run(id, tokenId, forkId, balance);
 }
 
-bool ChainDB::fork_balance_exists(AccountToken at, NonzeroHeight h)
-{
-    return stmtTokenForkBalanceEntryExists.one(at.account_id(), at.token_id(), h)
-        .process([](auto& o) {
-            return o.has_value();
-        });
-}
+// bool ChainDB::fork_balance_exists(AccountToken at, NonzeroHeight h)
+// {
+//     return stmtTokenForkBalanceEntryExists.one(at.account_id(), at.token_id(), h)
+//         .process([](auto& o) {
+//             return o.has_value();
+//         });
+// }
 
 std::optional<std::pair<NonzeroHeight, Funds>> ChainDB::get_balance_snapshot_after(TokenId tokenId, NonzeroHeight minHegiht)
 {
@@ -530,12 +532,10 @@ std::optional<std::pair<BalanceId, Funds>> ChainDB::get_balance(AccountToken at)
 
 std::vector<std::pair<TokenId, Funds>> ChainDB::get_tokens(AccountId accountId, size_t limit)
 {
-    std::vector<std::pair<TokenId, Funds>> res;
-    stmtAccountSelectTokens.for_each([&](sqlite::Row& r) {
-        res.push_back({ r.get<TokenId>(0), r.get<Funds>(1) });
+    return stmtAccountSelectTokens.all([&](const sqlite::Row& r) {
+        return std::pair { TokenId { r[0] }, Funds { r[1] } };
     },
         accountId, limit);
-    return res;
 }
 
 void ChainDB::set_balance(BalanceId id, Funds balance)
@@ -557,7 +557,6 @@ std::tuple<std::vector<Batch>, HistoryHeights, AccountHeights> ChainDB::getConse
 {
     uint32_t h = 1;
     std::vector<Batch> batches;
-    ;
     HistoryHeights historyHeights;
     AccountHeights accountHeights;
     Batch b;
@@ -591,11 +590,9 @@ void ChainDB::insert_bad_block(NonzeroHeight height,
 std::vector<std::pair<Height, Header>>
 ChainDB::getBadblocks() const
 {
-    std::vector<std::pair<Height, Header>> res;
-    stmtBadblockGet.for_each([&](sqlite::Row& r) {
-        res.push_back({ r[0], r[1] });
+    return stmtBadblockGet.all([&](const sqlite::Row& r) {
+        return std::pair<Height, Header> { r[0], r[1] };
     });
-    return res;
 }
 
 HistoryId ChainDB::insertHistory(const HashView hash,
@@ -618,8 +615,7 @@ std::optional<std::pair<std::vector<uint8_t>, HistoryId>> ChainDB::lookup_histor
 {
     return stmtHistoryLookup.one(hash).process([](auto& o) {
         return std::pair<std::vector<uint8_t>, HistoryId> {
-            o[1],
-            o[0]
+            o[1], o[0]
         };
     });
 }
@@ -629,16 +625,14 @@ size_t ChainDB::byte_size() const
     return stmtGetDBSize.one().get<int64_t>(0);
 }
 
-std::vector<std::pair<Hash, std::vector<uint8_t>>> ChainDB::lookupHistoryRange(HistoryId lower, HistoryId upper)
+std::vector<std::pair<Hash, std::vector<uint8_t>>> ChainDB::lookup_history_range(HistoryId lower, HistoryId upper)
 {
-    std::vector<std::pair<Hash, std::vector<uint8_t>>> out;
     int64_t l = lower.value();
     int64_t u = (upper == HistoryId { 0 } ? std::numeric_limits<int64_t>::max() : upper.value());
-    stmtHistoryLookupRange.for_each([&](sqlite::Row& r) {
-        out.push_back({ r[0], r[1] });
+    return stmtHistoryLookupRange.all([&](const sqlite::Row& r) {
+        return std::pair<Hash, std::vector<uint8_t>> { r[0], r[1] };
     },
         l, u);
-    return out;
 }
 
 void ChainDB::insertAccountHistory(AccountId accountId, HistoryId historyId)
@@ -656,13 +650,12 @@ std::optional<AccountFunds> ChainDB::lookup_address(const AddressView address) c
 std::vector<std::tuple<HistoryId, Hash, std::vector<uint8_t>>> ChainDB::lookup_history_100_desc(
     AccountId accountId, int64_t beforeId)
 {
-    std::vector<std::tuple<HistoryId, Hash, std::vector<uint8_t>>> out;
-    stmtHistoryById.for_each(
-        [&](sqlite::Row& row) {
-            out.push_back({ row[0], row[1], row[2] });
+    return stmtHistoryById.all(
+        [&](const sqlite::Row& row) {
+            return std::tuple<HistoryId, Hash, std::vector<uint8_t>>(
+                { row[0], row[1], row[2] });
         },
         accountId, beforeId);
-    return out;
 }
 
 std::optional<Address> ChainDB::lookup_address(AccountId id) const

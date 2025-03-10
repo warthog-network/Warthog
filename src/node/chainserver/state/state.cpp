@@ -112,7 +112,7 @@ std::optional<api::Block> State::api_get_block(Height zh) const
     auto lower = chainstate.historyOffset(h);
     auto upper = (h == chainlength() ? HistoryId { 0 }
                                      : chainstate.historyOffset(h + 1));
-    auto entries = db.lookupHistoryRange(lower, upper);
+    auto entries = db.lookup_history_range(lower, upper);
     auto header = chainstate.headers()[h];
     api::Block b(header, h, chainlength() - h + 1);
 
@@ -204,7 +204,7 @@ auto State::api_get_miner(NonzeroHeight h) const -> std::optional<api::AddressWi
     if (chainlength() < h)
         return {};
     auto offset { chainstate.historyOffset(h) };
-    auto lookup { db.lookupHistoryRange(offset, offset + 1) };
+    auto lookup { db.lookup_history_range(offset, offset + 1) };
     assert(lookup.size() == 1);
 
     auto parsed = history::parse_throw(lookup[0].second);
@@ -237,7 +237,7 @@ auto State::api_get_transaction_range(HistoryId lower, HistoryId upper) const ->
     api::TransactionsByBlocks res { .fromId { lower }, .blocks_reversed {} };
     if (upper.value() == 0)
         return res;
-    auto lookup { db.lookupHistoryRange(lower, upper) };
+    auto lookup { db.lookup_history_range(lower, upper) };
     assert(lookup.size() == upper - lower);
     if (chainlength() != 0) {
         chainserver::DBCache cache(db);

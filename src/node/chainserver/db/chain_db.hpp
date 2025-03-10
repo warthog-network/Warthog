@@ -139,7 +139,7 @@ public:
     /////////////////////
     // Token fork balance functions
     void insert_token_fork_balance(TokenForkBalanceId, TokenId, TokenForkId, Funds);
-    bool fork_balance_exists(AccountToken, NonzeroHeight);
+    // bool fork_balance_exists(AccountToken, NonzeroHeight);
     std::optional<std::pair<NonzeroHeight, Funds>> get_balance_snapshot_after(TokenId tokenId, NonzeroHeight minHeight);
 
     /////////////////////
@@ -184,7 +184,7 @@ public:
     std::optional<std::pair<std::vector<uint8_t>, HistoryId>> lookup_history(const HashView hash);
 
     std::vector<std::pair<Hash, std::vector<uint8_t>>>
-    lookupHistoryRange(HistoryId lower, HistoryId upper);
+    lookup_history_range(HistoryId lower, HistoryId upper);
     void insertAccountHistory(AccountId accountId, HistoryId historyId);
     HistoryId next_history_id() const
     {
@@ -393,11 +393,9 @@ private:
     // Candles statements
     Statement stmtPruneCandles5m;
     Statement stmtInsertCandles5m;
-    Statement stmtUpdateCandles5m;
     Statement stmtSelectCandles5m;
     Statement stmtPruneCandles1h;
     Statement stmtInsertCandles1h;
-    Statement stmtUpdateCandles1h;
     Statement stmtSelectCandles1h;
 
     // Orders statements
