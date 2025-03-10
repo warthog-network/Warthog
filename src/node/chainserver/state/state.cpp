@@ -327,7 +327,7 @@ tl::expected<ChainMiningTask, Error> State::mining_task(const Address& a, bool d
                 payments = chainstate.mempool().get_payments(400, height);
             }
 
-            Funds totalfee { Funds::zero() };
+            Funds_uint64 totalfee { Funds_uint64::zero() };
             for (auto& p : payments)
                 totalfee.add_assert(p.fee()); // assert because
             // fee sum is < sum of mempool payers' balances
@@ -464,7 +464,7 @@ namespace {
         const AccountId oldAccountStart;
         const TokenId oldTokenStart;
 
-        std::map<AccountToken, Funds> balanceMap;
+        std::map<AccountToken, Funds_uint64> balanceMap;
         std::vector<TransferTxExchangeMessage> toMempool;
         std::optional<BalanceId> oldBalanceStart;
 
@@ -513,7 +513,7 @@ namespace {
             RollbackView rbv(d.rawUndo, true);
             rbv.foreach_balance_update(
                 [&](const AccountTokenBalance& entry) {
-                    const Funds& bal { entry.balance };
+                    const Funds_uint64& bal { entry.balance };
                     const BalanceId& id { entry.id };
                     auto b { db.get_token_balance(id) };
                     if (!b.has_value())
@@ -715,7 +715,7 @@ api::Balance State::api_get_address(AddressView address) const
     } else {
         return api::Balance {
             {},
-            Funds { Funds::zero() }
+            Funds_uint64 { Funds_uint64::zero() }
         };
     }
 }
@@ -732,7 +732,7 @@ api::Balance State::api_get_address(AccountId accountId) const
     } else {
         return api::Balance {
             {},
-            Funds { Funds::zero() }
+            Funds_uint64 { Funds_uint64::zero() }
         };
     }
 }

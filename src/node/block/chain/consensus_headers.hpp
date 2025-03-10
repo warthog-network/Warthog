@@ -4,7 +4,7 @@
 #include "expected.hpp"
 
 struct MiningData {
-    Funds reward;
+    Funds_uint64 reward;
     Hash prevhash;
     Target target;
     uint32_t timestamp;

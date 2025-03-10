@@ -8,7 +8,7 @@
 
 struct BalanceIdFunds {
     BalanceId id;
-    Funds balance;
+    Funds_uint64 balance;
 };
 
 class RollbackView {
@@ -31,7 +31,7 @@ public:
             lambda(
                 BalanceIdFunds {
                     .id { readuint64(pos) },
-                    .balance { Funds::from_value_throw(readuint64(pos + 8)) } });
+                    .balance { Funds_uint64::from_value_throw(readuint64(pos + 8)) } });
             pos += 16;
         }
     }
@@ -49,7 +49,7 @@ public:
     {
     }
 
-    void register_balance(BalanceId balanceId, Funds originalBalance)
+    void register_balance(BalanceId balanceId, Funds_uint64 originalBalance)
     {
         if (balanceId.value() >= nextStateId)
             return;
@@ -65,7 +65,7 @@ public:
         };
         constexpr size_t size_per_balance {
             BalanceId::byte_size()
-            + Funds::byte_size()
+            + Funds_uint64::byte_size()
         };
         size_t bytesize = cursorSizes + size_per_balance * originalBalances.size();
         std::vector<uint8_t> res(bytesize);
@@ -84,5 +84,5 @@ private:
     AccountId nextAccountId;
     TokenId nextTokenId;
     uint64_t nextStateId;
-    std::map<BalanceId, Funds> originalBalances;
+    std::map<BalanceId, Funds_uint64> originalBalances;
 };

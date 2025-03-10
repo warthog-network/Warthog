@@ -54,7 +54,7 @@ std::pair<PinHeight, Hash> Endpoint::get_pin()
     throw std::runtime_error("API request failed, response is malformed. Is the node version compatible with this wallet?");
 }
 
-Funds Endpoint::get_balance(const std::string& account)
+Funds_uint64 Endpoint::get_balance(const std::string& account)
 {
     std::string out;
     std::string url = "/account/" + account + "/balance";
@@ -62,7 +62,7 @@ Funds Endpoint::get_balance(const std::string& account)
         throw failed_msg();
     }
     json parsed = json::parse(out);
-    auto r { Funds::parse(parsed["data"]["balance"].get<string>()) };
+    auto r { Funds_uint64::parse(parsed["data"]["balance"].get<string>()) };
     if (r) {
         return *r;
     }

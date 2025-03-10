@@ -30,8 +30,8 @@ public:
     friend Writer& operator<<(Writer&, TransferTxExchangeMessage);
     [[nodiscard]] TxHash txhash(HashView pinHash) const;
     [[nodiscard]] Address from_address(HashView txHash) const;
-    [[nodiscard]] Funds spend_throw() const { return Funds::sum_throw(fee(), amount); }
-    Funds fee() const { return compactFee.uncompact(); }
+    [[nodiscard]] Funds_uint64 spend_throw() const { return Funds_uint64::sum_throw(fee(), amount); }
+    Funds_uint64 fee() const { return compactFee.uncompact(); }
     AccountId from_id() const { return txid.accountId; }
     PinHeight pin_height() const { return txid.pinHeight; }
     NonceId nonce_id() const { return txid.nonceId; }
@@ -40,7 +40,7 @@ public:
     NonceReserved reserved;
     CompactUInt compactFee;
     Address toAddr;
-    Funds amount;
+    Funds_uint64 amount;
     RecoverableSignature signature;
 };
 
@@ -57,8 +57,8 @@ public:
     friend Writer& operator<<(Writer&, TransferDefiMessage);
     [[nodiscard]] TxHash txhash(HashView pinHash) const;
     [[nodiscard]] Address from_address(HashView txHash) const;
-    [[nodiscard]] Funds spend_throw() const { return Funds::sum_throw(fee(), amount); }
-    Funds fee() const { return compactFee.uncompact(); }
+    [[nodiscard]] Funds_uint64 spend_throw() const { return Funds_uint64::sum_throw(fee(), amount); }
+    Funds_uint64 fee() const { return compactFee.uncompact(); }
     AccountId from_id() const { return txid.accountId; }
     PinHeight pin_height() const { return txid.pinHeight; }
     NonceId nonce_id() const { return txid.nonceId; }
@@ -68,6 +68,6 @@ public:
     CompactUInt compactFee;
     TokenHash tokenHash;
     Address toAddr;
-    Funds amount;
+    Funds_uint64 amount;
     RecoverableSignature signature;
 };

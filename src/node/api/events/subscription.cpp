@@ -46,7 +46,7 @@ namespace events {
         json to_json(const AccountState a)
         {
             json arr((json::array_t()));
-            Funds balance { [&]() {
+            Funds_uint64 balance { [&]() {
                 if (a.history) {
                     for (auto& b : std::ranges::reverse_view(a.history->blocks_reversed)) {
                         arr.push_back(jsonmsg::to_json(b));

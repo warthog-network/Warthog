@@ -201,7 +201,7 @@ public:
     WartTransferView get_transfer(size_t i) const;
     TokenCreationView get_new_token(size_t i) const;
     RewardView reward() const;
-    Funds fee_sum_assert() const;
+    Funds_uint64 fee_sum_assert() const;
     AddressView get_address(size_t i) const;
 
 private:

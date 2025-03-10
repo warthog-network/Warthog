@@ -6,14 +6,14 @@ class Writer;
 class Reader;
 Writer& operator<<(Writer&, CompactUInt);
 class CompactUInt {
-    static std::optional<Funds> uncompact_value(uint16_t val)
+    static std::optional<Funds_uint64> uncompact_value(uint16_t val)
     { // OK
         uint64_t e = (val & uint64_t(0xFC00u)) >> 10;
         uint64_t m = (val & uint64_t(0x03FFu)) + uint64_t(0x0400u);
         if (e < 10) {
-            return Funds::from_value(m >> (10 - e));
+            return Funds_uint64::from_value(m >> (10 - e));
         } else {
-            return Funds::from_value(m << (e - 10));
+            return Funds_uint64::from_value(m << (e - 10));
         }
     }
     constexpr CompactUInt(uint16_t val)
@@ -44,14 +44,14 @@ public:
             return CompactUInt { val };
         return {};
     }
-    Funds uncompact() const
+    Funds_uint64 uncompact() const
     {
         auto v { uncompact_value(val) };
         assert(v.has_value());
         return *v;
     };
     auto to_string() const { return uncompact().to_string(); }
-    static CompactUInt compact(Funds);
+    static CompactUInt compact(Funds_uint64);
     auto next() const
     {
         auto res(*this);

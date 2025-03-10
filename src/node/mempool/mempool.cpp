@@ -1,7 +1,7 @@
 #include "mempool.hpp"
 #include "api/events/emit.hpp"
 namespace mempool {
-bool LockedBalance::set_avail(Funds amount)
+bool LockedBalance::set_avail(Funds_uint64 amount)
 {
     if (used > amount)
         return false;
@@ -9,13 +9,13 @@ bool LockedBalance::set_avail(Funds amount)
     return true;
 }
 
-void LockedBalance::lock(Funds amount)
+void LockedBalance::lock(Funds_uint64 amount)
 {
     assert(amount <= remaining());
     used.add_assert(amount);
 }
 
-void LockedBalance::unlock(Funds amount)
+void LockedBalance::unlock(Funds_uint64 amount)
 {
     assert(used >= amount);
     used.subtract_assert(amount);
@@ -94,7 +94,7 @@ bool Mempool::erase_internal(Txmap::const_iterator iter, BalanceEntries::iterato
 
     // copy before erase
     const TransactionId id { iter->first };
-    Funds spend { iter->second.spend_assert() };
+    Funds_uint64 spend { iter->second.spend_assert() };
 
     // erase iter and its references
     assert(byPin.erase(iter) == 1);
@@ -170,7 +170,7 @@ std::vector<TransactionId> Mempool::filter_new(const std::vector<TxidWithFee>& v
     return out;
 }
 
-void Mempool::set_balance(AccountToken ac, Funds newBalance)
+void Mempool::set_balance(AccountToken ac, Funds_uint64 newBalance)
 {
     auto b_iter { lockedBalances.find(ac) };
     if (b_iter == lockedBalances.end())
@@ -219,7 +219,7 @@ void Mempool::insert_tx_throw(const TransferTxExchangeMessage& pm,
     AccountToken key { pm.from_id(), TokenId(0) };
     auto balanceIter = lockedBalances.try_emplace(key, af.funds).first;
     auto& e { balanceIter->second };
-    const Funds spend { pm.spend_throw() };
+    const Funds_uint64 spend { pm.spend_throw() };
 
     { // check if we can delete enough old entries to insert new entry
         std::vector<Txmap::const_iterator> clear;
@@ -234,7 +234,7 @@ void Mempool::insert_tx_throw(const TransferTxExchangeMessage& pm,
         }
         const auto remaining { e.remaining() };
         if (remaining < spend) {
-            Funds clearSum { Funds::zero() };
+            Funds_uint64 clearSum { Funds_uint64::zero() };
             auto iterators { txs.by_fee_inc(pm.txid.accountId) };
             for (auto iter : iterators) {
                 if (iter == match)
@@ -243,7 +243,7 @@ void Mempool::insert_tx_throw(const TransferTxExchangeMessage& pm,
                     break;
                 clear.push_back(iter);
                 clearSum.add_assert(iter->second.spend_assert());
-                if (Funds::sum_assert(remaining, clearSum) >= spend) {
+                if (Funds_uint64::sum_assert(remaining, clearSum) >= spend) {
                     goto candelete;
                 }
             }

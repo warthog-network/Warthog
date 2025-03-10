@@ -7,12 +7,12 @@
 class Headerchain;
 struct RewardInternal {
     ValidAccountId toAccountId;
-    Funds amount;
+    Funds_uint64 amount;
     NonzeroHeight height;
     uint16_t offset; // id of payout in block
     AddressView toAddress { nullptr };
     Hash hash() const;
-    RewardInternal(ValidAccountId toAccountId, Funds amount, NonzeroHeight height,
+    RewardInternal(ValidAccountId toAccountId, Funds_uint64 amount, NonzeroHeight height,
         uint16_t offset)
         : toAccountId(toAccountId)
         , amount(amount)
@@ -25,7 +25,7 @@ class VerifiedTransfer;
 struct TransferInternal {
     ValidAccountId fromAccountId;
     ValidAccountId toAccountId;
-    Funds amount;
+    Funds_uint64 amount;
     PinNonce pinNonce;
     CompactUInt compactFee;
     AddressView fromAddress { nullptr };
@@ -33,7 +33,7 @@ struct TransferInternal {
     RecoverableSignature signature;
     [[nodiscard]] VerifiedTransfer verify(const Headerchain&, NonzeroHeight) const;
     TransferInternal(ValidAccountId from, CompactUInt compactFee, ValidAccountId to,
-        Funds amount, PinNonce pinNonce, View<65> signdata)
+        Funds_uint64 amount, PinNonce pinNonce, View<65> signdata)
         : fromAccountId(from)
         , toAccountId(to)
         , amount(amount)
@@ -63,7 +63,7 @@ class VerifiedTokenTransfer;
 struct TokenTransferInternal {
     ValidAccountId fromAccountId;
     ValidAccountId toAccountId;
-    Funds amount;
+    Funds_uint64 amount;
     PinNonce pinNonce;
     CompactUInt compactFee;
     AddressView fromAddress { nullptr };
@@ -71,7 +71,7 @@ struct TokenTransferInternal {
     RecoverableSignature signature;
     [[nodiscard]] VerifiedTokenTransfer verify(const Headerchain&, NonzeroHeight, HashView tokenHash) const;
     TokenTransferInternal(ValidAccountId from, CompactUInt compactFee, ValidAccountId to,
-        Funds amount, PinNonce pinNonce, View<65> signdata)
+        Funds_uint64 amount, PinNonce pinNonce, View<65> signdata)
         : fromAccountId(from)
         , toAccountId(to)
         , amount(amount)
@@ -142,7 +142,7 @@ struct TransferData {
     AccountId fromAccountId;
     CompactUInt compactFee;
     AccountId toAccountId;
-    Funds amount;
+    Funds_uint64 amount;
     PinNonce pinNonce;
     void write(Writer& w) const;
 };
@@ -151,7 +151,7 @@ struct RewardData {
     constexpr static uint8_t indicator = 2;
     constexpr static uint8_t bytesize = 8 + 8; // without indicator
     AccountId toAccountId;
-    Funds miningReward;
+    Funds_uint64 miningReward;
     void write(Writer& w) const;
 };
 
@@ -175,7 +175,7 @@ struct TokenTransferData {
     AccountId fromAccountId;
     CompactUInt compactFee;
     AccountId toAccountId;
-    Funds amount;
+    Funds_uint64 amount;
     PinNonce pinNonce;
     void write(Writer& w) const;
 };

@@ -53,7 +53,7 @@ struct RewardTransaction {
     uint32_t confirmations;
     Height height { 0 };
     uint32_t timestamp = 0;
-    Funds amount;
+    Funds_uint64 amount;
 };
 struct TransferTransaction {
     Hash txhash;
@@ -61,9 +61,9 @@ struct TransferTransaction {
     uint32_t confirmations;
     Height height { 0 };
     uint32_t timestamp = 0;
-    Funds amount;
+    Funds_uint64 amount;
     Address fromAddress;
-    Funds fee;
+    Funds_uint64 fee;
     NonceId nonceId;
     PinHeight pinHeight { PinHeight::undef() };
 };
@@ -73,7 +73,7 @@ struct AddressWithId {
 };
 struct Balance {
     std::optional<AddressWithId> address;
-    Funds balance;
+    Funds_uint64 balance;
 };
 
 struct Rollback {
@@ -87,38 +87,38 @@ struct BlockSummary {
     uint32_t confirmations = 0;
     uint32_t nTransfers;
     Address miner;
-    Funds transferred;
-    Funds totalTxFee;
-    Funds blockReward;
+    Funds_uint64 transferred;
+    Funds_uint64 totalTxFee;
+    Funds_uint64 blockReward;
 };
 
 struct Block {
     static constexpr const char eventName[] = "blockAppend";
     struct Transfer {
         Address fromAddress;
-        Funds fee;
+        Funds_uint64 fee;
         NonceId nonceId;
         PinHeight pinHeight;
         Hash txhash;
         Address toAddress;
-        Funds amount;
+        Funds_uint64 amount;
     };
     struct TokenTransfer {
         TokenId tokenId;
         TokenHash tokenHash;
         TokenName tokenName;
         Address fromAddress;
-        Funds fee;
+        Funds_uint64 fee;
         NonceId nonceId;
         PinHeight pinHeight;
         Hash txhash;
         Address toAddress;
-        Funds amount;
+        Funds_uint64 amount;
     };
     struct Reward {
         Hash txhash;
         Address toAddress;
-        Funds amount;
+        Funds_uint64 amount;
     };
     struct TokenCreation {
         Address creatorAddress;
@@ -126,7 +126,7 @@ struct Block {
         Hash txhash;
         TokenName tokenName;
         TokenId tokenIndex;
-        Funds fee;
+        Funds_uint64 fee;
     };
     Header header;
     NonzeroHeight height;
@@ -162,7 +162,7 @@ struct AddressCount {
 };
 
 struct AccountHistory {
-    Funds balance;
+    Funds_uint64 balance;
     HistoryId fromId;
     std::vector<api::Block> blocks_reversed;
 };
@@ -172,7 +172,7 @@ struct TransactionsByBlocks {
     std::vector<api::Block> blocks_reversed;
 };
 struct Richlist {
-    std::vector<std::pair<Address, Funds>> entries;
+    std::vector<std::pair<Address, Funds_uint64>> entries;
 };
 struct MempoolEntry : public TransferTxExchangeMessage {
     Hash txHash;
@@ -257,7 +257,7 @@ struct PeerinfoConnections {
 };
 
 struct Round16Bit {
-    Funds original;
+    Funds_uint64 original;
 };
 
 struct Wallet {

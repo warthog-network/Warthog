@@ -65,7 +65,7 @@ public:
         BalanceId balanceId;
         AccountId accountId;
         TokenId tokenId;
-        Funds balance;
+        Funds_uint64 balance;
     };
     ChainDB(const std::string& path);
     [[nodiscard]] ChainDBTransaction transaction();
@@ -118,8 +118,8 @@ public:
 
     /////////////////////
     // Order functions
-    void insert_buy_order(OrderId id, AccountId, TokenId, Funds totalBase, Funds filledBase, Price_uint64 price);
-    void insert_quote_order(OrderId id, AccountId, TokenId, Funds totalQuote, Funds filledQuote, Price_uint64 price);
+    void insert_buy_order(OrderId id, AccountId, TokenId, Funds_uint64 totalBase, Funds_uint64 filledBase, Price_uint64 price);
+    void insert_quote_order(OrderId id, AccountId, TokenId, Funds_uint64 totalQuote, Funds_uint64 filledQuote, Price_uint64 price);
 
     OrderLoader base_order_loader(TokenId) const;
     OrderLoader quote_order_loader(TokenId) const;
@@ -138,9 +138,9 @@ public:
 
     /////////////////////
     // Token fork balance functions
-    void insert_token_fork_balance(TokenForkBalanceId, TokenId, TokenForkId, Funds);
+    void insert_token_fork_balance(TokenForkBalanceId, TokenId, TokenForkId, Funds_uint64);
     // bool fork_balance_exists(AccountToken, NonzeroHeight);
-    std::optional<std::pair<NonzeroHeight, Funds>> get_balance_snapshot_after(TokenId tokenId, NonzeroHeight minHeight);
+    std::optional<std::pair<NonzeroHeight, Funds_uint64>> get_balance_snapshot_after(TokenId tokenId, NonzeroHeight minHeight);
 
     /////////////////////
     // Token functions
@@ -148,12 +148,12 @@ public:
     [[nodiscard]] std::optional<NonzeroHeight> get_latest_fork_height(TokenId, Height);
 
     [[nodiscard]] std::optional<Balance> get_token_balance(BalanceId id) const;
-    [[nodiscard]] std::optional<std::pair<BalanceId, Funds>> get_balance(AccountToken) const;
+    [[nodiscard]] std::optional<std::pair<BalanceId, Funds_uint64>> get_balance(AccountToken) const;
     [[nodiscard]] std::optional<TokenInfo> lookup_token(TokenId id) const;
     [[nodiscard]] TokenInfo fetch_token(TokenId id) const;
-    void insert_token_balance(AccountToken, Funds balance);
-    void set_balance(BalanceId, Funds balance);
-    std::vector<std::pair<TokenId, Funds>> get_tokens(AccountId, size_t limit);
+    void insert_token_balance(AccountToken, Funds_uint64 balance);
+    void set_balance(BalanceId, Funds_uint64 balance);
+    std::vector<std::pair<TokenId, Funds_uint64>> get_tokens(AccountId, size_t limit);
     [[nodiscard]] api::Richlist lookup_richlist(TokenId, size_t limit) const;
     /////////////////////
     // Transactions functions
@@ -207,8 +207,8 @@ public:
         };
         std::vector<Step> steps;
     };
-    std::pair<std::optional<BalanceId>, Funds> get_token_balance_recursive(AccountToken, TokenLookupTrace* trace = nullptr);
-    bool write_snapshot_balance(AccountToken, Funds, NonzeroHeight tokenCreationHeight);
+    std::pair<std::optional<BalanceId>, Funds_uint64> get_token_balance_recursive(AccountToken, TokenLookupTrace* trace = nullptr);
+    bool write_snapshot_balance(AccountToken, Funds_uint64, NonzeroHeight tokenCreationHeight);
 
     //////////////////////////////
     // BELOW METHODS REQUIRED FOR INDEXING NODES

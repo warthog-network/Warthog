@@ -19,8 +19,8 @@ public:
     // 41 signature
     // 106 [total size]
     PaymentCreateMessage(ReaderCheck<bytesize> r);
-    PaymentCreateMessage(PinHeight pinHeight, const Hash& pinHash, const PrivKey&, CompactUInt feeCompactHost, const Address& toAddress, Funds amount, NonceId);
-    PaymentCreateMessage(PinHeight pinHeight, NonceId nonceId, NonceReserved reserved, CompactUInt compactFee, Address toAddr, Funds amount, RecoverableSignature signature)
+    PaymentCreateMessage(PinHeight pinHeight, const Hash& pinHash, const PrivKey&, CompactUInt feeCompactHost, const Address& toAddress, Funds_uint64 amount, NonceId);
+    PaymentCreateMessage(PinHeight pinHeight, NonceId nonceId, NonceReserved reserved, CompactUInt compactFee, Address toAddr, Funds_uint64 amount, RecoverableSignature signature)
         : pinHeight(pinHeight)
         , nonceId(nonceId)
         , reserved(reserved)
@@ -44,7 +44,7 @@ public:
     NonceReserved reserved;
     CompactUInt compactFee;
     Address toAddr;
-    Funds amount;
+    Funds_uint64 amount;
     RecoverableSignature signature;
 };
 
@@ -62,8 +62,8 @@ public:
     // 73 signature
     // 138 [total size]
     TokenPaymentCreateMessage(ReaderCheck<bytesize> r);
-    TokenPaymentCreateMessage(PinHeight pinHeight, const Hash& pinHash, const PrivKey&, Hash tokenHash, CompactUInt feeCompactHost, const Address& toAddress, Funds amount, NonceId);
-    TokenPaymentCreateMessage(PinHeight pinHeight, NonceId nonceId, NonceReserved reserved, Hash tokenHash, CompactUInt compactFee, Address toAddr, Funds amount, RecoverableSignature signature)
+    TokenPaymentCreateMessage(PinHeight pinHeight, const Hash& pinHash, const PrivKey&, Hash tokenHash, CompactUInt feeCompactHost, const Address& toAddress, Funds_uint64 amount, NonceId);
+    TokenPaymentCreateMessage(PinHeight pinHeight, NonceId nonceId, NonceReserved reserved, Hash tokenHash, CompactUInt compactFee, Address toAddr, Funds_uint64 amount, RecoverableSignature signature)
         : pinHeight(pinHeight)
         , nonceId(nonceId)
         , reserved(reserved)
@@ -89,6 +89,6 @@ public:
     TokenHash tokenHash;
     CompactUInt compactFee;
     Address toAddr;
-    Funds amount;
+    Funds_uint64 amount;
     RecoverableSignature signature;
 };

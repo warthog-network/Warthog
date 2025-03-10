@@ -18,7 +18,7 @@ public:
     Endpoint(std::string host, uint16_t port)
         : host(host)
         , port(port) {};
-    Funds get_balance(const std::string& account);
+    Funds_uint64 get_balance(const std::string& account);
     std::variant<TxHash, Error> send_transaction(const std::string& txjson);
     std::pair<PinHeight, Hash> get_pin();
 private:

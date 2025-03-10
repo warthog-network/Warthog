@@ -431,11 +431,11 @@ std::vector<Candle> ChainDB::select_candles_1h(TokenId tid, Timestamp from, Time
         tid, from, to);
 }
 
-void ChainDB::insert_buy_order(OrderId oid, AccountId aid, TokenId tid, Funds totalBase, Funds filledBase, Price_uint64 price)
+void ChainDB::insert_buy_order(OrderId oid, AccountId aid, TokenId tid, Funds_uint64 totalBase, Funds_uint64 filledBase, Price_uint64 price)
 {
     stmtInsertBaseSellOrder.run(oid, aid, tid, totalBase, filledBase, price);
 }
-void ChainDB::insert_quote_order(OrderId oid, AccountId aid, TokenId tid, Funds totalBase, Funds filledBase, Price_uint64 price)
+void ChainDB::insert_quote_order(OrderId oid, AccountId aid, TokenId tid, Funds_uint64 totalBase, Funds_uint64 filledBase, Price_uint64 price)
 {
     stmtInsertQuoteBuyOrder.run(oid, aid, tid, totalBase, filledBase, price);
 }
@@ -478,7 +478,7 @@ void ChainDB::update_pool(TokenId shareId, Funds_uint64 base, Funds_uint64 quote
     stmtUpdatePool.run(base, quote, shares, shareId);
 }
 
-void ChainDB::insert_token_fork_balance(TokenForkBalanceId id, TokenId tokenId, TokenForkId forkId, Funds balance)
+void ChainDB::insert_token_fork_balance(TokenForkBalanceId id, TokenId tokenId, TokenForkId forkId, Funds_uint64 balance)
 {
     stmtTokenForkBalanceInsert.run(id, tokenId, forkId, balance);
 }
@@ -491,12 +491,12 @@ void ChainDB::insert_token_fork_balance(TokenForkBalanceId id, TokenId tokenId, 
 //         });
 // }
 
-std::optional<std::pair<NonzeroHeight, Funds>> ChainDB::get_balance_snapshot_after(TokenId tokenId, NonzeroHeight minHegiht)
+std::optional<std::pair<NonzeroHeight, Funds_uint64>> ChainDB::get_balance_snapshot_after(TokenId tokenId, NonzeroHeight minHegiht)
 {
     auto res { stmtTokenForkBalanceSelect.one(tokenId, minHegiht) };
     if (!res.has_value())
         return {};
-    return std::pair<NonzeroHeight, Funds> { res[0], res[1] };
+    return std::pair<NonzeroHeight, Funds_uint64> { res[0], res[1] };
 }
 
 void ChainDB::insert_new_token(CreatorToken ct, NonzeroHeight height, TokenName name, TokenHash hash, TokenMintType type)
@@ -516,29 +516,29 @@ std::optional<NonzeroHeight> ChainDB::get_latest_fork_height(TokenId tid, Height
     return NonzeroHeight { res[0] };
 }
 
-void ChainDB::insert_token_balance(AccountToken at, Funds balance)
+void ChainDB::insert_token_balance(AccountToken at, Funds_uint64 balance)
 {
     stmtTokenInsertBalance.run(cache.nextStateId, at.token_id(), at.account_id(), balance);
     cache.nextStateId++;
 }
 
-std::optional<std::pair<BalanceId, Funds>> ChainDB::get_balance(AccountToken at) const
+std::optional<std::pair<BalanceId, Funds_uint64>> ChainDB::get_balance(AccountToken at) const
 {
     auto res { stmtTokenSelectBalance.one(at.token_id(), at.account_id()) };
     if (!res.has_value())
         return {};
-    return std::pair { res.get<BalanceId>(0), res.get<Funds>(1) };
+    return std::pair { res.get<BalanceId>(0), res.get<Funds_uint64>(1) };
 }
 
-std::vector<std::pair<TokenId, Funds>> ChainDB::get_tokens(AccountId accountId, size_t limit)
+std::vector<std::pair<TokenId, Funds_uint64>> ChainDB::get_tokens(AccountId accountId, size_t limit)
 {
     return stmtAccountSelectTokens.all([&](const sqlite::Row& r) {
-        return std::pair { TokenId { r[0] }, Funds { r[1] } };
+        return std::pair { TokenId { r[0] }, Funds_uint64 { r[1] } };
     },
         accountId, limit);
 }
 
-void ChainDB::set_balance(BalanceId id, Funds balance)
+void ChainDB::set_balance(BalanceId id, Funds_uint64 balance)
 {
     stmtTokenUpdateBalance.run(balance, id);
 }
@@ -737,7 +737,7 @@ void ChainDB::delete_bad_block(HashView blockhash)
     stmtScheduleDelete2.run(id);
 }
 
-std::pair<std::optional<BalanceId>, Funds> ChainDB::get_token_balance_recursive(AccountToken ac, TokenLookupTrace* trace)
+std::pair<std::optional<BalanceId>, Funds_uint64> ChainDB::get_token_balance_recursive(AccountToken ac, TokenLookupTrace* trace)
 {
     while (true) {
         // direct lookup
@@ -752,7 +752,7 @@ std::pair<std::optional<BalanceId>, Funds> ChainDB::get_token_balance_recursive(
         auto h { tokenInfo.height };
         auto& p { tokenInfo.parent_id };
         if (!p) { // has no parent, i.e. was not forked, no entry found
-            return { std::nullopt, Funds::zero() };
+            return { std::nullopt, Funds_uint64::zero() };
         }
         trace->steps.push_back({ *p, h });
         if (auto o { get_balance_snapshot_after(*p, h) }) {
@@ -764,7 +764,7 @@ std::pair<std::optional<BalanceId>, Funds> ChainDB::get_token_balance_recursive(
     }
 }
 
-bool ChainDB::write_snapshot_balance(AccountToken at, Funds f, NonzeroHeight tokenCreationHeight)
+bool ChainDB::write_snapshot_balance(AccountToken at, Funds_uint64 f, NonzeroHeight tokenCreationHeight)
 {
     // , stmtTokenForkBalanceInsert(db, "INSERT OR IGNORE INTO TokenForkBalances "
     //                                        "(id, token_id, height, balance) "

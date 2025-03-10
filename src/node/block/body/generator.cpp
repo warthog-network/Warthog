@@ -88,14 +88,14 @@ class BlockGenerator {
         auto total_fee() const { return totalFee; }
 
     private:
-        Funds totalFee { Funds::zero() };
+        Funds_uint64 totalFee { Funds_uint64::zero() };
         uint32_t nTransfers { 0 };
         std::vector<uint8_t> buf;
     };
 
     struct RewardSection {
     public:
-        RewardSection(AccountId toId, Funds amount)
+        RewardSection(AccountId toId, Funds_uint64 amount)
         {
             uint8_t* pos = buf.data();
             pos = bewrite(pos, toId.value());
@@ -168,7 +168,7 @@ BodyContainerV3 BlockGenerator::gen_block(NonzeroHeight height,
     }
 
     // Reward Section
-    auto totalReward { Funds::sum_assert(height.reward(), trs.total_fee()) };
+    auto totalReward { Funds_uint64::sum_assert(height.reward(), trs.total_fee()) };
     RewardSection pos(*nas.getId(miner, true), totalReward);
 
     // Serialize block

@@ -78,9 +78,9 @@ public:
     operator AccountId() const { return AccountId { getUInt64() }; }
     operator IsUint64() const { return IsUint64(getUInt64()); }
     operator BlockId() const { return BlockId(getInt64()); }
-    operator Funds() const
+    operator Funds_uint64() const
     {
-        auto v { Funds::from_value(getUInt64()) };
+        auto v { Funds_uint64::from_value(getUInt64()) };
         if (!v.has_value())
             throw std::runtime_error("Database corrupted, invalid funds");
         return *v;
@@ -111,7 +111,7 @@ namespace bind_convert {
     inline auto convert(const View<N>& v) { return v.span(); }
     inline auto convert(const Worksum& ws) { return ws.to_bytes(); }
     inline auto convert(const std::vector<uint8_t>& v) { return std::span(v); }
-    inline auto convert(Funds f) { return (int64_t)f.E8(); }
+    inline auto convert(Funds_uint64 f) { return (int64_t)f.E8(); }
     inline auto convert(int64_t i) { return i; }
     inline auto convert(uint64_t i) { return (int64_t)i; }
     inline auto convert(IsUint64 i) { return i.value(); }

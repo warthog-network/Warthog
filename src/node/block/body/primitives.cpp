@@ -67,7 +67,7 @@ TransferTxExchangeMessage::TransferTxExchangeMessage(ReaderCheck<bytesize> r)
     , reserved(r.r.view<3>())
     , compactFee(CompactUInt::from_value_throw(r.r.uint16()))
     , toAddr(r.r.view<AddressView>())
-    , amount(Funds::from_value_throw(r.r.uint64()))
+    , amount(Funds_uint64::from_value_throw(r.r.uint64()))
     , signature(r.r.view<65>())
 {
     r.assert_read_bytes();
@@ -142,7 +142,7 @@ TransferDefiMessage::TransferDefiMessage(ReaderCheck<bytesize> r)
     , compactFee(CompactUInt::from_value_throw(r.r.uint16()))
     , tokenHash(r.r)
     , toAddr(r.r.view<AddressView>())
-    , amount(Funds::from_value_throw(r.r.uint64()))
+    , amount(Funds_uint64::from_value_throw(r.r.uint64()))
     , signature(r.r.view<65>())
 {
     r.assert_read_bytes();

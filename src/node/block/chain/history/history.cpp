@@ -154,7 +154,7 @@ TokenTransferData TokenTransferData::parse(Reader& r)
         .fromAccountId { r },
         .compactFee { CompactUInt::from_value_throw(r) },
         .toAccountId { r },
-        .amount { Funds::from_value_throw(r) },
+        .amount { Funds_uint64::from_value_throw(r) },
         .pinNonce { r }
     };
 }
@@ -191,7 +191,7 @@ TransferData TransferData::parse(Reader& r)
         .fromAccountId { r },
         .compactFee { CompactUInt::from_value_throw(r) },
         .toAccountId { r },
-        .amount { Funds::from_value_throw(r) },
+        .amount { Funds_uint64::from_value_throw(r) },
         .pinNonce { r }
     };
 }
@@ -208,7 +208,7 @@ RewardData RewardData::parse(Reader& r)
         throw std::runtime_error("Cannot parse RewardData.");
     return RewardData {
         .toAccountId = AccountId(r.uint64()),
-        .miningReward = Funds::from_value_throw(r.uint64())
+        .miningReward = Funds_uint64::from_value_throw(r.uint64())
     };
 }
 

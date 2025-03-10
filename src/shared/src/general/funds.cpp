@@ -4,9 +4,9 @@
 #include "general/writer.hpp"
 #include <cassert>
 #include <cstring>
-Funds Funds::parse_throw(std::string_view s)
+Funds_uint64 Funds_uint64::parse_throw(std::string_view s)
 {
-    if (auto o { Funds::parse(s) }; o.has_value()) {
+    if (auto o { Funds_uint64::parse(s) }; o.has_value()) {
         return *o;
     }
     throw Error(EINV_FUNDS);
@@ -46,7 +46,7 @@ Funds Funds::parse_throw(std::string_view s)
 //     return s;
 // }
 
-std::string Funds::to_string() const
+std::string Funds_uint64::to_string() const
 {
     if (val == 0)
         return "0";
@@ -72,7 +72,7 @@ std::string Funds::to_string() const
     }
 }
 
-std::optional<Funds> Funds::parse(std::string_view s)
+std::optional<Funds_uint64> Funds_uint64::parse(std::string_view s)
 {
     char buf[17]; // 16 digits max for WRT balances
     size_t dotindex = 0;
@@ -113,11 +113,11 @@ std::optional<Funds> Funds::parse(std::string_view s)
         if (afterDotDigits > 8)
             return {};
         size_t addzeros = 8 - afterDotDigits;
-        return Funds::from_value(uint64_t(std::stoull(buf)) * powers10[addzeros]); // static_assert coinunit==10000000
+        return Funds_uint64::from_value(uint64_t(std::stoull(buf)) * powers10[addzeros]); // static_assert coinunit==10000000
     } else {
         if (i > 8)
             return {};
-        return Funds::from_value(uint64_t(std::stoull(buf) * powers10[8])); // static_assert coinunit==10000000
+        return Funds_uint64::from_value(uint64_t(std::stoull(buf) * powers10[8])); // static_assert coinunit==10000000
     }
     return {};
 }

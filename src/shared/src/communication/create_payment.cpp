@@ -7,7 +7,7 @@
 PaymentCreateMessage::PaymentCreateMessage(
     PinHeight pinHeight, const Hash& pinHash,
     const PrivKey& privateKey, CompactUInt fee,
-    const Address& toAddress, Funds amount, NonceId nonceId)
+    const Address& toAddress, Funds_uint64 amount, NonceId nonceId)
     : pinHeight(pinHeight)
     , nonceId(nonceId)
     , reserved { NonceReserved::zero() }
@@ -24,7 +24,7 @@ PaymentCreateMessage::PaymentCreateMessage(ReaderCheck<bytesize> r)
     , reserved(r.r)
     , compactFee(CompactUInt::from_value_throw(r.r))
     , toAddr(r.r)
-    , amount(Funds::from_value_throw(r.r))
+    , amount(Funds_uint64::from_value_throw(r.r))
     , signature(r.r)
 {
     r.assert_read_bytes();
@@ -90,7 +90,7 @@ Address PaymentCreateMessage::from_address(
 TokenPaymentCreateMessage::TokenPaymentCreateMessage(
     PinHeight pinHeight, const Hash& pinHash,
     const PrivKey& privateKey, Hash tokenHash, CompactUInt fee,
-    const Address& toAddress, Funds amount, NonceId nonceId)
+    const Address& toAddress, Funds_uint64 amount, NonceId nonceId)
     : pinHeight(pinHeight)
     , nonceId(nonceId)
     , reserved { NonceReserved::zero() }
@@ -109,7 +109,7 @@ TokenPaymentCreateMessage::TokenPaymentCreateMessage(ReaderCheck<bytesize> r)
     , tokenHash(r.r)
     , compactFee(CompactUInt::from_value_throw(r.r))
     , toAddr(r.r)
-    , amount(Funds::from_value_throw(r.r))
+    , amount(Funds_uint64::from_value_throw(r.r))
     , signature(r.r)
 {
     r.assert_read_bytes();

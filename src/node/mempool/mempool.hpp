@@ -10,19 +10,19 @@ struct TransactionIds;
 namespace mempool {
 
 struct LockedBalance {
-    LockedBalance(const Funds& balance)
+    LockedBalance(const Funds_uint64& balance)
         : avail(balance) {};
 
-    void lock(Funds amount);
-    void unlock(Funds amount);
-    [[nodiscard]] bool set_avail(Funds amount);
-    Funds remaining() const { return Funds::diff_assert(avail, used); }
-    Funds locked() const { return used; }
+    void lock(Funds_uint64 amount);
+    void unlock(Funds_uint64 amount);
+    [[nodiscard]] bool set_avail(Funds_uint64 amount);
+    Funds_uint64 remaining() const { return Funds_uint64::diff_assert(avail, used); }
+    Funds_uint64 locked() const { return used; }
     bool is_clean() { return used.is_zero(); }
 
 private:
-    Funds avail { Funds::zero() };
-    Funds used { Funds::zero() };
+    Funds_uint64 avail { Funds_uint64::zero() };
+    Funds_uint64 used { Funds_uint64::zero() };
 };
 
 class Mempool {
@@ -45,7 +45,7 @@ public:
     Error insert_tx(const TransferTxExchangeMessage& pm, TransactionHeight txh, const TxHash& hash, const AddressFunds& e);
     void insert_tx_throw(const TransferTxExchangeMessage& pm, TransactionHeight txh, const TxHash& hash, const AddressFunds& e);
     void erase(TransactionId id);
-    void set_balance(AccountToken, Funds newBalance);
+    void set_balance(AccountToken, Funds_uint64 newBalance);
     void erase_from_height(Height);
     void erase_before_height(Height);
 

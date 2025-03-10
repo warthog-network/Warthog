@@ -13,7 +13,7 @@
 class Reader;
 class Writer;
 
-constexpr auto DefaultTokenSupply { Funds::from_value_throw((100000000 * COINUNIT)) };
+constexpr auto DefaultTokenSupply { Funds_uint64::from_value_throw((100000000 * COINUNIT)) };
 
 enum class TokenMintType {
     Ownall = 0,

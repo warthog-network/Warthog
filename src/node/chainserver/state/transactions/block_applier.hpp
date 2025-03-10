@@ -33,7 +33,7 @@ private: // private methods
 
 private: // private data
     Preparer preparer;
-    std::map<AccountToken,Funds> balanceUpdates;
+    std::map<AccountToken,Funds_uint64> balanceUpdates;
     ChainDB& db;
     bool fromStage;
 };

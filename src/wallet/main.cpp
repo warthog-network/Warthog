@@ -93,9 +93,9 @@ Wallet open_wallet(const filesystem::path& path)
         }
     }
 }
-Funds parse_amount(std::string amount)
+Funds_uint64 parse_amount(std::string amount)
 {
-    auto parsed { Funds::parse(amount) };
+    auto parsed { Funds_uint64::parse(amount) };
     if (!parsed) {
         throw std::runtime_error("Cannot parse amount \"" + amount + "\"");
     }
@@ -109,20 +109,20 @@ std::string read_with_msg(std::string msg)
     return input;
 }
 
-Funds read_fee(std::string msg)
+Funds_uint64 read_fee(std::string msg)
 {
     return parse_amount(read_with_msg(msg));
 }
 
-Funds read_amount(auto balance_lambda, CompactUInt cfee)
+Funds_uint64 read_amount(auto balance_lambda, CompactUInt cfee)
 {
     auto input { read_with_msg("Amount (type \"max\" for total balance): ") };
     if (input == "max") {
-        Funds balance { balance_lambda() };
+        Funds_uint64 balance { balance_lambda() };
         auto fee(cfee.uncompact());
         if (balance <= fee)
             throw std::runtime_error("Insufficient funds");
-        return Funds::diff_assert(balance, fee);
+        return Funds_uint64::diff_assert(balance, fee);
     }
     return parse_amount(input);
 }
@@ -182,7 +182,7 @@ int process(gengetopt_args_info& ai)
             bool interactive { !ai.to_given || !ai.fee_given || !ai.amount_given };
             Address to(ai.to_given ? Address(ai.to_arg) : read_address("To: "));
             CompactUInt fee { CompactUInt::compact( ai.fee_given ? parse_amount(ai.fee_arg) : read_fee("Fee: ") ) };
-            Funds amount { ai.amount_given ? parse_amount(ai.amount_arg) : read_amount(balance_lambda, fee) };
+            Funds_uint64 amount { ai.amount_given ? parse_amount(ai.amount_arg) : read_amount(balance_lambda, fee) };
             NonceId nid { ai.nonce_given ? NonceId(ai.nonce_arg) : NonceId::random() };
             if (interactive) {
                 cout << "Summary:"

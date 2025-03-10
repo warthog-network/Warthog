@@ -42,9 +42,9 @@ struct ParameterParser {
     {
         return PrivKey(sv);
     }
-    operator Funds()
+    operator Funds_uint64()
     {
-        return Funds::parse_throw(sv);
+        return Funds_uint64::parse_throw(sv);
     }
     operator Page()
     {

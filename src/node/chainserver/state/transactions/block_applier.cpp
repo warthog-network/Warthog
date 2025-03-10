@@ -95,7 +95,6 @@ void match(const ChainDB& db, TokenId tid, defi::PoolLiquidity_uint64 p)
             quoteDistributed.add_assert(*q);
 
             // order swapped b -> q
-
         }
         assert(remaining == 0);
         returned.quote.subtract_assert(quoteDistributed);
@@ -127,12 +126,12 @@ class BalanceChecker {
         friend class BalanceChecker;
 
     public:
-        Funds in() const { return _in; }
-        Funds out() const { return _out; }
+        Funds_uint64 in() const { return _in; }
+        Funds_uint64 out() const { return _out; }
 
     private:
-        Funds _in { Funds::zero() };
-        Funds _out { Funds::zero() };
+        Funds_uint64 _in { Funds_uint64::zero() };
+        Funds_uint64 _out { Funds_uint64::zero() };
     };
 
     using TokenFlow = std::map<TokenId, FundFlow>;
@@ -154,7 +153,7 @@ class BalanceChecker {
     };
 
 protected:
-    AccountData& account_data(AccountId i)
+    [[nodiscard]] AccountData& account_data(AccountId i)
     {
         if (i < beginNewAccountId) {
             return oldAccounts[i];
@@ -171,9 +170,9 @@ protected:
 public:
     struct RewardArgument {
         AccountId to;
-        Funds amount;
+        Funds_uint64 amount;
         uint16_t offset;
-        RewardArgument(AccountId to, Funds amount, uint16_t offset)
+        RewardArgument(AccountId to, Funds_uint64 amount, uint16_t offset)
             : to(std::move(to))
             , amount(std::move(amount))
             , offset(std::move(offset))
@@ -197,6 +196,19 @@ public:
         a.isMiner = true;
     }
 
+    struct TokenBalance {
+        TokenId tokenId;
+        Funds_uint64 funds;
+    };
+
+    void register_swap(AccountId accId, TokenBalance subtract, TokenBalance add)
+    {
+        auto vid { validate_id(accId) };
+        auto& ad { account_data(vid) };
+        ad.tokenFlow[subtract.tokenId].out().add_throw(subtract.funds);
+        ad.tokenFlow[add.tokenId].out().add_throw(add.funds);
+    }
+
     void register_transfer(TokenId tokenId, WartTransferView tv, Height height) // OK
     {
         constexpr uint32_t fivedaysBlocks = 5 * 24 * 60 * 3;
@@ -205,9 +217,9 @@ public:
         if (tv.fromAccountId().value() == 1910 && (height.value() > 2534437) && (height.value() < unblockXeggexHeight)) {
             throw Error(EFROZENACC); // freeze Xeggex acc temporarily
         }
-        Funds amount { tv.amount_throw() };
+        Funds_uint64 amount { tv.amount_throw() };
         auto compactFee = tv.compact_fee_trow();
-        Funds fee { compactFee.uncompact() };
+        Funds_uint64 fee { compactFee.uncompact() };
         auto to { validate_id(tv.toAccountId()) };
         auto from { validate_id(tv.fromAccountId()) };
         if (height.value() > 719118 && amount.is_zero())
@@ -241,7 +253,7 @@ public:
     void register_token_creation(TokenCreationView tc, Height)
     {
         auto compactFee = tc.compact_fee_trow();
-        Funds fee { compactFee.uncompact() };
+        Funds_uint64 fee { compactFee.uncompact() };
         auto from { validate_id(tc.fromAccountId()) };
 
         tokenCreations.emplace_back(from, tc.pin_nonce(), tc.token_name(), compactFee, tc.signature());
@@ -257,7 +269,7 @@ public:
         ad.referredTokenCreator.push_back(i);
     }
 
-    Funds getTotalFee() { return totalfee; }; // OK
+    Funds_uint64 getTotalFee() { return totalfee; }; // OK
     ValidAccountId validate_id(AccountId accountId) const // OK
     {
         return accountId.validate_throw(endNewAccountId);
@@ -278,7 +290,7 @@ public:
         }
         return 0;
     }
-    auto& getOldAccounts() { return oldAccounts; } // OK
+    auto& old_accounts() { return oldAccounts; } // OK
     const std::vector<AccountData>& get_new_accounts() const { return newAccounts; } // OK
     AccountId get_account_id(size_t newElementOffset) // OK
     {
@@ -291,7 +303,7 @@ public:
     const auto& get_reward() { return reward; };
 
 private:
-    Funds totalfee { Funds::zero() };
+    Funds_uint64 totalfee { Funds_uint64::zero() };
     AccountId beginNewAccountId;
     AccountId endNewAccountId;
     const BodyView& bv;
@@ -385,8 +397,8 @@ struct Preparation {
     HistoryEntries historyEntries;
     RollbackGenerator rg;
     std::set<TransactionId> txset;
-    std::vector<std::tuple<BalanceId, AccountToken, Funds>> updateBalances;
-    std::vector<std::tuple<AccountToken, Funds>> insertBalances;
+    std::vector<std::tuple<BalanceId, AccountToken, Funds_uint64>> updateBalances;
+    std::vector<std::tuple<AccountToken, Funds_uint64>> insertBalances;
     std::vector<std::tuple<AddressView, AccountId>> insertAccounts;
     std::vector<std::tuple<AccountToken, TokenName>> insertTokenCreations;
     std::optional<api::Block::Reward> apiReward;
@@ -433,11 +445,11 @@ Preparation::Preparation(const BlockApplier::Preparer& preparer, const ParsedBlo
     }
 
     // Read reward section
-    Funds totalpayout { Funds::zero() };
+    Funds_uint64 totalpayout { Funds_uint64::zero() };
     BalanceChecker balanceChecker {
         [&]() {
             auto r { bv.reward() };
-            Funds amount { r.amount_throw() };
+            Funds_uint64 amount { r.amount_throw() };
             totalpayout.add_throw(amount);
             return BalanceChecker { db.next_state_id(), bv, height, { r.account_id(), amount, r.offset } };
         }()
@@ -457,17 +469,16 @@ Preparation::Preparation(const BlockApplier::Preparer& preparer, const ParsedBlo
     /// Process block sections
     ////////////////////////////////////////////////////////////
     auto process_new_balance { [this](auto tokenId, const auto& tokenFlow, auto accountId) {
-        if (tokenFlow.out() > Funds::zero()) // We do not allow resend of newly inserted balance
+        if (tokenFlow.out() > Funds_uint64::zero()) // We do not allow resend of newly inserted balance
             throw Error(EBALANCE); // insufficient balance
         assert(tokenFlow.out().is_zero());
-        Funds balance = tokenFlow.in();
+        Funds_uint64 balance = tokenFlow.in();
         insertBalances.push_back({ { accountId, tokenId }, balance });
     } };
 
     // loop through old accounts and
     // load previous balances and addresses from database
-    auto& oldAccounts = balanceChecker.getOldAccounts();
-    for (auto& [accountId, accountData] : oldAccounts) {
+    for (auto& [accountId, accountData] : balanceChecker.old_accounts()) {
         if (auto address { db.lookup_address(accountId) }; address) {
             // address lookup successful
             balanceChecker.set_address(accountData, *address);
@@ -477,8 +488,8 @@ Preparation::Preparation(const BlockApplier::Preparer& preparer, const ParsedBlo
                     const auto& [balanceId, balance] { *p };
                     rg.register_balance(balanceId, balance);
                     // check that balances are correct
-                    auto totalIn { Funds::sum_throw(tokenFlow.in(), balance) };
-                    Funds newbalance { Funds::diff_throw(totalIn, tokenFlow.out()) };
+                    auto totalIn { Funds_uint64::sum_throw(tokenFlow.in(), balance) };
+                    Funds_uint64 newbalance { Funds_uint64::diff_throw(totalIn, tokenFlow.out()) };
                     updateBalances.push_back({ balanceId, { accountId, tokenId }, newbalance });
                 } else {
                     process_new_balance(tokenId, tokenFlow, accountId);
@@ -560,7 +571,7 @@ Preparation::Preparation(const BlockApplier::Preparer& preparer, const ParsedBlo
             });
     }
 
-    if (totalpayout > Funds::sum_throw(height.reward(), balanceChecker.getTotalFee()))
+    if (totalpayout > Funds_uint64::sum_throw(height.reward(), balanceChecker.getTotalFee()))
         throw Error(EBALANCE);
 }
 

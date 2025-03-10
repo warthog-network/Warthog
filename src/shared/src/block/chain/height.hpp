@@ -72,10 +72,10 @@ public:
     {
         return val % HEADERBATCHSIZE;
     }
-    Funds reward() const
+    Funds_uint64 reward() const
     {
         int32_t halvings = (val - 1) / HALVINTINTERVAL;
-        return Funds::from_value(GENESISBLOCKREWARD >> halvings).value();
+        return Funds_uint64::from_value(GENESISBLOCKREWARD >> halvings).value();
     }
 
     HeightRange latest(uint32_t n) const;
@@ -187,10 +187,10 @@ public:
     {
         return val % HEADERBATCHSIZE;
     }
-    Funds reward() const
+    Funds_uint64 reward() const
     {
         int32_t halvings = (val - 1) / HALVINTINTERVAL;
-        return Funds::from_value(GENESISBLOCKREWARD >> halvings).value();
+        return Funds_uint64::from_value(GENESISBLOCKREWARD >> halvings).value();
     }
 
     // NonzeroHeight pin_bgin()

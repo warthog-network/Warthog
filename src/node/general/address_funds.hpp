@@ -4,9 +4,9 @@
 #include "general/funds.hpp"
 struct AddressFunds {
     Address address;
-    Funds funds;
+    Funds_uint64 funds;
 };
 struct AccountFunds {
     AccountId accointId;
-    Funds funds;
+    Funds_uint64 funds;
 };

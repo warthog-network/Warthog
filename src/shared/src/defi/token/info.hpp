@@ -7,7 +7,7 @@ struct TokenInfo {
     TokenId id;
     NonzeroHeight height;
     AccountId ownerAccountId;
-    Funds totalSupply;
+    Funds_uint64 totalSupply;
     TokenId group_id;
     std::optional<TokenId> parent_id;
     TokenName name;

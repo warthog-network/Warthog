@@ -12,7 +12,7 @@ class TransferTxExchangeMessageView;
 namespace mempool {
 struct EntryValue;
 struct EntryValue {
-    EntryValue(NonceReserved noncep2, TokenHash tokenHash, CompactUInt fee, Address toAddr, Funds amount, RecoverableSignature signature, Hash hash, Height transactionHeight)
+    EntryValue(NonceReserved noncep2, TokenHash tokenHash, CompactUInt fee, Address toAddr, Funds_uint64 amount, RecoverableSignature signature, Hash hash, Height transactionHeight)
         : noncep2(noncep2)
         , tokenHash(tokenHash)
         , fee(fee)
@@ -23,12 +23,12 @@ struct EntryValue {
         , transactionHeight(transactionHeight)
     {
     }
-    [[nodiscard]] auto spend_assert() const { return Funds::sum_assert(fee.uncompact(), amount); }
+    [[nodiscard]] auto spend_assert() const { return Funds_uint64::sum_assert(fee.uncompact(), amount); }
     NonceReserved noncep2;
     TokenHash tokenHash;
     CompactUInt fee;
     Address toAddr;
-    Funds amount;
+    Funds_uint64 amount;
     RecoverableSignature signature;
     Hash hash;
     Height transactionHeight; // when was the account first registered

@@ -74,7 +74,7 @@ public:
         return CompactUInt::from_value_assert(fee_raw());
     }
 
-    Funds fee_throw() const
+    Funds_uint64 fee_throw() const
     {
         return compact_fee_trow().uncompact();
     }
@@ -82,9 +82,9 @@ public:
     {
         return AccountId(readuint64(pos + 18));
     }
-    Funds amount_throw() const
+    Funds_uint64 amount_throw() const
     {
-        return Funds::from_value_throw(readuint64(pos + 26));
+        return Funds_uint64::from_value_throw(readuint64(pos + 26));
     }
     auto signature() const { return View<65>(pos + 34); }
     static_assert(65 == BodyStructure::SIGLEN);
@@ -145,15 +145,15 @@ public:
         return CompactUInt::from_value_assert(fee_raw());
     }
 
-    Funds fee_throw() const
+    Funds_uint64 fee_throw() const
     {
         return compact_fee_trow().uncompact();
     }
-    std::pair<bool, Funds> buy_amount_throw() const
+    std::pair<bool, Funds_uint64> buy_amount_throw() const
     {
         auto v { readuint64(pos + 18) };
         bool buy { (v >> 63) != 0 };
-        auto f { Funds::from_value_throw(v & 0x7FFFFFFFFFFFFFFFull) };
+        auto f { Funds_uint64::from_value_throw(v & 0x7FFFFFFFFFFFFFFFull) };
         return { buy, f };
     }
     auto signature() const { return View<65>(pos + 26); }
@@ -202,17 +202,17 @@ public:
         return CompactUInt::from_value_assert(fee_raw());
     }
 
-    Funds fee_throw() const
+    Funds_uint64 fee_throw() const
     {
         return compact_fee_trow().uncompact();
     }
-    Funds amountQuoteWART() const
+    Funds_uint64 amountQuoteWART() const
     {
-        return Funds::from_value_throw(readuint64(pos + 18));
+        return Funds_uint64::from_value_throw(readuint64(pos + 18));
     }
-    Funds amountBase() const
+    Funds_uint64 amountBase() const
     {
-        return Funds::from_value_throw(readuint64(pos + 26));
+        return Funds_uint64::from_value_throw(readuint64(pos + 26));
     }
     auto signature() const { return View<65>(pos + 34); }
     static_assert(65 == BodyStructure::SIGLEN);
@@ -260,13 +260,13 @@ public:
         return CompactUInt::from_value_assert(fee_raw());
     }
 
-    Funds fee_throw() const
+    Funds_uint64 fee_throw() const
     {
         return compact_fee_trow().uncompact();
     }
-    Funds amountPooltoken() const
+    Funds_uint64 amountPooltoken() const
     {
-        return Funds::from_value_throw(readuint64(pos + 18));
+        return Funds_uint64::from_value_throw(readuint64(pos + 18));
     }
     auto signature() const { return View<65>(pos + 26); }
     static_assert(65 == BodyStructure::SIGLEN);
@@ -292,13 +292,13 @@ struct Transfer {
     PinNonce pinNonce;
     CompactUInt compactFee;
     AccountId toId;
-    Funds amount;
+    Funds_uint64 amount;
     RecoverableSignature signature;
     [[nodiscard]] PinHeight pin_height(PinFloor pinFloor) const
     {
         return pinNonce.pin_height(pinFloor);
     }
-    [[nodiscard]] Funds fee() const
+    [[nodiscard]] Funds_uint64 fee() const
     {
         return compactFee.uncompact();
     }
@@ -335,13 +335,13 @@ public:
     {
         return AccountId(readuint64(pos));
     }
-    Funds amount_throw() const
+    Funds_uint64 amount_throw() const
     {
-        return Funds::from_value_throw(funds_value());
+        return Funds_uint64::from_value_throw(funds_value());
     }
-    Funds amount_assert() const
+    Funds_uint64 amount_assert() const
     {
-        auto f { Funds::from_value(funds_value()) };
+        auto f { Funds_uint64::from_value(funds_value()) };
         assert(f.has_value());
         return *f;
     }
@@ -365,9 +365,9 @@ inline RewardView BodyView::reward() const
     return { data() + bodyStructure.offsetReward, 0 };
 }
 
-inline Funds BodyView::fee_sum_assert() const
+inline Funds_uint64 BodyView::fee_sum_assert() const
 {
-    Funds sum { Funds::zero() };
+    Funds_uint64 sum { Funds_uint64::zero() };
     for (auto t : transfers())
         sum.add_assert(t.compact_fee_assert().uncompact());
     return sum;
