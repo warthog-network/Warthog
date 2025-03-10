@@ -1,5 +1,6 @@
 #pragma once
 
+#include "SQLiteCpp/SQLiteCpp.h"
 #include "api/types/forward_declarations.hpp"
 #include "block/block.hpp"
 #include "block/body/order_id.hpp"
@@ -11,10 +12,9 @@
 #include "deletion_key.hpp"
 #include "general/address_funds.hpp"
 #include "general/filelock/filelock.hpp"
+#include "db/sqlite_fwd.hpp"
 #include "general/timestamp.hpp"
 #include "order_loader.hpp"
-#include "statement.hpp"
-#include "general/sqlite.hpp"
 struct CreatorToken;
 struct AccountToken;
 class ChainDBTransaction;
@@ -178,10 +178,6 @@ public:
     // set
     void insert_bad_block(NonzeroHeight height, const HeaderView header);
 
-    auto next_state_id() const
-    {
-        return cache.nextStateId;
-    };
     HistoryId insertHistory(const HashView hash,
         const std::vector<uint8_t>& data);
     void delete_history_from(NonzeroHeight);
@@ -194,6 +190,9 @@ public:
     {
         return cache.nextHistoryId;
     }
+    auto next_account_id() const { return cache.nextAccountId; }
+    auto next_token_id() const { return cache.nextTokenId; }
+    auto next_state_id() const { return cache.nextStateId; }
 
     struct TokenLookupTrace { // for debugging
         struct Step {

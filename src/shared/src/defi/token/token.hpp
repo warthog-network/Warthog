@@ -40,9 +40,8 @@ public:
 
     static TokenName parse_throw(std::string s)
     {
-        if (auto o { from_string(s) }) {
+        if (auto o { from_string(s) }) 
             return *o;
-        }
         throw std::runtime_error("Cannot parse token name \"" + s + "\".");
     }
 

@@ -1,5 +1,6 @@
 #pragma once
 #include "block/body/account_id.hpp"
+#include "chainserver/db/chain_db.hpp"
 #include "defi/token/id.hpp"
 #include "general/funds.hpp"
 #include "general/reader.hpp"
@@ -41,19 +42,16 @@ private:
 
 class RollbackGenerator {
 public:
-    RollbackGenerator(
-        AccountId nextAccountId,
-        TokenId nextTokenId,
-        uint64_t cursor)
-        : nextAccountId(nextAccountId)
-        , nextTokenId(nextTokenId)
-        , cursor(cursor)
+    RollbackGenerator( const ChainDB& db)
+        : nextAccountId(db.next_account_id())
+        , nextTokenId(db.next_token_id())
+        , nextStateId(db.next_state_id())
     {
     }
 
     void register_balance(BalanceId balanceId, Funds originalBalance)
     {
-        if (balanceId.value() >= cursor)
+        if (balanceId.value() >= nextStateId)
             return;
         assert(originalBalances.insert_or_assign(balanceId, originalBalance).second);
     }
@@ -72,19 +70,19 @@ public:
         size_t bytesize = cursorSizes + size_per_balance * originalBalances.size();
         std::vector<uint8_t> res(bytesize);
         Writer w(res.data(), res.size());
-        w << nextAccountId << nextTokenId << cursor;
+        w << nextAccountId << nextTokenId << nextStateId;
         for (auto& [balanceId, balance] : originalBalances)
             w << balanceId << balance;
         return res;
     }
 
-    auto next_state_id() const { return cursor; };
+    auto next_state_id() const { return nextStateId; };
     auto next_account_id() const { return nextAccountId; };
     auto next_token_id() const { return nextTokenId; };
 
 private:
     AccountId nextAccountId;
     TokenId nextTokenId;
-    uint64_t cursor;
+    uint64_t nextStateId;
     std::map<BalanceId, Funds> originalBalances;
 };

@@ -95,6 +95,7 @@ void match(const ChainDB& db, TokenId tid, defi::PoolLiquidity_uint64 p)
             quoteDistributed.add_assert(*q);
 
             // order swapped b -> q
+
         }
         assert(remaining == 0);
         returned.quote.subtract_assert(quoteDistributed);
@@ -288,7 +289,6 @@ public:
     auto& token_creations() const { return tokenCreations; }
     const std::vector<TransferInternal>& get_transfers() { return payments; };
     const auto& get_reward() { return reward; };
-    TokenId first_token_id() { return TokenId { endNewAccountId.value() }; }
 
 private:
     Funds totalfee { Funds::zero() };
@@ -352,9 +352,9 @@ struct HistoryEntries {
         ++nextHistoryId;
         return e;
     }
-    [[nodiscard]] auto& push_token_transfer(const VerifiedTokenTransfer& r, TokenId tokenId, HashView tokenHash)
+    [[nodiscard]] auto& push_token_transfer(const VerifiedTokenTransfer& r, TokenId tokenId)
     {
-        auto& e { insertHistory.emplace_back(r, nextHistoryId) };
+        auto& e { insertHistory.emplace_back(r, tokenId, nextHistoryId) };
         insertAccountHistory.emplace_back(r.ti.toAccountId, nextHistoryId);
         if (r.ti.toAccountId != r.ti.fromAccountId) {
             insertAccountHistory.emplace_back(r.ti.fromAccountId, nextHistoryId);
@@ -397,7 +397,7 @@ struct Preparation {
 
 Preparation::Preparation(const BlockApplier::Preparer& preparer, const ParsedBlock& b)
     : historyEntries(preparer.db.next_history_id())
-    , rg(preparer.db.next_state_id())
+    , rg(preparer.db)
 {
     // Things to do in this function
     // * check corrupted data (avoid read overflow) OK
@@ -566,7 +566,7 @@ Preparation::Preparation(const BlockApplier::Preparer& preparer, const ParsedBlo
 
 Preparation BlockApplier::Preparer::prepare(const ParsedBlock& b) const
 {
-    return Preparation(db, hc, baseTxIds, b);
+    return Preparation(*this, b);
 }
 
 api::Block BlockApplier::apply_block(const ParsedBlock& b, BlockId blockId)

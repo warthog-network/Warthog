@@ -1,6 +1,6 @@
 #include "rxtx_db.hpp"
 #include "api_types.hpp"
-#include "general/sqlite.hpp"
+#include "db/sqlite.hpp"
 #include "global/globals.hpp"
 #include "spdlog/spdlog.h"
 namespace rxtx {
@@ -52,7 +52,7 @@ namespace {
             Timestamp ts(row.get<int64_t>(1));
             size_t rx(row.get<int64_t>(2));
             size_t tx(row.get<int64_t>(3));
-            res.byHost[host].push_back({ Timestamp(ts.val() - bucketWidth), ts, rx, tx });
+            res.byHost[host].push_back({ Timestamp(ts.value() - bucketWidth), ts, rx, tx });
         },
             range.begin, range.end);
         return res;

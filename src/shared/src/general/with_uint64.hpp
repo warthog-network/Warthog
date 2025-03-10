@@ -37,12 +37,8 @@ public:
     static constexpr size_t byte_size() { return sizeof(val); }
     explicit IsUint64(int w)
         : IsUint64((int64_t)(w)) { };
-    // explicit IsUint64(long long w)
-    //     : IsUint64((int64_t)(w)) {};
     explicit constexpr IsUint64(uint64_t val)
         : val(val) { };
-    // explicit IsUint64(unsigned long long val)
-    // : val(val) {};
 
     bool operator==(const IsUint64&) const = default;
     auto operator<=>(const IsUint64&) const = default;

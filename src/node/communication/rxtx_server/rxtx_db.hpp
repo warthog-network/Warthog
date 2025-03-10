@@ -1,7 +1,7 @@
 #pragma once
 #include "aggregator.hpp"
 #include "api_types_fwd.hpp"
-#include "general/sqlite_fwd.hpp"
+#include "db/sqlite_fwd.hpp"
 #include "general/timestamp.hpp"
 
 class IP;

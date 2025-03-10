@@ -1,5 +1,6 @@
 #include "chain_db.hpp"
 #include "api/types/all.hpp"
+#include "db/sqlite.hpp"
 #include "block/body/parse.hpp"
 #include "block/chain/header_chain.hpp"
 #include "block/header/header_impl.hpp"
@@ -203,7 +204,7 @@ Worksum ChainDB::get_consensus_work() const
     if (!o.has_value()) {
         throw std::runtime_error("Database corrupted. No worksum entry");
     }
-    return o.get_array<32>(0);
+    return o[0];
 }
 void ChainDB::set_consensus_work(const Worksum& ws)
 {
@@ -530,7 +531,7 @@ std::optional<std::pair<BalanceId, Funds>> ChainDB::get_balance(AccountToken at)
 std::vector<std::pair<TokenId, Funds>> ChainDB::get_tokens(AccountId accountId, size_t limit)
 {
     std::vector<std::pair<TokenId, Funds>> res;
-    stmtAccountSelectTokens.for_each([&](Statement2::Row& r) {
+    stmtAccountSelectTokens.for_each([&](sqlite::Row& r) {
         res.push_back({ r.get<TokenId>(0), r.get<Funds>(1) });
     },
         accountId, limit);
@@ -545,7 +546,7 @@ void ChainDB::set_balance(BalanceId id, Funds balance)
 api::Richlist ChainDB::lookup_richlist(TokenId tokenId, size_t limit) const
 {
     api::Richlist out;
-    stmtTokenSelectRichlist.for_each([&](Statement2::Row& r) {
+    stmtTokenSelectRichlist.for_each([&](sqlite::Row& r) {
         out.entries.push_back({ r[0], r[1] });
     },
         tokenId, limit);

@@ -1,31 +1,36 @@
 #pragma once
 
+#include "general/with_uint64.hpp"
 #include <chrono>
 #include <optional>
 // #include <compare>
 // #include <cstdint>
 template <uint32_t seconds>
 class RoundedTimestamp;
-class Timestamp {
+class Timestamp : public IsUint32 {
 
 public:
     Timestamp(uint32_t v)
-        : data(v)
+        : IsUint32(v)
     {
     }
     auto operator<=>(const Timestamp&) const = default;
 
-    Timestamp operator-(uint32_t n) const{
-        return data - n;
+    Timestamp operator-(uint32_t n) const
+    {
+        return val - n;
     }
-    Timestamp operator-(std::chrono::system_clock::duration d){
+    Timestamp operator-(std::chrono::system_clock::duration d)
+    {
         using namespace std::chrono;
         return operator-(duration_cast<seconds>(d).count());
     }
-    Timestamp operator+(uint32_t n) const{
-        return data + n;
+    Timestamp operator+(uint32_t n) const
+    {
+        return val + n;
     }
-    Timestamp operator+(std::chrono::system_clock::duration d) const{
+    Timestamp operator+(std::chrono::system_clock::duration d) const
+    {
         using namespace std::chrono;
         return operator+(duration_cast<seconds>(d).count());
     }
@@ -48,20 +53,16 @@ public:
     std::chrono::steady_clock::time_point steady_clock_time_point() const
     {
         using namespace std::chrono;
-        return steady_clock::now() + (system_clock::time_point(seconds(data)) - system_clock::now());
+        return steady_clock::now() + (system_clock::time_point(seconds(val)) - system_clock::now());
     }
     Timestamp operator+(std::chrono::steady_clock::duration d)
     {
         using namespace std::chrono;
-        return Timestamp(data + duration_cast<seconds>(d).count());
+        return Timestamp(val + duration_cast<seconds>(d).count());
     }
-    auto val() const { return data; }
-
-private:
-    uint32_t data;
 };
 
-struct TimestampRange{
+struct TimestampRange {
     Timestamp begin;
     Timestamp end;
 };
@@ -75,7 +76,7 @@ private:
 public:
     static std::optional<RoundedTimestamp<seconds>> try_from_timestamp(Timestamp ts)
     {
-        if (ts.val() % seconds == 0)
+        if (ts.value() % seconds == 0)
             return RoundedTimestamp<seconds> { ts };
         return {};
     }
@@ -85,7 +86,7 @@ public:
     }
     RoundedTimestamp prev() const
     {
-        return { val() - seconds};
+        return { value() - seconds };
     }
 };
 

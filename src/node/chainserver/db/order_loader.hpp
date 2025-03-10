@@ -1,11 +1,14 @@
 #pragma once
 #include "defi/order.hpp"
 
-struct Statement2;
+namespace sqlite{
+struct Statement;
+}
+
 class ChainDB;
 class OrderLoader {
     friend class ChainDB;
-    OrderLoader(Statement2& stmt)
+    OrderLoader(sqlite::Statement& stmt)
         : stmt(&stmt)
     {
     }
@@ -23,6 +26,6 @@ public:
 
 private:
 private:
-    Statement2* stmt;
+    sqlite::Statement* stmt;
     std::optional<OrderData> loaded;
 };
