@@ -8,7 +8,7 @@ CompactUInt::CompactUInt(Reader& r)
     :CompactUInt(from_value_throw(r.uint16()))
 {
 }
-CompactUInt CompactUInt::compact(Funds_uint64 f){
+CompactUInt CompactUInt::compact(Wart f){
     if (f.is_zero())
         return uint16_t(0x0000u);
     uint16_t e = 10;

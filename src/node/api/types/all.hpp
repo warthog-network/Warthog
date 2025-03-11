@@ -53,7 +53,7 @@ struct RewardTransaction {
     uint32_t confirmations;
     Height height { 0 };
     uint32_t timestamp = 0;
-    Funds_uint64 amount;
+    Wart amount;
 };
 struct TransferTransaction {
     Hash txhash;
@@ -61,9 +61,9 @@ struct TransferTransaction {
     uint32_t confirmations;
     Height height { 0 };
     uint32_t timestamp = 0;
-    Funds_uint64 amount;
+    Wart amount;
     Address fromAddress;
-    Funds_uint64 fee;
+    Wart fee;
     NonceId nonceId;
     PinHeight pinHeight { PinHeight::undef() };
 };
@@ -73,7 +73,7 @@ struct AddressWithId {
 };
 struct Balance {
     std::optional<AddressWithId> address;
-    Funds_uint64 balance;
+    Wart balance;
 };
 
 struct Rollback {
@@ -87,8 +87,8 @@ struct BlockSummary {
     uint32_t confirmations = 0;
     uint32_t nTransfers;
     Address miner;
-    Funds_uint64 transferred;
-    Funds_uint64 totalTxFee;
+    Wart transferred;
+    Wart totalTxFee;
     Funds_uint64 blockReward;
 };
 
@@ -96,12 +96,12 @@ struct Block {
     static constexpr const char eventName[] = "blockAppend";
     struct Transfer {
         Address fromAddress;
-        Funds_uint64 fee;
+        Wart fee;
         NonceId nonceId;
         PinHeight pinHeight;
         Hash txhash;
         Address toAddress;
-        Funds_uint64 amount;
+        Wart amount;
     };
     struct TokenTransfer {
         TokenId tokenId;
@@ -118,7 +118,7 @@ struct Block {
     struct Reward {
         Hash txhash;
         Address toAddress;
-        Funds_uint64 amount;
+        Wart amount;
     };
     struct TokenCreation {
         Address creatorAddress;
@@ -162,7 +162,7 @@ struct AddressCount {
 };
 
 struct AccountHistory {
-    Funds_uint64 balance;
+    Wart balance;
     HistoryId fromId;
     std::vector<api::Block> blocks_reversed;
 };
@@ -172,7 +172,7 @@ struct TransactionsByBlocks {
     std::vector<api::Block> blocks_reversed;
 };
 struct Richlist {
-    std::vector<std::pair<Address, Funds_uint64>> entries;
+    std::vector<std::pair<Address, Wart>> entries;
 };
 struct MempoolEntry : public TransferTxExchangeMessage {
     Hash txHash;
@@ -257,7 +257,7 @@ struct PeerinfoConnections {
 };
 
 struct Round16Bit {
-    Funds_uint64 original;
+    Wart original;
 };
 
 struct Wallet {

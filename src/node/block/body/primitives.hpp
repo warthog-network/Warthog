@@ -31,7 +31,7 @@ public:
     [[nodiscard]] TxHash txhash(HashView pinHash) const;
     [[nodiscard]] Address from_address(HashView txHash) const;
     [[nodiscard]] Funds_uint64 spend_throw() const { return Funds_uint64::sum_throw(fee(), amount); }
-    Funds_uint64 fee() const { return compactFee.uncompact(); }
+    Wart fee() const { return compactFee.uncompact(); }
     AccountId from_id() const { return txid.accountId; }
     PinHeight pin_height() const { return txid.pinHeight; }
     NonceId nonce_id() const { return txid.nonceId; }
@@ -40,7 +40,7 @@ public:
     NonceReserved reserved;
     CompactUInt compactFee;
     Address toAddr;
-    Funds_uint64 amount;
+    Wart amount;
     RecoverableSignature signature;
 };
 

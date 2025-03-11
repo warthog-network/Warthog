@@ -187,10 +187,10 @@ public:
     {
         return val % HEADERBATCHSIZE;
     }
-    Funds_uint64 reward() const
+    Wart reward() const
     {
         int32_t halvings = (val - 1) / HALVINTINTERVAL;
-        return Funds_uint64::from_value(GENESISBLOCKREWARD >> halvings).value();
+        return Wart::from_value(GENESISBLOCKREWARD >> halvings).value();
     }
 
     // NonzeroHeight pin_bgin()

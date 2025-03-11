@@ -317,8 +317,8 @@ json to_json(const api::TransmissionTimeseries& tt)
         json tsjson(json::array());
         for (auto& e : ts) {
             tsjson.push_back({
-                { "begin", e.begin.val() },
-                { "end", e.end.val() },
+                { "begin", e.begin.value() },
+                { "end", e.end.value() },
                 { "rx", e.rx },
                 { "tx", e.tx },
             });
