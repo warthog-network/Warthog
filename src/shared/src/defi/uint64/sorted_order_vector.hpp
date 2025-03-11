@@ -66,6 +66,6 @@ struct SortedOrderVector_uint64 {
 
 private:
     std::vector<elem_t> v;
-    Funds_uint64 total { 0 };
+    Funds_uint64 total { Funds_uint64::zero() };
 };
 }

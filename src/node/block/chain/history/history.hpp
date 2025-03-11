@@ -7,12 +7,12 @@
 class Headerchain;
 struct RewardInternal {
     ValidAccountId toAccountId;
-    Funds_uint64 amount;
+    Wart amount;
     NonzeroHeight height;
     uint16_t offset; // id of payout in block
     AddressView toAddress { nullptr };
     Hash hash() const;
-    RewardInternal(ValidAccountId toAccountId, Funds_uint64 amount, NonzeroHeight height,
+    RewardInternal(ValidAccountId toAccountId, Wart amount, NonzeroHeight height,
         uint16_t offset)
         : toAccountId(toAccountId)
         , amount(amount)
@@ -25,7 +25,7 @@ class VerifiedTransfer;
 struct TransferInternal {
     ValidAccountId fromAccountId;
     ValidAccountId toAccountId;
-    Funds_uint64 amount;
+    Wart amount;
     PinNonce pinNonce;
     CompactUInt compactFee;
     AddressView fromAddress { nullptr };
@@ -33,7 +33,7 @@ struct TransferInternal {
     RecoverableSignature signature;
     [[nodiscard]] VerifiedTransfer verify(const Headerchain&, NonzeroHeight) const;
     TransferInternal(ValidAccountId from, CompactUInt compactFee, ValidAccountId to,
-        Funds_uint64 amount, PinNonce pinNonce, View<65> signdata)
+        Wart amount, PinNonce pinNonce, View<65> signdata)
         : fromAccountId(from)
         , toAccountId(to)
         , amount(amount)

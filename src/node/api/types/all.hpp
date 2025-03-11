@@ -108,7 +108,7 @@ struct Block {
         TokenHash tokenHash;
         TokenName tokenName;
         Address fromAddress;
-        Funds_uint64 fee;
+        Wart fee;
         NonceId nonceId;
         PinHeight pinHeight;
         Hash txhash;
@@ -126,7 +126,7 @@ struct Block {
         Hash txhash;
         TokenName tokenName;
         TokenId tokenIndex;
-        Funds_uint64 fee;
+        Wart fee;
     };
     Header header;
     NonzeroHeight height;

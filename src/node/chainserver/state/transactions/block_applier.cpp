@@ -170,9 +170,9 @@ protected:
 public:
     struct RewardArgument {
         AccountId to;
-        Funds_uint64 amount;
+        Wart amount;
         uint16_t offset;
-        RewardArgument(AccountId to, Funds_uint64 amount, uint16_t offset)
+        RewardArgument(AccountId to, Wart amount, uint16_t offset)
             : to(std::move(to))
             , amount(std::move(amount))
             , offset(std::move(offset))
@@ -217,9 +217,9 @@ public:
         if (tv.fromAccountId().value() == 1910 && (height.value() > 2534437) && (height.value() < unblockXeggexHeight)) {
             throw Error(EFROZENACC); // freeze Xeggex acc temporarily
         }
-        Funds_uint64 amount { tv.amount_throw() };
+        auto amount { tv.amount_throw() };
         auto compactFee = tv.compact_fee_trow();
-        Funds_uint64 fee { compactFee.uncompact() };
+        auto fee { compactFee.uncompact() };
         auto to { validate_id(tv.toAccountId()) };
         auto from { validate_id(tv.fromAccountId()) };
         if (height.value() > 719118 && amount.is_zero())
@@ -253,7 +253,7 @@ public:
     void register_token_creation(TokenCreationView tc, Height)
     {
         auto compactFee = tc.compact_fee_trow();
-        Funds_uint64 fee { compactFee.uncompact() };
+        Wart fee { compactFee.uncompact() };
         auto from { validate_id(tc.fromAccountId()) };
 
         tokenCreations.emplace_back(from, tc.pin_nonce(), tc.token_name(), compactFee, tc.signature());
@@ -303,7 +303,7 @@ public:
     const auto& get_reward() { return reward; };
 
 private:
-    Funds_uint64 totalfee { Funds_uint64::zero() };
+    Wart totalfee { Wart::zero() };
     AccountId beginNewAccountId;
     AccountId endNewAccountId;
     const BodyView& bv;
@@ -445,11 +445,11 @@ Preparation::Preparation(const BlockApplier::Preparer& preparer, const ParsedBlo
     }
 
     // Read reward section
-    Funds_uint64 totalpayout { Funds_uint64::zero() };
+    Wart totalpayout { Wart::zero() };
     BalanceChecker balanceChecker {
         [&]() {
             auto r { bv.reward() };
-            Funds_uint64 amount { r.amount_throw() };
+            Wart amount { r.amount_throw() };
             totalpayout.add_throw(amount);
             return BalanceChecker { db.next_state_id(), bv, height, { r.account_id(), amount, r.offset } };
         }()
@@ -571,7 +571,7 @@ Preparation::Preparation(const BlockApplier::Preparer& preparer, const ParsedBlo
             });
     }
 
-    if (totalpayout > Funds_uint64::sum_throw(height.reward(), balanceChecker.getTotalFee()))
+    if (totalpayout > Wart::sum_throw(height.reward(), balanceChecker.getTotalFee()))
         throw Error(EBALANCE);
 }
 

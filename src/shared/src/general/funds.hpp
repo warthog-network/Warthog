@@ -123,6 +123,10 @@ public:
 
 class Funds_uint64 : public FundsBase<Funds_uint64> {
 public:
+    constexpr Funds_uint64(uint64_t v)
+        : FundsBase<Funds_uint64>(from_value_throw(v))
+    {
+    }
     auto operator<=>(const Funds_uint64&) const = default;
     static std::optional<Funds_uint64> parse(std::string_view, DecimalDigits);
     static Funds_uint64 parse_throw(std::string_view, DecimalDigits);
@@ -136,6 +140,10 @@ public:
     static Wart parse_throw(std::string_view);
     std::string to_string() const;
     uint64_t E8() const { return val; };
+    operator Funds_uint64() const
+    {
+        return Funds_uint64::from_value_throw(E8());
+    }
 
 private:
     // we use the more meaningful E8 instead

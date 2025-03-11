@@ -82,9 +82,9 @@ public:
     {
         return AccountId(readuint64(pos + 18));
     }
-    Funds_uint64 amount_throw() const
+    Wart amount_throw() const
     {
-        return Funds_uint64::from_value_throw(readuint64(pos + 26));
+        return Wart::from_value_throw(readuint64(pos + 26));
     }
     auto signature() const { return View<65>(pos + 34); }
     static_assert(65 == BodyStructure::SIGLEN);
@@ -335,9 +335,9 @@ public:
     {
         return AccountId(readuint64(pos));
     }
-    Funds_uint64 amount_throw() const
+    Wart amount_throw() const
     {
-        return Funds_uint64::from_value_throw(funds_value());
+        return Wart::from_value_throw(funds_value());
     }
     Funds_uint64 amount_assert() const
     {
