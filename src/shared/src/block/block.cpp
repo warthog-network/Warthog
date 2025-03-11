@@ -45,7 +45,7 @@ std::vector<TransactionId> ParsedBlock::read_tx_ids()
     PinFloor pinFloor { PrevHeight(height) };
 
     std::vector<TransactionId> out;
-    for (auto t : bv.transfers()) {
+    for (auto t : bv.wart_transfers()) {
         auto txid { t.txid(t.pinHeight(pinFloor)) };
         out.push_back(txid);
     }

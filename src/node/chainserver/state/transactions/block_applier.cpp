@@ -269,7 +269,7 @@ public:
         ad.referredTokenCreator.push_back(i);
     }
 
-    Funds_uint64 getTotalFee() { return totalfee; }; // OK
+    Funds_uint64 getTotalFee() const { return totalfee; }; // OK
     ValidAccountId validate_id(AccountId accountId) const // OK
     {
         return accountId.validate_throw(endNewAccountId);
@@ -299,8 +299,8 @@ public:
     };
     AddressView get_new_address(size_t i) { return bv.get_address(i); } // OK
     auto& token_creations() const { return tokenCreations; }
-    const std::vector<TransferInternal>& get_transfers() { return payments; };
-    const auto& get_reward() { return reward; };
+    const std::vector<TransferInternal>& get_transfers() const { return payments; };
+    const auto& get_reward() const { return reward; };
 
 private:
     Wart totalfee { Wart::zero() };
@@ -393,7 +393,9 @@ struct HistoryEntries {
 } // namespace
 
 namespace chainserver {
-struct Preparation {
+class PreparetionGenerator;
+class Preparation {
+public:
     HistoryEntries historyEntries;
     RollbackGenerator rg;
     std::set<TransactionId> txset;
@@ -404,38 +406,35 @@ struct Preparation {
     std::optional<api::Block::Reward> apiReward;
     std::vector<api::Block::Transfer> apiTransfers;
     std::vector<api::Block::TokenCreation> apiTokenCreations;
-    Preparation(const BlockApplier::Preparer& preparer, const ParsedBlock& b);
+
+private:
+    friend class PreparationGenerator;
+    Preparation(const ChainDB& db)
+        : historyEntries(db.next_history_id())
+        , rg(db)
+    {
+    }
 };
 
-Preparation::Preparation(const BlockApplier::Preparer& preparer, const ParsedBlock& b)
-    : historyEntries(preparer.db.next_history_id())
-    , rg(preparer.db)
-{
-    // Things to do in this function
-    // * check corrupted data (avoid read overflow) OK
-    // * sum up payouts OK
-    // * no one can spend what they don't have OK
-    // * overflow check OK
-    // * check every new address is indeed new OK
-    // * check signatures OK
+class PreparationGenerator : public Preparation {
+private:
+    // constants
+    const ChainDB& db;
+    const Headerchain& hc;
+    decltype(BlockApplier::Preparer::baseTxIds)& baseTxIds;
+    const decltype(BlockApplier::Preparer::newTxIds)& newTxIds;
+    const BodyView bv;
+    const NonzeroHeight height;
 
-    // abbreviations
-    const ChainDB& db { preparer.db };
-    const Headerchain& hc { preparer.hc };
-    auto& baseTxIds { preparer.baseTxIds };
-    auto& newTxIds { preparer.newTxIds };
-    auto bv { b.body.view() };
-    auto height { b.height };
+    // variables needed for block verification
+    const RewardView reward;
+    BalanceChecker balanceChecker;
 
-    ////////////////////////////////////////////////////////////
-    /// Read block sections
-    ////////////////////////////////////////////////////////////
-
-    // Read new address section
-
-    { // verify address policy
+private:
+    // Check uniqueness of new addresses
+    void verify_new_address_policy()
+    {
         std::set<AddressView> newAddresses;
-        // Check uniqueness of new addresses
         for (auto address : bv.addresses()) {
             if (newAddresses.emplace(address).second == false)
                 throw Error(EADDRPOLICY);
@@ -444,84 +443,80 @@ Preparation::Preparation(const BlockApplier::Preparer& preparer, const ParsedBlo
         }
     }
 
-    // Read reward section
-    Wart totalpayout { Wart::zero() };
-    BalanceChecker balanceChecker {
-        [&]() {
-            auto r { bv.reward() };
-            Wart amount { r.amount_throw() };
-            totalpayout.add_throw(amount);
-            return BalanceChecker { db.next_state_id(), bv, height, { r.account_id(), amount, r.offset } };
-        }()
-    };
-
-    // Read transfer section for WART coins
-    for (auto t : bv.transfers()) {
-        balanceChecker.register_transfer(TokenId(0), t, height);
+    void register_wart_transfers()
+    {
+        // Read transfer section for WART coins
+        for (auto t : bv.wart_transfers())
+            balanceChecker.register_transfer(TokenId(0), t, height);
+    }
+    void register_token_creations()
+    {
+        for (auto tc : bv.token_creations())
+            balanceChecker.register_token_creation(tc, height);
     }
 
-    // Read token creation section
-    for (auto tc : bv.token_creations()) {
-        balanceChecker.register_token_creation(tc, height);
-    }
-
-    ////////////////////////////////////////////////////////////
-    /// Process block sections
-    ////////////////////////////////////////////////////////////
-    auto process_new_balance { [this](auto tokenId, const auto& tokenFlow, auto accountId) {
+    auto process_new_balance(auto tokenId, const auto& tokenFlow, auto accountId)
+    {
         if (tokenFlow.out() > Funds_uint64::zero()) // We do not allow resend of newly inserted balance
             throw Error(EBALANCE); // insufficient balance
-        assert(tokenFlow.out().is_zero());
-        Funds_uint64 balance = tokenFlow.in();
+        Funds_uint64 balance { tokenFlow.in() };
         insertBalances.push_back({ { accountId, tokenId }, balance });
-    } };
+    }
 
-    // loop through old accounts and
-    // load previous balances and addresses from database
-    for (auto& [accountId, accountData] : balanceChecker.old_accounts()) {
-        if (auto address { db.lookup_address(accountId) }; address) {
-            // address lookup successful
-            balanceChecker.set_address(accountData, *address);
+    void process_old_accounts()
+    {
+        // loop through old accounts and
+        // load previous balances and addresses from database
+        for (auto& [accountId, accountData] : balanceChecker.old_accounts()) {
+            if (auto address { db.lookup_address(accountId) }; address) {
+                // address lookup successful
+                balanceChecker.set_address(accountData, *address);
 
-            for (auto& [tokenId, tokenFlow] : accountData.tokenFlow) {
-                if (auto p { db.get_balance({ accountId, tokenId }) }) {
-                    const auto& [balanceId, balance] { *p };
-                    rg.register_balance(balanceId, balance);
-                    // check that balances are correct
-                    auto totalIn { Funds_uint64::sum_throw(tokenFlow.in(), balance) };
-                    Funds_uint64 newbalance { Funds_uint64::diff_throw(totalIn, tokenFlow.out()) };
-                    updateBalances.push_back({ balanceId, { accountId, tokenId }, newbalance });
-                } else {
-                    process_new_balance(tokenId, tokenFlow, accountId);
+                for (auto& [tokenId, tokenFlow] : accountData.tokenFlow) {
+                    if (auto p { db.get_balance({ accountId, tokenId }) }) {
+                        const auto& [balanceId, balance] { *p };
+                        rg.register_balance(balanceId, balance);
+                        // check that balances are correct
+                        auto totalIn { Funds_uint64::sum_throw(tokenFlow.in(), balance) };
+                        Funds_uint64 newbalance { Funds_uint64::diff_throw(totalIn, tokenFlow.out()) };
+                        updateBalances.push_back({ balanceId, { accountId, tokenId }, newbalance });
+                    } else {
+                        process_new_balance(tokenId, tokenFlow, accountId);
+                    }
                 }
+            } else {
+                throw Error(EINVACCOUNT); // invalid account id (not found in database)
             }
-        } else {
-            throw Error(EINVACCOUNT); // invalid account id (not found in database)
         }
     }
 
-    // loop through new accounts
-    const auto& newAccounts = balanceChecker.get_new_accounts();
-    for (size_t i = 0; i < newAccounts.size(); ++i) {
-        auto& acc = newAccounts[i];
-        AccountId accountId = balanceChecker.get_account_id(i);
-        bool referred { false };
-        for (auto& [tokenId, tokenFlow] : acc.tokenFlow) {
-            if (!tokenFlow.in().is_zero())
-                referred = true;
-            process_new_balance(tokenId, tokenFlow, accountId);
+    void process_new_accounts()
+    {
+        // loop through new accounts
+        const auto& newAccounts = balanceChecker.get_new_accounts();
+        for (size_t i = 0; i < newAccounts.size(); ++i) {
+            auto& acc = newAccounts[i];
+            AccountId accountId = balanceChecker.get_account_id(i);
+            bool referred { false };
+            for (auto& [tokenId, tokenFlow] : acc.tokenFlow) {
+                if (!tokenFlow.in().is_zero())
+                    referred = true;
+                process_new_balance(tokenId, tokenFlow, accountId);
+            }
+            if (!referred) {
+                throw Error(EIDPOLICY); // id was not referred
+            }
+            AddressView address = balanceChecker.get_new_address(i);
+            insertAccounts.push_back({ address, accountId });
         }
-        if (!referred) {
-            throw Error(EIDPOLICY); // id was not referred
-        }
-        AddressView address = balanceChecker.get_new_address(i);
-        insertAccounts.push_back({ address, accountId });
     }
 
-    // generate history for payments and check signatures
-    // and check for unique transaction ids
+    void process_reward()
+    {
+        const auto& balanceChecker { this->balanceChecker }; // shadow balanceChecker
+        if (reward.amount_throw() > Wart::sum_throw(height.reward(), balanceChecker.getTotalFee()))
+            throw Error(EBALANCE);
 
-    { // reward
         auto& r { balanceChecker.get_reward() };
         assert(!r.toAddress.is_null());
         auto& ref { historyEntries.push_reward(r) };
@@ -532,52 +527,88 @@ Preparation::Preparation(const BlockApplier::Preparer& preparer, const ParsedBlo
         };
     }
 
-    // transfers
-    for (auto& tr : balanceChecker.get_transfers()) {
-        auto verified { tr.verify(hc, height) };
-        TransactionId tid { verified.id };
+    // generate history for transfers and check signatures
+    // and check for unique transaction ids
+    void process_transfers()
+    {
+        const auto& balanceChecker { this->balanceChecker }; // shadow balanceChecker
+        for (auto& tr : balanceChecker.get_transfers()) {
+            auto verified { tr.verify(hc, height) };
+            TransactionId tid { verified.id };
 
-        // check for duplicate txid (also within current block)
-        if (baseTxIds.contains(tid) || newTxIds.contains(tid) || txset.emplace(tid).second == false) {
-            throw Error(ENONCE);
-        }
+            // check for duplicate txid (also within current block)
+            if (baseTxIds.contains(tid) || newTxIds.contains(tid) || txset.emplace(tid).second == false) {
+                throw Error(ENONCE);
+            }
 
-        auto& ref { historyEntries.push_transfer(verified) };
-        apiTransfers.push_back({
-            .fromAddress { tr.fromAddress },
-            .fee { tr.compactFee.uncompact() },
-            .nonceId { tr.pinNonce.id },
-            .pinHeight { tr.pinNonce.pin_height(PinFloor { PrevHeight { height } }) },
-            .txhash { ref.he.hash },
-            .toAddress { tr.toAddress },
-            .amount { tr.amount },
-        });
-    }
-
-    const auto beginNewTokenId = db.next_token_id(); // they start from this index
-    for (size_t i = 0; i < balanceChecker.token_creations().size(); ++i) {
-        auto& tc { balanceChecker.token_creations()[i] };
-        auto tokenId { beginNewTokenId + i };
-        const auto verified { tc.verify(hc, height, tokenId) };
-        insertTokenCreations.push_back({ { tc.creatorAccountId, tokenId }, tc.tokenName });
-        apiTokenCreations.push_back(
-            {
-                .creatorAddress { verified.tci.creatorAddress },
-                .nonceId { verified.tci.pinNonce.id },
-                .txhash { verified.hash },
-                .tokenName { tc.tokenName },
-                .tokenIndex { verified.tokenIndex },
-                .fee { tc.compactFee.uncompact() },
+            auto& ref { historyEntries.push_transfer(verified) };
+            apiTransfers.push_back({
+                .fromAddress { tr.fromAddress },
+                .fee { tr.compactFee.uncompact() },
+                .nonceId { tr.pinNonce.id },
+                .pinHeight { tr.pinNonce.pin_height(PinFloor { PrevHeight { height } }) },
+                .txhash { ref.he.hash },
+                .toAddress { tr.toAddress },
+                .amount { tr.amount },
             });
+        }
     }
 
-    if (totalpayout > Wart::sum_throw(height.reward(), balanceChecker.getTotalFee()))
-        throw Error(EBALANCE);
-}
+public:
+    // Things to do in this constructor
+    // * sum up payouts OK
+    // * no one can spend what they don't have OK
+    // * overflow check OK
+    // * check every new address is indeed new OK
+    // * check signatures OK
+    PreparationGenerator(const BlockApplier::Preparer& preparer, const ParsedBlock& b)
+        : Preparation(preparer.db)
+        , db(preparer.db)
+        , hc(preparer.hc)
+        , baseTxIds(preparer.baseTxIds)
+        , newTxIds(preparer.newTxIds)
+        , bv { b.body.view() }
+        , height(b.height)
+        , reward(bv.reward())
+        , balanceChecker(db.next_state_id(), bv, height, { reward.account_id(), reward.amount_throw(), reward.offset })
+    {
+
+        /// Read block sections
+        verify_new_address_policy(); // new address section
+        register_wart_transfers(); // WART transfer section
+        register_token_creations(); // token creation section
+
+        ////////////////////////////////////////////////////////////
+        /// Process block sections
+        ////////////////////////////////////////////////////////////
+
+        process_old_accounts();
+        process_new_accounts();
+        process_reward();
+        process_transfers();
+
+        const auto beginNewTokenId = db.next_token_id(); // they start from this index
+        for (size_t i = 0; i < balanceChecker.token_creations().size(); ++i) {
+            auto& tc { balanceChecker.token_creations()[i] };
+            auto tokenId { beginNewTokenId + i };
+            const auto verified { tc.verify(hc, height, tokenId) };
+            insertTokenCreations.push_back({ { tc.creatorAccountId, tokenId }, tc.tokenName });
+            apiTokenCreations.push_back(
+                {
+                    .creatorAddress { verified.tci.creatorAddress },
+                    .nonceId { verified.tci.pinNonce.id },
+                    .txhash { verified.hash },
+                    .tokenName { tc.tokenName },
+                    .tokenIndex { verified.tokenIndex },
+                    .fee { tc.compactFee.uncompact() },
+                });
+        }
+    }
+};
 
 Preparation BlockApplier::Preparer::prepare(const ParsedBlock& b) const
 {
-    return Preparation(*this, b);
+    return PreparationGenerator(*this, b);
 }
 
 api::Block BlockApplier::apply_block(const ParsedBlock& b, BlockId blockId)

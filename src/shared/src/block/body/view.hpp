@@ -102,8 +102,8 @@ class BodyView {
         EndIterator end() { return {}; }
         const BodyView& bv;
     };
-    struct Transfers {
-        Transfers(const BodyView& bv)
+    struct WartTransfers {
+        WartTransfers(const BodyView& bv)
             : bv(bv)
         {
         }
@@ -131,7 +131,7 @@ class BodyView {
                 , bv(bv)
             {
             }
-            friend struct Transfers;
+            friend struct WartTransfers;
             size_t i { 0 };
             size_t imax;
             const BodyView& bv;
@@ -192,7 +192,7 @@ public:
     size_t size() const { return bodyContainer.size(); }
     const uint8_t* data() const { return bodyContainer.data().data(); }
 
-    auto transfers() const { return Transfers { *this }; }
+    auto wart_transfers() const { return WartTransfers { *this }; }
     inline auto foreach_token(auto lambda) const;
     auto addresses() const { return Addresses { *this }; }
     auto token_creations() const { return NewTokens { *this }; }

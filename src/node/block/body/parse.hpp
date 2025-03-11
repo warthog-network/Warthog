@@ -368,7 +368,7 @@ inline RewardView BodyView::reward() const
 inline Funds_uint64 BodyView::fee_sum_assert() const
 {
     Funds_uint64 sum { Funds_uint64::zero() };
-    for (auto t : transfers())
+    for (auto t : wart_transfers())
         sum.add_assert(t.compact_fee_assert().uncompact());
     return sum;
 }
@@ -382,7 +382,7 @@ inline AddressView BodyView::Addresses::Iterator::operator*() const
 {
     return bv.get_address(i);
 }
-inline WartTransferView BodyView::Transfers::Iterator::operator*() const
+inline WartTransferView BodyView::WartTransfers::Iterator::operator*() const
 {
     return bv.get_transfer(i);
 }
