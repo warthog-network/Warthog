@@ -1,12 +1,13 @@
 #include "funds.hpp"
 #include "general/errors.hpp"
 #include "general/params.hpp"
-#include "general/writer.hpp"
 #include <cassert>
+#include <charconv>
 #include <cstring>
-Funds_uint64 Funds_uint64::parse_throw(std::string_view s)
+
+Funds_uint64 Funds_uint64::parse_throw(std::string_view s, DecimalDigits d)
 {
-    if (auto o { Funds_uint64::parse(s) }; o.has_value()) {
+    if (auto o { Funds_uint64::parse(s, d) }; o.has_value()) {
         return *o;
     }
     throw Error(EINV_FUNDS);
@@ -46,23 +47,24 @@ Funds_uint64 Funds_uint64::parse_throw(std::string_view s)
 //     return s;
 // }
 
-std::string Funds_uint64::to_string() const
+std::string Funds_uint64::to_string(DecimalDigits decimals) const
 {
+    const size_t d { decimals() };
     if (val == 0)
         return "0";
     static_assert(COINUNIT == 100000000);
     std::string s { std::to_string(val) };
     size_t p = s.size();
-    if (p >= 9) {
+    if (p > d) {
         s.resize(p + 1);
-        for (size_t i = 0; i < 8; ++i)
+        for (size_t i = 0; i < d; ++i)
             s[p - i] = s[p - i - 1];
-        s[p - 8] = '.';
+        s[p - d] = '.';
         return s;
     } else {
-        size_t z = 8 - p;
+        size_t z = d - p;
         std::string tmp;
-        tmp.resize(10);
+        tmp.resize(2 + d);
         tmp[0] = '0';
         tmp[1] = '.';
         for (size_t i = 0; i < z; ++i)
@@ -72,14 +74,17 @@ std::string Funds_uint64::to_string() const
     }
 }
 
-std::optional<Funds_uint64> Funds_uint64::parse(std::string_view s)
+std::optional<Funds_uint64> Funds_uint64::parse(std::string_view s, DecimalDigits digits)
 {
-    char buf[17]; // 16 digits max for WRT balances
+    const size_t d { digits() };
+    static_assert(DecimalDigits::max <= 18); // otherwise we need to add entries to this buf
+    char buf[20]; // max uint64_t has 20 digits max 
     size_t dotindex = 0;
     bool dotfound = false;
     size_t i;
+    auto out { buf };
     for (i = 0; i < s.length(); ++i) {
-        if (i >= 18 || (i == 17 && dotfound == false))
+        if (i > 20 || (i == 19 && dotfound == false))
             return {}; // too many digits
         char c = s[i];
         if (c == '.') {
@@ -89,35 +94,25 @@ std::optional<Funds_uint64> Funds_uint64::parse(std::string_view s)
             } else
                 return {};
         } else if (c >= '0' && c <= '9') {
-            if (dotfound)
-                buf[i - 1] = c;
-            else
-                buf[i] = c;
+            *(out++) = c;
         } else {
             return {};
         }
     }
-    uint64_t powers10[9] = {
-        1, 10, 100, 1000, 10000,
-        100000, 1000000, 10000000, 100000000
-    };
 
-    if (dotfound)
-        buf[i - 1] = '\0';
-    else
-        buf[i] = '\0';
-    if (dotfound) {
-        if (dotindex > 8)
+    uint64_t v;
+    auto [ptr, ec] { std::from_chars(buf, out, v) };
+    if (ec != std::errc() || ptr != out)
+        return {};
+
+    size_t afterDotDigits = dotfound ?i - dotindex - 1 : 0;
+    if (afterDotDigits > d)
+        return {};
+    const size_t zeros = d - afterDotDigits;
+    for (size_t i { 0 }; i < zeros; ++i) {
+        if (std::numeric_limits<uint64_t>::max() / 10 < v)
             return {};
-        size_t afterDotDigits = (i - dotindex - 1);
-        if (afterDotDigits > 8)
-            return {};
-        size_t addzeros = 8 - afterDotDigits;
-        return Funds_uint64::from_value(uint64_t(std::stoull(buf)) * powers10[addzeros]); // static_assert coinunit==10000000
-    } else {
-        if (i > 8)
-            return {};
-        return Funds_uint64::from_value(uint64_t(std::stoull(buf) * powers10[8])); // static_assert coinunit==10000000
+        v *= 10;
     }
-    return {};
+    return Funds_uint64::from_value(v);
 }

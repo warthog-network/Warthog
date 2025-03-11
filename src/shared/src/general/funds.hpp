@@ -2,89 +2,110 @@
 #include "general/errors.hpp"
 #include "general/with_uint64.hpp"
 #include <cassert>
+#include <limits>
 #include <optional>
 
 class Writer;
 class CompactUInt;
 
-class Funds_uint64 : public IsUint64 {
+// class Funds_uint64 : public IsUint64 {
+// public:
+//     constexpr Funds_uint64(uint64_t val)
+//         : IsUint64(val) { };
+//     static constexpr Funds_uint64 zero() { return { 0 }; }
+//     auto operator<=>(const Funds_uint64&) const = default;
+//
+//     static std::optional<Funds_uint64> parse(std::string_view);
+//     static Funds_uint64 parse_throw(std::string_view);
+//     bool is_zero() const { return val == 0; }
+//     // std::string format(std::string_view unit) const;
+//     std::string to_string() const;
+//
+//     void add_throw(Funds_uint64 add)
+//     {
+//         *this = sum_throw(*this, add);
+//     }
+//     void add_assert(Funds_uint64 add)
+//     {
+//         *this = sum_assert(*this, add);
+//     }
+//
+//     static std::optional<Funds_uint64> sum(Funds_uint64 a, Funds_uint64 b)
+//     {
+//         auto s { a.val + b.val };
+//         if (s < a.val)
+//             return {};
+//         return Funds_uint64 { s };
+//     }
+//
+//     template <typename... T>
+//     static std::optional<Funds_uint64> sum(Funds_uint64 a, Funds_uint64 b, T&&... t)
+//     {
+//         auto s { sum(a, b) };
+//         if (!s.has_value())
+//             return {};
+//         return sum(*s, std::forward<T>(t)...);
+//     }
+//
+//     template <typename... T>
+//     static Funds_uint64 sum_throw(Funds_uint64 a, T&&... t)
+//     {
+//         auto s { sum(a, std::forward<T>(t)...) };
+//         if (!s.has_value())
+//             throw Error(EBALANCE);
+//         return *s;
+//     }
+//
+//     template <typename... T>
+//     static Funds_uint64 sum_assert(Funds_uint64 a, T&&... t)
+//     {
+//         auto s { sum(a, std::forward<T>(t)...) };
+//         assert(s.has_value());
+//         return *s;
+//     }
+//
+//     void subtract_assert(Funds_uint64 f)
+//     {
+//         *this = diff_assert(*this, f);
+//     }
+//     static std::optional<Funds_uint64> diff(Funds_uint64 a, Funds_uint64 b)
+//     {
+//         if (a.val < b.val)
+//             return {};
+//         return Funds_uint64 { a.val - b.val };
+//     }
+//     static Funds_uint64 diff_assert(Funds_uint64 a, Funds_uint64 b)
+//     {
+//         auto d { diff(a, b) };
+//         assert(d.has_value());
+//         return *d;
+//     }
+//     static Funds_uint64 diff_throw(Funds_uint64 a, Funds_uint64 b)
+//     {
+//         auto d { diff(a, b) };
+//         if (!d.has_value())
+//             throw Error(EBALANCE);
+//         return *d;
+//     }
+// };
+
+class DecimalDigits {
+private:
+    uint8_t val;
+
+    DecimalDigits(uint8_t v)
+        : val(v)
+    {
+    }
+
 public:
-    constexpr Funds_uint64(uint64_t val)
-        : IsUint64(val) { };
-    static constexpr Funds_uint64 zero() { return { 0 }; }
-    auto operator<=>(const Funds_uint64&) const = default;
-
-    static std::optional<Funds_uint64> parse(std::string_view);
-    static Funds_uint64 parse_throw(std::string_view);
-    bool is_zero() const { return val == 0; }
-    // std::string format(std::string_view unit) const;
-    std::string to_string() const;
-
-    void add_throw(Funds_uint64 add)
+    static constexpr const uint8_t max{18};
+    auto operator()() const { return val; }
+    std::optional<DecimalDigits> from_number(uint8_t v)
     {
-        *this = sum_throw(*this, add);
-    }
-    void add_assert(Funds_uint64 add)
-    {
-        *this = sum_assert(*this, add);
-    }
-
-    static std::optional<Funds_uint64> sum(Funds_uint64 a, Funds_uint64 b)
-    {
-        auto s { a.val + b.val };
-        if (s < a.val)
+        if (v > max)
             return {};
-        return Funds_uint64 { s };
-    }
-
-    template <typename... T>
-    static std::optional<Funds_uint64> sum(Funds_uint64 a, Funds_uint64 b, T&&... t)
-    {
-        auto s { sum(a, b) };
-        if (!s.has_value())
-            return {};
-        return sum(*s, std::forward<T>(t)...);
-    }
-
-    template <typename... T>
-    static Funds_uint64 sum_throw(Funds_uint64 a, T&&... t)
-    {
-        auto s { sum(a, std::forward<T>(t)...) };
-        if (!s.has_value())
-            throw Error(EBALANCE);
-        return *s;
-    }
-
-    template <typename... T>
-    static Funds_uint64 sum_assert(Funds_uint64 a, T&&... t)
-    {
-        auto s { sum(a, std::forward<T>(t)...) };
-        assert(s.has_value());
-        return *s;
-    }
-
-    void subtract_assert(Funds_uint64 f)
-    {
-        *this = diff_assert(*this, f);
-    }
-    static std::optional<Funds_uint64> diff(Funds_uint64 a, Funds_uint64 b)
-    {
-        if (a.val < b.val)
-            return {};
-        return Funds_uint64 { a.val - b.val };
-    }
-    static Funds_uint64 diff_assert(Funds_uint64 a, Funds_uint64 b)
-    {
-        auto d { diff(a, b) };
-        assert(d.has_value());
-        return *d;
-    }
-    static Funds_uint64 diff_throw(Funds_uint64 a, Funds_uint64 b)
-    {
-        auto d { diff(a, b) };
-        if (!d.has_value())
-            throw Error(EBALANCE);
-        return *d;
+        return DecimalDigits { v };
     }
 };
 
@@ -108,11 +129,11 @@ public:
         return *v;
     }
 
-    static std::optional<Funds_uint64> parse(std::string_view);
-    static Funds_uint64 parse_throw(std::string_view);
+    static std::optional<Funds_uint64> parse(std::string_view, DecimalDigits);
+    static Funds_uint64 parse_throw(std::string_view, DecimalDigits);
     bool is_zero() const { return val == 0; }
     // std::string format(std::string_view unit) const;
-    std::string to_string() const;
+    std::string to_string(DecimalDigits) const;
     uint64_t E8() const { return val; };
 
     void add_throw(Funds_uint64 add)
