@@ -12,8 +12,10 @@ public:
 };
 
 class Address : public std::array<uint8_t, 20> {
+    Address(){};
 public:
     friend class PubKey;
+    static Address uninitialized(){return {};}
     Address(const std::string_view);
     Address(std::array<uint8_t, 20> arr)
         : array(arr) {};

@@ -123,11 +123,12 @@ void match(const ChainDB& db, TokenId tid, defi::PoolLiquidity_uint64 p)
 class BalanceChecker {
 
     class FundFlow {
-        friend class BalanceChecker;
 
     public:
-        Funds_uint64 in() const { return _in; }
-        Funds_uint64 out() const { return _out; }
+        auto& in() const { return _in; }
+        auto& out() const { return _out; }
+        void add_in(Funds_uint64 f) { _in.add_throw(f); }
+        void add_out(Funds_uint64 f) { _out.add_throw(f); }
 
     private:
         Funds_uint64 _in { Funds_uint64::zero() };
@@ -136,27 +137,34 @@ class BalanceChecker {
 
     using TokenFlow = std::map<TokenId, FundFlow>;
     struct AccountData {
-        bool isMiner { false };
-        std::vector<size_t> referredTokenCreator;
-        std::vector<size_t> referredFrom;
-        std::vector<size_t> referredTo;
-        TokenFlow tokenFlow;
-    };
-
-    class OldAccountData : public AccountData {
-    public:
-        OldAccountData(Address address)
-            : address(std::move(address))
+        TokenFlow flow;
+        AddressView address;
+        AccountData(AddressView address)
+            : address(address)
         {
         }
-        Address address;
+    };
+
+    class OldAccountData {
+    public:
+        OldAccountData()
+            : addressData(Address::uninitialized())
+            , accountData(addressData)
+        {
+        }
+        Address addressData;
+        auto& token_flow() { return accountData.flow; }
+        AccountData accountData;
     };
 
 protected:
     [[nodiscard]] AccountData& account_data(AccountId i)
     {
+        struct ADAccountData {
+            /* data */
+        };
         if (i < beginNewAccountId) {
-            return oldAccounts[i];
+            return oldAccounts[i].accountData;
         } else {
             assert(i < endNewAccountId);
             return newAccounts[i.value() - beginNewAccountId.value()];
@@ -164,7 +172,7 @@ protected:
     }
     auto& token_flow(AccountId aid, TokenId tid)
     {
-        return account_data(aid).tokenFlow[tid];
+        return account_data(aid).flow[tid];
     }
 
 public:
@@ -184,16 +192,18 @@ public:
         : beginNewAccountId(nextStateId)
         , endNewAccountId(beginNewAccountId + bv.getNAddresses())
         , bv(bv)
-        , newAccounts(endNewAccountId - beginNewAccountId)
         , height(height)
         , reward(validate_id(r.to), r.amount, height, r.offset)
     { // OK
-        if (r.to >= beginNewAccountId) {
-            reward.toAddress = get_new_address(r.to - beginNewAccountId);
-        } // otherwise wait for db lookup later
+
+        size_t nNewAccounts { endNewAccountId - beginNewAccountId };
+        newAccounts.reserve(nNewAccounts);
+        for (size_t i = 0; i < nNewAccounts; ++i)
+            newAccounts.push_back(get_new_address(i));
+
+        reward.toAddress = account_data(r.to).address;
         auto& a = account_data(r.to);
-        a.tokenFlow[TokenId::WART]._in.add_throw(r.amount);
-        a.isMiner = true;
+        a.flow[TokenId::WART].add_in(r.amount);
     }
 
     struct TokenBalance {
@@ -205,90 +215,66 @@ public:
     {
         auto vid { validate_id(accId) };
         auto& ad { account_data(vid) };
-        ad.tokenFlow[subtract.tokenId].out().add_throw(subtract.funds);
-        ad.tokenFlow[add.tokenId].out().add_throw(add.funds);
+        ad.flow[subtract.tokenId].add_out(subtract.funds);
+        ad.flow[add.tokenId].add_out(add.funds);
+    }
+
+    void add_fee(TokenFlow& f, CompactUInt compactFee)
+    {
+        auto fee { compactFee.uncompact() };
+        totalfee.add_throw(fee);
+        f[TokenId::WART].add_out(fee);
     }
 
     void register_transfer(TokenId tokenId, WartTransferView tv, Height height) // OK
     {
-        constexpr uint32_t fivedaysBlocks = 5 * 24 * 60 * 3;
-        constexpr uint32_t unblockXeggexHeight = 2576442 + fivedaysBlocks;
-        static_assert(2598042 == unblockXeggexHeight);
-        if (tv.fromAccountId().value() == 1910 && (height.value() > 2534437) && (height.value() < unblockXeggexHeight)) {
-            throw Error(EFROZENACC); // freeze Xeggex acc temporarily
-        }
         auto amount { tv.amount_throw() };
-        auto compactFee = tv.compact_fee_trow();
-        auto fee { compactFee.uncompact() };
-        auto to { validate_id(tv.toAccountId()) };
-        auto from { validate_id(tv.fromAccountId()) };
+        auto compactFee { tv.compact_fee_throw() };
+        auto toId { validate_id(tv.toAccountId()) };
+        auto fromId { validate_id(tv.fromAccountId()) };
         if (height.value() > 719118 && amount.is_zero())
             throw Error(EZEROAMOUNT);
-        if (from == to)
+        if (fromId == toId)
             throw Error(ESELFSEND);
 
-        payments.emplace_back(from, compactFee, to, amount, tv.pin_nonce(), tv.signature());
-        size_t i = payments.size() - 1;
-        auto& ref = payments.back();
-        if (from >= beginNewAccountId) {
-            ref.fromAddress = get_new_address(from - beginNewAccountId);
-        } // otherwise wait for db lookup later
-        if (to >= beginNewAccountId) {
-            ref.toAddress = get_new_address(to - beginNewAccountId);
-        } // otherwise wait for db lookup later
+        auto& toData { account_data(toId) };
+        auto& fromData { account_data(fromId) };
+        toData.flow[tokenId].add_in(amount);
+        fromData.flow[tokenId].add_out(amount);
+        add_fee(fromData.flow, compactFee);
 
-        { // destination balance
-            auto& ad { account_data(to) };
-            ad.referredTo.push_back(i);
-            ad.tokenFlow[tokenId]._in.add_throw(amount);
-        }
-        { // source balance
-            auto& ad { account_data(from) };
-            ad.referredFrom.push_back(i);
-            ad.tokenFlow[tokenId]._out.add_throw(amount);
-            ad.tokenFlow[TokenId::WART]._out.add_throw(fee);
-            totalfee.add_throw(fee);
-        }
+        transfers.push_back(
+            { .fromAccountId { fromId },
+                .toAccountId { toId },
+                .amount { amount },
+                .pinNonce { tv.pin_nonce() },
+                .compactFee { compactFee },
+                .fromAddress { fromData.address },
+                .toAddress { toData.address },
+                .signature { tv.signature() } });
     }
     void register_token_creation(TokenCreationView tc, Height)
     {
-        auto compactFee = tc.compact_fee_trow();
-        Wart fee { compactFee.uncompact() };
-        auto from { validate_id(tc.fromAccountId()) };
+        auto compactFee = tc.compact_fee_throw();
+        auto fromId { validate_id(tc.fromAccountId()) };
+        auto& ad = account_data(fromId);
 
-        tokenCreations.emplace_back(from, tc.pin_nonce(), tc.token_name(), compactFee, tc.signature());
-        size_t i = tokenCreations.size() - 1;
-        if (from >= beginNewAccountId) {
-            auto& ref = tokenCreations.back();
-            ref.creatorAddress = get_new_address(from - beginNewAccountId);
-        } // otherwise wait for db lookup later
+        tokenCreations.push_back({
+            .creatorAccountId { fromId },
+            .pinNonce { tc.pin_nonce() },
+            .tokenName { tc.token_name() },
+            .compactFee { compactFee },
+            .signature { tc.signature() },
+            .creatorAddress { ad.address },
+        });
 
-        auto& ad = account_data(from);
-        ad.tokenFlow[TokenId::WART]._out.add_throw(fee);
-        totalfee.add_throw(fee);
-        ad.referredTokenCreator.push_back(i);
+        add_fee(ad.flow, compactFee);
     }
 
     Funds_uint64 getTotalFee() const { return totalfee; }; // OK
     ValidAccountId validate_id(AccountId accountId) const // OK
     {
         return accountId.validate_throw(endNewAccountId);
-    }
-    int set_address(OldAccountData& af, AddressView address) // OK
-    {
-        af.address = address;
-        for (size_t i : af.referredTokenCreator)
-            tokenCreations[i].creatorAddress = af.address;
-        for (size_t i : af.referredFrom) {
-            payments[i].fromAddress = af.address;
-        }
-        for (size_t i : af.referredTo) {
-            payments[i].toAddress = af.address;
-        }
-        if (af.isMiner) {
-            reward.toAddress = af.address;
-        }
-        return 0;
     }
     auto& old_accounts() { return oldAccounts; } // OK
     const std::vector<AccountData>& get_new_accounts() const { return newAccounts; } // OK
@@ -299,7 +285,7 @@ public:
     };
     AddressView get_new_address(size_t i) { return bv.get_address(i); } // OK
     auto& token_creations() const { return tokenCreations; }
-    const std::vector<TransferInternal>& get_transfers() const { return payments; };
+    const std::vector<TransferInternal>& get_transfers() const { return transfers; };
     const auto& get_reward() const { return reward; };
 
 private:
@@ -310,9 +296,9 @@ private:
     std::map<AccountId, OldAccountData> oldAccounts;
     std::vector<AccountData> newAccounts;
     NonzeroHeight height;
-    RewardInternal reward;
-    std::vector<TransferInternal> payments;
 
+    RewardInternal reward;
+    std::vector<TransferInternal> transfers;
     std::vector<TokenCreationInternal> tokenCreations;
 };
 
@@ -455,37 +441,39 @@ private:
             balanceChecker.register_token_creation(tc, height);
     }
 
-    auto process_new_balance(auto tokenId, const auto& tokenFlow, auto accountId)
+    auto process_new_flow(const AccountToken& at, const auto& tokenFlow)
     {
         if (tokenFlow.out() > Funds_uint64::zero()) // We do not allow resend of newly inserted balance
             throw Error(EBALANCE); // insufficient balance
         Funds_uint64 balance { tokenFlow.in() };
-        insertBalances.push_back({ { accountId, tokenId }, balance });
+        insertBalances.push_back({ at, balance });
+    }
+    auto process_old_flow(const AccountToken& at, const auto& tokenFlow, const std::pair<BalanceId, Funds_uint64>& b)
+    {
+        const auto& [balanceId, balance] { b };
+        rg.register_balance(balanceId, balance);
+        // check that balances are correct
+        auto totalIn { Funds_uint64::sum_throw(tokenFlow.in(), balance) };
+        Funds_uint64 newbalance { Funds_uint64::diff_throw(totalIn, tokenFlow.out()) };
+        updateBalances.push_back({ balanceId, at, newbalance });
+    }
+    auto db_address(AccountId id)
+    {
+        if (auto address { db.lookup_address(id) })
+            return *address;
+        throw Error(EINVACCOUNT); // invalid account id (not found in database)
     }
 
     void process_old_accounts()
     {
-        // loop through old accounts and
-        // load previous balances and addresses from database
         for (auto& [accountId, accountData] : balanceChecker.old_accounts()) {
-            if (auto address { db.lookup_address(accountId) }; address) {
-                // address lookup successful
-                balanceChecker.set_address(accountData, *address);
-
-                for (auto& [tokenId, tokenFlow] : accountData.tokenFlow) {
-                    if (auto p { db.get_balance({ accountId, tokenId }) }) {
-                        const auto& [balanceId, balance] { *p };
-                        rg.register_balance(balanceId, balance);
-                        // check that balances are correct
-                        auto totalIn { Funds_uint64::sum_throw(tokenFlow.in(), balance) };
-                        Funds_uint64 newbalance { Funds_uint64::diff_throw(totalIn, tokenFlow.out()) };
-                        updateBalances.push_back({ balanceId, { accountId, tokenId }, newbalance });
-                    } else {
-                        process_new_balance(tokenId, tokenFlow, accountId);
-                    }
-                }
-            } else {
-                throw Error(EINVACCOUNT); // invalid account id (not found in database)
+            accountData.addressData = db_address(accountId);
+            for (auto& [tokenId, tokenFlow] : accountData.token_flow()) {
+                AccountToken at { accountId, tokenId };
+                if (auto p { db.get_balance(at) })
+                    process_old_flow(at, tokenFlow, *p);
+                else
+                    process_new_flow(at, tokenFlow);
             }
         }
     }
@@ -498,15 +486,14 @@ private:
             auto& acc = newAccounts[i];
             AccountId accountId = balanceChecker.get_account_id(i);
             bool referred { false };
-            for (auto& [tokenId, tokenFlow] : acc.tokenFlow) {
+            for (auto& [tokenId, tokenFlow] : acc.flow) {
                 if (!tokenFlow.in().is_zero())
                     referred = true;
-                process_new_balance(tokenId, tokenFlow, accountId);
+                process_new_flow({ accountId, tokenId }, tokenFlow);
             }
-            if (!referred) {
+            if (!referred)
                 throw Error(EIDPOLICY); // id was not referred
-            }
-            AddressView address = balanceChecker.get_new_address(i);
+            AddressView address { balanceChecker.get_new_address(i) };
             insertAccounts.push_back({ address, accountId });
         }
     }
@@ -514,10 +501,10 @@ private:
     void process_reward()
     {
         const auto& balanceChecker { this->balanceChecker }; // shadow balanceChecker
-        if (reward.amount_throw() > Wart::sum_throw(height.reward(), balanceChecker.getTotalFee()))
-            throw Error(EBALANCE);
 
         auto& r { balanceChecker.get_reward() };
+        if (r.amount > Wart::sum_throw(height.reward(), balanceChecker.getTotalFee()))
+            throw Error(EBALANCE);
         assert(!r.toAddress.is_null());
         auto& ref { historyEntries.push_reward(r) };
         apiReward = api::Block::Reward {
@@ -527,19 +514,21 @@ private:
         };
     }
 
+    auto txid_validator()
+    {
+        return [this](TransactionId tid) -> bool {
+            // check for duplicate txid (also within current block)
+            return !baseTxIds.contains(tid) && !newTxIds.contains(tid) && txset.emplace(tid).second;
+        };
+    }
+
     // generate history for transfers and check signatures
     // and check for unique transaction ids
     void process_transfers()
     {
         const auto& balanceChecker { this->balanceChecker }; // shadow balanceChecker
         for (auto& tr : balanceChecker.get_transfers()) {
-            auto verified { tr.verify(hc, height) };
-            TransactionId tid { verified.id };
-
-            // check for duplicate txid (also within current block)
-            if (baseTxIds.contains(tid) || newTxIds.contains(tid) || txset.emplace(tid).second == false) {
-                throw Error(ENONCE);
-            }
+            auto verified { tr.verify(hc, height, txid_validator()) };
 
             auto& ref { historyEntries.push_transfer(verified) };
             apiTransfers.push_back({
@@ -578,10 +567,7 @@ public:
         register_wart_transfers(); // WART transfer section
         register_token_creations(); // token creation section
 
-        ////////////////////////////////////////////////////////////
         /// Process block sections
-        ////////////////////////////////////////////////////////////
-
         process_old_accounts();
         process_new_accounts();
         process_reward();

@@ -3,6 +3,7 @@
 #include "crypto/crypto.hpp"
 #include "crypto/hasher_sha256.hpp"
 #include "defi/token/token.hpp"
+#include <functional>
 #include <variant>
 class Headerchain;
 struct RewardInternal {
@@ -22,31 +23,22 @@ struct RewardInternal {
     }
 };
 class VerifiedTransfer;
+class TxIdVerifier;
 struct TransferInternal {
     ValidAccountId fromAccountId;
     ValidAccountId toAccountId;
     Wart amount;
     PinNonce pinNonce;
     CompactUInt compactFee;
-    AddressView fromAddress { nullptr };
-    AddressView toAddress { nullptr };
+    AddressView fromAddress;
+    AddressView toAddress;
     RecoverableSignature signature;
-    [[nodiscard]] VerifiedTransfer verify(const Headerchain&, NonzeroHeight) const;
-    TransferInternal(ValidAccountId from, CompactUInt compactFee, ValidAccountId to,
-        Wart amount, PinNonce pinNonce, View<65> signdata)
-        : fromAccountId(from)
-        , toAccountId(to)
-        , amount(amount)
-        , pinNonce(pinNonce)
-        , compactFee(compactFee)
-        , signature(signdata)
-    {
-    }
+    [[nodiscard]] VerifiedTransfer verify(const Headerchain&, NonzeroHeight, const std::function<bool(TransactionId)>&) const;
 };
 
 class VerifiedTransfer {
     friend struct TransferInternal;
-    VerifiedTransfer(const TransferInternal&, PinHeight pinHeight, HashView pinHash);
+    VerifiedTransfer(const TransferInternal&, PinHeight pinHeight, HashView pinHash, const std::function<bool(TransactionId)>&);
     Address recover_address() const
     {
         return ti.signature.recover_pubkey(hash).address();
@@ -55,7 +47,7 @@ class VerifiedTransfer {
 
 public:
     const TransferInternal& ti;
-    const TransactionId id;
+    const VerifiedTransactionId id;
     const Hash hash;
 };
 
@@ -104,17 +96,8 @@ struct TokenCreationInternal {
     TokenName tokenName;
     CompactUInt compactFee;
     RecoverableSignature signature;
-    AddressView creatorAddress { nullptr };
+    AddressView creatorAddress;
     [[nodiscard]] VerifiedTokenCreation verify(const Headerchain&, NonzeroHeight, TokenId) const;
-    TokenCreationInternal(ValidAccountId fromAccountId, PinNonce pinNonce,
-        TokenName tokenName, CompactUInt compactFee, RecoverableSignature signature)
-        : creatorAccountId(fromAccountId)
-        , pinNonce(std::move(pinNonce))
-        , tokenName(std::move(tokenName))
-        , compactFee(std::move(compactFee))
-        , signature(std::move(signature))
-    {
-    }
 };
 
 class VerifiedTokenCreation {

@@ -14,9 +14,9 @@ struct TransactionId {
     TransactionId(AccountId accountId, PinHeight pinHeight, NonceId nonceId)
         : accountId(accountId)
         , pinHeight(pinHeight)
-        , nonceId(nonceId) {};
+        , nonceId(nonceId) { };
     constexpr static size_t bytesize = 16;
-    static consteval size_t byte_size(){return bytesize;}
+    static consteval size_t byte_size() { return bytesize; }
 
     TransactionId(Reader& r);
     std::string hex_string() const;
@@ -29,6 +29,16 @@ struct TransactionId {
     NonceId nonceId;
 };
 
+struct VerifiedTransactionId : public TransactionId {
+
+    VerifiedTransactionId(TransactionId txid, auto txIdValidator)
+        : TransactionId(txid)
+    {
+        if (!txIdValidator(txid))
+            throw Error(ENONCE);
+    }
+};
+
 struct TxidWithFee {
     TransactionId txid;
     CompactUInt fee;
@@ -38,7 +48,7 @@ struct TxidWithFee {
         , fee(std::move(fee))
     {
     }
-    static consteval size_t byte_size(){return decltype(txid)::byte_size() + decltype(fee)::byte_size();}
+    static consteval size_t byte_size() { return decltype(txid)::byte_size() + decltype(fee)::byte_size(); }
     friend Writer& operator<<(Writer&, const TxidWithFee&);
 
     TxidWithFee(Reader& r);

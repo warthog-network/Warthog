@@ -37,7 +37,7 @@ public:
     {
         return TokenName { View<5>(pos + 20) };
     }
-    CompactUInt compact_fee_trow() const
+    CompactUInt compact_fee_throw() const
     {
         return CompactUInt::from_value_throw(fee_raw());
     }
@@ -64,7 +64,7 @@ public:
     {
         return pin_nonce().pin_height(pinFloor);
     }
-    CompactUInt compact_fee_trow() const
+    CompactUInt compact_fee_throw() const
     {
         return CompactUInt::from_value_throw(fee_raw());
     }
@@ -76,7 +76,7 @@ public:
 
     Funds_uint64 fee_throw() const
     {
-        return compact_fee_trow().uncompact();
+        return compact_fee_throw().uncompact();
     }
     AccountId toAccountId() const
     {
@@ -310,7 +310,7 @@ struct Transfer {
     Transfer(WartTransferView v)
         : fromId(v.fromAccountId())
         , pinNonce(v.pin_nonce())
-        , compactFee(v.compact_fee_trow())
+        , compactFee(v.compact_fee_throw())
         , toId(v.toAccountId())
         , amount(v.amount_throw())
         , signature(v.signature())
