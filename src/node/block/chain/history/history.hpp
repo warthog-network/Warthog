@@ -10,17 +10,8 @@ struct RewardInternal {
     ValidAccountId toAccountId;
     Wart amount;
     NonzeroHeight height;
-    uint16_t offset; // id of payout in block
-    AddressView toAddress { nullptr };
+    AddressView toAddress;
     Hash hash() const;
-    RewardInternal(ValidAccountId toAccountId, Wart amount, NonzeroHeight height,
-        uint16_t offset)
-        : toAccountId(toAccountId)
-        , amount(amount)
-        , height(height)
-        , offset(offset)
-    {
-    }
 };
 class VerifiedTransfer;
 class TxIdVerifier;

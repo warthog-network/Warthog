@@ -137,73 +137,109 @@ class BalanceChecker {
 
     using TokenFlow = std::map<TokenId, FundFlow>;
     struct AccountData {
+    private:
         TokenFlow flow;
+
+    public:
+        void add(TokenId id, Funds_uint64 v)
+        {
+            flow[id].add_in(v);
+        }
+        void subtract(TokenId id, Funds_uint64 v)
+        {
+            flow[id].add_out(v);
+        }
+        auto& token_flow() const { return flow; }
         AddressView address;
-        AccountData(AddressView address)
+        ValidAccountId id;
+        AccountData(AddressView address, ValidAccountId accountId)
             : address(address)
+            , id(accountId)
         {
         }
     };
 
     class OldAccountData {
     public:
-        OldAccountData()
-            : addressData(Address::uninitialized())
-            , accountData(addressData)
+        OldAccountData(ValidAccountId accountId)
+            : address(Address::uninitialized())
+            , data(address, accountId)
         {
         }
-        Address addressData;
-        auto& token_flow() { return accountData.flow; }
-        AccountData accountData;
+        auto& token_flow() { return data.token_flow(); }
+        Address address;
+        operator AccountData&() { return data; }
+
+    private:
+        AccountData data;
+    };
+
+    struct Accounts {
+        Accounts(AccountId nextAccountId, const BodyView& bv)
+            : beginNew(nextAccountId)
+            , end(beginNew + bv.getNAddresses())
+        {
+            size_t n { end.value() - beginNew.value() };
+            newAccounts.reserve(n);
+            for (size_t i = 0; i < n; ++i)
+                newAccounts.push_back({ bv.get_address(i), (beginNew + i).validate_throw(end) });
+        }
+        [[nodiscard]] AccountData& operator[](AccountId i)
+        {
+            auto vid { i.validate_throw(end) };
+            if (i < beginNew) {
+                return oldAccounts.try_emplace(vid, vid).first->second;
+            } else {
+                assert(i < end);
+                return newAccounts[vid.value() - beginNew.value()];
+            }
+        }
+        // AccountId get_account_id(size_t newElementOffset) // OK
+        // {
+        //     assert(newElementOffset < newAccounts.size());
+        //     return beginNew + newElementOffset;
+        // };
+        auto& new_accounts() const { return newAccounts; }
+        auto& old_accounts() { return oldAccounts; }
+        const AccountId beginNew;
+        const AccountId end;
+
+    private:
+        std::vector<AccountData> newAccounts;
+        std::map<ValidAccountId, OldAccountData> oldAccounts;
     };
 
 protected:
-    [[nodiscard]] AccountData& account_data(AccountId i)
-    {
-        struct ADAccountData {
-            /* data */
-        };
-        if (i < beginNewAccountId) {
-            return oldAccounts[i].accountData;
-        } else {
-            assert(i < endNewAccountId);
-            return newAccounts[i.value() - beginNewAccountId.value()];
-        }
-    }
-    auto& token_flow(AccountId aid, TokenId tid)
-    {
-        return account_data(aid).flow[tid];
-    }
-
-public:
     struct RewardArgument {
         AccountId to;
         Wart amount;
-        uint16_t offset;
-        RewardArgument(AccountId to, Wart amount, uint16_t offset)
+        RewardArgument(AccountId to, Wart amount)
             : to(std::move(to))
             , amount(std::move(amount))
-            , offset(std::move(offset))
         {
         }
     };
-    BalanceChecker(uint64_t nextStateId,
-        const BodyView& bv, NonzeroHeight height, RewardArgument r)
-        : beginNewAccountId(nextStateId)
-        , endNewAccountId(beginNewAccountId + bv.getNAddresses())
+
+public:
+    static RewardInternal register_reward(const BodyView& bv, Accounts& accounts, NonzeroHeight h)
+    {
+        auto r { bv.reward() };
+        auto& a { accounts[r.account_id()] };
+        auto am { r.amount_throw() };
+        a.add(TokenId::WART, am);
+        return {
+            .toAccountId { a.id },
+            .amount { am },
+            .height { h },
+            .toAddress { a.address }
+        };
+    }
+    BalanceChecker(AccountId nextAccountId, const BodyView& bv, NonzeroHeight height)
+        : height(height)
         , bv(bv)
-        , height(height)
-        , reward(validate_id(r.to), r.amount, height, r.offset)
-    { // OK
-
-        size_t nNewAccounts { endNewAccountId - beginNewAccountId };
-        newAccounts.reserve(nNewAccounts);
-        for (size_t i = 0; i < nNewAccounts; ++i)
-            newAccounts.push_back(get_new_address(i));
-
-        reward.toAddress = account_data(r.to).address;
-        auto& a = account_data(r.to);
-        a.flow[TokenId::WART].add_in(r.amount);
+        , accounts(nextAccountId, bv)
+        , reward(register_reward(bv, accounts, height))
+    {
     }
 
     struct TokenBalance {
@@ -213,93 +249,78 @@ public:
 
     void register_swap(AccountId accId, TokenBalance subtract, TokenBalance add)
     {
-        auto vid { validate_id(accId) };
-        auto& ad { account_data(vid) };
-        ad.flow[subtract.tokenId].add_out(subtract.funds);
-        ad.flow[add.tokenId].add_out(add.funds);
+        auto& ad { accounts[accId] };
+        ad.subtract(subtract.tokenId, subtract.funds);
+        ad.add(add.tokenId, add.funds);
     }
 
-    void add_fee(TokenFlow& f, CompactUInt compactFee)
+    void charge_fee(AccountData& a, CompactUInt compactFee)
     {
         auto fee { compactFee.uncompact() };
         totalfee.add_throw(fee);
-        f[TokenId::WART].add_out(fee);
+        a.subtract(TokenId::WART, fee);
     }
 
     void register_transfer(TokenId tokenId, WartTransferView tv, Height height) // OK
     {
         auto amount { tv.amount_throw() };
         auto compactFee { tv.compact_fee_throw() };
-        auto toId { validate_id(tv.toAccountId()) };
-        auto fromId { validate_id(tv.fromAccountId()) };
+        auto& to { accounts[tv.toAccountId()] };
+        auto& from { accounts[tv.fromAccountId()] };
         if (height.value() > 719118 && amount.is_zero())
             throw Error(EZEROAMOUNT);
-        if (fromId == toId)
+        if (from.id == to.id)
             throw Error(ESELFSEND);
 
-        auto& toData { account_data(toId) };
-        auto& fromData { account_data(fromId) };
-        toData.flow[tokenId].add_in(amount);
-        fromData.flow[tokenId].add_out(amount);
-        add_fee(fromData.flow, compactFee);
+        to.add(tokenId, amount);
+        from.subtract(tokenId, amount);
+        charge_fee(from, compactFee);
 
-        transfers.push_back(
-            { .fromAccountId { fromId },
-                .toAccountId { toId },
-                .amount { amount },
-                .pinNonce { tv.pin_nonce() },
-                .compactFee { compactFee },
-                .fromAddress { fromData.address },
-                .toAddress { toData.address },
-                .signature { tv.signature() } });
+        transfers.push_back({
+            .fromAccountId { from.id },
+            .toAccountId { to.id },
+            .amount { amount },
+            .pinNonce { tv.pin_nonce() },
+            .compactFee { compactFee },
+            .fromAddress { from.address },
+            .toAddress { to.address },
+            .signature { tv.signature() },
+        });
     }
     void register_token_creation(TokenCreationView tc, Height)
     {
         auto compactFee = tc.compact_fee_throw();
-        auto fromId { validate_id(tc.fromAccountId()) };
-        auto& ad = account_data(fromId);
+        auto& from { accounts[tc.fromAccountId()] };
 
         tokenCreations.push_back({
-            .creatorAccountId { fromId },
+            .creatorAccountId { from.id },
             .pinNonce { tc.pin_nonce() },
             .tokenName { tc.token_name() },
             .compactFee { compactFee },
             .signature { tc.signature() },
-            .creatorAddress { ad.address },
+            .creatorAddress { from.address },
         });
 
-        add_fee(ad.flow, compactFee);
+        charge_fee(from, compactFee);
     }
 
-    Funds_uint64 getTotalFee() const { return totalfee; }; // OK
-    ValidAccountId validate_id(AccountId accountId) const // OK
-    {
-        return accountId.validate_throw(endNewAccountId);
-    }
-    auto& old_accounts() { return oldAccounts; } // OK
-    const std::vector<AccountData>& get_new_accounts() const { return newAccounts; } // OK
-    AccountId get_account_id(size_t newElementOffset) // OK
-    {
-        assert(newElementOffset < newAccounts.size());
-        return beginNewAccountId + newElementOffset;
-    };
+    Wart getTotalFee() const { return totalfee; }; // OK
+    auto& old_accounts() { return accounts.old_accounts(); }
+    auto& get_new_accounts() const { return accounts.new_accounts(); }
     AddressView get_new_address(size_t i) { return bv.get_address(i); } // OK
     auto& token_creations() const { return tokenCreations; }
     const std::vector<TransferInternal>& get_transfers() const { return transfers; };
     const auto& get_reward() const { return reward; };
 
 private:
-    Wart totalfee { Wart::zero() };
-    AccountId beginNewAccountId;
-    AccountId endNewAccountId;
+    const NonzeroHeight height;
     const BodyView& bv;
-    std::map<AccountId, OldAccountData> oldAccounts;
-    std::vector<AccountData> newAccounts;
-    NonzeroHeight height;
-
+    Accounts accounts;
     RewardInternal reward;
+
     std::vector<TransferInternal> transfers;
     std::vector<TokenCreationInternal> tokenCreations;
+    Wart totalfee { Wart::zero() };
 };
 
 struct InsertHistoryEntry {
@@ -467,7 +488,7 @@ private:
     void process_old_accounts()
     {
         for (auto& [accountId, accountData] : balanceChecker.old_accounts()) {
-            accountData.addressData = db_address(accountId);
+            accountData.address = db_address(accountId);
             for (auto& [tokenId, tokenFlow] : accountData.token_flow()) {
                 AccountToken at { accountId, tokenId };
                 if (auto p { db.get_balance(at) })
@@ -481,20 +502,16 @@ private:
     void process_new_accounts()
     {
         // loop through new accounts
-        const auto& newAccounts = balanceChecker.get_new_accounts();
-        for (size_t i = 0; i < newAccounts.size(); ++i) {
-            auto& acc = newAccounts[i];
-            AccountId accountId = balanceChecker.get_account_id(i);
+        for (auto& a : balanceChecker.get_new_accounts()) {
             bool referred { false };
-            for (auto& [tokenId, tokenFlow] : acc.flow) {
+            for (auto& [tokenId, tokenFlow] : a.token_flow()) {
                 if (!tokenFlow.in().is_zero())
                     referred = true;
-                process_new_flow({ accountId, tokenId }, tokenFlow);
+                process_new_flow({ a.id, tokenId }, tokenFlow);
             }
             if (!referred)
                 throw Error(EIDPOLICY); // id was not referred
-            AddressView address { balanceChecker.get_new_address(i) };
-            insertAccounts.push_back({ address, accountId });
+            insertAccounts.push_back({ a.address, a.id });
         }
     }
 
@@ -559,7 +576,7 @@ public:
         , bv { b.body.view() }
         , height(b.height)
         , reward(bv.reward())
-        , balanceChecker(db.next_state_id(), bv, height, { reward.account_id(), reward.amount_throw(), reward.offset })
+        , balanceChecker(db.next_account_id(), bv, height)
     {
 
         /// Read block sections

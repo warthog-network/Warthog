@@ -121,7 +121,7 @@ private:
 public:
     OrderView(const uint8_t* pos, TokenId tokenId)
         : View(pos)
-        , tokenId(tokenId) {};
+        , tokenId(tokenId) { };
     AccountId accountId() const
     {
         return AccountId(readuint64(pos));
@@ -178,7 +178,7 @@ private:
 public:
     LiquidityAddView(const uint8_t* pos, TokenId tokenId)
         : View(pos)
-        , tokenId(tokenId) {};
+        , tokenId(tokenId) { };
     AccountId accountId() const
     {
         return AccountId(readuint64(pos));
@@ -236,7 +236,7 @@ private:
 public:
     LiquidityRemoveView(const uint8_t* pos, TokenId tokenId)
         : View(pos)
-        , tokenId(tokenId) {};
+        , tokenId(tokenId) { };
     AccountId accountId() const
     {
         return AccountId(readuint64(pos));
@@ -326,9 +326,8 @@ private:
     }
 
 public:
-    RewardView(const uint8_t* pos, uint16_t i)
+    RewardView(const uint8_t* pos)
         : View(pos)
-        , offset(i)
     {
     }
     AccountId account_id() const
@@ -345,7 +344,6 @@ public:
         assert(f.has_value());
         return *f;
     }
-    const uint16_t offset; // index in block
 };
 
 inline WartTransferView BodyView::get_transfer(size_t i) const
@@ -362,7 +360,7 @@ inline TokenCreationView BodyView ::get_new_token(size_t i) const
 
 inline RewardView BodyView::reward() const
 {
-    return { data() + bodyStructure.offsetReward, 0 };
+    return { data() + bodyStructure.offsetReward };
 }
 
 inline Funds_uint64 BodyView::fee_sum_assert() const
@@ -394,7 +392,7 @@ inline TokenCreationView BodyView::NewTokens::Iterator::operator*() const
 inline auto BodyView::foreach_token(auto lambda) const
 {
     for (auto& ts : bodyStructure.tokensSections)
-        lambda(BodyStructure::TokenSectionView{ts,data()});
+        lambda(BodyStructure::TokenSectionView { ts, data() });
 }
 
 inline auto BodyStructure::TokenSectionView::foreach_transfer(auto lambda) const

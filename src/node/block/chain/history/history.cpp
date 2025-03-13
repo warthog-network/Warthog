@@ -8,7 +8,7 @@ Hash RewardInternal::hash() const
         << toAddress
         << amount
         << height
-        << offset;
+        << uint16_t(0);
 }
 
 VerifiedTokenTransfer TokenTransferInternal::verify(const Headerchain& hc, NonzeroHeight height, HashView tokenHash) const
