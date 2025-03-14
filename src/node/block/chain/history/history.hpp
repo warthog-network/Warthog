@@ -1,11 +1,12 @@
 #pragma once
 #include "block/body/transaction_id.hpp"
 #include "crypto/crypto.hpp"
-#include "crypto/hasher_sha256.hpp"
+#include "crypto/hash.hpp"
 #include "defi/token/token.hpp"
 #include <functional>
 #include <variant>
 class Headerchain;
+
 struct RewardInternal {
     ValidAccountId toAccountId;
     Wart amount;
@@ -13,18 +14,88 @@ struct RewardInternal {
     AddressView toAddress;
     Hash hash() const;
 };
-class TxIdVerifier;
-struct TransferInternalWithoutAmount {
-    ValidAccountId fromAccountId;
-    ValidAccountId toAccountId;
-    PinNonce pinNonce;
-    CompactUInt compactFee;
-    AddressView fromAddress;
-    AddressView toAddress;
-    RecoverableSignature signature;
+
+struct VerifiedHash : public Hash {
+    VerifiedHash(Hash h, const RecoverableSignature& s, AddressView a)
+        : Hash(h)
+    {
+        if (s.recover_pubkey(h).address() != a)
+            throw Error(ECORRUPTEDSIG);
+    }
 };
 
-class VerifiedTransfer;
+struct IdAddressView {
+    ValidAccountId id;
+    AddressView address;
+};
+
+struct SignerData : public IdAddressView {
+    SignerData(ValidAccountId id, AddressView address, RecoverableSignature signature, PinNonce pinNonce)
+        : IdAddressView({ id, address })
+        , signature(signature)
+        , pinNonce(pinNonce)
+    {
+    }
+
+    RecoverableSignature signature;
+    PinNonce pinNonce;
+    VerifiedHash verify_hash(Hash h) const
+    {
+        return { h, signature, address };
+    }
+};
+
+struct TransactionVerifier;
+struct VerifiedTransaction {
+    VerifiedHash hash;
+    VerifiedTransactionId txid;
+
+private:
+    friend struct TransactionVerifier;
+    VerifiedTransaction(VerifiedHash hash, VerifiedTransactionId txid)
+        : hash(hash)
+        , txid(txid)
+    {
+    }
+};
+struct TransactionVerifier {
+    using validator_t = std::function<bool(TransactionId)>;
+    const Headerchain& hc;
+    NonzeroHeight h;
+    validator_t validator;
+
+    struct PinInfo {
+        PinHeight height;
+        Hash hash;
+    };
+
+protected:
+    PinInfo pin_info(PinNonce pinNonce) const;
+
+public:
+    TransactionVerifier(const Headerchain& hc, NonzeroHeight h, validator_t f);
+
+    template <typename... HashArgs>
+    VerifiedTransaction verify(const SignerData& origin, HashArgs&&... hashArgs) const;
+};
+
+class TxIdVerifier;
+
+struct TransferInternalWithoutAmount {
+    SignerData from;
+    IdAddressView to;
+    CompactUInt compactFee;
+};
+
+struct WartTransferInternal;
+class VerifiedWartTransfer : public VerifiedTransaction {
+    friend struct WartTransferInternal;
+    VerifiedWartTransfer(const WartTransferInternal&, const TransactionVerifier&); // Wart transfer
+
+public:
+    const WartTransferInternal& ti;
+};
+
 struct WartTransferInternal : public TransferInternalWithoutAmount {
     Wart amount;
     WartTransferInternal(TransferInternalWithoutAmount t, Wart amount)
@@ -33,9 +104,20 @@ struct WartTransferInternal : public TransferInternalWithoutAmount {
     {
     }
     using TransferInternalWithoutAmount::TransferInternalWithoutAmount;
-    [[nodiscard]] VerifiedTransfer verify(const Headerchain&, NonzeroHeight, const std::function<bool(TransactionId)>&) const;
+    [[nodiscard]] VerifiedWartTransfer verify(const TransactionVerifier& tv) const
+    {
+        return VerifiedWartTransfer(*this, tv);
+    }
 };
 
+struct TokenTransferInternal;
+class VerifiedTokenTransfer : public VerifiedTransaction {
+    friend struct TokenTransferInternal;
+    VerifiedTokenTransfer(const TokenTransferInternal&, const TransactionVerifier&, HashView tokenHash);
+
+public:
+    const TokenTransferInternal& ti;
+};
 struct TokenTransferInternal : public TransferInternalWithoutAmount {
     Funds_uint64 amount;
     TokenTransferInternal(TransferInternalWithoutAmount t, Funds_uint64 amount)
@@ -43,40 +125,11 @@ struct TokenTransferInternal : public TransferInternalWithoutAmount {
         , amount(amount)
     {
     }
-    [[nodiscard]] VerifiedTransfer verify(const Headerchain&, NonzeroHeight, HashView tokenHash, const std::function<bool(TransactionId)>&) const;
-};
-
-class VerifiedTransfer {
-    friend struct WartTransferInternal;
-    friend struct TokenTransferInternal;
-    VerifiedTransfer(const WartTransferInternal&, PinHeight pinHeight, HashView pinHash, const std::function<bool(TransactionId)>&); // Wart transfer
-    VerifiedTransfer(const TokenTransferInternal&, PinHeight pinHeight, HashView pinHash, HashView tokenHash, const std::function<bool(TransactionId)>&);
-    Address recover_address() const
+    [[nodiscard]] VerifiedTokenTransfer verify(const TransactionVerifier& tv, HashView tokenHash) const
     {
-        return ti.signature.recover_pubkey(hash).address();
+        return { *this, tv, tokenHash };
     }
-    bool valid_signature() const;
-
-public:
-    const TransferInternalWithoutAmount& ti;
-    const VerifiedTransactionId id;
-    const Hash hash;
 };
-
-// class VerifiedTokenTransfer {
-//     friend struct TokenTransferInternal;
-//     VerifiedTokenTransfer(const TokenTransferInternal&, PinHeight pinHeight, HashView pinHash, HashView tokenHash);
-//     Address recover_address() const
-//     {
-//         return ti.signature.recover_pubkey(hash).address();
-//     }
-//     bool valid_signature() const;
-//
-// public:
-//     const TokenTransferInternal& ti;
-//     const TransactionId id;
-//     const Hash hash;
-// };
 
 class VerifiedTokenCreation;
 struct TokenCreationInternal {
@@ -155,7 +208,7 @@ struct TokenTransferData {
 using Data = std::variant<TransferData, RewardData, TokenCreationData, TokenTransferData>;
 struct Entry {
     Entry(const RewardInternal& p);
-    Entry(const VerifiedTransfer& p);
+    Entry(const VerifiedWartTransfer& p);
     Entry(const VerifiedTokenTransfer& p, TokenId);
     Entry(const VerifiedTokenCreation& p);
     Hash hash;

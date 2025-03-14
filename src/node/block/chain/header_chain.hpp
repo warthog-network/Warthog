@@ -37,17 +37,18 @@ class HeaderchainSkeleton {
 public:
     HeaderchainSkeleton(SharedBatch finalPin, Batch incompleteBatch)
         : finalPin(std::move(finalPin))
-        , incompleteBatch(std::move(incompleteBatch)) {};
+        , incompleteBatch(std::move(incompleteBatch)) { };
 
     std::optional<HeaderView> inefficient_search_header(NonzeroHeight h) const;
     Height length() const { return finalPin.upper_height() + incompleteBatch.size(); };
-    HeaderSearchRecursive header_search_recursive() const{
-        return {finalPin, incompleteBatch};
+    HeaderSearchRecursive header_search_recursive() const
+    {
+        return { finalPin, incompleteBatch };
     }
     const Batch& incomplete_batch() { return incompleteBatch; }
 
 protected:
-    HeaderchainSkeleton() {};
+    HeaderchainSkeleton() { };
     SharedBatch finalPin;
     Batch incompleteBatch;
 };
@@ -58,7 +59,7 @@ class Headerchain : public HeaderchainSkeleton {
     friend class HeaderVerifier;
     struct HeaderViewNoHash : public HeaderView {
         HeaderViewNoHash(const HeaderView& hv)
-            : HeaderView(hv) {};
+            : HeaderView(hv) { };
         Hash hash() = delete;
     };
 
@@ -87,7 +88,7 @@ public:
         size_t size() const { return vec.size(); }
         Batchslot slot_end() const { return Batchslot(size()); }
         GridView(const std::vector<SharedBatchView>& vec)
-            : vec(vec) {};
+            : vec(vec) { };
     };
     // chain updates
     [[nodiscard]] HeaderchainAppend get_append(Height prevLength) const;
@@ -109,7 +110,7 @@ public:
     {
         return finalPin.upper_height() + incompleteBatch.size();
     }
-    Headerchain() {};
+    Headerchain() { };
     explicit Headerchain(HeaderchainSkeleton);
     Headerchain(Headerchain&& hc) = default;
     Headerchain(const Headerchain& hc) = default;
@@ -141,6 +142,7 @@ public:
             return static_cast<HeaderView>(operator[](h.nonzero_assert())).hash();
         return operator[]((h + 1).nonzero_assert()).prevhash();
     };
+
     [[nodiscard]] Hash hash_at(Height height) const
     {
         auto h = get_hash(height);
@@ -160,3 +162,4 @@ protected: // variables
     std::vector<SharedBatchView> completeBatches;
     Worksum worksum;
 };
+

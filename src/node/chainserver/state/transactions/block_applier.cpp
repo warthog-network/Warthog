@@ -203,11 +203,6 @@ class BalanceChecker {
                 return newAccounts[vid.value() - beginNew.value()];
             }
         }
-        // AccountId get_account_id(size_t newElementOffset) // OK
-        // {
-        //     assert(newElementOffset < newAccounts.size());
-        //     return beginNew + newElementOffset;
-        // };
         auto& new_accounts() const { return newAccounts; }
         auto& old_accounts() { return oldAccounts; }
         const AccountId beginNew;
@@ -282,13 +277,9 @@ public:
         charge_fee(from, compactFee);
 
         return {
-            .fromAccountId { from.id },
-            .toAccountId { to.id },
-            .pinNonce { tv.pin_nonce() },
-            .compactFee { compactFee },
-            .fromAddress { from.address },
-            .toAddress { to.address },
-            .signature { tv.signature() },
+            .from { from.id, from.address, tv.signature(), tv.pin_nonce() },
+            .to { to.id, to.address },
+            .compactFee { compactFee }
         };
     }
     void register_wart_transfer(WartTransferView tv)
@@ -356,7 +347,7 @@ struct InsertHistoryEntry {
         , historyId(historyId)
     {
     }
-    InsertHistoryEntry(const VerifiedTransfer& t, HistoryId historyId)
+    InsertHistoryEntry(const VerifiedWartTransfer& t, HistoryId historyId)
         : he(t)
         , historyId(historyId)
     {
@@ -383,23 +374,21 @@ struct HistoryEntries {
         ++nextHistoryId;
         return e;
     }
-    [[nodiscard]] auto& push_transfer(const VerifiedTransfer& r)
+    [[nodiscard]] auto& push_transfer(const VerifiedWartTransfer& r)
     {
         auto& e { insertHistory.emplace_back(r, nextHistoryId) };
-        insertAccountHistory.emplace_back(r.ti.toAccountId, nextHistoryId);
-        if (r.ti.toAccountId != r.ti.fromAccountId) {
-            insertAccountHistory.emplace_back(r.ti.fromAccountId, nextHistoryId);
-        }
+        insertAccountHistory.emplace_back(r.ti.to.id, nextHistoryId);
+        if (r.ti.from.id != r.ti.to.id)
+            insertAccountHistory.emplace_back(r.ti.from.id, nextHistoryId);
         ++nextHistoryId;
         return e;
     }
     [[nodiscard]] auto& push_token_transfer(const VerifiedTokenTransfer& r, TokenId tokenId)
     {
         auto& e { insertHistory.emplace_back(r, tokenId, nextHistoryId) };
-        insertAccountHistory.emplace_back(r.ti.toAccountId, nextHistoryId);
-        if (r.ti.toAccountId != r.ti.fromAccountId) {
-            insertAccountHistory.emplace_back(r.ti.fromAccountId, nextHistoryId);
-        }
+        insertAccountHistory.emplace_back(r.ti.to.id, nextHistoryId);
+        if (r.ti.to.id != r.ti.from.id)
+            insertAccountHistory.emplace_back(r.ti.from.id, nextHistoryId);
         ++nextHistoryId;
         return e;
     }
@@ -560,30 +549,34 @@ private:
         };
     }
 
-    auto txid_validator()
+    auto tx_verifier()
     {
-        return [this](TransactionId tid) -> bool {
-            // check for duplicate txid (also within current block)
-            return !baseTxIds.contains(tid) && !newTxIds.contains(tid) && txset.emplace(tid).second;
+        return TransactionVerifier {
+            hc, height,
+            std::function<bool(TransactionId)>(
+                [this](TransactionId tid) -> bool {
+                    // check for duplicate txid (also within current block)
+                    return !baseTxIds.contains(tid) && !newTxIds.contains(tid) && txset.emplace(tid).second;
+                })
         };
     }
 
     // generate history for transfers and check signatures
     // and check for unique transaction ids
-    void process_transfers()
+    void process_wart_transfers()
     {
         const auto& balanceChecker { this->balanceChecker }; // shadow balanceChecker
         for (auto& tr : balanceChecker.get_wart_transfers()) {
-            auto verified { tr.verify(hc, height, txid_validator()) };
+            auto verified { tr.verify(tx_verifier()) };
 
             auto& ref { historyEntries.push_transfer(verified) };
             apiTransfers.push_back(api::Block::Transfer {
-                .fromAddress { tr.fromAddress },
+                .fromAddress { tr.from.address },
                 .fee { tr.compactFee.uncompact() },
-                .nonceId { tr.pinNonce.id },
-                .pinHeight { tr.pinNonce.pin_height(PinFloor { PrevHeight { height } }) },
+                .nonceId { tr.from.pinNonce.id },
+                .pinHeight { verified.txid.pinHeight },
                 .txhash { ref.he.hash },
-                .toAddress { tr.toAddress },
+                .toAddress { tr.to.address },
                 .amount { tr.amount },
             });
         }
@@ -618,7 +611,7 @@ public:
         process_old_accounts();
         process_new_accounts();
         process_reward();
-        process_transfers();
+        process_wart_transfers();
 
         const auto beginNewTokenId = db.next_token_id(); // they start from this index
         for (size_t i = 0; i < balanceChecker.token_creations().size(); ++i) {

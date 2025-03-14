@@ -30,7 +30,6 @@ struct TransactionId {
 };
 
 struct VerifiedTransactionId : public TransactionId {
-
     VerifiedTransactionId(TransactionId txid, auto txIdValidator)
         : TransactionId(txid)
     {
