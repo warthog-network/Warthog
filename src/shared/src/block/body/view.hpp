@@ -27,17 +27,23 @@ class BodyStructure {
         size_t nLiquidityRemove;
         size_t liquidityRemoveOffset;
     };
+    BodyStructure() { };
+
+public:
     struct TokenSectionView {
+        TokenSectionView(const TokenSection& ts, const uint8_t* dataBody)
+            : ts(ts)
+            , dataBody(dataBody)
+        {
+        }
         const TokenSection& ts;
         const uint8_t* dataBody;
+        auto id() const { return ts.tokenId; }
         auto foreach_transfer(auto lambda) const;
         auto foreach_order(auto lambda) const;
         auto foreach_liquidity_add(auto lambda) const;
         auto foreach_liquidity_remove(auto lambda) const;
     };
-    BodyStructure() { };
-
-public:
     static std::optional<BodyStructure> parse(std::span<const uint8_t> s, NonzeroHeight h, BlockVersion version);
     static BodyStructure parse_throw(std::span<const uint8_t> s, NonzeroHeight h, BlockVersion version);
     constexpr static size_t SIGLEN { 65 };
@@ -198,7 +204,7 @@ public:
     auto token_creations() const { return NewTokens { *this }; }
     size_t getNAddresses() const { return bodyStructure.nAddresses; };
     size_t getNNewTokens() const { return bodyStructure.nNewTokens; };
-    WartTransferView get_transfer(size_t i) const;
+    WartTransferView get_wart_transfer(size_t i) const;
     TokenCreationView get_new_token(size_t i) const;
     RewardView reward() const;
     Funds_uint64 fee_sum_assert() const;

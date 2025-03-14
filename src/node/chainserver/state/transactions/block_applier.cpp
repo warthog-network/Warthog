@@ -120,6 +120,15 @@ void match(const ChainDB& db, TokenId tid, defi::PoolLiquidity_uint64 p)
     }
 }
 
+struct TokenSectionInternal {
+    TokenId id;
+    std::vector<TokenTransferInternal> transfers;
+    TokenSectionInternal(TokenId id)
+        : id(id)
+    {
+    }
+};
+
 class BalanceChecker {
 
     class FundFlow {
@@ -242,12 +251,7 @@ public:
     {
     }
 
-    struct TokenBalance {
-        TokenId tokenId;
-        Funds_uint64 funds;
-    };
-
-    void register_swap(AccountId accId, TokenBalance subtract, TokenBalance add)
+    void register_swap(AccountId accId, TokenFunds subtract, TokenFunds add)
     {
         auto& ad { accounts[accId] };
         ad.subtract(subtract.tokenId, subtract.funds);
@@ -261,8 +265,9 @@ public:
         a.subtract(TokenId::WART, fee);
     }
 
-    void register_transfer(TokenId tokenId, WartTransferView tv, Height height) // OK
+    TransferInternalWithoutAmount __register_transfer(TokenTransferView tv) // OK
     {
+        auto tokenId { tv.token_id() };
         auto amount { tv.amount_throw() };
         auto compactFee { tv.compact_fee_throw() };
         auto& to { accounts[tv.toAccountId()] };
@@ -276,17 +281,32 @@ public:
         from.subtract(tokenId, amount);
         charge_fee(from, compactFee);
 
-        transfers.push_back({
+        return {
             .fromAccountId { from.id },
             .toAccountId { to.id },
-            .amount { amount },
             .pinNonce { tv.pin_nonce() },
             .compactFee { compactFee },
             .fromAddress { from.address },
             .toAddress { to.address },
             .signature { tv.signature() },
-        });
+        };
     }
+    void register_wart_transfer(WartTransferView tv)
+    {
+        wartTransfers.push_back({ __register_transfer(tv), tv.amount_throw() });
+    }
+    void register_token_section(BodyStructure::TokenSectionView v)
+    {
+        TokenSectionInternal td(v.id());
+        v.foreach_transfer([&](TokenTransferView v) {
+            td.transfers.push_back({ __register_transfer(v), v.amount_throw() });
+        });
+        v.foreach_order([&](OrderView v) { });
+        v.foreach_liquidity_add([&](LiquidityAddView v) { });
+        v.foreach_liquidity_remove([&](LiquidityRemoveView v) { });
+        tokenSections.push_back(std::move(td));
+    }
+
     void register_token_creation(TokenCreationView tc, Height)
     {
         auto compactFee = tc.compact_fee_throw();
@@ -309,7 +329,7 @@ public:
     auto& get_new_accounts() const { return accounts.new_accounts(); }
     AddressView get_new_address(size_t i) { return bv.get_address(i); } // OK
     auto& token_creations() const { return tokenCreations; }
-    const std::vector<TransferInternal>& get_transfers() const { return transfers; };
+    const std::vector<WartTransferInternal>& get_wart_transfers() const { return wartTransfers; };
     const auto& get_reward() const { return reward; };
 
 private:
@@ -318,7 +338,9 @@ private:
     Accounts accounts;
     RewardInternal reward;
 
-    std::vector<TransferInternal> transfers;
+    std::vector<WartTransferInternal> wartTransfers;
+    std::vector<TokenSectionInternal> tokenSections;
+    // std::vector<TransferInternal> transfers;
     std::vector<TokenCreationInternal> tokenCreations;
     Wart totalfee { Wart::zero() };
 };
@@ -454,8 +476,15 @@ private:
     {
         // Read transfer section for WART coins
         for (auto t : bv.wart_transfers())
-            balanceChecker.register_transfer(TokenId(0), t, height);
+            balanceChecker.register_wart_transfer(t);
     }
+    void register_token_sections()
+    {
+        bv.foreach_token([&](BodyStructure::TokenSectionView t) {
+            balanceChecker.register_token_section(t);
+        });
+    }
+
     void register_token_creations()
     {
         for (auto tc : bv.token_creations())
@@ -544,11 +573,11 @@ private:
     void process_transfers()
     {
         const auto& balanceChecker { this->balanceChecker }; // shadow balanceChecker
-        for (auto& tr : balanceChecker.get_transfers()) {
+        for (auto& tr : balanceChecker.get_wart_transfers()) {
             auto verified { tr.verify(hc, height, txid_validator()) };
 
             auto& ref { historyEntries.push_transfer(verified) };
-            apiTransfers.push_back({
+            apiTransfers.push_back(api::Block::Transfer {
                 .fromAddress { tr.fromAddress },
                 .fee { tr.compactFee.uncompact() },
                 .nonceId { tr.pinNonce.id },
@@ -582,6 +611,7 @@ public:
         /// Read block sections
         verify_new_address_policy(); // new address section
         register_wart_transfers(); // WART transfer section
+        register_token_sections();
         register_token_creations(); // token creation section
 
         /// Process block sections

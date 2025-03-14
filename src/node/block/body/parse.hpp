@@ -73,6 +73,10 @@ public:
     {
         return CompactUInt::from_value_assert(fee_raw());
     }
+    [[nodiscard]] Funds_uint64 amount_throw() const
+    {
+        return Funds_uint64::from_value_throw(readuint64(pos + 26));
+    }
 
     Funds_uint64 fee_throw() const
     {
@@ -81,10 +85,6 @@ public:
     AccountId toAccountId() const
     {
         return AccountId(readuint64(pos + 18));
-    }
-    Wart amount_throw() const
-    {
-        return Wart::from_value_throw(readuint64(pos + 26));
     }
     auto signature() const { return View<65>(pos + 34); }
     static_assert(65 == BodyStructure::SIGLEN);
@@ -97,17 +97,27 @@ public:
     using View::View;
 };
 
-struct WartTransferView : public TransferView {
-    using TransferView::TransferView;
-};
-
 struct TokenTransferView : public TransferView {
     TokenTransferView(TransferView v, TokenId id)
         : TransferView(std::move(v))
-        , tokenId(id)
+        , _tokenId(id)
     {
     }
-    TokenId tokenId;
+    auto token_id() { return _tokenId; }
+
+private:
+    TokenId _tokenId;
+};
+
+struct WartTransferView : public TokenTransferView {
+    WartTransferView(TransferView v)
+        : TokenTransferView(std::move(v), TokenId(0))
+    {
+    }
+    Wart amount_throw() const
+    {
+        return Wart::from_funds_throw(TransferView::amount_throw());
+    }
 };
 
 struct OrderView : public View<BodyStructure::OrderSize> {
@@ -279,44 +289,44 @@ public:
     using View::View;
 };
 
-struct Transfer {
-    // byte layout
-    //  0: fromId
-    //  8: pinNonce
-    // 16: compactFee
-    // 18: toId
-    // 26: amout
-    // 34: signature
-    // 99: end
-    AccountId fromId;
-    PinNonce pinNonce;
-    CompactUInt compactFee;
-    AccountId toId;
-    Funds_uint64 amount;
-    RecoverableSignature signature;
-    [[nodiscard]] PinHeight pin_height(PinFloor pinFloor) const
-    {
-        return pinNonce.pin_height(pinFloor);
-    }
-    [[nodiscard]] Funds_uint64 fee() const
-    {
-        return compactFee.uncompact();
-    }
-    [[nodiscard]] TransactionId txid(PinHeight pinHeight) const
-    {
-        return { fromId,
-            pinHeight, pinNonce.id };
-    }
-    Transfer(WartTransferView v)
-        : fromId(v.fromAccountId())
-        , pinNonce(v.pin_nonce())
-        , compactFee(v.compact_fee_throw())
-        , toId(v.toAccountId())
-        , amount(v.amount_throw())
-        , signature(v.signature())
-    {
-    }
-};
+// struct Transfer {
+//     // byte layout
+//     //  0: fromId
+//     //  8: pinNonce
+//     // 16: compactFee
+//     // 18: toId
+//     // 26: amout
+//     // 34: signature
+//     // 99: end
+//     AccountId fromId;
+//     PinNonce pinNonce;
+//     CompactUInt compactFee;
+//     AccountId toId;
+//     Funds_uint64 amount;
+//     RecoverableSignature signature;
+//     [[nodiscard]] PinHeight pin_height(PinFloor pinFloor) const
+//     {
+//         return pinNonce.pin_height(pinFloor);
+//     }
+//     [[nodiscard]] Funds_uint64 fee() const
+//     {
+//         return compactFee.uncompact();
+//     }
+//     [[nodiscard]] TransactionId txid(PinHeight pinHeight) const
+//     {
+//         return { fromId,
+//             pinHeight, pinNonce.id };
+//     }
+//     Transfer(WartTransferView v)
+//         : fromId(v.fromAccountId())
+//         , pinNonce(v.pin_nonce())
+//         , compactFee(v.compact_fee_throw())
+//         , toId(v.toAccountId())
+//         , amount(v.amount_throw())
+//         , signature(v.signature())
+//     {
+//     }
+// };
 
 struct RewardView : public View<BodyStructure::RewardSize> {
 private:
@@ -346,7 +356,7 @@ public:
     }
 };
 
-inline WartTransferView BodyView::get_transfer(size_t i) const
+inline WartTransferView BodyView::get_wart_transfer(size_t i) const
 {
     assert(i < bodyStructure.nTransfers);
     return WartTransferView { data() + bodyStructure.offsetTransfers + i * WartTransferView::size() };
@@ -382,7 +392,7 @@ inline AddressView BodyView::Addresses::Iterator::operator*() const
 }
 inline WartTransferView BodyView::WartTransfers::Iterator::operator*() const
 {
-    return bv.get_transfer(i);
+    return bv.get_wart_transfer(i);
 }
 inline TokenCreationView BodyView::NewTokens::Iterator::operator*() const
 {

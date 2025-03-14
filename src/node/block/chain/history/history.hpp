@@ -13,23 +13,44 @@ struct RewardInternal {
     AddressView toAddress;
     Hash hash() const;
 };
-class VerifiedTransfer;
 class TxIdVerifier;
-struct TransferInternal {
+struct TransferInternalWithoutAmount {
     ValidAccountId fromAccountId;
     ValidAccountId toAccountId;
-    Wart amount;
     PinNonce pinNonce;
     CompactUInt compactFee;
     AddressView fromAddress;
     AddressView toAddress;
     RecoverableSignature signature;
+};
+
+class VerifiedTransfer;
+struct WartTransferInternal : public TransferInternalWithoutAmount {
+    Wart amount;
+    WartTransferInternal(TransferInternalWithoutAmount t, Wart amount)
+        : TransferInternalWithoutAmount(std::move(t))
+        , amount(amount)
+    {
+    }
+    using TransferInternalWithoutAmount::TransferInternalWithoutAmount;
     [[nodiscard]] VerifiedTransfer verify(const Headerchain&, NonzeroHeight, const std::function<bool(TransactionId)>&) const;
 };
 
+struct TokenTransferInternal : public TransferInternalWithoutAmount {
+    Funds_uint64 amount;
+    TokenTransferInternal(TransferInternalWithoutAmount t, Funds_uint64 amount)
+        : TransferInternalWithoutAmount(std::move(t))
+        , amount(amount)
+    {
+    }
+    [[nodiscard]] VerifiedTransfer verify(const Headerchain&, NonzeroHeight, HashView tokenHash, const std::function<bool(TransactionId)>&) const;
+};
+
 class VerifiedTransfer {
-    friend struct TransferInternal;
-    VerifiedTransfer(const TransferInternal&, PinHeight pinHeight, HashView pinHash, const std::function<bool(TransactionId)>&);
+    friend struct WartTransferInternal;
+    friend struct TokenTransferInternal;
+    VerifiedTransfer(const WartTransferInternal&, PinHeight pinHeight, HashView pinHash, const std::function<bool(TransactionId)>&); // Wart transfer
+    VerifiedTransfer(const TokenTransferInternal&, PinHeight pinHeight, HashView pinHash, HashView tokenHash, const std::function<bool(TransactionId)>&);
     Address recover_address() const
     {
         return ti.signature.recover_pubkey(hash).address();
@@ -37,48 +58,25 @@ class VerifiedTransfer {
     bool valid_signature() const;
 
 public:
-    const TransferInternal& ti;
+    const TransferInternalWithoutAmount& ti;
     const VerifiedTransactionId id;
     const Hash hash;
 };
 
-class VerifiedTokenTransfer;
-struct TokenTransferInternal {
-    ValidAccountId fromAccountId;
-    ValidAccountId toAccountId;
-    Funds_uint64 amount;
-    PinNonce pinNonce;
-    CompactUInt compactFee;
-    AddressView fromAddress { nullptr };
-    AddressView toAddress { nullptr };
-    RecoverableSignature signature;
-    [[nodiscard]] VerifiedTokenTransfer verify(const Headerchain&, NonzeroHeight, HashView tokenHash) const;
-    TokenTransferInternal(ValidAccountId from, CompactUInt compactFee, ValidAccountId to,
-        Funds_uint64 amount, PinNonce pinNonce, View<65> signdata)
-        : fromAccountId(from)
-        , toAccountId(to)
-        , amount(amount)
-        , pinNonce(pinNonce)
-        , compactFee(compactFee)
-        , signature(signdata)
-    {
-    }
-};
-
-class VerifiedTokenTransfer {
-    friend struct TokenTransferInternal;
-    VerifiedTokenTransfer(const TokenTransferInternal&, PinHeight pinHeight, HashView pinHash, HashView tokenHash);
-    Address recover_address() const
-    {
-        return ti.signature.recover_pubkey(hash).address();
-    }
-    bool valid_signature() const;
-
-public:
-    const TokenTransferInternal& ti;
-    const TransactionId id;
-    const Hash hash;
-};
+// class VerifiedTokenTransfer {
+//     friend struct TokenTransferInternal;
+//     VerifiedTokenTransfer(const TokenTransferInternal&, PinHeight pinHeight, HashView pinHash, HashView tokenHash);
+//     Address recover_address() const
+//     {
+//         return ti.signature.recover_pubkey(hash).address();
+//     }
+//     bool valid_signature() const;
+//
+// public:
+//     const TokenTransferInternal& ti;
+//     const TransactionId id;
+//     const Hash hash;
+// };
 
 class VerifiedTokenCreation;
 struct TokenCreationInternal {

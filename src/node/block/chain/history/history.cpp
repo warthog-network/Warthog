@@ -11,15 +11,13 @@ Hash RewardInternal::hash() const
         << uint16_t(0);
 }
 
-VerifiedTokenTransfer TokenTransferInternal::verify(const Headerchain& hc, NonzeroHeight height, HashView tokenHash) const
+VerifiedTransfer TokenTransferInternal::verify(const Headerchain& hc, NonzeroHeight height, HashView tokenHash, const std::function<bool(TransactionId)>& validator) const
 {
     assert(height <= hc.length() + 1);
-    assert(!fromAddress.is_null());
-    assert(!toAddress.is_null());
     const PinFloor pinFloor { PrevHeight(height) };
     PinHeight pinHeight(pinNonce.pin_height(pinFloor));
     Hash pinHash { hc.hash_at(pinHeight) };
-    return VerifiedTokenTransfer(*this, pinHeight, pinHash, tokenHash);
+    return VerifiedTransfer(*this, pinHeight, pinHash, tokenHash, validator);
 }
 
 bool VerifiedTokenTransfer::valid_signature() const
@@ -47,11 +45,9 @@ VerifiedTokenTransfer::VerifiedTokenTransfer(const TokenTransferInternal& ti, Pi
         throw Error(ECORRUPTEDSIG);
 }
 ////////////////////////
-VerifiedTransfer TransferInternal::verify(const Headerchain& hc, NonzeroHeight height, const std::function<bool(TransactionId)>& validator) const
+VerifiedTransfer WartTransferInternal::verify(const Headerchain& hc, NonzeroHeight height, const std::function<bool(TransactionId)>& validator) const
 {
     assert(height <= hc.length() + 1);
-    assert(!fromAddress.is_null());
-    assert(!toAddress.is_null());
     const PinFloor pinFloor { PrevHeight(height) };
     PinHeight pinHeight(pinNonce.pin_height(pinFloor));
     Hash pinHash { hc.hash_at(pinHeight) };
@@ -66,7 +62,23 @@ bool VerifiedTransfer::valid_signature() const
     return recovered == ti.fromAddress;
 }
 
-VerifiedTransfer::VerifiedTransfer(const TransferInternal& ti, PinHeight pinHeight, HashView pinHash, const std::function<bool(TransactionId)>& validator)
+VerifiedTransfer::VerifiedTransfer(const WartTransferInternal& ti, PinHeight pinHeight, HashView pinHash, const std::function<bool(TransactionId)>& validator)
+    : ti(ti)
+    , id { { ti.fromAccountId, pinHeight, ti.pinNonce.id }, validator }
+    , hash(HasherSHA256()
+          << pinHash
+          << pinHeight
+          << ti.pinNonce.id
+          << ti.pinNonce.reserved
+          << ti.compactFee.uncompact()
+          << ti.toAddress
+          << ti.amount)
+{
+    if (!valid_signature())
+        throw Error(ECORRUPTEDSIG);
+}
+
+VerifiedTransfer::VerifiedTransfer(const TokenTransferInternal& ti, PinHeight pinHeight, HashView pinHash, const std::function<bool(TransactionId)>& validator)
     : ti(ti)
     , id { { ti.fromAccountId, pinHeight, ti.pinNonce.id }, validator }
     , hash(HasherSHA256()

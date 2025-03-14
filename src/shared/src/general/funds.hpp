@@ -1,4 +1,5 @@
 #pragma once
+#include "defi/token/id.hpp"
 #include "general/errors.hpp"
 #include "general/with_uint64.hpp"
 #include <cassert>
@@ -132,9 +133,16 @@ public:
     static Funds_uint64 parse_throw(std::string_view, DecimalDigits);
     std::string to_string(DecimalDigits) const;
 };
+struct TokenFunds {
+    TokenId tokenId;
+    Funds_uint64 funds;
+};
 
 class Wart : public FundsBase<Wart> {
 public:
+    static Wart from_funds_throw(Funds_uint64 f){
+        return from_value_throw(f.value());
+    }
     auto operator<=>(const Wart&) const = default;
     static std::optional<Wart> parse(std::string_view);
     static Wart parse_throw(std::string_view);
@@ -143,6 +151,10 @@ public:
     operator Funds_uint64() const
     {
         return Funds_uint64::from_value_throw(E8());
+    }
+    operator TokenFunds() const
+    {
+        return { .tokenId { TokenId(0) }, .funds { *this } };
     }
 
 private:
