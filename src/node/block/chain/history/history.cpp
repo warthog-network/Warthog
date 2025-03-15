@@ -109,7 +109,7 @@ Entry::Entry(const RewardInternal& p)
 Entry::Entry(const VerifiedWartTransfer& p)
     : hash(p.hash)
 {
-    data = serialize(TransferData {
+    data = serialize(WartTransferData {
         p.ti.from.id,
         p.ti.compactFee,
         p.ti.to.id,
@@ -160,18 +160,18 @@ void TokenTransferData::write(Writer& w) const
       << amount << pinNonce;
 }
 
-void TransferData::write(Writer& w) const
+void WartTransferData::write(Writer& w) const
 {
     assert(w.remaining() == bytesize);
     w << fromAccountId << compactFee << toAccountId
       << amount << pinNonce;
 }
 
-TransferData TransferData::parse(Reader& r)
+WartTransferData WartTransferData::parse(Reader& r)
 {
     if (r.remaining() != bytesize)
         throw std::runtime_error("Cannot parse TransferData.");
-    return TransferData {
+    return WartTransferData {
         .fromAccountId { r },
         .compactFee { CompactUInt::from_value_throw(r) },
         .toAccountId { r },

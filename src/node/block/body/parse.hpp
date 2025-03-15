@@ -4,6 +4,7 @@
 #include "block/body/view.hpp"
 #include "crypto/crypto.hpp"
 #include "defi/token/token.hpp"
+#include "defi/uint64/price.hpp"
 #include "general/reader.hpp"
 
 struct TokenCreationView : public View<BodyStructure::TokenCreationSize> {
@@ -60,7 +61,7 @@ public:
         Reader r({ pos + 8, pos + 16 });
         return PinNonce(r);
     }
-    PinHeight pinHeight(PinFloor pinFloor) const
+    PinHeight pin_height(PinFloor pinFloor) const
     {
         return pin_nonce().pin_height(pinFloor);
     }
@@ -132,7 +133,8 @@ public:
     OrderView(const uint8_t* pos, TokenId tokenId)
         : View(pos)
         , tokenId(tokenId) { };
-    AccountId accountId() const
+    auto token_id() const { return tokenId; }
+    AccountId account_id() const
     {
         return AccountId(readuint64(pos));
     }
@@ -141,7 +143,7 @@ public:
         Reader r({ pos + 8, pos + 16 });
         return PinNonce(r);
     }
-    PinHeight pinHeight(PinFloor pinFloor) const
+    PinHeight pin_height(PinFloor pinFloor) const
     {
         return pin_nonce().pin_height(pinFloor);
     }
@@ -159,6 +161,7 @@ public:
     {
         return compact_fee_trow().uncompact();
     }
+
     std::pair<bool, Funds_uint64> buy_amount_throw() const
     {
         auto v { readuint64(pos + 18) };
@@ -166,12 +169,74 @@ public:
         auto f { Funds_uint64::from_value_throw(v & 0x7FFFFFFFFFFFFFFFull) };
         return { buy, f };
     }
-    auto signature() const { return View<65>(pos + 26); }
+    Price_uint64 limit() const
+    {
+        return Price_uint64::from_uint32_throw(readuint32(pos + 26));
+    }
+    auto signature() const { return View<65>(pos + 30); }
     static_assert(65 == BodyStructure::SIGLEN);
     TransactionId txid(PinHeight pinHeight) const
     {
         PinNonce pn = pin_nonce();
-        return { accountId(), pinHeight, pn.id };
+        return { account_id(), pinHeight, pn.id };
+    }
+
+    using View::View;
+};
+struct CancelView : public View<BodyStructure::CancelSize> {
+private:
+    uint16_t fee_raw() const
+    {
+        return readuint16(pos + 16);
+    }
+
+public:
+    CancelView(const uint8_t* pos, TokenId tokenId)
+        : View(pos)
+    {}
+    AccountId account_id() const
+    {
+        return AccountId(readuint64(pos));
+    }
+    PinNonce pin_nonce() const
+    {
+        Reader r({ pos + 8, pos + 16 });
+        return PinNonce(r);
+    }
+    PinHeight pin_height(PinFloor pinFloor) const
+    {
+        return pin_nonce().pin_height(pinFloor);
+    }
+    PinNonce block_pin_nonce() const
+    {
+        Reader r({ pos + 18, pos + 34 });
+        return PinNonce(r);
+    }
+    CompactUInt compact_fee_trow() const
+    {
+        return CompactUInt::from_value_throw(fee_raw());
+    }
+
+    CompactUInt compact_fee_assert() const
+    {
+        return CompactUInt::from_value_assert(fee_raw());
+    }
+
+    Funds_uint64 fee_throw() const
+    {
+        return compact_fee_trow().uncompact();
+    }
+
+    auto signature() const { return View<65>(pos + 34); }
+    TransactionId txid(PinHeight pinHeight) const
+    {
+        PinNonce pn = pin_nonce();
+        return { account_id(), pinHeight, pn.id };
+    }
+    TransactionId block_txid(PinHeight pinHeight) const
+    {
+        PinNonce pn = pin_nonce();
+        return { account_id(), pinHeight, pn.id };
     }
 
     using View::View;

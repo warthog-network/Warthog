@@ -50,7 +50,8 @@ public:
     constexpr static size_t AddressSize { 20 };
     constexpr static size_t RewardSize { 16 };
     constexpr static size_t TransferSize { 34 + SIGLEN };
-    constexpr static size_t OrderSize { 26 + SIGLEN };
+    constexpr static size_t OrderSize { 30 + SIGLEN };
+    constexpr static size_t CancelSize { 30 + SIGLEN };
     constexpr static size_t LiquidityAddSize { 34 + SIGLEN };
     constexpr static size_t LiquidityRemoveSize { 26 + SIGLEN };
     constexpr static size_t TokenCreationSize { 8 + 8 + 5 + 2 + SIGLEN };

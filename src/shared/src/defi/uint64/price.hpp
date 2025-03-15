@@ -26,6 +26,12 @@ public:
     {
         return compose(data & 0x0000FFFFu, data >> 16);
     }
+    static auto from_uint32_throw(uint32_t data)
+    {
+        if (auto p{ from_uint32(data)})
+            return *p;
+        throw Error(EBADPRICE);
+    }
     uint32_t to_uint32() const
     {
         return uint32_t(_m) + (uint32_t(_e) << 16);

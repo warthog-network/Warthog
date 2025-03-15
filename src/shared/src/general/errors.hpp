@@ -128,6 +128,8 @@
     XX(127, EINITV3, "Init V3 not allowed from this peer")                         \
     XX(128, EFROZENACC, "account is frozen and can't send")                        \
     XX(129, EHEADERRANGE, "invalid header range")                                  \
+    XX(130, EBADPRICE, "invalid price")                                            \
+    XX(131, EBADFEE, "invalid fee")                                                \
     /*200 - 299: Errors not leading to ban*/                                       \
     XX(200, ERTCNOSIGNAL, "WebRTC signaling server was closed (offer)")            \
     XX(201, ERTCNOSIGNAL2, "WebRTC signaling server was closed (answer)")          \
@@ -146,11 +148,10 @@
     /*300 - 399: API triggered errors*/                                            \
     XX(300, EINV_HEX, "cannot parse hexadecimal input")                            \
     XX(301, EBADNONCE, "cannot parse nonce")                                       \
-    XX(302, EBADFEE, "invalid fee")                                                \
-    XX(303, EINEXACTFEE, "inexact fee not allowed")                                \
-    XX(304, EBADAMOUNT, "invalid amount")                                          \
-    XX(305, EPARSESIG, "cannot parse signature")                                   \
-    XX(306, ENOTSYNCED, "node not synced yet")                                     \
+    XX(302, EINEXACTFEE, "inexact fee not allowed")                                \
+    XX(303, EBADAMOUNT, "invalid amount")                                          \
+    XX(304, EPARSESIG, "cannot parse signature")                                   \
+    XX(305, ENOTSYNCED, "node not synced yet")                                     \
     XX(1000, ESIGTERM, "received SIGTERM")                                         \
     XX(1001, ESIGHUP, "received SIGHUP")                                           \
     XX(1002, ESIGINT, "received SIGINT")                                           \

@@ -6,50 +6,18 @@
 #include <cstdint>
 
 class ValidAccountId;
-class AccountId : public IsUint64 { // NOTE: >=0 is important for AccountHeights
-public:
-    using IsUint64::IsUint64;
-    bool operator==(const AccountId&) const = default;
-    size_t operator-(AccountId a)
-    {
-        return val - a.val;
-    }
-    AccountId operator-(size_t i) const
-    {
-        return AccountId(val - i);
-    }
-    AccountId operator+(size_t i) const
-    {
-        return AccountId(val + i);
-    }
-    AccountId operator++(int)
-    {
-        return AccountId(val++);
-    }
 
+class AccountId : public UInt64WithOperators<AccountId> { // NOTE: >=0 is important for AccountHeights
+public:
+    bool operator==(const AccountId&) const = default;
+    using parent_t::parent_t;
     [[nodiscard]] ValidAccountId validate_throw(AccountId beginInvalid) const;
 };
 
-class BalanceId : public IsUint64 { // NOTE: >=0 is important for BalanceId
+class BalanceId : public UInt64WithOperators<BalanceId> {
 public:
-    using IsUint64::IsUint64;
     bool operator==(const BalanceId&) const = default;
-    size_t operator-(BalanceId a)
-    {
-        return val - a.val;
-    }
-    BalanceId operator-(size_t i) const
-    {
-        return BalanceId(val - i);
-    }
-    BalanceId operator+(size_t i) const
-    {
-        return BalanceId(val + i);
-    }
-    BalanceId operator++(int)
-    {
-        return BalanceId(val++);
-    }
+    using parent_t::parent_t;
 };
 
 class ValidAccountId : public AccountId {

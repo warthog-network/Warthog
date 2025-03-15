@@ -16,9 +16,9 @@ void Block::push_history(const Hash& txid,
     PinFloor pinFloor)
 {
     auto parsed = history::parse_throw(data);
-    if (std::holds_alternative<history::TransferData>(parsed)) {
-        auto& d = std::get<history::TransferData>(parsed);
-        transfers.push_back(
+    if (std::holds_alternative<history::WartTransferData>(parsed)) {
+        auto& d = std::get<history::WartTransferData>(parsed);
+        actions.wartTransfers.push_back(
             api::Block::Transfer {
                 .fromAddress = c.accounts[d.fromAccountId].address,
                 .fee = d.compactFee.uncompact(),
@@ -30,11 +30,9 @@ void Block::push_history(const Hash& txid,
     } else if (std::holds_alternative<history::TokenTransferData>(parsed)) {
         auto& d = std::get<history::TokenTransferData>(parsed);
         auto& tokenData { c.tokens[d.tokenId] };
-        tokenTransfers.push_back(
+        actions.tokenTransfers.push_back(
             api::Block::TokenTransfer {
-                .tokenId { d.tokenId },
-                .tokenHash { tokenData.hash },
-                .tokenName { tokenData.name },
+                .tokenInfo { tokenData },
                 .fromAddress = c.accounts[d.fromAccountId].address,
                 .fee = d.compactFee.uncompact(),
                 .nonceId = d.pinNonce.id,

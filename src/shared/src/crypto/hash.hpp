@@ -1,5 +1,4 @@
 #pragma once
-#include "general/params.hpp"
 #include "general/view.hpp"
 #include <array>
 #include <cstring>

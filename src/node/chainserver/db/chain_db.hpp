@@ -8,11 +8,11 @@
 #include "block/chain/worksum.hpp"
 #include "block/id.hpp"
 #include "chainserver/transaction_ids.hpp"
+#include "db/sqlite_fwd.hpp"
 #include "defi/token/token.hpp"
 #include "deletion_key.hpp"
 #include "general/address_funds.hpp"
 #include "general/filelock/filelock.hpp"
-#include "db/sqlite_fwd.hpp"
 #include "general/timestamp.hpp"
 #include "order_loader.hpp"
 struct CreatorToken;
@@ -20,6 +20,7 @@ struct AccountToken;
 class ChainDBTransaction;
 class Batch;
 class TokenName;
+class CancelId;
 class TokenInfo;
 struct SignedSnapshot;
 class Headerchain;
@@ -118,11 +119,20 @@ public:
 
     /////////////////////
     // Order functions
-    void insert_buy_order(OrderId id, AccountId, TokenId, Funds_uint64 totalBase, Funds_uint64 filledBase, Price_uint64 price);
-    void insert_quote_order(OrderId id, AccountId, TokenId, Funds_uint64 totalQuote, Funds_uint64 filledQuote, Price_uint64 price);
+    void insert_buy_order(OrderId id, TransactionId, TokenId, Funds_uint64 totalBase, Funds_uint64 filledBase, Price_uint64 price);
+    void insert_quote_order(OrderId id, TransactionId, TokenId, Funds_uint64 totalQuote, Funds_uint64 filledQuote, Price_uint64 price);
+    void delete_order(TransactionId);
+    void delete_order(OrderId);
+    void insert_canceled(TransactionId);
 
-    OrderLoader base_order_loader(TokenId) const;
-    OrderLoader quote_order_loader(TokenId) const;
+    [[nodiscard]] OrderLoader base_order_loader(TokenId) const;
+    [[nodiscard]] OrderLoader quote_order_loader(TokenId) const;
+
+    /////////////////////
+    // Canceled functions
+
+    void insert_canceled(CancelId cid, AccountId aid, PinHeight ph, NonceId nid);
+    void delete_canceled(CancelId cid);
 
     /////////////////////
     // Account functions
@@ -273,6 +283,8 @@ private:
             db.exec("CREATE TABLE IF NOT EXISTS SellOrders ("
                     "id INTEGER NOT NULL, "
                     "account_id INTEGER NOT NULL, "
+                    "pin_height INTEGER NOT NULL, "
+                    "nonce_id INTEGER NOT NULL, "
                     "token_id INTEGER NOT NULL, "
                     "totalBase INTEGER NOT NULL, "
                     "filledBase INTEGER NOT NULL, "
@@ -280,11 +292,15 @@ private:
                     "PRIMARY KEY(`id`))");
             db.exec("CREATE INDEX IF NOT EXISTS `SellOrderIndex` ON "
                     "`SellOrders` (token_id, price ASC, id ASC)");
+            db.exec("CREATE UNIQUE INDEX IF NOT EXISTS `SellOrderAccountIndex` ON "
+                    "`SellOrders` (account_id, pin_height, nonce_id)");
 
             // Buy orders
             db.exec("CREATE TABLE IF NOT EXISTS BuyOrders ("
                     "id INTEGER NOT NULL, "
                     "account_id INTEGER NOT NULL, "
+                    "pin_height INTEGER NOT NULL, "
+                    "nonce_id INTEGER NOT NULL, "
                     "token_id INTEGER NOT NULL, "
                     "totalQuote INTEGER NOT NULL, "
                     "filledQuote INTEGER NOT NULL, "
@@ -292,6 +308,17 @@ private:
                     "PRIMARY KEY(`id`))");
             db.exec("CREATE INDEX IF NOT EXISTS `BuyOrderIndex` ON "
                     "`BuyOrders` (token_id, price DESC, id ASC)");
+            db.exec("CREATE UNIQUE INDEX IF NOT EXISTS `BuyOrderAccountIndex` ON "
+                    "`BuyOrders` (account_id, pin_height, nonce_id)");
+
+            db.exec("CREATE TABLE IF NOT EXISTS Canceled ("
+                    "id INTEGER NOT NULL, "
+                    "account_id INTEGER NOT NULL, "
+                    "pin_height INTEGER NOT NULL, "
+                    "nonce_id INTEGER NOT NULL, "
+                    "PRIMARY KEY(`id`))");
+            db.exec("CREATE INDEX IF NOT EXISTS `CanceledIndex` ON "
+                    "`Canceled` (accountId, pin_height, nonce_id)");
 
             // Pools
             db.exec("CREATE TABLE IF NOT EXISTS Pools ("
@@ -400,9 +427,17 @@ private:
 
     // Orders statements
     Statement stmtInsertBaseSellOrder;
+    Statement stmtDeleteBaseSellOrder;
+    Statement stmtDeleteBaseSellOrderTxid;
     Statement stmtInsertQuoteBuyOrder;
+    Statement stmtDeleteQuoteBuyOrder;
+    Statement stmtDeleteQuoteBuyOrderTxid;
     mutable Statement stmtSelectBaseSellOrderAsc;
     mutable Statement stmtSelectQuoteBuyOrderDesc;
+
+    // Canceled statements
+    Statement stmtInsertCanceled;
+    Statement stmtDeleteCanceled;
 
     // Pool statements
     Statement stmtInsertPool;

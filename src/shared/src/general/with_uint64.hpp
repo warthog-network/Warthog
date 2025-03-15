@@ -53,3 +53,25 @@ public:
 protected:
     uint64_t val;
 };
+
+template <typename T>
+class UInt64WithOperators : public IsUint64 {
+public:
+    using parent_t = UInt64WithOperators<T>;
+    size_t operator-(T a)
+    {
+        return val - a.val;
+    }
+    T operator-(size_t i) const
+    {
+        return T(val - i);
+    }
+    T operator+(size_t i) const
+    {
+        return T(val + i);
+    }
+    T operator++(int)
+    {
+        return T(val++);
+    }
+};

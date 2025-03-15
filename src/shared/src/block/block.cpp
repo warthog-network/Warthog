@@ -46,7 +46,7 @@ std::vector<TransactionId> ParsedBlock::read_tx_ids()
 
     std::vector<TransactionId> out;
     for (auto t : bv.wart_transfers()) {
-        auto txid { t.txid(t.pinHeight(pinFloor)) };
+        auto txid { t.txid(t.pin_height(pinFloor)) };
         out.push_back(txid);
     }
     return out;

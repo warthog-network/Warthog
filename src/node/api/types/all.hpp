@@ -1,7 +1,5 @@
 #pragma once
 
-#include "defi/token/token.hpp"
-#include "transport/helpers/peer_addr.hpp"
 #include "accountid_or_address.hpp"
 #include "block/body/primitives.hpp"
 #include "block/chain/history/index.hpp"
@@ -11,6 +9,7 @@
 #include "block/header/header.hpp"
 #include "communication/mining_task.hpp"
 #include "crypto/address.hpp"
+#include "defi/token/token.hpp"
 #include "eventloop/peer_chain.hpp"
 #include "eventloop/types/conndata.hpp"
 #include "general/funds.hpp"
@@ -104,9 +103,7 @@ struct Block {
         Wart amount;
     };
     struct TokenTransfer {
-        TokenId tokenId;
-        TokenHash tokenHash;
-        TokenName tokenName;
+        TokenIdHashName tokenInfo;
         Address fromAddress;
         Wart fee;
         NonceId nonceId;
@@ -134,22 +131,25 @@ struct Block {
 
 private:
     std::optional<Reward> _reward; // optional because account's history is also returned in block structure
-    
+
 public:
-    std::vector<Transfer> transfers;
-    std::vector<TokenTransfer> tokenTransfers;
+    struct Actions {
+        std::optional<Reward> reward;
+        std::vector<api::Block::Transfer> wartTransfers;
+        std::vector<api::Block::TokenTransfer> tokenTransfers;
+        std::vector<api::Block::TokenCreation> tokenCreations;
+    } actions;
     void push_history(const Hash& txid,
         const std::vector<uint8_t>& data, chainserver::DBCache& cache,
         PinFloor pinFloor);
 
     Block(Header header,
         NonzeroHeight height, uint32_t confirmations,
-        std::optional<Reward> reward = {}, std::vector<Transfer> transfers = {})
+        Actions actions)
         : header(header)
         , height(height)
         , confirmations(confirmations)
-        , _reward(std::move(reward))
-        , transfers(std::move(transfers))
+        , actions(std::move(actions))
     {
     }
     void set_reward(Reward r);

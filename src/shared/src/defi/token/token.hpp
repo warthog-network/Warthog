@@ -1,4 +1,5 @@
 #pragma once
+#include "crypto/hash.hpp"
 #include "general/funds.hpp"
 #include "general/params.hpp"
 #include "general/view.hpp"
@@ -38,7 +39,7 @@ public:
 
     static TokenName parse_throw(std::string s)
     {
-        if (auto o { from_string(s) }) 
+        if (auto o { from_string(s) })
             return *o;
         throw std::runtime_error("Cannot parse token name \"" + s + "\".");
     }
@@ -52,4 +53,10 @@ public:
 
 private:
     char name[6] = { '\0', '\0', '\0', '\0', '\0', '\0' };
+};
+
+struct TokenIdHashName {
+    TokenId id;
+    TokenHash hash;
+    TokenName name;
 };

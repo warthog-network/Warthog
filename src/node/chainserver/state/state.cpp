@@ -152,8 +152,8 @@ std::optional<api::Transaction> State::api_get_tx(const HashView txHash) const
             return {};
         auto parsed { history::parse_throw(data) };
         NonzeroHeight h { chainstate.history_height(historyIndex) };
-        if (std::holds_alternative<history::TransferData>(parsed)) {
-            auto& d = std::get<history::TransferData>(parsed);
+        if (std::holds_alternative<history::WartTransferData>(parsed)) {
+            auto& d = std::get<history::WartTransferData>(parsed);
             return api::TransferTransaction {
                 .txhash = txHash,
                 .toAddress = db.fetch_address(d.toAccountId).address,

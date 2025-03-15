@@ -4,6 +4,7 @@
 #include "block/chain/header_chain.hpp"
 #include "block/header/header_impl.hpp"
 #include "block/header/view_inline.hpp"
+#include "chainserver/db/ids.hpp"
 #include "db/sqlite.hpp"
 #include "defi/token/account_token.hpp"
 #include "defi/token/info.hpp"
@@ -73,9 +74,15 @@ ChainDB::ChainDB(const std::string& path)
     , stmtSelectCandles1h(db, "SELECT (timestamp, open, high, low, close, quantity, volume) FROM Candles1h WHERE token_id=? AND timestamp>=? AND timestamp<=?")
 
     , stmtInsertBaseSellOrder(db, "INSERT INTO SellOrders (id, account_id,token_id, totalBase, filledBase, price) VALUES(?,?,?,?,?,?)")
+    , stmtDeleteBaseSellOrder(db, "DELETE FROM SellOrders WHERE id = ?")
+    , stmtDeleteBaseSellOrderTxid(db, "DELETE FROM SellOrders WHERE account_id = ? AND pin_height = ? AND nonce_id = ?")
     , stmtInsertQuoteBuyOrder(db, "INSERT INTO BuyOrders (id, account_id,token_id, totalQuote, filledQuote, price) VALUES(?,?,?,?,?,?)")
+    , stmtDeleteQuoteBuyOrder(db, "DELETE FROM BuyOrders WHERE id = ?")
+    , stmtDeleteQuoteBuyOrderTxid(db, "DELETE FROM BuyOrders WHERE account_id = ? AND pin_height = ? AND nonce_id = ?")
     , stmtSelectBaseSellOrderAsc(db, "SELECT (id, account_id, totalBase, filledBase, price) FROM SellOrders WHERE token_id=? ORDER BY price ASC, id ASC")
     , stmtSelectQuoteBuyOrderDesc(db, "SELECT (id, account_id, totalQuote, filledQuote, price) FROM BuyOrders WHERE token_id=? ORDER BY price DESC, id ASC")
+    , stmtInsertCanceled(db, "INSERT INTO Canceled (id, account_id, pin_height, nonce_id) VALUES (?,?,?,?)")
+    , stmtDeleteCanceled(db, "DELETE FROM Canceled WHERE id = ?")
     , stmtInsertPool(db, "INSERT INTO Pools (id, token_id, pool_wart, pool_token, pool_shares) VALUES (?,?,0,0,0)")
     , stmtSelectPool(db, "SELECT (id, token_id, liquidity_token, liquidity_wart, pool_shares) FROM Pools WHERE token_id=? OR id=?")
     , stmtUpdatePool(db, "Update Pools SET liquidity_base=?, liquidity_quote=?, pool_shares=? WHERE id=?")
@@ -196,6 +203,12 @@ void ChainDB::delete_state_from(uint64_t fromStateId)
         stmtTokenPrune.run(fromStateId);
         stmtBalancePrune.run(fromStateId);
     }
+}
+
+void ChainDB::insert_consensus(NonzeroHeight height, BlockId blockId, HistoryId historyCursor, uint64_t stateId)
+{
+    stmtConsensusInsert.run(height, blockId, historyCursor, stateId);
+    stmtScheduleDelete2.run(blockId);
 }
 
 Worksum ChainDB::get_consensus_work() const
@@ -431,13 +444,31 @@ std::vector<Candle> ChainDB::select_candles_1h(TokenId tid, Timestamp from, Time
         tid, from, to);
 }
 
-void ChainDB::insert_buy_order(OrderId oid, AccountId aid, TokenId tid, Funds_uint64 totalBase, Funds_uint64 filledBase, Price_uint64 price)
+void ChainDB::insert_buy_order(OrderId oid, TransactionId txid, TokenId tid, Funds_uint64 totalBase, Funds_uint64 filledBase, Price_uint64 price)
 {
-    stmtInsertBaseSellOrder.run(oid, aid, tid, totalBase, filledBase, price);
+    stmtInsertBaseSellOrder.run(oid, txid.accountId, tid, totalBase, filledBase, price);
 }
-void ChainDB::insert_quote_order(OrderId oid, AccountId aid, TokenId tid, Funds_uint64 totalBase, Funds_uint64 filledBase, Price_uint64 price)
+
+void ChainDB::insert_quote_order(OrderId oid, TransactionId txid, TokenId tid, Funds_uint64 totalBase, Funds_uint64 filledBase, Price_uint64 price)
 {
-    stmtInsertQuoteBuyOrder.run(oid, aid, tid, totalBase, filledBase, price);
+    stmtInsertQuoteBuyOrder.run(oid, txid.accountId, tid, totalBase, filledBase, price);
+}
+
+void ChainDB::delete_order(TransactionId txid)
+{
+    stmtDeleteBaseSellOrderTxid.run(txid.accountId, txid.pinHeight, txid.nonceId);
+    stmtDeleteQuoteBuyOrderTxid.run(txid.accountId, txid.pinHeight, txid.nonceId);
+}
+
+void ChainDB::delete_order(OrderId oid)
+{
+    stmtDeleteBaseSellOrder.run(oid);
+    stmtDeleteQuoteBuyOrder.run(oid);
+}
+
+void ChainDB::insert_canceled(TransactionId txid)
+{
+    stmtInsertCanceled(txid.accountId);
 }
 
 OrderLoader ChainDB::base_order_loader(TokenId tid) const
@@ -450,10 +481,13 @@ OrderLoader ChainDB::quote_order_loader(TokenId tid) const
     return { stmtSelectQuoteBuyOrderDesc.bind_multiple(tid) };
 }
 
-void ChainDB::insert_consensus(NonzeroHeight height, BlockId blockId, HistoryId historyCursor, uint64_t stateId)
+void ChainDB::insert_canceled(CancelId cid, AccountId aid, PinHeight ph, NonceId nid)
 {
-    stmtConsensusInsert.run(height, blockId, historyCursor, stateId);
-    stmtScheduleDelete2.run(blockId);
+    stmtInsertCanceled.run(cid, aid, ph, nid);
+}
+void ChainDB::delete_canceled(CancelId cid)
+{
+    stmtDeleteCanceled.run(cid);
 }
 
 void ChainDB::insert_pool(TokenId shareId, TokenId tokenId)

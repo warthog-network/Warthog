@@ -123,6 +123,7 @@ void match(const ChainDB& db, TokenId tid, defi::PoolLiquidity_uint64 p)
 struct TokenSectionInternal {
     TokenId id;
     std::vector<TokenTransferInternal> transfers;
+    std::vector<OrderInternal> orders;
     TokenSectionInternal(TokenId id)
         : id(id)
     {
@@ -132,7 +133,6 @@ struct TokenSectionInternal {
 class BalanceChecker {
 
     class FundFlow {
-
     public:
         auto& in() const { return _in; }
         auto& out() const { return _out; }
@@ -286,13 +286,55 @@ public:
     {
         wartTransfers.push_back({ __register_transfer(tv), tv.amount_throw() });
     }
+    OrderInternal register_order(OrderView o)
+    {
+        auto tokenId { o.token_id() };
+        auto from { accounts[o.account_id()] };
+        auto compactFee { o.compact_fee_trow() };
+        auto [buy, amount] { o.buy_amount_throw() };
+
+        if (buy)
+            from.subtract(TokenId::WART, amount);
+        else
+            from.subtract(tokenId, amount);
+
+        charge_fee(from, compactFee);
+        return {
+            .signer { from.id, from.address, o.signature(), o.pin_nonce() },
+            .limit { o.limit() },
+            .amount { tokenId, amount },
+            .buy = buy
+        };
+    }
+    OrderInternal register_cancel_order(OrderView o)
+    {
+        auto tokenId { o.token_id() };
+        auto from { accounts[o.account_id()] };
+        auto compactFee { o.compact_fee_trow() };
+        auto [buy, amount] { o.buy_amount_throw() };
+
+        if (buy)
+            from.subtract(TokenId::WART, amount);
+        else
+            from.subtract(tokenId, amount);
+
+        charge_fee(from, compactFee);
+        return {
+            .signer { from.id, from.address, o.signature(), o.pin_nonce() },
+            .limit { o.limit() },
+            .amount { tokenId, amount },
+            .buy = buy
+        };
+    }
     void register_token_section(BodyStructure::TokenSectionView v)
     {
         TokenSectionInternal td(v.id());
         v.foreach_transfer([&](TokenTransferView v) {
             td.transfers.push_back({ __register_transfer(v), v.amount_throw() });
         });
-        v.foreach_order([&](OrderView v) { });
+        v.foreach_order([&](OrderView v) {
+            td.orders.push_back(register_order(v));
+        });
         v.foreach_liquidity_add([&](LiquidityAddView v) { });
         v.foreach_liquidity_remove([&](LiquidityRemoveView v) { });
         tokenSections.push_back(std::move(td));
@@ -320,7 +362,8 @@ public:
     auto& get_new_accounts() const { return accounts.new_accounts(); }
     AddressView get_new_address(size_t i) { return bv.get_address(i); } // OK
     auto& token_creations() const { return tokenCreations; }
-    const std::vector<WartTransferInternal>& get_wart_transfers() const { return wartTransfers; };
+    const auto& get_wart_transfers() const { return wartTransfers; };
+    const auto& get_token_sections() const { return tokenSections; };
     const auto& get_reward() const { return reward; };
 
 private:
@@ -374,7 +417,7 @@ struct HistoryEntries {
         ++nextHistoryId;
         return e;
     }
-    [[nodiscard]] auto& push_transfer(const VerifiedWartTransfer& r)
+    [[nodiscard]] auto& push_wart_transfer(const VerifiedWartTransfer& r)
     {
         auto& e { insertHistory.emplace_back(r, nextHistoryId) };
         insertAccountHistory.emplace_back(r.ti.to.id, nextHistoryId);
@@ -422,8 +465,11 @@ public:
     std::vector<std::tuple<AddressView, AccountId>> insertAccounts;
     std::vector<std::tuple<AccountToken, TokenName>> insertTokenCreations;
     std::optional<api::Block::Reward> apiReward;
-    std::vector<api::Block::Transfer> apiTransfers;
-    std::vector<api::Block::TokenCreation> apiTokenCreations;
+    struct {
+        std::vector<api::Block::Transfer> wartTransfers;
+        std::vector<api::Block::TokenTransfer> tokenTransfers;
+        std::vector<api::Block::TokenCreation> tokenCreations;
+    } api;
 
 private:
     friend class PreparationGenerator;
@@ -503,8 +549,9 @@ private:
         throw Error(EINVACCOUNT); // invalid account id (not found in database)
     }
 
-    void process_old_accounts()
+    void process_accounts()
     {
+        // process old accounts
         for (auto& [accountId, accountData] : balanceChecker.old_accounts()) {
             accountData.address = db_address(accountId);
             for (auto& [tokenId, tokenFlow] : accountData.token_flow()) {
@@ -515,11 +562,8 @@ private:
                     process_new_flow(at, tokenFlow);
             }
         }
-    }
 
-    void process_new_accounts()
-    {
-        // loop through new accounts
+        // process new accounts
         for (auto& a : balanceChecker.get_new_accounts()) {
             bool referred { false };
             for (auto& [tokenId, tokenFlow] : a.token_flow()) {
@@ -531,6 +575,14 @@ private:
                 throw Error(EIDPOLICY); // id was not referred
             insertAccounts.push_back({ a.address, a.id });
         }
+    }
+
+    void process_actions()
+    {
+        process_reward();
+        process_wart_transfers();
+        process_token_transfers();
+        pricess_new_orders();
     }
 
     void process_reward()
@@ -569,8 +621,8 @@ private:
         for (auto& tr : balanceChecker.get_wart_transfers()) {
             auto verified { tr.verify(tx_verifier()) };
 
-            auto& ref { historyEntries.push_transfer(verified) };
-            apiTransfers.push_back(api::Block::Transfer {
+            auto& ref { historyEntries.push_wart_transfer(verified) };
+            api.wartTransfers.push_back(api::Block::Transfer {
                 .fromAddress { tr.from.address },
                 .fee { tr.compactFee.uncompact() },
                 .nonceId { tr.from.pinNonce.id },
@@ -580,6 +632,31 @@ private:
                 .amount { tr.amount },
             });
         }
+    }
+
+    void process_token_transfers(const TokenIdHashName& token, const std::vector<TokenTransferInternal>& transfers)
+    {
+        for (auto& tr : transfers) {
+            auto verified { tr.verify(tx_verifier(), token.hash) };
+
+            auto& ref { historyEntries.push_token_transfer(verified, token.id) };
+            api.tokenTransfers.push_back(api::Block::TokenTransfer {
+                .tokenInfo { token },
+                .fromAddress { tr.from.address },
+                .fee { tr.compactFee.uncompact() },
+                .nonceId { tr.from.pinNonce.id },
+                .pinHeight { verified.txid.pinHeight },
+                .txhash { ref.he.hash },
+                .toAddress { tr.to.address },
+                .amount { tr.amount },
+            });
+        }
+    }
+    void process_token_transfers(TokenId, const Hash& tokenHash, const std::vector<OrderInternal>& orders)
+    {
+    }
+    void pricess_new_orders()
+    {
     }
 
 public:
@@ -608,10 +685,8 @@ public:
         register_token_creations(); // token creation section
 
         /// Process block sections
-        process_old_accounts();
-        process_new_accounts();
-        process_reward();
-        process_wart_transfers();
+        process_accounts();
+        process_actions();
 
         const auto beginNewTokenId = db.next_token_id(); // they start from this index
         for (size_t i = 0; i < balanceChecker.token_creations().size(); ++i) {
@@ -681,7 +756,7 @@ api::Block BlockApplier::apply_block(const ParsedBlock& b, BlockId blockId)
         db.insert_consensus(b.height, blockId, db.next_history_id(), prepared.rg.next_state_id());
 
         prepared.historyEntries.write(db);
-        return api::Block(b.header, b.height, 0, std::move(prepared.apiReward), std::move(prepared.apiTransfers));
+        return api::Block(b.header, b.height, 0, std::move(prepared.apiReward), std::move(prepared.api.wartTransfers));
     } catch (Error e) {
         throw std::runtime_error(std::string("Unexpected exception: ") + __PRETTY_FUNCTION__ + ":" + e.strerror());
     }

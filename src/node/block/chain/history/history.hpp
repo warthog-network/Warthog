@@ -3,6 +3,7 @@
 #include "crypto/crypto.hpp"
 #include "crypto/hash.hpp"
 #include "defi/token/token.hpp"
+#include "defi/uint64/price.hpp"
 #include <functional>
 #include <variant>
 class Headerchain;
@@ -87,6 +88,13 @@ struct TransferInternalWithoutAmount {
     CompactUInt compactFee;
 };
 
+struct OrderInternal {
+    SignerData signer;
+    PriceRelative_uint64 limit;
+    TokenFunds amount;
+    bool buy;
+};
+
 struct WartTransferInternal;
 class VerifiedWartTransfer : public VerifiedTransaction {
     friend struct WartTransferInternal;
@@ -160,14 +168,14 @@ public:
 };
 
 namespace history {
-struct TransferData {
-    static TransferData parse(Reader& r);
+struct WartTransferData {
+    static WartTransferData parse(Reader& r);
     constexpr static uint8_t indicator = 1;
     constexpr static uint8_t bytesize = 8 + 2 + 8 + 8 + 8; // without indicator
     AccountId fromAccountId;
     CompactUInt compactFee;
     AccountId toAccountId;
-    Funds_uint64 amount;
+    Wart amount;
     PinNonce pinNonce;
     void write(Writer& w) const;
 };
@@ -176,7 +184,7 @@ struct RewardData {
     constexpr static uint8_t indicator = 2;
     constexpr static uint8_t bytesize = 8 + 8; // without indicator
     AccountId toAccountId;
-    Funds_uint64 miningReward;
+    Wart miningReward;
     void write(Writer& w) const;
 };
 
@@ -205,7 +213,7 @@ struct TokenTransferData {
     void write(Writer& w) const;
 };
 
-using Data = std::variant<TransferData, RewardData, TokenCreationData, TokenTransferData>;
+using Data = std::variant<WartTransferData, RewardData, TokenCreationData, TokenTransferData>;
 struct Entry {
     Entry(const RewardInternal& p);
     Entry(const VerifiedWartTransfer& p);
