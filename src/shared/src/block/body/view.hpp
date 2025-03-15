@@ -22,6 +22,8 @@ class BodyStructure {
         size_t transfersOffset;
         size_t nOrders;
         size_t ordersOffset;
+        size_t nCancelation;// cancel order
+        size_t cancelationOffset;
         size_t nLiquidityAdd;
         size_t liquidityAddBegin;
         size_t nLiquidityRemove;
@@ -41,6 +43,7 @@ public:
         auto id() const { return ts.tokenId; }
         auto foreach_transfer(auto lambda) const;
         auto foreach_order(auto lambda) const;
+        auto foreach_order_cancelation(auto lambda) const;
         auto foreach_liquidity_add(auto lambda) const;
         auto foreach_liquidity_remove(auto lambda) const;
     };
@@ -51,7 +54,7 @@ public:
     constexpr static size_t RewardSize { 16 };
     constexpr static size_t TransferSize { 34 + SIGLEN };
     constexpr static size_t OrderSize { 30 + SIGLEN };
-    constexpr static size_t CancelSize { 30 + SIGLEN };
+    constexpr static size_t CancelSize { 24 + SIGLEN };
     constexpr static size_t LiquidityAddSize { 34 + SIGLEN };
     constexpr static size_t LiquidityRemoveSize { 26 + SIGLEN };
     constexpr static size_t TokenCreationSize { 8 + 8 + 5 + 2 + SIGLEN };

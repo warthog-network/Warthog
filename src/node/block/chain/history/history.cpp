@@ -11,8 +11,7 @@ TransactionVerifier::TransactionVerifier(const Headerchain& hc, NonzeroHeight h,
 }
 auto TransactionVerifier::pin_info(PinNonce pinNonce) const -> PinInfo
 {
-    const PinFloor pinFloor { PrevHeight(h) };
-    PinHeight pinHeight(pinNonce.pin_height(pinFloor));
+    PinHeight pinHeight(pinNonce.pin_height_from_floored(pinFloor));
     return PinInfo {
         .height { pinHeight },
         .hash { hc.hash_at(pinHeight) }
@@ -22,8 +21,8 @@ auto TransactionVerifier::pin_info(PinNonce pinNonce) const -> PinInfo
 template <typename... HashArgs>
 VerifiedTransaction TransactionVerifier::verify(const SignerData& origin, HashArgs&&... hashArgs) const
 {
-    const PinFloor pinFloor { PrevHeight(h) };
-    PinHeight pinHeight(origin.pinNonce.pin_height(pinFloor));
+    const PinFloor pinFloor { h.pin_floor() };
+    PinHeight pinHeight(origin.pinNonce.pin_height_from_floored(pinFloor));
     Hash pinHash { hc.hash_at(h) };
     return {
         origin.verify_hash((
@@ -69,8 +68,8 @@ VerifiedTokenCreation TokenCreationInternal::verify(const Headerchain& hc, Nonze
 {
     assert(height <= hc.length() + 1);
     assert(!creatorAddress.is_null());
-    const PinFloor pinFloor { PrevHeight(height) };
-    PinHeight pinHeight(pinNonce.pin_height(pinFloor));
+    const PinFloor pinFloor { height.pin_floor() };
+    PinHeight pinHeight(pinNonce.pin_height_from_floored(pinFloor));
     Hash pinHash { hc.hash_at(pinHeight) };
     return VerifiedTokenCreation(*this, pinHeight, pinHash, tid);
 }

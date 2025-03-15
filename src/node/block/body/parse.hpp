@@ -63,7 +63,7 @@ public:
     }
     PinHeight pin_height(PinFloor pinFloor) const
     {
-        return pin_nonce().pin_height(pinFloor);
+        return pin_nonce().pin_height_from_floored(pinFloor);
     }
     CompactUInt compact_fee_throw() const
     {
@@ -145,7 +145,7 @@ public:
     }
     PinHeight pin_height(PinFloor pinFloor) const
     {
-        return pin_nonce().pin_height(pinFloor);
+        return pin_nonce().pin_height_from_floored(pinFloor);
     }
     CompactUInt compact_fee_trow() const
     {
@@ -183,17 +183,22 @@ public:
 
     using View::View;
 };
-struct CancelView : public View<BodyStructure::CancelSize> {
+
+struct CancelationView : public View<BodyStructure::CancelSize> {
 private:
+    TokenId _tokenId;
     uint16_t fee_raw() const
     {
         return readuint16(pos + 16);
     }
 
 public:
-    CancelView(const uint8_t* pos, TokenId tokenId)
+    auto token_id() { return _tokenId; }
+    CancelationView(const uint8_t* pos, TokenId tokenId)
         : View(pos)
-    {}
+        , _tokenId(tokenId)
+    {
+    }
     AccountId account_id() const
     {
         return AccountId(readuint64(pos));
@@ -205,11 +210,11 @@ public:
     }
     PinHeight pin_height(PinFloor pinFloor) const
     {
-        return pin_nonce().pin_height(pinFloor);
+        return pin_nonce().pin_height_from_floored(pinFloor);
     }
     PinNonce block_pin_nonce() const
     {
-        Reader r({ pos + 18, pos + 34 });
+        Reader r({ pos + 18, pos + 24 });
         return PinNonce(r);
     }
     CompactUInt compact_fee_trow() const
@@ -227,7 +232,7 @@ public:
         return compact_fee_trow().uncompact();
     }
 
-    auto signature() const { return View<65>(pos + 34); }
+    auto signature() const { return View<65>(pos + 24); }
     TransactionId txid(PinHeight pinHeight) const
     {
         PinNonce pn = pin_nonce();
@@ -265,7 +270,7 @@ public:
     }
     PinHeight pinHeight(PinFloor pinFloor) const
     {
-        return pin_nonce().pin_height(pinFloor);
+        return pin_nonce().pin_height_from_floored(pinFloor);
     }
     CompactUInt compact_fee_trow() const
     {
@@ -323,7 +328,7 @@ public:
     }
     PinHeight pinHeight(PinFloor pinFloor) const
     {
-        return pin_nonce().pin_height(pinFloor);
+        return pin_nonce().pin_height_from_floored(pinFloor);
     }
     CompactUInt compact_fee_trow() const
     {
@@ -480,6 +485,12 @@ inline auto BodyStructure::TokenSectionView::foreach_order(auto lambda) const
 {
     for (size_t i = 0; i < ts.nOrders; ++i)
         lambda(OrderView { dataBody + ts.ordersOffset + i * OrderView::size(), ts.tokenId });
+}
+
+inline auto BodyStructure::TokenSectionView::foreach_order_cancelation(auto lambda) const
+{
+    for (size_t i = 0; i < ts.nCancelation; ++i)
+        lambda(OrderView { dataBody + ts.cancelationOffset + i * CancelationView::size(), ts.tokenId });
 }
 
 inline auto BodyStructure::TokenSectionView::foreach_liquidity_add(auto lambda) const

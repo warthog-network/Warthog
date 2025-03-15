@@ -123,7 +123,6 @@ public:
     void insert_quote_order(OrderId id, TransactionId, TokenId, Funds_uint64 totalQuote, Funds_uint64 filledQuote, Price_uint64 price);
     void delete_order(TransactionId);
     void delete_order(OrderId);
-    void insert_canceled(TransactionId);
 
     [[nodiscard]] OrderLoader base_order_loader(TokenId) const;
     [[nodiscard]] OrderLoader quote_order_loader(TokenId) const;

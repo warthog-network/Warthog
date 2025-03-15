@@ -108,7 +108,7 @@ std::optional<api::Block> State::api_get_block(Height zh) const
     if (zh == 0 || zh > chainlength())
         return {};
     auto h { zh.nonzero_assert() };
-    PinFloor pinFloor { PrevHeight(h) };
+    auto pinFloor { h.pin_floor() };
     auto lower = chainstate.historyOffset(h);
     auto upper = (h == chainlength() ? HistoryId { 0 }
                                      : chainstate.historyOffset(h + 1));
@@ -156,22 +156,22 @@ std::optional<api::Transaction> State::api_get_tx(const HashView txHash) const
             auto& d = std::get<history::WartTransferData>(parsed);
             return api::TransferTransaction {
                 .txhash = txHash,
-                .toAddress = db.fetch_address(d.toAccountId).address,
+                .toAddress = db.fetch_address(d.toAccountId),
                 .confirmations = (chainlength() - h) + 1,
                 .height = h,
                 .timestamp = chainstate.headers()[h].timestamp(),
                 .amount = d.amount,
-                .fromAddress = db.fetch_address(d.fromAccountId).address,
+                .fromAddress = db.fetch_address(d.fromAccountId),
                 .fee = d.compactFee.uncompact(),
                 .nonceId = d.pinNonce.id,
-                .pinHeight = d.pinNonce.pin_height((PinFloor(PrevHeight(h))))
+                .pinHeight = d.pinNonce.pin_height_from_floored(h.pin_floor())
             };
         } else {
             assert(std::holds_alternative<history::RewardData>(parsed));
             auto& d = std::get<history::RewardData>(parsed);
             return api::RewardTransaction {
                 .txhash = txHash,
-                .toAddress = db.fetch_address(d.toAccountId).address,
+                .toAddress = db.fetch_address(d.toAccountId),
                 .confirmations = (chainlength() - h) + 1,
                 .height = h,
                 .timestamp = chainstate.headers()[h].timestamp(),
@@ -211,7 +211,7 @@ auto State::api_get_miner(NonzeroHeight h) const -> std::optional<api::AddressWi
     assert(std::holds_alternative<history::RewardData>(parsed));
     auto minerId { std::get<history::RewardData>(parsed).toAccountId };
     return api::AddressWithId {
-        db.fetch_address(minerId).address,
+        db.fetch_address(minerId),
         minerId
     };
 }
@@ -243,7 +243,7 @@ auto State::api_get_transaction_range(HistoryId lower, HistoryId upper) const ->
         chainserver::DBCache cache(db);
         auto update_tmp = [&](HistoryId id) {
             auto h { chainstate.history_height(id) };
-            PinFloor pinFloor { PrevHeight(h) };
+            auto pinFloor { h.pin_floor() };
             auto header { chainstate.headers()[h] };
             auto b { api::Block(header, h, chainlength() - h + 1) };
             auto beginId { chainstate.historyOffset(h) };
@@ -472,7 +472,7 @@ namespace {
         RollbackSession(const ChainDB& db, NonzeroHeight beginHeight,
             const RollbackView& rbv)
             : db(db)
-            , newPinFloor(PrevHeight(beginHeight))
+            , newPinFloor(beginHeight.pin_floor())
             , oldAccountStart(rbv.getBeginNewAccounts())
             , oldTokenStart(rbv.getBeginNewTokens())
         {
@@ -495,7 +495,7 @@ namespace {
         void rollback_block(BlockId id, NonzeroHeight height)
         {
             BlockUndoData d { fetch_undo(db, id) };
-            PinFloor pinFloor { PrevHeight(height) };
+            auto pinFloor { height.pin_floor() };
             BodyView bv(d.rawBody, height);
             if (!bv.valid())
                 throw std::runtime_error(
@@ -532,10 +532,10 @@ RollbackResult State::rollback(const Height newlength) const
     spdlog::info("Rolling back chain");
     assert(newlength < chainlength());
     NonzeroHeight beginHeight = (newlength + 1).nonzero_assert();
-    Height endHeight(chainlength() + 1);
+    auto endHeight(chainlength().add1());
 
     // load ids
-    auto ids { db.consensus_block_ids(beginHeight, endHeight) };
+    auto ids { db.consensus_block_ids({ beginHeight, endHeight }) };
     assert(ids.size() == endHeight - beginHeight);
     assert(ids.size() > 0);
 
@@ -546,7 +546,7 @@ RollbackResult State::rollback(const Height newlength) const
         rs.rollback_block(ids[i], height);
     }
 
-    db.delete_history_from((newlength + 1).nonzero_assert());
+    db.delete_history_from(newlength.add1());
     db.delete_state_from(rs.oldAccountStart);
     auto dk { db.delete_consensus_from((newlength + 1).nonzero_assert()) };
 
@@ -755,7 +755,7 @@ auto State::insert_txs(const TxVec& txs) -> std::pair<std::vector<Error>, mempoo
 api::ChainHead State::api_get_head() const
 {
     NonzeroHeight nextHeight { next_height() };
-    PinFloor pf { PrevHeight(nextHeight) };
+    PinFloor pf { nextHeight.pin_floor() };
     return api::ChainHead {
         .signedSnapshot { signedSnapshot },
         .worksum { chainstate.headers().total_work() },
@@ -805,7 +805,7 @@ auto State::api_get_history(Address a, int64_t beforeId) const -> std::optional<
         prevHistoryId = historyId;
         if (historyId >= nextHistoryOffset) {
             auto height { chainstate.history_height(historyId) };
-            pinFloor = PinFloor(PrevHeight(height));
+            pinFloor = height.pin_floor();
             auto header = chainstate.headers()[height];
             bool b = height == chainlength();
             nextHistoryOffset = (b

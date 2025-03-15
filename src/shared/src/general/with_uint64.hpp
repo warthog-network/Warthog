@@ -58,6 +58,7 @@ template <typename T>
 class UInt64WithOperators : public IsUint64 {
 public:
     using parent_t = UInt64WithOperators<T>;
+    using IsUint64::IsUint64;
     size_t operator-(T a)
     {
         return val - a.val;

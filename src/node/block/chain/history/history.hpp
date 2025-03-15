@@ -64,6 +64,14 @@ struct TransactionVerifier {
     const Headerchain& hc;
     NonzeroHeight h;
     validator_t validator;
+    PinFloor pinFloor;
+    TransactionVerifier(const Headerchain& hc, NonzeroHeight h, validator_t validator)
+        : hc(hc)
+        , h(h)
+        , validator(std::move(validator))
+        , pinFloor(h.pin_floor())
+    {
+    }
 
     struct PinInfo {
         PinHeight height;
@@ -93,6 +101,11 @@ struct OrderInternal {
     PriceRelative_uint64 limit;
     TokenFunds amount;
     bool buy;
+};
+
+struct CancellationInternal {
+    SignerData signer;
+    TransactionId txid;
 };
 
 struct WartTransferInternal;

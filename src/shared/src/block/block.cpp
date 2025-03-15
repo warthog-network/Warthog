@@ -42,7 +42,7 @@ ParsedBlock ParsedBlock::create_throw(NonzeroHeight h, HeaderView hv, BodyContai
 std::vector<TransactionId> ParsedBlock::read_tx_ids()
 {
     auto bv { body.view() };
-    PinFloor pinFloor { PrevHeight(height) };
+    PinFloor pinFloor { height.pin_floor() };
 
     std::vector<TransactionId> out;
     for (auto t : bv.wart_transfers()) {

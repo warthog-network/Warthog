@@ -95,6 +95,7 @@ public:
     }
 };
 
+struct PinFloor;
 class NonzeroHeight : public IsUint32 {
     friend struct Batchslot;
 
@@ -140,6 +141,7 @@ public:
     {
         return Height(value()).pin_begin();
     }
+    PinFloor pin_floor() const;
 
     bool is_retarget_height() const
     {
@@ -261,7 +263,7 @@ inline NonzeroHeight Height::add1() const
 }
 
 class PrevHeight : public Height {
-public:
+    friend class NonzeroHeight;
     explicit PrevHeight(NonzeroHeight h)
         : Height(h - 1)
     {
@@ -319,6 +321,11 @@ struct PinFloor : public Height {
     {
     }
 };
+
+inline PinFloor NonzeroHeight::pin_floor() const
+{
+    return PinFloor(PrevHeight(*this));
+}
 
 inline bool Height::is_pin_height() const
 {

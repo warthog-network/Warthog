@@ -124,6 +124,7 @@ struct TokenSectionInternal {
     TokenId id;
     std::vector<TokenTransferInternal> transfers;
     std::vector<OrderInternal> orders;
+    std::vector<CancellationInternal> cancellations;
     TokenSectionInternal(TokenId id)
         : id(id)
     {
@@ -240,6 +241,7 @@ public:
     }
     BalanceChecker(AccountId nextAccountId, const BodyView& bv, NonzeroHeight height)
         : height(height)
+        , pinFloor(height.pin_floor())
         , bv(bv)
         , accounts(nextAccountId, bv)
         , reward(register_reward(bv, accounts, height))
@@ -285,6 +287,18 @@ public:
     void register_wart_transfer(WartTransferView tv)
     {
         wartTransfers.push_back({ __register_transfer(tv), tv.amount_throw() });
+    }
+
+    CancellationInternal register_cancellation(CancelationView c)
+    {
+        auto tokenId { c.token_id() };
+        auto compactFee { c.compact_fee_trow() };
+        auto& from { accounts[c.account_id()] };
+        charge_fee(from, compactFee);
+        return {
+            .signer { from.id, from.address, c.signature(), c.pin_nonce() },
+            .txid { from.id, c.pc.block_pin_nonce().id }
+        };
     }
     OrderInternal register_order(OrderView o)
     {
@@ -335,6 +349,9 @@ public:
         v.foreach_order([&](OrderView v) {
             td.orders.push_back(register_order(v));
         });
+        v.foreach_order_cancelation([&](CancelationView v) {
+            td.cancellations.push_back(register_cancellation(v));
+        });
         v.foreach_liquidity_add([&](LiquidityAddView v) { });
         v.foreach_liquidity_remove([&](LiquidityRemoveView v) { });
         tokenSections.push_back(std::move(td));
@@ -368,6 +385,7 @@ public:
 
 private:
     const NonzeroHeight height;
+    const PinFloor pinFloor;
     const BodyView& bv;
     Accounts accounts;
     RewardInternal reward;
@@ -464,6 +482,7 @@ public:
     std::vector<std::tuple<AccountToken, Funds_uint64>> insertBalances;
     std::vector<std::tuple<AddressView, AccountId>> insertAccounts;
     std::vector<std::tuple<AccountToken, TokenName>> insertTokenCreations;
+    std::vector<TransactionId> insertCancelOrder;
     std::optional<api::Block::Reward> apiReward;
     struct {
         std::vector<api::Block::Transfer> wartTransfers;
@@ -493,6 +512,7 @@ private:
     // variables needed for block verification
     const RewardView reward;
     BalanceChecker balanceChecker;
+    TransactionVerifier txVerifier;
 
 private:
     // Check uniqueness of new addresses
@@ -601,16 +621,10 @@ private:
         };
     }
 
-    auto tx_verifier()
+    auto verify_txid(TransactionId tid) -> bool
     {
-        return TransactionVerifier {
-            hc, height,
-            std::function<bool(TransactionId)>(
-                [this](TransactionId tid) -> bool {
-                    // check for duplicate txid (also within current block)
-                    return !baseTxIds.contains(tid) && !newTxIds.contains(tid) && txset.emplace(tid).second;
-                })
-        };
+        // check for duplicate txid (also within current block)
+        return !baseTxIds.contains(tid) && !newTxIds.contains(tid) && txset.emplace(tid).second;
     }
 
     // generate history for transfers and check signatures
@@ -619,7 +633,7 @@ private:
     {
         const auto& balanceChecker { this->balanceChecker }; // shadow balanceChecker
         for (auto& tr : balanceChecker.get_wart_transfers()) {
-            auto verified { tr.verify(tx_verifier()) };
+            auto verified { tr.verify(txVerifier) };
 
             auto& ref { historyEntries.push_wart_transfer(verified) };
             api.wartTransfers.push_back(api::Block::Transfer {
@@ -637,7 +651,7 @@ private:
     void process_token_transfers(const TokenIdHashName& token, const std::vector<TokenTransferInternal>& transfers)
     {
         for (auto& tr : transfers) {
-            auto verified { tr.verify(tx_verifier(), token.hash) };
+            auto verified { tr.verify(txVerifier, token.hash) };
 
             auto& ref { historyEntries.push_token_transfer(verified, token.id) };
             api.tokenTransfers.push_back(api::Block::TokenTransfer {
@@ -676,6 +690,11 @@ public:
         , height(b.height)
         , reward(bv.reward())
         , balanceChecker(db.next_account_id(), bv, height)
+        , txVerifier(TransactionVerifier { hc, height,
+              std::function<bool(TransactionId)>(
+                  [this](TransactionId tid) -> bool {
+                      return verify_txid(tid);
+                  }) })
     {
 
         /// Read block sections

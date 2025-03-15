@@ -466,11 +466,6 @@ void ChainDB::delete_order(OrderId oid)
     stmtDeleteQuoteBuyOrder.run(oid);
 }
 
-void ChainDB::insert_canceled(TransactionId txid)
-{
-    stmtInsertCanceled(txid.accountId);
-}
-
 OrderLoader ChainDB::base_order_loader(TokenId tid) const
 {
     return { stmtSelectBaseSellOrderAsc.bind_multiple(tid) };

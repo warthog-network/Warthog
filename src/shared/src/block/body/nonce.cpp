@@ -27,7 +27,7 @@ PinNonce::PinNonce(ReaderCheck<bytesize> r)
 PinNonce::PinNonce(Reader& r)
     : PinNonce(ReaderCheck<bytesize>(r)) {};
 
-PinHeight PinNonce::pin_height(PinFloor pf) const
+PinHeight PinNonce::pin_height_from_floored(PinFloor pf) const
 {
     Height h(pf - std::min(pin_offset(), pf.value()));
     assert(h.is_pin_height());
@@ -36,7 +36,7 @@ PinHeight PinNonce::pin_height(PinFloor pf) const
 
 std::optional<PinNonce> PinNonce::make_pin_nonce(NonceId nid, NonzeroHeight height, PinHeight pinHeight)
 {
-    PinFloor ph { PrevHeight(height) };
+    auto ph { height.pin_floor() };
     if (ph < pinHeight)
         return {};
     uint64_t index = ((ph - pinHeight) >> 5);
