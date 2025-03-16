@@ -259,7 +259,7 @@ public:
     LiquidityAddView(const uint8_t* pos, TokenId tokenId)
         : View(pos)
         , tokenId(tokenId) { };
-    AccountId accountId() const
+    AccountId account_id() const
     {
         return AccountId(readuint64(pos));
     }
@@ -299,7 +299,7 @@ public:
     TransactionId txid(PinHeight pinHeight) const
     {
         PinNonce pn = pin_nonce();
-        return { accountId(), pinHeight, pn.id };
+        return { account_id(), pinHeight, pn.id };
     }
 
     using View::View;
@@ -317,7 +317,7 @@ public:
     LiquidityRemoveView(const uint8_t* pos, TokenId tokenId)
         : View(pos)
         , tokenId(tokenId) { };
-    AccountId accountId() const
+    AccountId account_id() const
     {
         return AccountId(readuint64(pos));
     }
@@ -353,7 +353,7 @@ public:
     TransactionId txid(PinHeight pinHeight) const
     {
         PinNonce pn = pin_nonce();
-        return { accountId(), pinHeight, pn.id };
+        return { account_id(), pinHeight, pn.id };
     }
 
     using View::View;
@@ -490,7 +490,7 @@ inline auto BodyStructure::TokenSectionView::foreach_order(auto lambda) const
 inline auto BodyStructure::TokenSectionView::foreach_order_cancelation(auto lambda) const
 {
     for (size_t i = 0; i < ts.nCancelation; ++i)
-        lambda(OrderView { dataBody + ts.cancelationOffset + i * CancelationView::size(), ts.tokenId });
+        lambda(CancelationView { dataBody + ts.cancelationOffset + i * CancelationView::size(), ts.tokenId });
 }
 
 inline auto BodyStructure::TokenSectionView::foreach_liquidity_add(auto lambda) const

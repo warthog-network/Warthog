@@ -82,7 +82,6 @@ protected:
     PinInfo pin_info(PinNonce pinNonce) const;
 
 public:
-    TransactionVerifier(const Headerchain& hc, NonzeroHeight h, validator_t f);
 
     template <typename... HashArgs>
     VerifiedTransaction verify(const SignerData& origin, HashArgs&&... hashArgs) const;
@@ -103,9 +102,16 @@ struct OrderInternal {
     bool buy;
 };
 
-struct CancellationInternal {
+struct CancelationInternal {
     SignerData signer;
     TransactionId txid;
+};
+struct LiquidityAddInternal {
+    SignerData signer;
+};
+
+struct LiquidityRemoveInternal {
+    SignerData signer;
 };
 
 struct WartTransferInternal;

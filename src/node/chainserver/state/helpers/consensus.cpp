@@ -232,7 +232,7 @@ TxHash Chainstate::insert_tx(const TransferTxExchangeMessage& pm)
 
     auto p = db.lookup_address(pm.from_id());
     if (!p)
-        throw Error(EADDRIDNOTFOUND);
+        throw Error(EACCIDNOTFOUND);
     TransactionHeight th(pm.pin_height(), account_height(pm.from_id()));
      _mempool.insert_tx_throw(pm, th, txHash, *p);
     return txHash;

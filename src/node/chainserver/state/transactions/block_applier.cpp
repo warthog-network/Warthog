@@ -5,6 +5,7 @@
 #include "block/chain/header_chain.hpp"
 #include "block/chain/history/history.hpp"
 #include "chainserver/db/chain_db.hpp"
+#include "defi/token/info.hpp"
 #include "defi/uint64/lazy_matching.hpp"
 #include "defi/uint64/pool.hpp"
 
@@ -124,7 +125,9 @@ struct TokenSectionInternal {
     TokenId id;
     std::vector<TokenTransferInternal> transfers;
     std::vector<OrderInternal> orders;
-    std::vector<CancellationInternal> cancellations;
+    std::vector<CancelationInternal> cancelations;
+    std::vector<LiquidityAddInternal> liquidityAdds;
+    std::vector<LiquidityRemoveInternal> liquidityRemoves;
     TokenSectionInternal(TokenId id)
         : id(id)
     {
@@ -289,15 +292,32 @@ public:
         wartTransfers.push_back({ __register_transfer(tv), tv.amount_throw() });
     }
 
-    CancellationInternal register_cancellation(CancelationView c)
+    CancelationInternal register_cancelation(CancelationView c)
     {
-        auto tokenId { c.token_id() };
         auto compactFee { c.compact_fee_trow() };
         auto& from { accounts[c.account_id()] };
         charge_fee(from, compactFee);
         return {
             .signer { from.id, from.address, c.signature(), c.pin_nonce() },
-            .txid { from.id, c.pc.block_pin_nonce().id }
+            .txid { from.id, c.block_pin_nonce().pin_height_from_floored(pinFloor), c.block_pin_nonce().id }
+        };
+    }
+    LiquidityAddInternal register_liquidity_add(LiquidityAddView l)
+    {
+        auto compactFee { l.compact_fee_trow() };
+        auto& from { accounts[l.account_id()] };
+        charge_fee(from, compactFee);
+        return {
+            .signer { from.id, from.address, l.signature(), l.pin_nonce() },
+        };
+    }
+    LiquidityRemoveInternal register_liquidity_remove(LiquidityRemoveView l)
+    {
+        auto compactFee { l.compact_fee_trow() };
+        auto& from { accounts[l.account_id()] };
+        charge_fee(from, compactFee);
+        return {
+            .signer { from.id, from.address, l.signature(), l.pin_nonce() },
         };
     }
     OrderInternal register_order(OrderView o)
@@ -350,10 +370,14 @@ public:
             td.orders.push_back(register_order(v));
         });
         v.foreach_order_cancelation([&](CancelationView v) {
-            td.cancellations.push_back(register_cancellation(v));
+            td.cancelations.push_back(register_cancelation(v));
         });
-        v.foreach_liquidity_add([&](LiquidityAddView v) { });
-        v.foreach_liquidity_remove([&](LiquidityRemoveView v) { });
+        v.foreach_liquidity_add([&](LiquidityAddView v) {
+            td.liquidityAdds.push_back(register_liquidity_add(v));
+        });
+        v.foreach_liquidity_remove([&](LiquidityRemoveView v) {
+            td.liquidityRemoves.push_back(register_liquidity_remove(v));
+        });
         tokenSections.push_back(std::move(td));
     }
 
@@ -566,7 +590,13 @@ private:
     {
         if (auto address { db.lookup_address(id) })
             return *address;
-        throw Error(EINVACCOUNT); // invalid account id (not found in database)
+        throw Error(EACCIDNOTFOUND); // invalid account id (not found in database)
+    }
+    auto db_token(TokenId id)
+    {
+        if (auto address { db.lookup_token(id) })
+            return *address;
+        throw Error(ETOKIDNOTFOUND); // invalid token id (not found in database)
     }
 
     void process_accounts()
@@ -601,8 +631,7 @@ private:
     {
         process_reward();
         process_wart_transfers();
-        process_token_transfers();
-        pricess_new_orders();
+        process_token_sections();
     }
 
     void process_reward()
@@ -627,6 +656,18 @@ private:
         return !baseTxIds.contains(tid) && !newTxIds.contains(tid) && txset.emplace(tid).second;
     }
 
+    void process_token_sections()
+    {
+        auto ts { balanceChecker.get_token_sections() };
+        for (auto& ts : balanceChecker.get_token_sections()) {
+            auto ihn { db_token(ts.id).id_hash_name() };
+            process_token_transfers(ihn, ts.transfers);
+            process_new_orders(ihn, ts.orders);
+            process_cancelations(ihn, ts.cancelations);
+            process_liquidity_adds(ihn, ts.liquidityAdds);
+            process_liquidity_removes(ihn, ts.liquidityRemoves);
+        }
+    }
     // generate history for transfers and check signatures
     // and check for unique transaction ids
     void process_wart_transfers()
@@ -650,6 +691,7 @@ private:
 
     void process_token_transfers(const TokenIdHashName& token, const std::vector<TokenTransferInternal>& transfers)
     {
+        balanceChecker.get_wart_transfers();
         for (auto& tr : transfers) {
             auto verified { tr.verify(txVerifier, token.hash) };
 
@@ -666,10 +708,16 @@ private:
             });
         }
     }
-    void process_token_transfers(TokenId, const Hash& tokenHash, const std::vector<OrderInternal>& orders)
+    void process_new_orders(const TokenIdHashName& ihn, const std::vector<OrderInternal>& orders)
     {
     }
-    void pricess_new_orders()
+    void process_cancelations(const TokenIdHashName& ihn, const std::vector<CancelationInternal>& orders)
+    {
+    }
+    void process_liquidity_adds(const TokenIdHashName& ihn, const std::vector<LiquidityAddInternal>& orders)
+    {
+    }
+    void process_liquidity_removes(const TokenIdHashName& ihn, const std::vector<LiquidityRemoveInternal>& orders)
     {
     }
 

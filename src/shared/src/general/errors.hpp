@@ -45,91 +45,91 @@
     XX(21, EADDRPOLICY, "new address policy violated")                             \
     XX(22, EBALANCE, "insufficient balance")                                       \
     XX(23, ECORRUPTEDSIG, "corrupted signature")                                   \
-    XX(24, EINVACCOUNT, "invalid account id")                                      \
-    XX(25, ETIMEOUT, "connection request timed out")                               \
-    XX(26, ESWITCHING, "busy, switching chains")                                   \
-    XX(27, ENONCE, "duplicate transaction nonce")                                  \
-    XX(28, EDUST, "fee too low")                                                   \
-    XX(29, EBLOCKSIZE, "block too large")                                          \
-    XX(30, EPINHEIGHT, "invalid transaction pin")                                  \
-    XX(31, ECLOCKTOLERANCE, "clock tolerance exceeded")                            \
-    XX(32, EINVDSC, "invalid descripted state")                                    \
-    XX(33, EAPPEND, "invalid chain append")                                        \
-    XX(34, EFORK, "invalid chain fork")                                            \
-    XX(57, ENOTFOUND, "not found")                                                 \
-    XX(58, EEMPTY, "empty response for request not yet expired")                   \
-    XX(59, EFAKEHEIGHT, "fake height advertised by node")                          \
-    XX(60, EFAKEWORK, "fake total work advertised by node")                        \
-    XX(61, EBADMATCH, "bad headerchain match")                                     \
-    XX(62, EBADMISMATCH, "bad headerchain mismatch")                               \
-    XX(63, EBADPROBE, "inconsistent probe message")                                \
-    XX(64, EPROBEDESCRIPTOR, "current probe descriptor does not match")            \
-    XX(65, ERESTRICTED, "peer ignored limit restrictions")                         \
-    XX(66, ENOPINHEIGHT, "height is no pin height")                                \
-    XX(67, EBADLEADER, "bad leader signature")                                     \
-    XX(68, ELEADERMISMATCH, "leader signature mismatch")                           \
-    XX(69, ELOWPRIORITY, "low leader signature priority")                          \
-    XX(70, EBADPUBKEY, "invalid public key")                                       \
-    XX(71, EBADPRIVKEY, "invalid private key")                                     \
-    XX(72, EBADADDRESS, "invalid address")                                         \
-    XX(73, EBADHEIGHT, "invalid height")                                           \
-    XX(74, EZEROHEIGHT, "invalid zero height")                                     \
-    XX(75, EBADROLLBACK, "rollback forbidden")                                     \
-    XX(76, EBADROLLBACKLEN, "bad rollback length")                                 \
-    XX(77, EMINEDDEPRECATED, "submitted deprecated block")                         \
-    XX(78, EBLOCKRANGE, "invalid block range")                                     \
-    XX(79, EFORKHEIGHT, "invalid fork height")                                     \
-    XX(80, EPROBEHEIGHT, "invalid probe height")                                   \
-    XX(81, EBATCHHEIGHT, "invalid batch height")                                   \
-    XX(82, EGRIDMISMATCH, "grid mismatch")                                         \
-    XX(83, ESELFSEND, "self send transaction not allowed")                         \
-    XX(84, EBLOCKVERSION, "unsupported block version")                             \
-    XX(85, EZEROAMOUNT, "transactions cannot send 0 WART")                         \
-    XX(86, ENOINIT, "first message must be init message")                          \
-    XX(87, EINVINIT, "only first message can be init message")                     \
-    XX(88, EFAKEACCID, "fake account id")                                          \
-    XX(89, EINV_FUNDS, "malformed funds data")                                     \
-    XX(90, EINV_BODY, "malformed body data")                                       \
-    XX(91, EINV_PAGE, "invalid page")                                              \
-    XX(92, EINV_PROBE, "invalid probe message")                                    \
-    XX(93, EINV_GRID, "invalid grid")                                              \
-    XX(94, EINV_TXREQ, "invalid tx request")                                       \
-    XX(95, EINV_ARGS, "invalid API arguments")                                     \
-    XX(96, EINV_TXREP, "invalid tx reply")                                         \
-    XX(97, EINV_INITGRID, "invalid grid in init message")                          \
-    XX(98, EINV_HEADERVEC, "invalid header vector")                                \
-    XX(99, EINV_BLOCKREPSIZE, "invalid block reply size")                          \
-    XX(100, EINV_RTCOFFER, "Invalid SDP offer forward request")                    \
-    XX(101, EDUP_RTCOFFER, "Duplicate SDP offer forward request")                  \
-    XX(102, ERTCINV_RFA, "Invalid RTC request forward answer")                     \
-    XX(103, ERTCDUP_RFA, "Duplicate RTC request forward answer")                   \
-    XX(104, ERTCINV_FA, "Invalid RTC forwarded answer")                            \
-    XX(105, ERTCDUP_FA, "Duplicate RTC forwarded answer")                          \
-    XX(106, ERTCIP_FA, "WebRTC forwarded ip differs")                              \
-    XX(107, ERTCDISCARD_FA, "Invalid discarding of expected forwarded answer")     \
-    XX(108, ERTCQUOTA_FO, "RTC quota for forwarded offers exceeded")               \
-    XX(110, ERTCDUP_ID, "Duplicate RTC id")                                        \
-    XX(111, ERTCFAILED, "WebRTC connection failed")                                \
-    XX(112, ERTCCHANNEL_ERROR, "WebRTC channel error")                             \
-    XX(113, ERTCCLOSED, "WebRTC connection was closed")                            \
-    XX(114, ERTCTEXT, "Text over RTC is not supported")                            \
-    XX(115, ERTCUNIQUEIP, "WebRTC SDP ip is not unique")                           \
-    XX(116, ERTCUNIQUEIP_RFA, "WebRTC SDP ip not unique (forward answer)")         \
-    XX(117, ERTCWRONGIP_RFA, "Wrong WebRTC SDP ip (forward answer)")               \
-    XX(118, ERTCWRONGIP_FO, "Wrong WebRTC SDP ip (forward offer)")                 \
-    XX(119, ERTCUNIQUEIP_RFO, "WebRTC forward offer request SDP ip is not unique") \
-    XX(120, ERTCUNVERIFIEDIP, "WebRTC ip not verified")                            \
-    XX(121, ERTCDUP_DATACHANNEL, "WebRTC ip not verified")                         \
-    XX(122, ERTCUNEXP_VA, "Unexpected WebRTC verification answer")                 \
-    XX(123, EADDRNOTFOUND, "address not found")                                    \
-    XX(124, EADDRIDNOTFOUND, "address id not found")                               \
-    XX(125, ECONNRATELIMIT, "connection rate limit exceeded")                      \
-    XX(126, EINITV1, "Init V1 not allowed from this peer")                         \
-    XX(127, EINITV3, "Init V3 not allowed from this peer")                         \
-    XX(128, EFROZENACC, "account is frozen and can't send")                        \
-    XX(129, EHEADERRANGE, "invalid header range")                                  \
-    XX(130, EBADPRICE, "invalid price")                                            \
-    XX(131, EBADFEE, "invalid fee")                                                \
+    XX(24, ETIMEOUT, "connection request timed out")                               \
+    XX(25, ESWITCHING, "busy, switching chains")                                   \
+    XX(26, ENONCE, "duplicate transaction nonce")                                  \
+    XX(27, EDUST, "fee too low")                                                   \
+    XX(28, EBLOCKSIZE, "block too large")                                          \
+    XX(29, EPINHEIGHT, "invalid transaction pin")                                  \
+    XX(30, ECLOCKTOLERANCE, "clock tolerance exceeded")                            \
+    XX(31, EINVDSC, "invalid descripted state")                                    \
+    XX(32, EAPPEND, "invalid chain append")                                        \
+    XX(33, EFORK, "invalid chain fork")                                            \
+    XX(56, ENOTFOUND, "not found")                                                 \
+    XX(57, EEMPTY, "empty response for request not yet expired")                   \
+    XX(58, EFAKEHEIGHT, "fake height advertised by node")                          \
+    XX(59, EFAKEWORK, "fake total work advertised by node")                        \
+    XX(60, EBADMATCH, "bad headerchain match")                                     \
+    XX(61, EBADMISMATCH, "bad headerchain mismatch")                               \
+    XX(62, EBADPROBE, "inconsistent probe message")                                \
+    XX(63, EPROBEDESCRIPTOR, "current probe descriptor does not match")            \
+    XX(64, ERESTRICTED, "peer ignored limit restrictions")                         \
+    XX(65, ENOPINHEIGHT, "height is no pin height")                                \
+    XX(66, EBADLEADER, "bad leader signature")                                     \
+    XX(67, ELEADERMISMATCH, "leader signature mismatch")                           \
+    XX(68, ELOWPRIORITY, "low leader signature priority")                          \
+    XX(69, EBADPUBKEY, "invalid public key")                                       \
+    XX(70, EBADPRIVKEY, "invalid private key")                                     \
+    XX(71, EBADADDRESS, "invalid address")                                         \
+    XX(72, EBADHEIGHT, "invalid height")                                           \
+    XX(73, EZEROHEIGHT, "invalid zero height")                                     \
+    XX(74, EBADROLLBACK, "rollback forbidden")                                     \
+    XX(75, EBADROLLBACKLEN, "bad rollback length")                                 \
+    XX(76, EMINEDDEPRECATED, "submitted deprecated block")                         \
+    XX(77, EBLOCKRANGE, "invalid block range")                                     \
+    XX(78, EFORKHEIGHT, "invalid fork height")                                     \
+    XX(79, EPROBEHEIGHT, "invalid probe height")                                   \
+    XX(80, EBATCHHEIGHT, "invalid batch height")                                   \
+    XX(81, EGRIDMISMATCH, "grid mismatch")                                         \
+    XX(82, ESELFSEND, "self send transaction not allowed")                         \
+    XX(83, EBLOCKVERSION, "unsupported block version")                             \
+    XX(84, EZEROAMOUNT, "transactions cannot send 0 WART")                         \
+    XX(85, ENOINIT, "first message must be init message")                          \
+    XX(86, EINVINIT, "only first message can be init message")                     \
+    XX(87, EFAKEACCID, "fake account id")                                          \
+    XX(88, EINV_FUNDS, "malformed funds data")                                     \
+    XX(89, EINV_BODY, "malformed body data")                                       \
+    XX(90, EINV_PAGE, "invalid page")                                              \
+    XX(91, EINV_PROBE, "invalid probe message")                                    \
+    XX(92, EINV_GRID, "invalid grid")                                              \
+    XX(93, EINV_TXREQ, "invalid tx request")                                       \
+    XX(94, EINV_ARGS, "invalid API arguments")                                     \
+    XX(95, EINV_TXREP, "invalid tx reply")                                         \
+    XX(96, EINV_INITGRID, "invalid grid in init message")                          \
+    XX(97, EINV_HEADERVEC, "invalid header vector")                                \
+    XX(98, EINV_BLOCKREPSIZE, "invalid block reply size")                          \
+    XX(99, EINV_RTCOFFER, "Invalid SDP offer forward request")                     \
+    XX(100, EDUP_RTCOFFER, "Duplicate SDP offer forward request")                  \
+    XX(101, ERTCINV_RFA, "Invalid RTC request forward answer")                     \
+    XX(102, ERTCDUP_RFA, "Duplicate RTC request forward answer")                   \
+    XX(103, ERTCINV_FA, "Invalid RTC forwarded answer")                            \
+    XX(104, ERTCDUP_FA, "Duplicate RTC forwarded answer")                          \
+    XX(105, ERTCIP_FA, "WebRTC forwarded ip differs")                              \
+    XX(106, ERTCDISCARD_FA, "Invalid discarding of expected forwarded answer")     \
+    XX(107, ERTCQUOTA_FO, "RTC quota for forwarded offers exceeded")               \
+    XX(109, ERTCDUP_ID, "Duplicate RTC id")                                        \
+    XX(110, ERTCFAILED, "WebRTC connection failed")                                \
+    XX(111, ERTCCHANNEL_ERROR, "WebRTC channel error")                             \
+    XX(112, ERTCCLOSED, "WebRTC connection was closed")                            \
+    XX(113, ERTCTEXT, "Text over RTC is not supported")                            \
+    XX(114, ERTCUNIQUEIP, "WebRTC SDP ip is not unique")                           \
+    XX(115, ERTCUNIQUEIP_RFA, "WebRTC SDP ip not unique (forward answer)")         \
+    XX(116, ERTCWRONGIP_RFA, "Wrong WebRTC SDP ip (forward answer)")               \
+    XX(117, ERTCWRONGIP_FO, "Wrong WebRTC SDP ip (forward offer)")                 \
+    XX(118, ERTCUNIQUEIP_RFO, "WebRTC forward offer request SDP ip is not unique") \
+    XX(119, ERTCUNVERIFIEDIP, "WebRTC ip not verified")                            \
+    XX(120, ERTCDUP_DATACHANNEL, "WebRTC ip not verified")                         \
+    XX(121, ERTCUNEXP_VA, "Unexpected WebRTC verification answer")                 \
+    XX(122, EADDRNOTFOUND, "address not found")                                    \
+    XX(123, EACCIDNOTFOUND, "account id not found")                                \
+    XX(124, ECONNRATELIMIT, "connection rate limit exceeded")                      \
+    XX(125, EINITV1, "Init V1 not allowed from this peer")                         \
+    XX(126, EINITV3, "Init V3 not allowed from this peer")                         \
+    XX(127, EFROZENACC, "account is frozen and can't send")                        \
+    XX(128, EHEADERRANGE, "invalid header range")                                  \
+    XX(129, EBADPRICE, "invalid price")                                            \
+    XX(130, EBADFEE, "invalid fee")                                                \
+    XX(131, ETOKIDNOTFOUND, "token id not found")                                  \
     /*200 - 299: Errors not leading to ban*/                                       \
     XX(200, ERTCNOSIGNAL, "WebRTC signaling server was closed (offer)")            \
     XX(201, ERTCNOSIGNAL2, "WebRTC signaling server was closed (answer)")          \
