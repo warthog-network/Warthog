@@ -98,6 +98,8 @@
     XX(100, EMSGINTEGRITY, "message integrity check failed")            \
     XX(101, EADDRNOTFOUND, "address not found")                         \
     XX(102, EADDRIDNOTFOUND, "address id not found")                    \
+    XX(198, EBATCHSIZE2, "invalid batch size")                          \
+    XX(199, EBATCHSIZE3, "invalid batch size")                          \
     XX(200, EINV_HEX, "cannot parse hexadecimal input")                 \
     XX(201, EBADNONCE, "cannot parse nonce")                            \
     XX(202, EBADFEE, "invalid fee")                                     \
@@ -143,7 +145,7 @@ inline bool leads_to_ban(int32_t code)
 
 struct Error { // error class for exceptions
     Error(int32_t e = 0)
-        : e(e) {};
+        : e(e) { };
     const char* strerror() const { return errors::strerror(e); };
     const char* err_name() const { return errors::err_name(e); };
     bool is_error() const { return e != 0; }

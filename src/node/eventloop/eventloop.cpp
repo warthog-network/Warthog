@@ -488,7 +488,7 @@ bool Eventloop::insert(Conref c, const InitMsg& data)
     c->chain.initialize(data, chains);
     headerDownload.insert(c);
     blockDownload.insert(c);
-    spdlog::info("Connected to {} peers (connected {}, v{})", headerDownload.size(), c->c->peer_address().to_string() , c->c->peer_version().to_string());
+    spdlog::info("Connected to {} peers (connected {}, v{})", headerDownload.size(), c->c->peer_address().to_string(), c->c->peer_version().to_string());
     send_ping_await_pong(c);
     // LATER: return whether doRequests is necessary;
     return doRequests;
@@ -843,7 +843,7 @@ void Eventloop::handle_msg(Conref cr, BatchrepMsg&& m)
 
     // save batch
     if (m.batch.size() < req.minReturn || m.batch.size() > req.max_return()) {
-        close(ChainOffender(EBATCHSIZE, req.selector.startHeight, cr.id()));
+        close(ChainOffender(EBATCHSIZE3, req.selector.startHeight, cr.id()));
         return;
     }
     auto offenders = headerDownload.on_response(cr, std::move(req), std::move(m.batch));

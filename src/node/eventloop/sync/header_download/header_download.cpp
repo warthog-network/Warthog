@@ -649,7 +649,7 @@ auto Downloader::on_response(Conref cr, Batchrequest&& req, Batch&& res) -> std:
         }
 
         if (!b.complete())
-            return { ChainOffender { ChainError(EBATCHSIZE, req.selector.startHeight), cr } };
+            return { ChainOffender { ChainError(EBATCHSIZE2, req.selector.startHeight), cr } };
         if (qi == queuedBatches.end())
             return {};
         auto& queued = qi->second;
