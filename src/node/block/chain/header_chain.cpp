@@ -236,10 +236,7 @@ api::HashrateTimeChart Headerchain::hashrate_time_chart(uint32_t min, uint32_t m
 
 Batch Headerchain::get_headers(HeaderRange range) const
 {
-    auto end { range.last() };
-    if (end > length()) {
-        end = (length() + 1).nonzero_assert();
-    }
+    auto end { std::min(*range.end(),length().add1()) };
     Height h { range.first() };
 
     if (end <= h)
