@@ -1,8 +1,7 @@
 #pragma once
 
-#include "errors_forward.hpp"
+#include "general/errors_forward.hpp"
 #include <cstdint>
-#include <string>
 ////////////////////////////////////
 // LIST OF ERROR CODES            //
 ////////////////////////////////////
@@ -130,6 +129,8 @@
     XX(129, EBADPRICE, "invalid price")                                            \
     XX(130, EBADFEE, "invalid fee")                                                \
     XX(131, ETOKIDNOTFOUND, "token id not found")                                  \
+    XX(198, EBATCHSIZE2, "invalid batch size")                          \
+    XX(199, EBATCHSIZE3, "invalid batch size")                          \
     /*200 - 299: Errors not leading to ban*/                                       \
     XX(200, ERTCNOSIGNAL, "WebRTC signaling server was closed (offer)")            \
     XX(201, ERTCNOSIGNAL2, "WebRTC signaling server was closed (answer)")          \

@@ -1381,7 +1381,7 @@ void Eventloop::handle_msg(Conref cr, BatchrepMsg&& m)
 
     // save batch
     if (m.batch().size() < req.minReturn || m.batch().size() > req.max_return()) {
-        close(ChainOffender(EBATCHSIZE, req.selector().startHeight, cr.id()));
+        close(ChainOffender(EBATCHSIZE3, req.selector().startHeight, cr.id()));
         return;
     }
     if (!req.isLoadtest) {
