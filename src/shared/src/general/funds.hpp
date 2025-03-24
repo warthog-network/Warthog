@@ -128,6 +128,7 @@ public:
         : FundsBase<Funds_uint64>(from_value_throw(v))
     {
     }
+    Funds_uint64(Reader& r);
     auto operator<=>(const Funds_uint64&) const = default;
     static std::optional<Funds_uint64> parse(std::string_view, DecimalDigits);
     static Funds_uint64 parse_throw(std::string_view, DecimalDigits);
@@ -140,7 +141,13 @@ struct TokenFunds {
 
 class Wart : public FundsBase<Wart> {
 public:
-    static Wart from_funds_throw(Funds_uint64 f){
+    constexpr Wart(uint64_t v)
+        : FundsBase<Wart>(from_value_throw(v))
+    {
+    }
+    Wart(Reader& r);
+    static Wart from_funds_throw(Funds_uint64 f)
+    {
         return from_value_throw(f.value());
     }
     auto operator<=>(const Wart&) const = default;

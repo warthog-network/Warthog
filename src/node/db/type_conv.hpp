@@ -2,7 +2,6 @@
 
 #include "block/body/account_id.hpp"
 #include "block/body/container.hpp"
-#include "block/body/order_id.hpp"
 #include "block/chain/height.hpp"
 #include "block/chain/history/index.hpp"
 #include "block/chain/worksum.hpp"
@@ -99,9 +98,7 @@ public:
         return *p;
     }
     operator Worksum() const { return get_array<32>(); }
-    operator OrderId() const { return OrderId(getInt64()); }
     operator TokenId() const { return TokenId(getUInt32()); }
-    operator Funds_uint64() const { return Funds_uint64(getUInt64()); }
 };
 
 namespace bind_convert {

@@ -11,6 +11,15 @@ class PinHeight;
 class Reader;
 
 struct TransactionId {
+    struct Generator {
+        AccountId accountId;
+        PinHeight pinHeight;
+        NonceId nonceId;
+    };
+    TransactionId(Generator g)
+        : TransactionId(g.accountId, g.pinHeight, g.nonceId)
+    {
+    }
     TransactionId(AccountId accountId, PinHeight pinHeight, NonceId nonceId)
         : accountId(accountId)
         , pinHeight(pinHeight)

@@ -2,7 +2,6 @@
 // #include "SQLiteCpp/SQLiteCpp.h"
 // #include "api/types/forward_declarations.hpp"
 // #include "block/block.hpp"
-// #include "block/body/order_id.hpp"
 // #include "block/chain/offsts.hpp"
 // #include "block/chain/worksum.hpp"
 // #include "block/id.hpp"
@@ -105,9 +104,9 @@
 //             throw std::runtime_error("Cannot parse price");
 //         return *p;
 //     }
-//     operator OrderId() const
+//     operator HistoryId() const
 //     {
-//         return OrderId(getInt64());
+//         return HistoryId(getInt64());
 //     }
 //     operator AccountId() const
 //     {

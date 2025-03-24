@@ -2,7 +2,7 @@
 
 #include "block/body/transaction_id.hpp"
 #include "block/body/view.hpp"
-#include "crypto/crypto.hpp"
+#include "crypto/address.hpp"
 #include "defi/token/token.hpp"
 #include "defi/uint64/price.hpp"
 #include "general/reader.hpp"
@@ -44,6 +44,7 @@ public:
     }
     auto signature() const { return View<65>(pos + 27); }
 };
+
 struct TransferView : public View<BodyStructure::TransferSize> {
 private:
     uint16_t fee_raw() const
@@ -52,7 +53,7 @@ private:
     }
 
 public:
-    AccountId fromAccountId() const
+    AccountId origin_account_id() const
     {
         return AccountId(readuint64(pos));
     }
@@ -92,7 +93,7 @@ public:
     TransactionId txid(PinHeight pinHeight) const
     {
         PinNonce pn = pin_nonce();
-        return { fromAccountId(), pinHeight, pn.id };
+        return { origin_account_id(), pinHeight, pn.id };
     }
 
     using View::View;
@@ -111,8 +112,13 @@ private:
 };
 
 struct WartTransferView : public TokenTransferView {
-    WartTransferView(TransferView v)
-        : TokenTransferView(std::move(v), TokenId(0))
+
+    WartTransferView(const uint8_t* p)
+        : WartTransferView(TransferView { p })
+    {
+    }
+    WartTransferView(const TransferView& v)
+        : TokenTransferView(v, TokenId(0))
     {
     }
     Wart amount_throw() const
@@ -134,7 +140,7 @@ public:
         : View(pos)
         , tokenId(tokenId) { };
     auto token_id() const { return tokenId; }
-    AccountId account_id() const
+    AccountId origin_account_id() const
     {
         return AccountId(readuint64(pos));
     }
@@ -147,7 +153,7 @@ public:
     {
         return pin_nonce().pin_height_from_floored(pinFloor);
     }
-    CompactUInt compact_fee_trow() const
+    CompactUInt compact_fee_throw() const
     {
         return CompactUInt::from_value_throw(fee_raw());
     }
@@ -159,7 +165,7 @@ public:
 
     Funds_uint64 fee_throw() const
     {
-        return compact_fee_trow().uncompact();
+        return compact_fee_throw().uncompact();
     }
 
     std::pair<bool, Funds_uint64> buy_amount_throw() const
@@ -178,7 +184,7 @@ public:
     TransactionId txid(PinHeight pinHeight) const
     {
         PinNonce pn = pin_nonce();
-        return { account_id(), pinHeight, pn.id };
+        return { origin_account_id(), pinHeight, pn.id };
     }
 
     using View::View;
@@ -199,7 +205,7 @@ public:
         , _tokenId(tokenId)
     {
     }
-    AccountId account_id() const
+    AccountId origin_account_id() const
     {
         return AccountId(readuint64(pos));
     }
@@ -217,7 +223,7 @@ public:
         Reader r({ pos + 18, pos + 24 });
         return PinNonce(r);
     }
-    CompactUInt compact_fee_trow() const
+    CompactUInt compact_fee_throw() const
     {
         return CompactUInt::from_value_throw(fee_raw());
     }
@@ -229,19 +235,19 @@ public:
 
     Funds_uint64 fee_throw() const
     {
-        return compact_fee_trow().uncompact();
+        return compact_fee_throw().uncompact();
     }
 
     auto signature() const { return View<65>(pos + 24); }
     TransactionId txid(PinHeight pinHeight) const
     {
         PinNonce pn = pin_nonce();
-        return { account_id(), pinHeight, pn.id };
+        return { origin_account_id(), pinHeight, pn.id };
     }
     TransactionId block_txid(PinHeight pinHeight) const
     {
         PinNonce pn = pin_nonce();
-        return { account_id(), pinHeight, pn.id };
+        return { origin_account_id(), pinHeight, pn.id };
     }
 
     using View::View;
@@ -259,7 +265,7 @@ public:
     LiquidityAddView(const uint8_t* pos, TokenId tokenId)
         : View(pos)
         , tokenId(tokenId) { };
-    AccountId account_id() const
+    AccountId origin_account_id() const
     {
         return AccountId(readuint64(pos));
     }
@@ -272,7 +278,7 @@ public:
     {
         return pin_nonce().pin_height_from_floored(pinFloor);
     }
-    CompactUInt compact_fee_trow() const
+    CompactUInt compact_fee_throw() const
     {
         return CompactUInt::from_value_throw(fee_raw());
     }
@@ -284,7 +290,7 @@ public:
 
     Funds_uint64 fee_throw() const
     {
-        return compact_fee_trow().uncompact();
+        return compact_fee_throw().uncompact();
     }
     Funds_uint64 amountQuoteWART() const
     {
@@ -299,7 +305,7 @@ public:
     TransactionId txid(PinHeight pinHeight) const
     {
         PinNonce pn = pin_nonce();
-        return { account_id(), pinHeight, pn.id };
+        return { origin_account_id(), pinHeight, pn.id };
     }
 
     using View::View;
@@ -317,7 +323,7 @@ public:
     LiquidityRemoveView(const uint8_t* pos, TokenId tokenId)
         : View(pos)
         , tokenId(tokenId) { };
-    AccountId account_id() const
+    AccountId origin_account_id() const
     {
         return AccountId(readuint64(pos));
     }
@@ -330,7 +336,7 @@ public:
     {
         return pin_nonce().pin_height_from_floored(pinFloor);
     }
-    CompactUInt compact_fee_trow() const
+    CompactUInt compact_fee_throw() const
     {
         return CompactUInt::from_value_throw(fee_raw());
     }
@@ -342,7 +348,7 @@ public:
 
     Funds_uint64 fee_throw() const
     {
-        return compact_fee_trow().uncompact();
+        return compact_fee_throw().uncompact();
     }
     Funds_uint64 amountPooltoken() const
     {
@@ -353,7 +359,7 @@ public:
     TransactionId txid(PinHeight pinHeight) const
     {
         PinNonce pn = pin_nonce();
-        return { account_id(), pinHeight, pn.id };
+        return { origin_account_id(), pinHeight, pn.id };
     }
 
     using View::View;

@@ -55,6 +55,10 @@ public:
         uint16_t valBe = hton16(val);
         return std::move(write(&valBe, 2));
     }
+    HasherSHA256&& operator<<(uint8_t val) &&
+    {
+        return std::move(write(&val, 1));
+    }
     operator Hash() &&
     {
         Hash tmp { Hash::uninitialized() };

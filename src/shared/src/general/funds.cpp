@@ -1,6 +1,7 @@
 #include "funds.hpp"
 #include "general/errors.hpp"
 #include "general/params.hpp"
+#include "general/reader.hpp"
 #include <cassert>
 #include <charconv>
 #include <cstring>
@@ -45,6 +46,10 @@ namespace {
 std::string Funds_uint64::to_string(DecimalDigits decimals) const
 {
     return funds_to_string(val, decimals);
+}
+Funds_uint64::Funds_uint64(Reader& r)
+    : FundsBase<Funds_uint64>(from_value_throw(r))
+{
 }
 
 std::optional<Funds_uint64> Funds_uint64::parse(std::string_view s, DecimalDigits digits)
@@ -107,4 +112,8 @@ Wart Wart::parse_throw(std::string_view s)
 std::string Wart::to_string() const
 {
     return funds_to_string(val, DecimalDigits::digits8());
+}
+Wart::Wart(Reader& r)
+    : FundsBase<Wart>(from_value_throw(r))
+{
 }

@@ -3,13 +3,14 @@
 #include "SQLiteCpp/SQLiteCpp.h"
 #include "api/types/forward_declarations.hpp"
 #include "block/block.hpp"
-#include "block/body/order_id.hpp"
 #include "block/chain/offsts.hpp"
 #include "block/chain/worksum.hpp"
 #include "block/id.hpp"
+#include "chainserver/db/ids.hpp"
 #include "chainserver/transaction_ids.hpp"
 #include "db/sqlite_fwd.hpp"
 #include "defi/token/token.hpp"
+#include "defi/uint64/pool.hpp"
 #include "deletion_key.hpp"
 #include "general/address_funds.hpp"
 #include "general/filelock/filelock.hpp"
@@ -44,6 +45,7 @@ struct PoolData {
     Funds_uint64 base;
     Funds_uint64 quote;
     Funds_uint64 shares;
+    defi::PoolLiquidity_uint64 liquidity() const { return { base, quote }; }
 };
 
 struct BlockUndoData {
@@ -51,6 +53,27 @@ struct BlockUndoData {
     RawBody rawBody;
     RawUndo rawUndo;
 };
+
+namespace chain_db {
+struct OrderDelete {
+    HistoryId id;
+    bool buy;
+};
+struct OrderFillstate {
+    HistoryId id;
+    bool buy;
+    Funds_uint64 filled;
+};
+struct OrderInsertData {
+    HistoryId id;
+    bool buy;
+    TransactionId txid;
+    TokenId tid;
+    Funds_uint64 total;
+    Funds_uint64 filled;
+    Price_uint64 limit;
+};
+}
 
 class ChainDB {
 private:
@@ -119,13 +142,13 @@ public:
 
     /////////////////////
     // Order functions
-    void insert_buy_order(OrderId id, TransactionId, TokenId, Funds_uint64 totalBase, Funds_uint64 filledBase, Price_uint64 price);
-    void insert_quote_order(OrderId id, TransactionId, TokenId, Funds_uint64 totalQuote, Funds_uint64 filledQuote, Price_uint64 price);
+    void insert_order(const chain_db::OrderInsertData&);
+    void change_fillstate(const chain_db::OrderFillstate&);
     void delete_order(TransactionId);
-    void delete_order(OrderId);
+    void delete_order(const chain_db::OrderDelete&);
 
-    [[nodiscard]] OrderLoader base_order_loader(TokenId) const;
-    [[nodiscard]] OrderLoader quote_order_loader(TokenId) const;
+    [[nodiscard]] OrderLoaderAscending base_order_loader_ascending(TokenId) const;
+    [[nodiscard]] OrderLoaderDescending quote_order_loader_descending(TokenId) const;
 
     /////////////////////
     // Canceled functions
@@ -142,8 +165,9 @@ public:
     /////////////////////
     // Pool functions
     void insert_pool(TokenId shareId, TokenId tokenId);
-    std::optional<PoolData> select_pool(TokenId shareIdOrTokenId) const;
+    [[nodiscard]] std::optional<PoolData> select_pool(TokenId shareIdOrTokenId) const;
     void update_pool(TokenId shareId, Funds_uint64 base, Funds_uint64 quote, Funds_uint64 shares);
+    void set_pool_liquidity(TokenId, const defi::PoolLiquidity_uint64&);
 
     /////////////////////
     // Token fork balance functions
@@ -187,6 +211,7 @@ public:
     // set
     void insert_bad_block(NonzeroHeight height, const HeaderView header);
 
+    void insert_history_link(HistoryId parent, HistoryId link);
     HistoryId insertHistory(const HashView hash,
         const std::vector<uint8_t>& data);
     void delete_history_from(NonzeroHeight);
@@ -201,7 +226,7 @@ public:
     }
     auto next_account_id() const { return cache.nextAccountId; }
     auto next_token_id() const { return cache.nextTokenId; }
-    auto next_state_id() const { return cache.nextStateId; }
+    StateId next_state_id() const { return cache.nextStateId; }
 
     struct TokenLookupTrace { // for debugging
         struct Step {
@@ -287,10 +312,10 @@ private:
                     "token_id INTEGER NOT NULL, "
                     "totalBase INTEGER NOT NULL, "
                     "filledBase INTEGER NOT NULL, "
-                    "price NOT NULL DEFAULT 0, "
+                    "limit NOT NULL DEFAULT 0, "
                     "PRIMARY KEY(`id`))");
             db.exec("CREATE INDEX IF NOT EXISTS `SellOrderIndex` ON "
-                    "`SellOrders` (token_id, price ASC, id ASC)");
+                    "`SellOrders` (token_id, limit ASC, id ASC)");
             db.exec("CREATE UNIQUE INDEX IF NOT EXISTS `SellOrderAccountIndex` ON "
                     "`SellOrders` (account_id, pin_height, nonce_id)");
 
@@ -303,10 +328,10 @@ private:
                     "token_id INTEGER NOT NULL, "
                     "totalQuote INTEGER NOT NULL, "
                     "filledQuote INTEGER NOT NULL, "
-                    "price NOT NULL DEFAULT 0, "
+                    "limit NOT NULL DEFAULT 0, "
                     "PRIMARY KEY(`id`))");
             db.exec("CREATE INDEX IF NOT EXISTS `BuyOrderIndex` ON "
-                    "`BuyOrders` (token_id, price DESC, id ASC)");
+                    "`BuyOrders` (token_id, limit DESC, id ASC)");
             db.exec("CREATE UNIQUE INDEX IF NOT EXISTS `BuyOrderAccountIndex` ON "
                     "`BuyOrders` (account_id, pin_height, nonce_id)");
 
@@ -396,6 +421,14 @@ private:
             db.exec("CREATE INDEX IF NOT EXISTS `deletion_key` ON `Deleteschedule` ( `deletion_key`)");
             db.exec("CREATE INDEX IF NOT EXISTS `account_history_index` ON "
                     "`AccountHistory` (`history_id` ASC)");
+
+            db.exec("CREATE TABLE IF NOT EXISTS `FillLink` ( "
+                    "`id` INTEGER NOT NULL, " // historyId of fills
+                    "`link` INTEGER NOT NULL, " // history id of order creation
+                    " PRIMARY KEY(`id`))");
+            db.exec("CREATE UNIQUE INDEX IF NOT EXISTS `FillLinkIndex` ON "
+                    "`FillLinks` (link, id)");
+
             db.exec("CREATE TABLE IF NOT EXISTS `History` ( `id` INTEGER NOT NULL, "
                     "`hash` BLOB NOT NULL, `data` BLOB NOT NULL, PRIMARY KEY(`id`))");
             db.exec("CREATE INDEX IF NOT EXISTS `history_index` ON "
@@ -405,7 +438,7 @@ private:
     struct Cache {
         AccountId nextAccountId;
         TokenId nextTokenId;
-        uint64_t nextStateId; // incremental id for tables other than Accounts and Tokens
+        StateId nextStateId; // incremental id for tables other than Accounts and Tokens
         HistoryId nextHistoryId;
         DeletionKey deletionKey;
         static Cache init(SQLite::Database& db);
@@ -426,9 +459,11 @@ private:
 
     // Orders statements
     Statement stmtInsertBaseSellOrder;
+    Statement stmtUpdateFillBaseSellOrder;
     Statement stmtDeleteBaseSellOrder;
     Statement stmtDeleteBaseSellOrderTxid;
     Statement stmtInsertQuoteBuyOrder;
+    Statement stmtUpdateFillQuoteBuyOrder;
     Statement stmtDeleteQuoteBuyOrder;
     Statement stmtDeleteQuoteBuyOrderTxid;
     mutable Statement stmtSelectBaseSellOrderAsc;
@@ -442,6 +477,7 @@ private:
     Statement stmtInsertPool;
     mutable Statement stmtSelectPool;
     Statement stmtUpdatePool;
+    Statement stmtUpdatePoolLiquidity;
 
     // TokenForks statements
     Statement stmtTokenForkBalanceInsert;
@@ -490,6 +526,7 @@ private:
     Statement stmtBadblockInsert;
     mutable Statement stmtBadblockGet;
     mutable Statement stmtAccountsLookup;
+    Statement stmtHistoryLinkInsert;
     Statement stmtHistoryInsert;
     Statement stmtHistoryDeleteFrom;
     mutable Statement stmtHistoryLookup;

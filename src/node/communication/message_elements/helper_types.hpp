@@ -1,9 +1,9 @@
 #pragma once
 #include "block/chain/height.hpp"
 #include "block/chain/range.hpp"
-#include "general/errors_forward.hpp"
 #include "block/header/header.hpp"
 #include "general/descriptor.hpp"
+#include "general/errors_forward.hpp"
 #include <cstddef>
 #include <cstdint>
 #include <optional>
@@ -14,17 +14,14 @@ class Writer;
 class Reader;
 
 struct WithNonce : public IsUint32 {
-    WithNonce(uint32_t n)
-        : IsUint32(n)
-    {
-    }
+    using IsUint32::IsUint32;
     auto& nonce() const { return val; }
     auto& nonce() { return val; }
 };
 struct RandNonce : public WithNonce {
     RandNonce();
     RandNonce(uint32_t nonce)
-        : WithNonce { nonce } {};
+        : WithNonce { nonce } { };
 };
 
 struct String16 {
@@ -57,7 +54,7 @@ namespace messages {
 template <typename T, typename len_t>
 struct VectorLentype : public std::vector<T> {
     static constexpr size_t maxlen = len_t(-1);
-    VectorLentype() {}
+    VectorLentype() { }
     VectorLentype(std::vector<T> v)
         : std::vector<T>(std::move(v))
     {
@@ -122,11 +119,11 @@ struct BatchSelector {
     NonzeroHeight startHeight;
     NonzeroHeight end() const { return startHeight + length; }
     uint16_t length;
-    HeaderRange header_range() const { return HeaderRange( startHeight, startHeight + length ); };
+    HeaderRange header_range() const { return HeaderRange(startHeight, startHeight + length); };
     BatchSelector(Descriptor d, NonzeroHeight s, uint16_t l)
         : descriptor(d)
         , startHeight(s)
-        , length(l) {};
+        , length(l) { };
     BatchSelector(Reader& r);
     friend Writer& operator<<(Writer&, const BatchSelector&);
     static constexpr size_t byte_size() { return Descriptor::byte_size() + NonzeroHeight::byte_size() + sizeof(length); }

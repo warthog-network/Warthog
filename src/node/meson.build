@@ -42,7 +42,6 @@ src= [
   './block/header/timestamprule.cpp',
   './chainserver/account_cache.cpp',
   './chainserver/db/chain_db.cpp',
-  './chainserver/db/order_loader.cpp',
   './chainserver/mining_subscription.cpp',
   './chainserver/server.cpp',
   './chainserver/state/helpers/consensus.cpp',

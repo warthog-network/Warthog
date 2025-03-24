@@ -1,11 +1,13 @@
 #pragma once
+#include "db/sqlite_fwd.hpp"
 #include "defi/order.hpp"
 
-namespace sqlite{
-struct Statement;
+namespace sqlite {
+class Statement;
 }
 
 class ChainDB;
+template <bool ASCENDING>
 class OrderLoader {
     friend class ChainDB;
     OrderLoader(sqlite::Statement& stmt)
@@ -14,7 +16,21 @@ class OrderLoader {
     }
 
 public:
-    [[nodiscard]] std::optional<OrderData> operator()() const;
+    [[nodiscard]] std::optional<OrderData> operator()() const
+    {
+        std::optional<OrderData> res;
+        auto r { stmt->next_row() };
+        if (r.has_value()) {
+            TransactionId txid {
+                TransactionId::Generator {
+                    .accountId { r[1] },
+                    .pinHeight { r[2] },
+                    .nonceId { r[3] } }
+            };
+            res = OrderData { r[0], txid, r[4], r[5], r[6] };
+        }
+        return res;
+    }
 
     OrderLoader(const OrderLoader&) = delete;
     OrderLoader(OrderLoader&& other)
@@ -22,10 +38,16 @@ public:
         stmt = other.stmt;
         other.stmt = nullptr;
     }
-    ~OrderLoader();
+    ~OrderLoader()
+    {
+        if (stmt)
+            stmt->reset();
+    }
 
-private:
 private:
     sqlite::Statement* stmt;
     std::optional<OrderData> loaded;
 };
+
+using OrderLoaderAscending = OrderLoader<true>;
+using OrderLoaderDescending = OrderLoader<false>;

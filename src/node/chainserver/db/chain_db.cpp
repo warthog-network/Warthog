@@ -73,19 +73,22 @@ ChainDB::ChainDB(const std::string& path)
     , stmtInsertCandles1h(db, "INSERT OR REPLACE INTO Candles1h (tokenId, timestamp, open, high, low, close, quantity, volume) VALUES (?,?,?,?,?,?,?,?)")
     , stmtSelectCandles1h(db, "SELECT (timestamp, open, high, low, close, quantity, volume) FROM Candles1h WHERE token_id=? AND timestamp>=? AND timestamp<=?")
 
-    , stmtInsertBaseSellOrder(db, "INSERT INTO SellOrders (id, account_id,token_id, totalBase, filledBase, price) VALUES(?,?,?,?,?,?)")
+    , stmtInsertBaseSellOrder(db, "INSERT INTO SellOrders (id, account_id, pin_height, nonce_id, token_id, totalBase, filledBase, limit) VALUES(?,?,?,?,?,?,?,?)")
+    , stmtChangeBaseSellOrder(db, "UPDATE SellOrders SET filledBase = ? WHERE id = ?")
     , stmtDeleteBaseSellOrder(db, "DELETE FROM SellOrders WHERE id = ?")
     , stmtDeleteBaseSellOrderTxid(db, "DELETE FROM SellOrders WHERE account_id = ? AND pin_height = ? AND nonce_id = ?")
-    , stmtInsertQuoteBuyOrder(db, "INSERT INTO BuyOrders (id, account_id,token_id, totalQuote, filledQuote, price) VALUES(?,?,?,?,?,?)")
+    , stmtInsertQuoteBuyOrder(db, "INSERT INTO BuyOrders (id, account_id, pin_height, nonce_id, token_id, totalBase, filledQuote, limit) VALUES(?,?,?,?,?,?,?,?)")
+    , stmtUpdateFillQuoteBuyOrder(db, "UPDATE BuyOrders SET filledQuote = ? WHERE id = ?")
     , stmtDeleteQuoteBuyOrder(db, "DELETE FROM BuyOrders WHERE id = ?")
     , stmtDeleteQuoteBuyOrderTxid(db, "DELETE FROM BuyOrders WHERE account_id = ? AND pin_height = ? AND nonce_id = ?")
-    , stmtSelectBaseSellOrderAsc(db, "SELECT (id, account_id, totalBase, filledBase, price) FROM SellOrders WHERE token_id=? ORDER BY price ASC, id ASC")
-    , stmtSelectQuoteBuyOrderDesc(db, "SELECT (id, account_id, totalQuote, filledQuote, price) FROM BuyOrders WHERE token_id=? ORDER BY price DESC, id ASC")
+    , stmtSelectBaseSellOrderAsc(db, "SELECT (id, account_id, pin_height, nonce_id, totalBase, filledBase, limit) FROM SellOrders WHERE token_id=? ORDER BY limit ASC, id ASC")
+    , stmtSelectQuoteBuyOrderDesc(db, "SELECT (id, account_id, pin_height, nonce_id, totalQuote, filledQuote, limit) FROM BuyOrders WHERE token_id=? ORDER BY limit DESC, id ASC")
     , stmtInsertCanceled(db, "INSERT INTO Canceled (id, account_id, pin_height, nonce_id) VALUES (?,?,?,?)")
     , stmtDeleteCanceled(db, "DELETE FROM Canceled WHERE id = ?")
     , stmtInsertPool(db, "INSERT INTO Pools (id, token_id, pool_wart, pool_token, pool_shares) VALUES (?,?,0,0,0)")
     , stmtSelectPool(db, "SELECT (id, token_id, liquidity_token, liquidity_wart, pool_shares) FROM Pools WHERE token_id=? OR id=?")
-    , stmtUpdatePool(db, "Update Pools SET liquidity_base=?, liquidity_quote=?, pool_shares=? WHERE id=?")
+    , stmtUpdatePool(db, "UPDATE Pools SET liquidity_base=?, liquidity_quote=?, pool_shares=? WHERE id=?")
+    ,stmtUpdatePoolLiquidity(db, "UPDATE Pools SET liquidity_base=?, liquidity_quote=? WHERE token_id=?")
     , stmtTokenForkBalanceInsert(db, "INSERT INTO TokenForkBalances "
                                      "(id, account_id, token_id, height, balance) "
                                      "VALUES (?,?,?,?)")
@@ -151,6 +154,7 @@ ChainDB::ChainDB(const std::string& path)
     , stmtBadblockGet(db, "SELECT `height`, `header` FROM `Badblocks`")
 
     , stmtAccountsLookup(db, "SELECT `Address` FROM `Accounts` WHERE id=?")
+    , stmtHistoryLinkInsert(db, "INSERT INTO FillLinks (id,link) VALUES (?,?)")
     , stmtHistoryInsert(db, "INSERT INTO `History` (`id`,`hash`, `data`"
                             ") VALUES (?,?,?)")
     , stmtHistoryDeleteFrom(db, "DELETE FROM `History` WHERE `id`>=?")
@@ -444,14 +448,19 @@ std::vector<Candle> ChainDB::select_candles_1h(TokenId tid, Timestamp from, Time
         tid, from, to);
 }
 
-void ChainDB::insert_buy_order(OrderId oid, TransactionId txid, TokenId tid, Funds_uint64 totalBase, Funds_uint64 filledBase, Price_uint64 price)
+void ChainDB::insert_order(const chain_db::OrderInsertData& o)
 {
-    stmtInsertBaseSellOrder.run(oid, txid.accountId, tid, totalBase, filledBase, price);
+    if (o.buy)
+        stmtInsertQuoteBuyOrder.run(o.id, o.txid.accountId, o.txid.pinHeight, o.txid.nonceId, o.tid, o.total, o.filled, o.limit);
+    else
+        stmtInsertBaseSellOrder.run(o.id, o.txid.accountId, o.txid.pinHeight, o.txid.nonceId, o.tid, o.total, o.filled, o.limit);
 }
-
-void ChainDB::insert_quote_order(OrderId oid, TransactionId txid, TokenId tid, Funds_uint64 totalBase, Funds_uint64 filledBase, Price_uint64 price)
+void ChainDB::change_fillstate(const chain_db::OrderFillstate& o)
 {
-    stmtInsertQuoteBuyOrder.run(oid, txid.accountId, tid, totalBase, filledBase, price);
+    if (o.buy)
+        stmtUpdateFillQuoteBuyOrder.run(o.filled, o.id);
+    else
+        stmtUpdateFillBaseSellOrder.run(o.filled, o.id);
 }
 
 void ChainDB::delete_order(TransactionId txid)
@@ -460,18 +469,20 @@ void ChainDB::delete_order(TransactionId txid)
     stmtDeleteQuoteBuyOrderTxid.run(txid.accountId, txid.pinHeight, txid.nonceId);
 }
 
-void ChainDB::delete_order(OrderId oid)
+void ChainDB::delete_order(const chain_db::OrderDelete& od)
 {
-    stmtDeleteBaseSellOrder.run(oid);
-    stmtDeleteQuoteBuyOrder.run(oid);
+    if (od.buy)
+        stmtDeleteQuoteBuyOrder.run(od.id);
+    else
+        stmtDeleteBaseSellOrder.run(od.id);
 }
 
-OrderLoader ChainDB::base_order_loader(TokenId tid) const
+OrderLoaderAscending ChainDB::base_order_loader_ascending(TokenId tid) const
 {
     return { stmtSelectBaseSellOrderAsc.bind_multiple(tid) };
 }
 
-OrderLoader ChainDB::quote_order_loader(TokenId tid) const
+OrderLoaderDescending ChainDB::quote_order_loader_descending(TokenId tid) const
 {
     return { stmtSelectQuoteBuyOrderDesc.bind_multiple(tid) };
 }
@@ -507,6 +518,10 @@ void ChainDB::update_pool(TokenId shareId, Funds_uint64 base, Funds_uint64 quote
     stmtUpdatePool.run(base, quote, shares, shareId);
 }
 
+void ChainDB::set_pool_liquidity(TokenId tokenId, const defi::PoolLiquidity_uint64& pl)
+{
+    stmtUpdatePoolLiquidity.run(pl.base, pl.quote, tokenId);
+}
 void ChainDB::insert_token_fork_balance(TokenForkBalanceId id, TokenId tokenId, TokenForkId forkId, Funds_uint64 balance)
 {
     stmtTokenForkBalanceInsert.run(id, tokenId, forkId, balance);
@@ -622,6 +637,11 @@ ChainDB::getBadblocks() const
     return stmtBadblockGet.all([&](const sqlite::Row& r) {
         return std::pair<Height, Header> { r[0], r[1] };
     });
+}
+
+void ChainDB::insert_history_link(HistoryId parent, HistoryId link)
+{
+    stmtHistoryLinkInsert.run(parent, link);
 }
 
 HistoryId ChainDB::insertHistory(const HashView hash,

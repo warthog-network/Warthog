@@ -10,6 +10,7 @@
 #include "communication/mining_task.hpp"
 #include "crypto/address.hpp"
 #include "defi/token/token.hpp"
+#include "defi/uint64/price.hpp"
 #include "eventloop/peer_chain.hpp"
 #include "eventloop/types/conndata.hpp"
 #include "general/funds.hpp"
@@ -112,14 +113,30 @@ struct Block {
         Address toAddress;
         Funds_uint64 amount;
     };
+    struct NewOrder {
+        TokenIdHashName tokenInfo;
+        Wart fee;
+        Funds_uint64 amount;
+        Price_uint64 limit;
+        bool buy;
+        TransactionId txid;
+        Hash txhash;
+        Address address;
+    };
+    struct Swap {
+        TokenIdHashName tokenInfo;
+        Hash txhash;
+        bool buy;
+        Wart fillQuote;
+        Funds_uint64 fillBase;
+    };
     struct Reward {
         Hash txhash;
         Address toAddress;
         Wart amount;
     };
     struct TokenCreation {
-        Address creatorAddress;
-        NonceId nonceId;
+        TransactionId txid;
         Hash txhash;
         TokenName tokenName;
         TokenId tokenIndex;
@@ -135,9 +152,11 @@ private:
 public:
     struct Actions {
         std::optional<Reward> reward;
-        std::vector<api::Block::Transfer> wartTransfers;
-        std::vector<api::Block::TokenTransfer> tokenTransfers;
-        std::vector<api::Block::TokenCreation> tokenCreations;
+        std::vector<Transfer> wartTransfers;
+        std::vector<TokenTransfer> tokenTransfers;
+        std::vector<TokenCreation> tokenCreations;
+        std::vector<NewOrder> newOrders;
+        std::vector<Swap> swaps;
     } actions;
     void push_history(const Hash& txid,
         const std::vector<uint8_t>& data, chainserver::DBCache& cache,

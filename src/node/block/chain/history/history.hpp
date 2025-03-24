@@ -1,5 +1,6 @@
 #pragma once
 #include "block/body/transaction_id.hpp"
+#include "block/chain/history/index.hpp"
 #include "crypto/crypto.hpp"
 #include "crypto/hash.hpp"
 #include "defi/token/token.hpp"
@@ -7,6 +8,18 @@
 #include <functional>
 #include <variant>
 class Headerchain;
+
+struct SwapInternal {
+    HistoryId oId;
+    TransactionId txid;
+    Funds_uint64 base;
+    Wart quote;
+};
+
+struct BuySwapInternal : public SwapInternal {
+};
+struct SellSwapInternal : public SwapInternal {
+};
 
 struct RewardInternal {
     ValidAccountId toAccountId;
@@ -30,21 +43,24 @@ struct IdAddressView {
     AddressView address;
 };
 
-struct SignerData : public IdAddressView {
-    SignerData(ValidAccountId id, AddressView address, RecoverableSignature signature, PinNonce pinNonce)
-        : IdAddressView({ id, address })
+struct SignerData  {
+    SignerData(ValidAccountId id, AddressView address, RecoverableSignature signature, PinNonce pinNonce, CompactUInt compactFee)
+        : origin({ id, address })
         , signature(signature)
         , pinNonce(pinNonce)
+        , compactFee(compactFee)
     {
     }
-
+    IdAddressView origin;
     RecoverableSignature signature;
     PinNonce pinNonce;
+    CompactUInt compactFee;
     VerifiedHash verify_hash(Hash h) const
     {
-        return { h, signature, address };
+        return { h, signature, origin.address };
     }
 };
+
 
 struct TransactionVerifier;
 struct VerifiedTransaction {
@@ -82,36 +98,40 @@ protected:
     PinInfo pin_info(PinNonce pinNonce) const;
 
 public:
-
     template <typename... HashArgs>
     VerifiedTransaction verify(const SignerData& origin, HashArgs&&... hashArgs) const;
 };
 
 class TxIdVerifier;
 
-struct TransferInternalWithoutAmount {
-    SignerData from;
+struct TransferInternalWithoutAmount: public SignerData {
     IdAddressView to;
-    CompactUInt compactFee;
 };
 
-struct OrderInternal {
-    SignerData signer;
-    PriceRelative_uint64 limit;
+struct OrderInternal;
+struct VerifiedOrder : public VerifiedTransaction {
+    VerifiedOrder(const OrderInternal& o, const TransactionVerifier&, HashView tokenHash);
+
+public:
+    const OrderInternal& order;
+};
+struct OrderInternal: public SignerData {
+    Price_uint64 limit;
     TokenFunds amount;
     bool buy;
+    [[nodiscard]] VerifiedOrder verify(const TransactionVerifier& tv, HashView tokenHash) const
+    {
+        return { *this, tv, tokenHash };
+    }
 };
 
-struct CancelationInternal {
-    SignerData signer;
+struct CancelationInternal: public SignerData {
     TransactionId txid;
 };
-struct LiquidityAddInternal {
-    SignerData signer;
+struct LiquidityAddInternal: public SignerData {
 };
 
-struct LiquidityRemoveInternal {
-    SignerData signer;
+struct LiquidityRemoveInternal: public SignerData {
 };
 
 struct WartTransferInternal;
@@ -183,10 +203,31 @@ public:
     const TokenCreationInternal& tci;
     TransactionId id;
     Hash hash;
-    TokenId tokenIndex;
+    TokenId tokenId;
 };
 
 namespace history {
+struct SwapHist : public SwapInternal {
+    Hash hash;
+
+protected:
+    SwapHist(SwapInternal si, bool buyBase, Height h);
+};
+
+struct BuySwapHist : public SwapHist {
+    BuySwapHist(BuySwapInternal s, Height h)
+        : SwapHist(s, true, h)
+    {
+    }
+};
+
+struct SellSwapHist : public SwapHist {
+    SellSwapHist(SellSwapInternal s, Height h)
+        : SwapHist(s, false, h)
+    {
+    }
+};
+
 struct WartTransferData {
     static WartTransferData parse(Reader& r);
     constexpr static uint8_t indicator = 1;
@@ -232,12 +273,77 @@ struct TokenTransferData {
     void write(Writer& w) const;
 };
 
-using Data = std::variant<WartTransferData, RewardData, TokenCreationData, TokenTransferData>;
+struct OrderData {
+    TokenId tokenId;
+    AccountId accountId;
+    CompactUInt compactFee;
+    Funds_uint64 base;
+    Wart quote;
+    PinNonce pinNonce;
+    constexpr static uint8_t indicator = 5;
+    constexpr static uint8_t bytesize = 4 + 8 + 2 + 8 + 8 + 8; // without indicator
+    void write(Writer& w) const;
+    static OrderData parse(Reader& r);
+};
+
+struct SwapData {
+    SwapData(const SwapInternal& si)
+        : oId(si.oId)
+        , accId(si.txid.accountId)
+        , base(si.base)
+        , quote(si.quote)
+    {
+    }
+
+    SwapData(HistoryId oId, AccountId accId, Funds_uint64 base, Wart quote)
+        : oId(oId)
+        , accId(accId)
+        , base(base)
+        , quote(quote)
+    {
+    }
+
+    HistoryId oId;
+    AccountId accId;
+    Funds_uint64 base;
+    Wart quote;
+    constexpr static uint8_t bytesize = 8 + 8 + 8 + 8; // without indicator
+    static SwapData parse(Reader&);
+    void write(Writer& w) const;
+};
+struct BuySwapData : public SwapData {
+    constexpr static uint8_t indicator = 6;
+    explicit BuySwapData(SwapData sd)
+        : SwapData(std::move(sd))
+    {
+    }
+    static BuySwapData parse(Reader& r)
+    {
+        return BuySwapData { SwapData::parse(r) };
+    }
+};
+struct SellSwapData : public SwapData {
+    constexpr static uint8_t indicator = 7;
+    explicit SellSwapData(SwapData sd)
+        : SwapData(std::move(sd))
+    {
+    }
+    static SellSwapData parse(Reader& r)
+    {
+        return SellSwapData { SwapData::parse(r) };
+    }
+};
+
+using Data = std::variant<RewardData, WartTransferData, TokenCreationData, TokenTransferData, OrderData, BuySwapData, SellSwapData>;
+
 struct Entry {
     Entry(const RewardInternal& p);
     Entry(const VerifiedWartTransfer& p);
     Entry(const VerifiedTokenTransfer& p, TokenId);
+    Entry(const VerifiedOrder& p, TokenId);
     Entry(const VerifiedTokenCreation& p);
+    Entry(const BuySwapHist& p);
+    Entry(const SellSwapHist& p);
     Hash hash;
     std::vector<uint8_t> data;
 };

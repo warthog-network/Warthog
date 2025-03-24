@@ -55,24 +55,38 @@ protected:
 };
 
 template <typename T>
-class UInt64WithOperators : public IsUint64 {
+class UInt64WithIncrement : public IsUint64 {
 public:
-    using parent_t = UInt64WithOperators<T>;
     using IsUint64::IsUint64;
-    size_t operator-(T a)
-    {
-        return val - a.val;
-    }
-    T operator-(size_t i) const
-    {
-        return T(val - i);
-    }
-    T operator+(size_t i) const
-    {
-        return T(val + i);
-    }
     T operator++(int)
     {
         return T(val++);
+    }
+};
+
+template <typename T>
+class UInt64WithOperators : public UInt64WithIncrement<T> {
+public:
+    using UInt64WithIncrement<T>::UInt64WithIncrement;
+    using parent_t = UInt64WithOperators<T>;
+    size_t operator-(T a)
+    {
+        return this->val - a.val;
+    }
+    T operator-(size_t i) const
+    {
+        return T(this->val - i);
+    }
+    T operator+(size_t i) const
+    {
+        return T(this->val + i);
+    }
+    T operator++(int)
+    {
+        return T(this->val++);
+    }
+    T operator++()
+    {
+        return T(++this->val);
     }
 };

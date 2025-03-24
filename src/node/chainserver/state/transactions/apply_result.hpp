@@ -1,8 +1,7 @@
 #pragma once
-#include "block/chain/height.hpp"
-#include "general/errors.hpp"
+#include "general/errors_forward.hpp"
 namespace chainserver {
-struct ApplyResult:public ChainError {
+struct ApplyResult : public ChainError {
     using ChainError::ChainError;
 };
 }

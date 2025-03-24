@@ -6,6 +6,4 @@ public:
         : IsUint32(v)
     {
     }
-    auto operator<=>(uint32_t v) const { return value() <=> v; }
-    bool operator==(uint32_t v) const { return value() == v; }
 };

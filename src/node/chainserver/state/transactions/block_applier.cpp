@@ -5,14 +5,128 @@
 #include "block/chain/header_chain.hpp"
 #include "block/chain/history/history.hpp"
 #include "chainserver/db/chain_db.hpp"
+#include "chainserver/db/ids.hpp"
 #include "defi/token/info.hpp"
 #include "defi/uint64/lazy_matching.hpp"
 #include "defi/uint64/pool.hpp"
 
 namespace {
 
+struct VerifiedOrderWithId : public VerifiedOrder {
+    VerifiedOrderWithId(VerifiedOrder vo, HistoryId orderId);
+    HistoryId orderId;
+};
+
+template <bool ASCENDING>
+using UnsortedOrders = std::vector<VerifiedOrderWithId>;
+using UnsortedSells = UnsortedOrders<true>;
+using UnsortedBuys = UnsortedOrders<false>;
+
+struct UnsortedOrderbook {
+    UnsortedSells sells;
+    UnsortedBuys buys;
+};
+
+template <bool ASCENDING>
+struct SortedOrders : public std::vector<OrderData> {
+    static bool in_order(const OrderData& o1, const OrderData& o2)
+    {
+        if constexpr (ASCENDING) {
+            if (o1.order.limit < o2.order.limit)
+                return true;
+            if (o1.order.limit > o2.order.limit)
+                return false;
+        } else {
+            if (o1.order.limit > o2.order.limit)
+                return true;
+            if (o1.order.limit < o2.order.limit)
+                return false;
+        }
+        return o1.id < o2.id; // first orders first at same price, id ascending.
+                              // The same order that orders are fetched from db
+                              // by OrderLoader
+    }
+    SortedOrders(const UnsortedOrders<ASCENDING>& v)
+    {
+        for (auto& o : v) {
+            // HistoryId id;
+            // AccountId aid;
+            // PinHeight pinHeight;
+            // NonceId nonceId;
+            // defi::Order_uint64 order;
+            // Funds_uint64 filled;
+            push_back(OrderData(
+                o.orderId,
+                o.txid,
+                o.order.amount.funds,
+                Funds_uint64::zero(),
+                o.order.limit));
+        }
+        std::sort(begin(), end(), &SortedOrders<ASCENDING>::in_order);
+    }
+};
+using SortedOrdersPriceAsc = SortedOrders<true>;
+using SortedOrdersPriceDesc = SortedOrders<false>;
+
+template <bool ASCENDING>
+class OrderMergeLoader {
+    using loader_t = OrderLoader<ASCENDING>;
+    using sorted_t = SortedOrders<ASCENDING>;
+
+    void prefetch_old()
+    {
+        if (loaderDrained || o_old.has_value())
+            return;
+        o_old = loader();
+        if (!o_old)
+            loaderDrained = true;
+    }
+
+    void prefetch_new()
+    {
+        if (nextOrder != newOrders.end() && !o_new.has_value())
+            o_new = *(nextOrder++);
+    }
+
+public:
+    OrderMergeLoader(loader_t loader, const UnsortedOrders<ASCENDING>& orders)
+        : loader(std::move(loader))
+        , newOrders(orders)
+        , nextOrder(newOrders.begin())
+    {
+    }
+    std::optional<OrderData> operator()()
+    {
+        std::optional<OrderData> res;
+        prefetch_new();
+        prefetch_old();
+        if (o_old && (!o_new || sorted_t::in_order(*o_old, *o_new))) {
+            res = o_old;
+            o_old.reset();
+        } else {
+            res = o_new;
+            o_new.reset();
+        }
+        return res;
+    }
+
+private:
+    loader_t loader; // order loader that loads from database
+    std::optional<OrderData> o_old;
+    std::optional<OrderData> o_new;
+    bool loaderDrained { false };
+    sorted_t newOrders; // orders not yet in block
+    sorted_t::const_iterator nextOrder;
+};
+
+template <bool ASCENDING>
 struct OrderAggregator {
-    OrderAggregator(OrderLoader l)
+    using loader_t = OrderLoader<ASCENDING>;
+    OrderAggregator(loader_t loader, const UnsortedOrders<ASCENDING>& orders)
+        : OrderAggregator(OrderMergeLoader<ASCENDING> { std::move(loader), orders })
+    {
+    }
+    OrderAggregator(OrderMergeLoader<ASCENDING> l)
         : l(std::move(l))
     {
         load_next();
@@ -35,7 +149,7 @@ struct OrderAggregator {
             return {};
         return last_inserted().order.limit;
     }
-    auto& orders() const { return loaded; }
+    auto& loaded_orders() const { return loaded; }
 
 private:
     const OrderData& last_inserted() const
@@ -58,36 +172,79 @@ private:
 private:
     bool finished { false };
     std::vector<OrderData> loaded;
-    OrderLoader l;
+    OrderMergeLoader<ASCENDING> l;
+};
+using BuyOrderAggregator = OrderAggregator<false>;
+using SellOrderAggregator = OrderAggregator<true>;
+
+struct AggregatorMatch {
+    SellOrderAggregator sellAscAggregator;
+    BuyOrderAggregator buyDescAggregator;
+    defi::MatchResult_uint64 m;
+    AggregatorMatch(const ChainDB& db, const UnsortedOrderbook& unsortedOrderbook, TokenId tid, const defi::PoolLiquidity_uint64& p)
+        : sellAscAggregator { db.base_order_loader_ascending(tid), unsortedOrderbook.sells }
+        , buyDescAggregator { db.quote_order_loader_descending(tid), unsortedOrderbook.buys }
+        , m { defi::match_lazy(sellAscAggregator, buyDescAggregator, p) }
+    {
+    }
 };
 
-void match(const ChainDB& db, TokenId tid, defi::PoolLiquidity_uint64 p)
-{
-    OrderAggregator baseSellAggregator { db.base_order_loader(tid) };
-    OrderAggregator quoteBuyAggregator { db.quote_order_loader(tid) };
-    const auto m { defi::match_lazy(baseSellAggregator, quoteBuyAggregator, p) };
+struct MatchStateDelta {
+    TokenId tokenId;
+    defi::PoolLiquidity_uint64 pool;
+    std::vector<chain_db::OrderFillstate> orderFillstates;
+    std::vector<chain_db::OrderDelete> orderDeletes;
+    MatchStateDelta(TokenId tokenId, defi::PoolLiquidity_uint64 pool)
+        : tokenId(tokenId)
+        , pool(std::move(pool))
+    {
+    }
+};
 
-    auto returned { m.filled };
+struct MatchActions : public MatchStateDelta {
+private:
+    MatchActions(const AggregatorMatch& m, TokenId tokenId, const defi::PoolLiquidity_uint64& p);
+
+public:
+    MatchActions(const ChainDB& db, const UnsortedOrderbook& unsortedOrderbook, TokenId tid, const defi::PoolLiquidity_uint64& p)
+        : MatchActions(AggregatorMatch { db, unsortedOrderbook, tid, p }, tid, p)
+    {
+    }
+
+    // state changes
+
+    std::vector<BuySwapInternal> buySwaps;
+    std::vector<SellSwapInternal> sellSwaps;
+};
+
+MatchActions::MatchActions(const AggregatorMatch& am, TokenId tokenId, const defi::PoolLiquidity_uint64& p)
+    : MatchStateDelta { tokenId, p }
+{
+    auto& m { am.m };
     Funds_uint64 fromPool { 0 };
+    defi::BaseQuote_uint64 returned { m.filled };
     if (m.toPool) {
         auto pa { m.toPool->amount };
         if (m.toPool->isQuote) {
             returned.quote.subtract_assert(pa);
-            fromPool = p.buy(pa, 50);
+            fromPool = pool.buy(pa, 50);
             returned.base.add_assert(fromPool);
         } else {
             returned.base.subtract_assert(pa);
-            fromPool = p.sell(pa, 50);
+            fromPool = pool.sell(pa, 50);
             returned.quote.add_assert(fromPool);
         }
     }
+
     { // seller match
         Funds_uint64 quoteDistributed { 0 };
         auto remaining { m.filled.base };
-        for (auto& o : baseSellAggregator.orders()) {
+        for (auto& o : am.sellAscAggregator.loaded_orders()) {
             if (remaining == 0)
                 break;
+            auto orderFilled { o.filled };
             auto b { std::min(remaining, o.remaining()) };
+            orderFilled.add_assert(b);
             remaining.subtract_assert(b);
 
             // compute return of that order
@@ -95,6 +252,13 @@ void match(const ChainDB& db, TokenId tid, defi::PoolLiquidity_uint64 p)
             assert(q.has_value());
             quoteDistributed.add_assert(*q);
 
+            if (orderFilled >= o.order.amount) {
+                assert(orderFilled == o.order.amount);
+                orderDeletes.push_back({ .id { o.id }, .buy = false });
+            } else {
+                orderFillstates.push_back({ .id { o.id }, .buy = false, .filled { orderFilled } });
+            }
+            sellSwaps.push_back(SellSwapInternal { { .oId { o.id }, .txid { o.txid }, .base { b }, .quote { Wart::from_funds_throw(*q) } } });
             // order swapped b -> q
         }
         assert(remaining == 0);
@@ -103,10 +267,12 @@ void match(const ChainDB& db, TokenId tid, defi::PoolLiquidity_uint64 p)
     { // buyer match
         Funds_uint64 baseDistributed { 0 };
         auto remaining { m.filled.quote };
-        for (auto& o : quoteBuyAggregator.orders()) {
+        for (auto& o : am.buyDescAggregator.loaded_orders()) {
             if (remaining == 0)
                 break;
+            auto orderFilled { o.filled };
             auto q { std::min(remaining, o.remaining()) };
+            orderFilled.add_assert(q);
             remaining.subtract_assert(q);
 
             // compute return of that order
@@ -115,11 +281,28 @@ void match(const ChainDB& db, TokenId tid, defi::PoolLiquidity_uint64 p)
             baseDistributed.add_assert(*b);
 
             // order swapped q -> b
+            if (orderFilled >= o.order.amount) {
+                assert(orderFilled == o.order.amount);
+                orderDeletes.push_back({ .id { o.id }, .buy = true });
+            } else {
+                orderFillstates.push_back({ .id { o.id }, .buy = true, .filled { orderFilled } });
+            }
+            buySwaps.push_back(BuySwapInternal { { .oId { o.id }, .txid { o.txid }, .base { *b }, .quote { Wart::from_funds_throw(q) } } });
         }
         assert(remaining == 0);
         returned.base.subtract_assert(baseDistributed);
     }
 }
+struct NewOrdersInternal : UnsortedOrderbook {
+    bool empty() const { return buys.empty() && sells.empty(); }
+    void push_back(VerifiedOrderWithId o)
+    {
+        if (o.order.buy)
+            buys.push_back(std::move(o));
+        else
+            sells.push_back(std::move(o));
+    }
+};
 
 struct TokenSectionInternal {
     TokenId id;
@@ -216,6 +399,16 @@ class BalanceChecker {
         std::vector<AccountData> newAccounts;
         std::map<ValidAccountId, OldAccountData> oldAccounts;
     };
+    class StateIdIncrementer {
+        StateId next;
+
+    public:
+        StateIdIncrementer(StateId next)
+            : next(next)
+        {
+        }
+        auto get_next() { return next++; }
+    };
 
 protected:
     struct RewardArgument {
@@ -242,11 +435,12 @@ public:
             .toAddress { a.address }
         };
     }
-    BalanceChecker(AccountId nextAccountId, const BodyView& bv, NonzeroHeight height)
+    BalanceChecker(AccountId nextAccountId, StateId nextStateId, const BodyView& bv, NonzeroHeight height)
         : height(height)
         , pinFloor(height.pin_floor())
         , bv(bv)
         , accounts(nextAccountId, bv)
+        , stateId(nextStateId)
         , reward(register_reward(bv, accounts, height))
     {
     }
@@ -265,26 +459,37 @@ public:
         a.subtract(TokenId::WART, fee);
     }
 
+    struct ProcessedSigner : public SignerData {
+        AccountData& account;
+    };
+    template <typename ItemView>
+    [[nodiscard]] ProcessedSigner process_signer(const ItemView& v)
+    {
+        auto compactFee { v.compact_fee_throw() };
+        auto& from { accounts[v.origin_account_id()] };
+        charge_fee(from, compactFee);
+        return {
+            SignerData { from.id, from.address, v.signature(), v.pin_nonce(), compactFee },
+            from
+        };
+    }
     TransferInternalWithoutAmount __register_transfer(TokenTransferView tv) // OK
     {
+        auto s { process_signer(tv) };
         auto tokenId { tv.token_id() };
         auto amount { tv.amount_throw() };
-        auto compactFee { tv.compact_fee_throw() };
         auto& to { accounts[tv.toAccountId()] };
-        auto& from { accounts[tv.fromAccountId()] };
         if (height.value() > 719118 && amount.is_zero())
             throw Error(EZEROAMOUNT);
-        if (from.id == to.id)
+        if (s.origin.id == to.id)
             throw Error(ESELFSEND);
 
         to.add(tokenId, amount);
-        from.subtract(tokenId, amount);
-        charge_fee(from, compactFee);
+        s.account.subtract(tokenId, amount);
 
         return {
-            .from { from.id, from.address, tv.signature(), tv.pin_nonce() },
-            .to { to.id, to.address },
-            .compactFee { compactFee }
+            std::move(s),
+            { to.id, to.address },
         };
     }
     void register_wart_transfer(WartTransferView tv)
@@ -294,70 +499,36 @@ public:
 
     CancelationInternal register_cancelation(CancelationView c)
     {
-        auto compactFee { c.compact_fee_trow() };
-        auto& from { accounts[c.account_id()] };
-        charge_fee(from, compactFee);
+        auto signerData(process_signer(c));
         return {
-            .signer { from.id, from.address, c.signature(), c.pin_nonce() },
-            .txid { from.id, c.block_pin_nonce().pin_height_from_floored(pinFloor), c.block_pin_nonce().id }
+            signerData,
+            { signerData.origin.id, c.block_pin_nonce().pin_height_from_floored(pinFloor), c.block_pin_nonce().id }
         };
     }
     LiquidityAddInternal register_liquidity_add(LiquidityAddView l)
     {
-        auto compactFee { l.compact_fee_trow() };
-        auto& from { accounts[l.account_id()] };
-        charge_fee(from, compactFee);
-        return {
-            .signer { from.id, from.address, l.signature(), l.pin_nonce() },
-        };
+        return { process_signer(l) };
     }
     LiquidityRemoveInternal register_liquidity_remove(LiquidityRemoveView l)
     {
-        auto compactFee { l.compact_fee_trow() };
-        auto& from { accounts[l.account_id()] };
-        charge_fee(from, compactFee);
-        return {
-            .signer { from.id, from.address, l.signature(), l.pin_nonce() },
-        };
+        return { process_signer(l) };
     }
-    OrderInternal register_order(OrderView o)
+    OrderInternal register_new_order(OrderView o)
     {
+        auto s { process_signer(o) };
         auto tokenId { o.token_id() };
-        auto from { accounts[o.account_id()] };
-        auto compactFee { o.compact_fee_trow() };
+
         auto [buy, amount] { o.buy_amount_throw() };
-
         if (buy)
-            from.subtract(TokenId::WART, amount);
+            s.account.subtract(TokenId::WART, amount);
         else
-            from.subtract(tokenId, amount);
+            s.account.subtract(tokenId, amount);
 
-        charge_fee(from, compactFee);
         return {
-            .signer { from.id, from.address, o.signature(), o.pin_nonce() },
-            .limit { o.limit() },
-            .amount { tokenId, amount },
-            .buy = buy
-        };
-    }
-    OrderInternal register_cancel_order(OrderView o)
-    {
-        auto tokenId { o.token_id() };
-        auto from { accounts[o.account_id()] };
-        auto compactFee { o.compact_fee_trow() };
-        auto [buy, amount] { o.buy_amount_throw() };
-
-        if (buy)
-            from.subtract(TokenId::WART, amount);
-        else
-            from.subtract(tokenId, amount);
-
-        charge_fee(from, compactFee);
-        return {
-            .signer { from.id, from.address, o.signature(), o.pin_nonce() },
-            .limit { o.limit() },
-            .amount { tokenId, amount },
-            .buy = buy
+            std::move(s),
+            o.limit(),
+            TokenFunds { tokenId, amount },
+            buy
         };
     }
     void register_token_section(BodyStructure::TokenSectionView v)
@@ -367,7 +538,7 @@ public:
             td.transfers.push_back({ __register_transfer(v), v.amount_throw() });
         });
         v.foreach_order([&](OrderView v) {
-            td.orders.push_back(register_order(v));
+            td.orders.push_back(register_new_order(v));
         });
         v.foreach_order_cancelation([&](CancelationView v) {
             td.cancelations.push_back(register_cancelation(v));
@@ -412,6 +583,7 @@ private:
     const PinFloor pinFloor;
     const BodyView& bv;
     Accounts accounts;
+    StateIdIncrementer stateId;
     RewardInternal reward;
 
     std::vector<WartTransferInternal> wartTransfers;
@@ -432,6 +604,11 @@ struct InsertHistoryEntry {
         , historyId(historyId)
     {
     }
+    InsertHistoryEntry(const VerifiedOrder& t, TokenId tokenId, HistoryId historyId)
+        : he(t, tokenId)
+        , historyId(historyId)
+    {
+    }
     InsertHistoryEntry(const VerifiedWartTransfer& t, HistoryId historyId)
         : he(t)
         , historyId(historyId)
@@ -442,46 +619,45 @@ struct InsertHistoryEntry {
         , historyId(historyId)
     {
     }
+    InsertHistoryEntry(history::BuySwapHist h, HistoryId historyId)
+        : he(std::move(h))
+        , historyId(historyId)
+        , parent(HistoryId(h.oId.value()))
+    {
+    }
+    InsertHistoryEntry(history::SellSwapHist h, HistoryId historyId)
+        : he(std::move(h))
+        , historyId(historyId)
+        , parent(HistoryId(h.oId.value()))
+    {
+    }
     history::Entry he;
     HistoryId historyId;
+    std::optional<HistoryId> parent;
 };
 
+class HistoryIdGenerator {
+public:
+    HistoryIdGenerator(HistoryId next)
+        : next(next)
+    {
+    }
+    HistoryId operator()()
+    {
+        return next++;
+    }
+
+private:
+    HistoryId next;
+};
 struct HistoryEntries {
-    HistoryEntries(HistoryId nextHistoryId)
-        : nextHistoryId(nextHistoryId)
-    {
-    }
-    HistoryId nextHistoryId;
-    [[nodiscard]] const auto& push_reward(const RewardInternal& r)
-    {
-        auto& e { insertHistory.emplace_back(r, nextHistoryId) };
-        insertAccountHistory.emplace_back(r.toAccountId, nextHistoryId);
-        ++nextHistoryId;
-        return e;
-    }
-    [[nodiscard]] auto& push_wart_transfer(const VerifiedWartTransfer& r)
-    {
-        auto& e { insertHistory.emplace_back(r, nextHistoryId) };
-        insertAccountHistory.emplace_back(r.ti.to.id, nextHistoryId);
-        if (r.ti.from.id != r.ti.to.id)
-            insertAccountHistory.emplace_back(r.ti.from.id, nextHistoryId);
-        ++nextHistoryId;
-        return e;
-    }
-    [[nodiscard]] auto& push_token_transfer(const VerifiedTokenTransfer& r, TokenId tokenId)
-    {
-        auto& e { insertHistory.emplace_back(r, tokenId, nextHistoryId) };
-        insertAccountHistory.emplace_back(r.ti.to.id, nextHistoryId);
-        if (r.ti.to.id != r.ti.from.id)
-            insertAccountHistory.emplace_back(r.ti.from.id, nextHistoryId);
-        ++nextHistoryId;
-        return e;
-    }
     void write(ChainDB& db)
     {
         // insert history for payouts and payments
         for (auto& p : insertHistory) {
             auto inserted { db.insertHistory(p.he.hash, p.he.data) };
+            if (p.parent)
+                db.insert_history_link(*p.parent, p.historyId);
             assert(p.historyId == inserted);
         }
         // insert account history
@@ -493,11 +669,73 @@ struct HistoryEntries {
     std::vector<std::pair<AccountId, HistoryId>> insertAccountHistory;
 };
 
+struct HistoryEntriesGenerator {
+private:
+    HistoryEntries& entries;
+    HistoryIdGenerator next_id;
+
+public:
+    HistoryEntriesGenerator(HistoryEntries& entries, HistoryId nextHistoryId)
+        : entries(entries)
+        , next_id(nextHistoryId)
+    {
+    }
+    struct ForAccounts {
+        HistoryId hid;
+        HistoryEntriesGenerator& g;
+        template <typename... T>
+        auto& insert_history(T&&... t)
+        {
+            return g.entries.insertHistory.emplace_back(std::forward<T>(t)..., hid);
+        }
+    };
+
+    ForAccounts for_account(AccountId aid)
+    {
+        ForAccounts h { next_id(), *this };
+        entries.insertAccountHistory.push_back({ aid, h.hid });
+        return h;
+    };
+    ForAccounts for_accounts(AccountId aid1, AccountId aid2)
+    {
+        ForAccounts h { next_id(), *this };
+        entries.insertAccountHistory.push_back({ aid1, h.hid });
+        if (aid1 != aid2)
+            entries.insertAccountHistory.push_back({ aid2, h.hid });
+        return h;
+    };
+
+    [[nodiscard]] const auto& push_reward(const RewardInternal& r)
+    {
+        return for_account(r.toAccountId).insert_history(r);
+    }
+    [[nodiscard]] auto& push_wart_transfer(const VerifiedWartTransfer& r)
+    {
+        return for_accounts(r.ti.origin.id, r.ti.to.id).insert_history(r);
+    }
+    [[nodiscard]] auto& push_order(const VerifiedOrder& r, TokenId tokenId)
+    {
+        return for_account(r.order.origin.id).insert_history(r, tokenId);
+    }
+    [[nodiscard]] auto& push_token_transfer(const VerifiedTokenTransfer& r, TokenId tokenId)
+    {
+        return for_accounts(r.ti.origin.id, r.ti.to.id).insert_history(r, tokenId);
+    }
+    [[nodiscard]] auto& push_swap(const BuySwapInternal& t, Height h)
+    {
+        return for_account(t.txid.accountId).insert_history(history::BuySwapHist(t, h));
+    }
+    [[nodiscard]] auto& push_swap(const SellSwapInternal& t, Height h)
+    {
+        return for_account(t.txid.accountId).insert_history(history::SellSwapHist(t, h));
+    }
+};
+
 } // namespace
 
 namespace chainserver {
-class PreparetionGenerator;
 class Preparation {
+
 public:
     HistoryEntries historyEntries;
     RollbackGenerator rg;
@@ -506,24 +744,21 @@ public:
     std::vector<std::tuple<AccountToken, Funds_uint64>> insertBalances;
     std::vector<std::tuple<AddressView, AccountId>> insertAccounts;
     std::vector<std::tuple<AccountToken, TokenName>> insertTokenCreations;
+    std::vector<chain_db::OrderInsertData> insertOrders;
     std::vector<TransactionId> insertCancelOrder;
-    std::optional<api::Block::Reward> apiReward;
-    struct {
-        std::vector<api::Block::Transfer> wartTransfers;
-        std::vector<api::Block::TokenTransfer> tokenTransfers;
-        std::vector<api::Block::TokenCreation> tokenCreations;
-    } api;
+    std::vector<MatchStateDelta> matchDeltas;
+    api::Block::Actions api;
 
 private:
     friend class PreparationGenerator;
     Preparation(const ChainDB& db)
-        : historyEntries(db.next_history_id())
-        , rg(db)
+        : rg(db)
     {
     }
 };
 
 class PreparationGenerator : public Preparation {
+
 private:
     // constants
     const ChainDB& db;
@@ -536,6 +771,7 @@ private:
     // variables needed for block verification
     const RewardView reward;
     BalanceChecker balanceChecker;
+    HistoryEntriesGenerator history;
     TransactionVerifier txVerifier;
 
 private:
@@ -568,6 +804,22 @@ private:
     {
         for (auto tc : bv.token_creations())
             balanceChecker.register_token_creation(tc, height);
+
+        // TODO:
+        const auto beginNewTokenId = db.next_token_id(); // they start from this index
+        for (size_t i = 0; i < balanceChecker.token_creations().size(); ++i) {
+            auto& tc { balanceChecker.token_creations()[i] };
+            auto tokenId { beginNewTokenId + i };
+            const auto verified { tc.verify(hc, height, tokenId) };
+            insertTokenCreations.push_back({ { tc.creatorAccountId, tokenId }, tc.tokenName });
+            api.tokenCreations.push_back({
+                .txid { verified.id },
+                .txhash { verified.hash },
+                .tokenName { tc.tokenName },
+                .tokenIndex { verified.tokenId },
+                .fee { tc.compactFee.uncompact() },
+            });
+        }
     }
 
     auto process_new_flow(const AccountToken& at, const auto& tokenFlow)
@@ -642,8 +894,8 @@ private:
         if (r.amount > Wart::sum_throw(height.reward(), balanceChecker.getTotalFee()))
             throw Error(EBALANCE);
         assert(!r.toAddress.is_null());
-        auto& ref { historyEntries.push_reward(r) };
-        apiReward = api::Block::Reward {
+        auto& ref { history.push_reward(r) };
+        api.reward = api::Block::Reward {
             .txhash { ref.he.hash },
             .toAddress { r.toAddress },
             .amount { r.amount },
@@ -656,6 +908,24 @@ private:
         return !baseTxIds.contains(tid) && !newTxIds.contains(tid) && txset.emplace(tid).second;
     }
 
+    struct TokenData : TokenIdHashName {
+        TokenData(TokenIdHashName t)
+            : TokenIdHashName(std::move(t))
+        {
+        }
+        const auto& get_pool(const ChainDB& db) const
+        {
+            if (!loaded) {
+                loaded = true;
+                _l = db.select_pool(id);
+            }
+            return _l;
+        }
+
+    private:
+        mutable bool loaded { false };
+        mutable std::optional<PoolData> _l;
+    };
     void process_token_sections()
     {
         auto ts { balanceChecker.get_token_sections() };
@@ -676,11 +946,11 @@ private:
         for (auto& tr : balanceChecker.get_wart_transfers()) {
             auto verified { tr.verify(txVerifier) };
 
-            auto& ref { historyEntries.push_wart_transfer(verified) };
+            auto& ref { history.push_wart_transfer(verified) };
             api.wartTransfers.push_back(api::Block::Transfer {
-                .fromAddress { tr.from.address },
+                .fromAddress { tr.origin.address },
                 .fee { tr.compactFee.uncompact() },
-                .nonceId { tr.from.pinNonce.id },
+                .nonceId { tr.pinNonce.id },
                 .pinHeight { verified.txid.pinHeight },
                 .txhash { ref.he.hash },
                 .toAddress { tr.to.address },
@@ -691,16 +961,15 @@ private:
 
     void process_token_transfers(const TokenIdHashName& token, const std::vector<TokenTransferInternal>& transfers)
     {
-        balanceChecker.get_wart_transfers();
         for (auto& tr : transfers) {
             auto verified { tr.verify(txVerifier, token.hash) };
 
-            auto& ref { historyEntries.push_token_transfer(verified, token.id) };
+            auto& ref { history.push_token_transfer(verified, token.id) };
             api.tokenTransfers.push_back(api::Block::TokenTransfer {
                 .tokenInfo { token },
-                .fromAddress { tr.from.address },
+                .fromAddress { tr.origin.address },
                 .fee { tr.compactFee.uncompact() },
-                .nonceId { tr.from.pinNonce.id },
+                .nonceId { tr.pinNonce.id },
                 .pinHeight { verified.txid.pinHeight },
                 .txhash { ref.he.hash },
                 .toAddress { tr.to.address },
@@ -708,8 +977,60 @@ private:
             });
         }
     }
-    void process_new_orders(const TokenIdHashName& ihn, const std::vector<OrderInternal>& orders)
+    void process_new_orders(const TokenData& token, const std::vector<OrderInternal>& orders)
     {
+        if (orders.size() == 0)
+            return;
+        auto td { token.get_pool(db) };
+        if (!td)
+            throw Error(ENOPOOL);
+        auto poolLiquidity { td->liquidity() };
+        NewOrdersInternal no;
+        for (auto& o : orders) {
+            auto verified { o.verify(txVerifier, token.hash) };
+            auto& ref { history.push_order(verified, token.id) };
+            api.newOrders.push_back(api::Block::NewOrder { .tokenInfo { token },
+                .fee { o.compactFee.uncompact() },
+                .amount { o.amount.funds },
+                .limit { o.limit },
+                .buy = o.buy,
+                .txid { verified.txid },
+                .txhash { verified.hash },
+                .address { o.origin.address } });
+            no.push_back({ verified, ref.historyId });
+            insertOrders.push_back(chain_db::OrderInsertData {
+                .id { ref.historyId },
+                .buy = o.buy,
+                .txid { verified.txid },
+                .tid { token.id },
+                .total { o.amount.funds },
+                .filled { Funds_uint64::zero() },
+                .limit { o.limit } });
+        }
+
+        MatchActions m(db, no, token.id, poolLiquidity);
+
+        for (auto& s : m.buySwaps) {
+            auto& ref { history.push_swap(s, height) };
+            api.swaps.push_back({
+                .tokenInfo { token },
+                .txhash { ref.he.hash },
+                .buy = true,
+                .fillQuote { s.quote },
+                .fillBase { s.base },
+            });
+        }
+        for (auto& s : m.sellSwaps) {
+            auto& ref { history.push_swap(s, height) };
+            api.swaps.push_back({
+                .tokenInfo { token },
+                .txhash { ref.he.hash },
+                .buy = false,
+                .fillQuote { s.quote },
+                .fillBase { s.base },
+            });
+        }
+        matchDeltas.push_back(std::move(m));
     }
     void process_cancelations(const TokenIdHashName& ihn, const std::vector<CancelationInternal>& orders)
     {
@@ -737,7 +1058,8 @@ public:
         , bv { b.body.view() }
         , height(b.height)
         , reward(bv.reward())
-        , balanceChecker(db.next_account_id(), bv, height)
+        , balanceChecker(db.next_account_id(), db.next_state_id(), bv, height)
+        , history(historyEntries, db.next_history_id())
         , txVerifier(TransactionVerifier { hc, height,
               std::function<bool(TransactionId)>(
                   [this](TransactionId tid) -> bool {
@@ -754,23 +1076,6 @@ public:
         /// Process block sections
         process_accounts();
         process_actions();
-
-        const auto beginNewTokenId = db.next_token_id(); // they start from this index
-        for (size_t i = 0; i < balanceChecker.token_creations().size(); ++i) {
-            auto& tc { balanceChecker.token_creations()[i] };
-            auto tokenId { beginNewTokenId + i };
-            const auto verified { tc.verify(hc, height, tokenId) };
-            insertTokenCreations.push_back({ { tc.creatorAccountId, tokenId }, tc.tokenName });
-            apiTokenCreations.push_back(
-                {
-                    .creatorAddress { verified.tci.creatorAddress },
-                    .nonceId { verified.tci.pinNonce.id },
-                    .txhash { verified.hash },
-                    .tokenName { tc.tokenName },
-                    .tokenIndex { verified.tokenIndex },
-                    .fee { tc.compactFee.uncompact() },
-                });
-        }
     }
 };
 
@@ -806,6 +1111,16 @@ api::Block BlockApplier::apply_block(const ParsedBlock& b, BlockId blockId)
         for (auto& [address, accId] : prepared.insertAccounts)
             db.insert_account(address, accId);
 
+        for (auto& o : prepared.insertOrders) // new orders
+            db.insert_order(o);
+        for (auto& d : prepared.matchDeltas) {
+            for (auto& o : d.orderFillstates) // update fillstates
+                db.change_fillstate(o);
+            for (auto& o : d.orderDeletes) // delete filled orders
+                db.delete_order(o);
+            db.set_pool_liquidity(d.tokenId, d.pool);
+        }
+
         // insert token creations
         for (auto& [at, tokenName] : prepared.insertTokenCreations)
             db.insert_new_token(at.token_id(), b.height, at.account_id(), tokenName, TokenMintType::Ownall);
@@ -823,9 +1138,10 @@ api::Block BlockApplier::apply_block(const ParsedBlock& b, BlockId blockId)
         db.insert_consensus(b.height, blockId, db.next_history_id(), prepared.rg.next_state_id());
 
         prepared.historyEntries.write(db);
-        return api::Block(b.header, b.height, 0, std::move(prepared.apiReward), std::move(prepared.api.wartTransfers));
+        return api::Block(b.header, b.height, 0, std::move(prepared.api));
     } catch (Error e) {
         throw std::runtime_error(std::string("Unexpected exception: ") + __PRETTY_FUNCTION__ + ":" + e.strerror());
     }
 }
+};
 }

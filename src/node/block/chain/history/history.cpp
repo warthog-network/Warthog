@@ -1,14 +1,8 @@
 #include "history.hpp"
 #include "block/chain/header_chain.hpp"
+#include "general/is_testnet.hpp"
 #include "general/writer.hpp"
 
-TransactionVerifier::TransactionVerifier(const Headerchain& hc, NonzeroHeight h, validator_t f)
-    : hc(hc)
-    , h(h)
-    , validator(std::move(f))
-{
-    assert(h <= hc.length() + 1);
-}
 auto TransactionVerifier::pin_info(PinNonce pinNonce) const -> PinInfo
 {
     PinHeight pinHeight(pinNonce.pin_height_from_floored(pinFloor));
@@ -45,8 +39,20 @@ Hash RewardInternal::hash() const
         << uint16_t(0);
 }
 
+VerifiedOrder::VerifiedOrder(const OrderInternal& o, const TransactionVerifier& verifier, HashView tokenHash)
+    : VerifiedTransaction(verifier.verify(
+          o.origin,
+          o.compactFee.uncompact(),
+          o.limit.to_uint32(),
+          o.amount.funds,
+          tokenHash))
+    , order(o)
+
+{
+}
+
 VerifiedTokenTransfer::VerifiedTokenTransfer(const TokenTransferInternal& ti, const TransactionVerifier& verifier, HashView tokenHash)
-    : VerifiedTransaction(verifier.verify(ti.from,
+    : VerifiedTransaction(verifier.verify(ti.origin,
           ti.compactFee.uncompact(),
           ti.to.address,
           ti.amount,
@@ -56,7 +62,7 @@ VerifiedTokenTransfer::VerifiedTokenTransfer(const TokenTransferInternal& ti, co
 }
 
 VerifiedWartTransfer::VerifiedWartTransfer(const WartTransferInternal& ti, const TransactionVerifier& verifier)
-    : VerifiedTransaction(verifier.verify(ti.from,
+    : VerifiedTransaction(verifier.verify(ti.origin,
           ti.compactFee.uncompact(),
           ti.to.address,
           ti.amount))
@@ -86,17 +92,25 @@ VerifiedTokenCreation::VerifiedTokenCreation(const TokenCreationInternal& tci, P
     , hash(HasherSHA256()
           << pinHash
           << pinHeight
+          << tci.signature
           << tci.tokenName.view()
           << tci.pinNonce.id
           << tci.pinNonce.reserved
           << tci.compactFee.uncompact())
-    , tokenIndex(std::move(tokenIndex))
+    , tokenId(std::move(tokenIndex))
 {
     if (!valid_signature())
         throw Error(ECORRUPTEDSIG);
 }
 
 namespace history {
+
+SwapHist::SwapHist(SwapInternal si, bool buyBase, Height h)
+    : SwapInternal(std::move(si))
+    , hash(HasherSHA256() << uint8_t(buyBase) << si.oId << si.accId << base << quote << h)
+{
+}
+
 Entry::Entry(const RewardInternal& p)
     : hash(p.hash())
 {
@@ -109,14 +123,25 @@ Entry::Entry(const VerifiedWartTransfer& p)
     : hash(p.hash)
 {
     data = serialize(WartTransferData {
-        p.ti.from.id,
+        p.ti.origin.id,
         p.ti.compactFee,
         p.ti.to.id,
         p.ti.amount,
-        p.ti.from.pinNonce });
+        p.ti.origin.pinNonce });
 }
 
 Entry::Entry(const VerifiedTokenTransfer& p, TokenId tokenId)
+    : hash(p.hash)
+{
+    data = serialize(TokenTransferData {
+        tokenId,
+        p.ti.origin.id,
+        p.ti.compactFee,
+        p.ti.to.id,
+        p.ti.amount,
+        p.ti.origin.pinNonce });
+}
+Entry::Entry(const VerifiedOrder& p, TokenId tokenId)
     : hash(p.hash)
 {
     data = serialize(TokenTransferData {
@@ -149,7 +174,19 @@ Entry::Entry(const VerifiedTokenCreation& p)
         .pinNonce { p.tci.pinNonce },
         .tokenName { p.tci.tokenName },
         .compactFee { p.tci.compactFee },
-        .tokenIndex { p.tokenIndex } });
+        .tokenIndex { p.tokenId } });
+}
+
+Entry::Entry(const BuySwapHist& p)
+    : hash(p.hash)
+    , data(serialize(BuySwapData { p }))
+{
+}
+
+Entry::Entry(const SellSwapHist& p)
+    : hash(p.hash)
+    , data(serialize(SellSwapData { p }))
+{
 }
 
 void TokenTransferData::write(Writer& w) const
@@ -157,6 +194,18 @@ void TokenTransferData::write(Writer& w) const
     assert(w.remaining() == bytesize);
     w << tokenId << fromAccountId << compactFee << toAccountId
       << amount << pinNonce;
+}
+
+OrderData OrderData::parse(Reader& r)
+{
+    return OrderData { r, r, r, r, r, r };
+}
+
+void OrderData::write(Writer& w) const
+{
+    assert(w.remaining() == bytesize);
+    w << tokenId << accountId << compactFee << base
+      << quote << pinNonce;
 }
 
 void WartTransferData::write(Writer& w) const
@@ -172,9 +221,9 @@ WartTransferData WartTransferData::parse(Reader& r)
         throw std::runtime_error("Cannot parse TransferData.");
     return WartTransferData {
         .fromAccountId { r },
-        .compactFee { CompactUInt::from_value_throw(r) },
+        .compactFee { r },
         .toAccountId { r },
-        .amount { Funds_uint64::from_value_throw(r) },
+        .amount { r },
         .pinNonce { r }
     };
 }
@@ -190,8 +239,8 @@ RewardData RewardData::parse(Reader& r)
     if (r.remaining() != bytesize)
         throw std::runtime_error("Cannot parse RewardData.");
     return RewardData {
-        .toAccountId = AccountId(r.uint64()),
-        .miningReward = Funds_uint64::from_value_throw(r.uint64())
+        .toAccountId { r },
+        .miningReward { r }
     };
 }
 
@@ -212,6 +261,18 @@ TokenCreationData TokenCreationData::parse(Reader& r)
         .compactFee { r },
         .tokenIndex { r },
     };
+}
+void SwapData::write(Writer& w) const
+{
+    assert(w.remaining() == bytesize);
+    w << oId << accId << base << quote;
+}
+
+SwapData SwapData::parse(Reader& r)
+{
+    if (r.remaining() != bytesize)
+        throw std::runtime_error("Cannot parse TokenCreationData.");
+    return SwapData { r, r, r, r };
 }
 
 std::vector<uint8_t> serialize(const Data& entry)
