@@ -1,8 +1,9 @@
 name: Release
 on:
-    workflow_call:
-    repository_dispatch:
-        types: [release]
+  workflow_dispatch:
+  push:
+      branches:
+        - master
       
 jobs:
   build:
@@ -26,16 +27,22 @@ jobs:
         - name : Docker Build MacOS
           run : DOCKER_BUILDKIT=1 docker build . -f dockerfiles/build_macos --output ./build/aarch64-macos
 
+        - name: Call Docker
+          uses: peter-evans/repository-dispatch@v3
+          with:
+            event-type: docker
+
         - name: Get version
           id: get_version
           run: |
            echo "VERSION=$(grep 'version :' meson.build | cut -d "'" -f 2)" >> $GITHUB_ENV 
 
         - name: Release
-          uses: softprops/action-gh-release@v0.1.15
+          uses: softprops/action-gh-release@v2.2.1
           with:
             tag_name: ${{ env.VERSION }}
             generate_release_notes: true
+            make_latest: true
             files: |
               ./build/aarch64-macos/wart-wallet-aarch64
               ./build/aarch64-macos/wart-node-aarch64
