@@ -470,11 +470,11 @@ namespace {
 
     private:
         RollbackSession(const ChainDB& db, NonzeroHeight beginHeight,
-            const RollbackView& rbv)
+            const rollback::Data& rb)
             : db(db)
             , newPinFloor(beginHeight.pin_floor())
-            , oldAccountStart(rbv.getBeginNewAccounts())
-            , oldTokenStart(rbv.getBeginNewTokens())
+            , oldAccountStart(rb.next_account_id())
+            , oldTokenStart(rb.next_token_id())
         {
         }
 
@@ -488,45 +488,48 @@ namespace {
 
     public:
         RollbackSession(const ChainDB& db, NonzeroHeight beginHeight, BlockId firstId)
-            : RollbackSession(db, beginHeight, RollbackView(fetch_undo(db, firstId).rawUndo, true))
+            : RollbackSession(db, beginHeight, rollback::Data(fetch_undo(db, firstId).rawUndo))
         {
         }
 
         void rollback_block(BlockId id, NonzeroHeight height)
         {
-            BlockUndoData d { fetch_undo(db, id) };
-            auto pinFloor { height.pin_floor() };
-            BodyView bv(d.rawBody, height);
-            if (!bv.valid())
-                throw std::runtime_error(
-                    "Database corrupted (invalid block body at height " + std::to_string(height) + ".");
-            for (auto t : bv.transfers()) {
-                PinHeight pinHeight = t.pinHeight(pinFloor);
-                if (pinHeight <= newPinFloor) {
-                    // extract transaction to mempool
-                    auto toAddress { db.lookup_account(t.toAccountId())->address };
-                    toMempool.push_back(TransferTxExchangeMessage(t, pinHeight, toAddress));
+            try {
+                BlockUndoData d { fetch_undo(db, id) };
+                auto pinFloor { height.pin_floor() };
+                auto s { d.body.parse_structure_throw(height, d.header.version()) };
+                BodyView bv { d.body, s };
+                for (auto t : bv.wart_transfers()) {
+                    PinHeight pinHeight = t.pin_height(pinFloor);
+                    if (pinHeight <= newPinFloor) {
+                        // extract transaction to mempool
+                        auto toAddress { db.lookup_address(t.toAccountId()).value() };
+                        toMempool.push_back(TransferTxExchangeMessage(t, pinHeight, toAddress));
+                    }
                 }
-            }
 
-            // roll back state modifications
-            RollbackView rbv(d.rawUndo, true);
-            rbv.foreach_balance_update(
-                [&](const AccountTokenBalance& entry) {
-                    const Funds_uint64& bal { entry.balance };
-                    const BalanceId& id { entry.id };
-                    auto b { db.get_token_balance(id) };
-                    if (!b.has_value())
-                        throw std::runtime_error("Database corrupted, cannot roll back");
-                    AccountToken at { b->accountId, b->tokenId };
-                    balanceMap.try_emplace(at, bal);
-                });
+                // roll back state modifications
+                rollback::Data rbv(d.rawUndo);
+                rbv.foreach_balance_update(
+                    [&](const AccountTokenBalance& entry) {
+                        const Funds_uint64& bal { entry.balance };
+                        const BalanceId& id { entry.id };
+                        auto b { db.get_token_balance(id) };
+                        if (!b.has_value())
+                            throw std::runtime_error("Database corrupted, cannot roll back");
+                        AccountToken at { b->accountId, b->tokenId };
+                        balanceMap.try_emplace(at, bal);
+                    });
+            } catch (const Error& e) {
+                throw std::runtime_error(
+                    "Cannot rollback block at height" + std::to_string(height) + ":" + e.err_name());
+            }
         }
     };
-
 }
 
-RollbackResult State::rollback(const Height newlength) const
+RollbackResult
+State::rollback(const Height newlength) const
 {
     const Height oldlength { chainlength() };
     spdlog::info("Rolling back chain");
@@ -702,10 +705,10 @@ std::pair<mempool::Log, TxHash> State::append_gentx(const PaymentCreateMessage& 
     }
 }
 
-api::Balance State::api_get_address(AddressView address) const
+api::WartBalance State::api_get_address(AddressView address) const
 {
-    if (auto p = db.lookup_address(address); p) {
-        return api::Balance {
+    if (auto p = db.lookup_account_id(address); p) {
+        return api::WartBalance {
             api::AddressWithId {
                 address,
                 p->accointId,
@@ -713,26 +716,26 @@ api::Balance State::api_get_address(AddressView address) const
             p->funds
         };
     } else {
-        return api::Balance {
+        return api::WartBalance {
             {},
-            Funds_uint64 { Funds_uint64::zero() }
+            Wart::zero()
         };
     }
 }
 
-api::Balance State::api_get_address(AccountId accountId) const
+api::WartBalance State::api_get_address(AccountId accountId) const
 {
     if (auto p = db.lookup_address(accountId); p) {
-        return api::Balance {
+        return api::WartBalance {
             api::AddressWithId {
                 p->address,
                 accountId },
             p->funds
         };
     } else {
-        return api::Balance {
+        return api::WartBalance {
             {},
-            Funds_uint64 { Funds_uint64::zero() }
+            Wart::zero()
         };
     }
 }
@@ -784,7 +787,7 @@ auto State::api_get_mempool(size_t n) const -> api::MempoolEntries
 
 auto State::api_get_history(Address a, int64_t beforeId) const -> std::optional<api::AccountHistory>
 {
-    auto p = db.lookup_address(a);
+    auto p = db.lookup_account_id(a);
     if (!p)
         return {};
     auto& [accountId, balance] = *p;

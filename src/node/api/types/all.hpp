@@ -71,7 +71,7 @@ struct AddressWithId {
     Address address;
     AccountId accountId;
 };
-struct Balance {
+struct WartBalance {
     std::optional<AddressWithId> address;
     Wart balance;
 };

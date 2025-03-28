@@ -103,8 +103,8 @@ public:
     auto get_mempool_tx(TransactionId) const -> std::optional<TransferTxExchangeMessage>;
 
     // api getters
-    auto api_get_address(AddressView) const -> api::Balance;
-    auto api_get_address(AccountId) const -> api::Balance;
+    auto api_get_address(AddressView) const -> api::WartBalance;
+    auto api_get_address(AccountId) const -> api::WartBalance;
     auto api_get_head() const -> api::ChainHead;
     auto api_get_history(Address a, int64_t beforeId = 0x7fffffffffffffff) const -> std::optional<api::AccountHistory>;
     auto api_get_richlist(size_t N) const -> api::Richlist;

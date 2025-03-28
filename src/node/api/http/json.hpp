@@ -16,7 +16,7 @@ json to_json(const api::ThrottleState&);
 json to_json(const api::ThrottledPeer&);
 json to_json(const api::Peerinfo&);
 json to_json(const TCPPeeraddr&);
-json to_json(const api::Balance&);
+json to_json(const api::WartBalance&);
 json to_json(const Grid&);
 json to_json(const PrintNodeVersion&);
 json to_json(const Hash&);

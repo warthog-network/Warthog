@@ -41,7 +41,7 @@ class BlockGenerator {
             if (auto iter = cache.find(address); iter != cache.end()) {
                 return iter->second;
             }
-            auto p = db.lookup_address(address);
+            auto p = db.lookup_account_id(address);
             if (p) { // not present in database
                 auto [id, _] = *p;
                 cache.emplace(address, id);

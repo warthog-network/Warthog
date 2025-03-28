@@ -37,7 +37,7 @@ using ThrottledCb = std::function<void(const std::vector<api::ThrottledPeer>&)>;
 using SyncedCb = std::function<void(bool)>;
 using ResultCb = std::function<void(const tl::expected<void, Error>&)>;
 using ConnectedConnectionCB = std::function<void(const api::PeerinfoConnections&)>;
-using BalanceCb = std::function<void(const tl::expected<api::Balance, Error>&)>;
+using BalanceCb = std::function<void(const tl::expected<api::WartBalance, Error>&)>;
 using JSONCb = std::function<void(const tl::expected<nlohmann::json, Error>&)>;
 
 // using OffensesCb = std::function<void(const tl::expected<std, Error>&)>;

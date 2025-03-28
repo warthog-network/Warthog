@@ -502,6 +502,7 @@ public:
         auto signerData(process_signer(c));
         return {
             signerData,
+            c.token_id(),
             { signerData.origin.id, c.block_pin_nonce().pin_height_from_floored(pinFloor), c.block_pin_nonce().id }
         };
     }
@@ -604,8 +605,13 @@ struct InsertHistoryEntry {
         , historyId(historyId)
     {
     }
-    InsertHistoryEntry(const VerifiedOrder& t, TokenId tokenId, HistoryId historyId)
-        : he(t, tokenId)
+    InsertHistoryEntry(const VerifiedOrder& t, HistoryId historyId)
+        : he(t)
+        , historyId(historyId)
+    {
+    }
+    InsertHistoryEntry(const VerifiedCancelation& t, HistoryId historyId)
+        : he(t)
         , historyId(historyId)
     {
     }
@@ -713,9 +719,13 @@ public:
     {
         return for_accounts(r.ti.origin.id, r.ti.to.id).insert_history(r);
     }
-    [[nodiscard]] auto& push_order(const VerifiedOrder& r, TokenId tokenId)
+    [[nodiscard]] auto& push_order(const VerifiedOrder& r)
     {
-        return for_account(r.order.origin.id).insert_history(r, tokenId);
+        return for_account(r.order.origin.id).insert_history(r);
+    }
+    [[nodiscard]] auto& push_cancelation(const VerifiedCancelation& r)
+    {
+        return for_account(r.cancelation.origin.id).insert_history(r);
     }
     [[nodiscard]] auto& push_token_transfer(const VerifiedTokenTransfer& r, TokenId tokenId)
     {
@@ -738,11 +748,12 @@ class Preparation {
 
 public:
     HistoryEntries historyEntries;
-    RollbackGenerator rg;
+    rollback::Data rg;
     std::set<TransactionId> txset;
     std::vector<std::tuple<BalanceId, AccountToken, Funds_uint64>> updateBalances;
     std::vector<std::tuple<AccountToken, Funds_uint64>> insertBalances;
     std::vector<std::tuple<AddressView, AccountId>> insertAccounts;
+    std::vector<chain_db::OrderDelete> deleteOrders;
     std::vector<std::tuple<AccountToken, TokenName>> insertTokenCreations;
     std::vector<chain_db::OrderInsertData> insertOrders;
     std::vector<TransactionId> insertCancelOrder;
@@ -782,7 +793,7 @@ private:
         for (auto address : bv.addresses()) {
             if (newAddresses.emplace(address).second == false)
                 throw Error(EADDRPOLICY);
-            if (db.lookup_address(address))
+            if (db.lookup_account_id(address))
                 throw Error(EADDRPOLICY);
         }
     }
@@ -810,13 +821,13 @@ private:
         for (size_t i = 0; i < balanceChecker.token_creations().size(); ++i) {
             auto& tc { balanceChecker.token_creations()[i] };
             auto tokenId { beginNewTokenId + i };
-            const auto verified { tc.verify(hc, height, tokenId) };
+            const auto verified { tc.verify(txVerifier) };
             insertTokenCreations.push_back({ { tc.creatorAccountId, tokenId }, tc.tokenName });
             api.tokenCreations.push_back({
-                .txid { verified.id },
+                .txid { verified.txid },
                 .txhash { verified.hash },
                 .tokenName { tc.tokenName },
-                .tokenIndex { verified.tokenId },
+                .tokenIndex { tokenId },
                 .fee { tc.compactFee.uncompact() },
             });
         }
@@ -938,13 +949,18 @@ private:
             process_liquidity_removes(ihn, ts.liquidityRemoves);
         }
     }
+    template <typename... T>
+    [[nodiscard]] auto verify(auto& tx, T&&... t)
+    {
+        return tx.verify(txVerifier, std::forward<T>(t)...);
+    }
     // generate history for transfers and check signatures
     // and check for unique transaction ids
     void process_wart_transfers()
     {
         const auto& balanceChecker { this->balanceChecker }; // shadow balanceChecker
         for (auto& tr : balanceChecker.get_wart_transfers()) {
-            auto verified { tr.verify(txVerifier) };
+            auto verified { verify(tr) };
 
             auto& ref { history.push_wart_transfer(verified) };
             api.wartTransfers.push_back(api::Block::Transfer {
@@ -962,7 +978,7 @@ private:
     void process_token_transfers(const TokenIdHashName& token, const std::vector<TokenTransferInternal>& transfers)
     {
         for (auto& tr : transfers) {
-            auto verified { tr.verify(txVerifier, token.hash) };
+            auto verified { verify(tr, token.hash) };
 
             auto& ref { history.push_token_transfer(verified, token.id) };
             api.tokenTransfers.push_back(api::Block::TokenTransfer {
@@ -987,8 +1003,8 @@ private:
         auto poolLiquidity { td->liquidity() };
         NewOrdersInternal no;
         for (auto& o : orders) {
-            auto verified { o.verify(txVerifier, token.hash) };
-            auto& ref { history.push_order(verified, token.id) };
+            auto verified { verify(o, token.hash) };
+            auto& ref { history.push_order(verified) };
             api.newOrders.push_back(api::Block::NewOrder { .tokenInfo { token },
                 .fee { o.compactFee.uncompact() },
                 .amount { o.amount.funds },
@@ -1032,8 +1048,16 @@ private:
         }
         matchDeltas.push_back(std::move(m));
     }
-    void process_cancelations(const TokenIdHashName& ihn, const std::vector<CancelationInternal>& orders)
+    void process_cancelations(const TokenIdHashName& token, const std::vector<CancelationInternal>& cancelations)
     {
+        for (auto& c : cancelations) {
+            auto verified { verify(c, token.hash) };
+            auto o { db.select_order(verified.cancelation.cancelTxid) };
+            if (o) { // transaction is removed from the database
+                deleteOrders.push_back({ o->id, o->buy });
+            }
+            auto& ref { history.push_token_transfer() }
+        }
     }
     void process_liquidity_adds(const TokenIdHashName& ihn, const std::vector<LiquidityAddInternal>& orders)
     {
@@ -1107,9 +1131,11 @@ api::Block BlockApplier::apply_block(const ParsedBlock& b, BlockId blockId)
             balanceUpdates.insert_or_assign(accountToken, bal);
         }
 
-        // new accounts
-        for (auto& [address, accId] : prepared.insertAccounts)
+        for (auto& [address, accId] : prepared.insertAccounts) // new accounts
             db.insert_account(address, accId);
+
+        for (auto& d : prepared.deleteOrders) // delete orders
+            db.delete_order(d);
 
         for (auto& o : prepared.insertOrders) // new orders
             db.insert_order(o);
@@ -1132,7 +1158,7 @@ api::Block BlockApplier::apply_block(const ParsedBlock& b, BlockId blockId)
         }
 
         // write undo data
-        db.set_block_undo(blockId, prepared.rg.serialze());
+        db.set_block_undo(blockId, prepared.rg.serialize());
 
         // write consensus data
         db.insert_consensus(b.height, blockId, db.next_history_id(), prepared.rg.next_state_id());

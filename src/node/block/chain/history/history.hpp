@@ -43,7 +43,9 @@ struct IdAddressView {
     AddressView address;
 };
 
-struct SignerData  {
+struct TransactionVerifier;
+struct SignerData {
+    friend struct TransactionVerifier;
     SignerData(ValidAccountId id, AddressView address, RecoverableSignature signature, PinNonce pinNonce, CompactUInt compactFee)
         : origin({ id, address })
         , signature(signature)
@@ -55,14 +57,13 @@ struct SignerData  {
     RecoverableSignature signature;
     PinNonce pinNonce;
     CompactUInt compactFee;
+private:
     VerifiedHash verify_hash(Hash h) const
     {
         return { h, signature, origin.address };
     }
 };
 
-
-struct TransactionVerifier;
 struct VerifiedTransaction {
     VerifiedHash hash;
     VerifiedTransactionId txid;
@@ -104,7 +105,7 @@ public:
 
 class TxIdVerifier;
 
-struct TransferInternalWithoutAmount: public SignerData {
+struct TransferInternalWithoutAmount : public SignerData {
     IdAddressView to;
 };
 
@@ -115,7 +116,7 @@ struct VerifiedOrder : public VerifiedTransaction {
 public:
     const OrderInternal& order;
 };
-struct OrderInternal: public SignerData {
+struct OrderInternal : public SignerData {
     Price_uint64 limit;
     TokenFunds amount;
     bool buy;
@@ -125,13 +126,24 @@ struct OrderInternal: public SignerData {
     }
 };
 
-struct CancelationInternal: public SignerData {
-    TransactionId txid;
-};
-struct LiquidityAddInternal: public SignerData {
+struct CancelationInternal;
+struct VerifiedCancelation : public VerifiedTransaction {
+    VerifiedCancelation(const CancelationInternal&, const TransactionVerifier&, HashView tokenHash);
+    const CancelationInternal& cancelation;
 };
 
-struct LiquidityRemoveInternal: public SignerData {
+struct CancelationInternal : public SignerData {
+    TokenId tokenId;
+    TransactionId cancelTxid;
+    [[nodiscard]] VerifiedCancelation verify(const TransactionVerifier& tv, HashView tokenHash) const
+    {
+        return { *this, tv, tokenHash };
+    }
+};
+struct LiquidityAddInternal : public SignerData {
+};
+
+struct LiquidityRemoveInternal : public SignerData {
 };
 
 struct WartTransferInternal;
@@ -153,7 +165,7 @@ struct WartTransferInternal : public TransferInternalWithoutAmount {
     using TransferInternalWithoutAmount::TransferInternalWithoutAmount;
     [[nodiscard]] VerifiedWartTransfer verify(const TransactionVerifier& tv) const
     {
-        return VerifiedWartTransfer(*this, tv);
+        return { *this, tv };
     }
 };
 
@@ -178,32 +190,24 @@ struct TokenTransferInternal : public TransferInternalWithoutAmount {
     }
 };
 
-class VerifiedTokenCreation;
-struct TokenCreationInternal {
+struct TokenCreationInternal;
+struct VerifiedTokenCreation : public VerifiedTransaction {
+    friend struct TokenCreationInternal;
+    VerifiedTokenCreation(const TokenCreationInternal&, const TransactionVerifier&);
+    const TokenCreationInternal& tci;
+};
+
+struct TokenCreationInternal : public SignerData {
     ValidAccountId creatorAccountId;
     PinNonce pinNonce;
     TokenName tokenName;
     CompactUInt compactFee;
     RecoverableSignature signature;
     AddressView creatorAddress;
-    [[nodiscard]] VerifiedTokenCreation verify(const Headerchain&, NonzeroHeight, TokenId) const;
-};
-
-class VerifiedTokenCreation {
-    friend struct TokenCreationInternal;
-    VerifiedTokenCreation(const TokenCreationInternal&, PinHeight pinHeight, HashView pinHash, TokenId);
-    Address recover_address() const
+    [[nodiscard]] VerifiedTokenCreation verify(const TransactionVerifier& tv) const
     {
-        return tci.signature.recover_pubkey(hash).address();
+        return { *this, tv };
     }
-
-    bool valid_signature() const;
-
-public:
-    const TokenCreationInternal& tci;
-    TransactionId id;
-    Hash hash;
-    TokenId tokenId;
 };
 
 namespace history {
@@ -275,15 +279,25 @@ struct TokenTransferData {
 
 struct OrderData {
     TokenId tokenId;
+    bool buy;
     AccountId accountId;
     CompactUInt compactFee;
-    Funds_uint64 base;
-    Wart quote;
+    Price_uint64 limit;
+    Funds_uint64 amount;
     PinNonce pinNonce;
     constexpr static uint8_t indicator = 5;
-    constexpr static uint8_t bytesize = 4 + 8 + 2 + 8 + 8 + 8; // without indicator
+    constexpr static uint8_t bytesize = 4 + 1 + 8 + 2 + 8 + 8 + 8; // without indicator
     void write(Writer& w) const;
     static OrderData parse(Reader& r);
+};
+
+struct CancelationData{
+    TokenId tokenId;
+    bool buy;
+    AccountId accountId;
+    CompactUInt compactFee;
+
+    constexpr static uint8_t indicator = 6;
 };
 
 struct SwapData {
@@ -312,7 +326,7 @@ struct SwapData {
     void write(Writer& w) const;
 };
 struct BuySwapData : public SwapData {
-    constexpr static uint8_t indicator = 6;
+    constexpr static uint8_t indicator = 7;
     explicit BuySwapData(SwapData sd)
         : SwapData(std::move(sd))
     {
@@ -323,7 +337,7 @@ struct BuySwapData : public SwapData {
     }
 };
 struct SellSwapData : public SwapData {
-    constexpr static uint8_t indicator = 7;
+    constexpr static uint8_t indicator = 8;
     explicit SellSwapData(SwapData sd)
         : SwapData(std::move(sd))
     {
@@ -334,13 +348,14 @@ struct SellSwapData : public SwapData {
     }
 };
 
-using Data = std::variant<RewardData, WartTransferData, TokenCreationData, TokenTransferData, OrderData, BuySwapData, SellSwapData>;
+using Data = std::variant<WartTransferData, RewardData, TokenCreationData, TokenTransferData, OrderData, CancelationData, BuySwapData, SellSwapData>;
 
 struct Entry {
     Entry(const RewardInternal& p);
     Entry(const VerifiedWartTransfer& p);
     Entry(const VerifiedTokenTransfer& p, TokenId);
-    Entry(const VerifiedOrder& p, TokenId);
+    Entry(const VerifiedOrder& p);
+    Entry(const VerifiedCancelation& p);
     Entry(const VerifiedTokenCreation& p);
     Entry(const BuySwapHist& p);
     Entry(const SellSwapHist& p);

@@ -6,7 +6,7 @@ struct AccountHistory;
 struct AccountIdOrAddress;;
 struct AddressCount;
 struct AddressWithId;
-struct Balance;
+struct WartBalance;
 struct Block;
 struct ChainHead;
 struct HashrateBlockChart;

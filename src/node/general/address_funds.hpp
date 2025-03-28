@@ -6,7 +6,7 @@ struct AddressFunds {
     Address address;
     Funds_uint64 funds;
 };
-struct AccountFunds {
+struct AccountWart {
     AccountId accointId;
-    Funds_uint64 funds;
+    Wart funds;
 };

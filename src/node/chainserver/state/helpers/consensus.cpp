@@ -252,7 +252,7 @@ TxHash Chainstate::insert_tx(const PaymentCreateMessage& m)
     auto fromAddr = m.from_address(txHash);
     if (fromAddr == m.toAddr)
         throw Error(ESELFSEND);
-    auto p = db.lookup_address(fromAddr);
+    auto p = db.lookup_account_id(fromAddr);
     if (!p)
         throw Error(EADDRNOTFOUND);
     auto& [accountId, balance] = *p;

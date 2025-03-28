@@ -29,6 +29,7 @@ src= [
   './api/types/all.cpp',
   './block/body/generator.cpp',
   './block/body/primitives.cpp',
+  './block/body/rollback.cpp',
   './block/chain/consensus_headers.cpp',
   './block/chain/fork_range.cpp',
   './block/chain/header_chain.cpp',

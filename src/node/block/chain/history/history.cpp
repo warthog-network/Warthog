@@ -1,6 +1,5 @@
 #include "history.hpp"
 #include "block/chain/header_chain.hpp"
-#include "general/is_testnet.hpp"
 #include "general/writer.hpp"
 
 auto TransactionVerifier::pin_info(PinNonce pinNonce) const -> PinInfo
@@ -13,20 +12,20 @@ auto TransactionVerifier::pin_info(PinNonce pinNonce) const -> PinInfo
 }
 
 template <typename... HashArgs>
-VerifiedTransaction TransactionVerifier::verify(const SignerData& origin, HashArgs&&... hashArgs) const
+VerifiedTransaction TransactionVerifier::verify(const SignerData& sd, HashArgs&&... hashArgs) const
 {
     const PinFloor pinFloor { h.pin_floor() };
-    PinHeight pinHeight(origin.pinNonce.pin_height_from_floored(pinFloor));
+    PinHeight pinHeight(sd.pinNonce.pin_height_from_floored(pinFloor));
     Hash pinHash { hc.hash_at(h) };
     return {
-        origin.verify_hash((
+        sd.verify_hash((
             (HasherSHA256()
                 << pinHash
                 << pinHeight
-                << origin.pinNonce.id
-                << origin.pinNonce.reserved)
+                << sd.pinNonce.id
+                << sd.pinNonce.reserved)
             << ... << std::forward<HashArgs>(hashArgs))),
-        { { origin.id, pinHeight, origin.pinNonce.id }, validator }
+        { { sd.origin.id, pinHeight, sd.pinNonce.id }, validator }
     };
 }
 
@@ -41,7 +40,7 @@ Hash RewardInternal::hash() const
 
 VerifiedOrder::VerifiedOrder(const OrderInternal& o, const TransactionVerifier& verifier, HashView tokenHash)
     : VerifiedTransaction(verifier.verify(
-          o.origin,
+          o,
           o.compactFee.uncompact(),
           o.limit.to_uint32(),
           o.amount.funds,
@@ -52,7 +51,7 @@ VerifiedOrder::VerifiedOrder(const OrderInternal& o, const TransactionVerifier& 
 }
 
 VerifiedTokenTransfer::VerifiedTokenTransfer(const TokenTransferInternal& ti, const TransactionVerifier& verifier, HashView tokenHash)
-    : VerifiedTransaction(verifier.verify(ti.origin,
+    : VerifiedTransaction(verifier.verify(ti,
           ti.compactFee.uncompact(),
           ti.to.address,
           ti.amount,
@@ -62,7 +61,7 @@ VerifiedTokenTransfer::VerifiedTokenTransfer(const TokenTransferInternal& ti, co
 }
 
 VerifiedWartTransfer::VerifiedWartTransfer(const WartTransferInternal& ti, const TransactionVerifier& verifier)
-    : VerifiedTransaction(verifier.verify(ti.origin,
+    : VerifiedTransaction(verifier.verify(ti,
           ti.compactFee.uncompact(),
           ti.to.address,
           ti.amount))
@@ -70,44 +69,19 @@ VerifiedWartTransfer::VerifiedWartTransfer(const WartTransferInternal& ti, const
 {
 }
 
-VerifiedTokenCreation TokenCreationInternal::verify(const Headerchain& hc, NonzeroHeight height, TokenId tid) const
+VerifiedTokenCreation::VerifiedTokenCreation(const TokenCreationInternal& tci, const TransactionVerifier& verifier)
+    : VerifiedTransaction(verifier.verify(tci)
+          // ,tci.tokenName.view() // TODO
+          )
+    , tci(tci)
 {
-    assert(height <= hc.length() + 1);
-    assert(!creatorAddress.is_null());
-    const PinFloor pinFloor { height.pin_floor() };
-    PinHeight pinHeight(pinNonce.pin_height_from_floored(pinFloor));
-    Hash pinHash { hc.hash_at(pinHeight) };
-    return VerifiedTokenCreation(*this, pinHeight, pinHash, tid);
-}
-
-bool VerifiedTokenCreation::valid_signature() const
-{
-    auto recovered = recover_address();
-    return recovered == tci.creatorAddress;
-}
-
-VerifiedTokenCreation::VerifiedTokenCreation(const TokenCreationInternal& tci, PinHeight pinHeight, HashView pinHash, TokenId tokenIndex)
-    : tci(tci)
-    , id { tci.creatorAccountId, pinHeight, tci.pinNonce.id }
-    , hash(HasherSHA256()
-          << pinHash
-          << pinHeight
-          << tci.signature
-          << tci.tokenName.view()
-          << tci.pinNonce.id
-          << tci.pinNonce.reserved
-          << tci.compactFee.uncompact())
-    , tokenId(std::move(tokenIndex))
-{
-    if (!valid_signature())
-        throw Error(ECORRUPTEDSIG);
 }
 
 namespace history {
 
 SwapHist::SwapHist(SwapInternal si, bool buyBase, Height h)
     : SwapInternal(std::move(si))
-    , hash(HasherSHA256() << uint8_t(buyBase) << si.oId << si.accId << base << quote << h)
+    , hash(HasherSHA256() << uint8_t(buyBase) << si.txid.accountId << base << quote << h)
 {
 }
 
@@ -127,7 +101,7 @@ Entry::Entry(const VerifiedWartTransfer& p)
         p.ti.compactFee,
         p.ti.to.id,
         p.ti.amount,
-        p.ti.origin.pinNonce });
+        p.ti.pinNonce });
 }
 
 Entry::Entry(const VerifiedTokenTransfer& p, TokenId tokenId)
@@ -135,22 +109,40 @@ Entry::Entry(const VerifiedTokenTransfer& p, TokenId tokenId)
 {
     data = serialize(TokenTransferData {
         tokenId,
-        p.ti.origin.id,
+        p.txid.accountId,
         p.ti.compactFee,
         p.ti.to.id,
         p.ti.amount,
-        p.ti.origin.pinNonce });
+        p.ti.pinNonce });
 }
-Entry::Entry(const VerifiedOrder& p, TokenId tokenId)
+Entry::Entry(const VerifiedOrder& p)
     : hash(p.hash)
 {
-    data = serialize(TokenTransferData {
-        tokenId,
-        p.ti.from.id,
-        p.ti.compactFee,
-        p.ti.to.id,
-        p.ti.amount,
-        p.ti.from.pinNonce });
+    data = serialize(OrderData {
+        p.order.amount.tokenId,
+        p.order.buy,
+        p.txid.accountId,
+        p.order.compactFee,
+        p.order.limit,
+        p.order.amount.funds,
+        p.order.pinNonce });
+}
+
+Entry::Entry(const VerifiedCancelation& p)
+    : hash(p.hash)
+{
+    // TokenId tokenId;
+    // bool buy;
+    // AccountId accountId;
+    // CompactUInt compactFee;
+    data = serialize(CancelationData {
+        p.cancelation.pinNonce,
+        p.cancelation.tokenId,
+        p.txid.accountId,
+        p.cancelation.compactFee,
+        p.cancelation.limit,
+        p.cancelation.amount.funds,
+        p.cancelation.pinNonce });
 }
 TokenTransferData TokenTransferData::parse(Reader& r)
 {
@@ -198,14 +190,14 @@ void TokenTransferData::write(Writer& w) const
 
 OrderData OrderData::parse(Reader& r)
 {
-    return OrderData { r, r, r, r, r, r };
+    return OrderData { r, r, r, r, Price_uint64::from_uint32_throw(r.uint32()), r, r };
 }
 
 void OrderData::write(Writer& w) const
 {
     assert(w.remaining() == bytesize);
-    w << tokenId << accountId << compactFee << base
-      << quote << pinNonce;
+    w << tokenId << buy << accountId << compactFee << amount
+      << limit.to_uint32() << pinNonce;
 }
 
 void WartTransferData::write(Writer& w) const

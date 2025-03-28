@@ -1,4 +1,5 @@
 #pragma once
+#include "block/body/account_id.hpp"
 #include "defi/token/id.hpp"
 #include "general/errors.hpp"
 #include "general/with_uint64.hpp"
@@ -134,6 +135,7 @@ public:
     static Funds_uint64 parse_throw(std::string_view, DecimalDigits);
     std::string to_string(DecimalDigits) const;
 };
+
 struct TokenFunds {
     TokenId tokenId;
     Funds_uint64 funds;

@@ -25,8 +25,7 @@ class CancelId;
 class TokenInfo;
 struct SignedSnapshot;
 class Headerchain;
-struct RawBody : public std::vector<uint8_t> {
-};
+
 struct RawUndo : public std::vector<uint8_t> {
 };
 struct Candle {
@@ -50,7 +49,7 @@ struct PoolData {
 
 struct BlockUndoData {
     Header header;
-    RawBody rawBody;
+    BodyContainer body;
     RawUndo rawUndo;
 };
 
@@ -144,8 +143,8 @@ public:
     // Order functions
     void insert_order(const chain_db::OrderInsertData&);
     void change_fillstate(const chain_db::OrderFillstate&);
-    void delete_order(TransactionId);
     void delete_order(const chain_db::OrderDelete&);
+    [[nodiscard]] std::optional<chain_db::OrderInsertData> select_order(TransactionId) const;
 
     [[nodiscard]] OrderLoaderAscending base_order_loader_ascending(TokenId) const;
     [[nodiscard]] OrderLoaderDescending quote_order_loader_descending(TokenId) const;
@@ -246,7 +245,7 @@ public:
 
     //////////////////////////////
     // BELOW METHODS REQUIRED FOR INDEXING NODES
-    std::optional<AccountFunds> lookup_address(const AddressView address) const; // for indexing nodes
+    std::optional<AccountId> lookup_account_id(const AddressView address) const; // for indexing nodes
     std::vector<std::tuple<HistoryId, Hash, std::vector<uint8_t>>> lookup_history_100_desc(AccountId account_id, int64_t beforeId);
     size_t byte_size() const;
 
@@ -468,6 +467,8 @@ private:
     Statement stmtDeleteQuoteBuyOrderTxid;
     mutable Statement stmtSelectBaseSellOrderAsc;
     mutable Statement stmtSelectQuoteBuyOrderDesc;
+    mutable Statement stmtSelectBaseSell;
+    mutable Statement stmtSelectQuoteBuy;
 
     // Canceled statements
     Statement stmtInsertCanceled;

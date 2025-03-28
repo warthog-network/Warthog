@@ -586,7 +586,7 @@ json to_json(const TCPPeeraddr& a)
     return a.to_string();
 }
 
-json to_json(const api::Balance& b)
+json to_json(const api::WartBalance& b)
 {
     json j;
     j["balance"] = b.balance.to_string();

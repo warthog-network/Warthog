@@ -57,6 +57,10 @@ public:
     {
     }
     ~Writer() { assert(pos <= end); }
+    Writer& operator<<(bool b)
+    {
+        return operator<<(uint8_t(b));
+    }
     Writer& operator<<(uint8_t i)
     {
         assert(remaining() >= 1);

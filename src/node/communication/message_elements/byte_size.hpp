@@ -2,6 +2,7 @@
 #include <cstddef>
 #include <optional>
 #include <type_traits>
+#include <utility>
 
 template <typename T>
 size_t byte_size(T&& t)
@@ -20,4 +21,10 @@ size_t byte_size(const std::optional<T>& t)
     if (t)
         return 1 + byte_size(*t);
     return 1;
+}
+
+template <typename T, typename U>
+size_t byte_size(const std::pair<T, U>& p)
+{
+    return byte_size(p.first) + byte_size(p.second);
 }

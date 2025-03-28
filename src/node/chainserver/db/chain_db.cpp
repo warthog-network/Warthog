@@ -10,7 +10,6 @@
 #include "defi/token/info.hpp"
 #include "defi/token/token.hpp"
 #include "general/hex.hpp"
-#include "general/now.hpp"
 #include "general/writer.hpp"
 #include "global/globals.hpp"
 #include "sqlite3.h"
@@ -39,7 +38,7 @@ ChainDB::Cache ChainDB::Cache::init(SQLite::Database& db)
     return {
         .nextAccountId { nextAccountId },
         .nextTokenId { nextTokenId },
-        .nextStateId = uint64_t(nextStateId),
+        .nextStateId { nextStateId },
         .nextHistoryId = HistoryId { uint64_t(hid) },
         .deletionKey { 2 }
 
@@ -74,21 +73,23 @@ ChainDB::ChainDB(const std::string& path)
     , stmtSelectCandles1h(db, "SELECT (timestamp, open, high, low, close, quantity, volume) FROM Candles1h WHERE token_id=? AND timestamp>=? AND timestamp<=?")
 
     , stmtInsertBaseSellOrder(db, "INSERT INTO SellOrders (id, account_id, pin_height, nonce_id, token_id, totalBase, filledBase, limit) VALUES(?,?,?,?,?,?,?,?)")
-    , stmtChangeBaseSellOrder(db, "UPDATE SellOrders SET filledBase = ? WHERE id = ?")
+    , stmtUpdateFillBaseSellOrder(db, "UPDATE SellOrders SET filledBase = ? WHERE id = ?")
     , stmtDeleteBaseSellOrder(db, "DELETE FROM SellOrders WHERE id = ?")
     , stmtDeleteBaseSellOrderTxid(db, "DELETE FROM SellOrders WHERE account_id = ? AND pin_height = ? AND nonce_id = ?")
-    , stmtInsertQuoteBuyOrder(db, "INSERT INTO BuyOrders (id, account_id, pin_height, nonce_id, token_id, totalBase, filledQuote, limit) VALUES(?,?,?,?,?,?,?,?)")
+    , stmtInsertQuoteBuyOrder(db, "INSERT INTO BuyOrders (id, account_id, pin_height, nonce_id, token_id, totalQuote, filledQuote, limit) VALUES(?,?,?,?,?,?,?,?)")
     , stmtUpdateFillQuoteBuyOrder(db, "UPDATE BuyOrders SET filledQuote = ? WHERE id = ?")
     , stmtDeleteQuoteBuyOrder(db, "DELETE FROM BuyOrders WHERE id = ?")
     , stmtDeleteQuoteBuyOrderTxid(db, "DELETE FROM BuyOrders WHERE account_id = ? AND pin_height = ? AND nonce_id = ?")
     , stmtSelectBaseSellOrderAsc(db, "SELECT (id, account_id, pin_height, nonce_id, totalBase, filledBase, limit) FROM SellOrders WHERE token_id=? ORDER BY limit ASC, id ASC")
     , stmtSelectQuoteBuyOrderDesc(db, "SELECT (id, account_id, pin_height, nonce_id, totalQuote, filledQuote, limit) FROM BuyOrders WHERE token_id=? ORDER BY limit DESC, id ASC")
+    , stmtSelectBaseSell(db, "SELECT (id, token_id, totalBase, filledBase, limit) FROM SellOrders WHERE account_id = ? AND pin_height = ? AND nonce_id = ?")
+    , stmtSelectQuoteBuy(db, "SELECT (id, token_id, totalQuote, filledQuote, limit) FROM BuyOrders WHERE account_id = ? AND pin_height = ? AND nonce_id = ?")
     , stmtInsertCanceled(db, "INSERT INTO Canceled (id, account_id, pin_height, nonce_id) VALUES (?,?,?,?)")
     , stmtDeleteCanceled(db, "DELETE FROM Canceled WHERE id = ?")
     , stmtInsertPool(db, "INSERT INTO Pools (id, token_id, pool_wart, pool_token, pool_shares) VALUES (?,?,0,0,0)")
     , stmtSelectPool(db, "SELECT (id, token_id, liquidity_token, liquidity_wart, pool_shares) FROM Pools WHERE token_id=? OR id=?")
     , stmtUpdatePool(db, "UPDATE Pools SET liquidity_base=?, liquidity_quote=?, pool_shares=? WHERE id=?")
-    ,stmtUpdatePoolLiquidity(db, "UPDATE Pools SET liquidity_base=?, liquidity_quote=? WHERE token_id=?")
+    , stmtUpdatePoolLiquidity(db, "UPDATE Pools SET liquidity_base=?, liquidity_quote=? WHERE token_id=?")
     , stmtTokenForkBalanceInsert(db, "INSERT INTO TokenForkBalances "
                                      "(id, account_id, token_id, height, balance) "
                                      "VALUES (?,?,?,?)")
@@ -174,8 +175,7 @@ ChainDB::ChainDB(const std::string& path)
 
     // BELOW STATEMENTS REQUIRED FOR INDEXING NODES
     //
-    , stmtAddressLookup(
-          db, "SELECT `ROWID`,`balance` FROM `Accounts` WHERE `address`=?")
+    , stmtAddressLookup(db, "SELECT `ROWID` FROM `Accounts` WHERE `address`=?")
     , stmtHistoryById(db, "SELECT h.id, `hash`,`data` FROM `History` `h` JOIN "
                           "`AccountHistory` `ah` ON h.id=`ah`.history_id WHERE "
                           "ah.`account_id`=? AND h.id<? ORDER BY h.id DESC LIMIT 100")
@@ -189,7 +189,7 @@ ChainDB::ChainDB(const std::string& path)
 
 void ChainDB::insert_account(const AddressView address, AccountId verifyNextAccountId)
 {
-    if (cache.nextStateId != verifyNextAccountId.value())
+    if (cache.nextAccountId != verifyNextAccountId)
         throw std::runtime_error("Internal error, state id inconsistent.");
     stmtAccountsInsert.run(cache.nextStateId, address);
     cache.nextStateId++;
@@ -463,12 +463,6 @@ void ChainDB::change_fillstate(const chain_db::OrderFillstate& o)
         stmtUpdateFillBaseSellOrder.run(o.filled, o.id);
 }
 
-void ChainDB::delete_order(TransactionId txid)
-{
-    stmtDeleteBaseSellOrderTxid.run(txid.accountId, txid.pinHeight, txid.nonceId);
-    stmtDeleteQuoteBuyOrderTxid.run(txid.accountId, txid.pinHeight, txid.nonceId);
-}
-
 void ChainDB::delete_order(const chain_db::OrderDelete& od)
 {
     if (od.buy)
@@ -477,6 +471,38 @@ void ChainDB::delete_order(const chain_db::OrderDelete& od)
         stmtDeleteBaseSellOrder.run(od.id);
 }
 
+std::optional<chain_db::OrderInsertData> ChainDB::select_order(TransactionId id) const
+{
+    using ret_t = chain_db::OrderInsertData;
+
+    std::optional<chain_db::OrderInsertData> res {
+        stmtSelectBaseSell.one(id.accountId, id.pinHeight, id.nonceId).process([&](auto o) {
+            return ret_t {
+                .id { o[0] },
+                .buy { false },
+                .txid { id },
+                .tid { o[1] },
+                .total { o[2] },
+                .filled { o[3] },
+                .limit { o[4] }
+            };
+        })
+    };
+    if (!res) {
+        res = stmtSelectQuoteBuy.one(id.accountId, id.pinHeight, id.nonceId).process([&](auto o) {
+            return ret_t {
+                .id { o[0] },
+                .buy { true },
+                .txid { id },
+                .tid { o[1] },
+                .total { o[2] },
+                .filled { o[3] },
+                .limit { o[4] }
+            };
+        });
+    }
+    return res;
+}
 OrderLoaderAscending ChainDB::base_order_loader_ascending(TokenId tid) const
 {
     return { stmtSelectBaseSellOrderAsc.bind_multiple(tid) };
@@ -689,10 +715,10 @@ void ChainDB::insertAccountHistory(AccountId accountId, HistoryId historyId)
     stmtAccountHistoryInsert.run(accountId, historyId);
 }
 
-std::optional<AccountFunds> ChainDB::lookup_address(const AddressView address) const
+std::optional<AccountId> ChainDB::lookup_account_id(const AddressView address) const
 {
     return stmtAddressLookup.one(address).process([](auto& p) {
-        return AccountFunds { p[0], p[1] };
+        return AccountId { p[0] };
     });
 }
 
