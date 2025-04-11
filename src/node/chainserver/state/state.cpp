@@ -733,11 +733,21 @@ api::WartBalance State::api_get_address(AccountId accountId) const
             p->funds
         };
     } else {
-        return api::WartBalance {
-            {},
-            Wart::zero()
-        };
+        return {};
     }
+}
+
+std::optional<TokenInfo> State::db_lookup_token(const api::TokenIdOrHash& token) const
+{
+    return token.visit([&](const auto& token) { return db.lookup_token(token); });
+}
+
+auto State::api_get_token_balance(const api::AccountIdOrAddress& account, const api::TokenIdOrHash& token) const -> api::WartBalance
+{
+    auto aid { account.map_alternative([&](const Address& a) { return db.lookup_account_id(a); }) };
+    auto tokenInfo { token.visit([&](const auto& token) { return db.lookup_token(token); }) };
+    if (!aid || !tokenInfo)
+        return {};
 }
 
 auto State::insert_txs(const TxVec& txs) -> std::pair<std::vector<Error>, mempool::Log>
@@ -929,5 +939,4 @@ size_t State::api_db_size() const
 {
     return db.byte_size();
 }
-
 }

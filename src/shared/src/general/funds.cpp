@@ -7,6 +7,43 @@
 #include <cstring>
 #include <limits>
 
+std::optional<FundsDecimal> FundsDecimal::parse(std::string_view s)
+{
+    std::optional<FundsDecimal> res;
+    constexpr const size_t N { 20 }; // max uint64_t has 20 digits max
+    char buf[N];
+    size_t i { 0 };
+    uint8_t digits { 0 };
+    bool dotfound { false };
+    for (auto c : s) {
+        if (c >= '0' && c <= '9') {
+            if (i >= N)
+                return res;
+            buf[i++] = c;
+            if (dotfound)
+                digits += 1;
+        } else if (c == '.') {
+            if (dotfound)
+                return res;
+            dotfound = true;
+        } else {
+            return res;
+        }
+    }
+    uint64_t v;
+    auto [ptr, ec] { std::from_chars(buf, buf + i, v) };
+    if (ec != std::errc() || ptr != buf + i)
+        return {};
+    return FundsDecimal { v, digits };
+}
+FundsDecimal::FundsDecimal(std::string_view s)
+    : FundsDecimal([&s]() {
+        if (auto p { parse(s) })
+            return *p;
+        throw Error(EINV_FUNDS);
+    }())
+{
+}
 
 Funds_uint64 Funds_uint64::parse_throw(std::string_view s, DecimalDigits d)
 {
@@ -16,14 +53,13 @@ Funds_uint64 Funds_uint64::parse_throw(std::string_view s, DecimalDigits d)
     throw Error(EINV_FUNDS);
 }
 
-namespace {
-[[nodiscard]] std::string funds_to_string(uint64_t val, DecimalDigits decimals)
+[[nodiscard]] std::string FundsDecimal::to_string() const
 {
-    const size_t d { decimals() };
-    if (val == 0)
+    const size_t d { decimals };
+    if (v == 0)
         return "0";
     static_assert(COINUNIT == 100000000);
-    std::string s { std::to_string(val) };
+    std::string s { std::to_string(v) };
     size_t p = s.size();
     if (p > d) {
         s.resize(p + 1);
@@ -43,11 +79,12 @@ namespace {
         return tmp;
     }
 }
-}
+
 std::string Funds_uint64::to_string(DecimalDigits decimals) const
 {
-    return funds_to_string(val, decimals);
+    return to_decimal(decimals).to_string();
 }
+
 Funds_uint64::Funds_uint64(Reader& r)
     : FundsBase<Funds_uint64>(from_value_throw(r))
 {
@@ -55,39 +92,19 @@ Funds_uint64::Funds_uint64(Reader& r)
 
 std::optional<Funds_uint64> Funds_uint64::parse(std::string_view s, DecimalDigits digits)
 {
-    const size_t d { digits() };
-    static_assert(DecimalDigits::max <= 18); // otherwise we need to add entries to this buf
-    char buf[20]; // max uint64_t has 20 digits max
-    size_t dotindex = 0;
-    bool dotfound = false;
-    size_t i;
-    auto out { buf };
-    for (i = 0; i < s.length(); ++i) {
-        if (i > 20 || (i == 19 && dotfound == false))
-            return {}; // too many digits
-        char c = s[i];
-        if (c == '.') {
-            if (!dotfound) {
-                dotfound = true;
-                dotindex = i;
-            } else
-                return {};
-        } else if (c >= '0' && c <= '9') {
-            *(out++) = c;
-        } else {
-            return {};
-        }
-    }
-
-    uint64_t v;
-    auto [ptr, ec] { std::from_chars(buf, out, v) };
-    if (ec != std::errc() || ptr != out)
+    auto fd { FundsDecimal::parse(s) };
+    if (!fd)
         return {};
+    return parse(*fd, digits);
+}
 
-    size_t afterDotDigits = dotfound ? i - dotindex - 1 : 0;
-    if (afterDotDigits > d)
+std::optional<Funds_uint64> Funds_uint64::parse(FundsDecimal fd, DecimalDigits digits)
+{
+    if (fd.decimals > digits())
         return {};
-    const size_t zeros = d - afterDotDigits;
+    size_t zeros { size_t(digits()) - size_t(fd.decimals) };
+    auto v { fd.v };
+
     for (size_t i { 0 }; i < zeros; ++i) {
         if (std::numeric_limits<uint64_t>::max() / 10 < v)
             return {};
@@ -95,13 +112,23 @@ std::optional<Funds_uint64> Funds_uint64::parse(std::string_view s, DecimalDigit
     }
     return Funds_uint64::from_value(v);
 }
+
 std::optional<Wart> Wart::parse(std::string_view s)
 {
-    auto p { Funds_uint64::parse(s, DecimalDigits::digits8()) };
+    auto fd { FundsDecimal::parse(s) };
+    if (!fd)
+        return {};
+    return parse(*fd);
+}
+
+std::optional<Wart> Wart::parse(FundsDecimal fd)
+{
+    auto p { Funds_uint64::parse(fd, DecimalDigits::digits8()) };
     if (p)
         return Wart::from_value(p->value());
     return {};
 }
+
 Wart Wart::parse_throw(std::string_view s)
 {
     if (auto o { parse(s) }; o.has_value()) {

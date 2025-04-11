@@ -43,10 +43,10 @@ NonceId extract_nonce_id(const nlohmann::json& json)
 CompactUInt extract_fee(const nlohmann::json& json)
 {
     try {
-        std::optional<Funds_uint64> fee;
+        std::optional<Wart> fee;
         auto iter = json.find("fee");
         if (iter != json.end()) {
-            fee = { Funds_uint64::parse_throw(iter->get<std::string>()) };
+            fee = { Wart::parse_throw(iter->get<std::string>()) };
             if (!fee.has_value())
                 goto error;
         }
@@ -54,7 +54,7 @@ CompactUInt extract_fee(const nlohmann::json& json)
         if (iter != json.end()) {
             if (fee.has_value())
                 goto error; // exclusive, either "amount" or "amountE8"
-            fee = Funds_uint64::from_value(iter->get<uint64_t>());
+            fee = Wart::from_value(iter->get<uint64_t>());
             if (!fee.has_value())
                 goto error;
         }
@@ -85,7 +85,7 @@ Funds_uint64 extract_funds(const nlohmann::json& json)
         std::optional<Funds_uint64> f;
         auto iter = json.find("amount");
         if (iter != json.end()) {
-            f = Funds_uint64::parse(iter->get<std::string>());
+            f = Wart::parse(iter->get<std::string>());
             if (!f.has_value())
                 goto error;
         }
@@ -129,10 +129,10 @@ PaymentCreateMessage parse_payment_create(const std::vector<uint8_t>& s)
     }
 }
 
-Funds_uint64 parse_funds(const std::vector<uint8_t>& s)
-{
-    std::string str(s.begin(), s.end());
-    if (auto o { Funds_uint64::parse(str) }; o.has_value())
-        return *o;
-    throw Error(EINV_ARGS);
-};
+// Funds_uint64 parse_funds(const std::vector<uint8_t>& s)
+// {
+//     std::string str(s.begin(), s.end());
+//     if (auto o { Funds_uint64::parse(str) }; o.has_value())
+//         return *o;
+//     throw Error(EINV_ARGS);
+// };

@@ -1,5 +1,4 @@
 #pragma once
-#include "block/body/account_id.hpp"
 #include "defi/token/id.hpp"
 #include "general/errors.hpp"
 #include "general/with_uint64.hpp"
@@ -29,6 +28,20 @@ public:
             return {};
         return DecimalDigits { v };
     }
+};
+
+struct FundsDecimal {
+    [[nodiscard]] static std::optional<FundsDecimal> parse(std::string_view);
+    FundsDecimal(std::string_view);
+    FundsDecimal(uint64_t v, uint8_t decimals)
+        : v(v)
+        , decimals(decimals)
+    {
+    }
+    static FundsDecimal zero() { return { 0, 0 }; }
+    std::string to_string() const;
+    uint64_t v;
+    uint8_t decimals;
 };
 
 template <typename R>
@@ -132,7 +145,12 @@ public:
     Funds_uint64(Reader& r);
     auto operator<=>(const Funds_uint64&) const = default;
     static std::optional<Funds_uint64> parse(std::string_view, DecimalDigits);
+    static std::optional<Funds_uint64> parse(FundsDecimal, DecimalDigits);
     static Funds_uint64 parse_throw(std::string_view, DecimalDigits);
+    FundsDecimal to_decimal(DecimalDigits d) const
+    {
+        return { value(), d() };
+    }
     std::string to_string(DecimalDigits) const;
 };
 
@@ -154,6 +172,7 @@ public:
     }
     auto operator<=>(const Wart&) const = default;
     static std::optional<Wart> parse(std::string_view);
+    static std::optional<Wart> parse(FundsDecimal);
     static Wart parse_throw(std::string_view);
     std::string to_string() const;
     uint64_t E8() const { return val; };

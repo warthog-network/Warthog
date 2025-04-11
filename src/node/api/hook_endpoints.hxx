@@ -1,11 +1,13 @@
 #pragma once
 #include "api/http/json.hpp"
+// #include "general/funds.hpp"
 #include "api/http/parse.hpp"
 #include "api/types/accountid_or_address.hpp"
 #include "api/types/all.hpp"
-#include "communication/rxtx_server/rxtx_server.hpp"
+#include "api/types/input.hpp"
 #include "chainserver/transaction_ids.hpp"
 #include "communication/mining_task.hpp"
+#include "communication/rxtx_server/rxtx_server.hpp"
 #include "general/hex.hpp"
 #include "http/json.hpp"
 #include "spdlog/spdlog.h"
@@ -42,9 +44,19 @@ struct ParameterParser {
     {
         return PrivKey(sv);
     }
-    operator Funds_uint64()
+    operator api::U64OrHash()
     {
-        return Funds_uint64::parse_throw(sv);
+        if (sv.length() == 64)
+            return { Hash { *this } };
+        return { static_cast<uint64_t>(*this) };
+    }
+    operator FundsDecimal()
+    {
+        return FundsDecimal(sv);
+    }
+    operator Wart()
+    {
+        return Wart::parse_throw(sv);
     }
     operator Page()
     {
@@ -222,7 +234,8 @@ public:
         hook_post(t, "/chain/append", parse_mining_task, put_chain_append, true);
 
         t.indexGenerator.section("Account Endpoints");
-        hook_get_1(t, "/account/:account/balance", get_account_balance);
+        hook_get_1(t, "/account/:account/balance", get_account_wart_balance);
+        hook_get_1(t, "/account/:account/balance/:tokenhash", get_token_balance);
         hook_get_2(t, "/account/:account/history/:beforeTxIndex", get_account_history);
         hook_get(t, "/account/richlist", get_account_richlist);
 
@@ -233,7 +246,7 @@ public:
         hook_get_1(t, "/peers/offenses/:page", get_offenses);
         hook_get(t, "/peers/connected", get_connected_peers2, true);
         hook_get_1(t, "/peers/disconnect/:id", disconnect_peer, true);
-        hook_get(t,"/peers/throttled", get_throttled_peers, true);
+        hook_get(t, "/peers/throttled", get_throttled_peers, true);
         hook_get(t, "/peers/connected/connection", get_connected_connection);
         hook_get(t, "/peers/connection_schedule", get_connection_schedule);
         hook_get(t, "/peers/transmission_hours", get_transmission_hours, true);

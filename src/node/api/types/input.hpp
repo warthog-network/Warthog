@@ -1,0 +1,13 @@
+#pragma once
+
+#include "block/body/account_id.hpp"
+#include "crypto/address.hpp"
+#include "crypto/hash.hpp"
+#include "defi/token/id.hpp"
+#include "tools/variant.hpp"
+class Reader;
+
+namespace api {
+struct TokenIdOrHash : public wrt::alternative<TokenId, TokenHash> { };
+struct AccountIdOrAddress : public wrt::alternative<AccountId, Address> { };
+}

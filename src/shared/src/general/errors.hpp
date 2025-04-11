@@ -154,6 +154,7 @@
     XX(303, EBADAMOUNT, "invalid amount")                                          \
     XX(304, EPARSESIG, "cannot parse signature")                                   \
     XX(305, ENOTSYNCED, "node not synced yet")                                     \
+    XX(306, EBADTOKEN, "invalid token")                                            \
     XX(1000, ESIGTERM, "received SIGTERM")                                         \
     XX(1001, ESIGHUP, "received SIGHUP")                                           \
     XX(1002, ESIGINT, "received SIGINT")                                           \

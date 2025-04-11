@@ -81,10 +81,10 @@ void get_connected_connection(ConnectedConnectionCB&& cb)
 
 void get_round16bit_e8(uint64_t e8, RoundCb cb)
 {
-    cb(api::Round16Bit { Funds_uint64::from_value_throw(e8) });
+    cb(api::Round16Bit { Wart::from_value_throw(e8) });
 }
 
-void get_round16bit_funds(Funds_uint64 f, RoundCb cb)
+void get_round16bit_funds(Wart f, RoundCb cb)
 {
     cb(api::Round16Bit { f });
 }
@@ -317,9 +317,12 @@ void get_signed_snapshot(Eventloop::SignedSnapshotCb&& cb)
 }
 
 // account functions
-void get_account_balance(const api::AccountIdOrAddress& address, BalanceCb f)
+void get_account_wart_balance(const api::AccountIdOrAddress& address, BalanceCb f)
 {
-    global().chainServer->api_get_balance(address, f);
+    global().chainServer->api_get_wart_balance(address, f);
+}
+void get_account_token_balance(const api::AccountIdOrAddress& address, const api::U64OrHash& t, BalanceCb cb){
+    global().chainServer->api_get_token_balance(address,t, cb);
 }
 
 void get_account_history(const Address& address, uint64_t beforeId,

@@ -36,8 +36,13 @@ public:
     struct GetGrid {
         GridCb callback;
     };
-    struct GetBalance {
+    struct GetWartBalance {
         api::AccountIdOrAddress account;
+        BalanceCb callback;
+    };
+    struct GetTokenBalance {
+        api::AccountIdOrAddress account;
+        api::U64OrHash token;
         BalanceCb callback;
     };
     struct GetMempool {
@@ -126,7 +131,8 @@ public:
         MiningAppend,
         PutMempool,
         GetGrid,
-        GetBalance,
+        GetWartBalance,
+        GetTokenBalance,
         GetMempool,
         LookupTxids,
         LookupTxHash,
@@ -202,7 +208,8 @@ public:
     void api_mining_append(ParsedBlock&&, ResultCb);
     // void api_put_mempool(PaymentCreateMessage, ResultCb cb);
     void api_put_mempool(PaymentCreateMessage, MempoolInsertCb cb);
-    void api_get_balance(const api::AccountIdOrAddress& a, BalanceCb callback);
+    void api_get_wart_balance(const api::AccountIdOrAddress& a, BalanceCb callback);
+    void api_get_token_balance(const api::AccountIdOrAddress& a, const api::U64OrHash&, BalanceCb callback);
     void api_get_grid(GridCb);
     void api_get_mempool(MempoolCb callback);
     void api_lookup_tx(const HashView hash, TxCb callback);
@@ -239,7 +246,8 @@ private:
     void handle_event(MiningAppend&&);
     void handle_event(PutMempool&&);
     void handle_event(GetGrid&&);
-    void handle_event(GetBalance&&);
+    void handle_event(GetWartBalance&&);
+    void handle_event(GetTokenBalance&&);
     void handle_event(GetMempool&&);
     void handle_event(LookupTxids&&);
     void handle_event(LookupTxHash&&);

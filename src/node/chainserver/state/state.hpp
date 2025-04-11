@@ -6,6 +6,7 @@
 #include "communication/messages.hpp"
 #include "communication/mining_task.hpp"
 #include "communication/stage_operation/result.hpp"
+#include "general/result.hpp"
 #include "helpers/consensus.hpp"
 #include "helpers/past_chains.hpp"
 #include "transactions/apply_result.hpp"
@@ -66,8 +67,8 @@ public:
 
     // normal methods
     void garbage_collect();
-    auto mining_task(const Address& a) -> tl::expected<ChainMiningTask, Error>;
-    auto mining_task(const Address& a, bool disableTxs) -> tl::expected<ChainMiningTask, Error>;
+    auto mining_task(const Address& a) -> Result<ChainMiningTask>;
+    auto mining_task(const Address& a, bool disableTxs) -> Result<ChainMiningTask>;
 
     auto append_gentx(const PaymentCreateMessage&) -> std::pair<mempool::Log, TxHash>;
     auto chainlength() const -> Height { return chainstate.headers().length(); }
@@ -105,6 +106,7 @@ public:
     // api getters
     auto api_get_address(AddressView) const -> api::WartBalance;
     auto api_get_address(AccountId) const -> api::WartBalance;
+    auto api_get_token_balance(const api::AccountIdOrAddress&, const api::TokenIdOrHash&) const -> api::WartBalance;
     auto api_get_head() const -> api::ChainHead;
     auto api_get_history(Address a, int64_t beforeId = 0x7fffffffffffffff) const -> std::optional<api::AccountHistory>;
     auto api_get_richlist(size_t N) const -> api::Richlist;
@@ -122,6 +124,7 @@ public:
     size_t api_db_size() const;
 
 private:
+    std::optional<TokenInfo> db_lookup_token(const api::TokenIdOrHash&) const;
     // delegated getters
     auto api_get_block(Height h) const -> std::optional<api::Block>;
     std::optional<NonzeroHeight> consensus_height(const Hash&) const;

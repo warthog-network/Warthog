@@ -1,8 +1,10 @@
 #pragma once
+#include "expected.hpp"
 #include <cstdint>
 #include <string>
 struct Error { // error class for exceptions
-    constexpr Error(int32_t e = 0) : code(e) {};
+    constexpr Error(int32_t e = 0)
+        : code(e) { };
     const char* strerror() const;
     const char* err_name() const;
     std::string format() const;

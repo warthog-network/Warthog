@@ -107,7 +107,8 @@ ChainDB::ChainDB(const std::string& path)
                                      "WHERE parent_id=? AND height>=? "
                                      "ORDER BY height DESC LIMIT 1")
     , stmtTokenSelectForkHeight(db, "SELECT height FROM Tokens WHERE parent_id=? AND height>=? ORDER BY height DESC LIMIT 1")
-    , stmtTokenLookup(db, "SELECT (height, owner_account_id, total_supply, group_id, parent_id, name, hash, data) FROM Tokens WHERE `id`=?")
+    , stmtTokenLookup(db, "SELECT (id, height, owner_account_id, total_supply, group_id, parent_id, name, hash, data) FROM Tokens WHERE `id`=?")
+    , stmtTokenLookupByHash(db, "SELECT (id, height, owner_account_id, total_supply, group_id, parent_id, name, hash, data) FROM Tokens WHERE `hash`=?")
     , stmtSelectBalanceId(db, "SELECT `account_id`, `token_id`, `balance` FROM `Balances` WHERE `id`=?")
     , stmtTokenInsertBalance(db, "INSERT INTO `Balances` ( id, `token_id`, `account_id`, `balance`) VALUES (?,?,?,?)")
     , stmtBalancePrune(db, "DELETE FROM Balances WHERE id>=?")
@@ -175,7 +176,8 @@ ChainDB::ChainDB(const std::string& path)
 
     // BELOW STATEMENTS REQUIRED FOR INDEXING NODES
     //
-    , stmtAddressLookup(db, "SELECT `ROWID` FROM `Accounts` WHERE `address`=?")
+    , stmtAddressLookup(db, "SELECT `ROWID`, FROM `Accounts` JOIN `Balances` on AccountsWHERE `address`=?")
+    // , stmtTokenSelectBalance(db, "SELECT `id`, `balance` FROM `Balances` WHERE `token_id`=? AND `account_id`=?")
     , stmtHistoryById(db, "SELECT h.id, `hash`,`data` FROM `History` `h` JOIN "
                           "`AccountHistory` `ah` ON h.id=`ah`.history_id WHERE "
                           "ah.`account_id`=? AND h.id<? ORDER BY h.id DESC LIMIT 100")
@@ -764,16 +766,32 @@ Address ChainDB::fetch_address(AccountId id) const
 std::optional<TokenInfo> ChainDB::lookup_token(TokenId id) const
 {
     // , stmtTokenLookup(db, "SELECT (heightn,owner_account_id, total_supply, group_id, name, hash, data) FROM Tokens WHERE `id`=?")
-    return stmtTokenLookup.one(id).process([&id](auto& o) -> TokenInfo {
+    return stmtTokenLookup.one(id).process([](auto& o) -> TokenInfo {
         return {
-            .id { id },
-            .height { o[0] },
-            .ownerAccountId { o[1] },
-            .totalSupply { o[2] },
-            .group_id { o[3] },
-            .parent_id { o[4] },
-            .name { o[5] },
-            .hash { o[6] },
+            .id { o[0] },
+            .height { o[1] },
+            .ownerAccountId { o[2] },
+            .totalSupply { o[3] },
+            .group_id { o[4] },
+            .parent_id { o[5] },
+            .name { o[6] },
+            .hash { o[7] },
+        };
+    });
+}
+
+std::optional<TokenInfo> ChainDB::lookup_token(TokenHash hash) const
+{
+    return stmtTokenLookup.one(hash).process([](auto& o) -> TokenInfo {
+        return {
+            .id { o[0] },
+            .height { o[1] },
+            .ownerAccountId { o[2] },
+            .totalSupply { o[3] },
+            .group_id { o[4] },
+            .parent_id { o[5] },
+            .name { o[6] },
+            .hash { o[7] },
         };
     });
 }
@@ -829,10 +847,12 @@ std::pair<std::optional<BalanceId>, Funds_uint64> ChainDB::get_token_balance_rec
         if (!p) { // has no parent, i.e. was not forked, no entry found
             return { std::nullopt, Funds_uint64::zero() };
         }
-        trace->steps.push_back({ *p, h });
+        if (trace)
+            trace->steps.push_back({ *p, h });
         if (auto o { get_balance_snapshot_after(*p, h) }) {
             auto& [height, funds] { *o };
-            trace->steps.back().snapshotHeight = height;
+            if (trace)
+                trace->steps.back().snapshotHeight = height;
             return { std::nullopt, funds };
         };
         ac.token_id() = *p;
