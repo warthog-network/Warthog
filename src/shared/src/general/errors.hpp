@@ -127,8 +127,9 @@
     XX(127, EINITV3, "Init V3 not allowed from this peer")                         \
     XX(128, EFROZENACC, "account is frozen and can't send")                        \
     XX(129, EHEADERRANGE, "invalid header range")                                  \
-    XX(198, EBATCHSIZE2, "invalid batch size")                          \
-    XX(199, EBATCHSIZE3, "invalid batch size")                          \
+    XX(130, ERTCDISABLED, "WebRTC disabled, cannot receive message")               \
+    XX(198, EBATCHSIZE2, "invalid batch size")                                     \
+    XX(199, EBATCHSIZE3, "invalid batch size")                                     \
     /*200 - 299: Errors not leading to ban*/                                       \
     XX(200, ERTCNOSIGNAL, "WebRTC signaling server was closed (offer)")            \
     XX(201, ERTCNOSIGNAL2, "WebRTC signaling server was closed (answer)")          \
@@ -142,7 +143,6 @@
     XX(209, ERTCNOIP, "Cannot select own WebRTC ip")                               \
     XX(210, ERTCIDIP, "IP in verification offer is not announced as identity")     \
     XX(211, ERTCFEELER, "Normal feeler connection shutdown")                       \
-    XX(212, ERTCDISABLED, "WebRTC disabled, cannot receive message")               \
     XX(213, EAPICMD, "Triggered by API command")                                   \
     /*300 - 399: API triggered errors*/                                            \
     XX(300, EINV_HEX, "cannot parse hexadecimal input")                            \
