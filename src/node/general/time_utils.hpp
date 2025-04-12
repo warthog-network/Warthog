@@ -12,6 +12,7 @@ private:
         return std::chrono::duration_cast<duration_t>(*this).count();
     }
 public:
+    std::string format();
     auto seconds() const { return count<std::chrono::seconds>(); }
     auto milliseconds() const { return count<std::chrono::milliseconds>();}
 };

@@ -469,7 +469,7 @@ void Eventloop::log_chain_length()
         try_start_sync_timing();
     } else if (synced == total) {
         assert(syncTiming);
-        spdlog::info("Synced in {}ms. (height {}).", syncTiming->startedAt.elapsed().milliseconds(), synced);
+        spdlog::info("Synced in {}. (height {}).", syncTiming->startedAt.elapsed().format(), synced);
         syncTiming.reset();
     }
 }
