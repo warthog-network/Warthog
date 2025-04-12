@@ -1,4 +1,4 @@
-#include "rollback.cpp"
+#include "rollback.hpp"
 
 BalanceIdFunds::BalanceIdFunds(Reader& r)
     : balanceId(r)

@@ -1,7 +1,6 @@
 #include "generator.hpp"
 #include "block/body/view.hpp"
 #include "chainserver/db/chain_db.hpp"
-#include "general/is_testnet.hpp"
 #include "general/writer.hpp"
 #include "spdlog/spdlog.h"
 
