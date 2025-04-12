@@ -1,4 +1,5 @@
 #include "header_download.hpp"
+#include "eventloop/eventloop.hpp"
 #include "block/chain/consensus_headers.hpp"
 #include "eventloop/chain_cache.hpp"
 #include "eventloop/types/peer_requests.hpp"

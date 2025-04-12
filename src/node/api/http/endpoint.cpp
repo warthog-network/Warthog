@@ -1,6 +1,7 @@
 #include "endpoint.hpp"
 #include "api/events/subscription.hpp"
 #include "api/hook_endpoints.hxx"
+#include "libusockets.h"
 using namespace std::placeholders;
 
 namespace {
