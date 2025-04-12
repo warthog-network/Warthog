@@ -1,8 +1,8 @@
 #pragma once
 #include "address_manager/address_manager.hpp"
-#include "block/chain/height_header_work.hpp"
 #include "api/callbacks.hpp"
 #include "api/events/subscription_fwd.hpp"
+#include "block/chain/height_header_work.hpp"
 #include "block/chain/offender.hpp"
 #include "block/chain/signed_snapshot.hpp"
 #include "chain_cache.hpp"
@@ -14,6 +14,7 @@
 #include "eventloop/timer.hpp"
 #include "eventloop/types/rtc/rtc_state.hpp"
 #include "general/move_only_function.hpp"
+#include "general/time_utils.hpp"
 #include "mempool/mempool.hpp"
 #include "mempool/subscription_declaration.hpp"
 #include "peerserver/peerserver.hpp"
@@ -68,6 +69,9 @@ class Eventloop final : public std::enable_shared_from_this<Eventloop>, public R
     friend class EndAttorney;
     friend class ConState;
 
+    struct SyncTiming {
+        timing::Tic startedAt;
+    };
     struct Token { };
     struct GeneratedVerificationSdpOffer {
         std::weak_ptr<RTCConnection> con;
@@ -402,6 +406,7 @@ private:
     // load test
     void try_start_loadtest(Conref cr);
 
+    void try_start_sync_timing();
     void initialize_block_download();
     ForkHeight set_stage_headers(Headerchain&&);
 
@@ -428,6 +433,7 @@ private: // private data
     // Conndatamap connections;
     StageAndConsensus chains;
     mempool::Mempool mempool; // copy of chainserver mempool
+    std::optional<SyncTiming> syncTiming;
 
     AddressManager connections;
 

@@ -17,6 +17,7 @@
 #include "mempool/order_key.hpp"
 #include "peerserver/peerserver.hpp"
 #include "spdlog/spdlog.h"
+#include "sync/sync_state.hpp"
 #include "transport/webrtc/rtc_connection.hxx"
 #include "transport/webrtc/sdp_util.hpp"
 #include "types/conref_impl.hpp"
@@ -433,6 +434,13 @@ void Eventloop::coordinate_sync()
     blockDownload.set_min_worksum(cons);
 }
 
+void Eventloop::try_start_sync_timing()
+{
+    if (syncTiming.has_value())
+        return;
+    syncTiming.emplace();
+}
+
 void Eventloop::initialize_block_download()
 {
     if (auto d { headerDownload.pop_data() }; d) {
@@ -446,6 +454,7 @@ void Eventloop::initialize_block_download()
 
 ForkHeight Eventloop::set_stage_headers(Headerchain&& hc)
 {
+    try_start_sync_timing();
     spdlog::info("Syncing... (height {} of {})", chains.consensus_length().value(), hc.length().value());
     auto forkHeight { chains.update_stage(std::move(hc)) };
     return forkHeight;
@@ -455,10 +464,14 @@ void Eventloop::log_chain_length()
 {
     auto synced { chains.consensus_length().value() };
     auto total { chains.stage_headers().length().value() };
-    if (synced < total)
+    if (synced < total) {
         spdlog::info("Syncing... (height {} of {})", synced, total);
-    else if (synced == total)
-        spdlog::info("Synced. (height {}).", synced);
+        try_start_sync_timing();
+    } else if (synced == total) {
+        assert(syncTiming);
+        spdlog::info("Synced in {}ms. (height {}).", syncTiming->startedAt.elapsed().milliseconds(), synced);
+        syncTiming.reset();
+    }
 }
 
 void Eventloop::handle_event(GetThrottled&& e)
@@ -1110,7 +1123,7 @@ void Eventloop::handle_connection_timeout(Conref cr, TimerEvent::ThrottledProces
 
 void Eventloop::handle_connection_timeout(Conref cr, TimerEvent::Expire&&)
 {
-    if(!cr.job().active())
+    if (!cr.job().active())
         return;
     cr.job().set_timer(timerSystem.insert(
         (config().localDebug ? 10min : 2min), TimerEvent::CloseNoReply { cr.id() }));
