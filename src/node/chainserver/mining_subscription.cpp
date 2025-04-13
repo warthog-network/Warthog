@@ -10,7 +10,7 @@ namespace mining_subscription {
 SubscriptionId::SubscriptionId()
     : id(gid++) {};
 
-void MiningSubscriptions::dispatch(std::function<tl::expected<ChainMiningTask, Error>(const Address&)> blockGenerator)
+void MiningSubscriptions::dispatch(std::function<Result<ChainMiningTask>(const Address&)> blockGenerator)
 {
     for (auto& [addr, v] : subscriptions) {
         auto b { blockGenerator(addr) };

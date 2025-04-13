@@ -2,6 +2,7 @@
 #include "block/chain/header_chain.hpp"
 #include "block/header/timestamprule.hpp"
 #include "expected.hpp"
+#include "general/result.hpp"
 
 struct MiningData {
     Funds_uint64 reward;
@@ -25,7 +26,7 @@ public:
     tl::expected<HeaderVerifier, ChainError> copy_apply(const std::optional<SignedSnapshot>& sp, const HeaderSpan&) const;
     HeaderVerifier(const SharedBatch&);
     // void clear();
-    [[nodiscard]] auto prepare_append(const std::optional<SignedSnapshot>& sp, HeaderView hv) const -> tl::expected<PreparedAppend, Error>;
+    [[nodiscard]] auto prepare_append(const std::optional<SignedSnapshot>& sp, HeaderView hv) const -> Result<PreparedAppend>;
 
     void append(NonzeroHeight length, const PreparedAppend&);
 
@@ -68,7 +69,7 @@ public:
     // Modifiers
     void shrink(Height newlength); // OK
     void append(const HeaderVerifier::PreparedAppend&, BatchRegistry& br);
-    [[nodiscard]] auto prepare_append(const std::optional<SignedSnapshot>& sp, HeaderView hv) const -> tl::expected<HeaderVerifier::PreparedAppend, Error>;
+    [[nodiscard]] auto prepare_append(const std::optional<SignedSnapshot>& sp, HeaderView hv) const -> Result<HeaderVerifier::PreparedAppend>;
 
     // Getters
     HashView final_hash() const { return checker.final_hash(); }

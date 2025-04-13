@@ -2,6 +2,7 @@
 #include "block/header/difficulty_scale.hpp"
 #include "general/is_testnet.hpp"
 #include "general/now.hpp"
+#include "general/result.hpp"
 #include "spdlog/spdlog.h"
 
 HeaderVerifier::HeaderVerifier(const SharedBatch& b)
@@ -130,33 +131,33 @@ void HeaderVerifier::append(NonzeroHeight newlength, const PreparedAppend& p)
     }
 }
 
-auto HeaderVerifier::prepare_append(const std::optional<SignedSnapshot>& sp, HeaderView hv) const -> tl::expected<PreparedAppend, Error>
+auto HeaderVerifier::prepare_append(const std::optional<SignedSnapshot>& sp, HeaderView hv) const -> Result<PreparedAppend>
 {
     auto hash { hv.hash() };
     NonzeroHeight appendHeight { height() + 1 };
 
     // Check header link
     if (hv.prevhash() != finalHash)
-        return tl::make_unexpected(EHEADERLINK);
+        return Error(EHEADERLINK);
 
     // // Check version
     auto powVersion { POWVersion::from_params(appendHeight, hv.version(), is_testnet()) };
     if (!powVersion) {
-        return tl::make_unexpected(EBLOCKVERSION);
+        return Error(EBLOCKVERSION);
     }
 
     // Check difficulty
     if (hv.target(appendHeight, is_testnet()) != nextTarget)
-        return tl::make_unexpected(EDIFFICULTY);
+        return Error(EDIFFICULTY);
 
     // Check POW
     if (!hv.validPOW(hash, *powVersion)) {
-        return tl::make_unexpected(EPOW);
+        return Error(EPOW);
     }
 
     // Check signed pin
     if (sp && length + 1 == sp->priority.height && sp->hash != hash)
-        return tl::make_unexpected(ELEADERMISMATCH);
+        return Error(ELEADERMISMATCH);
 
     const uint32_t t = hv.timestamp();
 
@@ -164,12 +165,12 @@ auto HeaderVerifier::prepare_append(const std::optional<SignedSnapshot>& sp, Hea
     // Check no time drops (should be automatically valid if no future times)
     if (!timeValidator.valid(t)
         || latestRetargetTime >= t)
-        return tl::make_unexpected(ETIMESTAMP);
+        return Error(ETIMESTAMP);
 
     // Check no future block times
     // LATER: use network time
     if (t > now_timestamp() + TOLERANCEMINUTES * 60)
-        return tl::make_unexpected(ECLOCKTOLERANCE);
+        return Error(ECLOCKTOLERANCE);
     return PreparedAppend { hv, hash };
 }
 
@@ -334,7 +335,7 @@ void ExtendableHeaderchain::append(const HeaderVerifier::PreparedAppend& p,
     checker.append(length().nonzero_assert(), p);
 }
 
-auto ExtendableHeaderchain::prepare_append(const std::optional<SignedSnapshot>& sp, HeaderView hv) const -> tl::expected<HeaderVerifier::PreparedAppend, Error>
+auto ExtendableHeaderchain::prepare_append(const std::optional<SignedSnapshot>& sp, HeaderView hv) const -> Result<HeaderVerifier::PreparedAppend>
 {
     return checker.prepare_append(sp, hv);
 }

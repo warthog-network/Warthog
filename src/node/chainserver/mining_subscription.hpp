@@ -8,12 +8,13 @@
 class ChainServer;
 
 namespace mining_subscription {
-using callback_t = std::function<void(tl::expected<ChainMiningTask,Error>&&)>;
+using callback_t = std::function<void(Result<ChainMiningTask>&&)>;
 struct SubscriptionId {
     auto operator<=>(const SubscriptionId&) const = default;
     SubscriptionId();
 
-    auto val() const{return id;}
+    auto val() const { return id; }
+
 private:
     uint64_t id;
 };
@@ -32,7 +33,7 @@ class MiningSubscriptions {
 public:
     void subscribe(SubscriptionRequest&&);
     void unsubscribe(SubscriptionId);
-    void dispatch(std::function<tl::expected<ChainMiningTask,Error>(const Address&)> blockGenerator);
+    void dispatch(std::function<Result<ChainMiningTask>(const Address&)> blockGenerator);
 
 private:
     struct Elem {
@@ -46,15 +47,16 @@ private:
 struct MiningSubscription {
     friend class ::ChainServer;
 
-    private:
+private:
     std::weak_ptr<ChainServer> chainServer;
     mining_subscription::SubscriptionId id;
     MiningSubscription(std::shared_ptr<ChainServer> chainServer, mining_subscription::SubscriptionId id)
         : chainServer(std::move(chainServer))
-          , id(id)
+        , id(id)
     {
     }
-    public:
+
+public:
     MiningSubscription(const MiningSubscription&) = delete;
     MiningSubscription(MiningSubscription&&) = default;
     ~MiningSubscription();

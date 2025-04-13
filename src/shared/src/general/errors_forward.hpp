@@ -14,7 +14,9 @@ struct Error { // error class for exceptions
     operator bool() const { return is_error(); }
     operator int() const { return code; }
     int32_t code;
+    static const Error none;
 };
+inline constexpr const Error Error::none { 0 };
 
 class NonzeroHeight;
 struct ChainError : public Error {

@@ -1833,7 +1833,7 @@ void Eventloop::verify_rollback(Conref cr, const SignedPinRollbackMsg& m)
     }
 }
 
-tl::expected<Conref, Error> Eventloop::try_insert_connection(OnHandshakeCompleted&& m)
+Result<Conref> Eventloop::try_insert_connection(OnHandshakeCompleted&& m)
 {
     auto c { m.convar.base() };
     c->eventloop_registered = true;

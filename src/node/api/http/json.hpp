@@ -3,7 +3,6 @@
 #include "api/interface.hpp"
 #include "general/errors.hpp"
 #include "nlohmann/json.hpp"
-#include "spdlog/fmt/bundled/format.h"
 struct Head;
 class Hash;
 class TxHash;
@@ -81,21 +80,21 @@ inline std::string status(Error e)
     return j.dump(1);
 }
 
-inline std::string status(const tl::expected<void, Error>& e)
+inline std::string status(const std::optional<Error>& e)
 {
     if (e.has_value()) {
-        return status(0);
+        return status(Error::none);
     } else {
-        return status(e.error());
+        return status(e);
     }
 }
 
-inline std::string serialize(const tl::expected<void, Error>& e)
+inline std::string serialize(const std::optional<Error>& e)
 {
     if (e.has_value()) {
-        return status(0);
+        return status(Error::none);
     } else {
-        return status(e.error());
+        return status(e);
     }
 }
 
@@ -108,7 +107,7 @@ inline json success_json(T&& t)
     };
 }
 
-inline std::string serialize(const tl::expected<json, Error>& e)
+inline std::string serialize(const Result<json>& e)
 {
     if (!e.has_value())
         return status(e.error());
@@ -116,7 +115,7 @@ inline std::string serialize(const tl::expected<json, Error>& e)
 }
 
 template <typename T>
-std::string serialize(const tl::expected<T, Error>& e)
+std::string serialize(const Result<T>& e)
 {
     if (!e.has_value())
         return status(e.error());

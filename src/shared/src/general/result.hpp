@@ -7,6 +7,10 @@ struct Result : public tl::expected<T, Error> {
         : tl::expected<T, Error>(std::move(t))
     {
     }
+    Result() // for Result<void> default constructor
+        : tl::expected<T, Error>({})
+    {
+    }
     Result(Error e)
         : tl::expected<T, Error>(tl::make_unexpected(e))
     {

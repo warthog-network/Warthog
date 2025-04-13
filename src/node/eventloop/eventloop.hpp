@@ -110,7 +110,7 @@ public:
     ~Eventloop();
 
     // API callbacks
-    using SignedSnapshotCb = std::function<void(const tl::expected<SignedSnapshot, Error>&)>;
+    using SignedSnapshotCb = std::function<void(const Result<SignedSnapshot>&)>;
     using InspectorCb = std::function<void(const Eventloop&)>;
 
     /////////////////////
@@ -419,7 +419,7 @@ private:
     ////////////////////////
     // convenience functions
     const ConsensusSlave& consensus() { return chains.consensus_state(); }
-    tl::expected<Conref, Error> try_insert_connection(OnHandshakeCompleted&&);
+    Result<Conref> try_insert_connection(OnHandshakeCompleted&&);
 
     ////////////////////////
     // register sync state

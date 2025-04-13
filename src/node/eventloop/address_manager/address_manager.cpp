@@ -102,7 +102,7 @@ std::optional<Conref> AddressManager::find(uint64_t id) const
     return cr;
 }
 
-auto AddressManager::insert(ConnectionBase::ConnectionVariant& convar, const ConnectionInserter& h) -> tl::expected<Conref, Error>
+auto AddressManager::insert(ConnectionBase::ConnectionVariant& convar, const ConnectionInserter& h) -> Result<Conref>
 {
     auto c { convar.base() };
     auto ip { c->peer_addr().ip() };

@@ -306,19 +306,19 @@ ConsensusSlave State::get_chainstate_concurrent()
     return { signedSnapshot, chainstate.descriptor(), chainstate.headers() };
 }
 
-tl::expected<ChainMiningTask, Error> State::mining_task(const Address& a)
+Result<ChainMiningTask> State::mining_task(const Address& a)
 {
     return mining_task(a, config().node.disableTxsMining);
 }
 
-tl::expected<ChainMiningTask, Error> State::mining_task(const Address& a, bool disableTxs)
+Result<ChainMiningTask> State::mining_task(const Address& a, bool disableTxs)
 {
 
     auto md = chainstate.mining_data();
 
     NonzeroHeight height { next_height() };
     if (height.value() < NEWBLOCKSTRUCUTREHEIGHT && !is_testnet())
-        return tl::make_unexpected(Error(ENOTSYNCED));
+        return Error(ENOTSYNCED);
 
     auto make_body {
         [&]() {
@@ -353,7 +353,7 @@ tl::expected<ChainMiningTask, Error> State::mining_task(const Address& a, bool d
 
     auto structure { BodyStructure::parse(b, height, b.block_version()) };
     if (!structure) {
-        return tl::make_unexpected(Error(EBUG));
+        return Error(EBUG);
     }
     BodyView bv(b, *structure);
 

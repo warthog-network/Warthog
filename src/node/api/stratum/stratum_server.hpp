@@ -43,7 +43,8 @@ public:
     void on_message(std::string_view msg);
     ~Connection();
 
-    void send_result(int64_t stratumId, tl::expected<void, Error>);
+    void send_result(int64_t stratumId, std::optional<Error>);
+
 private:
     void handle_message(messages::MiningSubscribe&& s);
     void handle_message(messages::MiningSubmit&& m);
@@ -59,7 +60,7 @@ private:
         std::string worker;
     };
     bool fresh { true };
-    const std::array<uint8_t,4> extra2prefix;
+    const std::array<uint8_t, 4> extra2prefix;
     std::optional<Authorized> authorized;
     std::string stratumLine;
     std::shared_ptr<uvw::tcp_handle> handle;
@@ -83,7 +84,8 @@ class StratumServer {
         }
         Block* find_block(const std::string& jobId);
         Block* add_block(const std::string& jobId, ParsedBlock&& b);
-        private:
+
+    private:
         std::map<std::string, Block> blocks;
     };
     struct SubscriptionFeed {
@@ -95,9 +97,9 @@ class StratumServer {
     struct AppendResult {
         std::weak_ptr<stratum::Connection> p;
         int64_t stratumId;
-        tl::expected<void, Error> result;
+        std::optional<Error> result;
     };
-    using Event = std::variant<SubscriptionFeed, ShutdownEvent,AppendResult>;
+    using Event = std::variant<SubscriptionFeed, ShutdownEvent, AppendResult>;
     void push(Event e);
     void handle_events();
     void handle_event(SubscriptionFeed&&);
@@ -108,7 +110,8 @@ class StratumServer {
     void link_authorized(const Address&, stratum::Connection*);
     void unlink_authorized(const Address&, stratum::Connection*);
 
-    std::optional<Block> get_block(Address,std::string jobId);
+    std::optional<Block> get_block(Address, std::string jobId);
+
 public:
     StratumServer(TCPPeeraddr endpointAddress);
     ~StratumServer();

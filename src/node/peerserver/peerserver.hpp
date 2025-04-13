@@ -2,6 +2,7 @@
 #include "ban_cache.hpp"
 #include "db/peer_db.hpp"
 #include "expected.hpp"
+#include "general/result.hpp"
 #include "transport/connection_base.hpp"
 #include "transport/helpers/transport_types.hpp"
 #include <condition_variable>
@@ -17,8 +18,8 @@ public:
         Error offense;
     };
     using banned_callback_t = std::function<void(const std::vector<PeerDB::BanEntry>&)>;
-    using offenses_callback_t = std::function<void(const tl::expected<std::vector<OffenseEntry>, Error>&)>;
-    using result_callback_t = std::function<void(const tl::expected<void, Error>&)>;
+    using offenses_callback_t = std::function<void(const Result<std::vector<OffenseEntry>>&)>;
+    using result_callback_t = std::function<void(const std::optional<Error>&)>;
 
 private:
     friend struct Inspector;

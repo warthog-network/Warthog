@@ -226,7 +226,7 @@ void Connection::on_message(std::string_view msg)
     stratumLine += msg.substr(lower, msg.size() - lower);
 };
 
-void Connection::send_result(int64_t stratumId, tl::expected<void, Error> result)
+void Connection::send_result(int64_t stratumId, std::optional<Error> result)
 {
     if (result.has_value()) {
         if (authorized)
@@ -234,7 +234,7 @@ void Connection::send_result(int64_t stratumId, tl::expected<void, Error> result
                 authorized->address.to_string(), authorized->worker);
         write() << messages::OK(stratumId);
     } else {
-        write() << messages::StratumError(stratumId, 40, Error(result.error()).strerror());
+        write() << messages::StratumError(stratumId, 40, result->strerror());
     }
 };
 using namespace stratum::messages;
@@ -259,11 +259,11 @@ void Connection::handle_message(messages::MiningSubmit&& m)
     m.apply_to(extra2prefix, *b);
     try {
         put_chain_append({ std::move(*b).parse_throw() },
-            [&, p = shared_from_this(), id = m.id](const tl::expected<void, Error>& res) {
+            [&, p = shared_from_this(), id = m.id](const std::optional<Error>& res) {
                 server.on_append_result({ .p = p, .stratumId = id, .result { res } });
             });
     } catch (const Error& e) {
-        send_result(m.id, tl::make_unexpected(e));
+        send_result(m.id, e);
     }
 }
 
@@ -500,7 +500,7 @@ void StratumServer::link_authorized(const Address& a, stratum::Connection* c)
     auto [iter, _] { addressData.try_emplace(a,
         [&]() -> mining_subscription::MiningSubscription {
             return subscribe_chain_mine(a,
-                [a, this](tl::expected<ChainMiningTask, Error>&& t) {
+                [a, this](Result<ChainMiningTask>&& t) {
                     if (t.has_value()) {
                         return on_mining_task(a, std::move(t.value()));
                     }

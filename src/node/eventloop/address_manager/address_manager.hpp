@@ -131,7 +131,7 @@ public:
     auto insert(
         ConnectionBase::ConnectionVariant& convar,
         const ConnectionInserter& h)
-        -> tl::expected<Conref, Error>;
+        -> Result<Conref>;
 
     api::IPCounter api_count_ips() const;
 #ifndef DISABLE_LIBUV

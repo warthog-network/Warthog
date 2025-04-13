@@ -286,7 +286,7 @@ void ChainServer::handle_event(MiningAppend&& e)
     } catch (Error err) {
         spdlog::info("Rejected new block #{}: {}", (state.chainlength() + 1).value(),
             err.strerror());
-        e.callback(tl::make_unexpected(err.code));
+        e.callback(err);
     }
 }
 
@@ -305,7 +305,7 @@ void ChainServer::handle_event(GetWartBalance&& e)
 void ChainServer::handle_event(GetTokenBalance&& e)
 {
     auto t { timing->time("GetBalance") };
-    e.callback(state.api_get_balance(e.account,e.tokenHash);
+    e.callback(state.api_get_token_balance(e.account, e.token));
 }
 
 void ChainServer::handle_event(GetMempool&& e)
@@ -331,11 +331,11 @@ void ChainServer::emit_chain_state_event()
 }
 
 template <typename T>
-tl::expected<T, Error> noval_to_err(std::optional<T>&& v)
+Result<T> noval_to_err(std::optional<T>&& v)
 {
     if (v)
         return *v;
-    return tl::make_unexpected(Error(ENOTFOUND));
+    return Error(ENOTFOUND);
 }
 
 void ChainServer::handle_event(LookupTxHash&& e)
@@ -454,7 +454,7 @@ void ChainServer::handle_event(PutMempool&& e)
         auto txhash { append_gentx(std::move(e.m)) };
         e.callback(txhash);
     } catch (Error err) {
-        e.callback(tl::make_unexpected(err.code));
+        e.callback(err);
     }
 }
 

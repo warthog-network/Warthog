@@ -96,7 +96,7 @@ void get_version(VersionCb cb)
 void get_info(InfoCb cb)
 {
     global().chainServer->api_get_db_size(
-        [cb = std::move(cb)](tl::expected<api::DBSize, Error> s) {
+        [cb = std::move(cb)](Result<api::DBSize> s) {
             cb(std::move(s).transform([](api::DBSize&& s) { return api::NodeInfo { std::move(s) }; }));
         });
 }
@@ -139,7 +139,7 @@ struct APIHeadRequest {
         : cb(std::move(cb))
     {
     }
-    void on(const tl::expected<api::ChainHead, Error>&& e)
+    void on(const Result<api::ChainHead>&& e)
     {
         if (e.has_value()) {
             on(std::move(e.value()));
@@ -204,7 +204,7 @@ struct APIMiningRequest {
         : cb(std::move(cb))
     {
     }
-    void on(const tl::expected<ChainMiningTask, Error>&& e)
+    void on(const Result<ChainMiningTask>&& e)
     {
         if (e.has_value()) {
             on(std::move(e.value()));
@@ -212,7 +212,7 @@ struct APIMiningRequest {
         } else {
             std::lock_guard l(m);
             if (sent == false) {
-                cb(tl::make_unexpected(e.error()));
+                cb(e.error());
                 sent = true;
             }
         }
