@@ -127,13 +127,6 @@ namespace {
         return out;
     }
 
-    void add_fields(json& j, const std::string& key, const FundsDecimal& fd)
-    {
-        j[key] = fd.to_string();
-        j[key + "UInt64"] = fd.uint64();
-        j[key + "Precision"] = fd.precision;
-    }
-
     json header_json(const Header& header, NonzeroHeight height)
     {
         auto version { header.version() };
@@ -210,7 +203,7 @@ namespace {
                 elem["pinHeight"] = t.pinHeight;
                 elem["txHash"] = serialize_hex(t.txhash);
                 elem["toAddress"] = t.toAddress.to_string();
-                add_fields(elem, "amount", t.amount);
+                elem["amount"] = to_json(t.amount);
                 a.push_back(elem);
             }
             out["tokenTransfers"] = a;
@@ -221,7 +214,7 @@ namespace {
                 json elem;
                 elem["token"] = to_json(o.tokenInfo);
                 elem["fee"] = o.fee;
-                add_fields(elem, "amount", o.amount);
+                elem["amount"] = to_json(o.amount);
                 elem["limit"] = o.limit.to_double();
                 elem["buy"] = o.buy;
                 elem["txid"] = to_json(o.txid);
@@ -239,7 +232,7 @@ namespace {
                 elem["txhash"] = serialize_hex(s.txhash);
                 elem["buy"] = s.buy;
                 elem["fillQuote"] = to_json(s.fillQuote);
-                add_fields(elem, "fillBase", s.fillBase);
+                elem["fillBase"] = to_json(s.fillBase);
                 a.push_back(elem);
             }
             out["swaps"] = a;
@@ -253,10 +246,17 @@ using namespace nlohmann;
 
 json to_json(Wart w)
 {
-    return
-    {
+    return {
         { "str", w.to_string() },
         { "E8", w.E8() }
+    };
+}
+json to_json(const FundsDecimal& fd)
+{
+    return {
+        { "uint64", fd.uint64() },
+        { "str", fd.to_string() },
+        { "precision", fd.precision }
     };
 }
 auto to_json_visit(const api::TransferTransaction& tx)
@@ -705,7 +705,7 @@ nlohmann::json to_json(const api::Round16Bit& e)
     auto c { CompactUInt::compact(e.original) };
     return json {
         { "original", to_json(e.original) },
-        { "rounded", to_json(c.uncompact())},
+        { "rounded", to_json(c.uncompact()) },
         { "16bit", c.value() }
     };
 }
