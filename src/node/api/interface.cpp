@@ -321,7 +321,7 @@ void get_account_wart_balance(const api::AccountIdOrAddress& address, BalanceCb 
 {
     global().chainServer->api_get_wart_balance(address, f);
 }
-void get_account_token_balance(const api::AccountIdOrAddress& address, const api::U64OrHash& t, BalanceCb cb){
+void get_account_token_balance(const api::AccountIdOrAddress& address, const api::TokenIdOrHash& t, BalanceCb cb){
     global().chainServer->api_get_token_balance(address,t, cb);
 }
 

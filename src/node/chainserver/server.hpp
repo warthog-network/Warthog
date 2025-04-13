@@ -42,7 +42,7 @@ public:
     };
     struct GetTokenBalance {
         api::AccountIdOrAddress account;
-        api::U64OrHash token;
+        api::TokenIdOrHash token;
         BalanceCb callback;
     };
     struct GetMempool {
@@ -209,7 +209,7 @@ public:
     // void api_put_mempool(PaymentCreateMessage, ResultCb cb);
     void api_put_mempool(PaymentCreateMessage, MempoolInsertCb cb);
     void api_get_wart_balance(const api::AccountIdOrAddress& a, BalanceCb callback);
-    void api_get_token_balance(const api::AccountIdOrAddress& a, const api::U64OrHash&, BalanceCb callback);
+    void api_get_token_balance(const api::AccountIdOrAddress& a, const api::TokenIdOrHash&, BalanceCb callback);
     void api_get_grid(GridCb);
     void api_get_mempool(MempoolCb callback);
     void api_lookup_tx(const HashView hash, TxCb callback);

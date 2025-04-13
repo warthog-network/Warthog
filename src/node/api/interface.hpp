@@ -66,7 +66,7 @@ void get_headerdownload(HeaderdownloadCb f);
 
 // account functions
 void get_account_wart_balance(const api::AccountIdOrAddress& address, BalanceCb cb);
-void get_account_token_balance(const api::AccountIdOrAddress& address, const api::U64OrHash&, BalanceCb cb);
+void get_account_token_balance(const api::AccountIdOrAddress& address, const api::TokenIdOrHash&, BalanceCb cb);
 void get_account_history(const Address& address, uint64_t end, HistoryCb cb);
 void get_account_richlist(RichlistCb cb);
 

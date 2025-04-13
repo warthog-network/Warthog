@@ -44,11 +44,11 @@ struct ParameterParser {
     {
         return PrivKey(sv);
     }
-    operator api::U64OrHash()
+    operator api::TokenIdOrHash()
     {
         if (sv.length() == 64)
-            return { Hash { *this } };
-        return { static_cast<uint64_t>(*this) };
+            return { TokenHash(*this) };
+        return { TokenId(*this) };
     }
     operator FundsDecimal()
     {

@@ -69,7 +69,7 @@ void ChainServer::api_get_wart_balance(const api::AccountIdOrAddress& a, Balance
     defer_maybe_busy(GetWartBalance { a, std::move(callback) });
 }
 
-void ChainServer::api_get_token_balance(const api::AccountIdOrAddress& a, const api::U64OrHash& t, BalanceCb callback)
+void ChainServer::api_get_token_balance(const api::AccountIdOrAddress& a, const api::TokenIdOrHash& t, BalanceCb callback)
 {
     defer_maybe_busy(GetTokenBalance { a, t, std::move(callback) });
 }
