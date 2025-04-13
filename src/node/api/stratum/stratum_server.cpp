@@ -224,7 +224,7 @@ void Connection::on_append_result(int64_t stratumId, tl::expected<void, Error> r
 {
     if (result.has_value()) {
         if (authorized)
-            spdlog::info("Block mined over stratum to addres {} by worker {}",
+            spdlog::info("Block mined over stratum to address {} by worker {}",
                 authorized->address.to_string(), authorized->worker);
         write() << messages::OK(stratumId);
     } else {
