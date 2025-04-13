@@ -45,7 +45,7 @@ FundsDecimal::FundsDecimal(std::string_view s)
 {
 }
 
-Funds_uint64 Funds_uint64::parse_throw(std::string_view s, DecimalDigits d)
+Funds_uint64 Funds_uint64::parse_throw(std::string_view s, TokenPrecision d)
 {
     if (auto o { Funds_uint64::parse(s, d) }; o.has_value()) {
         return *o;
@@ -55,7 +55,7 @@ Funds_uint64 Funds_uint64::parse_throw(std::string_view s, DecimalDigits d)
 
 [[nodiscard]] std::string FundsDecimal::to_string() const
 {
-    const size_t d { decimals };
+    const size_t d { precision };
     if (v == 0)
         return "0";
     static_assert(COINUNIT == 100000000);
@@ -80,7 +80,7 @@ Funds_uint64 Funds_uint64::parse_throw(std::string_view s, DecimalDigits d)
     }
 }
 
-std::string Funds_uint64::to_string(DecimalDigits decimals) const
+std::string Funds_uint64::to_string(TokenPrecision decimals) const
 {
     return to_decimal(decimals).to_string();
 }
@@ -90,7 +90,7 @@ Funds_uint64::Funds_uint64(Reader& r)
 {
 }
 
-std::optional<Funds_uint64> Funds_uint64::parse(std::string_view s, DecimalDigits digits)
+std::optional<Funds_uint64> Funds_uint64::parse(std::string_view s, TokenPrecision digits)
 {
     auto fd { FundsDecimal::parse(s) };
     if (!fd)
@@ -98,11 +98,11 @@ std::optional<Funds_uint64> Funds_uint64::parse(std::string_view s, DecimalDigit
     return parse(*fd, digits);
 }
 
-std::optional<Funds_uint64> Funds_uint64::parse(FundsDecimal fd, DecimalDigits digits)
+std::optional<Funds_uint64> Funds_uint64::parse(FundsDecimal fd, TokenPrecision digits)
 {
-    if (fd.decimals > digits())
+    if (fd.precision > digits())
         return {};
-    size_t zeros { size_t(digits()) - size_t(fd.decimals) };
+    size_t zeros { size_t(digits()) - size_t(fd.precision) };
     auto v { fd.v };
 
     for (size_t i { 0 }; i < zeros; ++i) {
@@ -123,7 +123,7 @@ std::optional<Wart> Wart::parse(std::string_view s)
 
 std::optional<Wart> Wart::parse(FundsDecimal fd)
 {
-    auto p { Funds_uint64::parse(fd, DecimalDigits::digits8()) };
+    auto p { Funds_uint64::parse(fd, TokenPrecision::digits8()) };
     if (p)
         return Wart::from_value(p->value());
     return {};
@@ -139,7 +139,7 @@ Wart Wart::parse_throw(std::string_view s)
 
 std::string Wart::to_string() const
 {
-    return funds_to_string(val, DecimalDigits::digits8());
+    return funds_to_string(val, TokenPrecision::digits8());
 }
 Wart::Wart(Reader& r)
     : FundsBase<Wart>(from_value_throw(r))

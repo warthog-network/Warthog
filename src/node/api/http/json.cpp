@@ -91,115 +91,174 @@ struct Inspector {
     // }
 };
 
+namespace jsonmsg {
 namespace {
-template <typename T>
-json verified_json(const std::map<TCPPeeraddr, T>& map)
-{
-    using namespace std::chrono;
-    auto now = steady_clock::now();
-    json e = json::array();
-    for (auto& [a, n] : map) {
-        json j;
-        j["endpoint"] = a.to_string();
-        j["seenSecondsAgo"] = n.outboundConnection ? 0 : duration_cast<seconds>(now - n.lastVerified).count();
-        j["outboundConnection"] = n.outboundConnection;
+    template <typename T>
+    json verified_json(const std::map<TCPPeeraddr, T>& map)
+    {
+        using namespace std::chrono;
+        auto now = steady_clock::now();
+        json e = json::array();
+        for (auto& [a, n] : map) {
+            json j;
+            j["endpoint"] = a.to_string();
+            j["seenSecondsAgo"] = n.outboundConnection ? 0 : duration_cast<seconds>(now - n.lastVerified).count();
+            j["outboundConnection"] = n.outboundConnection;
 
-        e.push_back(j);
-    }
-    return e;
-}
-json endpoint_json(auto& v)
-{
-    json e = json::array();
-    for (const auto& ae : v) {
-        e.push_back(ae.to_string());
-    }
-    return e;
-}
-
-json grid_json(const Grid& g)
-{
-    json out = json::array();
-    for (auto header : g) {
-        out.push_back(serialize_hex(header));
-    }
-    return out;
-}
-
-json header_json(const Header& header, NonzeroHeight height)
-{
-    auto version { header.version() };
-    const bool testnet { is_testnet() };
-    auto powVersion { POWVersion::from_params(height, version, testnet) };
-    assert(powVersion.has_value());
-    bool verusV2_2 { powVersion->uses_verus_2_2() };
-    auto verusHash { verusV2_2 ? verus_hash_v2_2(header) : verus_hash_v2_1(header) };
-    auto blockHash { header.hash() };
-    auto sha256tHash { hashSHA256(blockHash) };
-    auto target { header.target(height, testnet) };
-    uint32_t targetBE = hton32(target.binary());
-    json h;
-    h["raw"] = serialize_hex(header.data(), header.size());
-    h["timestamp"] = header.timestamp();
-    h["utc"] = format_utc(header.timestamp());
-    h["target"] = serialize_hex(targetBE);
-    h["difficulty"] = target.difficulty();
-    h["hash"] = serialize_hex(header.hash());
-    h["pow"] = json {
-        { "verusV2.2", verusV2_2 },
-        { "hashVerus", serialize_hex(verusHash) },
-        { "hashSha256t", serialize_hex(sha256tHash) },
-        { "floatVerus", CustomFloat(verusHash).to_double() },
-        { "floatSha256t", CustomFloat(sha256tHash).to_double() },
-    };
-    h["merkleroot"] = serialize_hex(header.merkleroot());
-    h["nonce"] = serialize_hex(header.nonce());
-    h["prevHash"] = serialize_hex(header.prevhash());
-    h["version"] = serialize_hex(version);
-    return h;
-}
-
-[[nodiscard]] json body_json(const api::Block& b)
-{
-    json out;
-    { // rewards
-        json a = json::array();
-        if (b.reward()) {
-            auto& r { *b.reward() };
-            json elem;
-            elem["txHash"] = serialize_hex(r.txhash);
-            elem["toAddress"] = r.toAddress.to_string();
-            elem["amount"] = r.amount.to_string();
-            elem["amountE8"] = r.amount.E8();
-            a.push_back(elem);
+            e.push_back(j);
         }
-        out["rewards"] = a;
+        return e;
     }
-    { // transfers
-        json a = json::array();
-        for (auto& t : b.transfers) {
-            json elem;
-            elem["fromAddress"] = t.fromAddress.to_string();
-            elem["fee"] = t.fee.to_string();
-            elem["feeE8"] = t.fee.E8();
-            elem["nonceId"] = t.nonceId;
-            elem["pinHeight"] = t.pinHeight;
-            elem["txHash"] = serialize_hex(t.txhash);
-            elem["toAddress"] = t.toAddress.to_string();
-            elem["amount"] = t.amount.to_string();
-            elem["amountE8"] = t.amount.E8();
-            a.push_back(elem);
+    json endpoint_json(auto& v)
+    {
+        json e = json::array();
+        for (const auto& ae : v) {
+            e.push_back(ae.to_string());
         }
-        out["transfers"] = a;
+        return e;
     }
-    return out;
-}
+
+    json grid_json(const Grid& g)
+    {
+        json out = json::array();
+        for (auto header : g) {
+            out.push_back(serialize_hex(header));
+        }
+        return out;
+    }
+
+    void add_fields(json& j, const std::string& key, const FundsDecimal& fd)
+    {
+        j[key] = fd.to_string();
+        j[key + "UInt64"] = fd.uint64();
+        j[key + "Precision"] = fd.precision;
+    }
+
+    json header_json(const Header& header, NonzeroHeight height)
+    {
+        auto version { header.version() };
+        const bool testnet { is_testnet() };
+        auto powVersion { POWVersion::from_params(height, version, testnet) };
+        assert(powVersion.has_value());
+        bool verusV2_2 { powVersion->uses_verus_2_2() };
+        auto verusHash { verusV2_2 ? verus_hash_v2_2(header) : verus_hash_v2_1(header) };
+        auto blockHash { header.hash() };
+        auto sha256tHash { hashSHA256(blockHash) };
+        auto target { header.target(height, testnet) };
+        uint32_t targetBE = hton32(target.binary());
+        json h;
+        h["raw"] = serialize_hex(header.data(), header.size());
+        h["timestamp"] = header.timestamp();
+        h["utc"] = format_utc(header.timestamp());
+        h["target"] = serialize_hex(targetBE);
+        h["difficulty"] = target.difficulty();
+        h["hash"] = serialize_hex(header.hash());
+        h["pow"] = json {
+            { "verusV2.2", verusV2_2 },
+            { "hashVerus", serialize_hex(verusHash) },
+            { "hashSha256t", serialize_hex(sha256tHash) },
+            { "floatVerus", CustomFloat(verusHash).to_double() },
+            { "floatSha256t", CustomFloat(sha256tHash).to_double() },
+        };
+        h["merkleroot"] = serialize_hex(header.merkleroot());
+        h["nonce"] = serialize_hex(header.nonce());
+        h["prevHash"] = serialize_hex(header.prevhash());
+        h["version"] = serialize_hex(version.value());
+        return h;
+    }
+
+    [[nodiscard]] json body_json(const api::Block& b)
+    {
+        json out;
+        auto& actions { b.actions };
+        { // rewards
+            json a = json::array();
+            if (b.actions.reward) {
+                auto& r { *b.actions.reward };
+                json elem;
+                elem["txHash"] = serialize_hex(r.txhash);
+                elem["toAddress"] = r.toAddress.to_string();
+                elem["amount"] = to_json(r.amount);
+                a.push_back(elem);
+            }
+            out["rewards"] = a;
+        }
+
+        { // WART transfers
+            json a = json::array();
+            for (auto& t : actions.wartTransfers) {
+                json elem;
+                elem["fromAddress"] = t.fromAddress.to_string();
+                elem["fee"] = to_json(t.fee);
+                elem["nonceId"] = t.nonceId;
+                elem["pinHeight"] = t.pinHeight;
+                elem["txHash"] = serialize_hex(t.txhash);
+                elem["toAddress"] = t.toAddress.to_string();
+                elem["amount"] = to_json(t.amount);
+                a.push_back(elem);
+            }
+            out["wartTransfers"] = a;
+        }
+        { // Token transfers
+            json a = json::array();
+            for (auto& t : actions.tokenTransfers) {
+                json elem;
+                elem["token"] = to_json(t.tokenInfo);
+                elem["fromAddress"] = t.fromAddress.to_string();
+                elem["fee"] = to_json(t.fee);
+                elem["nonceId"] = t.nonceId;
+                elem["pinHeight"] = t.pinHeight;
+                elem["txHash"] = serialize_hex(t.txhash);
+                elem["toAddress"] = t.toAddress.to_string();
+                add_fields(elem, "amount", t.amount);
+                a.push_back(elem);
+            }
+            out["tokenTransfers"] = a;
+        }
+        { // Token transfers
+            json a = json::array();
+            for (auto& o : actions.newOrders) {
+                json elem;
+                elem["token"] = to_json(o.tokenInfo);
+                elem["fee"] = o.fee;
+                add_fields(elem, "amount", o.amount);
+                elem["limit"] = o.limit.to_double();
+                elem["buy"] = o.buy;
+                elem["txid"] = to_json(o.txid);
+                elem["txhash"] = serialize_hex(o.txhash);
+                elem["address"] = o.address.to_string();
+                a.push_back(elem);
+            }
+            out["newOrders"] = a;
+        }
+        { // Swaps
+            json a = json::array();
+            for (auto& s : actions.swaps) {
+                json elem;
+                elem["token"] = jsonmsg::to_json(s.tokenInfo);
+                elem["txhash"] = serialize_hex(s.txhash);
+                elem["buy"] = s.buy;
+                elem["fillQuote"] = to_json(s.fillQuote);
+                add_fields(elem, "fillBase", s.fillBase);
+                a.push_back(elem);
+            }
+            out["swaps"] = a;
+        }
+        return out;
+    }
 
 } // namespace
 
-namespace jsonmsg {
 using namespace nlohmann;
 
+json to_json(Wart w)
+{
+    return
+    {
+        { "str", w.to_string() },
+        { "E8", w.E8() }
+    };
+}
 auto to_json_visit(const api::TransferTransaction& tx)
 {
     json j;
@@ -208,12 +267,10 @@ auto to_json_visit(const api::TransferTransaction& tx)
     jtx["toAddress"] = tx.toAddress.to_string();
     jtx["confirmations"] = tx.confirmations;
     jtx["blockHeight"] = tx.height;
-    jtx["amount"] = tx.amount.to_string();
-    jtx["amountE8"] = tx.amount.E8();
+    jtx["amount"] = to_json(tx.amount);
     jtx["type"] = "Transfer";
     jtx["pinHeight"] = tx.pinHeight;
-    jtx["fee"] = tx.fee.to_string();
-    jtx["feeE8"] = tx.fee.E8();
+    jtx["fee"] = to_json(tx.fee);
     jtx["fromAddress"] = tx.fromAddress.to_string();
     jtx["nonceId"] = tx.nonceId;
     j["transaction"] = jtx;
@@ -227,8 +284,7 @@ auto to_json_visit(const api::RewardTransaction& tx)
     jtx["toAddress"] = tx.toAddress.to_string();
     jtx["confirmations"] = tx.confirmations;
     jtx["blockHeight"] = tx.height;
-    jtx["amount"] = tx.amount.to_string();
-    jtx["amountE8"] = tx.amount.E8();
+    jtx["amount"] = to_json(tx.amount);
     jtx["timestamp"] = tx.timestamp;
     jtx["utc"] = format_utc(tx.timestamp);
     jtx["type"] = "Reward";
@@ -333,7 +389,7 @@ json to_json(const api::MiningState& ms)
     auto& mt { ms.miningTask };
     json j;
     auto height { mt.block.height };
-    auto bodyView { mt.block.body_view() };
+    auto bodyView { mt.block.body.view() };
     auto blockReward { bodyView.reward() };
     auto totalTxFee { bodyView.fee_sum_assert() };
     j["synced"] = ms.synced;
@@ -341,10 +397,8 @@ json to_json(const api::MiningState& ms)
     j["difficulty"] = mt.block.header.target(height, is_testnet()).difficulty();
     j["merklePrefix"] = serialize_hex(bodyView.merkle_prefix());
     j["body"] = serialize_hex(mt.block.body.data());
-    j["blockReward"] = blockReward.amount_assert().to_string();
-    j["blockRewardE8"] = blockReward.amount_assert().E8();
-    j["totalTxFee"] = totalTxFee.to_string();
-    j["totalTxFeeE8"] = totalTxFee.E8();
+    j["blockReward"] = to_json(blockReward.amount_assert());
+    j["totalTxFee"] = to_json(totalTxFee);
     j["height"] = height;
     j["testnet"] = is_testnet();
     return j;
@@ -359,11 +413,9 @@ json to_json(const api::MempoolEntries& entries)
         elem["pinHeight"] = e.pin_height();
         elem["txHash"] = serialize_hex(e.txHash);
         elem["nonceId"] = e.nonce_id();
-        elem["fee"] = e.fee().to_string();
-        elem["feeE8"] = e.fee().E8();
+        elem["fee"] = to_json(e.fee());
         elem["toAddress"] = e.toAddr.to_string();
-        elem["amount"] = e.amount.to_string();
-        elem["amountE8"] = e.amount.E8();
+        elem["amount"] = to_json(e.amount);
         a.push_back(elem);
     }
     j["data"] = a;
@@ -432,13 +484,10 @@ json to_json(const api::BlockSummary& block)
     j["height"] = block.height;
     j["nTransfers"] = block.nTransfers;
     j["miner"] = block.miner.to_string();
-    j["transferred"] = block.transferred.to_string();
-    j["transferredE8"] = block.transferred.E8();
-    j["totalTxFee"] = block.totalTxFee.to_string();
-    j["totalTxFeeE8"] = block.totalTxFee.E8();
+    j["transferred"] = to_json(block.transferred);
+    j["totalTxFee"] = to_json(block.totalTxFee);
     auto r { block.height.reward() };
-    j["blockReward"] = r.to_string();
-    j["blockReward"] = r.E8();
+    j["blockReward"] = to_json(r);
     return j;
 }
 
@@ -457,8 +506,7 @@ json to_json(const api::AccountHistory& h)
     json j;
     j["perBlock"] = a;
     j["fromId"] = h.fromId;
-    j["balance"] = h.balance.to_string();
-    j["balanceE8"] = h.balance.E8();
+    j["balance"] = to_json(h.balance);
     return j;
 }
 
@@ -476,8 +524,7 @@ json to_json(const api::Richlist& l)
     for (auto& [address, balance] : l.entries) {
         json elem;
         elem["address"] = address.to_string();
-        elem["balance"] = balance.to_string();
-        elem["balanceE8"] = balance.E8();
+        elem["balance"] = to_json(balance);
         a.push_back(elem);
     }
     return a;
@@ -589,8 +636,7 @@ json to_json(const TCPPeeraddr& a)
 json to_json(const api::WartBalance& b)
 {
     json j;
-    j["balance"] = b.balance.to_string();
-    j["balanceE8"] = b.balance.E8();
+    j["balance"] = to_json(b.balance);
     if (b.address) {
         j["address"] = b.address->address.to_string();
         j["accountId"] = b.address->accountId.value();
@@ -623,7 +669,25 @@ json to_json(const std::optional<SignedSnapshot>& sp)
     return nullptr;
 }
 
-nlohmann::json to_json(const chainserver::TransactionIds& txids)
+json to_json(const TransactionId& txid)
+{
+    return json {
+        { "accountId", txid.accountId },
+        { "nonceId", txid.nonceId },
+        { "pinHeight", txid.pinHeight },
+    };
+}
+
+json to_json(const TokenIdHashName& t)
+{
+    return {
+        { "hash", serialize_hex(t.hash) },
+        { "id", t.id.value() },
+        { "name", t.name.to_string() }
+    };
+}
+
+json to_json(const chainserver::TransactionIds& txids)
 {
     json j(json::array());
     for (auto& txid : txids) {
@@ -640,10 +704,8 @@ nlohmann::json to_json(const api::Round16Bit& e)
 {
     auto c { CompactUInt::compact(e.original) };
     return json {
-        { "originalE8", e.original.E8() },
-        { "originalAmount", e.original.to_string() },
-        { "roundedE8", c.uncompact().E8() },
-        { "roundedAmount", c.uncompact().to_string() },
+        { "original", to_json(e.original) },
+        { "rounded", to_json(c.uncompact())},
         { "16bit", c.value() }
     };
 }

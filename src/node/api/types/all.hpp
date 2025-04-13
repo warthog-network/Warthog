@@ -103,7 +103,7 @@ struct BlockSummary {
     Address miner;
     Wart transferred;
     Wart totalTxFee;
-    Funds_uint64 blockReward;
+    Wart blockReward;
 };
 
 struct Block {
@@ -125,12 +125,12 @@ struct Block {
         PinHeight pinHeight;
         Hash txhash;
         Address toAddress;
-        Funds_uint64 amount;
+        FundsDecimal amount;
     };
     struct NewOrder {
         TokenIdHashName tokenInfo;
         Wart fee;
-        Funds_uint64 amount;
+        FundsDecimal amount;
         Price_uint64 limit;
         bool buy;
         TransactionId txid;
@@ -142,7 +142,7 @@ struct Block {
         Hash txhash;
         bool buy;
         Wart fillQuote;
-        Funds_uint64 fillBase;
+        FundsDecimal fillBase;
     };
     struct Reward {
         Hash txhash;
@@ -159,9 +159,6 @@ struct Block {
     Header header;
     NonzeroHeight height;
     uint32_t confirmations = 0;
-
-private:
-    std::optional<Reward> _reward; // optional because account's history is also returned in block structure
 
 public:
     struct Actions {
@@ -186,7 +183,6 @@ public:
     {
     }
     void set_reward(Reward r);
-    auto& reward() const { return _reward; }
 };
 
 struct AddressCount {

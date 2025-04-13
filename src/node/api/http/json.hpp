@@ -11,6 +11,7 @@ class Header;
 namespace jsonmsg {
 using namespace nlohmann;
 
+json to_json(Wart);
 json to_json(const PeerDB::BanEntry&);
 json to_json(const api::ThrottleState&);
 json to_json(const api::ThrottledPeer&);
@@ -42,6 +43,8 @@ json to_json(const api::HashrateBlockChart&);
 json to_json(const api::HashrateTimeChart&);
 json to_json(const OffenseEntry& e);
 json to_json(const std::optional<SignedSnapshot>&);
+json to_json(const TransactionId&);
+json to_json(const TokenIdHashName&);
 json to_json(const chainserver::TransactionIds&);
 json to_json(const api::Round16Bit&);
 json to_json(const api::Rollback&);

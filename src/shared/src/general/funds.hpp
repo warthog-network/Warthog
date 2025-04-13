@@ -5,11 +5,11 @@
 #include <cassert>
 #include <optional>
 
-class DecimalDigits {
+class TokenPrecision { // number of decimal places
 private:
     uint8_t val;
 
-    constexpr DecimalDigits(uint8_t v)
+    constexpr TokenPrecision(uint8_t v)
         : val(v)
     {
     }
@@ -17,31 +17,32 @@ private:
 public:
     static constexpr const uint8_t max { 18 };
 
-    static constexpr DecimalDigits digits8()
+    static constexpr TokenPrecision digits8()
     {
         return 8;
     }
     constexpr auto operator()() const { return val; }
-    constexpr std::optional<DecimalDigits> from_number(uint8_t v)
+    constexpr std::optional<TokenPrecision> from_number(uint8_t v)
     {
         if (v > max)
             return {};
-        return DecimalDigits { v };
+        return TokenPrecision { v };
     }
 };
 
 struct FundsDecimal {
     [[nodiscard]] static std::optional<FundsDecimal> parse(std::string_view);
     FundsDecimal(std::string_view);
-    FundsDecimal(uint64_t v, uint8_t decimals)
+    FundsDecimal(uint64_t v, uint8_t decimalPlaces)
         : v(v)
-        , decimals(decimals)
+        , precision(decimalPlaces)
     {
     }
     static FundsDecimal zero() { return { 0, 0 }; }
     std::string to_string() const;
+    auto uint64() const { return v; };
     uint64_t v;
-    uint8_t decimals;
+    uint8_t precision;
 };
 
 template <typename R>
@@ -144,14 +145,14 @@ public:
     }
     Funds_uint64(Reader& r);
     auto operator<=>(const Funds_uint64&) const = default;
-    static std::optional<Funds_uint64> parse(std::string_view, DecimalDigits);
-    static std::optional<Funds_uint64> parse(FundsDecimal, DecimalDigits);
-    static Funds_uint64 parse_throw(std::string_view, DecimalDigits);
-    FundsDecimal to_decimal(DecimalDigits d) const
+    static std::optional<Funds_uint64> parse(std::string_view, TokenPrecision);
+    static std::optional<Funds_uint64> parse(FundsDecimal, TokenPrecision);
+    static Funds_uint64 parse_throw(std::string_view, TokenPrecision);
+    FundsDecimal to_decimal(TokenPrecision d) const
     {
         return { value(), d() };
     }
-    std::string to_string(DecimalDigits) const;
+    std::string to_string(TokenPrecision) const;
 };
 
 struct TokenFunds {

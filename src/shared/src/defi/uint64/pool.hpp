@@ -48,8 +48,8 @@ struct PoolLiquidity_uint64 : public BaseQuote_uint64 {
     [[nodiscard]] Funds_uint64 sell(Funds_uint64 baseAdd, uint64_t feeE4 = 10)
     {
         auto quoteDelta = swapped_amount(base.value(), baseAdd.value(), quote.value(), feeE4);
-        quote.subtract_assert(quoteDelta);
-        base.add_assert(baseAdd);
+        quote.subtract_assert(Funds_uint64(quoteDelta));
+        base.add_assert(Funds_uint64(baseAdd));
         return quoteDelta;
     }
 

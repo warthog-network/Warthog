@@ -93,12 +93,12 @@ public:
 template <uint32_t seconds>
 RoundedTimestamp<seconds> Timestamp::floor() const
 {
-    return { (data / seconds) * seconds };
+    return { (value() / seconds) * seconds };
 }
 template <uint32_t seconds>
 RoundedTimestamp<seconds> Timestamp::ceil() const
 {
-    return { ((data + seconds - 1) / seconds) * seconds };
+    return { ((value() + seconds - 1) / seconds) * seconds };
 }
 
 struct Timepoint : public std::chrono::steady_clock::time_point {

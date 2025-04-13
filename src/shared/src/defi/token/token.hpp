@@ -43,6 +43,15 @@ public:
             return *o;
         throw std::runtime_error("Cannot parse token name \"" + s + "\".");
     }
+    std::string to_string() const
+    {
+        size_t i { 0 };
+        for (; i < sizeof(name); ++i) {
+            if (name[i] == '\0')
+                break;
+        }
+        return { name, i };
+    }
 
     View<5> view() const { return View<5>(reinterpret_cast<const uint8_t*>(name)); }
     static constexpr size_t byte_size() { return 5; }
