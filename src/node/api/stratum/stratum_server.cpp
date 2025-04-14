@@ -223,9 +223,6 @@ void Connection::on_message(std::string_view msg)
 void Connection::on_append_result(int64_t stratumId, tl::expected<void, Error> result)
 {
     if (result.has_value()) {
-        // if (authorized)
-        //     spdlog::info("Block mined over stratum to address {} by worker {}",
-        //         authorized->address.to_string(), authorized->worker);
         write() << messages::OK(stratumId);
     } else {
         write() << messages::StratumError(stratumId, 40, Error(result.error()).strerror());
@@ -251,7 +248,7 @@ void Connection::handle_message(messages::MiningSubmit&& m)
         return;
     }
     m.apply_to(extra2prefix, *b);
-    put_chain_append(BlockWorker{ *b, authorized->worker },
+    put_chain_append(BlockWorker { std::move(*b), authorized->worker },
         [&, p = shared_from_this(), id = m.id](const tl::expected<void, Error>& res) {
             server.on_append_result({ .p = p, .stratumId = id, .result { res } });
         });
@@ -421,7 +418,8 @@ StratumServer::StratumServer(TCPPeeraddr endpointAddress)
     });
     acceptor(endpointAddress);
 }
-void StratumServer::start(){
+void StratumServer::start()
+{
     assert(!worker.joinable());
     worker = std::thread([&]() { loop->run(); });
 }
@@ -429,7 +427,7 @@ void StratumServer::start(){
 StratumServer::~StratumServer()
 {
     shutdown();
-    if (worker.joinable()) 
+    if (worker.joinable())
         worker.join();
 }
 
