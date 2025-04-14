@@ -1,11 +1,9 @@
 #pragma once
 #ifndef DISABLE_LIBUV
-#include "api/types/all.hpp"
 #include "chainserver/mining_subscription.hpp"
 #include "communication/mining_task.hpp"
 #include <list>
 #include <memory>
-#include <set>
 #include <string>
 #include <thread>
 #include <variant>

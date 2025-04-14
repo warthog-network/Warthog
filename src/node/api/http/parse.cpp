@@ -1,17 +1,30 @@
 #include "parse.hpp"
 #include "general/hex.hpp"
 #include "nlohmann/json.hpp"
+namespace {
+using nlohmann::json;
+template <typename T>
+std::optional<T> get_optional(const json& j, std::string_view key)
+{
+    auto it { j.find(key) };
+    if (it == j.end())
+        return {};
+    return it->get<T>();
+}
+}
 
 using namespace nlohmann;
-ChainMiningTask parse_mining_task(const std::vector<uint8_t>& s)
+BlockWorker parse_block_worker(const std::vector<uint8_t>& s)
 {
     try {
         json parsed = json::parse(s);
-        ChainMiningTask mt {
-            .block { ParsedBlock::create_throw(
-                Height(parsed["height"].get<uint32_t>()).nonzero_throw(EBADHEIGHT),
-                hex_to_arr<80>(parsed["header"].get<std::string>()),
-                hex_to_vec(parsed["body"].get<std::string>())) }
+        BlockWorker mt {
+            .block {
+                .height { Height(parsed.at("height").get<uint32_t>()).nonzero_throw(EBADHEIGHT) },
+                .header { hex_to_arr<80>(parsed.at("header").get<std::string>()) },
+                .body { hex_to_vec(parsed.at("body").get<std::string>()) },
+            },
+            .worker { get_optional<std::string>(parsed, "worker").value_or(std::string()) }
         };
         return mt;
     } catch (const json::exception& e) {

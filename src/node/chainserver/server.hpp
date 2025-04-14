@@ -26,7 +26,8 @@ public:
     void wait_for_shutdown();
 
     struct MiningAppend {
-        ParsedBlock block;
+        Block block;
+        std::string worker;
         ResultCb callback;
     };
     struct PutMempool {
@@ -205,7 +206,7 @@ public:
     void async_get_head(ChainHeadCb callback);
 
     // API methods
-    void api_mining_append(ParsedBlock&&, ResultCb);
+    void api_mining_append(BlockWorker&&, ResultCb);
     // void api_put_mempool(PaymentCreateMessage, ResultCb cb);
     void api_put_mempool(PaymentCreateMessage, MempoolInsertCb cb);
     void api_get_wart_balance(const api::AccountIdOrAddress& a, BalanceCb callback);
@@ -273,7 +274,6 @@ private:
     void handle_event(SubscribeChain&&);
     void handle_event(SubscribeMinerdist&&);
     void handle_event(DestroySubscriptions&&);
-
 
     using StateUpdateWithAPIBlocks = chainserver::state_update::StateUpdateWithAPIBlocks;
     void on_chain_changed(StateUpdateWithAPIBlocks&&);

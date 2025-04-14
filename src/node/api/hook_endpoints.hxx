@@ -231,7 +231,7 @@ public:
         hook_get_1(t, "/chain/hashrate/:window", get_hashrate_n);
         hook_get_3(t, "/chain/hashrate/chart/block/:from/:to/:window", get_hashrate_block_chart, true);
         hook_get_3(t, "/chain/hashrate/chart/time/:from/:to/:interval", get_hashrate_time_chart, true);
-        hook_post(t, "/chain/append", parse_mining_task, put_chain_append, true);
+        hook_post(t, "/chain/append", parse_block_worker, put_chain_append, true);
 
         t.indexGenerator.section("Account Endpoints");
         hook_get_1(t, "/account/:account/balance", get_account_wart_balance);

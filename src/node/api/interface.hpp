@@ -58,7 +58,7 @@ void get_hashrate_n(size_t n, HashrateCb&& cb);
 void get_hashrate(HashrateCb&& cb);
 void get_hashrate_block_chart(NonzeroHeight from, NonzeroHeight to, size_t window, HashrateBlockChartCb&& cb);
 void get_hashrate_time_chart(uint32_t from, uint32_t to, size_t window, HashrateTimeChartCb&& cb);
-void put_chain_append(ChainMiningTask&& mt, ResultCb cb);
+void put_chain_append(BlockWorker&& mt, ResultCb cb);
 void get_signed_snapshot(Eventloop::SignedSnapshotCb&& cb);
 
 // sync functions

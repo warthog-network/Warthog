@@ -42,9 +42,9 @@ ChainServer::~ChainServer()
     wait_for_shutdown();
 }
 
-void ChainServer::api_mining_append(ParsedBlock&& block, ResultCb callback)
+void ChainServer::api_mining_append(BlockWorker&& bw, ResultCb callback)
 {
-    defer_maybe_busy(MiningAppend { std::move(block), std::move(callback) });
+    defer_maybe_busy(MiningAppend { std::move(bw.block), std::move(bw.worker), std::move(callback) });
 }
 
 void ChainServer::async_set_synced(bool synced)
@@ -280,12 +280,12 @@ void ChainServer::handle_event(MiningAppend&& e)
     try {
         auto res = state.append_mined_block(e.block);
         on_chain_changed(std::move(res));
-        spdlog::info("Accepted new block #{}", state.chainlength().value());
+        spdlog::info("Accepted new block #{} (worker {:?})", state.chainlength().value(), e.worker);
         e.callback({});
         dispatch_mining_subscriptions();
     } catch (Error err) {
-        spdlog::info("Rejected new block #{}: {}", (state.chainlength() + 1).value(),
-            err.strerror());
+        spdlog::info("Rejected new block #{} (worker {:?}): {}", (state.chainlength() + 1).value(),
+            e.worker, err.strerror());
         e.callback(err);
     }
 }

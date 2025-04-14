@@ -229,9 +229,9 @@ void Connection::on_message(std::string_view msg)
 void Connection::send_result(int64_t stratumId, std::optional<Error> result)
 {
     if (result.has_value()) {
-        if (authorized)
-            spdlog::info("Block mined over stratum to addres {} by worker {}",
-                authorized->address.to_string(), authorized->worker);
+        // if (authorized)
+        //     spdlog::info("Block mined over stratum to address {} by worker {}",
+        //         authorized->address.to_string(), authorized->worker);
         write() << messages::OK(stratumId);
     } else {
         write() << messages::StratumError(stratumId, 40, result->strerror());
@@ -257,14 +257,10 @@ void Connection::handle_message(messages::MiningSubmit&& m)
         return;
     }
     m.apply_to(extra2prefix, *b);
-    try {
-        put_chain_append({ std::move(*b).parse_throw() },
-            [&, p = shared_from_this(), id = m.id](const std::optional<Error>& res) {
-                server.on_append_result({ .p = p, .stratumId = id, .result { res } });
-            });
-    } catch (const Error& e) {
-        send_result(m.id, e);
-    }
+    put_chain_append(BlockWorker { *b, authorized->worker },
+        [&, p = shared_from_this(), id = m.id](const std::optional<Error>& res) {
+            server.on_append_result({ .p = p, .stratumId = id, .result { res } });
+        });
 }
 
 void Connection::send_work(std::string jobId, const Block& block, bool clean)

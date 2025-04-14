@@ -310,9 +310,9 @@ void get_hashrate_time_chart(uint32_t from, uint32_t to, size_t window, Hashrate
     global().core->api_get_hashrate_time_chart(from, to, window, std::move(cb));
 }
 
-void put_chain_append(ChainMiningTask&& mt, ResultCb f)
+void put_chain_append(BlockWorker&& bw, ResultCb f)
 {
-    global().chainServer->api_mining_append(std::move(mt.block), f);
+    global().chainServer->api_mining_append({ bw.block, bw.worker }, f);
 }
 void get_signed_snapshot(Eventloop::SignedSnapshotCb&& cb)
 {
