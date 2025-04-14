@@ -5,3 +5,7 @@
 struct ChainMiningTask {
     Block block;
 };
+struct BlockWorker {
+    Block block;
+    std::string worker;
+};

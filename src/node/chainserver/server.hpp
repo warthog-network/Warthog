@@ -27,6 +27,7 @@ public:
 
     struct MiningAppend {
         Block block;
+        std::string worker;
         ResultCb callback;
     };
     struct PutMempool {
@@ -199,7 +200,7 @@ public:
     void async_get_head(ChainHeadCb callback);
 
     // API methods
-    void api_mining_append(Block&&, ResultCb);
+    void api_mining_append(BlockWorker&&, ResultCb);
     // void api_put_mempool(PaymentCreateMessage, ResultCb cb);
     void api_put_mempool(PaymentCreateMessage, MempoolInsertCb cb);
     void api_get_balance(const api::AccountIdOrAddress& a, BalanceCb callback);

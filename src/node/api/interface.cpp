@@ -307,9 +307,9 @@ void get_hashrate_time_chart(uint32_t from, uint32_t to, size_t window, Hashrate
     global().core->api_get_hashrate_time_chart(from, to, window, std::move(cb));
 }
 
-void put_chain_append(ChainMiningTask&& mt, ResultCb f)
+void put_chain_append(BlockWorker&& bw, ResultCb f)
 {
-    global().chainServer->api_mining_append(std::move(mt.block), f);
+    global().chainServer->api_mining_append({ bw.block, bw.worker }, f);
 }
 void get_signed_snapshot(Eventloop::SignedSnapshotCb&& cb)
 {
@@ -378,12 +378,15 @@ void destroy_all_subscriptions(subscription_data_ptr p)
     global().chainServer->destroy_subscriptions(p);
     global().core->destroy_subscriptions(p);
 }
-void loadtest_block(uint64_t conId, ResultCb cb){
+void loadtest_block(uint64_t conId, ResultCb cb)
+{
     global().core->api_loadtest_block(conId, std::move(cb));
 }
-void loadtest_header(uint64_t conId, ResultCb cb){
+void loadtest_header(uint64_t conId, ResultCb cb)
+{
     global().core->api_loadtest_header(conId, std::move(cb));
 }
-void loadtest_disable(uint64_t conId, ResultCb cb){
+void loadtest_disable(uint64_t conId, ResultCb cb)
+{
     global().core->api_loadtest_disable(conId, std::move(cb));
 }
