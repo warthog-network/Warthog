@@ -273,11 +273,11 @@ void ChainServer::handle_event(MiningAppend&& e)
     try {
         auto res = state.append_mined_block(e.block);
         on_chain_changed(std::move(res));
-        spdlog::info("Accepted new block #{} (worker \'{:?}\')", state.chainlength().value(), e.worker);
+        spdlog::info("Accepted new block #{} (worker {:?})", state.chainlength().value(), e.worker);
         e.callback({});
         dispatch_mining_subscriptions();
     } catch (Error err) {
-        spdlog::info("Rejected new block #{} (worker \'{:?}\'): {}", (state.chainlength() + 1).value(),
+        spdlog::info("Rejected new block #{} (worker {:?}): {}", (state.chainlength() + 1).value(),
             e.worker, err.strerror());
         e.callback(tl::make_unexpected(err.code));
     }
