@@ -97,7 +97,10 @@ void get_info(InfoCb cb)
 {
     global().chainServer->api_get_db_size(
         [cb = std::move(cb)](Result<api::DBSize> s) {
-            cb(std::move(s).transform([](api::DBSize&& s) { return api::NodeInfo { std::move(s) }; }));
+            if (s)
+                cb(api::NodeInfo { std::move(*s) });
+            else
+                cb({});
         });
 }
 
@@ -321,8 +324,9 @@ void get_account_wart_balance(const api::AccountIdOrAddress& address, BalanceCb 
 {
     global().chainServer->api_get_wart_balance(address, f);
 }
-void get_account_token_balance(const api::AccountIdOrAddress& address, const api::TokenIdOrHash& t, BalanceCb cb){
-    global().chainServer->api_get_token_balance(address,t, cb);
+void get_account_token_balance(const api::AccountIdOrAddress& address, const api::TokenIdOrHash& t, BalanceCb cb)
+{
+    global().chainServer->api_get_token_balance(address, t, cb);
 }
 
 void get_account_history(const Address& address, uint64_t beforeId,
@@ -381,12 +385,15 @@ void destroy_all_subscriptions(subscription_data_ptr p)
     global().chainServer->destroy_subscriptions(p);
     global().core->destroy_subscriptions(p);
 }
-void loadtest_block(uint64_t conId, ResultCb cb){
+void loadtest_block(uint64_t conId, ResultCb cb)
+{
     global().core->api_loadtest_block(conId, std::move(cb));
 }
-void loadtest_header(uint64_t conId, ResultCb cb){
+void loadtest_header(uint64_t conId, ResultCb cb)
+{
     global().core->api_loadtest_header(conId, std::move(cb));
 }
-void loadtest_disable(uint64_t conId, ResultCb cb){
+void loadtest_disable(uint64_t conId, ResultCb cb)
+{
     global().core->api_loadtest_disable(conId, std::move(cb));
 }

@@ -3,6 +3,10 @@
 #include "general/errors_forward.hpp"
 template <typename T>
 struct Result : public tl::expected<T, Error> {
+    Result(tl::expected<T, Error> t)
+        : tl::expected<T, Error>(std::move(t))
+    {
+    }
     Result(T t)
         : tl::expected<T, Error>(std::move(t))
     {

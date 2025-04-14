@@ -76,6 +76,7 @@ tl::expected<HeaderVerifier, ChainError> HeaderVerifier::copy_apply(const std::o
 
 HeaderVerifier::HeaderVerifier()
     : nextTarget(TargetV1::genesis())
+    , finalHash(Hash::genesis())
 {
     if (is_testnet()) {
         nextTarget = TargetV2::genesis_testnet();
@@ -84,7 +85,6 @@ HeaderVerifier::HeaderVerifier()
     latestRetargetHeight = Height(0);
     latestRetargetTime = 0;
     timeValidator.clear();
-    finalHash = Hash::genesis();
 }
 
 void HeaderVerifier::append(NonzeroHeight newlength, const PreparedAppend& p)

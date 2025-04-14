@@ -1,4 +1,5 @@
 #include "hash.hpp"
+#include "general/params.hpp"
 #include "general/hex.hpp"
 #include "hasher_sha256.hpp"
 
