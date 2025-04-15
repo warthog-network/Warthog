@@ -45,17 +45,17 @@ public:
     RecoverableSignature signature;
 };
 
-class TransferDefiMessage { // for defi we include the token id
+class TokenTransferMessage { // for defi we include the token id
 public:
     // layout:
     static constexpr size_t bytesize = 16 + 3 + 2 + 32 + 20 + 8 + 65;
     static constexpr size_t byte_size() { return bytesize; }
-    TransferDefiMessage(ReaderCheck<bytesize> r);
-    TransferDefiMessage(AccountId fromId, const TokenPaymentCreateMessage& pcm);
-    TransferDefiMessage(const TransactionId& txid, const mempool::entry::Value&);
-    TransferDefiMessage(WartTransferView, Hash tokenHash, PinHeight, AddressView toAddr);
+    TokenTransferMessage(ReaderCheck<bytesize> r);
+    TokenTransferMessage(AccountId fromId, const TokenPaymentCreateMessage& pcm);
+    TokenTransferMessage(const TransactionId& txid, const mempool::entry::Value&);
+    TokenTransferMessage(WartTransferView, Hash tokenHash, PinHeight, AddressView toAddr);
 
-    friend Writer& operator<<(Writer&, TransferDefiMessage);
+    friend Writer& operator<<(Writer&, TokenTransferMessage);
     [[nodiscard]] TxHash txhash(HashView pinHash) const;
     [[nodiscard]] Address from_address(HashView txHash) const;
     [[nodiscard]] Funds_uint64 spend_throw() const { return Funds_uint64::sum_throw(fee(), amount); }

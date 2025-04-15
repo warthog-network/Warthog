@@ -6,7 +6,6 @@
 #include "general/compact_uint.hpp"
 #include "general/funds.hpp"
 #include "tools/variant.hpp"
-class TransferTxExchangeMessageView;
 
 namespace mempool {
 namespace entry {

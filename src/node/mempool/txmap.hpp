@@ -5,7 +5,6 @@
 #include <map>
 
 class HashView;
-class TransferTxExchangeMessageView;
 namespace mempool {
 class Txmap {
 public:

@@ -73,7 +73,7 @@ WartTransferMessage::WartTransferMessage(ReaderCheck<bytesize> r)
     r.assert_read_bytes();
 }
 
-Writer& operator<<(Writer& w, TransferDefiMessage m)
+Writer& operator<<(Writer& w, TokenTransferMessage m)
 {
     return w << m.txid
              << m.reserved
@@ -84,12 +84,12 @@ Writer& operator<<(Writer& w, TransferDefiMessage m)
              << m.signature;
 }
 
-Address TransferDefiMessage::from_address(HashView txHash) const
+Address TokenTransferMessage::from_address(HashView txHash) const
 {
     return signature.recover_pubkey(txHash.data()).address();
 }
 
-TxHash TransferDefiMessage::txhash(HashView pinHash) const
+TxHash TokenTransferMessage::txhash(HashView pinHash) const
 {
     return TxHash(
         HasherSHA256()
@@ -103,7 +103,7 @@ TxHash TransferDefiMessage::txhash(HashView pinHash) const
         << amount);
 }
 
-TransferDefiMessage::TransferDefiMessage(WartTransferView t, Hash tokenHash, PinHeight ph, AddressView toAddr)
+TokenTransferMessage::TokenTransferMessage(WartTransferView t, Hash tokenHash, PinHeight ph, AddressView toAddr)
     : txid(t.txid(ph))
     , reserved(t.pin_nonce().reserved)
     , compactFee(t.compact_fee_throw())
@@ -114,7 +114,7 @@ TransferDefiMessage::TransferDefiMessage(WartTransferView t, Hash tokenHash, Pin
 {
 }
 
-TransferDefiMessage::TransferDefiMessage(AccountId fromId, const TokenPaymentCreateMessage& pcm)
+TokenTransferMessage::TokenTransferMessage(AccountId fromId, const TokenPaymentCreateMessage& pcm)
     : txid(fromId, pcm.pinHeight, pcm.nonceId)
     , reserved(pcm.reserved)
     , compactFee(pcm.compactFee)
@@ -125,7 +125,7 @@ TransferDefiMessage::TransferDefiMessage(AccountId fromId, const TokenPaymentCre
 {
 }
 
-TransferDefiMessage::TransferDefiMessage(const TransactionId& txid, const mempool::EntryValue& v)
+TokenTransferMessage::TokenTransferMessage(const TransactionId& txid, const mempool::EntryValue& v)
     : txid(txid)
     , reserved(v.noncep2)
     , compactFee(v.fee)
@@ -136,7 +136,7 @@ TransferDefiMessage::TransferDefiMessage(const TransactionId& txid, const mempoo
 {
 }
 
-TransferDefiMessage::TransferDefiMessage(ReaderCheck<bytesize> r)
+TokenTransferMessage::TokenTransferMessage(ReaderCheck<bytesize> r)
     : txid(r.r)
     , reserved(r.r.view<3>())
     , compactFee(CompactUInt::from_value_throw(r.r.uint16()))
