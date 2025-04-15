@@ -130,7 +130,7 @@ void Eventloop::async_state_update(StateUpdate&& s)
     defer(std::move(s));
 }
 
-void Eventloop::async_mempool_update(mempool::Log&& s)
+void Eventloop::async_mempool_update(mempool::Updates&& s)
 {
     defer(std::move(s));
 }
@@ -348,7 +348,7 @@ void Eventloop::handle_event(OnProcessConnection&& m)
 void Eventloop::handle_event(StateUpdate&& e)
 {
     // mempool
-    mempool.apply_log(std::move(e.mempoolUpdate));
+    mempool.apply_log(std::move(e.mempoolUpdates));
 
     // header chain
     std::visit([&](auto&& action) {
@@ -574,7 +574,7 @@ void Eventloop::handle_event(FailedConnect&& e)
     connections.outbound_failed(e.connectRequest, e.reason);
 }
 
-void Eventloop::handle_event(mempool::Log&& log)
+void Eventloop::handle_event(mempool::Updates&& log)
 {
     mempool.apply_log(log);
 

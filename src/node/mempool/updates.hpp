@@ -11,6 +11,6 @@ struct Put {
 struct Erase {
     TransactionId id;
 };
-using Action = std::variant<Put, Erase>;
-using Log = std::vector<Action>;
+using Update = std::variant<Put, Erase>;
+using Updates = std::vector<Update>;
 }

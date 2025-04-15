@@ -21,6 +21,7 @@ public:
     {
         return 8;
     }
+    auto value() const { return val; }
     constexpr auto operator()() const { return val; }
     constexpr std::optional<TokenPrecision> from_number(uint8_t v)
     {

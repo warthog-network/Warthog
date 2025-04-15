@@ -141,7 +141,7 @@ public:
     void subscribe_connection_event(SubscriptionRequest r);
     void destroy_subscriptions(subscription_data_ptr p);
 
-    void async_mempool_update(mempool::Log&& s);
+    void async_mempool_update(mempool::Updates&& s);
     void shutdown(Error reason);
     void wait_for_shutdown();
     void async_stage_action(stage_operation::Result);
@@ -350,7 +350,7 @@ private:
     using Event = std::variant<Erase, OutboundClosed, OnHandshakeCompleted, OnProcessConnection,
         StateUpdate, SignedSnapshotCb, GetPeers, GetThrottled, SyncedCb, IpCounterCb, stage_operation::Result,
         OnForwardBlockrep, InspectorCb, GetHashrate, GetHashrateBlockChart, GetHashrateTimeChart, GetConnectionSchedule, FailedConnect,
-        mempool::Log, StartTimer, CancelTimer, RTCClosed, IdentityIps, GeneratedVerificationSdpOffer, GeneratedVerificationSdpAnswer, GeneratedSdpOffer, GeneratedSdpAnswer, SubscribeConnections, DestroySubscriptions, DisconnectPeer, SampleVerifiedPeers, Loadtest, PushRogue>;
+        mempool::Updates, StartTimer, CancelTimer, RTCClosed, IdentityIps, GeneratedVerificationSdpOffer, GeneratedVerificationSdpAnswer, GeneratedSdpOffer, GeneratedSdpAnswer, SubscribeConnections, DestroySubscriptions, DisconnectPeer, SampleVerifiedPeers, Loadtest, PushRogue>;
 
 public:
     bool defer(Event e);
@@ -375,7 +375,7 @@ private:
     void handle_event(GetHashrateTimeChart&&);
     void handle_event(GetConnectionSchedule&&);
     void handle_event(FailedConnect&&);
-    void handle_event(mempool::Log&&);
+    void handle_event(mempool::Updates&&);
     void handle_event(StartTimer&&);
     void handle_event(CancelTimer&&);
     void handle_event(RTCClosed&&);

@@ -131,11 +131,11 @@ RecoverableSignature extract_signature(const nlohmann::json& json)
 }
 }
 
-PaymentCreateMessage parse_payment_create(const std::vector<uint8_t>& s)
+WartPaymentCreateMessage parse_payment_create(const std::vector<uint8_t>& s)
 {
     try {
         json parsed = json::parse(s);
-        return PaymentCreateMessage(
+        return WartPaymentCreateMessage(
             extract_pin_height(parsed), extract_nonce_id(parsed), NonceReserved::zero(), extract_fee(parsed), extract_to_addr(parsed), extract_funds(parsed), extract_signature(parsed));
     } catch (const json::exception& e) {
         throw Error(EINV_ARGS);

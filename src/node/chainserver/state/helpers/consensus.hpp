@@ -50,7 +50,7 @@ struct Chainstate {
     Chainstate(const ChainDB& db, BatchRegistry& br);
 
     // modification functions
-    mempool::Log pop_mempool_log();
+    mempool::Updates pop_mempool_updates();
 
     using Update = state_update::StateUpdate;
 
@@ -60,7 +60,7 @@ struct Chainstate {
     [[nodiscard]] auto append(AppendSingle) -> HeaderchainAppend;
 
     TxHash insert_tx(const TransferTxExchangeMessage& m);
-    [[nodiscard]] TxHash insert_tx(const PaymentCreateMessage& m);
+    [[nodiscard]] TxHash insert_tx(const WartPaymentCreateMessage& m);
 
     // const functions
     Worksum work_with_new_block() const { return headerchain.total_work() + headerchain.next_target(); };

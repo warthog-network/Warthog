@@ -8,7 +8,7 @@
 #include "events/subscription_fwd.hpp"
 
 // mempool cbunctions
-void put_mempool(PaymentCreateMessage&&, MempoolInsertCb);
+void put_mempool(WartPaymentCreateMessage&&, MempoolInsertCb);
 void get_mempool(MempoolCb cb);
 void lookup_tx(const Hash hash, TxCb f);
 

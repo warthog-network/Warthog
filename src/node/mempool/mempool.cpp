@@ -41,7 +41,7 @@ std::vector<TransferTxExchangeMessage> Mempool::get_payments(size_t n, NonzeroHe
     return res;
 }
 
-void Mempool::apply_log(const Log& log)
+void Mempool::apply_log(const Updates& log)
 {
     for (auto& l : log) {
         std::visit([&](auto& entry) {
@@ -103,7 +103,7 @@ bool Mempool::erase_internal(Txmap::const_iterator iter, BalanceEntries::iterato
     txs().erase(iter);
 
     if (master)
-        log.push_back(Erase { id });
+        updates.push_back(Erase { id });
 
     // update locked balance
     if (b_iter != lockedBalances.end()) {
@@ -259,7 +259,7 @@ void Mempool::insert_tx_throw(const TransferTxExchangeMessage& pm,
         pm.reserved, pm.compactFee, pm.toAddr, pm.amount, pm.signature, txhash, txh);
     assert(inserted);
     if (master)
-        log.push_back(Put { *iter });
+        updates.push_back(Put { *iter });
     assert(byPin.insert(iter).second);
     assert(byFee.insert(iter));
     assert(byHash.insert(iter).second);

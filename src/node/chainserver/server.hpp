@@ -31,7 +31,7 @@ public:
         ResultCb callback;
     };
     struct PutMempool {
-        PaymentCreateMessage m;
+        WartPaymentCreateMessage m;
         MempoolInsertCb callback;
     };
     struct GetGrid {
@@ -208,7 +208,7 @@ public:
     // API methods
     void api_mining_append(BlockWorker&&, ResultCb);
     // void api_put_mempool(PaymentCreateMessage, ResultCb cb);
-    void api_put_mempool(PaymentCreateMessage, MempoolInsertCb cb);
+    void api_put_mempool(WartPaymentCreateMessage, MempoolInsertCb cb);
     void api_get_wart_balance(const api::AccountIdOrAddress& a, BalanceCb callback);
     void api_get_token_balance(const api::AccountIdOrAddress& a, const api::TokenIdOrHash&, BalanceCb callback);
     void api_get_grid(GridCb);
@@ -241,7 +241,7 @@ private:
     void workerfun();
     void dispatch_mining_subscriptions();
 
-    TxHash append_gentx(const PaymentCreateMessage&);
+    TxHash append_gentx(const WartPaymentCreateMessage&);
 
 private:
     void handle_event(MiningAppend&&);

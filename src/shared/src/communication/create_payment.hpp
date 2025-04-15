@@ -6,7 +6,7 @@
 #include "crypto/hash.hpp"
 #include "general/compact_uint.hpp"
 
-class PaymentCreateMessage {
+class WartPaymentCreateMessage {
 public:
     static constexpr size_t bytesize { 106 };
     // byte layout:
@@ -18,9 +18,9 @@ public:
     // 33 amount
     // 41 signature
     // 106 [total size]
-    PaymentCreateMessage(ReaderCheck<bytesize> r);
-    PaymentCreateMessage(PinHeight pinHeight, const Hash& pinHash, const PrivKey&, CompactUInt feeCompactHost, const Address& toAddress, Funds_uint64 amount, NonceId);
-    PaymentCreateMessage(PinHeight pinHeight, NonceId nonceId, NonceReserved reserved, CompactUInt compactFee, Address toAddr, Funds_uint64 amount, RecoverableSignature signature)
+    WartPaymentCreateMessage(ReaderCheck<bytesize> r);
+    WartPaymentCreateMessage(PinHeight pinHeight, const Hash& pinHash, const PrivKey&, CompactUInt feeCompactHost, const Address& toAddress, Wart amount, NonceId);
+    WartPaymentCreateMessage(PinHeight pinHeight, NonceId nonceId, NonceReserved reserved, CompactUInt compactFee, Address toAddr, Wart amount, RecoverableSignature signature)
         : pinHeight(pinHeight)
         , nonceId(nonceId)
         , reserved(reserved)
@@ -34,7 +34,7 @@ public:
     bool valid_signature(HashView pinHash, AddressView fromAddress) const;
     Address from_address(HashView txHash) const;
     TxHash tx_hash(HashView pinHash) const;
-    friend Writer& operator<<(Writer&, const PaymentCreateMessage&);
+    friend Writer& operator<<(Writer&, const WartPaymentCreateMessage&);
     operator std::vector<uint8_t>();
     operator std::string();
 
@@ -44,7 +44,7 @@ public:
     NonceReserved reserved;
     CompactUInt compactFee;
     Address toAddr;
-    Funds_uint64 amount;
+    Wart amount;
     RecoverableSignature signature;
 };
 

@@ -70,11 +70,11 @@ public:
     auto mining_task(const Address& a) -> Result<ChainMiningTask>;
     auto mining_task(const Address& a, bool disableTxs) -> Result<ChainMiningTask>;
 
-    auto append_gentx(const PaymentCreateMessage&) -> std::pair<mempool::Log, TxHash>;
+    auto append_gentx(const WartPaymentCreateMessage&) -> std::pair<mempool::Updates, TxHash>;
     auto chainlength() const -> Height { return chainstate.headers().length(); }
 
     // mempool
-    [[nodiscard]] auto insert_txs(const TxVec&) -> std::pair<std::vector<Error>, mempool::Log>;
+    [[nodiscard]] auto insert_txs(const TxVec&) -> std::pair<std::vector<Error>, mempool::Updates>;
 
     // stage methods
     auto set_stage(Headerchain&& hc) -> stage_operation::StageSetStatus;

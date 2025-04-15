@@ -58,7 +58,7 @@ void ChainServer::async_put_mempool(std::vector<TransferTxExchangeMessage> txs)
     defer(PutMempoolBatch { std::move(txs) });
 }
 
-void ChainServer::api_put_mempool(PaymentCreateMessage m,
+void ChainServer::api_put_mempool(WartPaymentCreateMessage m,
     MempoolInsertCb callback)
 {
     defer_maybe_busy(PutMempool { std::move(m), std::move(callback) });
@@ -243,7 +243,7 @@ void ChainServer::dispatch_mining_subscriptions()
     });
 }
 
-TxHash ChainServer::append_gentx(const PaymentCreateMessage& m)
+TxHash ChainServer::append_gentx(const WartPaymentCreateMessage& m)
 {
     auto [log, txhash] = state.append_gentx(m);
     global().core->async_mempool_update(std::move(log));

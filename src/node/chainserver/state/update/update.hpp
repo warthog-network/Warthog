@@ -9,7 +9,7 @@ namespace state_update {
 
     struct StateUpdate {
         ChainstateUpdate chainstateUpdate;
-        MempoolUpdate mempoolUpdate;
+        MempoolUpdate mempoolUpdates;
     };
     struct StateUpdateWithAPIBlocks {
         StateUpdate update;

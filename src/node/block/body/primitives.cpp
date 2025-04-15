@@ -42,7 +42,7 @@ TransferTxExchangeMessage::TransferTxExchangeMessage(WartTransferView t, PinHeig
 {
 }
 
-TransferTxExchangeMessage::TransferTxExchangeMessage(AccountId fromId, const PaymentCreateMessage& pcm)
+TransferTxExchangeMessage::TransferTxExchangeMessage(AccountId fromId, const WartPaymentCreateMessage& pcm)
     : txid(fromId, pcm.pinHeight, pcm.nonceId)
     , reserved(pcm.reserved)
     , compactFee(pcm.compactFee)

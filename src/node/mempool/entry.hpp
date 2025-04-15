@@ -3,7 +3,6 @@
 #include "block/body/transaction_id.hpp"
 #include "block/chain/pin.hpp"
 #include "crypto/hash.hpp"
-#include "defi/token/id.hpp"
 #include "general/compact_uint.hpp"
 #include "general/funds.hpp"
 #include "mempool/order_key.hpp"
@@ -12,12 +11,13 @@ class TransferTxExchangeMessageView;
 namespace mempool {
 struct EntryValue;
 struct EntryValue {
-    EntryValue(NonceReserved noncep2, TokenHash tokenHash, CompactUInt fee, Address toAddr, Funds_uint64 amount, RecoverableSignature signature, Hash hash, Height transactionHeight)
+    EntryValue(NonceReserved noncep2, TokenHash tokenHash, CompactUInt fee, Address toAddr, Funds_uint64 amount, TokenPrecision precision, RecoverableSignature signature, Hash hash, Height transactionHeight)
         : noncep2(noncep2)
         , tokenHash(tokenHash)
         , fee(fee)
         , toAddr(toAddr)
         , amount(amount)
+        , precision(precision)
         , signature(signature)
         , hash(hash)
         , transactionHeight(transactionHeight)
@@ -29,6 +29,7 @@ struct EntryValue {
     CompactUInt fee;
     Address toAddr;
     Funds_uint64 amount;
+    TokenPrecision precision;
     RecoverableSignature signature;
     Hash hash;
     Height transactionHeight; // when was the account first registered
@@ -54,6 +55,7 @@ public:
     auto& to_address() const { return entryValue.toAddr; }
     auto fee() const { return entryValue.fee; }
     auto amount() const { return entryValue.amount; }
+    FundsDecimal amount_decimal() const { return FundsDecimal { entryValue.amount.value(), entryValue.precision.value() }; }
     auto nonce_id() const { return txid.nonceId; }
     auto pin_height() const { return txid.pinHeight; }
     auto tx_hash() const { return entryValue.hash.hex_string(); }

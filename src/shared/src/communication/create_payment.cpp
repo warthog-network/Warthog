@@ -4,7 +4,7 @@
 #include "general/writer.hpp"
 #include "nlohmann/json.hpp"
 
-PaymentCreateMessage::PaymentCreateMessage(
+WartPaymentCreateMessage::WartPaymentCreateMessage(
     PinHeight pinHeight, const Hash& pinHash,
     const PrivKey& privateKey, CompactUInt fee,
     const Address& toAddress, Funds_uint64 amount, NonceId nonceId)
@@ -18,7 +18,7 @@ PaymentCreateMessage::PaymentCreateMessage(
 {
 }
 
-PaymentCreateMessage::PaymentCreateMessage(ReaderCheck<bytesize> r)
+WartPaymentCreateMessage::WartPaymentCreateMessage(ReaderCheck<bytesize> r)
     : pinHeight(Height(r.r))
     , nonceId(r.r)
     , reserved(r.r)
@@ -30,7 +30,7 @@ PaymentCreateMessage::PaymentCreateMessage(ReaderCheck<bytesize> r)
     r.assert_read_bytes();
 }
 
-Writer& operator<<(Writer& w, const PaymentCreateMessage& m)
+Writer& operator<<(Writer& w, const WartPaymentCreateMessage& m)
 {
     return w
         << m.pinHeight
@@ -42,7 +42,7 @@ Writer& operator<<(Writer& w, const PaymentCreateMessage& m)
         << m.signature;
 }
 
-TxHash PaymentCreateMessage::tx_hash(HashView pinHash) const
+TxHash WartPaymentCreateMessage::tx_hash(HashView pinHash) const
 {
     return TxHash(HasherSHA256()
         << pinHash
@@ -54,7 +54,7 @@ TxHash PaymentCreateMessage::tx_hash(HashView pinHash) const
         << amount);
 }
 
-PaymentCreateMessage::operator std::vector<uint8_t>()
+WartPaymentCreateMessage::operator std::vector<uint8_t>()
 {
     std::vector<uint8_t> out(bytesize);
     Writer w(out);
@@ -63,7 +63,7 @@ PaymentCreateMessage::operator std::vector<uint8_t>()
     return out;
 }
 
-PaymentCreateMessage::operator std::string()
+WartPaymentCreateMessage::operator std::string()
 {
     return nlohmann::json {
         { "pinHeight", pinHeight.value() },
@@ -76,12 +76,12 @@ PaymentCreateMessage::operator std::string()
         .dump(1);
 }
 
-bool PaymentCreateMessage::valid_signature(HashView pinHash, AddressView fromAddress) const
+bool WartPaymentCreateMessage::valid_signature(HashView pinHash, AddressView fromAddress) const
 {
     return signature.recover_pubkey(tx_hash(pinHash)).address() == fromAddress;
 }
 
-Address PaymentCreateMessage::from_address(
+Address WartPaymentCreateMessage::from_address(
     HashView txHash) const
 {
     return signature.recover_pubkey(txHash.data()).address();

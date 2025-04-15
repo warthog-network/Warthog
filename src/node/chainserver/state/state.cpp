@@ -613,7 +613,7 @@ auto State::apply_signed_snapshot(SignedSnapshot&& ssnew) -> std::optional<State
             .chainstateUpdate = state_update::SignedSnapshotApply {
                 .rollback {},
                 .signedSnapshot { *signedSnapshot } },
-            .mempoolUpdate {},
+            .mempoolUpdates {},
         },
         .appendedBlocks {}
     };
@@ -632,9 +632,9 @@ auto State::apply_signed_snapshot(SignedSnapshot&& ssnew) -> std::optional<State
             } },
             .signedSnapshot { *signedSnapshot }
         };
-        res.update.mempoolUpdate = chainstate.pop_mempool_log();
+        res.update.mempoolUpdates = chainstate.pop_mempool_updates();
     } else {
-        assert(chainstate.pop_mempool_log().size() == 0);
+        assert(chainstate.pop_mempool_updates().size() == 0);
     };
 
     db.set_consensus_work(chainstate.headers().total_work());
@@ -687,16 +687,16 @@ auto State::append_mined_block(const ParsedBlock& b) -> StateUpdateWithAPIBlocks
                  .chainstateUpdate { state_update::Append {
                      headerchainAppend,
                      try_sign_chainstate() } },
-                 .mempoolUpdate { chainstate.pop_mempool_log() },
+                 .mempoolUpdates { chainstate.pop_mempool_updates() },
              },
         .appendedBlocks { std::move(apiBlock) } };
 }
 
-std::pair<mempool::Log, TxHash> State::append_gentx(const PaymentCreateMessage& m)
+std::pair<mempool::Updates, TxHash> State::append_gentx(const WartPaymentCreateMessage& m)
 {
     try {
         auto txhash { chainstate.insert_tx(m) };
-        auto log { chainstate.pop_mempool_log() };
+        auto log { chainstate.pop_mempool_updates() };
         spdlog::info("Added new transaction to mempool");
         return { std::move(log), std::move(txhash) };
     } catch (const Error& e) {
@@ -750,7 +750,7 @@ auto State::api_get_token_balance(const api::AccountIdOrAddress& account, const 
         return {};
 }
 
-auto State::insert_txs(const TxVec& txs) -> std::pair<std::vector<Error>, mempool::Log>
+auto State::insert_txs(const TxVec& txs) -> std::pair<std::vector<Error>, mempool::Updates>
 {
     std::vector<Error> res;
     res.reserve(txs.size());
@@ -762,7 +762,7 @@ auto State::insert_txs(const TxVec& txs) -> std::pair<std::vector<Error>, mempoo
             res.push_back(e.code);
         }
     }
-    return { res, chainstate.pop_mempool_log() };
+    return { res, chainstate.pop_mempool_updates() };
 }
 
 api::ChainHead State::api_get_head() const
@@ -895,7 +895,7 @@ auto State::commit_fork(RollbackResult&& rr, AppendBlocksResult&& abr) -> StateU
 
     return StateUpdate {
         .chainstateUpdate { std::move(forkMsg) },
-        .mempoolUpdate { chainstate.pop_mempool_log() },
+        .mempoolUpdates { chainstate.pop_mempool_updates() },
     };
 }
 
@@ -913,7 +913,7 @@ auto State::commit_append(AppendBlocksResult&& abr) -> StateUpdate
                 headerchainAppend,
                 try_sign_chainstate(),
             } },
-        .mempoolUpdate { chainstate.pop_mempool_log() },
+        .mempoolUpdates { chainstate.pop_mempool_updates() },
     };
 }
 

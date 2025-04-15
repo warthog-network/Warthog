@@ -10,7 +10,7 @@ class Address;
 class HashView;
 struct WartTransferView;
 
-class PaymentCreateMessage;
+class WartPaymentCreateMessage;
 class TokenPaymentCreateMessage;
 
 namespace mempool {
@@ -23,7 +23,7 @@ public:
     static constexpr size_t bytesize = 16 + 3 + 2 + 20 + 8 + 65;
     static constexpr size_t byte_size() { return bytesize; }
     TransferTxExchangeMessage(ReaderCheck<bytesize> r);
-    TransferTxExchangeMessage(AccountId fromId, const PaymentCreateMessage& pcm);
+    TransferTxExchangeMessage(AccountId fromId, const WartPaymentCreateMessage& pcm);
     TransferTxExchangeMessage(const TransactionId& txid, const mempool::EntryValue&);
     TransferTxExchangeMessage(WartTransferView, PinHeight, AddressView toAddr);
 

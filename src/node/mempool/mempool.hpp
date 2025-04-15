@@ -2,7 +2,7 @@
 #include "comparators.hpp"
 #include "defi/token/account_token.hpp"
 #include "general/address_funds.hpp"
-#include "mempool/log.hpp"
+#include "mempool/updates.hpp"
 #include <set>
 namespace chainserver {
 struct TransactionIds;
@@ -36,12 +36,12 @@ public:
     {
     }
 
-    [[nodiscard]] Log pop_log()
+    [[nodiscard]] Updates pop_updates()
     {
-        return std::move(log);
-        log.clear();
+        return std::move(updates);
+        updates.clear();
     }
-    void apply_log(const Log& log);
+    void apply_log(const Updates& log);
     Error insert_tx(const TransferTxExchangeMessage& pm, TransactionHeight txh, const TxHash& hash, const AddressFunds& e);
     void insert_tx_throw(const TransferTxExchangeMessage& pm, TransactionHeight txh, const TxHash& hash, const AddressFunds& e);
     void erase(TransactionId id);
@@ -74,7 +74,7 @@ private:
     void prune();
 
 private:
-    Log log;
+    Updates updates;
     Txmap txs;
     std::set<const_iter_t, ComparatorPin> byPin;
     ByFeeDesc byFee;

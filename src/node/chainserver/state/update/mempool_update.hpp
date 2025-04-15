@@ -1,8 +1,8 @@
 #pragma once
 
-#include "mempool/log.hpp"
+#include "mempool/updates.hpp"
 namespace chainserver{
 namespace state_update {
-    using MempoolUpdate = mempool::Log;
+    using MempoolUpdate = mempool::Updates;
 }
 }

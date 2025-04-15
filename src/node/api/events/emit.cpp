@@ -1,9 +1,10 @@
 #include "emit.hpp"
 #include "api/http/endpoint.hpp"
+#include "api/http/json.hpp"
 #include "block/header/difficulty.hpp"
 #include "general/hex.hpp"
 #include "global/globals.hpp"
-#include "mempool/log.hpp"
+#include "mempool/updates.hpp"
 #include "nlohmann/json.hpp"
 #include "transport/connection_base.hpp"
 using nlohmann::json;
@@ -65,24 +66,25 @@ namespace event {
     void emit_mempool_add(const mempool::Put& p, size_t total)
     {
         auto& e { p.entry };
-        api::emit_mempool_add({ { "total", total },
+        api::emit_mempool_add({
+            { "total", total },
             { "id", e.transaction_id().hex_string() },
             { "fromAddress", e.from_address().to_string() },
             { "pinHeight", e.pin_height().value() },
             { "txHash", e.tx_hash() },
             { "nonceId", e.nonce_id() },
-            { "fee", e.fee().uncompact().to_string() },
-            { "feeE8", e.fee().uncompact().E8() },
+            { "fee", jsonmsg::to_json(e.fee().uncompact()) },
             { "toAddress", e.to_address().to_string() },
-            { "amount", e.amount().to_string() },
-            { "amountE8", e.amount().E8() } });
+            { "amount", jsonmsg::to_json(e.amount_decimal()) },
+        });
     }
 
     void emit_mempool_erase(const mempool::Erase& e, size_t total)
     {
         api::emit_mempool_erase({ { "id", e.id.hex_string() }, { "total", total } });
     }
-    void emit_rollback(Height h){
+    void emit_rollback(Height h)
+    {
 #ifndef DISABLE_LIBUV
         http_endpoint().push_event(api::Rollback(h));
 #endif

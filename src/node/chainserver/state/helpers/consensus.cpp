@@ -238,7 +238,7 @@ TxHash Chainstate::insert_tx(const TransferTxExchangeMessage& pm)
     return txHash;
 }
 
-TxHash Chainstate::insert_tx(const PaymentCreateMessage& m)
+TxHash Chainstate::insert_tx(const WartPaymentCreateMessage& m)
 {
     PinHeight pinHeight = m.pinHeight;
     if (pinHeight > length())
@@ -269,8 +269,8 @@ void Chainstate::prune_txids()
 {
     chainTxIds.prune(length());
 }
-mempool::Log Chainstate::pop_mempool_log()
+mempool::Updates Chainstate::pop_mempool_updates()
 {
-    return _mempool.pop_log();
+    return _mempool.pop_updates();
 }
 }
