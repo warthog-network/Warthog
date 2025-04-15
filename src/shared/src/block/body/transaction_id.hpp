@@ -3,9 +3,6 @@
 #include "block/body/nonce.hpp"
 #include "block/chain/height.hpp"
 #include "general/compact_uint.hpp"
-#include "general/view.hpp"
-#include <array>
-#include <cstdint>
 class Height;
 class PinHeight;
 class Reader;

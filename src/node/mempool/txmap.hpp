@@ -9,7 +9,7 @@ class TransferTxExchangeMessageView;
 namespace mempool {
 class Txmap {
 public:
-    using map_t = std::map<TransactionId, EntryValue, std::less<>>;
+    using map_t = std::map<TransactionId, entry::Value, std::less<>>;
     using const_iterator = map_t::const_iterator;
     using iterator = map_t::iterator;
 
