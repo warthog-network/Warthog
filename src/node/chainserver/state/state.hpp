@@ -54,7 +54,7 @@ class State {
     using StateUpdate = state_update::StateUpdate;
     using StateUpdateWithAPIBlocks = state_update::StateUpdateWithAPIBlocks;
     using StageUpdate = state_update::StageUpdate;
-    using TxVec = std::vector<TransferTxExchangeMessage>;
+    using TxVec = std::vector<WartTransferMessage>;
 
 public:
     // constructor/destructor
@@ -101,7 +101,7 @@ public:
     auto get_headers() const { return chainstate.headers(); }
     auto get_hash(Height h) const -> std::optional<Hash>;
     auto get_blocks(DescriptedBlockRange) const -> std::vector<BodyContainer>;
-    auto get_mempool_tx(TransactionId) const -> std::optional<TransferTxExchangeMessage>;
+    auto get_mempool_tx(TransactionId) const -> std::optional<WartTransferMessage>;
 
     // api getters
     auto api_get_address(AddressView) const -> api::WartBalance;

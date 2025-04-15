@@ -4,7 +4,7 @@
 #include "general/writer.hpp"
 #include "spdlog/spdlog.h"
 
-class TransferTxExchangeMessage;
+class WartTransferMessage;
 
 namespace {
 inline uint8_t* bewrite(uint8_t* pos, uint64_t val)
@@ -69,7 +69,7 @@ class BlockGenerator {
     class TransferSection {
     public:
         void add_payment(AccountId toId, PinNonce pinNonce,
-            const TransferTxExchangeMessage&);
+            const WartTransferMessage&);
         size_t binarysize()
         {
             if (buf.size() == 0)
@@ -117,7 +117,7 @@ public:
     {
     }
     BodyContainerV3 gen_block(NonzeroHeight height, const Address& miner,
-        const std::vector<TransferTxExchangeMessage>& payments);
+        const std::vector<WartTransferMessage>& payments);
 
 private:
     NewAddressSection_v2 nas;
@@ -125,7 +125,7 @@ private:
 
 BodyContainerV3 BlockGenerator::gen_block(NonzeroHeight height,
     const Address& miner,
-    const std::vector<TransferTxExchangeMessage>& transfers)
+    const std::vector<WartTransferMessage>& transfers)
 {
     nas.clear();
 
@@ -135,7 +135,7 @@ BodyContainerV3 BlockGenerator::gen_block(NonzeroHeight height,
     }
 
     // filter valid payments to survive self send
-    std::vector<TransferTxExchangeMessage> validTransfers;
+    std::vector<WartTransferMessage> validTransfers;
     for (auto& pmsg : transfers) {
         if (nas.getId(pmsg.toAddr, true).value() == pmsg.from_id()) {
             // This should not be possible because self sending transactions
@@ -197,7 +197,7 @@ uint8_t* BlockGenerator::NewAddressSection_v2::write(uint8_t* out)
 
 void BlockGenerator::TransferSection::add_payment(
     AccountId toId, PinNonce pinNonce,
-    const TransferTxExchangeMessage& m)
+    const WartTransferMessage& m)
 {
     nTransfers += 1;
     totalFee.add_assert(m.fee());
@@ -215,7 +215,7 @@ void BlockGenerator::TransferSection::add_payment(
 }
 }
 
-BodyContainerV3 generate_body(const ChainDB& db, NonzeroHeight height, const Address& miner, const std::vector<TransferTxExchangeMessage>& payments)
+BodyContainerV3 generate_body(const ChainDB& db, NonzeroHeight height, const Address& miner, const std::vector<WartTransferMessage>& payments)
 {
     BlockGenerator bg(db);
     auto body { bg.gen_block(height, miner, payments) };

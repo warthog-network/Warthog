@@ -42,8 +42,8 @@ public:
         updates.clear();
     }
     void apply_log(const Updates& log);
-    Error insert_tx(const TransferTxExchangeMessage& pm, TransactionHeight txh, const TxHash& hash, const AddressFunds& e);
-    void insert_tx_throw(const TransferTxExchangeMessage& pm, TransactionHeight txh, const TxHash& hash, const AddressFunds& e);
+    Error insert_tx(const WartTransferMessage& pm, TransactionHeight txh, const TxHash& hash, const AddressFunds& e);
+    void insert_tx_throw(const WartTransferMessage& pm, TransactionHeight txh, const TxHash& hash, const AddressFunds& e);
     void erase(TransactionId id);
     void set_balance(AccountToken, Funds_uint64 newBalance);
     void erase_from_height(Height);
@@ -52,16 +52,16 @@ public:
     // getters
     [[nodiscard]] auto cache_validity() const { return txs.cache_validity(); }
     [[nodiscard]] auto get_payments(size_t n, NonzeroHeight height, std::vector<Hash>* hashes = nullptr) const
-        -> std::vector<TransferTxExchangeMessage>;
+        -> std::vector<WartTransferMessage>;
     [[nodiscard]] auto sample(size_t) const -> std::vector<TxidWithFee>;
     [[nodiscard]] auto filter_new(const std::vector<TxidWithFee>&) const
         -> std::vector<TransactionId>;
 
     // operator[]
     [[nodiscard]] auto operator[](const TransactionId& id) const
-        -> std::optional<TransferTxExchangeMessage>;
+        -> std::optional<WartTransferMessage>;
     [[nodiscard]] auto operator[](const HashView txHash) const
-        -> std::optional<TransferTxExchangeMessage>;
+        -> std::optional<WartTransferMessage>;
     [[nodiscard]] size_t size() const { return txs.size(); }
     [[nodiscard]] CompactUInt min_fee() const;
 

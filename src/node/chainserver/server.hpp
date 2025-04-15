@@ -106,7 +106,7 @@ public:
         getBlocksCb callback;
     };
     struct PutMempoolBatch {
-        std::vector<TransferTxExchangeMessage> txs;
+        std::vector<WartTransferMessage> txs;
     };
     struct SetSignedPin {
         SignedSnapshot ss;
@@ -202,7 +202,7 @@ public:
 
     void async_set_synced(bool synced);
 
-    void async_put_mempool(std::vector<TransferTxExchangeMessage> txs);
+    void async_put_mempool(std::vector<WartTransferMessage> txs);
     void async_get_head(ChainHeadCb callback);
 
     // API methods

@@ -322,7 +322,7 @@ Result<ChainMiningTask> State::mining_task(const Address& a, bool disableTxs)
 
     auto make_body {
         [&]() {
-            std::vector<TransferTxExchangeMessage> payments;
+            std::vector<WartTransferMessage> payments;
             if (!disableTxs) {
                 payments = chainstate.mempool().get_payments(400, height);
             }
@@ -465,7 +465,7 @@ namespace {
         const TokenId oldTokenStart;
 
         std::map<AccountToken, Funds_uint64> balanceMap;
-        std::vector<TransferTxExchangeMessage> toMempool;
+        std::vector<WartTransferMessage> toMempool;
         std::optional<BalanceId> oldBalanceStart;
 
     private:
@@ -504,7 +504,7 @@ namespace {
                     if (pinHeight <= newPinFloor) {
                         // extract transaction to mempool
                         auto toAddress { db.lookup_address(t.toAccountId()).value() };
-                        toMempool.push_back(TransferTxExchangeMessage(t, pinHeight, toAddress));
+                        toMempool.push_back(WartTransferMessage(t, pinHeight, toAddress));
                     }
                 }
 
@@ -871,7 +871,7 @@ auto State::get_blocks(DescriptedBlockRange range) const -> std::vector<BodyCont
     return res;
 }
 
-auto State::get_mempool_tx(TransactionId txid) const -> std::optional<TransferTxExchangeMessage>
+auto State::get_mempool_tx(TransactionId txid) const -> std::optional<WartTransferMessage>
 {
     return chainstate.mempool()[txid];
 }

@@ -53,7 +53,7 @@ void ChainServer::async_set_synced(bool synced)
     defer(SetSynced { synced });
 }
 
-void ChainServer::async_put_mempool(std::vector<TransferTxExchangeMessage> txs)
+void ChainServer::async_put_mempool(std::vector<WartTransferMessage> txs)
 {
     defer(PutMempoolBatch { std::move(txs) });
 }
@@ -317,7 +317,7 @@ void ChainServer::handle_event(GetMempool&& e)
 void ChainServer::handle_event(LookupTxids&& e)
 {
     auto t { timing->time("LookupTxIds") };
-    std::vector<std::optional<TransferTxExchangeMessage>> out;
+    std::vector<std::optional<WartTransferMessage>> out;
     std::transform(e.txids.begin(), e.txids.end(), std::back_inserter(out),
         [&](auto txid) { return state.get_mempool_tx(txid); });
     e.callback(out);

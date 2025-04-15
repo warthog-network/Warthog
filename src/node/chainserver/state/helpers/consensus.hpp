@@ -14,7 +14,7 @@ class ChainDB;
 namespace chainserver {
 struct RollbackResult {
     ShrinkInfo shrink;
-    std::vector<TransferTxExchangeMessage> toMempool;
+    std::vector<WartTransferMessage> toMempool;
     std::map<AccountToken, Funds_uint64> balanceUpdates;
     TransactionIds chainTxIds;
     DeletionKey deletionKey;
@@ -59,7 +59,7 @@ struct Chainstate {
     [[nodiscard]] auto append(AppendMulti) -> HeaderchainAppend;
     [[nodiscard]] auto append(AppendSingle) -> HeaderchainAppend;
 
-    TxHash insert_tx(const TransferTxExchangeMessage& m);
+    TxHash insert_tx(const WartTransferMessage& m);
     [[nodiscard]] TxHash insert_tx(const WartPaymentCreateMessage& m);
 
     // const functions

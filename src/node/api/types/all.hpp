@@ -203,7 +203,7 @@ struct TransactionsByBlocks {
 struct Richlist {
     std::vector<std::pair<Address, Wart>> entries;
 };
-struct MempoolEntry : public TransferTxExchangeMessage {
+struct MempoolEntry : public WartTransferMessage {
     Hash txHash;
 };
 struct MempoolEntries {
@@ -211,7 +211,7 @@ struct MempoolEntries {
 };
 struct OffenseHistory {
     std::vector<Hash> hashes;
-    std::vector<TransferTxExchangeMessage> entries;
+    std::vector<WartTransferMessage> entries;
 };
 struct HashrateInfo {
     size_t nBlocks;

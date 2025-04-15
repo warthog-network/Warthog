@@ -208,11 +208,11 @@ struct TxreqMsg : public MsgCombineRequest<14, messages::VectorRest<TransactionI
     std::string log_str() const;
 };
 
-struct TxrepMsg : public MsgCombineReply<15, messages::VectorRest<messages::Optional<TransferTxExchangeMessage>>> {
-    static constexpr size_t maxSize = 2 + 4 + TxreqMsg::MAXENTRIES * (1 + TransferTxExchangeMessage::bytesize);
+struct TxrepMsg : public MsgCombineReply<15, messages::VectorRest<messages::Optional<WartTransferMessage>>> {
+    static constexpr size_t maxSize = 2 + 4 + TxreqMsg::MAXENTRIES * (1 + WartTransferMessage::bytesize);
     using Base::Base;
 
-    using vector_t = messages::VectorRest<messages::Optional<TransferTxExchangeMessage>>;
+    using vector_t = messages::VectorRest<messages::Optional<WartTransferMessage>>;
     TxrepMsg(Reader& r);
     [[nodiscard]] auto& txs() const { return get<0>(); }
     std::string log_str() const;

@@ -4,7 +4,7 @@
 #include "mempool/entry.hpp"
 #include "parse.hpp"
 
-Writer& operator<<(Writer& w, TransferTxExchangeMessage m)
+Writer& operator<<(Writer& w, WartTransferMessage m)
 {
     return w << m.txid
              << m.reserved
@@ -14,12 +14,12 @@ Writer& operator<<(Writer& w, TransferTxExchangeMessage m)
              << m.signature;
 }
 
-Address TransferTxExchangeMessage::from_address(HashView txHash) const
+Address WartTransferMessage::from_address(HashView txHash) const
 {
     return signature.recover_pubkey(txHash.data()).address();
 }
 
-TxHash TransferTxExchangeMessage::txhash(HashView pinHash) const
+TxHash WartTransferMessage::txhash(HashView pinHash) const
 {
     return TxHash(
         HasherSHA256()
@@ -32,7 +32,7 @@ TxHash TransferTxExchangeMessage::txhash(HashView pinHash) const
         << amount);
 }
 
-TransferTxExchangeMessage::TransferTxExchangeMessage(WartTransferView t, PinHeight ph, AddressView toAddr)
+WartTransferMessage::WartTransferMessage(WartTransferView t, PinHeight ph, AddressView toAddr)
     : txid(t.txid(ph))
     , reserved(t.pin_nonce().reserved)
     , compactFee(t.compact_fee_throw())
@@ -42,7 +42,7 @@ TransferTxExchangeMessage::TransferTxExchangeMessage(WartTransferView t, PinHeig
 {
 }
 
-TransferTxExchangeMessage::TransferTxExchangeMessage(AccountId fromId, const WartPaymentCreateMessage& pcm)
+WartTransferMessage::WartTransferMessage(AccountId fromId, const WartPaymentCreateMessage& pcm)
     : txid(fromId, pcm.pinHeight, pcm.nonceId)
     , reserved(pcm.reserved)
     , compactFee(pcm.compactFee)
@@ -52,7 +52,7 @@ TransferTxExchangeMessage::TransferTxExchangeMessage(AccountId fromId, const War
 {
 }
 
-TransferTxExchangeMessage::TransferTxExchangeMessage(const TransactionId& txid, const mempool::EntryValue& v)
+WartTransferMessage::WartTransferMessage(const TransactionId& txid, const mempool::entry::Value& v)
     : txid(txid)
     , reserved(v.noncep2)
     , compactFee(v.fee)
@@ -62,7 +62,7 @@ TransferTxExchangeMessage::TransferTxExchangeMessage(const TransactionId& txid, 
 {
 }
 
-TransferTxExchangeMessage::TransferTxExchangeMessage(ReaderCheck<bytesize> r)
+WartTransferMessage::WartTransferMessage(ReaderCheck<bytesize> r)
     : txid(r.r)
     , reserved(r.r.view<3>())
     , compactFee(CompactUInt::from_value_throw(r.r.uint16()))

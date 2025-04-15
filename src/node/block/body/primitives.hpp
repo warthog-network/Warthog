@@ -4,7 +4,6 @@
 #include "crypto/address.hpp"
 #include "crypto/crypto.hpp"
 #include "crypto/hash.hpp"
-#include "defi/token/id.hpp"
 
 class Address;
 class HashView;
@@ -14,20 +13,22 @@ class WartPaymentCreateMessage;
 class TokenPaymentCreateMessage;
 
 namespace mempool {
-struct EntryValue;
+namespace entry{
+struct Value;
+}
 }
 
-class TransferTxExchangeMessage {
+class WartTransferMessage {
 public:
     // layout:
     static constexpr size_t bytesize = 16 + 3 + 2 + 20 + 8 + 65;
     static constexpr size_t byte_size() { return bytesize; }
-    TransferTxExchangeMessage(ReaderCheck<bytesize> r);
-    TransferTxExchangeMessage(AccountId fromId, const WartPaymentCreateMessage& pcm);
-    TransferTxExchangeMessage(const TransactionId& txid, const mempool::EntryValue&);
-    TransferTxExchangeMessage(WartTransferView, PinHeight, AddressView toAddr);
+    WartTransferMessage(ReaderCheck<bytesize> r);
+    WartTransferMessage(AccountId fromId, const WartPaymentCreateMessage& pcm);
+    WartTransferMessage(const TransactionId& txid, const mempool::entry::Value&);
+    WartTransferMessage(WartTransferView, PinHeight, AddressView toAddr);
 
-    friend Writer& operator<<(Writer&, TransferTxExchangeMessage);
+    friend Writer& operator<<(Writer&, WartTransferMessage);
     [[nodiscard]] TxHash txhash(HashView pinHash) const;
     [[nodiscard]] Address from_address(HashView txHash) const;
     [[nodiscard]] Funds_uint64 spend_throw() const { return Funds_uint64::sum_throw(fee(), amount); }
@@ -51,7 +52,7 @@ public:
     static constexpr size_t byte_size() { return bytesize; }
     TransferDefiMessage(ReaderCheck<bytesize> r);
     TransferDefiMessage(AccountId fromId, const TokenPaymentCreateMessage& pcm);
-    TransferDefiMessage(const TransactionId& txid, const mempool::EntryValue&);
+    TransferDefiMessage(const TransactionId& txid, const mempool::entry::Value&);
     TransferDefiMessage(WartTransferView, Hash tokenHash, PinHeight, AddressView toAddr);
 
     friend Writer& operator<<(Writer&, TransferDefiMessage);

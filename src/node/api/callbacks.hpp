@@ -11,7 +11,7 @@
 #include <vector>
 
 // forward declarations
-class TransferTxExchangeMessage;
+class WartTransferMessage;
 class Hash;
 class PrivKey;
 class TxHash;
@@ -43,7 +43,7 @@ using JSONCb = std::function<void(const Result<nlohmann::json>&)>;
 
 using MempoolCb = std::function<void(const Result<api::MempoolEntries>&)>;
 using MempoolInsertCb = std::function<void(const Result<TxHash>&)>;
-using MempoolTxsCb = std::function<void(std::vector<std::optional<TransferTxExchangeMessage>>&)>;
+using MempoolTxsCb = std::function<void(std::vector<std::optional<WartTransferMessage>>&)>;
 using ChainMiningCb = std::function<void(const Result<ChainMiningTask>&)>;
 using MiningCb = std::function<void(const Result<api::MiningState>&)>;
 using TxcacheCb = std::function<void(const Result<chainserver::TransactionIds>&)>;

@@ -215,7 +215,7 @@ auto Chainstate::append(AppendSingle d) -> HeaderchainAppend
     return headers().get_append(l);
 }
 
-TxHash Chainstate::insert_tx(const TransferTxExchangeMessage& pm)
+TxHash Chainstate::insert_tx(const WartTransferMessage& pm)
 {
     if (pm.pin_height() < (length() + 1).pin_begin())
         throw Error(EPINHEIGHT);
@@ -257,7 +257,7 @@ TxHash Chainstate::insert_tx(const WartPaymentCreateMessage& m)
         throw Error(EADDRNOTFOUND);
     auto& [accountId, balance] = *p;
     AddressFunds af { fromAddr, balance };
-    TransferTxExchangeMessage pm(accountId, m);
+    WartTransferMessage pm(accountId, m);
     if (txids().contains(pm.txid))
         throw Error(ENONCE);
     TransactionHeight th(pinHeight, account_height(accountId));

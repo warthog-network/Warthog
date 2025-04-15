@@ -21,9 +21,9 @@ void LockedBalance::unlock(Funds_uint64 amount)
     used.subtract_assert(amount);
 }
 
-std::vector<TransferTxExchangeMessage> Mempool::get_payments(size_t n, NonzeroHeight height, std::vector<Hash>* hashes) const
+std::vector<WartTransferMessage> Mempool::get_payments(size_t n, NonzeroHeight height, std::vector<Hash>* hashes) const
 {
-    std::vector<TransferTxExchangeMessage> res;
+    std::vector<WartTransferMessage> res;
     res.reserve(n);
     constexpr uint32_t fivedaysBlocks = 5 * 24 * 60 * 3;
     constexpr uint32_t unblockXeggexHeight = 2576442 + fivedaysBlocks;
@@ -69,21 +69,21 @@ void Mempool::apply_logevent(const Erase& e)
     api::event::emit_mempool_erase(e, size());
 }
 
-std::optional<TransferTxExchangeMessage> Mempool::operator[](const TransactionId& id) const
+std::optional<WartTransferMessage> Mempool::operator[](const TransactionId& id) const
 {
     auto iter = txs().find(id);
     if (iter == txs().end())
         return {};
-    return TransferTxExchangeMessage { iter->first, iter->second };
+    return WartTransferMessage { iter->first, iter->second };
 }
 
-std::optional<TransferTxExchangeMessage> Mempool::operator[](const HashView txHash) const
+std::optional<WartTransferMessage> Mempool::operator[](const HashView txHash) const
 {
     auto iter = byHash.find(txHash);
     if (iter == byHash.end())
         return {};
     assert((*iter)->second.hash == txHash);
-    return TransferTxExchangeMessage { (*iter)->first, (*iter)->second };
+    return WartTransferMessage { (*iter)->first, (*iter)->second };
 }
 
 bool Mempool::erase_internal(Txmap::const_iterator iter, BalanceEntries::iterator b_iter, bool gc)
@@ -193,7 +193,7 @@ void Mempool::set_balance(AccountToken ac, Funds_uint64 newBalance)
     assert(false); // should not happen
 }
 
-Error Mempool::insert_tx(const TransferTxExchangeMessage& pm,
+Error Mempool::insert_tx(const WartTransferMessage& pm,
     TransactionHeight txh,
     const TxHash& txhash,
     const AddressFunds& af)
@@ -206,7 +206,7 @@ Error Mempool::insert_tx(const TransferTxExchangeMessage& pm,
     }
 }
 
-void Mempool::insert_tx_throw(const TransferTxExchangeMessage& pm,
+void Mempool::insert_tx_throw(const WartTransferMessage& pm,
     TransactionHeight txh,
     const TxHash& txhash,
     const AddressFunds& af)
