@@ -9,12 +9,14 @@ class Address;
 class HashView;
 struct WartTransferView;
 
-class WartPaymentCreateMessage;
-class TokenPaymentCreateMessage;
+class WartTransferCreate;
+class TokenTransferCreate;
 
 namespace mempool {
-namespace entry{
-struct Value;
+namespace entry {
+    struct Value;
+    struct Shared;
+    struct WartTransfer;
 }
 }
 
@@ -24,8 +26,10 @@ public:
     static constexpr size_t bytesize = 16 + 3 + 2 + 20 + 8 + 65;
     static constexpr size_t byte_size() { return bytesize; }
     WartTransferMessage(ReaderCheck<bytesize> r);
-    WartTransferMessage(AccountId fromId, const WartPaymentCreateMessage& pcm);
-    WartTransferMessage(const TransactionId& txid, const mempool::entry::Value&);
+    WartTransferMessage(AccountId fromId, const WartTransferCreate& pcm);
+    WartTransferMessage(const TransactionId& txid,
+        const mempool::entry::Shared& s,
+        const mempool::entry::WartTransfer& t);
     WartTransferMessage(WartTransferView, PinHeight, AddressView toAddr);
 
     friend Writer& operator<<(Writer&, WartTransferMessage);
@@ -51,7 +55,7 @@ public:
     static constexpr size_t bytesize = 16 + 3 + 2 + 32 + 20 + 8 + 65;
     static constexpr size_t byte_size() { return bytesize; }
     TokenTransferMessage(ReaderCheck<bytesize> r);
-    TokenTransferMessage(AccountId fromId, const TokenPaymentCreateMessage& pcm);
+    TokenTransferMessage(AccountId fromId, const TokenTransferCreate& pcm);
     TokenTransferMessage(const TransactionId& txid, const mempool::entry::Value&);
     TokenTransferMessage(WartTransferView, Hash tokenHash, PinHeight, AddressView toAddr);
 
@@ -71,4 +75,13 @@ public:
     Address toAddr;
     Funds_uint64 amount;
     RecoverableSignature signature;
+};
+
+class CreateOrderMessage {
+};
+class CancelOrderMessage {
+};
+class AddLiquidityMessage {
+};
+class RemoveLiquidityMessage {
 };

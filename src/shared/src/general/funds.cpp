@@ -7,9 +7,8 @@
 #include <cstring>
 #include <limits>
 
-std::optional<FundsDecimal> FundsDecimal::parse(std::string_view s)
+std::optional<ParsedFunds> ParsedFunds::parse(std::string_view s)
 {
-    std::optional<FundsDecimal> res;
     constexpr const size_t N { 20 }; // max uint64_t has 20 digits max
     char buf[N];
     size_t i { 0 };
@@ -18,26 +17,26 @@ std::optional<FundsDecimal> FundsDecimal::parse(std::string_view s)
     for (auto c : s) {
         if (c >= '0' && c <= '9') {
             if (i >= N)
-                return res;
+                return {}; // too many digits
             buf[i++] = c;
             if (dotfound)
                 digits += 1;
         } else if (c == '.') {
             if (dotfound)
-                return res;
+                return {}; // two dots
             dotfound = true;
         } else {
-            return res;
+            return {}; // neither dot nor digit
         }
     }
     uint64_t v;
     auto [ptr, ec] { std::from_chars(buf, buf + i, v) };
     if (ec != std::errc() || ptr != buf + i)
-        return {};
-    return FundsDecimal { v, digits };
+        return {}; // unparsable number
+    return ParsedFunds { v, digits };
 }
-FundsDecimal::FundsDecimal(std::string_view s)
-    : FundsDecimal([&s]() {
+ParsedFunds::ParsedFunds(std::string_view s)
+    : ParsedFunds([&s]() {
         if (auto p { parse(s) })
             return *p;
         throw Error(EINV_FUNDS);
@@ -53,9 +52,10 @@ Funds_uint64 Funds_uint64::parse_throw(std::string_view s, TokenPrecision d)
     throw Error(EINV_FUNDS);
 }
 
-[[nodiscard]] std::string FundsDecimal::to_string() const
+std::string FundsDecimal::to_string() const
 {
-    const size_t d { precision };
+    const size_t d { precision() };
+    auto v { funds.value() };
     if (v == 0)
         return "0";
     static_assert(COINUNIT == 100000000);
@@ -80,11 +80,6 @@ Funds_uint64 Funds_uint64::parse_throw(std::string_view s, TokenPrecision d)
     }
 }
 
-std::string Funds_uint64::to_string(TokenPrecision decimals) const
-{
-    return to_decimal(decimals).to_string();
-}
-
 Funds_uint64::Funds_uint64(Reader& r)
     : FundsBase<Funds_uint64>(from_value_throw(r))
 {
@@ -92,13 +87,13 @@ Funds_uint64::Funds_uint64(Reader& r)
 
 std::optional<Funds_uint64> Funds_uint64::parse(std::string_view s, TokenPrecision digits)
 {
-    auto fd { FundsDecimal::parse(s) };
+    auto fd { ParsedFunds::parse(s) };
     if (!fd)
         return {};
     return parse(*fd, digits);
 }
 
-std::optional<Funds_uint64> Funds_uint64::parse(FundsDecimal fd, TokenPrecision digits)
+std::optional<Funds_uint64> Funds_uint64::parse(ParsedFunds fd, TokenPrecision digits)
 {
     if (fd.precision > digits())
         return {};
@@ -115,13 +110,13 @@ std::optional<Funds_uint64> Funds_uint64::parse(FundsDecimal fd, TokenPrecision 
 
 std::optional<Wart> Wart::parse(std::string_view s)
 {
-    auto fd { FundsDecimal::parse(s) };
+    auto fd { ParsedFunds::parse(s) };
     if (!fd)
         return {};
     return parse(*fd);
 }
 
-std::optional<Wart> Wart::parse(FundsDecimal fd)
+std::optional<Wart> Wart::parse(ParsedFunds fd)
 {
     auto p { Funds_uint64::parse(fd, TokenPrecision::digits8()) };
     if (p)
@@ -139,8 +134,9 @@ Wart Wart::parse_throw(std::string_view s)
 
 std::string Wart::to_string() const
 {
-    return funds_to_string(val, TokenPrecision::digits8());
+    return FundsDecimal { val, TokenPrecision::digits8() }.to_string();
 }
+
 Wart::Wart(Reader& r)
     : FundsBase<Wart>(from_value_throw(r))
 {

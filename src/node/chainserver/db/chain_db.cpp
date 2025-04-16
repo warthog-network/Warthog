@@ -101,14 +101,14 @@ ChainDB::ChainDB(const std::string& path)
 
     , stmtTokenForkBalancePrune(db, "DELETE FROM TokenForkBalances WHERE id>=?")
 
-    , stmtTokenInsert(db, "INSERT INTO `Tokens` ( `id`, `height`, `owner_account_id`, total_supply, group_id, parent_id, name, hash, data) VALUES (?,?,?,?,?,?,?)")
+    , stmtTokenInsert(db, "INSERT INTO `Tokens` ( `id`, `height`, `owner_account_id`, total_supply, group_id, parent_id, name, hash, precision, data) VALUES (?,?,?,?,?,?,?,?)")
     , stmtTokenPrune(db, "DELETE FROM Tokens WHERE id>=?")
     , stmtTokenMaxSnapshotHeight(db, "SELECT height FROM Tokens "
                                      "WHERE parent_id=? AND height>=? "
                                      "ORDER BY height DESC LIMIT 1")
     , stmtTokenSelectForkHeight(db, "SELECT height FROM Tokens WHERE parent_id=? AND height>=? ORDER BY height DESC LIMIT 1")
-    , stmtTokenLookup(db, "SELECT (id, height, owner_account_id, total_supply, group_id, parent_id, name, hash, data) FROM Tokens WHERE `id`=?")
-    , stmtTokenLookupByHash(db, "SELECT (id, height, owner_account_id, total_supply, group_id, parent_id, name, hash, data) FROM Tokens WHERE `hash`=?")
+    , stmtTokenLookup(db, "SELECT (id, height, owner_account_id, total_supply, group_id, parent_id, name, hash, precision, data) FROM Tokens WHERE `id`=?")
+    , stmtTokenLookupByHash(db, "SELECT (id, height, owner_account_id, total_supply, group_id, parent_id, name, hash, precision, data) FROM Tokens WHERE `hash`=?")
     , stmtSelectBalanceId(db, "SELECT `account_id`, `token_id`, `balance` FROM `Balances` WHERE `id`=?")
     , stmtTokenInsertBalance(db, "INSERT INTO `Balances` ( id, `token_id`, `account_id`, `balance`) VALUES (?,?,?,?)")
     , stmtBalancePrune(db, "DELETE FROM Balances WHERE id>=?")
@@ -571,13 +571,13 @@ std::optional<std::pair<NonzeroHeight, Funds_uint64>> ChainDB::get_balance_snaps
     return std::pair<NonzeroHeight, Funds_uint64> { res[0], res[1] };
 }
 
-void ChainDB::insert_new_token(CreatorToken ct, NonzeroHeight height, TokenName name, TokenHash hash, TokenMintType type)
+void ChainDB::insert_new_token(CreatorToken ct, NonzeroHeight height, TokenName name, TokenHash hash, TokenPrecision precision, TokenMintType type)
 {
     auto id { cache.nextStateId++ };
     if (id != ct.token_id().value())
         throw std::runtime_error("Internal error, token id inconsistent.");
     std::string n { name.c_str() };
-    stmtTokenInsert.run(id, height, ct.creator_id(), n, hash, static_cast<uint8_t>(type));
+    stmtTokenInsert.run(id, height, ct.creator_id(), n, hash, precision, static_cast<uint8_t>(type));
 }
 
 std::optional<NonzeroHeight> ChainDB::get_latest_fork_height(TokenId tid, Height h)
@@ -776,13 +776,14 @@ std::optional<TokenInfo> ChainDB::lookup_token(TokenId id) const
             .parent_id { o[5] },
             .name { o[6] },
             .hash { o[7] },
+            .precision { o[8] }
         };
     });
 }
 
 std::optional<TokenInfo> ChainDB::lookup_token(TokenHash hash) const
 {
-    return stmtTokenLookup.one(hash).process([](auto& o) -> TokenInfo {
+    return stmtTokenLookupByHash.one(hash).process([](auto& o) -> TokenInfo {
         return {
             .id { o[0] },
             .height { o[1] },
@@ -792,6 +793,7 @@ std::optional<TokenInfo> ChainDB::lookup_token(TokenHash hash) const
             .parent_id { o[5] },
             .name { o[6] },
             .hash { o[7] },
+            .precision { o[8] }
         };
     });
 }

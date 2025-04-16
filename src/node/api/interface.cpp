@@ -10,7 +10,7 @@
 #include <nlohmann/json.hpp>
 
 // mempool functions
-void put_mempool(WartPaymentCreateMessage&& m, MempoolInsertCb cb)
+void put_mempool(WartTransferCreate&& m, MempoolInsertCb cb)
 {
     global().chainServer->api_put_mempool(std::move(m), std::move(cb));
 }

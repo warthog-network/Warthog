@@ -6,7 +6,7 @@
 #include "crypto/hash.hpp"
 #include "general/compact_uint.hpp"
 
-class WartPaymentCreateMessage {
+class WartTransferCreate {
 public:
     static constexpr size_t bytesize { 106 };
     // byte layout:
@@ -18,9 +18,8 @@ public:
     // 33 amount
     // 41 signature
     // 106 [total size]
-    WartPaymentCreateMessage(ReaderCheck<bytesize> r);
-    WartPaymentCreateMessage(PinHeight pinHeight, const Hash& pinHash, const PrivKey&, CompactUInt feeCompactHost, const Address& toAddress, Wart amount, NonceId);
-    WartPaymentCreateMessage(PinHeight pinHeight, NonceId nonceId, NonceReserved reserved, CompactUInt compactFee, Address toAddr, Wart amount, RecoverableSignature signature)
+    WartTransferCreate(PinHeight pinHeight, const Hash& pinHash, const PrivKey&, CompactUInt feeCompactHost, const Address& toAddress, Wart amount, NonceId);
+    WartTransferCreate(PinHeight pinHeight, NonceId nonceId, NonceReserved reserved, CompactUInt compactFee, Address toAddr, Wart amount, RecoverableSignature signature)
         : pinHeight(pinHeight)
         , nonceId(nonceId)
         , reserved(reserved)
@@ -34,8 +33,6 @@ public:
     bool valid_signature(HashView pinHash, AddressView fromAddress) const;
     Address from_address(HashView txHash) const;
     TxHash tx_hash(HashView pinHash) const;
-    friend Writer& operator<<(Writer&, const WartPaymentCreateMessage&);
-    operator std::vector<uint8_t>();
     operator std::string();
 
     // Data members
@@ -48,7 +45,7 @@ public:
     RecoverableSignature signature;
 };
 
-class TokenPaymentCreateMessage {
+class TokenTransferCreate {
 public:
     static constexpr size_t bytesize { 138 };
     // byte layout:
@@ -61,9 +58,9 @@ public:
     // 65 amount
     // 73 signature
     // 138 [total size]
-    TokenPaymentCreateMessage(ReaderCheck<bytesize> r);
-    TokenPaymentCreateMessage(PinHeight pinHeight, const Hash& pinHash, const PrivKey&, Hash tokenHash, CompactUInt feeCompactHost, const Address& toAddress, Funds_uint64 amount, NonceId);
-    TokenPaymentCreateMessage(PinHeight pinHeight, NonceId nonceId, NonceReserved reserved, Hash tokenHash, CompactUInt compactFee, Address toAddr, Funds_uint64 amount, RecoverableSignature signature)
+    TokenTransferCreate(ReaderCheck<bytesize> r);
+    TokenTransferCreate(PinHeight pinHeight, const Hash& pinHash, const PrivKey&, Hash tokenHash, CompactUInt feeCompactHost, const Address& toAddress, ParsedFunds amount, NonceId);
+    TokenTransferCreate(PinHeight pinHeight, NonceId nonceId, NonceReserved reserved, Hash tokenHash, CompactUInt compactFee, Address toAddr, ParsedFunds amount, RecoverableSignature signature)
         : pinHeight(pinHeight)
         , nonceId(nonceId)
         , reserved(reserved)
@@ -78,8 +75,6 @@ public:
     bool valid_signature(HashView pinHash, AddressView fromAddress) const;
     Address from_address(HashView txHash) const;
     TxHash tx_hash(HashView pinHash) const;
-    friend Writer& operator<<(Writer&, const TokenPaymentCreateMessage&);
-    operator std::vector<uint8_t>();
     operator std::string();
 
     // Data members
@@ -89,6 +84,6 @@ public:
     TokenHash tokenHash;
     CompactUInt compactFee;
     Address toAddr;
-    Funds_uint64 amount;
+    ParsedFunds amount;
     RecoverableSignature signature;
 };

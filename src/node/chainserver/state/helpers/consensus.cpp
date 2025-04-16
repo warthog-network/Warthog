@@ -238,7 +238,7 @@ TxHash Chainstate::insert_tx(const WartTransferMessage& pm)
     return txHash;
 }
 
-TxHash Chainstate::insert_tx(const WartPaymentCreateMessage& m)
+TxHash Chainstate::insert_tx(const WartTransferCreate& m)
 {
     PinHeight pinHeight = m.pinHeight;
     if (pinHeight > length())

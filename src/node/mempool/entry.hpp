@@ -55,16 +55,21 @@ namespace entry {
     };
     struct RemoveLiquidity {
     };
-
-    struct Value {
+    struct Shared {
         TransactionHeight transactionHeight;
         NonceReserved noncep2;
         CompactUInt fee;
         Hash txHash;
         RecoverableSignature signature;
-        wrt::variant<WartTransfer, TokenTransfer, CreateOrder,CancelOrder, AddLiquidity, RemoveLiquidity> variant;
+    };
+    using base_variant_t = wrt::variant<WartTransfer, TokenTransfer, CreateOrder, CancelOrder, AddLiquidity, RemoveLiquidity>;
+    struct Variant : public base_variant_t {
+        using base_variant_t::base_variant_t;
     };
 
+    struct Value : public Shared {
+        Variant variant;
+    };
 }
 
 class Entry {

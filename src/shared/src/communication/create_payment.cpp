@@ -1,13 +1,12 @@
 #include "create_payment.hpp"
 #include "crypto/hasher_sha256.hpp"
-#include "general/reader.hpp"
-#include "general/writer.hpp"
 #include "nlohmann/json.hpp"
+#include "general/writer.hpp"
 
-WartPaymentCreateMessage::WartPaymentCreateMessage(
+WartTransferCreate::WartTransferCreate(
     PinHeight pinHeight, const Hash& pinHash,
     const PrivKey& privateKey, CompactUInt fee,
-    const Address& toAddress, Funds_uint64 amount, NonceId nonceId)
+    const Address& toAddress, Wart amount, NonceId nonceId)
     : pinHeight(pinHeight)
     , nonceId(nonceId)
     , reserved { NonceReserved::zero() }
@@ -18,52 +17,19 @@ WartPaymentCreateMessage::WartPaymentCreateMessage(
 {
 }
 
-WartPaymentCreateMessage::WartPaymentCreateMessage(ReaderCheck<bytesize> r)
-    : pinHeight(Height(r.r))
-    , nonceId(r.r)
-    , reserved(r.r)
-    , compactFee(CompactUInt::from_value_throw(r.r))
-    , toAddr(r.r)
-    , amount(Funds_uint64::from_value_throw(r.r))
-    , signature(r.r)
-{
-    r.assert_read_bytes();
-}
-
-Writer& operator<<(Writer& w, const WartPaymentCreateMessage& m)
-{
-    return w
-        << m.pinHeight
-        << m.nonceId
-        << m.reserved
-        << m.compactFee
-        << m.toAddr
-        << m.amount
-        << m.signature;
-}
-
-TxHash WartPaymentCreateMessage::tx_hash(HashView pinHash) const
+TxHash WartTransferCreate::tx_hash(HashView pinHash) const
 {
     return TxHash(HasherSHA256()
         << pinHash
         << pinHeight
         << nonceId
         << reserved
-        << compactFee.uncompact() 
+        << compactFee.uncompact()
         << toAddr
         << amount);
 }
 
-WartPaymentCreateMessage::operator std::vector<uint8_t>()
-{
-    std::vector<uint8_t> out(bytesize);
-    Writer w(out);
-    w << *this;
-    assert(w.remaining() == 0);
-    return out;
-}
-
-WartPaymentCreateMessage::operator std::string()
+WartTransferCreate::operator std::string()
 {
     return nlohmann::json {
         { "pinHeight", pinHeight.value() },
@@ -76,21 +42,21 @@ WartPaymentCreateMessage::operator std::string()
         .dump(1);
 }
 
-bool WartPaymentCreateMessage::valid_signature(HashView pinHash, AddressView fromAddress) const
+bool WartTransferCreate::valid_signature(HashView pinHash, AddressView fromAddress) const
 {
     return signature.recover_pubkey(tx_hash(pinHash)).address() == fromAddress;
 }
 
-Address WartPaymentCreateMessage::from_address(
+Address WartTransferCreate::from_address(
     HashView txHash) const
 {
     return signature.recover_pubkey(txHash.data()).address();
 }
 
-TokenPaymentCreateMessage::TokenPaymentCreateMessage(
+TokenTransferCreate::TokenTransferCreate(
     PinHeight pinHeight, const Hash& pinHash,
     const PrivKey& privateKey, Hash tokenHash, CompactUInt fee,
-    const Address& toAddress, Funds_uint64 amount, NonceId nonceId)
+    const Address& toAddress, ParsedFunds amount, NonceId nonceId)
     : pinHeight(pinHeight)
     , nonceId(nonceId)
     , reserved { NonceReserved::zero() }
@@ -102,33 +68,8 @@ TokenPaymentCreateMessage::TokenPaymentCreateMessage(
 {
 }
 
-TokenPaymentCreateMessage::TokenPaymentCreateMessage(ReaderCheck<bytesize> r)
-    : pinHeight(Height(r.r))
-    , nonceId(r.r)
-    , reserved(r.r)
-    , tokenHash(r.r)
-    , compactFee(CompactUInt::from_value_throw(r.r))
-    , toAddr(r.r)
-    , amount(Funds_uint64::from_value_throw(r.r))
-    , signature(r.r)
-{
-    r.assert_read_bytes();
-}
 
-Writer& operator<<(Writer& w, const TokenPaymentCreateMessage& m)
-{
-    return w
-        << m.pinHeight
-        << m.nonceId
-        << m.reserved
-        << m.tokenHash
-        << m.compactFee
-        << m.toAddr
-        << m.amount
-        << m.signature;
-}
-
-TxHash TokenPaymentCreateMessage::tx_hash(HashView pinHash) const
+TxHash TokenTransferCreate::tx_hash(HashView pinHash) const
 {
     return TxHash(HasherSHA256()
         << pinHash
@@ -138,19 +79,10 @@ TxHash TokenPaymentCreateMessage::tx_hash(HashView pinHash) const
         << tokenHash
         << compactFee.uncompact()
         << toAddr
-        << amount);
+        << amount.v);
 }
 
-TokenPaymentCreateMessage::operator std::vector<uint8_t>()
-{
-    std::vector<uint8_t> out(bytesize);
-    Writer w(out);
-    w << *this;
-    assert(w.remaining() == 0);
-    return out;
-}
-
-TokenPaymentCreateMessage::operator std::string()
+TokenTransferCreate::operator std::string()
 {
     return nlohmann::json {
         { "pinHeight", pinHeight.value() },
@@ -164,12 +96,12 @@ TokenPaymentCreateMessage::operator std::string()
         .dump(1);
 }
 
-bool TokenPaymentCreateMessage::valid_signature(HashView pinHash, AddressView fromAddress) const
+bool TokenTransferCreate::valid_signature(HashView pinHash, AddressView fromAddress) const
 {
     return from_address(tx_hash(pinHash)) == fromAddress;
 }
 
-Address TokenPaymentCreateMessage::from_address(
+Address TokenTransferCreate::from_address(
     HashView txHash) const
 {
     return signature.recover_pubkey(txHash).address();

@@ -50,9 +50,9 @@ struct ParameterParser {
             return { TokenHash(*this) };
         return { TokenId(*this) };
     }
-    operator FundsDecimal()
+    operator ParsedFunds()
     {
-        return FundsDecimal(sv);
+        return ParsedFunds(sv);
     }
     operator Wart()
     {

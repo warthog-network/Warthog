@@ -9,37 +9,45 @@ class TokenPrecision { // number of decimal places
 private:
     uint8_t val;
 
-    constexpr TokenPrecision(uint8_t v)
+    struct Token { };
+    constexpr TokenPrecision(uint8_t v, Token)
         : val(v)
     {
     }
 
-public:
     static constexpr const uint8_t max { 18 };
 
+public:
+    auto value() const { return val; }
+    consteval TokenPrecision(size_t v)
+        : TokenPrecision(uint8_t(v), Token())
+    {
+        if (v > max)
+            throw std::exception();
+    }
+    static const TokenPrecision zero;
     static constexpr TokenPrecision digits8()
     {
         return 8;
     }
-    auto value() const { return val; }
     constexpr auto operator()() const { return val; }
     constexpr std::optional<TokenPrecision> from_number(uint8_t v)
     {
         if (v > max)
             return {};
-        return TokenPrecision { v };
+        return TokenPrecision { v, Token() };
     }
 };
+constexpr const TokenPrecision TokenPrecision::zero { 0 };
 
-struct FundsDecimal {
-    [[nodiscard]] static std::optional<FundsDecimal> parse(std::string_view);
-    FundsDecimal(std::string_view);
-    FundsDecimal(uint64_t v, uint8_t decimalPlaces)
+struct ParsedFunds {
+    [[nodiscard]] static std::optional<ParsedFunds> parse(std::string_view);
+    ParsedFunds(std::string_view);
+    ParsedFunds(uint64_t v, uint8_t decimalPlaces)
         : v(v)
         , precision(decimalPlaces)
     {
     }
-    static FundsDecimal zero() { return { 0, 0 }; }
     std::string to_string() const;
     auto uint64() const { return v; };
     uint64_t v;
@@ -138,6 +146,7 @@ public:
     }
 };
 
+struct FundsDecimal;
 class Funds_uint64 : public FundsBase<Funds_uint64> {
 public:
     constexpr Funds_uint64(uint64_t v)
@@ -147,14 +156,21 @@ public:
     Funds_uint64(Reader& r);
     auto operator<=>(const Funds_uint64&) const = default;
     static std::optional<Funds_uint64> parse(std::string_view, TokenPrecision);
-    static std::optional<Funds_uint64> parse(FundsDecimal, TokenPrecision);
+    static std::optional<Funds_uint64> parse(ParsedFunds, TokenPrecision);
     static Funds_uint64 parse_throw(std::string_view, TokenPrecision);
-    FundsDecimal to_decimal(TokenPrecision d) const
-    {
-        return { value(), d() };
-    }
-    std::string to_string(TokenPrecision) const;
+    FundsDecimal to_decimal(TokenPrecision d) const;
 };
+struct FundsDecimal {
+    Funds_uint64 funds;
+    TokenPrecision precision;
+    static FundsDecimal zero() { return { 0, 0 }; }
+    std::string to_string() const;
+};
+
+inline FundsDecimal Funds_uint64::to_decimal(TokenPrecision d) const
+{
+    return { value(), d };
+}
 
 struct TokenFunds {
     TokenId tokenId;
@@ -174,7 +190,7 @@ public:
     }
     auto operator<=>(const Wart&) const = default;
     static std::optional<Wart> parse(std::string_view);
-    static std::optional<Wart> parse(FundsDecimal);
+    static std::optional<Wart> parse(ParsedFunds);
     static Wart parse_throw(std::string_view);
     std::string to_string() const;
     uint64_t E8() const { return val; };

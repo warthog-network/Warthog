@@ -254,9 +254,9 @@ json to_json(Wart w)
 json to_json(const FundsDecimal& fd)
 {
     return {
-        { "uint64", fd.uint64() },
+        { "uint64", fd.funds.value() },
         { "str", fd.to_string() },
-        { "precision", fd.precision }
+        { "precision", fd.precision.value() }
     };
 }
 auto to_json_visit(const api::TransferTransaction& tx)
@@ -678,7 +678,7 @@ json to_json(const TransactionId& txid)
     };
 }
 
-json to_json(const TokenIdHashName& t)
+json to_json(const TokenIdHashNamePrecision& t)
 {
     return {
         { "hash", serialize_hex(t.hash) },

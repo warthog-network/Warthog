@@ -176,7 +176,7 @@ public:
 
     /////////////////////
     // Token functions
-    void insert_new_token(CreatorToken, NonzeroHeight height, TokenName name, TokenHash hash, TokenMintType type);
+    void insert_new_token(CreatorToken, NonzeroHeight height, TokenName name, TokenHash hash, TokenPrecision precision, TokenMintType type);
     [[nodiscard]] std::optional<NonzeroHeight> get_latest_fork_height(TokenId, Height);
 
     [[nodiscard]] std::optional<Balance> get_token_balance(BalanceId id) const;
@@ -389,6 +389,7 @@ private:
                     "`parent_id` INTEGER, " // used for forks
                     "`name` TEXT NOT NULL UNIQUE, "
                     "`hash` TEXT NOT NULL UNIQUE, "
+                    "`precision` INTEGER NOT NULL UNIQUE, "
                     "`data` BLOB,"
                     "PRIMARY KEY(id))");
             db.exec("CREATE INDEX IF NOT EXISTS `TokensIndex` ON "

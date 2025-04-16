@@ -11,12 +11,14 @@ struct TokenInfo {
     std::optional<TokenId> parent_id;
     TokenName name;
     TokenHash hash;
-    TokenIdHashName id_hash_name() const
+    TokenPrecision precision;
+    TokenIdHashNamePrecision id_hash_name_precision() const
     {
         return {
             .id { id },
             .hash { hash },
-            .name { name }
+            .name { name },
+            .precision { precision },
         };
     }
 };

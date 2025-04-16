@@ -692,7 +692,7 @@ auto State::append_mined_block(const ParsedBlock& b) -> StateUpdateWithAPIBlocks
         .appendedBlocks { std::move(apiBlock) } };
 }
 
-std::pair<mempool::Updates, TxHash> State::append_gentx(const WartPaymentCreateMessage& m)
+std::pair<mempool::Updates, TxHash> State::append_gentx(const WartTransferCreate& m)
 {
     try {
         auto txhash { chainstate.insert_tx(m) };

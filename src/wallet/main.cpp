@@ -199,7 +199,7 @@ int process(gengetopt_args_info& ai)
             cout << "Get pin" << endl;
             auto pin = endpoint.get_pin();
             cout << "Got pin" << endl;
-            WartPaymentCreateMessage m(pin.first, pin.second, w->privKey, fee, to, amount, nid);
+            WartTransferCreate m(pin.first, pin.second, w->privKey, fee, to, amount, nid);
             assert(m.valid_signature(pin.second, w->address));
             cout << "NonceId: " << m.nonceId.value() << endl;
             cout << "pinHeight: " << m.pinHeight.value() << endl;

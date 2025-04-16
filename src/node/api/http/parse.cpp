@@ -131,7 +131,7 @@ RecoverableSignature extract_signature(const nlohmann::json& json)
 }
 }
 
-WartPaymentCreateMessage parse_payment_create(const std::vector<uint8_t>& s)
+WartTransferCreate parse_payment_create(const std::vector<uint8_t>& s)
 {
     try {
         json parsed = json::parse(s);

@@ -42,7 +42,7 @@ WartTransferMessage::WartTransferMessage(WartTransferView t, PinHeight ph, Addre
 {
 }
 
-WartTransferMessage::WartTransferMessage(AccountId fromId, const WartPaymentCreateMessage& pcm)
+WartTransferMessage::WartTransferMessage(AccountId fromId, const WartTransferCreate& pcm)
     : txid(fromId, pcm.pinHeight, pcm.nonceId)
     , reserved(pcm.reserved)
     , compactFee(pcm.compactFee)
@@ -52,13 +52,13 @@ WartTransferMessage::WartTransferMessage(AccountId fromId, const WartPaymentCrea
 {
 }
 
-WartTransferMessage::WartTransferMessage(const TransactionId& txid, const mempool::entry::Value& v)
+WartTransferMessage::WartTransferMessage(const TransactionId& txid, const mempool::entry::Shared& s, const mempool::entry::WartTransfer& t)
     : txid(txid)
-    , reserved(v.noncep2)
-    , compactFee(v.fee)
-    , toAddr(v.toAddr)
-    , amount(v.amount)
-    , signature(v.signature)
+    , reserved(s.noncep2)
+    , compactFee(s.fee)
+    , toAddr(t.toAddr)
+    , amount(t.amount)
+    , signature(s.signature)
 {
 }
 
@@ -67,7 +67,7 @@ WartTransferMessage::WartTransferMessage(ReaderCheck<bytesize> r)
     , reserved(r.r.view<3>())
     , compactFee(CompactUInt::from_value_throw(r.r.uint16()))
     , toAddr(r.r.view<AddressView>())
-    , amount(Funds_uint64::from_value_throw(r.r.uint64()))
+    , amount(Wart::from_value_throw(r.r.uint64()))
     , signature(r.r.view<65>())
 {
     r.assert_read_bytes();
@@ -114,7 +114,7 @@ TokenTransferMessage::TokenTransferMessage(WartTransferView t, Hash tokenHash, P
 {
 }
 
-TokenTransferMessage::TokenTransferMessage(AccountId fromId, const TokenPaymentCreateMessage& pcm)
+TokenTransferMessage::TokenTransferMessage(AccountId fromId, const TokenTransferCreate& pcm)
     : txid(fromId, pcm.pinHeight, pcm.nonceId)
     , reserved(pcm.reserved)
     , compactFee(pcm.compactFee)

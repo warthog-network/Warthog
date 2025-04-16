@@ -118,7 +118,7 @@ struct Block {
         Wart amount;
     };
     struct TokenTransfer {
-        TokenIdHashName tokenInfo;
+        TokenIdHashNamePrecision tokenInfo;
         Address fromAddress;
         Wart fee;
         NonceId nonceId;
@@ -128,7 +128,7 @@ struct Block {
         FundsDecimal amount;
     };
     struct NewOrder {
-        TokenIdHashName tokenInfo;
+        TokenIdHashNamePrecision tokenInfo;
         Wart fee;
         FundsDecimal amount;
         Price_uint64 limit;
@@ -138,7 +138,7 @@ struct Block {
         Address address;
     };
     struct Swap {
-        TokenIdHashName tokenInfo;
+        TokenIdHashNamePrecision tokenInfo;
         Hash txhash;
         bool buy;
         Wart fillQuote;

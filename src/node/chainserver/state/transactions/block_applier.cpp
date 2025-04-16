@@ -919,9 +919,9 @@ private:
         return !baseTxIds.contains(tid) && !newTxIds.contains(tid) && txset.emplace(tid).second;
     }
 
-    struct TokenData : TokenIdHashName {
-        TokenData(TokenIdHashName t)
-            : TokenIdHashName(std::move(t))
+    struct TokenData : TokenIdHashNamePrecision {
+        TokenData(TokenIdHashNamePrecision t)
+            : TokenIdHashNamePrecision(std::move(t))
         {
         }
         const auto& get_pool(const ChainDB& db) const
@@ -941,7 +941,7 @@ private:
     {
         auto ts { balanceChecker.get_token_sections() };
         for (auto& ts : balanceChecker.get_token_sections()) {
-            auto ihn { db_token(ts.id).id_hash_name() };
+            auto ihn { db_token(ts.id).id_hash_name_precision() };
             process_token_transfers(ihn, ts.transfers);
             process_new_orders(ihn, ts.orders);
             process_cancelations(ihn, ts.cancelations);
@@ -975,7 +975,7 @@ private:
         }
     }
 
-    void process_token_transfers(const TokenIdHashName& token, const std::vector<TokenTransferInternal>& transfers)
+    void process_token_transfers(const TokenIdHashNamePrecision& token, const std::vector<TokenTransferInternal>& transfers)
     {
         for (auto& tr : transfers) {
             auto verified { verify(tr, token.hash) };
@@ -989,7 +989,7 @@ private:
                 .pinHeight { verified.txid.pinHeight },
                 .txhash { ref.he.hash },
                 .toAddress { tr.to.address },
-                .amount { tr.amount },
+                .amount { tr.amount, token.precision },
             });
         }
     }
@@ -1007,7 +1007,7 @@ private:
             auto& ref { history.push_order(verified) };
             api.newOrders.push_back(api::Block::NewOrder { .tokenInfo { token },
                 .fee { o.compactFee.uncompact() },
-                .amount { o.amount.funds },
+                .amount { o.amount.funds, token.precision },
                 .limit { o.limit },
                 .buy = o.buy,
                 .txid { verified.txid },
@@ -1028,12 +1028,12 @@ private:
 
         for (auto& s : m.buySwaps) {
             auto& ref { history.push_swap(s, height) };
-            api.swaps.push_back({
+            api.swaps.push_back(api::Block::Swap {
                 .tokenInfo { token },
                 .txhash { ref.he.hash },
                 .buy = true,
                 .fillQuote { s.quote },
-                .fillBase { s.base },
+                .fillBase { s.base, token.precision },
             });
         }
         for (auto& s : m.sellSwaps) {
@@ -1043,12 +1043,12 @@ private:
                 .txhash { ref.he.hash },
                 .buy = false,
                 .fillQuote { s.quote },
-                .fillBase { s.base },
+                .fillBase { s.base, token.precision},
             });
         }
         matchDeltas.push_back(std::move(m));
     }
-    void process_cancelations(const TokenIdHashName& token, const std::vector<CancelationInternal>& cancelations)
+    void process_cancelations(const TokenIdHashNamePrecision& token, const std::vector<CancelationInternal>& cancelations)
     {
         for (auto& c : cancelations) {
             auto verified { verify(c, token.hash) };
@@ -1059,10 +1059,10 @@ private:
             auto& ref { history.push_token_transfer() }
         }
     }
-    void process_liquidity_adds(const TokenIdHashName& ihn, const std::vector<LiquidityAddInternal>& orders)
+    void process_liquidity_adds(const TokenIdHashNamePrecision& ihn, const std::vector<LiquidityAddInternal>& orders)
     {
     }
-    void process_liquidity_removes(const TokenIdHashName& ihn, const std::vector<LiquidityRemoveInternal>& orders)
+    void process_liquidity_removes(const TokenIdHashNamePrecision& ihn, const std::vector<LiquidityRemoveInternal>& orders)
     {
     }
 

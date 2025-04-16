@@ -64,8 +64,9 @@ private:
     char name[6] = { '\0', '\0', '\0', '\0', '\0', '\0' };
 };
 
-struct TokenIdHashName {
+struct TokenIdHashNamePrecision {
     TokenId id;
     TokenHash hash;
     TokenName name;
+    TokenPrecision precision;
 };
