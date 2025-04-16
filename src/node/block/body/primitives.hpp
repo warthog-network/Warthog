@@ -8,8 +8,9 @@
 class Address;
 class HashView;
 struct WartTransferView;
-
 class WartTransferCreate;
+
+struct TokenTransferView;
 class TokenTransferCreate;
 
 namespace mempool {
@@ -17,6 +18,7 @@ namespace entry {
     struct Value;
     struct Shared;
     struct WartTransfer;
+    struct TokenTransfer;
 }
 }
 
@@ -26,7 +28,6 @@ public:
     static constexpr size_t bytesize = 16 + 3 + 2 + 20 + 8 + 65;
     static constexpr size_t byte_size() { return bytesize; }
     WartTransferMessage(ReaderCheck<bytesize> r);
-    WartTransferMessage(AccountId fromId, const WartTransferCreate& pcm);
     WartTransferMessage(const TransactionId& txid,
         const mempool::entry::Shared& s,
         const mempool::entry::WartTransfer& t);
@@ -55,9 +56,9 @@ public:
     static constexpr size_t bytesize = 16 + 3 + 2 + 32 + 20 + 8 + 65;
     static constexpr size_t byte_size() { return bytesize; }
     TokenTransferMessage(ReaderCheck<bytesize> r);
-    TokenTransferMessage(AccountId fromId, const TokenTransferCreate& pcm);
     TokenTransferMessage(const TransactionId& txid, const mempool::entry::Value&);
-    TokenTransferMessage(WartTransferView, Hash tokenHash, PinHeight, AddressView toAddr);
+    TokenTransferMessage(const TransactionId& txid, const mempool::entry::Shared& s, const mempool::entry::TokenTransfer& v);
+    TokenTransferMessage(TokenTransferView, Hash tokenHash, PinHeight, AddressView toAddr);
 
     friend Writer& operator<<(Writer&, TokenTransferMessage);
     [[nodiscard]] TxHash txhash(HashView pinHash) const;

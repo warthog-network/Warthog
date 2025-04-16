@@ -573,8 +573,8 @@ std::optional<std::pair<NonzeroHeight, Funds_uint64>> ChainDB::get_balance_snaps
 
 void ChainDB::insert_new_token(CreatorToken ct, NonzeroHeight height, TokenName name, TokenHash hash, TokenPrecision precision, TokenMintType type)
 {
-    auto id { cache.nextStateId++ };
-    if (id != ct.token_id().value())
+    auto id { cache.nextTokenId++ };
+    if (id != ct.token_id())
         throw std::runtime_error("Internal error, token id inconsistent.");
     std::string n { name.c_str() };
     stmtTokenInsert.run(id, height, ct.creator_id(), n, hash, precision, static_cast<uint8_t>(type));
@@ -800,7 +800,7 @@ std::optional<TokenInfo> ChainDB::lookup_token(TokenHash hash) const
 
 TokenInfo ChainDB::fetch_token(TokenId id) const
 {
-    auto p = lookup_token(id);
+    auto p { lookup_token(id) };
     if (!p) {
         throw std::runtime_error("Database corrupted (fetch_token(" + std::to_string(id.value()) + ")");
     }

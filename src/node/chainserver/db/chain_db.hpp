@@ -181,8 +181,8 @@ public:
 
     [[nodiscard]] std::optional<Balance> get_token_balance(BalanceId id) const;
     [[nodiscard]] std::optional<std::pair<BalanceId, Funds_uint64>> get_balance(AccountToken) const;
-    [[nodiscard]] std::optional<TokenInfo> lookup_token(TokenId id) const;
-    [[nodiscard]] std::optional<TokenInfo> lookup_token(TokenHash h) const;
+    [[nodiscard]] std::optional<TokenInfo> lookup_token(TokenId) const;
+    [[nodiscard]] std::optional<TokenInfo> lookup_token(TokenHash) const;
     [[nodiscard]] TokenInfo fetch_token(TokenId id) const;
     void insert_token_balance(AccountToken, Funds_uint64 balance);
     void set_balance(BalanceId, Funds_uint64 balance);

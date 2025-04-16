@@ -45,13 +45,13 @@ struct ParsedFunds {
     ParsedFunds(std::string_view);
     ParsedFunds(uint64_t v, uint8_t decimalPlaces)
         : v(v)
-        , precision(decimalPlaces)
+        , decimalPlaces(decimalPlaces)
     {
     }
     std::string to_string() const;
     auto uint64() const { return v; };
     uint64_t v;
-    uint8_t precision;
+    uint8_t decimalPlaces;
 };
 
 template <typename R>

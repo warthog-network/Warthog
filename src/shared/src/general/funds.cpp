@@ -95,9 +95,9 @@ std::optional<Funds_uint64> Funds_uint64::parse(std::string_view s, TokenPrecisi
 
 std::optional<Funds_uint64> Funds_uint64::parse(ParsedFunds fd, TokenPrecision digits)
 {
-    if (fd.precision > digits())
+    if (fd.decimalPlaces > digits())
         return {};
-    size_t zeros { size_t(digits()) - size_t(fd.precision) };
+    size_t zeros { size_t(digits()) - size_t(fd.decimalPlaces) };
     auto v { fd.v };
 
     for (size_t i { 0 }; i < zeros; ++i) {

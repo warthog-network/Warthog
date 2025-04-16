@@ -42,16 +42,6 @@ WartTransferMessage::WartTransferMessage(WartTransferView t, PinHeight ph, Addre
 {
 }
 
-WartTransferMessage::WartTransferMessage(AccountId fromId, const WartTransferCreate& pcm)
-    : txid(fromId, pcm.pinHeight, pcm.nonceId)
-    , reserved(pcm.reserved)
-    , compactFee(pcm.compactFee)
-    , toAddr(pcm.toAddr)
-    , amount(pcm.amount)
-    , signature(pcm.signature)
-{
-}
-
 WartTransferMessage::WartTransferMessage(const TransactionId& txid, const mempool::entry::Shared& s, const mempool::entry::WartTransfer& t)
     : txid(txid)
     , reserved(s.noncep2)
@@ -103,7 +93,7 @@ TxHash TokenTransferMessage::txhash(HashView pinHash) const
         << amount);
 }
 
-TokenTransferMessage::TokenTransferMessage(WartTransferView t, Hash tokenHash, PinHeight ph, AddressView toAddr)
+TokenTransferMessage::TokenTransferMessage(TokenTransferView t, Hash tokenHash, PinHeight ph, AddressView toAddr)
     : txid(t.txid(ph))
     , reserved(t.pin_nonce().reserved)
     , compactFee(t.compact_fee_throw())
@@ -114,25 +104,15 @@ TokenTransferMessage::TokenTransferMessage(WartTransferView t, Hash tokenHash, P
 {
 }
 
-TokenTransferMessage::TokenTransferMessage(AccountId fromId, const TokenTransferCreate& pcm)
-    : txid(fromId, pcm.pinHeight, pcm.nonceId)
-    , reserved(pcm.reserved)
-    , compactFee(pcm.compactFee)
-    , tokenHash(pcm.tokenHash)
-    , toAddr(pcm.toAddr)
-    , amount(pcm.amount)
-    , signature(pcm.signature)
-{
-}
 
-TokenTransferMessage::TokenTransferMessage(const TransactionId& txid, const mempool::EntryValue& v)
+TokenTransferMessage::TokenTransferMessage(const TransactionId& txid, const mempool::entry::Shared& s, const mempool::entry::TokenTransfer& v)
     : txid(txid)
-    , reserved(v.noncep2)
-    , compactFee(v.fee)
+    , reserved(s.noncep2)
+    , compactFee(s.fee)
     , tokenHash(v.tokenHash)
     , toAddr(v.toAddr)
     , amount(v.amount)
-    , signature(v.signature)
+    , signature(s.signature)
 {
 }
 
