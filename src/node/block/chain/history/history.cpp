@@ -131,18 +131,11 @@ Entry::Entry(const VerifiedOrder& p)
 Entry::Entry(const VerifiedCancelation& p)
     : hash(p.hash)
 {
-    // TokenId tokenId;
-    // bool buy;
-    // AccountId accountId;
-    // CompactUInt compactFee;
     data = serialize(CancelationData {
-        p.cancelation.pinNonce,
-        p.cancelation.tokenId,
-        p.txid.accountId,
-        p.cancelation.compactFee,
-        p.cancelation.limit,
-        p.cancelation.amount.funds,
-        p.cancelation.pinNonce });
+        .tokenId { p.cancelation.tokenId },
+        .cancelTxid { p.cancelation.cancelTxid },
+        .accountId { p.cancelation.origin.id },
+        .compactFee { p.cancelation.compactFee } });
 }
 TokenTransferData TokenTransferData::parse(Reader& r)
 {
@@ -158,7 +151,7 @@ TokenTransferData TokenTransferData::parse(Reader& r)
     };
 }
 
-Entry::Entry(const VerifiedTokenCreation& p)
+Entry::Entry(const VerifiedTokenCreation& p, TokenId tokenId)
     : hash(p.hash)
 {
     data = serialize(TokenCreationData {
@@ -166,7 +159,7 @@ Entry::Entry(const VerifiedTokenCreation& p)
         .pinNonce { p.tci.pinNonce },
         .tokenName { p.tci.tokenName },
         .compactFee { p.tci.compactFee },
-        .tokenIndex { p.tokenId } });
+        .tokenId { tokenId } });
 }
 
 Entry::Entry(const BuySwapHist& p)
@@ -198,6 +191,17 @@ void OrderData::write(Writer& w) const
     assert(w.remaining() == bytesize);
     w << tokenId << buy << accountId << compactFee << amount
       << limit.to_uint32() << pinNonce;
+}
+
+void CancelationData::write(Writer& w) const
+{
+    assert(w.remaining() == bytesize);
+    w << tokenId << cancelTxid << accountId << compactFee;
+}
+
+CancelationData CancelationData::parse(Reader& r)
+{
+    return { r, r, r, r };
 }
 
 void WartTransferData::write(Writer& w) const
@@ -239,7 +243,7 @@ RewardData RewardData::parse(Reader& r)
 void TokenCreationData::write(Writer& w) const
 {
     assert(w.remaining() == bytesize);
-    w << creatorAccountId << compactFee << pinNonce << tokenName << tokenIndex;
+    w << creatorAccountId << compactFee << pinNonce << tokenName << tokenId;
 }
 
 TokenCreationData TokenCreationData::parse(Reader& r)
@@ -251,7 +255,7 @@ TokenCreationData TokenCreationData::parse(Reader& r)
         .pinNonce { r },
         .tokenName { r },
         .compactFee { r },
-        .tokenIndex { r },
+        .tokenId { r },
     };
 }
 void SwapData::write(Writer& w) const

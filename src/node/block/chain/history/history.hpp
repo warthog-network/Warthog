@@ -57,6 +57,7 @@ struct SignerData {
     RecoverableSignature signature;
     PinNonce pinNonce;
     CompactUInt compactFee;
+
 private:
     VerifiedHash verify_hash(Hash h) const
     {
@@ -260,7 +261,7 @@ struct TokenCreationData {
     PinNonce pinNonce; // 8 bytes
     TokenName tokenName; // 6 bytes
     CompactUInt compactFee; // 2 bytes
-    TokenId tokenIndex; // 4 bytes
+    TokenId tokenId; // 4 bytes
     void write(Writer& w) const;
 };
 
@@ -291,13 +292,15 @@ struct OrderData {
     static OrderData parse(Reader& r);
 };
 
-struct CancelationData{
+struct CancelationData {
     TokenId tokenId;
-    bool buy;
+    TransactionId cancelTxid;
     AccountId accountId;
     CompactUInt compactFee;
-
     constexpr static uint8_t indicator = 6;
+    constexpr static uint8_t bytesize = 4 + 16 + 8 + 2; // without indicator
+    void write(Writer& w) const;
+    static CancelationData parse(Reader& r);
 };
 
 struct SwapData {
@@ -356,7 +359,7 @@ struct Entry {
     Entry(const VerifiedTokenTransfer& p, TokenId);
     Entry(const VerifiedOrder& p);
     Entry(const VerifiedCancelation& p);
-    Entry(const VerifiedTokenCreation& p);
+    Entry(const VerifiedTokenCreation& p, TokenId);
     Entry(const BuySwapHist& p);
     Entry(const SellSwapHist& p);
     Hash hash;

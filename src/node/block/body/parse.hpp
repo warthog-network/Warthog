@@ -451,7 +451,8 @@ inline RewardView BodyView::reward() const
 
 inline Funds_uint64 BodyView::fee_sum_assert() const
 {
-    Funds_uint64 sum { Funds_uint64::zero() };
+    Wart sum { Wart::zero() };
+    sum.subtract_assert(sum);
     for (auto t : wart_transfers())
         sum.add_assert(t.compact_fee_assert().uncompact());
     return sum;
