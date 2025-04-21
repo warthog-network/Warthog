@@ -76,7 +76,7 @@ Use at your own risk.
 - <a href="https://tradeogre.com/exchange/WART-USDT">TradeOgre exchange</a>
 - <a href="https://www.coinex.com/en/exchange/WART-USDT">CoinEx exchange</a>
 - <a href="https://www.bit.com/spot?pair=WART-USDT">Bit.com Exchange</a>
-- <a href="https://www.caldera.trade/get-started">Caldera OTC bot</a>
+- <a href="https://bitcointry.com/en/exchange/WART_USDT">Bitcointry Exchange</a>
 
 
 ## 📦 Component overview
