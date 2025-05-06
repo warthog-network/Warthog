@@ -1,0 +1,13 @@
+{
+    "cloudflare": {                               
+      "TYPE": "CLOUDFLAREAPI",                    
+      "accountid": "your-cloudflare-account-id",  
+      "apitoken": "your-cloudflare-api-token"     
+    },
+    "namecom": {                                  
+      "TYPE": "NAMEDOTCOM",                       
+      "apikey": "key",                            
+      "apiuser": "username"                       
+    },
+    "none": { "TYPE": "NONE" }                    
+  }
