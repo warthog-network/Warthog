@@ -94,7 +94,7 @@ Entry::Entry(const RewardInternal& p)
 }
 
 Entry::Entry(const VerifiedWartTransfer& p)
-    : hash(p.hash)
+    : hash(static_cast<const Hash&>(p.hash))
 {
     data = serialize(WartTransferData {
         p.ti.origin.id,

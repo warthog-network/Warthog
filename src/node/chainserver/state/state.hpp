@@ -111,7 +111,7 @@ public:
     auto api_get_history(Address a, int64_t beforeId = 0x7fffffffffffffff) const -> std::optional<api::AccountHistory>;
     auto api_get_richlist(size_t N) const -> api::Richlist;
     auto api_get_mempool(size_t) const -> api::MempoolEntries;
-    auto api_get_tx(HashView hash) const -> std::optional<api::Transaction>;
+    auto api_get_tx(const Hash& hash) const -> std::optional<api::Transaction>;
     auto api_get_latest_txs(size_t N = 100) const -> api::TransactionsByBlocks;
     auto api_get_latest_blocks(size_t N = 100) const -> api::TransactionsByBlocks;
     auto api_get_miner(NonzeroHeight h) const -> std::optional<api::AddressWithId>;

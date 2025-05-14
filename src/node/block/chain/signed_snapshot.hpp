@@ -68,14 +68,14 @@ public:
     NonzeroPriority priority;
 
 private:
-    SignedSnapshot(NonzeroHeight height, HashView hash, RecoverableSignature signature)
-        : hash(hash)
+    SignedSnapshot(NonzeroHeight height, Hash hash, RecoverableSignature signature)
+        : hash(std::move(hash))
         , signature(signature)
         , priority { get_importance(), height }
     {
     }
-    SignedSnapshot(NonzeroPriority p, HashView hash, RecoverableSignature signature)
-        : hash(hash)
+    SignedSnapshot(NonzeroPriority p, Hash hash, RecoverableSignature signature)
+        : hash(std::move(hash))
         , signature(signature)
         , priority { p }
     {

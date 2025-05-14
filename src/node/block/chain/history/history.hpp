@@ -29,11 +29,19 @@ struct RewardInternal {
     Hash hash() const;
 };
 
-struct VerifiedHash : public Hash {
-    VerifiedHash(Hash h, const RecoverableSignature& s, AddressView a)
-        : Hash(h)
+struct VerifiedHash {
+protected:
+    Hash hash;
+
+public:
+    operator const Hash&() const
     {
-        if (s.recover_pubkey(h).address() != a)
+        return hash;
+    }
+    VerifiedHash(Hash h, const RecoverableSignature& s, AddressView a)
+        : hash(std::move(h))
+    {
+        if (s.recover_pubkey(hash).address() != a)
             throw Error(ECORRUPTEDSIG);
     }
 };

@@ -66,7 +66,7 @@ struct Chainstate {
     Worksum work_with_new_block() const { return headerchain.total_work() + headerchain.next_target(); };
     const auto& headers() const { return headerchain; }
     auto mining_data() const { return headerchain.mining_data(); };
-    HashView final_hash() const { return headerchain.final_hash(); }
+    const Hash& final_hash() const { return headerchain.final_hash(); }
     auto prepare_append(const std::optional<SignedSnapshot>& sp, HeaderView hv) const { return headerchain.prepare_append(sp, hv); }
     Height length() const { return headerchain.length(); }
     Descriptor descriptor() const { return dsc; }

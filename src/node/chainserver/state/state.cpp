@@ -128,7 +128,7 @@ auto State::api_tx_cache() const -> const TransactionIds
     return chainstate.txids();
 }
 
-std::optional<api::Transaction> State::api_get_tx(const HashView txHash) const
+std::optional<api::Transaction> State::api_get_tx(const Hash& txHash) const
 {
     if (auto p = chainstate.mempool()[txHash]; p) {
         auto& tx = *p;

@@ -140,7 +140,7 @@ public:
             return Hash::genesis();
         if (h == length())
             return static_cast<HeaderView>(operator[](h.nonzero_assert())).hash();
-        return operator[]((h + 1).nonzero_assert()).prevhash();
+        return Hash(operator[]((h + 1).nonzero_assert()).prevhash());
     };
 
     [[nodiscard]] Hash hash_at(Height height) const

@@ -14,6 +14,7 @@ public:
     {
         return View::operator==(hv);
     };
+    HashView(const Hash&);
 };
 
 class Hash : public std::array<uint8_t, 32> {
@@ -31,12 +32,8 @@ public:
     }
     Hash(const Hash&) = default;
     Hash(Hash&&) = default;
-    operator HashView() const
-    {
-        return HashView(data());
-    }
     std::string hex_string() const;
-    Hash(HashView hv)
+    explicit Hash(HashView hv)
     {
         memcpy(data(), hv.data(), 32);
     }
@@ -45,6 +42,11 @@ public:
     bool operator!=(const Hash&) const = default;
     static Hash genesis();
 };
+
+inline HashView::HashView(const Hash& h)
+    : HashView(h.data())
+{
+}
 
 class TokenHash : public Hash {
     using Hash::Hash;

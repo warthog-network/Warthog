@@ -32,7 +32,7 @@ public:
 
     // getters
     Height height() const { return length; }
-    HashView final_hash() const { return finalHash; };
+    auto& final_hash() const { return finalHash; };
     auto next_target() const { return nextTarget; }
     auto get_valid_timestamp() const { return std::max(timeValidator.get_valid_timestamp(),latestRetargetTime+1); }
 
@@ -72,7 +72,7 @@ public:
     [[nodiscard]] auto prepare_append(const std::optional<SignedSnapshot>& sp, HeaderView hv) const -> Result<HeaderVerifier::PreparedAppend>;
 
     // Getters
-    HashView final_hash() const { return checker.final_hash(); }
+    const Hash& final_hash() const { return checker.final_hash(); }
     Target next_target() const { return checker.next_target(); }
     MiningData mining_data() const;
 
