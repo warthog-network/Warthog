@@ -14,6 +14,10 @@ class Writer;
 class Reader;
 
 struct WithNonce : public IsUint32 {
+    WithNonce(uint32_t n)
+        : IsUint32(n)
+    {
+    }
     using IsUint32::IsUint32;
     auto& nonce() const { return val; }
     auto& nonce() { return val; }
