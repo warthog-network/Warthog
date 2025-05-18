@@ -45,6 +45,7 @@ struct Chainstate {
         HeaderVerifier::PreparedAppend prepared;
         TransactionIds&& newTxIds;
         HistoryId newHistoryOffset;
+        AccountId newAccountOffset;
         uint64_t nextStateId;
     };
     Chainstate(const ChainDB& db, BatchRegistry& br);
@@ -82,7 +83,7 @@ struct Chainstate {
     {
         return historyOffsets.height(historyIndex);
     }
-    auto account_height(AccountId id) const
+    AccountHeight account_height(AccountId id) const
     {
         return accountOffsets.height(id);
     }
