@@ -1,6 +1,6 @@
 #include "account_cache.hpp"
 #include "chainserver/db/chain_db.hpp"
-#include "general/address_funds.hpp"
+#include "crypto/address.hpp"
 
 namespace chainserver {
 const TokenInfo& TokenCache::operator[](TokenId id)
@@ -11,7 +11,7 @@ const TokenInfo& TokenCache::operator[](TokenId id)
     auto p = db.fetch_token(id);
     return map.emplace(id, p).first->second;
 }
-const AddressFunds& AccountCache::operator[](AccountId id)
+const Address& AccountCache::operator[](AccountId id)
 {
     auto iter = map.find(id);
     if (iter != map.end())

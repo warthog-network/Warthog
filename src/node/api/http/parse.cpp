@@ -92,10 +92,10 @@ Address extract_to_addr(const nlohmann::json& json)
     }
 }
 
-Funds_uint64 extract_funds(const nlohmann::json& json)
+Wart extract_wart(const nlohmann::json& json)
 {
     try {
-        std::optional<Funds_uint64> f;
+        std::optional<Wart> f;
         auto iter = json.find("amount");
         if (iter != json.end()) {
             f = Wart::parse(iter->get<std::string>());
@@ -106,7 +106,7 @@ Funds_uint64 extract_funds(const nlohmann::json& json)
         if (iter != json.end()) {
             if (f.has_value())
                 goto error; // exclusive, either "amount" or "amountE8"
-            f = Funds_uint64::from_value(iter->get<uint64_t>());
+            f = Wart::from_value(iter->get<uint64_t>());
             if (!f.has_value())
                 goto error;
         }
@@ -135,8 +135,8 @@ WartTransferCreate parse_payment_create(const std::vector<uint8_t>& s)
 {
     try {
         json parsed = json::parse(s);
-        return WartPaymentCreateMessage(
-            extract_pin_height(parsed), extract_nonce_id(parsed), NonceReserved::zero(), extract_fee(parsed), extract_to_addr(parsed), extract_funds(parsed), extract_signature(parsed));
+        return WartTransferCreate(
+            extract_pin_height(parsed), extract_nonce_id(parsed), NonceReserved::zero(), extract_fee(parsed), extract_to_addr(parsed), extract_wart(parsed), extract_signature(parsed));
     } catch (const json::exception& e) {
         throw Error(EINV_ARGS);
     }

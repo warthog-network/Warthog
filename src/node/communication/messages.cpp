@@ -4,6 +4,7 @@
 #include "eventloop/types/chainstate.hpp"
 #include "message_elements/packer_impl.hpp"
 #include "messages_impl.hpp"
+#include "spdlog/spdlog.h"
 #include "spdlog/fmt/fmt.h"
 
 using namespace std::string_literals;

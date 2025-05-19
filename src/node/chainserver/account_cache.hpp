@@ -3,7 +3,7 @@
 #include "defi/token/info.hpp"
 #include <map>
 class ChainDB;
-struct AddressFunds;
+struct Address;
 namespace chainserver {
 class AccountCache {
 public:
@@ -12,10 +12,10 @@ public:
     {
     }
 
-    const AddressFunds& operator[](AccountId id);
+    const Address& operator[](AccountId id);
 
 private:
-    std::map<AccountId, AddressFunds> map;
+    std::map<AccountId, Address> map;
     const ChainDB& db;
 };
 class TokenCache {

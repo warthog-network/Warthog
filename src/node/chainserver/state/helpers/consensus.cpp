@@ -1,6 +1,6 @@
 #include "consensus.hpp"
-#include "communication/create_payment.hpp"
 #include "chainserver/db/chain_db.hpp"
+#include "communication/create_payment.hpp"
 #include "global/globals.hpp"
 #include <spdlog/spdlog.h>
 namespace chainserver {
@@ -234,7 +234,8 @@ TxHash Chainstate::insert_tx(const WartTransferMessage& pm)
     if (!p)
         throw Error(EACCIDNOTFOUND);
     TransactionHeight th(pm.pin_height(), account_height(pm.from_id()));
-     _mempool.insert_tx_throw(pm, th, txHash, *p);
+
+    _mempool.insert_tx_throw(pm, th, txHash, { *p, pm.amount });
     return txHash;
 }
 
@@ -252,12 +253,13 @@ TxHash Chainstate::insert_tx(const WartTransferCreate& m)
     auto fromAddr = m.from_address(txHash);
     if (fromAddr == m.toAddr)
         throw Error(ESELFSEND);
-    auto p = db.lookup_account_id(fromAddr);
-    if (!p)
+    auto accId = db.lookup_account_id(fromAddr);
+    if (!accId)
         throw Error(EADDRNOTFOUND);
-    auto& [accountId, balance] = *p;
+    auto [bal_id, balance] { db.get_token_balance_recursive({ *accId, TokenId::WART }) };
+
     AddressFunds af { fromAddr, balance };
-    WartTransferMessage pm(accountId, m);
+    WartTransferMessage pm(*accId, m);
     if (txids().contains(pm.txid))
         throw Error(ENONCE);
     TransactionHeight th(pinHeight, account_height(accountId));

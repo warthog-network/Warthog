@@ -832,7 +832,7 @@ void ChainDB::delete_bad_block(HashView blockhash)
     stmtScheduleDelete2.run(id);
 }
 
-std::pair<std::optional<BalanceId>, Funds_uint64> ChainDB::get_token_balance_recursive(AccountToken ac, TokenLookupTrace* trace)
+std::pair<std::optional<BalanceId>, Funds_uint64> ChainDB::get_token_balance_recursive(AccountToken ac, TokenLookupTrace* trace) const
 {
     while (true) {
         // direct lookup
@@ -843,7 +843,7 @@ std::pair<std::optional<BalanceId>, Funds_uint64> ChainDB::get_token_balance_rec
         auto o { lookup_token(ac.token_id()) };
         if (!o)
             throw std::runtime_error("Database error: Cannot find token info for id " + std::to_string(ac.token_id().value()) + ".");
-        auto& tokenInfo { *o };
+        const TokenInfo& tokenInfo { *o };
         auto h { tokenInfo.height };
         auto& p { tokenInfo.parent_id };
         if (!p) { // has no parent, i.e. was not forked, no entry found

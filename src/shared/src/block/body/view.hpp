@@ -73,7 +73,6 @@ private:
 };
 
 class BodyView {
-    friend class BodyView;
     struct Addresses {
         Addresses(const BodyView& bv)
             : bv(bv)

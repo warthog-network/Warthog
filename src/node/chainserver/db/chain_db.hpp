@@ -241,7 +241,7 @@ public:
         };
         std::vector<Step> steps;
     };
-    std::pair<std::optional<BalanceId>, Funds_uint64> get_token_balance_recursive(AccountToken, TokenLookupTrace* trace = nullptr);
+    [[nodiscard]] std::pair<std::optional<BalanceId>, Funds_uint64> get_token_balance_recursive(AccountToken, TokenLookupTrace* trace = nullptr) const;
     bool write_snapshot_balance(AccountToken, Funds_uint64, NonzeroHeight tokenCreationHeight);
 
     //////////////////////////////

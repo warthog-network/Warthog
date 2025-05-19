@@ -238,7 +238,7 @@ void ChainServer::workerfun()
 
 void ChainServer::dispatch_mining_subscriptions()
 {
-    miningSubscriptions.dispatch([&](const Address& a) {
+    miningSubscriptions.dispatch([&](const Address& a) -> Result<ChainMiningTask> {
         return state.mining_task(a);
     });
 }

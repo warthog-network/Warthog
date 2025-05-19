@@ -20,12 +20,12 @@ void Block::push_history(const Hash& txid,
         auto& d = std::get<history::WartTransferData>(parsed);
         actions.wartTransfers.push_back(
             api::Block::Transfer {
-                .fromAddress = c.accounts[d.fromAccountId].address,
+                .fromAddress = c.accounts[d.fromAccountId],
                 .fee = d.compactFee.uncompact(),
                 .nonceId = d.pinNonce.id,
                 .pinHeight = d.pinNonce.pin_height_from_floored(pinFloor),
                 .txhash = txid,
-                .toAddress = c.accounts[d.toAccountId].address,
+                .toAddress = c.accounts[d.toAccountId],
                 .amount = d.amount });
     } else if (std::holds_alternative<history::TokenTransferData>(parsed)) {
         auto& d = std::get<history::TokenTransferData>(parsed);
@@ -33,16 +33,16 @@ void Block::push_history(const Hash& txid,
         actions.tokenTransfers.push_back(
             api::Block::TokenTransfer {
                 .tokenInfo { tokenData },
-                .fromAddress = c.accounts[d.fromAccountId].address,
+                .fromAddress = c.accounts[d.fromAccountId],
                 .fee = d.compactFee.uncompact(),
                 .nonceId = d.pinNonce.id,
                 .pinHeight = d.pinNonce.pin_height_from_floored(pinFloor),
                 .txhash = txid,
-                .toAddress = c.accounts[d.toAccountId].address,
+                .toAddress = c.accounts[d.toAccountId],
                 .amount = d.amount });
     } else {
         auto& d = std::get<history::RewardData>(parsed);
-        auto toAddress = c.accounts[d.toAccountId].address;
+        auto toAddress = c.accounts[d.toAccountId];
         set_reward(Reward { txid, toAddress, d.miningReward });
     }
 }
