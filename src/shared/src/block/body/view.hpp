@@ -12,22 +12,43 @@ struct WartTransferView;
 struct RewardView;
 class AddressView;
 class BodyView;
+namespace block {
+template <size_t elem_size>
+struct Section {
+    Section(Reader& r, size_t n);
+    size_t elem_offset(size_t i)
+    {
+        assert(i <= n);
+        return offset + elem_size * n;
+    }
+    size_t offset;
+    size_t n;
+};
+}
 
 class BodyStructure {
+public:
+    constexpr static size_t SIGLEN { 65 };
+    constexpr static size_t AddressSize { 20 };
+    constexpr static size_t RewardSize { 16 };
+    constexpr static size_t TransferSize { 34 + SIGLEN };
+    constexpr static size_t OrderSize { 30 + SIGLEN };
+    constexpr static size_t CancelSize { 24 + SIGLEN };
+    constexpr static size_t LiquidityAddSize { 34 + SIGLEN };
+    constexpr static size_t LiquidityRemoveSize { 26 + SIGLEN };
+    constexpr static size_t CancelationSize { 16 + SIGLEN }; // TODO
+    constexpr static size_t TokenCreationSize { 8 + 8 + 5 + 2 + SIGLEN };
+
+private:
     friend BodyView;
     struct TokenSection {
         size_t beginOffset;
         TokenId tokenId;
-        size_t nTransfers;
-        size_t transfersOffset;
-        size_t nOrders;
-        size_t ordersOffset;
-        size_t nCancelation;// cancel order
-        size_t cancelationOffset;
-        size_t nLiquidityAdd;
-        size_t liquidityAddBegin;
-        size_t nLiquidityRemove;
-        size_t liquidityRemoveOffset;
+        block::Section<TransferSize> transfers;
+        block::Section<OrderSize> orders;
+        block::Section<LiquidityAddSize> liquidityAdd;
+        block::Section<LiquidityRemoveSize> liquidityRemove;
+        block::Section<CancelationSize> cancelations;
     };
     BodyStructure() { };
 
@@ -49,15 +70,6 @@ public:
     };
     static std::optional<BodyStructure> parse(std::span<const uint8_t> s, NonzeroHeight h, BlockVersion version);
     static BodyStructure parse_throw(std::span<const uint8_t> s, NonzeroHeight h, BlockVersion version);
-    constexpr static size_t SIGLEN { 65 };
-    constexpr static size_t AddressSize { 20 };
-    constexpr static size_t RewardSize { 16 };
-    constexpr static size_t TransferSize { 34 + SIGLEN };
-    constexpr static size_t OrderSize { 30 + SIGLEN };
-    constexpr static size_t CancelSize { 24 + SIGLEN };
-    constexpr static size_t LiquidityAddSize { 34 + SIGLEN };
-    constexpr static size_t LiquidityRemoveSize { 26 + SIGLEN };
-    constexpr static size_t TokenCreationSize { 8 + 8 + 5 + 2 + SIGLEN };
 
 private:
     size_t nAddresses;

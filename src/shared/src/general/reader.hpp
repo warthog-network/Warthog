@@ -51,7 +51,8 @@ class Reader {
 
 public:
     Reader(std::span<const uint8_t> s)
-        : pos(s.data())
+        : begin(s.data())
+        , pos(begin)
         , end(s.data() + s.size())
     {
     }
@@ -180,9 +181,11 @@ public:
     bool eof() const { return pos == end; }
     void consumed() { pos = end; }
     const uint8_t* cursor() const { return pos; }
+    size_t offset() const { return pos - begin; }
     size_t remaining() const { return end - pos; }
 
 private:
+    const uint8_t* begin;
     const uint8_t* pos;
     const uint8_t* end;
 };

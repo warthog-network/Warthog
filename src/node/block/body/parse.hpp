@@ -7,6 +7,7 @@
 #include "defi/uint64/price.hpp"
 #include "general/reader.hpp"
 
+
 struct TokenCreationView : public View<BodyStructure::TokenCreationSize> {
 private:
     uint16_t fee_raw() const

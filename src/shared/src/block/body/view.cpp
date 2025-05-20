@@ -8,14 +8,21 @@
 #include <vector>
 using namespace std;
 
+namespace block {
+template <size_t elem_size>
+Section<elem_size>::Section(Reader& r, size_t n)
+    : offset(r.offset())
+    , n(n)
+{
+    r.skip(n * elem_size);
+}
+}
+
 std::optional<BodyStructure> BodyStructure::parse(std::span<const uint8_t> s, NonzeroHeight h, BlockVersion version)
 {
     BodyStructure bs;
     static_assert(SIGLEN == RecoverableSignature::length);
     Reader rd { s };
-    auto current_offset = [data = s.data(), &rd]() -> size_t {
-        return rd.cursor() - data;
-    };
     bool block_v4 { version.value() >= 4 };
     bool block_v2 = is_testnet() || h.value() >= NEWBLOCKSTRUCUTREHEIGHT;
 
@@ -26,7 +33,7 @@ std::optional<BodyStructure> BodyStructure::parse(std::span<const uint8_t> s, No
         // Read new address section
         rd.skip(10); // for mining
         bs.nAddresses = rd.uint16();
-        bs.offsetAddresses = current_offset();
+        bs.offsetAddresses = rd.offset();
         if (rd.remaining() < bs.nAddresses * AddressSize)
             return {};
         rd.skip(bs.nAddresses * AddressSize);
@@ -34,7 +41,7 @@ std::optional<BodyStructure> BodyStructure::parse(std::span<const uint8_t> s, No
         // Read reward section
         if (rd.remaining() < RewardSize)
             return {};
-        bs.offsetReward = current_offset();
+        bs.offsetReward = rd.offset();
         rd.skip(16);
 
         // Read payment section
@@ -44,55 +51,54 @@ std::optional<BodyStructure> BodyStructure::parse(std::span<const uint8_t> s, No
             if (rd.remaining() < (TransferSize)*bs.nTransfers)
                 return {};
         }
-        bs.offsetTransfers = current_offset();
+        bs.offsetTransfers = rd.offset();
         rd.skip(bs.nTransfers * TransferSize);
 
         if (block_v4) {
             // read token sections
             bs.nTokens = rd.uint16();
             for (size_t i = 0; i < bs.nTokens; ++i) {
-                auto beginOffset { current_offset() };
+                size_t beginOffset { rd.offset() };
                 TokenId tokenId { rd.uint32() };
+                auto rd10 { // lambda to read 10 bits from rd
+                    [bits = size_t(0), nbits = 0u, &rd]() mutable -> size_t {
+                        while (nbits < 10) {
+                            bits <<= 8;
+                            bits |= rd.uint8();
+                            nbits += 8;
+                        }
+                        auto excess { nbits - 10 };
+                        auto res { bits >> excess };
+                        bits &= ((1 << excess) - 1);
+                        nbits -= 10;
+                        return res;
+                    }
+                };
 
-                // 5 bytes for 4 10-bit length specifications
-                size_t nTransfers { rd.uint8() };
-                size_t nOrders { rd.uint8() };
-                size_t nLiquidityAdd { rd.uint8() };
-                size_t nLiquidityRemove { rd.uint8() };
-                size_t extend { rd.uint8() };
-                nTransfers += ((extend >> 6) & 0x03) << 8;
-                nOrders += ((extend >> 4) & 0x03) << 8;
-                nLiquidityAdd += ((extend >> 2) & 0x03) << 8;
-                nLiquidityRemove += ((extend) & 0x03) << 8;
-
-                auto transfersOffset { current_offset() };
-                rd.skip(TransferSize * nTransfers);
-                auto ordersOffset { current_offset() };
-                rd.skip(OrderSize * nOrders);
-                auto liquidityAddOffset { current_offset() };
-                rd.skip(LiquidityAddSize * nLiquidityAdd);
-                auto liquidityRemoveOffset { current_offset() };
-                rd.skip(LiquidityRemoveSize * nLiquidityRemove);
+                // 7 bytes for 4 10-bit length specifications
+                size_t nTransfers { rd10() };
+                size_t nOrders { rd10() };
+                size_t nLiquidityAdd { rd10() };
+                size_t nLiquidityRemove { rd10() };
+                size_t nCancelations { rd10() };
 
                 bs.tokensSections.push_back(
                     TokenSection {
                         .beginOffset = beginOffset,
                         .tokenId = tokenId,
-                        .nTransfers = nTransfers,
-                        .transfersOffset = transfersOffset,
-                        .nOrders = nOrders,
-                        .ordersOffset = ordersOffset,
-                        .nLiquidityAdd = nLiquidityAdd,
-                        .liquidityAddBegin = liquidityAddOffset,
-                        .nLiquidityRemove = nLiquidityRemove,
-                        .liquidityRemoveOffset = liquidityRemoveOffset });
+                        .transfers { rd, nTransfers },
+                        .orders { rd, nOrders },
+                        .liquidityAdd { rd, nLiquidityAdd },
+                        .liquidityRemove { rd, nLiquidityRemove },
+                        .cancelations { rd, nCancelations },
+                    });
             }
 
             // read new token section
             if (defiEnabled && rd.remaining() != 0) {
                 bs.nNewTokens = rd.uint8();
             }
-            bs.offsetNewTokens = current_offset();
+            bs.offsetNewTokens = rd.offset();
         }
     } else {
         // Read new address section
@@ -100,7 +106,7 @@ std::optional<BodyStructure> BodyStructure::parse(std::span<const uint8_t> s, No
             return {};
         rd.skip(4); // for mining
         bs.nAddresses = rd.uint32();
-        bs.offsetAddresses = current_offset();
+        bs.offsetAddresses = rd.offset();
         if (rd.remaining() < bs.nAddresses * AddressSize + 4)
             return {};
         rd.skip(bs.nAddresses * AddressSize);
@@ -109,7 +115,7 @@ std::optional<BodyStructure> BodyStructure::parse(std::span<const uint8_t> s, No
         rd.skip(2);
         if (rd.remaining() < RewardSize + 4)
             return {};
-        bs.offsetReward = current_offset();
+        bs.offsetReward = rd.offset();
         rd.skip(16);
 
         // Read payment section
@@ -117,7 +123,7 @@ std::optional<BodyStructure> BodyStructure::parse(std::span<const uint8_t> s, No
         // Make sure that it has correct length
         if (rd.remaining() != (TransferSize)*bs.nTransfers)
             return {};
-        bs.offsetTransfers = current_offset();
+        bs.offsetTransfers = rd.offset();
     }
     return bs;
 };
