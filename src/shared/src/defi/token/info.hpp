@@ -12,6 +12,7 @@ struct TokenInfo {
     TokenName name;
     TokenHash hash;
     TokenPrecision precision;
+    operator TokenIdHashNamePrecision() const { return { id, hash, name, precision }; }
     TokenIdHashNamePrecision id_hash_name_precision() const
     {
         return {

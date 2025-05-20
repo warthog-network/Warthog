@@ -16,7 +16,7 @@ std::optional<BodyStructure> BodyStructure::parse(std::span<const uint8_t> s, No
     auto current_offset = [data = s.data(), &rd]() -> size_t {
         return rd.cursor() - data;
     };
-    bool block_v4 { version >= 4 };
+    bool block_v4 { version.value() >= 4 };
     bool block_v2 = is_testnet() || h.value() >= NEWBLOCKSTRUCUTREHEIGHT;
 
     if (s.size() > MAXBLOCKSIZE)
