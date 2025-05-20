@@ -61,9 +61,9 @@
         + `65` bytes for the signature
 + `2 + <i per token sections>` **Token Section**
     + `2` bytes encode `i`.
-    + `4 + 5 +j + k + l +m` for each of `<i per token sections>`
+    + `4 + 7 + 99*j + 95*k + l + m + n ` for each of `<i per token sections>`
         + `4` bytes encode token id
-        + `5` bytes encode `j`, `k`, `l`, `m` (10 bits each)
+        + `7` bytes encode `j`, `k`, `l`, `m`, `n` (10 bits each + 6 bits unused)
         + `99*j` bytes for `j` *Token Transfer Entries*:
             + `8` bytes for the origin account id
             + `8` bytes for *PinNonce*
@@ -71,7 +71,9 @@
             + `8` bytes for destination account id
             + `8` bytes for WART amount
             + `65` bytes for the signature
-TODO
-        + `?*k` bytes encode `k` *Token/WART Order Entries*
-        + `?*l` bytes encode `l` *Token/WART Liquidity Add Entries*
-        + `?*m` bytes encode `m` *Token/WART Liquidity Remove Entries*
+        + `95*k` bytes encode `k` *Token/WART Order Entries*
+        + `99*l` bytes encode `l` *Token/WART Liquidity Add Entries*
+        + `91*m` bytes encode `m` *Token/WART Liquidity Remove Entries*
+        + `91*n` bytes encode `n` *Cancelation Entries*
+#### Differences between V4 and V2:
+- Additional *Token Section*.
