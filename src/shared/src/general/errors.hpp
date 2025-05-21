@@ -131,6 +131,7 @@
     XX(131, ETOKIDNOTFOUND, "token id not found")                                  \
     XX(132, ENOPOOL, "no pool liquidity")                                          \
     XX(133, ERTCDISABLED, "WebRTC disabled, cannot receive message")               \
+    XX(197, EINVSIG, "invalid signature")                                          \
     XX(198, EBATCHSIZE2, "invalid batch size")                                     \
     XX(199, EBATCHSIZE3, "invalid batch size")                                     \
     /*200 - 299: Errors not leading to ban*/                                       \

@@ -625,13 +625,13 @@ struct InsertHistoryEntry {
         , historyId(historyId)
     {
     }
-    InsertHistoryEntry(history::BuySwapHist h, HistoryId historyId)
+    InsertHistoryEntry(ProcessedBuySwap h, HistoryId historyId)
         : he(std::move(h))
         , historyId(historyId)
         , parent(HistoryId(h.oId.value()))
     {
     }
-    InsertHistoryEntry(history::SellSwapHist h, HistoryId historyId)
+    InsertHistoryEntry(ProcessedSellSwap h, HistoryId historyId)
         : he(std::move(h))
         , historyId(historyId)
         , parent(HistoryId(h.oId.value()))
@@ -733,11 +733,11 @@ public:
     }
     [[nodiscard]] auto& push_swap(const BuySwapInternal& t, Height h)
     {
-        return for_account(t.txid.accountId).insert_history(history::BuySwapHist(t, h));
+        return for_account(t.txid.accountId).insert_history(ProcessedBuySwap(t, h));
     }
     [[nodiscard]] auto& push_swap(const SellSwapInternal& t, Height h)
     {
-        return for_account(t.txid.accountId).insert_history(history::SellSwapHist(t, h));
+        return for_account(t.txid.accountId).insert_history(ProcessedSellSwap(t, h));
     }
 };
 

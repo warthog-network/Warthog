@@ -35,15 +35,6 @@ struct TransactionId {
     NonceId nonceId;
 };
 
-struct VerifiedTransactionId : public TransactionId {
-    VerifiedTransactionId(TransactionId txid, auto txIdValidator)
-        : TransactionId(txid)
-    {
-        if (!txIdValidator(txid))
-            throw Error(ENONCE);
-    }
-};
-
 struct TxidWithFee {
     TransactionId txid;
     CompactUInt fee;

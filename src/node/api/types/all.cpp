@@ -14,7 +14,7 @@ void Block::push_history(const Hash& txid,
     const std::vector<uint8_t>& data, chainserver::DBCache& c,
     PinFloor pinFloor)
 {
-    auto parsed = history::parse_throw(data);
+    auto parsed { history::Data::parse_throw(data) };
     if (std::holds_alternative<history::WartTransferData>(parsed)) {
         auto& d = std::get<history::WartTransferData>(parsed);
         actions.wartTransfers.push_back(
