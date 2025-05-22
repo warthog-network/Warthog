@@ -1,8 +1,7 @@
-#include "communication/create_payment.hpp"
+#include "block/body/transaction_views.hpp"
 #include "crypto/hasher_sha256.hpp"
 #include "general/writer.hpp"
 #include "mempool/entry.hpp"
-#include "parse.hpp"
 
 Writer& operator<<(Writer& w, WartTransferMessage m)
 {

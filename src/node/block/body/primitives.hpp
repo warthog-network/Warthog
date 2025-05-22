@@ -1,5 +1,6 @@
 #pragma once
 #include "block/body/transaction_id.hpp"
+#include "block/body/transaction_views_fwd.hpp"
 #include "block/chain/height.hpp"
 #include "crypto/address.hpp"
 #include "crypto/crypto.hpp"
@@ -10,20 +11,20 @@ class HashView;
 struct WartTransferView;
 class WartTransferCreate;
 
-struct TokenTransferView;
 class TokenTransferCreate;
 
 namespace mempool {
 namespace entry {
-    struct Value;
-    struct Shared;
-    struct WartTransfer;
-    struct TokenTransfer;
+struct Value;
+struct Shared;
+struct WartTransfer;
+struct TokenTransfer;
 }
 }
 
 class WartTransferMessage {
 public:
+    using WartTransferView = block::body::view::WartTransfer;
     // layout:
     static constexpr size_t bytesize = 16 + 3 + 2 + 20 + 8 + 65;
     static constexpr size_t byte_size() { return bytesize; }
@@ -52,6 +53,7 @@ public:
 
 class TokenTransferMessage { // for defi we include the token id
 public:
+    using TokenTransferView = block::body::view::TokenTransfer;
     // layout:
     static constexpr size_t bytesize = 16 + 3 + 2 + 32 + 20 + 8 + 65;
     static constexpr size_t byte_size() { return bytesize; }

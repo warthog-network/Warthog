@@ -135,7 +135,7 @@ public:
     TokensRange tokens() const;
     inline auto foreach_token(auto lambda) const;
     size_t getNNewTokens() const { return structure.nNewTokens; };
-    view::Reward reward() const { return data() + structure.offsetReward; };
+    auto reward() const { return structure.reward; };
     Funds_uint64 fee_sum_assert() const;
     AddressView get_address(size_t i) const;
 
