@@ -575,7 +575,6 @@ public:
     auto& get_new_accounts() const { return accounts.new_accounts(); }
     AddressView get_new_address(size_t i) { return bv.get_address(i); } // OK
     auto& token_creations() const { return tokenCreations; }
-    const auto& get_wart_transfers() const { return wartTransfers; };
     const auto& get_token_sections() const { return tokenSections; };
     const auto& get_reward() const { return reward; };
 
@@ -806,9 +805,8 @@ private:
     }
     void register_token_sections()
     {
-        bv.foreach_token([&](BodyStructure::TokenSectionView t) {
+        for (auto t : tokens())
             balanceChecker.register_token_section(t);
-        });
     }
 
     void register_token_creations()
@@ -1043,7 +1041,7 @@ private:
                 .txhash { ref.he.hash },
                 .buy = false,
                 .fillQuote { s.quote },
-                .fillBase { s.base, token.precision},
+                .fillBase { s.base, token.precision },
             });
         }
         matchDeltas.push_back(std::move(m));

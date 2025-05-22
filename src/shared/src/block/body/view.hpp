@@ -1,234 +1,222 @@
 #pragma once
 
 #include "block/body/container.hpp"
+#include "block/body/transaction_views.hpp"
 #include "block/chain/height.hpp"
 #include "block/header/header.hpp"
 #include "crypto/hash.hpp"
 #include "defi/token/id.hpp"
+#include "view_fwd.hpp"
 #include <span>
 
-struct TokenCreationView;
-struct WartTransferView;
-struct RewardView;
 class AddressView;
 class BodyView;
 namespace block {
-template <size_t elem_size>
+namespace body {
+template <typename TransactionView>
 struct Section {
-    Section(Reader& r, size_t n);
-    size_t elem_offset(size_t i)
+    using view_t = TransactionView;
+    Section()
+        : n(0)
+        , offset(0)
+    {
+    }
+    Section(size_t n, Reader& r);
+    TransactionView at(const uint8_t* blockData, size_t i) const
     {
         assert(i <= n);
-        return offset + elem_size * n;
+        return { blockData + offset + TransactionView::size() * n };
     }
-    size_t offset;
+    auto size() const { return n; }
     size_t n;
+    size_t offset;
 };
-}
 
-class BodyStructure {
-public:
-    constexpr static size_t SIGLEN { 65 };
-    constexpr static size_t AddressSize { 20 };
-    constexpr static size_t RewardSize { 16 };
-    constexpr static size_t TransferSize { 34 + SIGLEN };
-    constexpr static size_t OrderSize { 30 + SIGLEN };
-    constexpr static size_t CancelSize { 24 + SIGLEN };
-    constexpr static size_t LiquidityAddSize { 34 + SIGLEN };
-    constexpr static size_t LiquidityRemoveSize { 26 + SIGLEN };
-    constexpr static size_t CancelationSize { 16 + SIGLEN }; // TODO
-    constexpr static size_t TokenCreationSize { 8 + 8 + 5 + 2 + SIGLEN };
+template <typename SectionType>
+struct SectionRange {
+    using view_t = SectionType::view_t;
+    SectionRange(const uint8_t* blockData, const SectionType& s)
+        : data(blockData)
+        , section(s)
+    {
+    }
 
-private:
-    friend BodyView;
-    struct TokenSection {
-        size_t beginOffset;
-        TokenId tokenId;
-        block::Section<TransferSize> transfers;
-        block::Section<OrderSize> orders;
-        block::Section<LiquidityAddSize> liquidityAdd;
-        block::Section<LiquidityRemoveSize> liquidityRemove;
-        block::Section<CancelationSize> cancelations;
+    void for_each(auto lambda)
+    {
+        for (size_t i = 0; i < size(); ++i)
+            lambda(section.at(data, i));
+    }
+    struct sentinel {
     };
-    BodyStructure() { };
-
-public:
-    struct TokenSectionView {
-        TokenSectionView(const TokenSection& ts, const uint8_t* dataBody)
-            : ts(ts)
-            , dataBody(dataBody)
+    struct const_iterator {
+        friend bool operator==(const const_iterator& it, const sentinel&)
         {
+            return it.i >= it.sr.section.n;
         }
-        const TokenSection& ts;
-        const uint8_t* dataBody;
-        auto id() const { return ts.tokenId; }
-        auto foreach_transfer(auto lambda) const;
-        auto foreach_order(auto lambda) const;
-        auto foreach_order_cancelation(auto lambda) const;
-        auto foreach_liquidity_add(auto lambda) const;
-        auto foreach_liquidity_remove(auto lambda) const;
+        view_t operator*() const
+        {
+            return sr.section.at(sr.data, i);
+        }
+        const_iterator& operator++()
+        {
+            i += 1;
+            return *this;
+        }
+        const SectionRange& sr;
+        size_t i { 0 };
     };
-    static std::optional<BodyStructure> parse(std::span<const uint8_t> s, NonzeroHeight h, BlockVersion version);
-    static BodyStructure parse_throw(std::span<const uint8_t> s, NonzeroHeight h, BlockVersion version);
+    const_iterator begin() const
+    {
+        return { *this, 0 };
+    };
+    sentinel end() const { return {}; }
+    size_t size() { return section.n; }
+
+    friend struct const_iterator;
 
 private:
-    size_t nAddresses;
-    size_t nTransfers { 0 };
-    size_t nTokens { 0 };
-    std::vector<TokenSection> tokensSections;
+    const uint8_t* data;
+    const SectionType& section;
+};
+
+struct TokenSection {
+    TokenId id;
+    Section<view::Transfer> transfers;
+    Section<view::Order> orders;
+    Section<view::LiquidityAdd> liquidityAdd;
+    Section<view::LiquidityRemove> liquidityRemove;
+    Section<view::Cancelation> cancelations;
+};
+
+class Structure {
+public:
+private:
+    friend TokenSectionInteractor;
+    friend TokensRange;
+    friend BodyView;
+    Structure() { };
+
+public:
+    static Structure parse_throw(std::span<const uint8_t> s, NonzeroHeight h, BlockVersion version);
+
+private:
+    Section<AddressView> addresses;
+    view::Reward reward { nullptr };
+    Section<view::WartTransfer> wartTransfers;
+    std::vector<TokenSection> tokens;
     size_t nNewTokens { 0 };
-    size_t offsetAddresses { 0 };
-    size_t offsetReward { 0 };
-    size_t offsetTransfers { 0 };
-    size_t offsetTokens { 0 };
     size_t offsetNewTokens { 0 };
 };
 
 class BodyView {
-    struct Addresses {
-        Addresses(const BodyView& bv)
-            : bv(bv)
-        {
-        }
-        size_t offsetAddresses = 0;
-        struct EndIterator {
-        };
-        struct Iterator {
-            AddressView operator*() const;
-            size_t index() { return i; }
-
-            bool operator==(EndIterator) const
-            {
-                return i == imax;
-            }
-            Iterator& operator++()
-            {
-                i += 1;
-                return *this;
-            }
-
-        private:
-            Iterator(size_t i, const BodyView& bv)
-                : i(i)
-                , imax(bv.getNAddresses())
-                , bv(bv)
-            {
-            }
-            friend struct Addresses;
-            size_t i { 0 };
-            size_t imax;
-            const BodyView& bv;
-        };
-        Iterator begin() { return { 0, bv }; }
-        EndIterator end() { return {}; }
-        const BodyView& bv;
-    };
-    struct WartTransfers {
-        WartTransfers(const BodyView& bv)
-            : bv(bv)
-        {
-        }
-        size_t offsetAddresses = 0;
-        struct EndIterator {
-        };
-        struct Iterator {
-            WartTransferView operator*() const;
-            size_t index() { return i; }
-
-            bool operator==(EndIterator) const
-            {
-                return i == imax;
-            }
-            Iterator& operator++()
-            {
-                i += 1;
-                return *this;
-            }
-
-        private:
-            Iterator(size_t i, const BodyView& bv)
-                : i(i)
-                , imax(bv.getNTransfers())
-                , bv(bv)
-            {
-            }
-            friend struct WartTransfers;
-            size_t i { 0 };
-            size_t imax;
-            const BodyView& bv;
-        };
-        Iterator begin() { return { 0, bv }; }
-        EndIterator end() { return {}; }
-        const BodyView& bv;
-    };
-
-    struct NewTokens {
-        NewTokens(const BodyView& bv)
-            : bv(bv)
-        {
-        }
-
-        struct EndIterator {
-        };
-        struct Iterator {
-            TokenCreationView operator*() const;
-            size_t index() { return i; }
-
-            bool operator==(EndIterator) const
-            {
-                return i == imax;
-            }
-            Iterator& operator++()
-            {
-                i += 1;
-                return *this;
-            }
-
-        private:
-            Iterator(size_t i, const BodyView& bv)
-                : i(i)
-                , imax(bv.getNNewTokens())
-                , bv(bv)
-            {
-            }
-            friend struct NewTokens;
-            size_t i { 0 };
-            size_t imax;
-            const BodyView& bv;
-        };
-        Iterator begin() { return { 0, bv }; }
-        EndIterator end() { return {}; }
-
-        const BodyView& bv;
-    };
+    friend TokensRange;
+    friend TokenSectionInteractor;
+    auto section_range(auto& section) const
+    {
+        return SectionRange(data(), section);
+    }
+    void for_each(auto& section, auto lambda) const
+    {
+        section_range(section).for_each(lambda);
+    }
 
 public:
-    using TokenSectionView = BodyStructure::TokenSectionView;
-    BodyView(const BodyContainer& bodyContainer, const BodyStructure& bodyStructure)
+    BodyView(const BodyContainer& bodyContainer, const Structure& structure)
         : bodyContainer(bodyContainer)
-        , bodyStructure(bodyStructure) { };
+        , structure(structure) { };
     std::vector<Hash> merkle_leaves() const;
     Hash merkle_root(Height h) const;
     std::vector<uint8_t> merkle_prefix() const;
     size_t size() const { return bodyContainer.size(); }
     const uint8_t* data() const { return bodyContainer.data().data(); }
 
-    auto wart_transfers() const { return WartTransfers { *this }; }
+    auto wart_transfers() const { return section_range(structure.wartTransfers); }
+    auto addresses() const { return section_range(structure.addresses); }
+    TokensRange tokens() const;
     inline auto foreach_token(auto lambda) const;
-    auto addresses() const { return Addresses { *this }; }
-    auto token_creations() const { return NewTokens { *this }; }
-    size_t getNAddresses() const { return bodyStructure.nAddresses; };
-    size_t getNNewTokens() const { return bodyStructure.nNewTokens; };
-    WartTransferView get_wart_transfer(size_t i) const;
-    TokenCreationView get_new_token(size_t i) const;
-    RewardView reward() const;
+    size_t getNNewTokens() const { return structure.nNewTokens; };
+    view::Reward reward() const { return data() + structure.offsetReward; };
     Funds_uint64 fee_sum_assert() const;
     AddressView get_address(size_t i) const;
 
 private:
-    size_t getNTransfers() const { return bodyStructure.nTransfers; };
+    const BodyContainer& bodyContainer;
+    const Structure& structure;
+};
+
+class TokenSectionInteractor {
+    friend TokensRange;
+    auto section_range(auto& section) const { return bodyView.section_range(section); }
+
+public:
+    auto id() const { return token.id; }
+    auto transfers() const { return section_range(token.transfers); }
+    auto orders() const { return section_range(token.orders); }
+    auto liquidityAdd() const { return section_range(token.liquidityAdd); }
+    auto liquidityRemove() const { return section_range(token.liquidityRemove); }
+    auto cancelations() const { return section_range(token.cancelations); }
 
 private:
-    const BodyContainer& bodyContainer;
-    const BodyStructure& bodyStructure;
+    TokenSectionInteractor(const BodyView& bodyView, const TokenSection& tokenSection)
+        : bodyView(bodyView)
+        , token(tokenSection)
+    {
+    }
+    const BodyView& bodyView;
+    const TokenSection& token;
 };
+
+class TokensRange {
+public:
+    TokensRange(const BodyView& body)
+        : body(body)
+    {
+    }
+    class sentinel { };
+    class const_iterator {
+    private:
+        const TokensRange& r;
+        size_t i { 0 };
+
+        friend TokensRange;
+        const_iterator(const TokensRange& tr, size_t i)
+            : r(tr)
+            , i(i)
+        {
+        }
+
+    public:
+        TokenSectionInteractor operator*() const
+        {
+            return { r.body, r.body.structure.tokens[i] };
+        };
+        friend bool operator==(const const_iterator& it, const sentinel&)
+        {
+            return it.r.body.structure.tokens.size() <= it.i;
+        }
+        const_iterator& operator++()
+        {
+            i += 1;
+            return *this;
+        }
+    };
+    auto begin() const { return const_iterator(*this, 0); }
+    auto end() const { return sentinel(); }
+
+private:
+    const BodyView& body;
+};
+
+inline TokensRange BodyView::tokens() const { return *this; }
+
+inline Funds_uint64 BodyView::fee_sum_assert() const
+{
+    Wart sum { Wart::zero() };
+    sum.subtract_assert(sum);
+    for (auto t : wart_transfers())
+        sum.add_assert(t.compact_fee_assert().uncompact());
+    return sum;
+}
+
+}
+}

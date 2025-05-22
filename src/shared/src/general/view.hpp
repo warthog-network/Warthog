@@ -8,6 +8,7 @@
 #include <span>
 template <size_t N>
 struct View {
+    static const size_t length;
     static constexpr size_t size() { return N; }
     bool is_null() const { return pos == nullptr; }
     const uint8_t* data() const { return pos; }
@@ -38,7 +39,7 @@ struct View {
         : View(a.data())
     {
     }
-    explicit View(const uint8_t* pos)
+    View(const uint8_t* pos)
         : pos(pos)
     {
     }
@@ -46,3 +47,6 @@ struct View {
 protected:
     const uint8_t* pos;
 };
+
+template <size_t N>
+inline constexpr size_t View<N>::length { N };
