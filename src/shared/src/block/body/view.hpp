@@ -10,7 +10,6 @@
 #include <span>
 
 class AddressView;
-class BodyView;
 namespace block {
 namespace body {
 template <typename TransactionView>
@@ -121,7 +120,7 @@ class BodyView {
     }
 
 public:
-    BodyView(const BodyContainer& bodyContainer, const Structure& structure)
+    BodyView(const Container& bodyContainer, const Structure& structure)
         : bodyContainer(bodyContainer)
         , structure(structure) { };
     std::vector<Hash> merkle_leaves() const;
@@ -140,7 +139,7 @@ public:
     AddressView get_address(size_t i) const;
 
 private:
-    const BodyContainer& bodyContainer;
+    const Container& bodyContainer;
     const Structure& structure;
 };
 

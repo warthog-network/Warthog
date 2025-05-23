@@ -13,7 +13,6 @@
 #include <chrono>
 
 class ChainDB;
-struct Block;
 
 class ChainDBTransaction;
 namespace chainserver {
@@ -38,14 +37,14 @@ struct MiningCache {
     struct Item {
         Address address;
         bool disableTxs;
-        BodyContainerV3 b;
+        VersionedBodyContainer b;
     };
 
     CacheValidity cacheValidity;
     uint32_t timestamp;
     void update_validity(CacheValidity);
-    [[nodiscard]] const BodyContainerV3* lookup(const Address&, bool disableTxs) const;
-    const BodyContainerV3& insert(const Address& a, bool disableTxs, BodyContainerV3);
+    [[nodiscard]] const VersionedBodyContainer* lookup(const Address&, bool disableTxs) const;
+    const BodyContainer& insert(const Address& a, bool disableTxs, BodyContainer);
     std::vector<Item> cache;
 };
 class State {

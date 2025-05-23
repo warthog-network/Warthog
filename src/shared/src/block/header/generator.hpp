@@ -1,10 +1,10 @@
 #pragma once
+#include "block/body/view_fwd.hpp"
 #include "block/header/difficulty_declaration.hpp"
 #include "block/header/header.hpp"
 #include <array>
 #include <cstdint>
 
-class BodyView;
 class HeaderGenerator {
 public:
     HeaderGenerator(std::array<uint8_t, 32> prevhash, const BodyView& bv,

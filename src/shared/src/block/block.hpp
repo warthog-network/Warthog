@@ -6,21 +6,24 @@
 
 struct TransactionId;
 
+namespace block {
+namespace body {
 class ParsedBody : public ParsableBodyContainer {
 private:
-    ParsedBody(NonzeroHeight, HeaderView, BodyContainer);
+    ParsedBody(NonzeroHeight, HeaderView, Container);
 
 public:
-    [[nodiscard]] static ParsedBody create_throw(NonzeroHeight, HeaderView, BodyContainer);
+    [[nodiscard]] static ParsedBody create_throw(NonzeroHeight, HeaderView, Container);
     [[nodiscard]] BodyView view() const;
-    BodyStructure structure;
+    Structure structure;
 };
+}
 
 struct ParsedBlock;
 struct Block {
     NonzeroHeight height;
     Header header;
-    BodyContainer body;
+    block::body::Container body;
     [[nodiscard]] ParsedBlock parse_throw() &&;
     bool operator==(const Block&) const = default;
     operator bool() { return body.size() > 0; }
@@ -29,13 +32,16 @@ struct Block {
 struct ParsedBlock {
     NonzeroHeight height;
     Header header;
-    ParsedBody body;
-    [[nodiscard]] static ParsedBlock create_throw(NonzeroHeight, HeaderView, BodyContainer);
+    block::body::ParsedBody body;
+    [[nodiscard]] static ParsedBlock create_throw(NonzeroHeight, HeaderView, body::Container);
 
 private:
-    ParsedBlock(NonzeroHeight h, HeaderView v, BodyContainer bc);
+    ParsedBlock(NonzeroHeight h, HeaderView v, body::Container bc);
     friend struct Block;
 
 public:
     std::vector<TransactionId> read_tx_ids();
 };
+}
+using Block = block::Block;
+using ParsedBlock = block::ParsedBlock;

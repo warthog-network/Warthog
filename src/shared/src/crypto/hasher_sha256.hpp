@@ -88,7 +88,7 @@ inline Hash hashSHA256(const uint8_t* data, size_t len)
 
 inline Hash hashSHA256(std::span<const uint8_t> s)
 {
-    return hashSHA256(s.data(),s.size());
+    return hashSHA256(s.data(), s.size());
 }
 
 inline Hash hashSHA256(const std::vector<uint8_t>& vec)
@@ -96,11 +96,10 @@ inline Hash hashSHA256(const std::vector<uint8_t>& vec)
     return hashSHA256(vec.data(), vec.size());
 }
 
-template<typename T>
-Hash hashSHA256(T&& t){
-    HasherSHA256 h;
-    h<< std::forward<T>(t);
-    return h;
+template <typename T>
+Hash hashSHA256(T&& t)
+{
+    return HasherSHA256() << std::forward<T>(t);
 }
 
 template <size_t N>

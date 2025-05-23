@@ -1,4 +1,6 @@
 #pragma once
+#include "SQLiteCpp/Database.h"
+#include "SQLiteCpp/Transaction.h"
 #include "aggregator.hpp"
 #include "api_types_fwd.hpp"
 #include "db/sqlite_fwd.hpp"

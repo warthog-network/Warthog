@@ -4,4 +4,4 @@
 
 class ChainDB;
 
-BodyContainerV3 generate_body(const ChainDB& db, NonzeroHeight height, const Address& miner, const std::vector<WartTransferMessage>& payments);
+VersionedBodyContainer generate_body(const ChainDB& db, NonzeroHeight height, const Address& miner, const std::vector<WartTransferMessage>& payments);

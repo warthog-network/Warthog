@@ -30,7 +30,7 @@ void MiningCache::update_validity(CacheValidity cv)
         cache.clear();
     cacheValidity = cv;
 }
-const BodyContainerV3* MiningCache::lookup(const Address& a, bool disableTxs) const
+const BodyContainer* MiningCache::lookup(const Address& a, bool disableTxs) const
 {
     auto iter { std::find_if(cache.begin(), cache.end(), [&](const Item& i) {
         return i.address == a && i.disableTxs == disableTxs;
@@ -40,7 +40,7 @@ const BodyContainerV3* MiningCache::lookup(const Address& a, bool disableTxs) co
     return nullptr;
 }
 
-const BodyContainerV3& MiningCache::insert(const Address& a, bool disableTxs, BodyContainerV3 b)
+const BodyContainer& MiningCache::insert(const Address& a, bool disableTxs, BodyContainer b)
 {
     cache.push_back({ a, disableTxs, std::move(b) });
     return cache.back().b;
@@ -339,7 +339,7 @@ Result<ChainMiningTask> State::mining_task(const Address& a, bool disableTxs)
     };
 
     const auto b {
-        [&]() -> const BodyContainerV3& {
+        [&]() -> const VersionedBodyContainer& {
             _miningCache.update_validity(mining_cache_validity());
             if (auto* p { _miningCache.lookup(a, disableTxs) }; p != nullptr) {
                 return *p;
@@ -351,14 +351,16 @@ Result<ChainMiningTask> State::mining_task(const Address& a, bool disableTxs)
         }()
     };
 
-    auto structure { BodyStructure::parse(b, height, b.block_version()) };
-    if (!structure) {
+    try {
+        auto structure { block::body::Structure::parse_throw(b, height, b.version) };
+        BodyView bv(b, structure);
+
+        HeaderGenerator hg(md.prevhash, bv, md.target, md.timestamp, height);
+        return ChainMiningTask { ParsedBlock::create_throw(height, hg.make_header(0), std::move(b)) };
+    } catch (const Error& e) {
+        spdlog::warn("Cannot create mining task: {}", e.strerror());
         return Error(EBUG);
     }
-    BodyView bv(b, *structure);
-
-    HeaderGenerator hg(md.prevhash, bv, md.target, md.timestamp, height);
-    return ChainMiningTask { ParsedBlock::create_throw(height, hg.make_header(0), std::move(b)) };
 }
 
 stage_operation::StageSetStatus State::set_stage(Headerchain&& hc)
@@ -457,75 +459,75 @@ auto State::add_stage(const std::vector<ParsedBlock>& blocks, const Headerchain&
     }
 }
 namespace {
-    class RollbackSession {
-    public:
-        const ChainDB& db;
-        const PinFloor newPinFloor;
-        const AccountId oldAccountStart;
-        const TokenId oldTokenStart;
+class RollbackSession {
+public:
+    const ChainDB& db;
+    const PinFloor newPinFloor;
+    const AccountId oldAccountStart;
+    const TokenId oldTokenStart;
 
-        std::map<AccountToken, Funds_uint64> balanceMap;
-        std::vector<WartTransferMessage> toMempool;
-        std::optional<BalanceId> oldBalanceStart;
+    std::map<AccountToken, Funds_uint64> balanceMap;
+    std::vector<WartTransferMessage> toMempool;
+    std::optional<BalanceId> oldBalanceStart;
 
-    private:
-        RollbackSession(const ChainDB& db, NonzeroHeight beginHeight,
-            const rollback::Data& rb)
-            : db(db)
-            , newPinFloor(beginHeight.pin_floor())
-            , oldAccountStart(rb.next_account_id())
-            , oldTokenStart(rb.next_token_id())
-        {
-        }
+private:
+    RollbackSession(const ChainDB& db, NonzeroHeight beginHeight,
+        const rollback::Data& rb)
+        : db(db)
+        , newPinFloor(beginHeight.pin_floor())
+        , oldAccountStart(rb.next_account_id())
+        , oldTokenStart(rb.next_token_id())
+    {
+    }
 
-        static BlockUndoData fetch_undo(const ChainDB& db, BlockId id)
-        {
-            auto u = db.get_block_undo(id);
-            if (!u)
-                throw std::runtime_error("Database corrupted (could not load block)");
-            return *u;
-        }
+    static BlockUndoData fetch_undo(const ChainDB& db, BlockId id)
+    {
+        auto u = db.get_block_undo(id);
+        if (!u)
+            throw std::runtime_error("Database corrupted (could not load block)");
+        return *u;
+    }
 
-    public:
-        RollbackSession(const ChainDB& db, NonzeroHeight beginHeight, BlockId firstId)
-            : RollbackSession(db, beginHeight, rollback::Data(fetch_undo(db, firstId).rawUndo))
-        {
-        }
+public:
+    RollbackSession(const ChainDB& db, NonzeroHeight beginHeight, BlockId firstId)
+        : RollbackSession(db, beginHeight, rollback::Data(fetch_undo(db, firstId).rawUndo))
+    {
+    }
 
-        void rollback_block(BlockId id, NonzeroHeight height)
-        {
-            try {
-                BlockUndoData d { fetch_undo(db, id) };
-                auto pinFloor { height.pin_floor() };
-                auto s { d.body.parse_structure_throw(height, d.header.version()) };
-                BodyView bv { d.body, s };
-                for (auto t : bv.wart_transfers()) {
-                    PinHeight pinHeight = t.pin_height(pinFloor);
-                    if (pinHeight <= newPinFloor) {
-                        // extract transaction to mempool
-                        auto toAddress { db.lookup_address(t.toAccountId()).value() };
-                        toMempool.push_back(WartTransferMessage(t, pinHeight, toAddress));
-                    }
+    void rollback_block(BlockId id, NonzeroHeight height)
+    {
+        try {
+            BlockUndoData d { fetch_undo(db, id) };
+            auto pinFloor { height.pin_floor() };
+            auto s { d.body.parse_structure_throw(height, d.header.version()) };
+            BodyView bv { d.body, s };
+            for (auto t : bv.wart_transfers()) {
+                PinHeight pinHeight = t.pin_height(pinFloor);
+                if (pinHeight <= newPinFloor) {
+                    // extract transaction to mempool
+                    auto toAddress { db.lookup_address(t.toAccountId()).value() };
+                    toMempool.push_back(WartTransferMessage(t, pinHeight, toAddress));
                 }
-
-                // roll back state modifications
-                rollback::Data rbv(d.rawUndo);
-                rbv.foreach_balance_update(
-                    [&](const AccountTokenBalance& entry) {
-                        const Funds_uint64& bal { entry.balance };
-                        const BalanceId& id { entry.id };
-                        auto b { db.get_token_balance(id) };
-                        if (!b.has_value())
-                            throw std::runtime_error("Database corrupted, cannot roll back");
-                        AccountToken at { b->accountId, b->tokenId };
-                        balanceMap.try_emplace(at, bal);
-                    });
-            } catch (const Error& e) {
-                throw std::runtime_error(
-                    "Cannot rollback block at height" + std::to_string(height) + ":" + e.err_name());
             }
+
+            // roll back state modifications
+            rollback::Data rbv(d.rawUndo);
+            rbv.foreach_balance_update(
+                [&](const AccountTokenBalance& entry) {
+                    const Funds_uint64& bal { entry.balance };
+                    const BalanceId& id { entry.id };
+                    auto b { db.get_token_balance(id) };
+                    if (!b.has_value())
+                        throw std::runtime_error("Database corrupted, cannot roll back");
+                    AccountToken at { b->accountId, b->tokenId };
+                    balanceMap.try_emplace(at, bal);
+                });
+        } catch (const Error& e) {
+            throw std::runtime_error(
+                "Cannot rollback block at height" + std::to_string(height) + ":" + e.err_name());
         }
-    };
+    }
+};
 }
 
 RollbackResult
@@ -680,7 +682,7 @@ auto State::append_mined_block(const ParsedBlock& b) -> StateUpdateWithAPIBlocks
         .prepared { prepared.value() },
         .newTxIds { e.move_new_txids() },
         .newHistoryOffset { nextHistoryId },
-        .newAccountOffset{ nextAccountId},
+        .newAccountOffset { nextAccountId },
         .nextStateId = nextStateId });
     ul.unlock();
 

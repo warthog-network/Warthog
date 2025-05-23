@@ -5,7 +5,9 @@
 #include "general/reader.hpp"
 #include "general/writer.hpp"
 
-BodyContainer::BodyContainer(std::span<const uint8_t> s)
+namespace block {
+namespace body {
+Container::Container(std::span<const uint8_t> s)
     : bytes(s.begin(), s.end())
 {
     if (s.size() > MAXBLOCKSIZE) {
@@ -13,24 +15,20 @@ BodyContainer::BodyContainer(std::span<const uint8_t> s)
     }
 }
 
-std::optional<BodyStructure> BodyContainer::parse_structure(NonzeroHeight h, BlockVersion v) const
+Structure Container::parse_structure_throw(NonzeroHeight h, BlockVersion v) const
 {
-    return BodyStructure::parse(bytes, h, v);
+    return Structure::parse_throw(bytes, h, v);
 }
 
-BodyStructure BodyContainer::parse_structure_throw(NonzeroHeight h, BlockVersion v) const{
-    if (auto p{parse_structure(h,v)}) 
-        return *p;
-    throw Error(EINV_BODY);
-}
-
-BodyContainer::BodyContainer(Reader& r)
+Container::Container(Reader& r)
 {
     auto s { r.span() };
     bytes.assign(s.begin(), s.end());
 }
 
-Writer& operator<<(Writer& r, const BodyContainer& b)
+Writer& operator<<(Writer& r, const Container& b)
 {
     return r << (uint32_t)b.bytes.size() << Range(b.bytes);
+}
+}
 }
