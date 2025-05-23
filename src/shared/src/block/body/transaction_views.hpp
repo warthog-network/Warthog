@@ -66,7 +66,7 @@ public:
     // size: 88
 
     static_assert(size() == 8 + 8 + 5 + 2 + 65);
-    AccountId fromAccountId() const
+    AccountId origin_account_id() const
     {
         return AccountId(readuint64(pos));
     }

@@ -155,6 +155,20 @@ public:
     auto liquidityRemove() const { return section_range(token.liquidityRemove); }
     auto cancelations() const { return section_range(token.cancelations); }
 
+    void visit(auto lambda)
+    {
+        for (auto t : transfers())
+            lambda(t);
+        for (auto t : orders())
+            lambda(t);
+        for (auto t : liquidityAdd())
+            lambda(t);
+        for (auto t : liquidityRemove())
+            lambda(t);
+        for (auto t : cancelations())
+            lambda(t);
+    }
+
 private:
     TokenSectionInteractor(const BodyView& bodyView, const TokenSection& tokenSection)
         : bodyView(bodyView)

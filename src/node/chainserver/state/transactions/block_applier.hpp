@@ -1,17 +1,14 @@
 #pragma once
 #include "../../transaction_ids.hpp"
 #include "api/types/forward_declarations.hpp"
+#include "block/block_fwd.hpp"
 #include "defi/token/account_token.hpp"
-#include "block/body/transaction_views.hpp"
 
 class ChainDB;
 class Headerchain;
-class BodyView;
 class BlockId;
-class ParsedBlock;
 
 namespace chainserver {
-namespace  view=block::body::views;
 class Preparation;
 struct BlockApplier {
     BlockApplier(ChainDB& db, const Headerchain& hc, const std::set<TransactionId, ByPinHeight>& baseTxIds, bool fromStage)
@@ -37,7 +34,7 @@ private: // private methods
 
 private: // private data
     Preparer preparer;
-    std::map<AccountToken,Funds_uint64> balanceUpdates;
+    std::map<AccountToken, Funds_uint64> balanceUpdates;
     ChainDB& db;
     bool fromStage;
 };

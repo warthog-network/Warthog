@@ -10,6 +10,8 @@
 #include "defi/uint64/lazy_matching.hpp"
 #include "defi/uint64/pool.hpp"
 
+using namespace block::body;
+
 namespace {
 
 struct VerifiedOrderWithId : public VerifiedOrder {
@@ -373,7 +375,7 @@ class BalanceChecker {
     struct Accounts {
         Accounts(AccountId nextAccountId, const BodyView& bv)
             : beginNew(nextAccountId)
-            , end(beginNew + bv.getNAddresses())
+            , end(beginNew + bv.addresses().size())
         {
             size_t n { end.value() - beginNew.value() };
             newAccounts.reserve(n);
@@ -466,17 +468,17 @@ public:
     [[nodiscard]] ProcessedSigner process_signer(const ItemView& v)
     {
         auto compactFee { v.compact_fee_throw() };
-        auto& from { accounts[v.origin_account_id()] };
+        AccountData& from { accounts[v.origin_account_id()] };
         charge_fee(from, compactFee);
         return {
             SignerData { from.id, from.address, v.signature(), v.pin_nonce(), compactFee },
             from
         };
     }
-    TransferInternalWithoutAmount __register_transfer(TokenTransferView tv) // OK
+    TransferInternalWithoutAmount __register_transfer(view::TokenTransfer tv) // OK
     {
         auto s { process_signer(tv) };
-        auto tokenId { tv.token_id() };
+        auto tokenId { tv.id };
         auto amount { tv.amount_throw() };
         auto& to { accounts[tv.toAccountId()] };
         if (height.value() > 719118 && amount.is_zero())
@@ -492,12 +494,12 @@ public:
             { to.id, to.address },
         };
     }
-    void register_wart_transfer(WartTransferView tv)
+    void register_wart_transfer(view::WartTransfer tv)
     {
         wartTransfers.push_back({ __register_transfer(tv), tv.amount_throw() });
     }
 
-    CancelationInternal register_cancelation(CancelationView c)
+    CancelationInternal register_cancelation(view::Cancelation c)
     {
         auto signerData(process_signer(c));
         return {
@@ -506,15 +508,15 @@ public:
             { signerData.origin.id, c.block_pin_nonce().pin_height_from_floored(pinFloor), c.block_pin_nonce().id }
         };
     }
-    LiquidityAddInternal register_liquidity_add(LiquidityAddView l)
+    LiquidityAddInternal register_liquidity_add(view::LiquidityAdd l)
     {
         return { process_signer(l) };
     }
-    LiquidityRemoveInternal register_liquidity_remove(LiquidityRemoveView l)
+    LiquidityRemoveInternal register_liquidity_remove(view::LiquidityRemove l)
     {
         return { process_signer(l) };
     }
-    OrderInternal register_new_order(OrderView o)
+    OrderInternal register_new_order(view::Order o)
     {
         auto s { process_signer(o) };
         auto tokenId { o.token_id() };
@@ -532,51 +534,68 @@ public:
             buy
         };
     }
-    void register_token_section(BodyStructure::TokenSectionView v)
+    void register_token_section(TokenSectionInteractor t)
     {
-        TokenSectionInternal td(v.id());
-        v.foreach_transfer([&](TokenTransferView v) {
-            td.transfers.push_back({ __register_transfer(v), v.amount_throw() });
-        });
-        v.foreach_order([&](OrderView v) {
-            td.orders.push_back(register_new_order(v));
-        });
-        v.foreach_order_cancelation([&](CancelationView v) {
-            td.cancelations.push_back(register_cancelation(v));
-        });
-        v.foreach_liquidity_add([&](LiquidityAddView v) {
-            td.liquidityAdds.push_back(register_liquidity_add(v));
-        });
-        v.foreach_liquidity_remove([&](LiquidityRemoveView v) {
-            td.liquidityRemoves.push_back(register_liquidity_remove(v));
-        });
-        tokenSections.push_back(std::move(td));
+        TokenSectionInternal ts(t.id());
+        for (auto tr : t.transfers())
+            ts.transfers.push_back({ __register_transfer({ tr, t.id() }), tr.amount_throw() });
+        for (auto o : t.orders())
+            ts.orders.push_back(register_new_order(o));
+        for (auto c : t.cancelations())
+            ts.cancelations.push_back(register_cancelation(c));
+        for (auto a : t.liquidityAdd())
+            ts.liquidityAdds.push_back(register_liquidity_add(a));
+        for (auto r : t.liquidityRemove())
+            ts.liquidityRemoves.push_back(register_liquidity_remove(r));
+        tokenSections.push_back(std::move(ts));
     }
 
-    void register_token_creation(TokenCreationView tc, Height)
+    void register_token_creation(view::TokenCreation tc, Height)
     {
-        auto compactFee = tc.compact_fee_throw();
-        auto& from { accounts[tc.fromAccountId()] };
+        auto s { process_signer(tc) };
 
-        tokenCreations.push_back({
-            .creatorAccountId { from.id },
-            .pinNonce { tc.pin_nonce() },
-            .tokenName { tc.token_name() },
-            .compactFee { compactFee },
-            .signature { tc.signature() },
-            .creatorAddress { from.address },
+        tokenCreations.push_back(TokenCreationInternal {
+            s,
+            s.account.id,
+            tc.pin_nonce(),
+            tc.token_name(),
+            s.compactFee,
+            tc.signature(),
+            s.account.address,
         });
-
-        charge_fee(from, compactFee);
     }
 
-    Wart getTotalFee() const { return totalfee; }; // OK
-    auto& old_accounts() { return accounts.old_accounts(); }
-    auto& get_new_accounts() const { return accounts.new_accounts(); }
-    AddressView get_new_address(size_t i) { return bv.get_address(i); } // OK
-    auto& token_creations() const { return tokenCreations; }
-    const auto& get_token_sections() const { return tokenSections; };
-    const auto& get_reward() const { return reward; };
+    Wart getTotalFee() const
+    {
+        return totalfee;
+    }; // OK
+    auto& old_accounts()
+    {
+        return accounts.old_accounts();
+    }
+    auto& get_new_accounts() const
+    {
+        return accounts.new_accounts();
+    }
+    auto get_wart_transfers() const{
+        return bv.wart_transfers();
+    }
+    AddressView get_new_address(size_t i)
+    {
+        return bv.get_address(i);
+    } // OK
+    auto& token_creations() const
+    {
+        return tokenCreations;
+    }
+    const auto& get_token_sections() const
+    {
+        return tokenSections;
+    };
+    const auto& get_reward() const
+    {
+        return reward;
+    };
 
 private:
     const NonzeroHeight height;
@@ -619,8 +638,8 @@ struct InsertHistoryEntry {
         , historyId(historyId)
     {
     }
-    InsertHistoryEntry(const VerifiedTokenCreation& t, HistoryId historyId)
-        : he(t)
+    InsertHistoryEntry(const VerifiedTokenCreation& t, TokenId tokenId, HistoryId historyId)
+        : he(t, tokenId)
         , historyId(historyId)
     {
     }
@@ -779,7 +798,7 @@ private:
     const NonzeroHeight height;
 
     // variables needed for block verification
-    const RewardView reward;
+    const view::Reward reward;
     BalanceChecker balanceChecker;
     HistoryEntriesGenerator history;
     TransactionVerifier txVerifier;
@@ -805,7 +824,7 @@ private:
     }
     void register_token_sections()
     {
-        for (auto t : tokens())
+        for (auto t : bv.tokens())
             balanceChecker.register_token_section(t);
     }
 

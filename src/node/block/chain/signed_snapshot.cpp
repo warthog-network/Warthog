@@ -32,7 +32,7 @@ bool SignedSnapshot::compatible_inefficient(const HeaderchainSkeleton& hc) const
 
 
 SignedSnapshot::SignedSnapshot(Reader& r)
-    : SignedSnapshot({ NonzeroHeight(r.uint32()), r.view<HashView>(), r.view<65>() }) {}
+    : SignedSnapshot({ NonzeroHeight(r.uint32()), Hash{r.view<HashView>()}, r.view<65>() }) {}
 
 Writer& operator<<(Writer& w, const SignedSnapshot& sp)
 {

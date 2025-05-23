@@ -3,6 +3,7 @@
 #include "block/body/view.hpp"
 #include "block/chain/height.hpp"
 #include "block/header/header.hpp"
+#include "block_fwd.hpp"
 
 struct TransactionId;
 
@@ -43,5 +44,3 @@ public:
     std::vector<TransactionId> read_tx_ids();
 };
 }
-using Block = block::Block;
-using ParsedBlock = block::ParsedBlock;

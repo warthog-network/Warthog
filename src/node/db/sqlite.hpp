@@ -126,33 +126,35 @@ inline Column Statement::getColumn(const int aIndex)
     return { SQLite::Statement::getColumn(aIndex) };
 }
 
+namespace {
+struct Binder {
+    using Stmt = SQLite::Statement;
+    Binder(Stmt& stmt)
+        : stmt(stmt)
+    {
+    }
+    void bind_param(int i, const auto& a)
+    {
+        stmt.bind(i, a);
+    }
+    void bind_param(const int i, std::span<const uint8_t> s)
+    {
+        stmt.bind(i, s.data(), s.size());
+    }
+    void bind_param(const int i, const std::string& s)
+    {
+        stmt.bind(i, s.data(), s.size());
+    }
+    auto bind(int i, const auto& a)
+    {
+        bind_param(i, bind_convert::convert(a));
+    }
+    Stmt& stmt;
+};
+}
 template <typename T>
 inline void Statement::bind(const int index, const T& t)
 {
-    struct Binder {
-        using Stmt = SQLite::Statement;
-        Binder(Stmt& stmt)
-            : stmt(stmt)
-        {
-        }
-        void bind_param(int i, const auto& a)
-        {
-            stmt.bind(i, a);
-        }
-        void bind_param(const int i, std::span<const uint8_t> s)
-        {
-            stmt.bind(i, s.data(), s.size());
-        }
-        void bind_param(const int i, const std::string& s)
-        {
-            stmt.bind(i, s.data(), s.size());
-        }
-        auto bind(int i, const auto& a)
-        {
-            bind_param(i, bind_convert::convert(a));
-        }
-        Stmt& stmt;
-    };
     Binder(*this).bind(index, t);
 }
 
@@ -188,7 +190,6 @@ void Statement::for_each(Lambda lambda, Types&&... types)
     }
     reset();
 }
-
 
 // template <typename... Types>
 // auto Statement::loop(Types&&... types)
