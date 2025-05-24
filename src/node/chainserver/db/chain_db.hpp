@@ -94,7 +94,7 @@ public:
     [[nodiscard]] ChainDBTransaction transaction();
     void insert_account(const AddressView address, AccountId verifyNextStateId);
 
-    void delete_state_from(uint64_t fromStateId);
+    void delete_state_from(StateId fromStateId);
     // void setStateBalance(AccountId accountId, Funds balance);
     void insert_consensus(NonzeroHeight height, BlockId blockId, HistoryId historyCursor, uint64_t stateId);
 
@@ -172,7 +172,7 @@ public:
     // Token fork balance functions
     void insert_token_fork_balance(TokenForkBalanceId, TokenId, TokenForkId, Funds_uint64);
     // bool fork_balance_exists(AccountToken, NonzeroHeight);
-    std::optional<std::pair<NonzeroHeight, Funds_uint64>> get_balance_snapshot_after(TokenId tokenId, NonzeroHeight minHeight);
+    std::optional<std::pair<NonzeroHeight, Funds_uint64>> get_balance_snapshot_after(TokenId tokenId, NonzeroHeight minHeight) const;
 
     /////////////////////
     // Token functions
@@ -242,7 +242,6 @@ public:
         std::vector<Step> steps;
     };
     [[nodiscard]] std::pair<std::optional<BalanceId>, Funds_uint64> get_token_balance_recursive(AccountToken, TokenLookupTrace* trace = nullptr) const;
-    bool write_snapshot_balance(AccountToken, Funds_uint64, NonzeroHeight tokenCreationHeight);
 
     //////////////////////////////
     // BELOW METHODS REQUIRED FOR INDEXING NODES
@@ -255,187 +254,10 @@ private:
     [[nodiscard]] bool consensus_exists(Height h, BlockId dk);
 
 private:
-    SQLite::Database db;
     Filelock fl;
-    struct CreateTables {
-        CreateTables(SQLite::Database& db)
-        {
-            db.exec("PRAGMA foreign_keys = ON");
-            db.exec("CREATE TABLE IF NOT EXISTS Metadata ("
-                    "id INTEGER NOT NULL  "
-                    "value BLOB, "
-                    "PRIMARY KEY(id))");
-            db.exec("CREATE TABLE IF NOT EXISTS `AccountHistory` ("
-                    "`account_id` INTEGER, "
-                    "`history_id` INTEGER, "
-                    "PRIMARY KEY(`account_id`,`history_id`)) "
-                    "WITHOUT ROWID");
-
-            db.exec("CREATE TABLE IF NOT EXISTS `Blocks` ( `height` INTEGER "
-                    "NOT NULL, `header` BLOB NOT NULL, `body` BLOB NOT NULL, "
-                    "`undo` BLOB DEFAULT NULL, `hash` BLOB NOT NULL UNIQUE )");
-
-            // candles 5m
-            db.exec("CREATE TABLE IF NOT EXISTS Candles5m ("
-                    "tokenId INTEGER NOT NULL, "
-                    "timestamp INTEGER NOT NULL, " // start timestamp
-                    "open INTEGER NOT NULL, "
-                    "high INTEGER NOT NULL, "
-                    "low INTEGER NOT NULL, "
-                    "close INTEGER NOT NULL, "
-                    "quantity INTEGER NOT NULL, " // base amount traded
-                    "volume INTEGER NOT NULL, " // quote amount traded
-                    "PRIMARY KEY(token_id, timestamp))");
-            db.exec("CREATE INDEX IF NOT EXISTS `Candles5mIndex` ON "
-                    "`Candles5m` (timestamp)");
-
-            // candles 1h
-            db.exec("CREATE TABLE IF NOT EXISTS Candles1h ("
-                    "tokenId INTEGER NOT NULL, "
-                    "timestamp INTEGER NOT NULL, " // start timestamp
-                    "open INTEGER NOT NULL, "
-                    "high INTEGER NOT NULL, "
-                    "low INTEGER NOT NULL, "
-                    "close INTEGER NOT NULL, "
-                    "quantity INTEGER NOT NULL, " // base amount traded
-                    "volume INTEGER NOT NULL, " // quote amount traded
-                    "PRIMARY KEY(token_id, timestamp))");
-            db.exec("CREATE INDEX IF NOT EXISTS `Candles1hIndex` ON "
-                    "`Candles1h` (timestamp)");
-
-            // Sell orders
-            db.exec("CREATE TABLE IF NOT EXISTS SellOrders ("
-                    "id INTEGER NOT NULL, "
-                    "account_id INTEGER NOT NULL, "
-                    "pin_height INTEGER NOT NULL, "
-                    "nonce_id INTEGER NOT NULL, "
-                    "token_id INTEGER NOT NULL, "
-                    "totalBase INTEGER NOT NULL, "
-                    "filledBase INTEGER NOT NULL, "
-                    "limit NOT NULL DEFAULT 0, "
-                    "PRIMARY KEY(`id`))");
-            db.exec("CREATE INDEX IF NOT EXISTS `SellOrderIndex` ON "
-                    "`SellOrders` (token_id, limit ASC, id ASC)");
-            db.exec("CREATE UNIQUE INDEX IF NOT EXISTS `SellOrderAccountIndex` ON "
-                    "`SellOrders` (account_id, pin_height, nonce_id)");
-
-            // Buy orders
-            db.exec("CREATE TABLE IF NOT EXISTS BuyOrders ("
-                    "id INTEGER NOT NULL, "
-                    "account_id INTEGER NOT NULL, "
-                    "pin_height INTEGER NOT NULL, "
-                    "nonce_id INTEGER NOT NULL, "
-                    "token_id INTEGER NOT NULL, "
-                    "totalQuote INTEGER NOT NULL, "
-                    "filledQuote INTEGER NOT NULL, "
-                    "limit NOT NULL DEFAULT 0, "
-                    "PRIMARY KEY(`id`))");
-            db.exec("CREATE INDEX IF NOT EXISTS `BuyOrderIndex` ON "
-                    "`BuyOrders` (token_id, limit DESC, id ASC)");
-            db.exec("CREATE UNIQUE INDEX IF NOT EXISTS `BuyOrderAccountIndex` ON "
-                    "`BuyOrders` (account_id, pin_height, nonce_id)");
-
-            db.exec("CREATE TABLE IF NOT EXISTS Canceled ("
-                    "id INTEGER NOT NULL, "
-                    "account_id INTEGER NOT NULL, "
-                    "pin_height INTEGER NOT NULL, "
-                    "nonce_id INTEGER NOT NULL, "
-                    "PRIMARY KEY(`id`))");
-            db.exec("CREATE INDEX IF NOT EXISTS `CanceledIndex` ON "
-                    "`Canceled` (accountId, pin_height, nonce_id)");
-
-            // Pools
-            db.exec("CREATE TABLE IF NOT EXISTS Pools ("
-                    "id INTEGER NOT NULL, " // this one is also share id
-                    "token_id INTEGER UNIQUE NOT NULL, "
-                    "`liquidity_token` INTEGER NOT NULL, "
-                    "`liquidity_wart` INTEGER NOT NULL, "
-                    "`pool_shares` INTEGER NOT NULL, "
-                    "PRIMARY KEY(`id`))");
-
-            // Peg
-            db.exec("CREATE TABLE IF NOT EXISTS Peg ("
-                    "id INTEGER NOT NULL, "
-                    "account_id INTEGER NOT NULL, "
-                    "out_token_id INTEGER NOT NULL, "
-                    "out_total INTEGER NOT NULL, "
-                    "out_paid INTEGER NOT NULL DEFAULT 0, "
-                    "in_total INTEGER NOT NULL, "
-                    "in_burnt INTEGER NOT NULL DEFAULT 0"
-                    "in_token_id INTEGER NOT NULL UNIQUE, "
-                    "expiration_height INTEGER NOT NULL, "
-                    "PRIMARY KEY(`id`))");
-            db.exec("CREATE INDEX IF NOT EXISTS `PegIndex` ON "
-                    "`Peg` (expiration_height)");
-
-            // TokenForkBalances
-            db.exec("CREATE TABLE IF NOT EXISTS TokenForkBalances ("
-                    "`id` INTEGER NOT NULL, "
-                    "`account_id` INTEGER NOT NULL, "
-                    "`token_id` INTEGER NOT NULL, "
-                    "`height` INTEGER NOT NULL, "
-                    "`balance` INTEGER NOT NULL, "
-                    "PRIMARY KEY(`id`))");
-            db.exec("CREATE UNIQUE INDEX IF NOT EXISTS `TokenForkBalancesIndex` "
-                    "ON `TokenForks` (account_id, token_id, height)");
-
-            // Tokens
-            db.exec("CREATE TABLE IF NOT EXISTS \"Tokens\" ( "
-                    "`id` INTEGER DEFAULT NULL, "
-                    "`height` INTEGER NOT NULL, "
-                    "`owner_account_id` INTEGER NOT NULL, "
-                    "`total_supply` INTEGER NOT NULL, "
-                    "`group_id` INTEGER NOT NULL, " // group
-                    "`parent_id` INTEGER, " // used for forks
-                    "`name` TEXT NOT NULL UNIQUE, "
-                    "`hash` TEXT NOT NULL UNIQUE, "
-                    "`precision` INTEGER NOT NULL UNIQUE, "
-                    "`data` BLOB,"
-                    "PRIMARY KEY(id))");
-            db.exec("CREATE INDEX IF NOT EXISTS `TokensIndex` ON "
-                    "`Tokens` (height)");
-            db.exec("CREATE INDEX IF NOT EXISTS `TokensParentIndex` ON "
-                    "`Tokens` (parent_id, height)");
-
-            db.exec("CREATE TABLE IF NOT EXISTS \"Balances\" (`id` INTEGER NOT NULL, `account_id` INTEGER NOT NULL, `token_id` INTEGER NOT NULL, `balance` INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(`id`))");
-            db.exec("CREATE UNIQUE INDEX IF NOT EXISTS `Balance_index` ON "
-                    "`Balances` (`account_id` ASC, `token_id` ASC)");
-            db.exec("CREATE INDEX IF NOT EXISTS `Balance_index2` ON "
-                    "`Balances` (`token_id`, `balance` DESC)");
-            db.exec("CREATE TABLE IF NOT EXISTS \"Consensus\" ( `height` INTEGER NOT "
-                    "NULL, `block_id` INTEGER NOT NULL, `history_cursor` INTEGER NOT "
-                    "NULL, `account_cursor` INTEGER NOT NULL, PRIMARY KEY(`height`) )");
-            db.exec(" INSERT OR IGNORE INTO `Consensus` (`height`, "
-                    "`block_id`,`history_cursor`, `account_cursor`) "
-                    "VALUES "
-                    "(-1,x'"
-                    "0000000000000000000000000000000000000000000000000000000000"
-                    "000000',0,0);");
-            db.exec("CREATE TABLE IF NOT EXISTS `Accounts` ( `id` INTEGER NOT NULL, "
-                    "`address` BLOB NOT NULL UNIQUE, PRIMARY KEY(`id`))");
-            db.exec("CREATE TABLE IF NOT EXISTS `Badblocks` ( `height` INTEGER, "
-                    "`header` "
-                    "BLOB UNIQUE )");
-            db.exec("CREATE TABLE IF NOT EXISTS`Deleteschedule` ( `block_id`	INTEGER NOT NULL, `deletion_key`	INTEGER, PRIMARY KEY(`block_id`))");
-
-            // create indices
-            db.exec("CREATE INDEX IF NOT EXISTS `deletion_key` ON `Deleteschedule` ( `deletion_key`)");
-            db.exec("CREATE INDEX IF NOT EXISTS `account_history_index` ON "
-                    "`AccountHistory` (`history_id` ASC)");
-
-            db.exec("CREATE TABLE IF NOT EXISTS `FillLink` ( "
-                    "`id` INTEGER NOT NULL, " // historyId of fills
-                    "`link` INTEGER NOT NULL, " // history id of order creation
-                    " PRIMARY KEY(`id`))");
-            db.exec("CREATE UNIQUE INDEX IF NOT EXISTS `FillLinkIndex` ON "
-                    "`FillLinks` (link, id)");
-
-            db.exec("CREATE TABLE IF NOT EXISTS `History` ( `id` INTEGER NOT NULL, "
-                    "`hash` BLOB NOT NULL, `data` BLOB NOT NULL, PRIMARY KEY(`id`))");
-            db.exec("CREATE INDEX IF NOT EXISTS `history_index` ON "
-                    "`History` (`hash` ASC)");
-        }
-    } createTables;
+    struct Database : public SQLite::Database {
+        Database(const std::string& path);
+    } db;
     struct Cache {
         AccountId nextAccountId;
         TokenId nextTokenId;
@@ -491,7 +313,6 @@ private:
     // Token statements
     Statement stmtTokenInsert;
     Statement stmtTokenPrune;
-    mutable Statement stmtTokenMaxSnapshotHeight;
     mutable Statement stmtTokenSelectForkHeight;
     mutable Statement stmtTokenLookup;
     mutable Statement stmtTokenLookupByHash;

@@ -20,6 +20,187 @@ enum METATYPES { MAXSTATE = 0 };
 }
 
 using namespace std::string_literals;
+
+ChainDB::Database::Database(const std::string& path)
+    : SQLite::Database([&]() -> auto& {
+    spdlog::debug("Opening chain database \"{}\"", path);
+    return path; }(), SQLite::OPEN_READWRITE | SQLite::OPEN_CREATE)
+{
+    exec("PRAGMA foreign_keys = ON");
+    exec("CREATE TABLE IF NOT EXISTS Metadata ("
+         "id INTEGER NOT NULL  "
+         "value BLOB, "
+         "PRIMARY KEY(id))");
+    exec("CREATE TABLE IF NOT EXISTS `AccountHistory` ("
+         "`account_id` INTEGER, "
+         "`history_id` INTEGER, "
+         "PRIMARY KEY(`account_id`,`history_id`)) "
+         "WITHOUT ROWID");
+
+    exec("CREATE TABLE IF NOT EXISTS `Blocks` ( `height` INTEGER "
+         "NOT NULL, `header` BLOB NOT NULL, `body` BLOB NOT NULL, "
+         "`undo` BLOB DEFAULT NULL, `hash` BLOB NOT NULL UNIQUE )");
+
+    // candles 5m
+    exec("CREATE TABLE IF NOT EXISTS Candles5m ("
+         "tokenId INTEGER NOT NULL, "
+         "timestamp INTEGER NOT NULL, " // start timestamp
+         "open INTEGER NOT NULL, "
+         "high INTEGER NOT NULL, "
+         "low INTEGER NOT NULL, "
+         "close INTEGER NOT NULL, "
+         "quantity INTEGER NOT NULL, " // base amount traded
+         "volume INTEGER NOT NULL, " // quote amount traded
+         "PRIMARY KEY(token_id, timestamp))");
+    exec("CREATE INDEX IF NOT EXISTS `Candles5mIndex` ON "
+         "`Candles5m` (timestamp)");
+
+    // candles 1h
+    exec("CREATE TABLE IF NOT EXISTS Candles1h ("
+         "tokenId INTEGER NOT NULL, "
+         "timestamp INTEGER NOT NULL, " // start timestamp
+         "open INTEGER NOT NULL, "
+         "high INTEGER NOT NULL, "
+         "low INTEGER NOT NULL, "
+         "close INTEGER NOT NULL, "
+         "quantity INTEGER NOT NULL, " // base amount traded
+         "volume INTEGER NOT NULL, " // quote amount traded
+         "PRIMARY KEY(token_id, timestamp))");
+    exec("CREATE INDEX IF NOT EXISTS `Candles1hIndex` ON "
+         "`Candles1h` (timestamp)");
+
+    // Sell orders
+    exec("CREATE TABLE IF NOT EXISTS SellOrders ("
+         "id INTEGER NOT NULL, "
+         "account_id INTEGER NOT NULL, "
+         "pin_height INTEGER NOT NULL, "
+         "nonce_id INTEGER NOT NULL, "
+         "token_id INTEGER NOT NULL, "
+         "totalBase INTEGER NOT NULL, "
+         "filledBase INTEGER NOT NULL, "
+         "limit NOT NULL DEFAULT 0, "
+         "PRIMARY KEY(`id`))");
+    exec("CREATE INDEX IF NOT EXISTS `SellOrderIndex` ON "
+         "`SellOrders` (token_id, limit ASC, id ASC)");
+    exec("CREATE UNIQUE INDEX IF NOT EXISTS `SellOrderAccountIndex` ON "
+         "`SellOrders` (account_id, pin_height, nonce_id)");
+
+    // Buy orders
+    exec("CREATE TABLE IF NOT EXISTS BuyOrders ("
+         "id INTEGER NOT NULL, "
+         "account_id INTEGER NOT NULL, "
+         "pin_height INTEGER NOT NULL, "
+         "nonce_id INTEGER NOT NULL, "
+         "token_id INTEGER NOT NULL, "
+         "totalQuote INTEGER NOT NULL, "
+         "filledQuote INTEGER NOT NULL, "
+         "limit NOT NULL DEFAULT 0, "
+         "PRIMARY KEY(`id`))");
+    exec("CREATE INDEX IF NOT EXISTS `BuyOrderIndex` ON "
+         "`BuyOrders` (token_id, limit DESC, id ASC)");
+    exec("CREATE UNIQUE INDEX IF NOT EXISTS `BuyOrderAccountIndex` ON "
+         "`BuyOrders` (account_id, pin_height, nonce_id)");
+
+    exec("CREATE TABLE IF NOT EXISTS Canceled ("
+         "id INTEGER NOT NULL, "
+         "account_id INTEGER NOT NULL, "
+         "pin_height INTEGER NOT NULL, "
+         "nonce_id INTEGER NOT NULL, "
+         "PRIMARY KEY(`id`))");
+    exec("CREATE INDEX IF NOT EXISTS `CanceledIndex` ON "
+         "`Canceled` (accountId, pin_height, nonce_id)");
+
+    // Pools
+    exec("CREATE TABLE IF NOT EXISTS Pools ("
+         "id INTEGER NOT NULL, " // this one is also share id
+         "token_id INTEGER UNIQUE NOT NULL, "
+         "`liquidity_token` INTEGER NOT NULL, "
+         "`liquidity_wart` INTEGER NOT NULL, "
+         "`pool_shares` INTEGER NOT NULL, "
+         "PRIMARY KEY(`id`))");
+
+    // Peg
+    exec("CREATE TABLE IF NOT EXISTS Peg ("
+         "id INTEGER NOT NULL, "
+         "account_id INTEGER NOT NULL, "
+         "out_token_id INTEGER NOT NULL, "
+         "out_total INTEGER NOT NULL, "
+         "out_paid INTEGER NOT NULL DEFAULT 0, "
+         "in_total INTEGER NOT NULL, "
+         "in_burnt INTEGER NOT NULL DEFAULT 0"
+         "in_token_id INTEGER NOT NULL UNIQUE, "
+         "expiration_height INTEGER NOT NULL, "
+         "PRIMARY KEY(`id`))");
+    exec("CREATE INDEX IF NOT EXISTS `PegIndex` ON "
+         "`Peg` (expiration_height)");
+
+    // TokenForkBalances
+    exec("CREATE TABLE IF NOT EXISTS TokenForkBalances ("
+         "`id` INTEGER NOT NULL, "
+         "`account_id` INTEGER NOT NULL, "
+         "`token_id` INTEGER NOT NULL, "
+         "`height` INTEGER NOT NULL, "
+         "`balance` INTEGER NOT NULL, "
+         "PRIMARY KEY(`id`))");
+    exec("CREATE UNIQUE INDEX IF NOT EXISTS `TokenForkBalancesIndex` "
+         "ON `TokenForks` (account_id, token_id, height)");
+
+    // Tokens
+    exec("CREATE TABLE IF NOT EXISTS \"Tokens\" ( "
+         "`id` INTEGER DEFAULT NULL, "
+         "`height` INTEGER NOT NULL, "
+         "`owner_account_id` INTEGER NOT NULL, "
+         "`total_supply` INTEGER NOT NULL, "
+         "`group_id` INTEGER NOT NULL, " // group
+         "`parent_id` INTEGER, " // used for forks
+         "`name` TEXT NOT NULL UNIQUE, "
+         "`hash` TEXT NOT NULL UNIQUE, "
+         "`precision` INTEGER NOT NULL UNIQUE, "
+         "`data` BLOB,"
+         "PRIMARY KEY(id))");
+    exec("CREATE INDEX IF NOT EXISTS `TokensIndex` ON "
+         "`Tokens` (height)");
+    exec("CREATE INDEX IF NOT EXISTS `TokensParentIndex` ON "
+         "`Tokens` (parent_id, height)");
+
+    exec("CREATE TABLE IF NOT EXISTS \"Balances\" (`id` INTEGER NOT NULL, `account_id` INTEGER NOT NULL, `token_id` INTEGER NOT NULL, `balance` INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(`id`))");
+    exec("CREATE UNIQUE INDEX IF NOT EXISTS `Balance_index` ON "
+         "`Balances` (`account_id` ASC, `token_id` ASC)");
+    exec("CREATE INDEX IF NOT EXISTS `Balance_index2` ON "
+         "`Balances` (`token_id`, `balance` DESC)");
+    exec("CREATE TABLE IF NOT EXISTS \"Consensus\" ( `height` INTEGER NOT "
+         "NULL, `block_id` INTEGER NOT NULL, `history_cursor` INTEGER NOT "
+         "NULL, `account_cursor` INTEGER NOT NULL, PRIMARY KEY(`height`) )");
+    exec(" INSERT OR IGNORE INTO `Consensus` (`height`, "
+         "`block_id`,`history_cursor`, `account_cursor`) "
+         "VALUES "
+         "(-1,x'"
+         "0000000000000000000000000000000000000000000000000000000000"
+         "000000',0,0);");
+    exec("CREATE TABLE IF NOT EXISTS `Accounts` ( `id` INTEGER NOT NULL, "
+         "`address` BLOB NOT NULL UNIQUE, PRIMARY KEY(`id`))");
+    exec("CREATE TABLE IF NOT EXISTS `Badblocks` ( `height` INTEGER, "
+         "`header` "
+         "BLOB UNIQUE )");
+    exec("CREATE TABLE IF NOT EXISTS`Deleteschedule` ( `block_id`	INTEGER NOT NULL, `deletion_key`	INTEGER, PRIMARY KEY(`block_id`))");
+
+    // create indices
+    exec("CREATE INDEX IF NOT EXISTS `deletion_key` ON `Deleteschedule` ( `deletion_key`)");
+    exec("CREATE INDEX IF NOT EXISTS `account_history_index` ON "
+         "`AccountHistory` (`history_id` ASC)");
+
+    exec("CREATE TABLE IF NOT EXISTS `FillLink` ( "
+         "`id` INTEGER NOT NULL, " // historyId of fills
+         "`link` INTEGER NOT NULL, " // history id of order creation
+         " PRIMARY KEY(`id`))");
+    exec("CREATE UNIQUE INDEX IF NOT EXISTS `FillLinkIndex` ON "
+         "`FillLinks` (link, id)");
+
+    exec("CREATE TABLE IF NOT EXISTS `History` ( `id` INTEGER NOT NULL, "
+         "`hash` BLOB NOT NULL, `data` BLOB NOT NULL, PRIMARY KEY(`id`))");
+    exec("CREATE INDEX IF NOT EXISTS `history_index` ON "
+         "`History` (`hash` ASC)");
+}
 ChainDB::Cache ChainDB::Cache::init(SQLite::Database& db)
 {
     auto get_int64 {
@@ -50,11 +231,8 @@ ChainDBTransaction ChainDB::transaction()
     return ChainDBTransaction(*this);
 }
 ChainDB::ChainDB(const std::string& path)
-    : db([&]() -> auto& {
-    spdlog::debug("Opening chain database \"{}\"", path);
-    return path; }(), SQLite::OPEN_READWRITE | SQLite::OPEN_CREATE)
-    , fl(path)
-    , createTables(db)
+    : fl(path)
+    , db(path)
     , cache(Cache::init(db))
     , stmtBlockInsert(db, "INSERT INTO \"Blocks\" ( `height`, `header`, `body` "
                           ", `hash`) VALUES (?,?,?,?)")
@@ -103,9 +281,6 @@ ChainDB::ChainDB(const std::string& path)
 
     , stmtTokenInsert(db, "INSERT INTO `Tokens` ( `id`, `height`, `owner_account_id`, total_supply, group_id, parent_id, name, hash, precision, data) VALUES (?,?,?,?,?,?,?,?)")
     , stmtTokenPrune(db, "DELETE FROM Tokens WHERE id>=?")
-    , stmtTokenMaxSnapshotHeight(db, "SELECT height FROM Tokens "
-                                     "WHERE parent_id=? AND height>=? "
-                                     "ORDER BY height DESC LIMIT 1")
     , stmtTokenSelectForkHeight(db, "SELECT height FROM Tokens WHERE parent_id=? AND height>=? ORDER BY height DESC LIMIT 1")
     , stmtTokenLookup(db, "SELECT (id, height, owner_account_id, total_supply, group_id, parent_id, name, hash, precision, data) FROM Tokens WHERE `id`=?")
     , stmtTokenLookupByHash(db, "SELECT (id, height, owner_account_id, total_supply, group_id, parent_id, name, hash, precision, data) FROM Tokens WHERE `hash`=?")
@@ -197,9 +372,9 @@ void ChainDB::insert_account(const AddressView address, AccountId verifyNextAcco
     cache.nextStateId++;
 }
 
-void ChainDB::delete_state_from(uint64_t fromStateId)
+void ChainDB::delete_state_from(StateId fromStateId)
 {
-    assert(fromStateId > 0);
+    assert(fromStateId.value() > 0);
     if (cache.nextStateId <= fromStateId) {
         spdlog::error("BUG: Deleting nothing, fromAccountId = {} >= {} = cache.maxAccountId", fromStateId, cache.nextStateId);
     } else {
@@ -358,11 +533,13 @@ std::optional<BlockUndoData>
 ChainDB::get_block_undo(BlockId id) const
 {
     return stmtBlockGetUndo.one(id).process([](auto& a) {
-        return BlockUndoData {
-            .header { a[0] },
-            .rawBody { a.get_vector(1) },
-            .rawUndo { a.get_vector(2) }
-        };
+        {
+            return BlockUndoData {
+                .header { a[0] },
+                .body { a.get_vector(1) },
+                .rawUndo { a.get_vector(2) }
+            };
+        }
     });
 }
 
@@ -563,7 +740,7 @@ void ChainDB::insert_token_fork_balance(TokenForkBalanceId id, TokenId tokenId, 
 //         });
 // }
 
-std::optional<std::pair<NonzeroHeight, Funds_uint64>> ChainDB::get_balance_snapshot_after(TokenId tokenId, NonzeroHeight minHegiht)
+std::optional<std::pair<NonzeroHeight, Funds_uint64>> ChainDB::get_balance_snapshot_after(TokenId tokenId, NonzeroHeight minHegiht) const
 {
     auto res { stmtTokenForkBalanceSelect.one(tokenId, minHegiht) };
     if (!res.has_value())
@@ -859,22 +1036,6 @@ std::pair<std::optional<BalanceId>, Funds_uint64> ChainDB::get_token_balance_rec
         };
         ac.token_id() = *p;
     }
-}
-
-bool ChainDB::write_snapshot_balance(AccountToken at, Funds_uint64 f, NonzeroHeight tokenCreationHeight)
-{
-    // , stmtTokenForkBalanceInsert(db, "INSERT OR IGNORE INTO TokenForkBalances "
-    //                                        "(id, token_id, height, balance) "
-    //                                        "VALUES (?,?,?,?)")
-    auto maxSnapshotHeight { stmtTokenMaxSnapshotHeight.one(at.token_id(), tokenCreationHeight).process([](auto& a) {
-        return NonzeroHeight { a[0] };
-    }) };
-    if (!maxSnapshotHeight)
-        return false;
-    // auto res{stmtTokenForkBalanceInsert.run(cache.nextStateId, at.token_id(), tokenCreationHeight, f)};
-    stmtTokenForkBalanceInsert.run(cache.nextStateId, at.token_id(), tokenCreationHeight, f);
-
-    return o.get_array<32>(0);
 }
 
 chainserver::TransactionIds ChainDB::fetch_tx_ids(Height height) const
