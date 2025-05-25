@@ -1,8 +1,8 @@
 #pragma once
 #include "block/body/account_id.hpp"
+#include "chainserver/db/types_fwd.hpp"
 #include "defi/token/info.hpp"
 #include <map>
-class ChainDB;
 struct Address;
 namespace chainserver {
 class AccountCache {

@@ -12,7 +12,6 @@
 #include "transactions/apply_result.hpp"
 #include <chrono>
 
-class ChainDB;
 
 class ChainDBTransaction;
 namespace chainserver {

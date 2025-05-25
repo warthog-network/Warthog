@@ -1,8 +1,7 @@
 #pragma once
 #include "block/chain/header_chain.hpp"
 #include "chainserver/db/deletion_key.hpp"
-class ChainDB;
-
+#include "chainserver/db/types_fwd.hpp"
 namespace chainserver {
 class BlockCache {
 public:

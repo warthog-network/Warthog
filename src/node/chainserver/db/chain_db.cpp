@@ -13,6 +13,7 @@
 #include "general/writer.hpp"
 #include "global/globals.hpp"
 #include "sqlite3.h"
+#include "types.hpp"
 #include <spdlog/spdlog.h>
 
 namespace {
@@ -21,6 +22,7 @@ enum METATYPES { MAXSTATE = 0 };
 
 using namespace std::string_literals;
 
+namespace chain_db {
 ChainDB::Database::Database(const std::string& path)
     : SQLite::Database([&]() -> auto& {
     spdlog::debug("Opening chain database \"{}\"", path);
@@ -279,7 +281,7 @@ ChainDB::ChainDB(const std::string& path)
 
     , stmtTokenForkBalancePrune(db, "DELETE FROM TokenForkBalances WHERE id>=?")
 
-    , stmtTokenInsert(db, "INSERT INTO `Tokens` ( `id`, `height`, `owner_account_id`, total_supply, group_id, parent_id, name, hash, precision, data) VALUES (?,?,?,?,?,?,?,?)")
+    , stmtTokenInsert(db, "INSERT INTO `Tokens` ( `id`, `height`, `owner_account_id`, total_supply, group_id, parent_id, name, hash, precision, data) VALUES (?,?,?,?,?,?,?,?,?,?)")
     , stmtTokenPrune(db, "DELETE FROM Tokens WHERE id>=?")
     , stmtTokenSelectForkHeight(db, "SELECT height FROM Tokens WHERE parent_id=? AND height>=? ORDER BY height DESC LIMIT 1")
     , stmtTokenLookup(db, "SELECT (id, height, owner_account_id, total_supply, group_id, parent_id, name, hash, precision, data) FROM Tokens WHERE `id`=?")
@@ -627,7 +629,7 @@ std::vector<Candle> ChainDB::select_candles_1h(TokenId tid, Timestamp from, Time
         tid, from, to);
 }
 
-void ChainDB::insert_order(const chain_db::OrderInsertData& o)
+void ChainDB::insert_order(const chain_db::OrderData& o)
 {
     if (o.buy)
         stmtInsertQuoteBuyOrder.run(o.id, o.txid.accountId, o.txid.pinHeight, o.txid.nonceId, o.tid, o.total, o.filled, o.limit);
@@ -650,11 +652,11 @@ void ChainDB::delete_order(const chain_db::OrderDelete& od)
         stmtDeleteBaseSellOrder.run(od.id);
 }
 
-std::optional<chain_db::OrderInsertData> ChainDB::select_order(TransactionId id) const
+std::optional<chain_db::OrderData> ChainDB::select_order(TransactionId id) const
 {
-    using ret_t = chain_db::OrderInsertData;
+    using ret_t = chain_db::OrderData;
 
-    std::optional<chain_db::OrderInsertData> res {
+    std::optional<chain_db::OrderData> res {
         stmtSelectBaseSell.one(id.accountId, id.pinHeight, id.nonceId).process([&](auto o) {
             return ret_t {
                 .id { o[0] },
@@ -748,13 +750,12 @@ std::optional<std::pair<NonzeroHeight, Funds_uint64>> ChainDB::get_balance_snaps
     return std::pair<NonzeroHeight, Funds_uint64> { res[0], res[1] };
 }
 
-void ChainDB::insert_new_token(CreatorToken ct, NonzeroHeight height, TokenName name, TokenHash hash, TokenPrecision precision, TokenMintType type)
+void ChainDB::insert_new_token(const TokenData& d)
 {
     auto id { cache.nextTokenId++ };
-    if (id != ct.token_id())
+    if (id != d.id)
         throw std::runtime_error("Internal error, token id inconsistent.");
-    std::string n { name.c_str() };
-    stmtTokenInsert.run(id, height, ct.creator_id(), n, hash, precision, static_cast<uint8_t>(type));
+    stmtTokenInsert.run(d.id, d.height, d.ownerAccountId, d.supply.funds.value(), d.groupId, d.parentId, d.name, d.hash, d.supply.precision.value(), d.data);
 }
 
 std::optional<NonzeroHeight> ChainDB::get_latest_fork_height(TokenId tid, Height h)
@@ -1064,4 +1065,5 @@ chainserver::TransactionIds ChainDB::fetch_tx_ids(Height height) const
         }
     }
     return out;
+}
 }

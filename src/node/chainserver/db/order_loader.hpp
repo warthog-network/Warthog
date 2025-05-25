@@ -1,15 +1,15 @@
 #pragma once
 #include "db/sqlite_fwd.hpp"
+#include "chainserver/db/types_fwd.hpp"
 #include "defi/order.hpp"
 
 namespace sqlite {
 class Statement;
 }
 
-class ChainDB;
 template <bool ASCENDING>
 class OrderLoader {
-    friend class ChainDB;
+    friend chain_db::ChainDB;
     OrderLoader(sqlite::Statement& stmt)
         : stmt(&stmt)
     {

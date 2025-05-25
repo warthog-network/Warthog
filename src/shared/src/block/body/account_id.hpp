@@ -1,9 +1,7 @@
 #pragma once
+#include "crypto/address.hpp"
 #include "general/errors.hpp"
 #include "general/with_uint64.hpp"
-#include <compare>
-#include <cstddef>
-#include <cstdint>
 
 class ValidAccountId;
 
@@ -35,3 +33,18 @@ inline ValidAccountId AccountId::validate_throw(AccountId beginInvalid) const
         return *this;
     throw Error(EIDPOLICY);
 }
+
+struct IdAddressView {
+    ValidAccountId id;
+    AddressView address;
+};
+
+struct IdAddress {
+    AccountId id;
+    Address address;
+    IdAddress(const IdAddressView& v)
+        : id(v.id)
+        , address(v.address)
+    {
+    }
+};

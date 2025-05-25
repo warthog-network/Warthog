@@ -1,6 +1,7 @@
 #pragma once
 
-#include "SQLiteCpp/SQLiteCpp.h"
+#include "SQLiteCpp/Database.h"
+#include "SQLiteCpp/Transaction.h"
 #include "api/types/forward_declarations.hpp"
 #include "block/block.hpp"
 #include "block/chain/offsts.hpp"
@@ -9,16 +10,15 @@
 #include "chainserver/db/ids.hpp"
 #include "chainserver/transaction_ids.hpp"
 #include "db/sqlite_fwd.hpp"
-#include "defi/token/token.hpp"
 #include "defi/uint64/pool.hpp"
 #include "deletion_key.hpp"
-#include "general/address_funds.hpp"
 #include "general/filelock/filelock.hpp"
 #include "general/timestamp.hpp"
 #include "order_loader.hpp"
+#include "types_fwd.hpp"
+
 struct CreatorToken;
 struct AccountToken;
-class ChainDBTransaction;
 class Batch;
 class TokenName;
 class CancelId;
@@ -54,26 +54,9 @@ struct BlockUndoData {
 };
 
 namespace chain_db {
-struct OrderDelete {
-    HistoryId id;
-    bool buy;
-};
-struct OrderFillstate {
-    HistoryId id;
-    bool buy;
-    Funds_uint64 filled;
-};
-struct OrderInsertData {
-    HistoryId id;
-    bool buy;
-    TransactionId txid;
-    TokenId tid;
-    Funds_uint64 total;
-    Funds_uint64 filled;
-    Price_uint64 limit;
-};
 }
 
+namespace chain_db{
 class ChainDB {
 private:
     using Statement = sqlite::Statement;
@@ -141,10 +124,10 @@ public:
 
     /////////////////////
     // Order functions
-    void insert_order(const chain_db::OrderInsertData&);
+    void insert_order(const chain_db::OrderData&);
     void change_fillstate(const chain_db::OrderFillstate&);
     void delete_order(const chain_db::OrderDelete&);
-    [[nodiscard]] std::optional<chain_db::OrderInsertData> select_order(TransactionId) const;
+    [[nodiscard]] std::optional<chain_db::OrderData> select_order(TransactionId) const;
 
     [[nodiscard]] OrderLoaderAscending base_order_loader_ascending(TokenId) const;
     [[nodiscard]] OrderLoaderDescending quote_order_loader_descending(TokenId) const;
@@ -176,7 +159,7 @@ public:
 
     /////////////////////
     // Token functions
-    void insert_new_token(CreatorToken, NonzeroHeight height, TokenName name, TokenHash hash, TokenPrecision precision, TokenMintType type);
+    void insert_new_token(const chain_db::TokenData&);
     [[nodiscard]] std::optional<NonzeroHeight> get_latest_fork_height(TokenId, Height);
 
     [[nodiscard]] std::optional<Balance> get_token_balance(BalanceId id) const;
@@ -390,7 +373,7 @@ public:
     }
 
 private:
-    friend class ChainDB;
+    friend ChainDB;
     ChainDBTransaction(ChainDB& parent)
         : parent(&parent)
         , tx(parent.db)
@@ -402,3 +385,5 @@ private:
     SQLite::Transaction tx;
     ChainDB::Cache c;
 };
+}
+

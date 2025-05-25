@@ -9,11 +9,6 @@
 #include "general/compact_uint.hpp"
 #include "general/errors.hpp"
 
-struct IdAddressView {
-    ValidAccountId id;
-    AddressView address;
-};
-
 struct VerifiedHash {
 protected:
     Hash hash;
@@ -34,17 +29,17 @@ public:
 struct TransactionVerifier;
 struct SignerData {
     friend struct TransactionVerifier;
-    SignerData(ValidAccountId id, AddressView address, RecoverableSignature signature, PinNonce pinNonce, CompactUInt compactFee)
+    SignerData(ValidAccountId id, AddressView address, PinNonce pinNonce, CompactUInt compactFee, RecoverableSignature signature)
         : origin({ id, address })
-        , signature(signature)
         , pinNonce(pinNonce)
         , compactFee(compactFee)
+        , signature(signature)
     {
     }
     IdAddressView origin;
-    RecoverableSignature signature;
     PinNonce pinNonce;
     CompactUInt compactFee;
+    RecoverableSignature signature;
 
 private:
     VerifiedHash verify_hash(Hash h) const

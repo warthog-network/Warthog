@@ -12,19 +12,31 @@
 class AddressView;
 namespace block {
 namespace body {
+
+template <typename T>
+struct Indexed : public T {
+    size_t index;
+    Indexed(T v, size_t index)
+        : T(std::move(v))
+        , index(index)
+    {
+    }
+};
+
 template <typename TransactionView>
 struct Section {
     using view_t = TransactionView;
+    using elem_t = Indexed<view_t>;
     Section()
         : n(0)
         , offset(0)
     {
     }
     Section(size_t n, Reader& r);
-    TransactionView at(const uint8_t* blockData, size_t i) const
+    elem_t at(const uint8_t* blockData, size_t i) const
     {
         assert(i <= n);
-        return { blockData + offset + TransactionView::size() * n };
+        return { { blockData + offset + TransactionView::size() * n }, i };
     }
     auto size() const { return n; }
     size_t n;
@@ -33,7 +45,7 @@ struct Section {
 
 template <typename SectionType>
 struct SectionRange {
-    using view_t = SectionType::view_t;
+    using elem_t = SectionType::elem_t;
     SectionRange(const uint8_t* blockData, const SectionType& s)
         : data(blockData)
         , section(s)
@@ -52,7 +64,7 @@ struct SectionRange {
         {
             return it.i >= it.sr.section.n;
         }
-        view_t operator*() const
+        elem_t operator*() const
         {
             return sr.section.at(sr.data, i);
         }
@@ -103,8 +115,7 @@ private:
     view::Reward reward { nullptr };
     Section<view::WartTransfer> wartTransfers;
     std::vector<TokenSection> tokens;
-    size_t nNewTokens { 0 };
-    size_t offsetNewTokens { 0 };
+    Section<view::TokenCreation> tokenCreations;
 };
 
 class BodyView {
@@ -132,8 +143,8 @@ public:
     auto wart_transfers() const { return section_range(structure.wartTransfers); }
     auto addresses() const { return section_range(structure.addresses); }
     TokensRange tokens() const;
+    auto token_creations() const { return section_range(structure.tokenCreations); };
     inline auto foreach_token(auto lambda) const;
-    size_t getNNewTokens() const { return structure.nNewTokens; };
     auto reward() const { return structure.reward; };
     Funds_uint64 fee_sum_assert() const;
     AddressView get_address(size_t i) const;

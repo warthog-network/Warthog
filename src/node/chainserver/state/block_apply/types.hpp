@@ -140,14 +140,12 @@ struct VerifiedTokenCreation : public VerifiedTransaction {
 };
 
 struct TokenCreationInternal : public SignerData {
-    ValidAccountId creatorAccountId;
-    PinNonce pinNonce;
-    TokenName tokenName;
-    CompactUInt compactFee;
-    RecoverableSignature signature;
-    AddressView creatorAddress;
+    size_t index;
+    TokenName name;
+    FundsDecimal supply;
     [[nodiscard]] VerifiedTokenCreation verify(const TransactionVerifier& tv) const
     {
         return { *this, tv };
     }
 };
+

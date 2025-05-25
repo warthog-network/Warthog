@@ -46,9 +46,9 @@ VerifiedWartTransfer::VerifiedWartTransfer(const WartTransferInternal& ti, const
 }
 
 VerifiedTokenCreation::VerifiedTokenCreation(const TokenCreationInternal& tci, const TransactionVerifier& verifier)
-    : VerifiedTransaction(verifier.verify(tci)
-          // ,tci.tokenName.view() // TODO
-          )
+    : VerifiedTransaction(verifier.verify(tci,
+          tci.precision.value(),
+          tci.name.view()))
     , tci(tci)
 {
 }

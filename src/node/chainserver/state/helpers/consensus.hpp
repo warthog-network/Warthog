@@ -10,7 +10,6 @@
 #include "mempool/mempool.hpp"
 #include <cstdint>
 
-class ChainDB;
 namespace chainserver {
 struct RollbackResult {
     ShrinkInfo shrink;

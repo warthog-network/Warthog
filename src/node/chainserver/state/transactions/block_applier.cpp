@@ -6,6 +6,7 @@
 #include "block/chain/history/history.hpp"
 #include "chainserver/db/chain_db.hpp"
 #include "chainserver/db/ids.hpp"
+#include "chainserver/db/types.hpp"
 #include "defi/token/info.hpp"
 #include "defi/uint64/lazy_matching.hpp"
 #include "defi/uint64/pool.hpp"
@@ -471,7 +472,7 @@ public:
         AccountData& from { accounts[v.origin_account_id()] };
         charge_fee(from, compactFee);
         return {
-            SignerData { from.id, from.address, v.signature(), v.pin_nonce(), compactFee },
+            SignerData { from.id, from.address, v.pin_nonce(), compactFee, v.signature() },
             from
         };
     }
@@ -550,18 +551,14 @@ public:
         tokenSections.push_back(std::move(ts));
     }
 
-    void register_token_creation(view::TokenCreation tc, Height)
+    void register_token_creation(Indexed<view::TokenCreation> tc, Height)
     {
         auto s { process_signer(tc) };
-
         tokenCreations.push_back(TokenCreationInternal {
             s,
-            s.account.id,
-            tc.pin_nonce(),
+            tc.index,
             tc.token_name(),
-            s.compactFee,
-            tc.signature(),
-            s.account.address,
+            FundsDecimal { tc.total_supply(), tc.precision() },
         });
     }
 
@@ -577,8 +574,9 @@ public:
     {
         return accounts.new_accounts();
     }
-    auto get_wart_transfers() const{
-        return bv.wart_transfers();
+    auto& get_wart_transfers() const
+    {
+        return wartTransfers;
     }
     AddressView get_new_address(size_t i)
     {
@@ -772,8 +770,8 @@ public:
     std::vector<std::tuple<AccountToken, Funds_uint64>> insertBalances;
     std::vector<std::tuple<AddressView, AccountId>> insertAccounts;
     std::vector<chain_db::OrderDelete> deleteOrders;
-    std::vector<std::tuple<AccountToken, TokenName>> insertTokenCreations;
-    std::vector<chain_db::OrderInsertData> insertOrders;
+    std::vector<chain_db::TokenData> insertTokenCreations;
+    std::vector<chain_db::OrderData> insertOrders;
     std::vector<TransactionId> insertCancelOrder;
     std::vector<MatchStateDelta> matchDeltas;
     api::Block::Actions api;
@@ -833,18 +831,26 @@ private:
         for (auto tc : bv.token_creations())
             balanceChecker.register_token_creation(tc, height);
 
-        // TODO:
         const auto beginNewTokenId = db.next_token_id(); // they start from this index
-        for (size_t i = 0; i < balanceChecker.token_creations().size(); ++i) {
-            auto& tc { balanceChecker.token_creations()[i] };
-            auto tokenId { beginNewTokenId + i };
+        for (auto& tc : balanceChecker.token_creations()) {
+            auto tokenId { beginNewTokenId + tc.index };
             const auto verified { tc.verify(txVerifier) };
-            insertTokenCreations.push_back({ { tc.creatorAccountId, tokenId }, tc.tokenName });
+            insertTokenCreations.push_back(chain_db::TokenData {
+                .id { tokenId },
+                .height { height },
+                .ownerAccountId { tc.origin.id },
+                .supply { tc.supply },
+                .groupId { tokenId },
+                .parentId { TokenId { 0 } },
+                .name { tc.name },
+                .hash { verified.hash },
+                .data {} });
             api.tokenCreations.push_back({
                 .txid { verified.txid },
                 .txhash { verified.hash },
-                .tokenName { tc.tokenName },
-                .tokenIndex { tokenId },
+                .tokenName { tc.name },
+                .supply { tc.supply },
+                .tokenId { tokenId },
                 .fee { tc.compactFee.uncompact() },
             });
         }
@@ -1031,7 +1037,7 @@ private:
                 .txhash { verified.hash },
                 .address { o.origin.address } });
             no.push_back({ verified, ref.historyId });
-            insertOrders.push_back(chain_db::OrderInsertData {
+            insertOrders.push_back(chain_db::OrderData {
                 .id { ref.historyId },
                 .buy = o.buy,
                 .txid { verified.txid },
@@ -1069,11 +1075,23 @@ private:
     {
         for (auto& c : cancelations) {
             auto verified { verify(c, token.hash) };
+            auto& ref { history.push_cancelation(verified) };
+            api.cancelations.push_back(
+                { .origin { c.origin },
+                    .fee { c.compactFee.uncompact() },
+                    .txhash { ref.he.hash },
+                    .order {} });
             auto o { db.select_order(verified.cancelation.cancelTxid) };
             if (o) { // transaction is removed from the database
                 deleteOrders.push_back({ o->id, o->buy });
+                api.cancelations.back().order = api::Block::Cancelation::OrderData {
+                    .tid { o->tid },
+                    .total { o->total },
+                    .filled { o->filled },
+                    .limit { o->limit },
+                    .buy = o->buy
+                };
             }
-            auto& ref { history.push_token_transfer() }
         }
     }
     void process_liquidity_adds(const TokenIdHashNamePrecision& ihn, const std::vector<LiquidityAddInternal>& orders)
@@ -1165,8 +1183,8 @@ api::Block BlockApplier::apply_block(const ParsedBlock& b, BlockId blockId)
         }
 
         // insert token creations
-        for (auto& [at, tokenName] : prepared.insertTokenCreations)
-            db.insert_new_token(at.token_id(), b.height, at.account_id(), tokenName, TokenMintType::Ownall);
+        for (auto& tc : prepared.insertTokenCreations)
+            db.insert_new_token(tc);
 
         // insert new balances
         for (auto& [at, bal] : prepared.insertBalances) {
@@ -1186,5 +1204,4 @@ api::Block BlockApplier::apply_block(const ParsedBlock& b, BlockId blockId)
         throw std::runtime_error(std::string("Unexpected exception: ") + __PRETTY_FUNCTION__ + ":" + e.strerror());
     }
 }
-};
 }

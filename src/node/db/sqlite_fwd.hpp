@@ -1,6 +1,7 @@
 #pragma once
 #include "SQLiteCpp/Column.h"
 #include <cassert>
+#include <cstdint>
 #include <optional>
 #include <vector>
 

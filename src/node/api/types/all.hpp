@@ -153,8 +153,22 @@ struct Block {
         TransactionId txid;
         Hash txhash;
         TokenName tokenName;
-        TokenId tokenIndex;
+        FundsDecimal supply;
+        TokenId tokenId;
         Wart fee;
+    };
+    struct Cancelation {
+        struct OrderData {
+            TokenId tid;
+            Funds_uint64 total;
+            Funds_uint64 filled;
+            Price_uint64 limit;
+            bool buy;
+        };
+        IdAddress origin;
+        Wart fee;
+        Hash txhash;
+        std::optional<OrderData> order;
     };
     Header header;
     NonzeroHeight height;
@@ -168,6 +182,7 @@ public:
         std::vector<TokenCreation> tokenCreations;
         std::vector<NewOrder> newOrders;
         std::vector<Swap> swaps;
+        std::vector<Cancelation> cancelations;
     } actions;
     void push_history(const Hash& txid,
         const std::vector<uint8_t>& data, chainserver::DBCache& cache,

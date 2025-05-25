@@ -86,9 +86,9 @@ Entry::Entry(const VerifiedTokenCreation& p, TokenId tokenId)
     : hash(p.hash)
 {
     data = serialize(TokenCreationData {
-        .creatorAccountId { p.tci.creatorAccountId },
+        .creatorAccountId { p.tci.origin.id },
         .pinNonce { p.tci.pinNonce },
-        .tokenName { p.tci.tokenName },
+        .tokenName { p.tci.name },
         .compactFee { p.tci.compactFee },
         .tokenId { tokenId } });
 }

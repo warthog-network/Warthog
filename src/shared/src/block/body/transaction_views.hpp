@@ -49,23 +49,18 @@ public:
     }
 };
 
-struct TokenCreation : public View<8 + 8 + 5 + 2 + SIGLEN> {
-private:
-    uint16_t fee_raw() const
-    {
-        return readuint16(pos + 25);
-    }
-
+struct TokenCreation : public View<8 + 8 + 2 + 8 + 1 + 5 + SIGLEN> {
 public:
     using View::View;
     // AccountId fromAccountId; 8 at 0
     // PinNonce pinNonce; 8 at 8
-    // TokenName tokenName; 5 at 16
-    // CompactUInt compactFee; 2 at 21
-    // RecoverableSignature signature; 65 at 23
-    // size: 88
+    // CompactUInt compactFee; 2 at 16
+    // Funds_uint64 totalSupply; 8 at 18
+    // TokenPrecision tokenPrecission; 1 at 26
+    // TokenName tokenName; 5 at 27
+    // RecoverableSignature signature; 65 at 32
+    // size: 97
 
-    static_assert(size() == 8 + 8 + 5 + 2 + 65);
     AccountId origin_account_id() const
     {
         return AccountId(readuint64(pos));
@@ -76,15 +71,30 @@ public:
         return PinNonce(r);
     }
 
+private:
+    uint16_t fee_raw() const
+    {
+        return readuint16(pos + 16);
+    }
+
+public:
+    Funds_uint64 total_supply() const
+    {
+        return Funds_uint64 { readuint64(pos + 18) };
+    }
+    TokenPrecision precision() const
+    {
+        return TokenPrecision::from_number_throw(*(pos + 26));
+    }
     TokenName token_name() const
     {
-        return TokenName { View<5>(pos + 20) };
+        return TokenName { View<5>(pos + 27) };
     }
     CompactUInt compact_fee_throw() const
     {
         return CompactUInt::from_value_throw(fee_raw());
     }
-    auto signature() const { return View<65>(pos + 27); }
+    auto signature() const { return View<65>(pos + 32); }
 };
 
 struct Transfer : public View<34 + SIGLEN> {
@@ -344,7 +354,7 @@ public:
     using View::View;
 };
 
-struct LiquidityRemove : public View< 26 + SIGLEN> {
+struct LiquidityRemove : public View<26 + SIGLEN> {
 private:
     TokenId tokenId;
     uint16_t fee_raw() const
@@ -435,7 +445,6 @@ public:
 //     {
 //     }
 // };
-
 
 }
 }

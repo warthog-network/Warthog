@@ -31,7 +31,13 @@ public:
         return 8;
     }
     constexpr auto operator()() const { return val; }
-    constexpr std::optional<TokenPrecision> from_number(uint8_t v)
+    static constexpr TokenPrecision from_number_throw(uint8_t v)
+    {
+        if (auto o { from_number(v) })
+            return *o;
+        throw Error(ETOKENPRECISION);
+    }
+    static constexpr std::optional<TokenPrecision> from_number(uint8_t v)
     {
         if (v > max)
             return {};
