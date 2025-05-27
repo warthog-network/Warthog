@@ -81,13 +81,13 @@ namespace defi {
 
     auto shift_buy_higher { [&]() {
         assert(J != 0);
-        filled.quote.subtract_assert(upper_buy_bound()->amount.value());
+        filled.quote.subtract_assert(upper_buy_bound()->amount);
         J -= 1;
     } };
 
     auto shift_sell_smaller { [&]() {
         assert(I != 0);
-        filled.base.subtract_assert(lower_sell_bound()->amount.value());
+        filled.base.subtract_assert(lower_sell_bound()->amount);
         I -= 1;
     } };
 

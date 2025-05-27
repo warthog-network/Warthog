@@ -13,7 +13,7 @@ struct View {
     bool is_null() const { return pos == nullptr; }
     const uint8_t* data() const { return pos; }
     uint8_t operator[](size_t i) const { return *(pos + i); }
-    std::span<uint8_t> span() const { return { data(), size() }; }
+    std::span<const uint8_t> span() const { return { data(), size() }; }
     operator std::array<uint8_t, N>()
     {
         std::array<uint8_t, N> res;

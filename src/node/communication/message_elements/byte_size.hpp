@@ -3,6 +3,7 @@
 #include <optional>
 #include <type_traits>
 #include <utility>
+#include <vector>
 
 template <typename T>
 size_t byte_size(T&& t)
@@ -13,6 +14,16 @@ size_t byte_size(T&& t)
     } else {
         return t.byte_size();
     }
+}
+
+template <typename T>
+size_t byte_size(const std::vector<T>& v)
+{
+    size_t i = 0;
+    for (auto& e : v) {
+        i += ::byte_size(e);
+    }
+    return i;
 }
 
 template <typename T>

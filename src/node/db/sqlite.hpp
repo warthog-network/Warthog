@@ -127,27 +127,36 @@ inline Column Statement::getColumn(const int aIndex)
 }
 
 namespace {
+
+template <typename T>
+void bind_param(SQLite::Statement& stmt, int i, const T& a)
+{
+    stmt.bind(i, a);
+}
+
+template <typename T>
+requires std::is_convertible_v<T,std::span<const uint8_t>>
+void bind_param(SQLite::Statement& stmt, int i, const T& s)
+{
+    stmt.bind(i, s.data(), s.size());
+}
+
+
+// template<>
+// void bind_param<std::string>(SQLite::Statement& stmt, int i, const std::string& s)
+// {
+//     stmt.bind(i, s.data(), s.size());
+// }
+
 struct Binder {
     using Stmt = SQLite::Statement;
     Binder(Stmt& stmt)
         : stmt(stmt)
     {
     }
-    void bind_param(int i, const auto& a)
-    {
-        stmt.bind(i, a);
-    }
-    void bind_param(const int i, std::span<const uint8_t> s)
-    {
-        stmt.bind(i, s.data(), s.size());
-    }
-    void bind_param(const int i, const std::string& s)
-    {
-        stmt.bind(i, s.data(), s.size());
-    }
     auto bind(int i, const auto& a)
     {
-        bind_param(i, bind_convert::convert(a));
+        bind_param(stmt, i, bind_convert::convert(a));
     }
     Stmt& stmt;
 };

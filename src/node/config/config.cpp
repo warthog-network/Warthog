@@ -247,13 +247,6 @@ struct TableReader : public TableReaderData {
         }
     }
 
-    // DB args
-    if (ai.chain_db_given)
-        data.chaindb = ai.chain_db_arg;
-    else {
-        if (data.chaindb.empty())
-            data.chaindb = defaultDataDir + (is_testnet() ? "testnet_chain_defi.db3" : "chain_defi.db3");
-    }
     std::optional<TableReader> subtable(std::string_view s)
     {
 
@@ -560,8 +553,9 @@ int ConfigParams::init(const gengetopt_args_info& ai)
             "193.218.118.57:9286",
             "98.71.18.140:9286"
         };
+
         data.chaindb = warthogDir
-            + (is_testnet() ? "testnet3_chain.db3" : "chain.db3");
+            + (is_testnet() ? "testnet_chain_defi.db3" : "chain_defi.db3");
         data.peersdb = warthogDir
             + (is_testnet() ? "testnet_peers.db3" : "peers_v2.db3");
         data.rxtxdb = warthogDir

@@ -23,7 +23,7 @@ public:
         : TokenPrecision(uint8_t(v), Token())
     {
         if (v > max)
-            throw std::exception();
+            throw std::runtime_error("Value "+std::to_string(v) + " exceeds maximum "+ std::to_string(max)+".");
     }
     static const TokenPrecision zero;
     static constexpr TokenPrecision digits8()

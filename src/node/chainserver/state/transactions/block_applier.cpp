@@ -500,27 +500,26 @@ public:
         wartTransfers.push_back({ __register_transfer(tv), tv.amount_throw() });
     }
 
-    CancelationInternal register_cancelation(view::Cancelation c)
+    CancelationInternal register_cancelation(view::Cancelation c, TokenId tokenId)
     {
         auto signerData(process_signer(c));
         return {
             signerData,
-            c.token_id(),
+            tokenId,
             { signerData.origin.id, c.block_pin_nonce().pin_height_from_floored(pinFloor), c.block_pin_nonce().id }
         };
     }
-    LiquidityAddInternal register_liquidity_add(view::LiquidityAdd l)
+    LiquidityAddInternal register_liquidity_add(view::LiquidityAdd l, TokenId tokenId)
     {
         return { process_signer(l) };
     }
-    LiquidityRemoveInternal register_liquidity_remove(view::LiquidityRemove l)
+    LiquidityRemoveInternal register_liquidity_remove(view::LiquidityRemove l, TokenId tokenId)
     {
         return { process_signer(l) };
     }
-    OrderInternal register_new_order(view::Order o)
+    OrderInternal register_new_order(view::Order o, TokenId tokenId)
     {
         auto s { process_signer(o) };
-        auto tokenId { o.token_id() };
 
         auto [buy, amount] { o.buy_amount_throw() };
         if (buy)
@@ -541,13 +540,13 @@ public:
         for (auto tr : t.transfers())
             ts.transfers.push_back({ __register_transfer({ tr, t.id() }), tr.amount_throw() });
         for (auto o : t.orders())
-            ts.orders.push_back(register_new_order(o));
+            ts.orders.push_back(register_new_order(o, t.id()));
         for (auto c : t.cancelations())
-            ts.cancelations.push_back(register_cancelation(c));
+            ts.cancelations.push_back(register_cancelation(c, t.id()));
         for (auto a : t.liquidityAdd())
-            ts.liquidityAdds.push_back(register_liquidity_add(a));
+            ts.liquidityAdds.push_back(register_liquidity_add(a, t.id()));
         for (auto r : t.liquidityRemove())
-            ts.liquidityRemoves.push_back(register_liquidity_remove(r));
+            ts.liquidityRemoves.push_back(register_liquidity_remove(r, t.id()));
         tokenSections.push_back(std::move(ts));
     }
 

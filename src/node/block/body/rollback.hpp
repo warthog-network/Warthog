@@ -15,6 +15,8 @@ struct BalanceIdFunds {
         , funds(funds)
     {
     }
+    static size_t byte_size() { return BalanceId::byte_size() + Funds_uint64::byte_size(); }
+    friend Writer& operator<<(Writer& w, const BalanceIdFunds& bif);
     BalanceIdFunds(Reader&);
 };
 
@@ -135,7 +137,7 @@ public:
     }
     size_t byte_size() const
     {
-        return ::byte_size(_value) + rest_t::byte_size();
+        return ::byte_size(_value) + _rest.byte_size();
     }
 };
 

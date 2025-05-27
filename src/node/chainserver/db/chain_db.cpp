@@ -378,7 +378,7 @@ void ChainDB::delete_state_from(StateId fromStateId)
 {
     assert(fromStateId.value() > 0);
     if (cache.nextStateId <= fromStateId) {
-        spdlog::error("BUG: Deleting nothing, fromAccountId = {} >= {} = cache.maxAccountId", fromStateId, cache.nextStateId);
+        spdlog::error("BUG: Deleting nothing, fromAccountId = {} >= {} = cache.maxAccountId", fromStateId.value(), cache.nextStateId.value());
     } else {
         cache.nextStateId = fromStateId;
         stmtAccountsDeleteFrom.run(fromStateId);
@@ -477,7 +477,7 @@ DeletionKey ChainDB::schedule_protected_part(Headerchain hc, NonzeroHeight fromH
 void ChainDB::protect_stage_assert_scheduled(BlockId id)
 {
     assert(schedule_exists(id));
-    assert(stmtScheduleBlock.run(0, id.value()) == 1);
+    assert(stmtScheduleBlock.run(0, id) == 1);
 }
 
 DeletionKey ChainDB::delete_consensus_from(NonzeroHeight height)
@@ -537,9 +537,9 @@ ChainDB::get_block_undo(BlockId id) const
     return stmtBlockGetUndo.one(id).process([](auto& a) {
         {
             return BlockUndoData {
-                .header { a[0] },
-                .body { a.get_vector(1) },
-                .rawUndo { a.get_vector(2) }
+                .header = a[0],
+                .body = a.get_vector(1),
+                .rawUndo = { a.get_vector(2) }
             };
         }
     });
@@ -565,13 +565,13 @@ std::optional<Candle> ChainDB::select_candle_5m(TokenId tid, Timestamp ts)
 {
     return stmtSelectCandles5m.one(tid, ts, ts).process([](auto& o) {
         return Candle {
-            .timestamp { o[0] },
-            .open { o[1] },
-            .high { o[2] },
-            .low { o[3] },
-            .close { o[4] },
-            .quantity { o[5] },
-            .volume { o[6] },
+            .timestamp = static_cast<int64_t>(o[0]),
+            .open = o[1],
+            .high = o[2],
+            .low = o[3],
+            .close = o[4],
+            .quantity = o[5],
+            .volume = o[6],
         };
     });
 }
@@ -581,13 +581,13 @@ std::vector<Candle> ChainDB::select_candles_5m(TokenId tid, Timestamp from, Time
     return stmtSelectCandles5m.all(
         [](const auto& o) {
             return Candle {
-                .timestamp { o[0] },
-                .open { o[1] },
-                .high { o[2] },
-                .low { o[3] },
-                .close { o[4] },
-                .quantity { o[5] },
-                .volume { o[6] },
+                .timestamp = static_cast<int64_t>(o[0]),
+                .open = o[1],
+                .high = o[2],
+                .low = o[3],
+                .close = o[4],
+                .quantity = o[5],
+                .volume = o[6],
             };
         },
         tid, from, to);
@@ -602,13 +602,13 @@ std::optional<Candle> ChainDB::select_candle_1h(TokenId tid, Timestamp ts)
 {
     return stmtSelectCandles1h.one(tid, ts, ts).process([](auto& o) {
         return Candle {
-            .timestamp { o[0] },
-            .open { o[1] },
-            .high { o[2] },
-            .low { o[3] },
-            .close { o[4] },
-            .quantity { o[5] },
-            .volume { o[6] },
+            .timestamp = static_cast<int64_t>(o[0]),
+            .open = o[1],
+            .high = o[2],
+            .low = o[3],
+            .close = o[4],
+            .quantity = o[5],
+            .volume = o[6],
         };
     });
 }
@@ -617,13 +617,13 @@ std::vector<Candle> ChainDB::select_candles_1h(TokenId tid, Timestamp from, Time
 {
     return stmtSelectCandles1h.all([](const auto& o) {
         return Candle {
-            .timestamp { o[0] },
-            .open { o[1] },
-            .high { o[2] },
-            .low { o[3] },
-            .close { o[4] },
-            .quantity { o[5] },
-            .volume { o[6] },
+            .timestamp = static_cast<int64_t>(o[0]),
+            .open = o[1],
+            .high = o[2],
+            .low = o[3],
+            .close = o[4],
+            .quantity = o[5],
+            .volume = o[6],
         };
     },
         tid, from, to);
@@ -659,26 +659,26 @@ std::optional<chain_db::OrderData> ChainDB::select_order(TransactionId id) const
     std::optional<chain_db::OrderData> res {
         stmtSelectBaseSell.one(id.accountId, id.pinHeight, id.nonceId).process([&](auto o) {
             return ret_t {
-                .id { o[0] },
-                .buy { false },
-                .txid { id },
-                .tid { o[1] },
-                .total { o[2] },
-                .filled { o[3] },
-                .limit { o[4] }
+                .id = o[0],
+                .buy = false,
+                .txid = id,
+                .tid = o[1],
+                .total = o[2],
+                .filled = o[3],
+                .limit = o[4]
             };
         })
     };
     if (!res) {
         res = stmtSelectQuoteBuy.one(id.accountId, id.pinHeight, id.nonceId).process([&](auto o) {
             return ret_t {
-                .id { o[0] },
-                .buy { true },
-                .txid { id },
-                .tid { o[1] },
-                .total { o[2] },
-                .filled { o[3] },
-                .limit { o[4] }
+                .id = o[0],
+                .buy = true,
+                .txid = id,
+                .tid = o[1],
+                .total = o[2],
+                .filled = o[3],
+                .limit = o[4]
             };
         });
     }
@@ -711,11 +711,11 @@ std::optional<PoolData> ChainDB::select_pool(TokenId shareIdOrTokenId) const
 {
     return stmtSelectPool.one(shareIdOrTokenId).process([](auto o) {
         return PoolData {
-            .shareId { o[0] },
-            .tokenId { o[1] },
-            .base { o[2] },
-            .quote { o[3] },
-            .shares { o[4] }
+            .shareId = o[0],
+            .tokenId = o[1],
+            .base = o[2],
+            .quote = o[3],
+            .shares = o[4]
         };
     });
 }
@@ -946,15 +946,15 @@ std::optional<TokenInfo> ChainDB::lookup_token(TokenId id) const
     // , stmtTokenLookup(db, "SELECT (heightn,owner_account_id, total_supply, group_id, name, hash, data) FROM Tokens WHERE `id`=?")
     return stmtTokenLookup.one(id).process([](auto& o) -> TokenInfo {
         return {
-            .id { o[0] },
-            .height { o[1] },
-            .ownerAccountId { o[2] },
-            .totalSupply { o[3] },
-            .group_id { o[4] },
-            .parent_id { o[5] },
-            .name { o[6] },
-            .hash { o[7] },
-            .precision { o[8] }
+            .id = o[0],
+            .height = o[1],
+            .ownerAccountId = o[2],
+            .totalSupply = o[3],
+            .group_id = o[4],
+            .parent_id = o[5],
+            .name = o[6],
+            .hash = o[7],
+            .precision = o[8]
         };
     });
 }
@@ -963,15 +963,15 @@ std::optional<TokenInfo> ChainDB::lookup_token(TokenHash hash) const
 {
     return stmtTokenLookupByHash.one(hash).process([](auto& o) -> TokenInfo {
         return {
-            .id { o[0] },
-            .height { o[1] },
-            .ownerAccountId { o[2] },
-            .totalSupply { o[3] },
-            .group_id { o[4] },
-            .parent_id { o[5] },
-            .name { o[6] },
-            .hash { o[7] },
-            .precision { o[8] }
+            .id = o[0],
+            .height = o[1],
+            .ownerAccountId = o[2],
+            .totalSupply = o[3],
+            .group_id = o[4],
+            .parent_id = o[5],
+            .name = o[6],
+            .hash = o[7],
+            .precision = o[8]
         };
     });
 }

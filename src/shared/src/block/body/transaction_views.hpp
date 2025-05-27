@@ -174,17 +174,16 @@ struct WartTransfer : public TokenTransfer {
 
 struct Order : public View<30 + SIGLEN> {
 private:
-    TokenId tokenId;
     uint16_t fee_raw() const
     {
         return readuint16(pos + 16);
     }
 
 public:
-    Order(const uint8_t* pos, TokenId tokenId)
+    Order(const uint8_t* pos)
         : View(pos)
-        , tokenId(tokenId) { };
-    auto token_id() const { return tokenId; }
+    {
+    }
     AccountId origin_account_id() const
     {
         return AccountId(readuint64(pos));
@@ -236,17 +235,14 @@ public:
 
 struct Cancelation : public View<24 + SIGLEN> {
 private:
-    TokenId _tokenId;
     uint16_t fee_raw() const
     {
         return readuint16(pos + 16);
     }
 
 public:
-    auto token_id() { return _tokenId; }
-    Cancelation(const uint8_t* pos, TokenId tokenId)
+    Cancelation(const uint8_t* pos)
         : View(pos)
-        , _tokenId(tokenId)
     {
     }
     AccountId origin_account_id() const
@@ -299,16 +295,16 @@ public:
 
 struct LiquidityAdd : public View<34 + SIGLEN> {
 private:
-    TokenId tokenId;
     uint16_t fee_raw() const
     {
         return readuint16(pos + 16);
     }
 
 public:
-    LiquidityAdd(const uint8_t* pos, TokenId tokenId)
+    LiquidityAdd(const uint8_t* pos)
         : View(pos)
-        , tokenId(tokenId) { };
+    {
+    }
     AccountId origin_account_id() const
     {
         return AccountId(readuint64(pos));
@@ -356,16 +352,16 @@ public:
 
 struct LiquidityRemove : public View<26 + SIGLEN> {
 private:
-    TokenId tokenId;
     uint16_t fee_raw() const
     {
         return readuint16(pos + 16);
     }
 
 public:
-    LiquidityRemove(const uint8_t* pos, TokenId tokenId)
+    LiquidityRemove(const uint8_t* pos)
         : View(pos)
-        , tokenId(tokenId) { };
+    {
+    }
     AccountId origin_account_id() const
     {
         return AccountId(readuint64(pos));

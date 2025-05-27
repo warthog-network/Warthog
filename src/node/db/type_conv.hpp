@@ -57,6 +57,13 @@ public:
             throw std::runtime_error("Database might be corrupted. Value overflows uint32_t.");
         return i;
     }
+    uint8_t getUInt8() const
+    {
+        auto i { getUInt64() };
+        if (i > std::numeric_limits<uint8_t>::max())
+            throw std::runtime_error("Database might be corrupted. Value overflows uint8_t.");
+        return i;
+    }
     ColumnConverter(const Column& c)
         : c(c)
     {
@@ -65,10 +72,12 @@ public:
     operator Hash() const { return { get_array<32>() }; }
     operator Height() const { return Height(getUInt32()); }
     operator HistoryId() const { return HistoryId { getUInt64() }; }
+    operator auto() const { return BalanceId { getUInt64() }; }
     operator std::vector<uint8_t>() const { return get_vector(); }
     operator Address() const { return get_array<20>(); }
     operator BodyContainer() const { return get_vector(); }
     operator Header() const { return get_array<80>(); }
+    operator TokenPrecision() const { return TokenPrecision::from_number_throw(getUInt8()); }
     operator NonzeroHeight() const
     {
         return Height { *this }.nonzero_throw("NonzeroHeight cannot be 0.");
@@ -102,18 +111,22 @@ public:
 };
 
 namespace bind_convert {
-    template <size_t N>
-    inline auto convert(const std::array<uint8_t, N>& v) { return std::span(v); }
-    template <size_t N>
-    inline auto convert(const View<N>& v) { return v.span(); }
-    inline auto convert(const Worksum& ws) { return ws.to_bytes(); }
-    inline auto convert(const std::vector<uint8_t>& v) { return std::span(v); }
-    inline auto convert(Funds_uint64 f) { return (int64_t)f.value(); }
-    inline auto convert(Wart f) { return (int64_t)f.E8(); }
-    inline auto convert(int64_t i) { return i; }
-    inline auto convert(uint64_t i) { return (int64_t)i; }
-    inline auto convert(IsUint64 i) { return i.value(); }
-    inline auto convert(IsUint32 i) { return (int64_t)i.value(); }
-    inline const auto& convert(const std::string& s) { return s; }
+template <size_t N>
+inline auto convert(const std::array<uint8_t, N>& v) { return std::span(v); }
+template <size_t N>
+inline auto convert(const View<N>& v) { return v.span(); }
+inline auto convert(const Worksum& ws) { return ws.to_bytes(); }
+inline auto convert(const std::vector<uint8_t>& v) { return std::span(v); }
+inline auto convert(Funds_uint64 f) { return (int64_t)f.value(); }
+inline auto convert(Price_uint64 p) { return p.to_uint32(); }
+inline auto convert(TokenName n) { return n.to_string(); }
+inline auto convert(Wart f) { return (int64_t)f.E8(); }
+inline auto convert(int64_t i) { return i; }
+inline auto convert(int32_t i) { return i; }
+inline auto convert(long long int i) { return i; }
+inline auto convert(uint64_t i) { return (int64_t)i; }
+inline auto convert(IsUint64 i) { return (long long)i.value(); }
+inline auto convert(IsUint32 i) { return (long long)i.value(); }
+inline const auto& convert(const std::string& s) { return s; }
 }
 }

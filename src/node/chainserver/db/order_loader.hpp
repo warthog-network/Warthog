@@ -1,6 +1,6 @@
 #pragma once
-#include "db/sqlite_fwd.hpp"
 #include "chainserver/db/types_fwd.hpp"
+#include "db/sqlite_fwd.hpp"
 #include "defi/order.hpp"
 
 namespace sqlite {
@@ -23,9 +23,9 @@ public:
         if (r.has_value()) {
             TransactionId txid {
                 TransactionId::Generator {
-                    .accountId { r[1] },
-                    .pinHeight { r[2] },
-                    .nonceId { r[3] } }
+                    .accountId = r[1],
+                    .pinHeight = r[2],
+                    .nonceId = r[3] }
             };
             res = OrderData { r[0], txid, r[4], r[5], r[6] };
         }

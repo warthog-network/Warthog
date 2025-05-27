@@ -3,7 +3,6 @@
 namespace chain_db {
 class ChainDB;
 class ChainDBTransaction;
-class ChainDBTransaction;
 struct OrderDelete;
 struct OrderFillstate;
 struct OrderData;

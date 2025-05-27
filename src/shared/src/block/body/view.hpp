@@ -36,7 +36,8 @@ struct Section {
     elem_t at(const uint8_t* blockData, size_t i) const
     {
         assert(i <= n);
-        return { { blockData + offset + TransactionView::size() * n }, i };
+        view_t v { blockData + offset + TransactionView::size() * n };
+        return { v, i };
     }
     auto size() const { return n; }
     size_t n;

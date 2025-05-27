@@ -13,7 +13,6 @@
 #include <chrono>
 
 
-class ChainDBTransaction;
 namespace chainserver {
 struct MiningCache {
     struct CacheValidity {
