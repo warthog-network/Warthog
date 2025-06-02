@@ -3,7 +3,6 @@
 #include "chainserver/db/types_fwd.hpp"
 #include "defi/token/info.hpp"
 #include <map>
-struct Address;
 namespace chainserver {
 class AccountCache {
 public:

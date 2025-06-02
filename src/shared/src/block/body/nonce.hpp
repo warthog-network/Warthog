@@ -31,6 +31,7 @@ public:
 struct NonceReserved : public std::array<uint8_t, 3> {
     NonceReserved(const std::array<uint8_t, 3>& arr)
         : array(arr) {};
+    NonceReserved(Reader&r);
     static NonceReserved zero()
     {
         return std::array<uint8_t, 3> { 0, 0, 0 };
@@ -39,6 +40,7 @@ struct NonceReserved : public std::array<uint8_t, 3> {
 
 struct PinNonce {
     static constexpr size_t bytesize = 8;
+    static constexpr size_t byte_size(){return bytesize;};
 
 private:
     PinNonce(ReaderCheck<bytesize> r);

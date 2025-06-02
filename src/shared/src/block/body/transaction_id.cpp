@@ -11,6 +11,7 @@ Writer& operator<<(Writer& w, const TransactionId& id)
         << id.pinHeight
         << id.nonceId;
 };
+
 TransactionId::TransactionId(Reader& r)
     : accountId(r.uint64())
     , pinHeight(Height(r.uint32()))

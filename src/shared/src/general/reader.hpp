@@ -100,6 +100,11 @@ public:
     {
         return uint8();
     }
+    template <typename... T>
+    operator std::tuple<T...>()
+    {
+        return { static_cast<T>(*this)... };
+    }
     template <size_t N>
     View<N> view()
     {

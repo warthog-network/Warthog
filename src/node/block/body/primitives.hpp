@@ -5,6 +5,8 @@
 #include "crypto/address.hpp"
 #include "crypto/crypto.hpp"
 #include "crypto/hash.hpp"
+#include "general/reader.hpp"
+#include "tools/variant.hpp"
 
 class Address;
 class HashView;
@@ -22,6 +24,24 @@ struct TokenTransfer;
 }
 }
 
+
+
+
+class WartTransferMessageData {
+    Address toAddr;
+    Wart amount;
+};
+
+template <typename Data>
+class TransactionMessage2 {
+    TransactionId txid;
+    NonceReserved reserved;
+    CompactUInt compactFee;
+    Data data;
+    static constexpr size_t byte_size() { return 16 + 3 + 2 + Data::byte_size() + 65; }
+    RecoverableSignature signature;
+};
+
 class WartTransferMessage {
 public:
     using WartTransferView = block::body::view::WartTransfer;
@@ -29,7 +49,8 @@ public:
     static constexpr size_t bytesize = 16 + 3 + 2 + 20 + 8 + 65;
     static constexpr size_t byte_size() { return bytesize; }
     WartTransferMessage(ReaderCheck<bytesize> r);
-    WartTransferMessage(const TransactionId& txid,
+    WartTransferMessage(
+        const TransactionId& txid,
         const mempool::entry::Shared& s,
         const mempool::entry::WartTransfer& t);
     WartTransferMessage(WartTransferView, PinHeight, AddressView toAddr);
@@ -66,7 +87,7 @@ public:
     [[nodiscard]] TxHash txhash(HashView pinHash) const;
     [[nodiscard]] Address from_address(HashView txHash) const;
     [[nodiscard]] Funds_uint64 spend_throw() const { return Funds_uint64::sum_throw(fee(), amount); }
-    Funds_uint64 fee() const { return compactFee.uncompact(); }
+    Wart fee() const { return compactFee.uncompact(); }
     AccountId from_id() const { return txid.accountId; }
     PinHeight pin_height() const { return txid.pinHeight; }
     NonceId nonce_id() const { return txid.nonceId; }
@@ -81,10 +102,20 @@ public:
 };
 
 class CreateOrderMessage {
+    RecoverableSignature signature;
 };
-class CancelOrderMessage {
+class CancelMessage {
 };
 class AddLiquidityMessage {
 };
 class RemoveLiquidityMessage {
+};
+
+// using TransactionVariant = wrt::variant<WartTransferMessage, TokenTransferMessage, CreateOrderMessage, CancelMessage, AddLiquidityMessage, RemoveLiquidityMessage>;
+using TransactionVariant = wrt::variant<WartTransferMessage, TokenTransferMessage>;
+struct TransactionMessage : public TransactionVariant {
+    Wart fee() const
+    {
+        return visit([](auto& message) { return message.fee(); });
+    }
 };

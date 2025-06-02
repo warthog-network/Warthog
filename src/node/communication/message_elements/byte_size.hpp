@@ -1,8 +1,5 @@
 #pragma once
-#include <cstddef>
 #include <optional>
-#include <type_traits>
-#include <utility>
 #include <vector>
 
 template <typename T>

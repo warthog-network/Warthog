@@ -51,8 +51,8 @@ public:
 
     // getters
     [[nodiscard]] auto cache_validity() const { return txs.cache_validity(); }
-    [[nodiscard]] auto get_payments(size_t n, NonzeroHeight height, std::vector<Hash>* hashes = nullptr) const
-        -> std::vector<WartTransferMessage>;
+    [[nodiscard]] auto get_transactions(size_t n, NonzeroHeight height, std::vector<Hash>* hashes = nullptr) const
+        -> std::vector<TransactionVariant>;
     [[nodiscard]] auto sample(size_t) const -> std::vector<TxidWithFee>;
     [[nodiscard]] auto filter_new(const std::vector<TxidWithFee>&) const
         -> std::vector<TransactionId>;

@@ -47,7 +47,7 @@ namespace entry {
         Price_uint64 limit;
         bool buy;
     };
-    struct CancelOrder {
+    struct Cancelation {
         TokenId tokenId;
         TransactionId cancelTxid;
     };
@@ -62,7 +62,7 @@ namespace entry {
         Hash txHash;
         RecoverableSignature signature;
     };
-    using base_variant_t = wrt::variant<WartTransfer, TokenTransfer, CreateOrder, CancelOrder, AddLiquidity, RemoveLiquidity>;
+    using base_variant_t = wrt::variant<WartTransfer, TokenTransfer, CreateOrder, Cancelation, AddLiquidity, RemoveLiquidity>;
     struct Variant : public base_variant_t {
         using base_variant_t::base_variant_t;
     };

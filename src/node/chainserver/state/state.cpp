@@ -322,18 +322,18 @@ Result<ChainMiningTask> State::mining_task(const Address& a, bool disableTxs)
 
     auto make_body {
         [&]() {
-            std::vector<WartTransferMessage> payments;
+            std::vector<TransactionVariant> transactions;
             if (!disableTxs) {
-                payments = chainstate.mempool().get_payments(400, height);
+                transactions = chainstate.mempool().get_transactions(400, height);
             }
 
             Funds_uint64 totalfee { Funds_uint64::zero() };
-            for (auto& p : payments)
+            for (auto& p : transactions)
                 totalfee.add_assert(p.fee()); // assert because
             // fee sum is < sum of mempool payers' balances
 
             // mempool should have deleted out of window transactions
-            auto body { generate_body(db, height, a, payments) };
+            auto body { generate_body(db, height, a, transactions) };
             return body;
         }
     };
@@ -789,7 +789,7 @@ auto State::api_get_mempool(size_t n) const -> api::MempoolEntries
 {
     std::vector<Hash> hashes;
     auto nextHeight { next_height() };
-    auto entries = chainstate.mempool().get_payments(n, nextHeight, &hashes);
+    auto entries = chainstate.mempool().get_transactions(n, nextHeight, &hashes);
     assert(hashes.size() == entries.size());
     api::MempoolEntries out;
     for (size_t i = 0; i < hashes.size(); ++i) {

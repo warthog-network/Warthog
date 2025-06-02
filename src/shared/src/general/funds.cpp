@@ -2,10 +2,21 @@
 #include "general/errors.hpp"
 #include "general/params.hpp"
 #include "general/reader.hpp"
+#include "general/writer.hpp"
 #include <cassert>
 #include <charconv>
 #include <cstring>
 #include <limits>
+
+Writer& operator<<(Writer& w, const TokenPrecision& p)
+{
+    return w << p.val;
+}
+
+TokenPrecision::TokenPrecision(Reader& r)
+    : TokenPrecision(from_number_throw(r.uint8()))
+{
+}
 
 std::optional<ParsedFunds> ParsedFunds::parse(std::string_view s)
 {

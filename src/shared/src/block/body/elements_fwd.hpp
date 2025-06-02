@@ -1,7 +1,6 @@
 #pragma once
 namespace block {
 namespace body {
-namespace view {
 struct DestinationIdElement;
 struct WartElement;
 struct AmountElement;
@@ -30,6 +29,5 @@ using LiquidityAdd = SignedCombined<WartElement, AmountElement>;
 using LiquidityRemove = SignedCombined<AmountElement>;
 struct TokenTransfer;
 struct WartTransfer;
-}
 }
 }

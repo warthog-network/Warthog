@@ -27,6 +27,7 @@ public:
     auto& operator()() const { return _map; }
     [[nodiscard]] std::vector<const_iterator> by_fee_inc(AccountId) const;
 };
+
 struct ByFeeDesc {
     using const_iter_t = Txmap::const_iterator;
     bool insert(const_iter_t iter);

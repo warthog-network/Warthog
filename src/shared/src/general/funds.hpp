@@ -18,13 +18,16 @@ private:
     static constexpr const uint8_t max { 18 };
 
 public:
+    static constexpr size_t byte_size() { return 1; }
     auto value() const { return val; }
     consteval TokenPrecision(size_t v)
         : TokenPrecision(uint8_t(v), Token())
     {
         if (v > max)
-            throw std::runtime_error("Value "+std::to_string(v) + " exceeds maximum "+ std::to_string(max)+".");
+            throw std::runtime_error("Value " + std::to_string(v) + " exceeds maximum " + std::to_string(max) + ".");
     }
+    TokenPrecision(Reader& r);
+    friend Writer& operator<<(Writer& w, const TokenPrecision&);
     static const TokenPrecision zero;
     static constexpr TokenPrecision digits8()
     {

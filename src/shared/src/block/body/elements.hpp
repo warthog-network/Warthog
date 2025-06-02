@@ -6,13 +6,13 @@
 #include "block/chain/height.hpp"
 #include "defi/token/token.hpp"
 #include "defi/uint64/price.hpp"
+#include "elements_fwd.hpp"
 #include "general/compact_uint.hpp"
 #include "general/funds.hpp"
 #include "general/reader.hpp"
 #include "general/view.hpp"
 namespace block {
 namespace body {
-namespace view {
 // constexpr static size_t SIGLEN { 65 };
 // constexpr static size_t AddressSize { 20 };
 // constexpr static size_t TransferSize { 34 + SIGLEN };
@@ -96,6 +96,10 @@ struct Combined : public Ts... {
         : Ts(std::move(ts))...
     {
     }
+    friend Writer& operator<<(Writer& w, const Combined<Ts...>& c)
+    {
+        w << (static_cast<Ts>(c) << ...);
+    };
     static constexpr size_t byte_size()
     {
         return (Ts::byte_size() + ...);
@@ -610,7 +614,6 @@ struct WartTransfer : public TokenTransfer {
 //     {
 //     }
 // };
-}
 }
 }
 

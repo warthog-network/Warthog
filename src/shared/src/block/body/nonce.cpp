@@ -16,16 +16,21 @@ NonceId NonceId::random()
     return NonceId(val);
 };
 
+NonceReserved::NonceReserved(Reader& r)
+    : NonceReserved(r.view<3>())
+{
+}
+
 PinNonce::PinNonce(ReaderCheck<bytesize> r)
     : id(r.r)
-    , relativePin(r.r.uint8())
+    , relativePin(r.r)
     , reserved(r.r)
 {
     r.assert_read_bytes();
 }
 
 PinNonce::PinNonce(Reader& r)
-    : PinNonce(ReaderCheck<bytesize>(r)) {};
+    : PinNonce(ReaderCheck<bytesize>(r)) { };
 
 PinHeight PinNonce::pin_height_from_floored(PinFloor pf) const
 {

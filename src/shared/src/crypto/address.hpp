@@ -6,23 +6,35 @@
 class AddressView : public View<20> {
 public:
     explicit AddressView(const uint8_t* pos)
-        : View(pos) {};
+        : View(pos) { };
     std::array<uint8_t, 24> serialize() const;
     std::string to_string() const;
 };
+namespace wrt {
+template <size_t N>
+struct byte_arr : public std::array<uint8_t, N> {
+    using parent = std::array<uint8_t, N>;
+    static constexpr size_t byte_size() { return N; }
+    byte_arr(parent a)
+        : parent(std::move(a))
+    {
+    }
+    using parent::parent;
+    using parent::size;
+};
 
-class Address : public std::array<uint8_t, 20> {
-    Address(){};
+}
+
+class Address : public wrt::byte_arr<20> {
+    Address() { };
+
 public:
     friend class PubKey;
-    static Address uninitialized(){return {};}
+    static Address uninitialized() { return {}; }
     Address(const std::string_view);
     Address(std::array<uint8_t, 20> arr)
-        : array(arr) {};
+        : byte_arr(arr) { };
     Address(const AddressView v) { memcpy(data(), v.data(), size()); }
-    using array::array;
-    using array::data;
-    using array::size;
     operator AddressView() const
     {
         return AddressView(data());

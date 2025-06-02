@@ -46,6 +46,12 @@ struct Range {
 };
 
 class Writer {
+    template <size_t... Is, typename... Ts>
+    Writer& write_tuple(const std::tuple<Ts...>& t)
+    {
+        return (*this) << std::get<Is...>(t);
+    }
+
 public:
     Writer(uint8_t* pos, size_t n)
         : pos(pos)
@@ -110,6 +116,12 @@ public:
     Writer& operator<<(std::string_view r)
     {
         return operator<<(Range(r));
+    }
+
+    template <typename... Ts>
+    Writer& operator<<(const std::tuple<Ts...>& t)
+    {
+        return write_tuple<std::index_sequence_for<Ts...>, Ts...>(t);
     }
 
     Writer& operator<<(const Range& r)

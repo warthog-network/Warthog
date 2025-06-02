@@ -6,4 +6,8 @@ public:
         : IsUint32(v)
     {
     }
+    auto operator<=>(uint32_t v)
+    {
+        return value() <=> (v);
+    }
 };

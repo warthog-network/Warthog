@@ -103,7 +103,6 @@ TokenTransferMessage::TokenTransferMessage(TokenTransferView t, Hash tokenHash, 
 {
 }
 
-
 TokenTransferMessage::TokenTransferMessage(const TransactionId& txid, const mempool::entry::Shared& s, const mempool::entry::TokenTransfer& v)
     : txid(txid)
     , reserved(s.noncep2)

@@ -22,16 +22,18 @@ private:
     }
 
 public:
+    static constexpr size_t byte_size() { return 8; }
     static auto from_uint32(uint32_t data)
     {
         return compose(data & 0x0000FFFFu, data >> 16);
     }
     static auto from_uint32_throw(uint32_t data)
     {
-        if (auto p{ from_uint32(data)})
+        if (auto p { from_uint32(data) })
             return *p;
         throw Error(EBADPRICE);
     }
+    Price_uint64(Reader& r);
     uint32_t to_uint32() const
     {
         return uint32_t(_m) + (uint32_t(_e) << 16);
@@ -195,6 +197,7 @@ struct PriceRelative_uint64 { // gives details relative to price grid
         return PriceRelative_uint64 { *p, exact };
     }
     bool operator==(Price_uint64 p2) const { return exact && price == p2; }
+
 private:
     Price_uint64 price;
     bool exact;

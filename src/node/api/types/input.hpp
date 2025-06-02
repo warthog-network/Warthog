@@ -4,7 +4,7 @@
 #include "crypto/address.hpp"
 #include "crypto/hash.hpp"
 #include "defi/token/id.hpp"
-#include "tools/variant.hpp"
+#include "tools/alternative.hpp"
 class Reader;
 
 namespace api {
