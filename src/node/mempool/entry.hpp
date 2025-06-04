@@ -1,6 +1,6 @@
 #pragma once
-#include "block/body/primitives.hpp"
 #include "block/body/transaction_id.hpp"
+#include "crypto/crypto.hpp"
 #include "crypto/hash.hpp"
 #include "defi/uint64/price.hpp"
 #include "general/compact_uint.hpp"

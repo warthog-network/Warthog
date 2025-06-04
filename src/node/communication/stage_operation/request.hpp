@@ -1,6 +1,6 @@
 #pragma once
 
-#include "block/block.hpp"
+#include "block/block_fwd.hpp"
 #include "block/chain/header_chain.hpp"
 #include <variant>
 namespace stage_operation {
@@ -11,7 +11,7 @@ struct StageSetOperation {
 
 struct StageAddOperation {
     Headerchain headers;// LATER: remove if no more bugs
-    std::vector<ParsedBlock> blocks;
+    std::vector<Block> blocks;
 };
 
 using Operation = std::variant<StageSetOperation, StageAddOperation>;

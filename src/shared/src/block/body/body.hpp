@@ -24,6 +24,7 @@ struct body_vector : public std::vector<T> {
             w << e;
         return w;
     }
+    auto operator<=>(const body_vector<T>&) const = default;
     
     size_t byte_size() const;
     body_vector(size_t n, Reader& r);
@@ -36,6 +37,7 @@ struct TokenSection {
     body_vector<body::LiquidityRemove> liquidityRemove;
     body_vector<body::Cancelation> cancelations;
     static constexpr const size_t n_vectors = 5;
+    void append_tx_ids(PinFloor, std::vector<TransactionId>& appendTo) const;
     Writer& write(Writer&);
     TokenSection(Reader&);
     TokenSection(TokenId tid)
@@ -56,14 +58,15 @@ private:
     using body_vector = body::body_vector<T>;
 
 public:
+    std::vector<TransactionId> tx_ids(PinFloor) const;
     static Body parse_throw(std::span<const uint8_t> rd, NonzeroHeight h, BlockVersion version);
     size_t byte_size() const;
-    std::vector<uint8_t> serialize();
+    std::vector<uint8_t> serialize() const;
     Body(std::span<const uint8_t> data,BlockVersion v, NonzeroHeight h);
     body_vector<Address> newAddresses;
     body::Reward reward;
     body_vector<body::WartTransfer> wartTransfers;
     body_vector<body::TokenSection> tokens;
-    // body_vector<body::TokenCreation> newTokens;
+    body_vector<body::TokenCreation> tokenCreations;
 };
 }

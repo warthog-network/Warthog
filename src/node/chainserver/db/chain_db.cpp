@@ -1,6 +1,5 @@
 #include "chain_db.hpp"
 #include "api/types/all.hpp"
-#include "block/body/parse.hpp"
 #include "block/chain/header_chain.hpp"
 #include "block/header/header_impl.hpp"
 #include "block/header/view_inline.hpp"
@@ -488,34 +487,34 @@ DeletionKey ChainDB::delete_consensus_from(NonzeroHeight height)
     return dk;
 }
 
-std::optional<ParsedBlock> ChainDB::get_block(BlockId id) const
+std::optional<Block> ChainDB::get_block(BlockId id) const
 {
     auto o { stmtBlockById.one(id) };
     if (!o.has_value())
         return {};
     try {
-        return ParsedBlock::create_throw(o[0], Header(o[1]), o[2]);
+        return Block(o[0], Header(o[1]), o[2]);
     } catch (...) {
         throw std::runtime_error("Cannot load block with id " + std::to_string(id.value()) + ". ");
     }
 }
 
-std::optional<std::pair<BlockId, ParsedBlock>> ChainDB::get_block(HashView hash) const
+std::optional<std::pair<BlockId, Block>> ChainDB::get_block(HashView hash) const
 {
     auto o = stmtBlockByHash.one(hash);
     if (!o.has_value())
         return {};
     try {
-        return std::pair<BlockId, ParsedBlock> {
+        return std::pair<BlockId, Block> {
             o[0],
-            ParsedBlock::create_throw(o[1], Header(o[2]), o[3])
+            { o[1], Header(o[2]), o[3] }
         };
     } catch (...) {
         throw std::runtime_error("Cannot load block with hash " + serialize_hex(hash) + ".");
     }
 }
 
-std::pair<BlockId, bool> ChainDB::insert_protect(const ParsedBlock& b)
+std::pair<BlockId, bool> ChainDB::insert_protect(const Block& b)
 {
     auto hash { b.header.hash() };
 
@@ -524,7 +523,7 @@ std::pair<BlockId, bool> ChainDB::insert_protect(const ParsedBlock& b)
         assert(schedule_exists(*blockId) || consensus_exists(b.height, *blockId));
         return { blockId.value(), false };
     } else {
-        stmtBlockInsert.run(b.height, b.header, b.body.data(), hash);
+        stmtBlockInsert.run(b.height, b.header, b.bodyData, hash);
         auto lastId { db.getLastInsertRowid() };
         stmtScheduleInsert.run(lastId, 0);
         return { BlockId(lastId), true };
@@ -1051,12 +1050,12 @@ chainserver::TransactionIds ChainDB::fetch_tx_ids(Height height) const
         }
         Height height = r.hbegin + i;
         auto id = ids[i];
-        auto b = get_block(id);
+        auto b { get_block(id) };
         if (!b) {
             throw std::runtime_error("Database corrupted (consensus block id " + std::to_string(id.value()) + "+ not available)");
         }
         assert(height == b->height);
-        assert(b->body.size() > 0);
+        assert(b->bodyData.size() > 0);
         for (auto& tid : b->read_tx_ids()) {
             if (out.emplace(tid).second == false) {
                 throw std::runtime_error(

@@ -1,4 +1,5 @@
 #pragma once
+#include "block/body/messages.hpp"
 #include "comparators.hpp"
 #include "defi/token/account_token.hpp"
 #include "general/address_funds.hpp"

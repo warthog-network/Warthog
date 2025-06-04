@@ -1,6 +1,5 @@
 #include "block_applier.hpp"
 #include "api/types/all.hpp"
-#include "block/body/parse.hpp"
 #include "block/body/rollback.hpp"
 #include "block/chain/header_chain.hpp"
 #include "block/chain/history/history.hpp"
@@ -374,14 +373,14 @@ class BalanceChecker {
     };
 
     struct Accounts {
-        Accounts(AccountId nextAccountId, const BodyView& bv)
+        Accounts(AccountId nextAccountId, const block::Body& b)
             : beginNew(nextAccountId)
-            , end(beginNew + bv.addresses().size())
+            , end(beginNew + b.newAddresses.size())
         {
             size_t n { end.value() - beginNew.value() };
             newAccounts.reserve(n);
             for (size_t i = 0; i < n; ++i)
-                newAccounts.push_back({ bv.get_address(i), (beginNew + i).validate_throw(end) });
+                newAccounts.push_back({ b.newAddresses[i], (beginNew + i).validate_throw(end) });
         }
         [[nodiscard]] AccountData& operator[](AccountId i)
         {
@@ -425,11 +424,11 @@ protected:
     };
 
 public:
-    static RewardInternal register_reward(const BodyView& bv, Accounts& accounts, NonzeroHeight h)
+    static RewardInternal register_reward(const block::Body& b, Accounts& accounts, NonzeroHeight h)
     {
-        auto r { bv.reward() };
-        auto& a { accounts[r.account_id()] };
-        auto am { r.amount_throw() };
+        auto r { b.reward };
+        auto& a { accounts[r.destination_acc_id()] };
+        auto am { r.wart() };
         a.add(TokenId::WART, am);
         return {
             .toAccountId { a.id },
@@ -438,13 +437,13 @@ public:
             .toAddress { a.address }
         };
     }
-    BalanceChecker(AccountId nextAccountId, StateId nextStateId, const BodyView& bv, NonzeroHeight height)
+    BalanceChecker(AccountId nextAccountId, StateId nextStateId, const block::Body& b, NonzeroHeight height)
         : height(height)
         , pinFloor(height.pin_floor())
-        , bv(bv)
-        , accounts(nextAccountId, bv)
+        , b(b)
+        , accounts(nextAccountId, b)
         , stateId(nextStateId)
-        , reward(register_reward(bv, accounts, height))
+        , reward(register_reward(b, accounts, height))
     {
     }
 
@@ -468,7 +467,7 @@ public:
     template <typename ItemView>
     [[nodiscard]] ProcessedSigner process_signer(const ItemView& v)
     {
-        auto compactFee { v.compact_fee_throw() };
+        auto compactFee { v.compact_fee() };
         AccountData& from { accounts[v.origin_account_id()] };
         charge_fee(from, compactFee);
         return {
@@ -476,12 +475,12 @@ public:
             from
         };
     }
-    TransferInternalWithoutAmount __register_transfer(view::TokenTransfer tv) // OK
+    TransferInternalWithoutAmount __register_transfer(TokenTransfer tv) // OK
     {
         auto s { process_signer(tv) };
         auto tokenId { tv.id };
-        auto amount { tv.amount_throw() };
-        auto& to { accounts[tv.toAccountId()] };
+        auto amount { tv.amount() };
+        auto& to { accounts[tv.destination_acc_id()] };
         if (height.value() > 719118 && amount.is_zero())
             throw Error(EZEROAMOUNT);
         if (s.origin.id == to.id)
@@ -495,12 +494,12 @@ public:
             { to.id, to.address },
         };
     }
-    void register_wart_transfer(view::WartTransfer tv)
+    void register_wart_transfer(WartTransfer tv)
     {
-        wartTransfers.push_back({ __register_transfer(tv), tv.amount_throw() });
+        wartTransfers.push_back({ __register_transfer(tv), tv.amount() });
     }
 
-    CancelationInternal register_cancelation(view::Cancelation c, TokenId tokenId)
+    CancelationInternal register_cancelation(Cancelation c, TokenId tokenId)
     {
         auto signerData(process_signer(c));
         return {
@@ -509,19 +508,20 @@ public:
             { signerData.origin.id, c.block_pin_nonce().pin_height_from_floored(pinFloor), c.block_pin_nonce().id }
         };
     }
-    LiquidityAddInternal register_liquidity_add(view::LiquidityAdd l, TokenId tokenId)
+    LiquidityAddInternal register_liquidity_add(const LiquidityAdd& l, TokenId tokenId)
     {
         return { process_signer(l) };
     }
-    LiquidityRemoveInternal register_liquidity_remove(view::LiquidityRemove l, TokenId tokenId)
+    LiquidityRemoveInternal register_liquidity_remove(LiquidityRemove l, TokenId tokenId)
     {
         return { process_signer(l) };
     }
-    OrderInternal register_new_order(view::Order o, TokenId tokenId)
+    OrderInternal register_new_order(Order o, TokenId tokenId)
     {
         auto s { process_signer(o) };
 
-        auto [buy, amount] { o.buy_amount_throw() };
+        auto buy { o.buy() };
+        auto amount { o.amount() };
         if (buy)
             s.account.subtract(TokenId::WART, amount);
         else
@@ -534,30 +534,30 @@ public:
             buy
         };
     }
-    void register_token_section(TokenSectionInteractor t)
+    void register_token_section(const TokenSection& t)
     {
-        TokenSectionInternal ts(t.id());
-        for (auto tr : t.transfers())
-            ts.transfers.push_back({ __register_transfer({ tr, t.id() }), tr.amount_throw() });
-        for (auto o : t.orders())
-            ts.orders.push_back(register_new_order(o, t.id()));
-        for (auto c : t.cancelations())
-            ts.cancelations.push_back(register_cancelation(c, t.id()));
-        for (auto a : t.liquidityAdd())
-            ts.liquidityAdds.push_back(register_liquidity_add(a, t.id()));
-        for (auto r : t.liquidityRemove())
-            ts.liquidityRemoves.push_back(register_liquidity_remove(r, t.id()));
+        TokenSectionInternal ts(t.id);
+        for (auto tr : t.transfers)
+            ts.transfers.push_back({ __register_transfer({ tr, t.id }), tr.amount() });
+        for (auto o : t.orders)
+            ts.orders.push_back(register_new_order(o, t.id));
+        for (auto c : t.cancelations)
+            ts.cancelations.push_back(register_cancelation(c, t.id));
+        for (auto a : t.liquidityAdd)
+            ts.liquidityAdds.push_back(register_liquidity_add(a, t.id));
+        for (auto r : t.liquidityRemove)
+            ts.liquidityRemoves.push_back(register_liquidity_remove(r, t.id));
         tokenSections.push_back(std::move(ts));
     }
 
-    void register_token_creation(Indexed<view::TokenCreation> tc, Height)
+    void register_token_creation(const TokenCreation& tc, size_t index, Height)
     {
         auto s { process_signer(tc) };
         tokenCreations.push_back(TokenCreationInternal {
             s,
-            tc.index,
+            index,
             tc.token_name(),
-            FundsDecimal { tc.total_supply(), tc.precision() },
+            FundsDecimal { tc.token_supply(), tc.token_precision() },
         });
     }
 
@@ -579,7 +579,7 @@ public:
     }
     AddressView get_new_address(size_t i)
     {
-        return bv.get_address(i);
+        return b.newAddresses[i];
     } // OK
     auto& token_creations() const
     {
@@ -597,7 +597,7 @@ public:
 private:
     const NonzeroHeight height;
     const PinFloor pinFloor;
-    const BodyView& bv;
+    const block::Body& b;
     Accounts accounts;
     StateIdIncrementer stateId;
     RewardInternal reward;
@@ -791,11 +791,11 @@ private:
     const Headerchain& hc;
     decltype(BlockApplier::Preparer::baseTxIds)& baseTxIds;
     const decltype(BlockApplier::Preparer::newTxIds)& newTxIds;
-    const BodyView bv;
+    const block::Body& b;
     const NonzeroHeight height;
 
     // variables needed for block verification
-    const view::Reward reward;
+    const Reward reward;
     BalanceChecker balanceChecker;
     HistoryEntriesGenerator history;
     TransactionVerifier txVerifier;
@@ -805,7 +805,7 @@ private:
     void verify_new_address_policy()
     {
         std::set<AddressView> newAddresses;
-        for (auto address : bv.addresses()) {
+        for (auto address : b.newAddresses) {
             if (newAddresses.emplace(address).second == false)
                 throw Error(EADDRPOLICY);
             if (db.lookup_account_id(address))
@@ -816,19 +816,19 @@ private:
     void register_wart_transfers()
     {
         // Read transfer section for WART coins
-        for (auto t : bv.wart_transfers())
+        for (auto t : b.wartTransfers)
             balanceChecker.register_wart_transfer(t);
     }
     void register_token_sections()
     {
-        for (auto t : bv.tokens())
+        for (auto t : b.tokens)
             balanceChecker.register_token_section(t);
     }
 
     void register_token_creations()
     {
-        for (auto tc : bv.token_creations())
-            balanceChecker.register_token_creation(tc, height);
+        for (size_t i { 0 }; i < b.tokenCreations.size(); ++i)
+            balanceChecker.register_token_creation(b.tokenCreations[i], i, height);
 
         const auto beginNewTokenId = db.next_token_id(); // they start from this index
         for (auto& tc : balanceChecker.token_creations()) {
@@ -1107,16 +1107,16 @@ public:
     // * overflow check OK
     // * check every new address is indeed new OK
     // * check signatures OK
-    PreparationGenerator(const BlockApplier::Preparer& preparer, const ParsedBlock& b)
+    PreparationGenerator(const BlockApplier::Preparer& preparer, const Block& b)
         : Preparation(preparer.db)
         , db(preparer.db)
         , hc(preparer.hc)
         , baseTxIds(preparer.baseTxIds)
         , newTxIds(preparer.newTxIds)
-        , bv { b.body.view() }
+        , b { b.body }
         , height(b.height)
-        , reward(bv.reward())
-        , balanceChecker(db.next_account_id(), db.next_state_id(), bv, height)
+        , reward(b.body.reward)
+        , balanceChecker(AccountId(db.next_account_id()), StateId(db.next_state_id()), b.body, height)
         , history(historyEntries, db.next_history_id())
         , txVerifier(TransactionVerifier { hc, height,
               std::function<bool(TransactionId)>(
@@ -1137,12 +1137,12 @@ public:
     }
 };
 
-Preparation BlockApplier::Preparer::prepare(const ParsedBlock& b) const
+Preparation BlockApplier::Preparer::prepare(const Block& b) const
 {
     return PreparationGenerator(*this, b);
 }
 
-api::Block BlockApplier::apply_block(const ParsedBlock& b, BlockId blockId)
+api::Block BlockApplier::apply_block(const Block& b, BlockId blockId)
 {
     auto prepared { preparer.prepare(b) }; // call const function
 

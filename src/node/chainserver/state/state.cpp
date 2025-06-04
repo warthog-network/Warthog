@@ -4,12 +4,9 @@
 
 #include "../db/chain_db.hpp"
 #include "api/types/all.hpp"
-#include "block/body/generator.hpp"
-#include "block/body/parse.hpp"
 #include "block/body/rollback.hpp"
 #include "block/body/view.hpp"
 #include "block/chain/history/history.hpp"
-#include "block/header/generator.hpp"
 #include "block/header/header_impl.hpp"
 #include "communication/create_payment.hpp"
 #include "eventloop/types/chainstate.hpp"
@@ -322,7 +319,7 @@ Result<ChainMiningTask> State::mining_task(const Address& a, bool disableTxs)
 
     auto make_body {
         [&]() {
-            std::vector<TransactionVariant> transactions;
+            std::vector<TransactionMessage> transactions;
             if (!disableTxs) {
                 transactions = chainstate.mempool().get_transactions(400, height);
             }

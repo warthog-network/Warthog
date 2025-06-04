@@ -21,7 +21,7 @@ void LockedBalance::unlock(Funds_uint64 amount)
     used.subtract_assert(amount);
 }
 
-std::vector<TransactionVariant> Mempool::get_transactions(size_t n, NonzeroHeight height, std::vector<Hash>* hashes) const
+std::vector<TransactionMessage> Mempool::get_transactions(size_t n, NonzeroHeight height, std::vector<Hash>* hashes) const
 {
     std::vector<WartTransferMessage> res;
     res.reserve(n);

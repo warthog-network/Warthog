@@ -4,7 +4,6 @@
 #include <array>
 #include <cstdint>
 
-
 class Height;
 class POWVersion;
 constexpr size_t HEADERBYTELENGTH = 80;
@@ -16,8 +15,9 @@ public:
     using array::size;
     Header() { };
     Header(const char*);
-    Header(const std::array<uint8_t, 80>& arr)
-        : array(arr) { };
+    Header(std::array<uint8_t, 80> arr)
+        : array(std::move(arr)) { };
+    Header(std::span<const uint8_t, 80>& s);
     Header(HeaderView hv)
     {
         memcpy(data(), hv.data(), 80);
@@ -44,7 +44,7 @@ public:
     }
 };
 
-struct HeightHeader{
+struct HeightHeader {
     NonzeroHeight height;
     Header header;
     bool operator==(const HeightHeader&) const = default;

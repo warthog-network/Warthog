@@ -1,6 +1,6 @@
 #pragma once
+#include "block/body/elements.hpp"
 #include "block/body/transaction_id.hpp"
-#include "block/body/transaction_views_fwd.hpp"
 #include "block/chain/height.hpp"
 #include "crypto/address.hpp"
 #include "crypto/crypto.hpp"
@@ -33,7 +33,7 @@ class WartTransferMessageData {
 };
 
 template <typename Data>
-class TransactionMessage2 {
+class TransactionMessage {
     TransactionId txid;
     NonceReserved reserved;
     CompactUInt compactFee;
@@ -42,20 +42,20 @@ class TransactionMessage2 {
     RecoverableSignature signature;
 };
 
-class WartTransferMessage {
+class WartTransferMessageDeprecated {
 public:
-    using WartTransferView = block::body::view::WartTransfer;
+    using WartTransferView = block::body::WartTransfer;
     // layout:
     static constexpr size_t bytesize = 16 + 3 + 2 + 20 + 8 + 65;
     static constexpr size_t byte_size() { return bytesize; }
-    WartTransferMessage(ReaderCheck<bytesize> r);
-    WartTransferMessage(
+    WartTransferMessageDeprecated(ReaderCheck<bytesize> r);
+    WartTransferMessageDeprecated(
         const TransactionId& txid,
         const mempool::entry::Shared& s,
         const mempool::entry::WartTransfer& t);
-    WartTransferMessage(WartTransferView, PinHeight, AddressView toAddr);
+    WartTransferMessageDeprecated(WartTransferView, PinHeight, AddressView toAddr);
 
-    friend Writer& operator<<(Writer&, WartTransferMessage);
+    friend Writer& operator<<(Writer&, WartTransferMessageDeprecated);
     [[nodiscard]] TxHash txhash(HashView pinHash) const;
     [[nodiscard]] Address from_address(HashView txHash) const;
     [[nodiscard]] Funds_uint64 spend_throw() const { return Funds_uint64::sum_throw(fee(), amount); }
@@ -72,18 +72,18 @@ public:
     RecoverableSignature signature;
 };
 
-class TokenTransferMessage { // for defi we include the token id
+class TokenTransferMessageDeprecated { // for defi we include the token id
 public:
-    using TokenTransferView = block::body::view::TokenTransfer;
+    using TokenTransferView = block::body::TokenTransfer;
     // layout:
     static constexpr size_t bytesize = 16 + 3 + 2 + 32 + 20 + 8 + 65;
     static constexpr size_t byte_size() { return bytesize; }
-    TokenTransferMessage(ReaderCheck<bytesize> r);
-    TokenTransferMessage(const TransactionId& txid, const mempool::entry::Value&);
-    TokenTransferMessage(const TransactionId& txid, const mempool::entry::Shared& s, const mempool::entry::TokenTransfer& v);
-    TokenTransferMessage(TokenTransferView, Hash tokenHash, PinHeight, AddressView toAddr);
+    TokenTransferMessageDeprecated(ReaderCheck<bytesize> r);
+    TokenTransferMessageDeprecated(const TransactionId& txid, const mempool::entry::Value&);
+    TokenTransferMessageDeprecated(const TransactionId& txid, const mempool::entry::Shared& s, const mempool::entry::TokenTransfer& v);
+    TokenTransferMessageDeprecated(TokenTransferView, Hash tokenHash, PinHeight, AddressView toAddr);
 
-    friend Writer& operator<<(Writer&, TokenTransferMessage);
+    friend Writer& operator<<(Writer&, TokenTransferMessageDeprecated);
     [[nodiscard]] TxHash txhash(HashView pinHash) const;
     [[nodiscard]] Address from_address(HashView txHash) const;
     [[nodiscard]] Funds_uint64 spend_throw() const { return Funds_uint64::sum_throw(fee(), amount); }
@@ -101,19 +101,19 @@ public:
     RecoverableSignature signature;
 };
 
-class CreateOrderMessage {
+class CreateOrderMessageDeprecated {
     RecoverableSignature signature;
 };
-class CancelMessage {
+class CancelMessageDeprecated {
 };
-class AddLiquidityMessage {
+class AddLiquidityMessageDeprecated {
 };
-class RemoveLiquidityMessage {
+class RemoveLiquidityMessageDeprecated {
 };
 
-// using TransactionVariant = wrt::variant<WartTransferMessage, TokenTransferMessage, CreateOrderMessage, CancelMessage, AddLiquidityMessage, RemoveLiquidityMessage>;
-using TransactionVariant = wrt::variant<WartTransferMessage, TokenTransferMessage>;
-struct TransactionMessage : public TransactionVariant {
+// using TransactionVariant = wrt::variant<WartTransferMessageDeprecated, TokenTransferMessageDeprecated, CreateOrderMessageDeprecated, CancelMessageDeprecated, AddLiquidityMessageDeprecated, RemoveLiquidityMessageDeprecated>;
+using TransactionVariant = wrt::variant<WartTransferMessageDeprecated, TokenTransferMessageDeprecated>;
+struct TransactionMessageDeprecated : public TransactionVariant {
     Wart fee() const
     {
         return visit([](auto& message) { return message.fee(); });

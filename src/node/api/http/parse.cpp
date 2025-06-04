@@ -1,4 +1,5 @@
 #include "parse.hpp"
+#include "block/body/container.hpp"
 #include "general/hex.hpp"
 #include "nlohmann/json.hpp"
 namespace {
@@ -18,12 +19,13 @@ BlockWorker parse_block_worker(const std::vector<uint8_t>& s)
 {
     try {
         json parsed = json::parse(s);
+
+        auto height { Height(parsed.at("height").get<uint32_t>()).nonzero_throw(EBADHEIGHT) };
+        auto header { hex_to_arr<80>(parsed.at("header").get<std::string>()) };
+        auto body { hex_to_vec(parsed.at("body").get<std::string>()) };
+        block::BodyContainer container(body);
         BlockWorker mt {
-            .block {
-                .height { Height(parsed.at("height").get<uint32_t>()).nonzero_throw(EBADHEIGHT) },
-                .header { hex_to_arr<80>(parsed.at("header").get<std::string>()) },
-                .body { hex_to_vec(parsed.at("body").get<std::string>()) },
-            },
+            .block { height, header, body },
             .worker { get_optional<std::string>(parsed, "worker").value_or(std::string()) }
         };
         return mt;

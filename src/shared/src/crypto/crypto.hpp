@@ -2,14 +2,11 @@
 
 #include "address.hpp"
 #include "secp256k1.h"
-#include "secp256k1_preallocated.h"
 #include "secp256k1_recovery.h"
 #include <array>
 #include <cassert>
 #include <cstring>
-#include <iomanip>
 #include <optional>
-#include <sstream>
 
 void ECC_Start();
 void ECC_Stop();

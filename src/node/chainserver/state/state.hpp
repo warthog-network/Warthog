@@ -1,6 +1,7 @@
 #pragma once
 
 #include "api/types/forward_declarations.hpp"
+#include "block/block_fwd.hpp"
 #include "block/chain/height_header_work.hpp"
 #include "block/chain/range.hpp"
 #include "communication/messages.hpp"
@@ -9,7 +10,6 @@
 #include "general/result.hpp"
 #include "helpers/consensus.hpp"
 #include "helpers/past_chains.hpp"
-#include "transactions/apply_result.hpp"
 #include <chrono>
 
 
@@ -80,7 +80,7 @@ public:
         std::optional<RogueHeaderData> rogueHeaderData;
         std::optional<state_update::StateUpdateWithAPIBlocks> update;
     };
-    auto add_stage(const std::vector<ParsedBlock>& blocks, const Headerchain&) -> StageActionResult;
+    auto add_stage(const std::vector<Block>& blocks, const Headerchain&) -> StageActionResult;
 
     // synced state notification
     void set_sync_state(bool synced)
@@ -138,7 +138,7 @@ private:
 public:
     [[nodiscard]] auto apply_signed_snapshot(SignedSnapshot&& sp) -> std::optional<StateUpdateWithAPIBlocks>;
     //  stageUpdate;
-    [[nodiscard]] auto append_mined_block(const ParsedBlock&) -> StateUpdateWithAPIBlocks;
+    [[nodiscard]] auto append_mined_block(const Block&) -> StateUpdateWithAPIBlocks;
 
 private:
     // transaction helpers

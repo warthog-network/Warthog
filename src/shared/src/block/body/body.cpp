@@ -85,6 +85,20 @@ body_vector<T>::body_vector(size_t n, Reader& r)
         this->push_back({ r });
 }
 
+void TokenSection::append_tx_ids(PinFloor pf, std::vector<TransactionId>& appendTo) const
+{
+    auto append { [&](auto& vec) {
+        for (auto& tx : vec) {
+            appendTo.push_back(tx.txid_from_floored(pf));
+        }
+    } };
+    append(transfers);
+    append(orders);
+    append(liquidityAdd);
+    append(liquidityRemove);
+    append(cancelations);
+}
+
 size_t TokenSection::byte_size() const
 {
     return id.byte_size()
@@ -113,6 +127,17 @@ TokenSection::TokenSection(Reader& r)
 }
 
 }
+
+std::vector<TransactionId> Body::tx_ids(PinFloor pf) const
+{
+    std::vector<TransactionId> res;
+    for (auto& t : wartTransfers)
+        res.push_back(t.txid_from_floored(pf));
+    for (auto& t : tokens)
+        t.append_tx_ids(pf, res);
+    return res;
+}
+
 
 Body Body::parse_throw(std::span<const uint8_t> data, NonzeroHeight h, BlockVersion version)
 {
@@ -176,7 +201,7 @@ size_t Body::byte_size() const
     return res;
 }
 
-std::vector<uint8_t> Body::serialize()
+std::vector<uint8_t> Body::serialize() const
 {
     std::vector<uint8_t> res(byte_size(), 0);
     Writer w(res);
@@ -188,6 +213,7 @@ std::vector<uint8_t> Body::serialize()
     assert(w.remaining() == 0);
     return res;
 };
+
 Body::Body(std::span<const uint8_t> data, BlockVersion v, NonzeroHeight h)
     : Body(parse_throw(data, h, v)) {
     };

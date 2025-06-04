@@ -4,6 +4,8 @@
 #include "SQLiteCpp/Transaction.h"
 #include "api/types/forward_declarations.hpp"
 #include "block/block.hpp"
+#include "block/block_fwd.hpp"
+#include "block/body/container.hpp"
 #include "block/chain/offsts.hpp"
 #include "block/chain/worksum.hpp"
 #include "block/id.hpp"
@@ -49,14 +51,14 @@ struct PoolData {
 
 struct BlockUndoData {
     Header header;
-    BodyContainer body;
+    block::BodyContainer body;
     RawUndo rawUndo;
 };
 
 namespace chain_db {
 }
 
-namespace chain_db{
+namespace chain_db {
 class ChainDB {
 private:
     using Statement = sqlite::Statement;
@@ -106,10 +108,10 @@ public:
     [[nodiscard]] std::optional<BlockId> lookup_block_id(const HashView hash) const;
     [[nodiscard]] std::optional<NonzeroHeight> lookup_block_height(const HashView hash) const;
     [[nodiscard]] std::optional<BlockUndoData> get_block_undo(BlockId id) const;
-    [[nodiscard]] std::optional<ParsedBlock> get_block(BlockId id) const;
-    [[nodiscard]] std::optional<std::pair<BlockId, ParsedBlock>> get_block(HashView hash) const;
+    [[nodiscard]] std::optional<Block> get_block(BlockId id) const;
+    [[nodiscard]] std::optional<std::pair<BlockId, Block>> get_block(HashView hash) const;
     // set
-    std::pair<BlockId, bool> insert_protect(const ParsedBlock&);
+    std::pair<BlockId, bool> insert_protect(const Block&);
     void set_block_undo(BlockId id, const std::vector<uint8_t>& undo);
 
     /////////////////////
@@ -386,4 +388,3 @@ private:
     ChainDB::Cache c;
 };
 }
-

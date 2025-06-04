@@ -1,0 +1,12 @@
+#pragma once
+class PinHeight;
+class NonzeroHeight;
+struct HeightRange;
+class Height;
+struct PinFloor;
+class NonzeroHeight;
+struct HeightRange;
+class PrevHeight;
+class PinHeight;
+struct TransactionHeight;
+struct PinFloor;

@@ -1,4 +1,5 @@
 #pragma once
+#include "block/body/elements.hpp"
 #include "block/body/nonce.hpp"
 #include "block/body/transaction_id.hpp"
 #include "crypto/hasher_sha256.hpp"
@@ -73,26 +74,26 @@ protected:
     RecoverableSignature signature;
 };
 
-class WartTransferMessage2 : public TransactionMsg<Address, Wart> {
+class WartTransferMessage : public TransactionMsg<Address, Wart> {
 public:
-    using WartTransferView = block::body::view::WartTransfer;
+    using WartTransfer = block::body::WartTransfer;
     using TransactionMsg<Address, Wart>::TransactionMsg;
-    WartTransferMessage2(const TransactionId& txid, const mempool::entry::Shared& s,
+    WartTransferMessage(const TransactionId& txid, const mempool::entry::Shared& s,
         const mempool::entry::WartTransfer& t)
         : parent(txid, s, t.toAddr, t.amount) { };
-    WartTransferMessage2(WartTransferView, PinHeight, AddressView toAddr);
+    WartTransferMessage(WartTransfer, PinHeight, AddressView toAddr);
 
     [[nodiscard]] const auto& address() const { return get<0>(); }
     [[nodiscard]] const auto& amount() const { return get<1>(); }
     [[nodiscard]] Funds_uint64 spend_throw() const { return Funds_uint64::sum_throw(fee(), amount()); }
 };
 
-class TokenTransferMessage2 : public TransactionMsg<TokenHash, Address, Funds_uint64> { // for defi we include the token hash
+class TokenTransferMessage : public TransactionMsg<TokenHash, Address, Funds_uint64> { // for defi we include the token hash
 public:
     using TransactionMsg::TransactionMsg;
-    using TokenTransferView = block::body::view::TokenTransfer;
+    using TokenTransfer = block::body::TokenTransfer;
     // layout:
-    TokenTransferMessage2(const TransactionId& txid, const mempool::entry::Shared&, const mempool::entry::TokenTransfer);
+    TokenTransferMessage(const TransactionId& txid, const mempool::entry::Shared&, const mempool::entry::TokenTransfer);
     // TokenTransferMessage(const TransactionId& txid, const mempool::entry::Shared& s, const mempool::entry::TokenTransfer& v);
     // TokenTransferMessage(TokenTransferView, Hash tokenHash, PinHeight, AddressView toAddr);
 
@@ -101,12 +102,12 @@ public:
     [[nodiscard]] const auto& amount() const { return get<2>(); }
     [[nodiscard]] Funds_uint64 spend_throw() const { return Funds_uint64::sum_throw(fee(), amount()); }
 };
-class CreateOrderMessage2: public TransactionMessage<> {
-    RecoverableSignature signature;
+// class CreateOrderMessage2: public TransactionMessage<> {
+//     RecoverableSignature signature;
+// };
+class CancelMessage {
 };
-class CancelMessage2 {
+class AddLiquidityMessage {
 };
-class AddLiquidityMessage2 {
-};
-class RemoveLiquidityMessage2 {
+class RemoveLiquidityMessage {
 };

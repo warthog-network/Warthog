@@ -1,6 +1,5 @@
 #include "json.hpp"
 #include "api/types/all.hpp"
-#include "block/body/parse.hpp"
 #include "block/header/header_impl.hpp"
 #include "block/header/view.hpp"
 #include "chainserver/transaction_ids.hpp"

@@ -13,7 +13,6 @@ src_wh=[
   [
     './platformassert.cpp',
     './src/block/block.cpp',
-    './src/block/body/container.cpp',
     './src/block/body/nonce.cpp',
     './src/block/body/transaction_id.cpp',
     './src/block/body/body.cpp',

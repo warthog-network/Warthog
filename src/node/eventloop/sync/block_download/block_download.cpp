@@ -327,7 +327,7 @@ void Downloader::on_blockreq_reply(Conref cr, BlockrepMsg&& rep, BlockRequest& r
     // check body structure and merkle roots
     auto beginNewHeight { std::max(req.range().first(), focus.height_begin()) };
     size_t i0 { beginNewHeight - req.range().first() };
-    std::vector<ParsedBlock> parsedBlocks;
+    std::vector<Block> parsedBlocks;
     for (size_t i = i0; i < rep.block_bodies().size(); ++i) {
         auto height { req.range().first() + i };
         auto header { headers()[height] };

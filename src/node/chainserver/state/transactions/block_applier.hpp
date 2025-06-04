@@ -2,8 +2,8 @@
 #include "../../transaction_ids.hpp"
 #include "api/types/forward_declarations.hpp"
 #include "block/block_fwd.hpp"
-#include "defi/token/account_token.hpp"
 #include "chainserver/db/types_fwd.hpp"
+#include "defi/token/account_token.hpp"
 
 class Headerchain;
 class BlockId;
@@ -19,7 +19,7 @@ struct BlockApplier {
     }
     TransactionIds&& move_new_txids() { return std::move(preparer.newTxIds); };
     auto&& move_balance_updates() { return std::move(balanceUpdates); };
-    [[nodiscard]] api::Block apply_block(const ParsedBlock& bv, BlockId blockId);
+    [[nodiscard]] api::Block apply_block(const Block& bv, BlockId blockId);
 
 private: // private methods
     friend class Preparation;
@@ -29,7 +29,7 @@ private: // private methods
         const Headerchain& hc;
         const std::set<TransactionId, ByPinHeight>& baseTxIds;
         TransactionIds newTxIds;
-        Preparation prepare(const ParsedBlock&) const;
+        Preparation prepare(const Block&) const;
     };
 
 private: // private data

@@ -27,7 +27,6 @@ src= [
   './api/interface.cpp',
   './api/stratum/stratum_server.cpp',
   './api/types/all.cpp',
-  './block/body/generator.cpp',
   './block/body/primitives.cpp',
   './block/body/rollback.cpp',
   './block/chain/consensus_headers.cpp',

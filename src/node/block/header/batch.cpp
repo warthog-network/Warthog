@@ -88,7 +88,7 @@ Grid::Grid(std::span<const uint8_t> s)
     assign(s.begin().base(), s.end().base());
 }
 Grid::Grid(Reader& r)
-    :Grid(r.span())
+    :Grid(r.span_4())
 {
 }
 

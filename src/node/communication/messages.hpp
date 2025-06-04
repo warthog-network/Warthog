@@ -1,12 +1,11 @@
 #pragma once
-#include "block/body/container.hpp"
-#include "block/body/primitives.hpp"
+#include "block/body/messages.hpp"
 #include "block/body/transaction_id.hpp"
 #include "block/chain/range.hpp"
+#include "block/body/container.hpp"
 #include "block/chain/signed_snapshot.hpp"
 #include "block/header/header.hpp"
 #include "block/header/shared_batch.hpp"
-#include "crypto/hash.hpp"
 #include "general/descriptor.hpp"
 #include "general/params.hpp"
 #include "message_elements/helper_types.hpp"
@@ -169,14 +168,14 @@ struct BlockreqMsg : public MsgCombineRequest<10, DescriptedBlockRange> {
     [[nodiscard]] const DescriptedBlockRange& range() const { return get<0>(); }
 };
 
-struct BlockrepMsg : public MsgCombineReply<11, messages::VectorRest<BodyContainer>> {
+struct BlockrepMsg : public MsgCombineReply<11, messages::VectorRest<block::BodyContainer>> {
     static constexpr size_t maxSize = MAXBLOCKBATCHSIZE * (4 + MAXBLOCKSIZE);
     using Base::Base;
 
     std::string log_str() const;
     bool empty() const { return blocks().empty(); }
-    [[nodiscard]] const messages::VectorRest<BodyContainer>& blocks() const { return get<0>(); }
-    messages::VectorRest<BodyContainer>& block_bodies() { return get<0>(); }
+    [[nodiscard]] const messages::VectorRest<block::BodyContainer>& blocks() const { return get<0>(); }
+    messages::VectorRest<block::BodyContainer>& block_bodies() { return get<0>(); }
 };
 
 struct TxsubscribeMsg : public MsgCombineRequest<12, Height> {
@@ -209,7 +208,7 @@ struct TxreqMsg : public MsgCombineRequest<14, messages::VectorRest<TransactionI
 };
 
 struct TxrepMsg : public MsgCombineReply<15, messages::VectorRest<messages::Optional<WartTransferMessage>>> {
-    static constexpr size_t maxSize = 2 + 4 + TxreqMsg::MAXENTRIES * (1 + WartTransferMessage::bytesize);
+    static constexpr size_t maxSize = 2 + 4 + TxreqMsg::MAXENTRIES * (1 + WartTransferMessage::byte_size());
     using Base::Base;
 
     using vector_t = messages::VectorRest<messages::Optional<WartTransferMessage>>;

@@ -1,6 +1,4 @@
 #include "apply_stage.hpp"
-#include "api/types/all.hpp"
-#include "block/body/view.hpp"
 #include "block/header/header_impl.hpp"
 #include "block_applier.hpp"
 #include "general/hex.hpp"
@@ -45,7 +43,7 @@ ApplyStageTransaction::ApplyStageTransaction(const State& s, ChainDBTransaction&
                 + "_failed.block" };
             std::ofstream f(fname);
             f << serialize_hex(block.header) << '\n'
-              << serialize_hex(block.body.data());
+              << serialize_hex(block.bodyData);
             res.newTxIds = ba.move_new_txids();
             return { e, h };
         }

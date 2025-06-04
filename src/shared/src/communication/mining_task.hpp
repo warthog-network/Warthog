@@ -1,11 +1,9 @@
 #pragma once
-
 #include "block/block.hpp"
-
 struct ChainMiningTask {
-    ParsedBlock block;
+    block::Block block;
 };
 struct BlockWorker {
-    Block block;
+    block::Block block;
     std::string worker;
 };

@@ -6,7 +6,6 @@
 #include "view.hpp"
 #include <optional>
 #include <span>
-#include <vector>
 
 // inline funcitons for access
 inline uint64_t readuint64(const uint8_t* pos)
@@ -166,7 +165,7 @@ public:
         skip(len);
         return { (const char*)p, len };
     }
-    std::span<const uint8_t> span()
+    std::span<const uint8_t> span_4()
     {
         return take_span(uint32());
     }
