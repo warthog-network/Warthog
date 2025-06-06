@@ -1,6 +1,5 @@
 #pragma once
 
-#include "block/body/messages.hpp"
 #include "block/body/transaction_id.hpp"
 #include "entry.hpp"
 #include <set>
@@ -9,38 +8,38 @@ class HashView;
 namespace mempool {
 struct ComparatorTransactionId {
     using is_transparent = std::true_type;
-    bool operator()(const TransactionMessage& m1, const TransactionId& txid2)
+    bool operator()(const Entry& m1, const TransactionId& txid2)
     {
         return m1.txid() < txid2;
     }
-    bool operator()(const TransactionMessage& m1, const TransactionMessage& m2)
+    bool operator()(const Entry& m1, const Entry& m2)
     {
         return m1.txid() < m2.txid();
     }
-    bool operator()(const TransactionId& txid1, const TransactionMessage& m2)
+    bool operator()(const TransactionId& txid1, const Entry& m2)
     {
         return txid1 < m2.txid();
     }
 };
 class Txset {
 public:
-    using set_t = std::set<TransactionMessage, ComparatorTransactionId>;
+    using set_t = std::set<Entry, ComparatorTransactionId>;
     using const_iterator = set_t::const_iterator;
     using iterator = set_t::iterator;
 
 private:
-    set_t _map;
+    set_t _set;
     int _cacheValidity { 0 }; // incremented on mempool change
 public:
     auto cache_validity() const { return _cacheValidity; }
 
-    auto size() const { return _map.size(); }
+    auto size() const { return _set.size(); }
     auto& operator()()
     {
         _cacheValidity += 1;
-        return _map;
+        return _set;
     }
-    auto& operator()() const { return _map; }
+    auto& operator()() const { return _set; }
     [[nodiscard]] std::vector<const_iterator> by_fee_inc(AccountId) const;
 };
 

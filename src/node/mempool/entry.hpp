@@ -3,12 +3,11 @@
 
 #include "block/body/messages.hpp"
 namespace mempool {
-struct Entry {
-    TransactionMessage message;
+struct Entry : public TransactionMessage {
     TxHash txhash;
     Entry(TransactionMessage m, HashView pinHash)
-        : message(std::move(m))
-        , txhash(message.txhash(pinHash))
+        : TransactionMessage(std::move(m))
+        , txhash(static_cast<TransactionMessage*>(this)->txhash(pinHash))
     {
     }
 };
