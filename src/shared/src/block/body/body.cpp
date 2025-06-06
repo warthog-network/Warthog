@@ -128,8 +128,9 @@ TokenSection::TokenSection(Reader& r)
 
 }
 
-std::vector<TransactionId> Body::tx_ids(PinFloor pf) const
+std::vector<TransactionId> Body::tx_ids(NonzeroHeight height) const
 {
+    auto pf { height.pin_floor() };
     std::vector<TransactionId> res;
     for (auto& t : wartTransfers)
         res.push_back(t.txid_from_floored(pf));
@@ -137,7 +138,6 @@ std::vector<TransactionId> Body::tx_ids(PinFloor pf) const
         t.append_tx_ids(pf, res);
     return res;
 }
-
 
 Body Body::parse_throw(std::span<const uint8_t> data, NonzeroHeight h, BlockVersion version)
 {

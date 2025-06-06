@@ -1056,7 +1056,7 @@ chainserver::TransactionIds ChainDB::fetch_tx_ids(Height height) const
         }
         assert(height == b->height);
         assert(b->bodyData.size() > 0);
-        for (auto& tid : b->read_tx_ids()) {
+        for (auto& tid : b->tx_ids()) {
             if (out.emplace(tid).second == false) {
                 throw std::runtime_error(
                     "Database corrupted (duplicate transaction id in chain)");

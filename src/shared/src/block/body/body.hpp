@@ -58,7 +58,7 @@ private:
     using body_vector = body::body_vector<T>;
 
 public:
-    std::vector<TransactionId> tx_ids(PinFloor) const;
+    std::vector<TransactionId> tx_ids(NonzeroHeight) const;
     static Body parse_throw(std::span<const uint8_t> rd, NonzeroHeight h, BlockVersion version);
     size_t byte_size() const;
     std::vector<uint8_t> serialize() const;

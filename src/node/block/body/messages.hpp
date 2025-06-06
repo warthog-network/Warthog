@@ -5,85 +5,102 @@
 #include "crypto/hasher_sha256.hpp"
 #include "general/reader.hpp"
 #include "general/writer.hpp"
-#include "mempool/entry.hpp"
+#include "tools/variant.hpp"
+
+struct MsgBase {
+public:
+    MsgBase(TransactionId txid, NonceReserved reserved, CompactUInt compactFee)
+        : _txid(std::move(txid))
+        , _reserved(std::move(reserved))
+        , compactFee(std::move(compactFee))
+    {
+    }
+    MsgBase(Reader& r)
+        : _txid { r }
+        , _reserved { r }
+        , compactFee { r }
+    {
+    }
+    [[nodiscard]] auto& txid() const { return _txid; }
+    [[nodiscard]] Wart fee() const { return compactFee.uncompact(); }
+    [[nodiscard]] auto compact_fee() const { return compactFee; }
+    [[nodiscard]] auto reserved() const { return _reserved; }
+    [[nodiscard]] AccountId from_id() const { return _txid.accountId; }
+    [[nodiscard]] PinHeight pin_height() const { return txid().pinHeight; }
+    [[nodiscard]] NonceId nonce_id() const { return txid().nonceId; }
+
+private:
+    TransactionId _txid;
+    NonceReserved _reserved;
+    CompactUInt compactFee;
+};
 
 template <typename... Ts>
-class TransactionMsg {
+class TransactionMsg : public MsgBase {
 
 protected:
     using parent = TransactionMsg;
 
 public:
-    TransactionMsg(const TransactionId& txid, const mempool::entry::Shared& s, Ts... ts)
-        : txid(std::move(txid))
-        , reserved(std::move(s.noncep2))
-        , compactFee(std::move(s.fee))
+    TransactionMsg(const TransactionId& txid, NonceReserved reserved, CompactUInt compactFee, Ts... ts, RecoverableSignature signature)
+        : MsgBase { txid, std::move(reserved), std::move(compactFee) }
         , data(std::move(ts)...)
-        , signature(s.signature)
+        , _signature(signature)
     {
     }
     TransactionMsg(Reader& r)
-        : txid(r)
-        , reserved(r)
-        , compactFee(r)
+        : MsgBase { r }
         , data({ Ts(r)... })
-        , signature(r)
+        , _signature(r)
     {
     }
     static constexpr size_t byte_size() { return 16 + 3 + 2 + (Ts::byte_size() + ...) + 65; }
 
     friend Writer& operator<<(Writer& w, TransactionMsg m)
     {
-        return w << m.txid
-                 << m.reserved
-                 << m.compactFee
+        return w << m.txid()
+                 << m.reserved()
+                 << m.compact_fee()
                  << (std::get<std::index_sequence_for<Ts>>(m.data) << ...)
-                 << m.signature;
+                 << m._signature;
     }
 
     [[nodiscard]] TxHash txhash(HashView pinHash) const
     {
-        return TxHash(HasherSHA256()
-            << pinHash
-            << txid.pinHeight
-            << txid.nonceId
-            << reserved
-            << compactFee.uncompact()
-            << (std::get<std::index_sequence_for<Ts>>(data) << ...));
+
+        return std::apply([&](const auto&... arg) {
+            return TxHash(((HasherSHA256()
+                               << pinHash
+                               << txid().pinHeight
+                               << txid().nonceId
+                               << reserved()
+                               << compact_fee().uncompact())
+                << ... << arg));
+        },
+            data);
     };
     [[nodiscard]] Address from_address(HashView txHash) const
     {
-        return signature.recover_pubkey(txHash.data()).address();
+        return _signature.recover_pubkey(txHash.data()).address();
     }
     template <size_t i>
     auto& get() const
     {
         return std::get<i>(data);
     }
-
-    [[nodiscard]] Wart fee() const { return compactFee.uncompact(); }
-    [[nodiscard]] AccountId from_id() const { return txid.accountId; }
-    [[nodiscard]] PinHeight pin_height() const { return txid.pinHeight; }
-    [[nodiscard]] NonceId nonce_id() const { return txid.nonceId; }
+    auto& signature() const { return _signature; }
 
 protected:
-    TransactionId txid;
-    NonceReserved reserved;
-    CompactUInt compactFee;
     std::tuple<Ts...> data;
-    RecoverableSignature signature;
+    RecoverableSignature _signature;
 };
 
 class WartTransferMessage : public TransactionMsg<Address, Wart> {
 public:
     using WartTransfer = block::body::WartTransfer;
     using TransactionMsg<Address, Wart>::TransactionMsg;
-    WartTransferMessage(const TransactionId& txid, const mempool::entry::Shared& s,
-        const mempool::entry::WartTransfer& t)
-        : parent(txid, s, t.toAddr, t.amount) { };
-    WartTransferMessage(WartTransfer, PinHeight, AddressView toAddr);
 
-    [[nodiscard]] const auto& address() const { return get<0>(); }
+    [[nodiscard]] const auto& destination_address() const { return get<0>(); }
     [[nodiscard]] const auto& amount() const { return get<1>(); }
     [[nodiscard]] Funds_uint64 spend_throw() const { return Funds_uint64::sum_throw(fee(), amount()); }
 };
@@ -93,7 +110,6 @@ public:
     using TransactionMsg::TransactionMsg;
     using TokenTransfer = block::body::TokenTransfer;
     // layout:
-    TokenTransferMessage(const TransactionId& txid, const mempool::entry::Shared&, const mempool::entry::TokenTransfer);
     // TokenTransferMessage(const TransactionId& txid, const mempool::entry::Shared& s, const mempool::entry::TokenTransfer& v);
     // TokenTransferMessage(TokenTransferView, Hash tokenHash, PinHeight, AddressView toAddr);
 
@@ -110,4 +126,26 @@ class CancelMessage {
 class AddLiquidityMessage {
 };
 class RemoveLiquidityMessage {
+};
+using TransactionVariant = wrt::variant<WartTransferMessage, TokenTransferMessage>;
+
+struct TransactionMessage : public TransactionVariant {
+    const MsgBase& base() const
+    {
+        return *visit([](const auto& m) -> const MsgBase* { return &m; });
+    }
+    const RecoverableSignature& signature() const
+    {
+        return *visit([](const auto& m) -> const RecoverableSignature* { return &m.signature(); });
+    }
+    [[nodiscard]] auto compact_fee() const { return base().compact_fee(); }
+    [[nodiscard]] auto& txid() const { return base().txid(); }
+    [[nodiscard]] auto reserved() const { return base().reserved(); }
+    [[nodiscard]] AccountId from_id() const { return base().from_id(); }
+    [[nodiscard]] PinHeight pin_height() const { return base().pin_height(); }
+    [[nodiscard]] NonceId nonce_id() const { return base().nonce_id(); }
+    [[nodiscard]] TxHash txhash(HashView pinHash) const
+    {
+        return visit([&](const auto& m) { return m.txhash(pinHash); });
+    }
 };

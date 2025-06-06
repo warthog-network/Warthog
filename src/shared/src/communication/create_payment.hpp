@@ -4,86 +4,104 @@
 #include "block/chain/height.hpp"
 #include "crypto/crypto.hpp"
 #include "crypto/hash.hpp"
+#include "crypto/hasher_sha256.hpp"
 #include "general/compact_uint.hpp"
+#include "mempool/entry.hpp"
 
-class WartTransferCreate {
+template <typename... Ts>
+class TransactionCreate {
+
 public:
-    static constexpr size_t bytesize { 106 };
-    // byte layout:
-    // 0 pinHeight
-    // 4 nonceId
-    // 8 reserved
-    // 11 feeCompact
-    // 13 toAddress
-    // 33 amount
-    // 41 signature
-    // 106 [total size]
-    WartTransferCreate(PinHeight pinHeight, const Hash& pinHash, const PrivKey&, CompactUInt feeCompactHost, const Address& toAddress, Wart amount, NonceId);
-    WartTransferCreate(PinHeight pinHeight, NonceId nonceId, NonceReserved reserved, CompactUInt compactFee, Address toAddr, Wart amount, RecoverableSignature signature)
-        : pinHeight(pinHeight)
+    static constexpr size_t byte_size() { return PinHeight::byte_size() + NonceId::byte_size() + NonceReserved::byte_size() + CompactUInt::byte_size() + (Ts::byte_size() + ...) + RecoverableSignature::byte_size(); };
+    [[nodiscard]] auto pin_height() const { return pinHeight; }
+    [[nodiscard]] auto nonce_id() const { return nonceId; }
+    [[nodiscard]] auto nonce_reserved() const { return reserved; }
+    [[nodiscard]] auto fee() const { return compactFee.uncompact(); }
+    [[nodiscard]] auto& signature() const { return _signature; }
+    template <size_t i>
+    requires(i < sizeof...(Ts))
+    auto& get() const
+    {
+        return std::get<i>(data);
+    }
+
+    [[nodiscard]] std::pair<TransactionId, mempool::entry::Shared> mempool_data(AccountId accountId, TransactionHeight txHeight, Hash txHash) const
+    {
+
+        return {
+            { accountId, pinHeight, nonceId },
+            {
+                .transactionHeight { txHeight },
+                .nonceReserved { reserved },
+                .fee { compactFee },
+                .txHash { txHash },
+                .signature { _signature },
+            }
+        };
+    };
+    bool valid_signature(HashView pinHash, AddressView fromAddress) const
+    {
+        return _signature.recover_pubkey(tx_hash(pinHash)).address() == fromAddress;
+    }
+    Address from_address(
+        HashView txHash) const
+    {
+        return _signature.recover_pubkey(txHash.data()).address();
+    }
+    TransactionCreate(PinHeight pinHeight, NonceId nonceId, NonceReserved reserved, CompactUInt compactFee, Ts... ts, RecoverableSignature rsignature)
+        : pinHeight(std::move(pinHeight))
         , nonceId(nonceId)
-        , reserved(reserved)
-        , compactFee(compactFee)
-        , toAddr(toAddr)
-        , amount(amount)
-        , signature(signature)
+        , reserved(std::move(reserved))
+        , compactFee(std::move(compactFee))
+        , data(std::move(ts)...)
+        , _signature(std::move(rsignature))
+    {
+    }
+    TransactionCreate(PinHeight pinHeight, NonceId nonceId, CompactUInt compactFee, Ts... ts, const Hash& pinHash, const PrivKey& pk, NonceReserved reserved = NonceReserved::zero())
+        : pinHeight(std::move(pinHeight))
+        , nonceId(nonceId)
+        , reserved(std::move(reserved))
+        , compactFee(std::move(compactFee))
+        , data(std::move(ts)...)
+        , _signature(pk.sign(tx_hash(pinHash)))
     {
     }
 
-    bool valid_signature(HashView pinHash, AddressView fromAddress) const;
-    Address from_address(HashView txHash) const;
-    TxHash tx_hash(HashView pinHash) const;
-    operator std::string();
+    TxHash tx_hash(HashView pinHash) const
+    {
+        return std::apply([&](const auto&... arg) {
+            return TxHash(((HasherSHA256()
+                               << pinHash
+                               << pinHeight
+                               << nonceId
+                               << reserved
+                               << compactFee.uncompact())
+                << ... << arg));
+        },
+            data);
+    }
 
-    // Data members
+protected:
     PinHeight pinHeight;
     NonceId nonceId;
     NonceReserved reserved;
     CompactUInt compactFee;
-    Address toAddr;
-    Wart amount;
-    RecoverableSignature signature;
+    std::tuple<Ts...> data;
+    RecoverableSignature _signature;
 };
 
-class TokenTransferCreate {
+class WartTransferCreate : public TransactionCreate<Address, Wart> {
 public:
-    static constexpr size_t bytesize { 138 };
-    // byte layout:
-    // 0 pinHeight
-    // 4 nonceId
-    // 8 reserved
-    // 11 tokenHash
-    // 43 feeCompact
-    // 45 toAddress
-    // 65 amount
-    // 73 signature
-    // 138 [total size]
-    TokenTransferCreate(ReaderCheck<bytesize> r);
-    TokenTransferCreate(PinHeight pinHeight, const Hash& pinHash, const PrivKey&, Hash tokenHash, CompactUInt feeCompactHost, const Address& toAddress, ParsedFunds amount, NonceId);
-    TokenTransferCreate(PinHeight pinHeight, NonceId nonceId, NonceReserved reserved, Hash tokenHash, CompactUInt compactFee, Address toAddr, ParsedFunds amount, RecoverableSignature signature)
-        : pinHeight(pinHeight)
-        , nonceId(nonceId)
-        , reserved(reserved)
-        , tokenHash(std::move(tokenHash))
-        , compactFee(compactFee)
-        , toAddr(toAddr)
-        , amount(amount)
-        , signature(signature)
-    {
-    }
-
-    bool valid_signature(HashView pinHash, AddressView fromAddress) const;
-    Address from_address(HashView txHash) const;
-    TxHash tx_hash(HashView pinHash) const;
+    using TransactionCreate::TransactionCreate;
     operator std::string();
+    auto& to_addr() const { return get<0>(); }
+    auto& wart() const { return get<1>(); }
+};
 
-    // Data members
-    PinHeight pinHeight;
-    NonceId nonceId;
-    NonceReserved reserved;
-    TokenHash tokenHash;
-    CompactUInt compactFee;
-    Address toAddr;
-    ParsedFunds amount;
-    RecoverableSignature signature;
+class TokenTransferCreate : public TransactionCreate<Address, Funds_uint64, Hash> {
+public:
+    using TransactionCreate::TransactionCreate;
+    auto& to_addr() const { return get<0>(); }
+    auto& amount() const { return get<1>(); }
+    auto& hash() const { return get<2>(); }
 };

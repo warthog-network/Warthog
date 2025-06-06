@@ -23,7 +23,7 @@ void LockedBalance::unlock(Funds_uint64 amount)
 
 std::vector<TransactionMessage> Mempool::get_transactions(size_t n, NonzeroHeight height, std::vector<Hash>* hashes) const
 {
-    std::vector<WartTransferMessage> res;
+    std::vector<TransactionMessage> res;
     res.reserve(n);
     constexpr uint32_t fivedaysBlocks = 5 * 24 * 60 * 3;
     constexpr uint32_t unblockXeggexHeight = 2576442 + fivedaysBlocks;
@@ -86,7 +86,7 @@ std::optional<WartTransferMessage> Mempool::operator[](const HashView txHash) co
     return WartTransferMessage { (*iter)->first, (*iter)->second };
 }
 
-bool Mempool::erase_internal(Txmap::const_iterator iter, BalanceEntries::iterator b_iter, bool gc)
+bool Mempool::erase_internal(Txset::const_iterator iter, BalanceEntries::iterator b_iter, bool gc)
 {
     assert(size() == byFee.size());
     assert(size() == byPin.size());
@@ -117,7 +117,7 @@ bool Mempool::erase_internal(Txmap::const_iterator iter, BalanceEntries::iterato
     return false;
 }
 
-void Mempool::erase_internal(Txmap::const_iterator iter)
+void Mempool::erase_internal(Txset::const_iterator iter)
 {
     AccountToken key { iter->first.accountId, iter->second.tokenId };
     auto b_iter = lockedBalances.find(key);
@@ -222,8 +222,8 @@ void Mempool::insert_tx_throw(const WartTransferMessage& pm,
     const Funds_uint64 spend { pm.spend_throw() };
 
     { // check if we can delete enough old entries to insert new entry
-        std::vector<Txmap::const_iterator> clear;
-        std::optional<Txmap::const_iterator> match;
+        std::vector<Txset::const_iterator> clear;
+        std::optional<Txset::const_iterator> match;
         const auto& t { txs };
         if (auto iter = t().find(pm.txid); iter != t().end()) {
             if (iter->second.fee >= pm.compactFee) {
@@ -256,7 +256,7 @@ void Mempool::insert_tx_throw(const WartTransferMessage& pm,
 
     e.lock(spend);
     auto [iter, inserted] = txs().try_emplace(pm.txid,
-        pm.reserved, pm.compactFee, pm.toAddr, pm.amount, pm.signature, txhash, txh);
+        pm._reserved, pm.compactFee, pm.toAddr, pm.amount, pm._signature, txhash, txh);
     assert(inserted);
     if (master)
         updates.push_back(Put { *iter });

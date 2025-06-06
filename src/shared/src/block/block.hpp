@@ -1,5 +1,6 @@
 #pragma once
 #include "block/body/body.hpp"
+#include "block_fwd.hpp"
 #include "block/chain/height.hpp"
 #include "block/header/header.hpp"
 
@@ -11,6 +12,7 @@ struct Block {
     Header header;
     std::vector<uint8_t> bodyData;
     Body body;
+    auto tx_ids() const { return body.tx_ids(height); }
     Block(NonzeroHeight height, std::span<const uint8_t, 80> header, std::vector<uint8_t> body);
 };
 }

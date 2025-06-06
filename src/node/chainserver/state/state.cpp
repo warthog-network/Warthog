@@ -137,8 +137,8 @@ std::optional<api::Transaction> State::api_get_tx(const Hash& txHash) const
             .height = Height(0),
             .amount = tx.amount,
             .fromAddress = tx.from_address(txHash),
-            .fee = tx.fee(),
-            .nonceId = tx.txid.nonceId,
+            .fee = tx.compact_fee(),
+            .nonceId = tx._txid.nonceId,
             .pinHeight = tx.pin_height(),
         };
     }

@@ -199,6 +199,15 @@ public:
     }
     void set_reward(Reward r);
 };
+struct CompleteBlock : public Block {
+    CompleteBlock(Block b)
+        : Block(std::move(b))
+    {
+        if (!actions.reward)
+            throw std::runtime_error("API Block is incomplete.");
+    }
+    auto& reward() const { return *actions.reward; }
+};
 
 struct AddressCount {
     Address address;
@@ -223,10 +232,6 @@ struct MempoolEntry : public WartTransferMessage {
 };
 struct MempoolEntries {
     std::vector<MempoolEntry> entries;
-};
-struct OffenseHistory {
-    std::vector<Hash> hashes;
-    std::vector<WartTransferMessage> entries;
 };
 struct HashrateInfo {
     size_t nBlocks;

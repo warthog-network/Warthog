@@ -1,11 +1,13 @@
 #pragma once
 #include "block/chain/height.hpp"
-#include "txmap.hpp"
+#include "txset.hpp"
 #include <type_traits>
 
 namespace mempool {
+
+
 struct ComparatorPin {
-    using const_iter_t = Txmap::const_iterator;
+    using const_iter_t = Txset::const_iterator;
     using is_transparent = std::true_type;
     inline bool operator()(const_iter_t i1, Height h2) const
     {
@@ -19,7 +21,7 @@ struct ComparatorPin {
     }
 };
 struct ComparatorFee {
-    using const_iter_t = Txmap::const_iterator;
+    using const_iter_t = Txset::const_iterator;
     inline bool operator()(const_iter_t i1, const_iter_t i2) const
     {
         if (i1->second.fee == i2->second.fee) {
@@ -29,7 +31,7 @@ struct ComparatorFee {
     }
 };
 struct ComparatorHash {
-    using const_iter_t = Txmap::const_iterator;
+    using const_iter_t = Txset::const_iterator;
     using is_transparent = std::true_type;
     inline bool operator()(const_iter_t i1, const_iter_t i2) const
     {

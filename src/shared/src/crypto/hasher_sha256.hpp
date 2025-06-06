@@ -144,6 +144,12 @@ inline Hash hashSHA256(const std::vector<uint8_t>& vec)
     return hashSHA256(vec.data(), vec.size());
 }
 
+template <typename... Ts>
+inline Hash hash_args_SHA256(Ts&&... ts)
+{
+    return HasherSHA256() << (std::forward<Ts>(ts) << ...);
+}
+
 template <typename T>
 Hash hashSHA256(T&& t)
 {

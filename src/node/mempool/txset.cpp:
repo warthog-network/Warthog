@@ -1,8 +1,8 @@
-#include "txmap.hpp"
+#include "txset.hpp"
 #include <algorithm>
 #include <random>
 namespace mempool {
-auto Txmap::by_fee_inc(AccountId id) const -> std::vector<const_iterator>
+auto Txset::by_fee_inc(AccountId id) const -> std::vector<const_iterator>
 {
     auto lb { _map.lower_bound(id) };
     auto ub { _map.upper_bound(id) };

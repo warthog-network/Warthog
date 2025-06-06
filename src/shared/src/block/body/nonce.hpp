@@ -32,6 +32,7 @@ struct NonceReserved : public std::array<uint8_t, 3> {
     NonceReserved(const std::array<uint8_t, 3>& arr)
         : array(arr) {};
     NonceReserved(Reader&r);
+    static constexpr size_t byte_size(){return 3;}
     static NonceReserved zero()
     {
         return std::array<uint8_t, 3> { 0, 0, 0 };

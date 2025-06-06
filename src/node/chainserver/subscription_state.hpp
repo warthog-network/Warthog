@@ -14,7 +14,7 @@ namespace subscription_state {
 
 struct NewBlockInfo {
     std::optional<ShrinkInfo> rollback;
-    std::vector<api::Block>& newBlocks;
+    std::vector<api::CompleteBlock>& newBlocks;
 };
 }
 namespace chainserver {

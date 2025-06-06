@@ -4,7 +4,6 @@
 #include "defi/token/account_token.hpp"
 #include "general/address_funds.hpp"
 #include "mempool/updates.hpp"
-#include <set>
 namespace chainserver {
 struct TransactionIds;
 }
@@ -27,8 +26,8 @@ private:
 };
 
 class Mempool {
-    using iter_t = Txmap::iterator;
-    using const_iter_t = Txmap::const_iterator;
+    using iter_t = Txset::iterator;
+    using const_iter_t = Txset::const_iterator;
 
 public:
     Mempool(bool master = true, size_t maxSize = 10000)
@@ -53,7 +52,7 @@ public:
     // getters
     [[nodiscard]] auto cache_validity() const { return txs.cache_validity(); }
     [[nodiscard]] auto get_transactions(size_t n, NonzeroHeight height, std::vector<Hash>* hashes = nullptr) const
-        -> std::vector<TransactionVariant>;
+        -> std::vector<TransactionMessage>;
     [[nodiscard]] auto sample(size_t) const -> std::vector<TxidWithFee>;
     [[nodiscard]] auto filter_new(const std::vector<TxidWithFee>&) const
         -> std::vector<TransactionId>;
@@ -70,13 +69,13 @@ private:
     using BalanceEntries = std::map<AccountToken, LockedBalance>;
     void apply_logevent(const Put&);
     void apply_logevent(const Erase&);
-    void erase_internal(Txmap::const_iterator);
-    bool erase_internal(Txmap::const_iterator, BalanceEntries::iterator, bool gc = true);
+    void erase_internal(Txset::const_iterator);
+    bool erase_internal(Txset::const_iterator, BalanceEntries::iterator, bool gc = true);
     void prune();
 
 private:
     Updates updates;
-    Txmap txs;
+    Txset txs;
     std::set<const_iter_t, ComparatorPin> byPin;
     ByFeeDesc byFee;
     std::set<const_iter_t, ComparatorHash> byHash;

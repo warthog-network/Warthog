@@ -8,6 +8,10 @@
 class Reader;
 
 namespace api {
-struct TokenIdOrHash : public wrt::alternative<TokenId, TokenHash> { };
-struct AccountIdOrAddress : public wrt::alternative<AccountId, Address> { };
+struct TokenIdOrHash : public wrt::alternative<TokenId, TokenHash> {
+    using alternative::alternative;
+};
+struct AccountIdOrAddress : public wrt::alternative<AccountId, Address> {
+    using alternative::alternative;
+};
 }

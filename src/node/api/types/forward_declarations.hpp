@@ -8,6 +8,7 @@ struct AddressCount;
 struct AddressWithId;
 struct WartBalance;
 struct Block;
+struct CompleteBlock;
 struct ChainHead;
 struct HashrateBlockChart;
 struct HashrateChartRequest;

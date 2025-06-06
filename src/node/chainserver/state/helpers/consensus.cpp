@@ -69,7 +69,7 @@ void Chainstate::fork(Chainstate::ForkData&& fd)
         Hash hash { headers().hash_at(ph) };
         TxHash txhash { tx.txhash(hash) };
 
-        if (!fd.appendResult.newTxIds.contains(tx.txid)) {
+        if (!fd.appendResult.newTxIds.contains(tx.txid())) {
             TransactionHeight txh { ph, account_height(fromId) };
             _mempool.insert_tx(tx, txh, txhash, from);
         }
@@ -219,15 +219,15 @@ TxHash Chainstate::insert_tx(const WartTransferMessage& pm)
 {
     if (pm.pin_height() < (length() + 1).pin_begin())
         throw Error(EPINHEIGHT);
-    if (txids().contains(pm.txid))
+    if (txids().contains(pm.txid()))
         throw Error(ENONCE);
     auto h = headers().get_hash(pm.pin_height());
     if (!h)
         throw Error(EPINHEIGHT);
-    if (pm.amount.is_zero())
+    if (pm.amount().is_zero())
         throw Error(EZEROAMOUNT);
     auto txHash { pm.txhash(*h) };
-    if (pm.from_address(txHash) == pm.toAddr)
+    if (pm.from_address(txHash) == pm.destination_address())
         throw Error(ESELFSEND);
 
     auto p = db.lookup_address(pm.from_id());
@@ -235,23 +235,23 @@ TxHash Chainstate::insert_tx(const WartTransferMessage& pm)
         throw Error(EACCIDNOTFOUND);
     TransactionHeight th(pm.pin_height(), account_height(pm.from_id()));
 
-    _mempool.insert_tx_throw(pm, th, txHash, { *p, pm.amount });
+    _mempool.insert_tx_throw(pm, th, txHash, { *p, pm.amount() });
     return txHash;
 }
 
 TxHash Chainstate::insert_tx(const WartTransferCreate& m)
 {
-    PinHeight pinHeight = m.pinHeight;
+    PinHeight pinHeight = m.pin_height();
     if (pinHeight > length())
         throw Error(EPINHEIGHT);
     if (pinHeight < (length() + 1).pin_begin())
         throw Error(EPINHEIGHT);
-    if (m.amount.is_zero())
+    if (m.wart().is_zero())
         throw Error(EZEROAMOUNT);
     auto pinHash = headers().hash_at(pinHeight);
     auto txHash { m.tx_hash(pinHash) };
     auto fromAddr = m.from_address(txHash);
-    if (fromAddr == m.toAddr)
+    if (fromAddr == m.to_addr())
         throw Error(ESELFSEND);
     auto accId = db.lookup_account_id(fromAddr);
     if (!accId)
@@ -259,11 +259,15 @@ TxHash Chainstate::insert_tx(const WartTransferCreate& m)
     auto [bal_id, balance] { db.get_token_balance_recursive({ *accId, TokenId::WART }) };
 
     AddressFunds af { fromAddr, balance };
-    WartTransferMessage pm(*accId, m);
-    if (txids().contains(pm.txid))
-        throw Error(ENONCE);
-    TransactionHeight th(pinHeight, account_height(accountId));
-    _mempool.insert_tx_throw(pm, th, txHash, af);
+    throw Error(ENONCE);
+    TransactionHeight th(pinHeight, account_height(*accId));
+
+    auto [txid, shared] { m.mempool_data(*accId, th, txHash) };
+    WartTransferMessage pm(txid, shared, fromAddr, m.wart());
+
+    // mempool::entry::Shared s();
+    if (txids().contains(pm.txid()))
+        _mempool.insert_tx_throw(pm, th, txHash, af);
     return txHash;
 }
 

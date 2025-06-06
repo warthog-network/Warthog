@@ -86,7 +86,7 @@ src= [
   './global/globals.cpp',
   './mempool/mempool.cpp',
   './mempool/subscription.cpp',
-  './mempool/txmap.cpp',
+  './mempool/txset.cpp',
   './peerserver/ban_cache.cpp',
   './peerserver/db/peer_db.cpp',
   './peerserver/peerserver.cpp',

@@ -55,7 +55,7 @@ private:
 };
 
 struct FocusNode {
-    std::vector<ParsedBlock> blocks;
+    std::vector<Block> blocks;
     bool activeRequest() const { return c.has_value(); }
     void register_downloader(Conref);
 
@@ -72,12 +72,12 @@ public:
 
     NonzeroHeight height_begin();
     void fork(NonzeroHeight);
-    std::vector<ParsedBlock> pop_data();
+    std::vector<Block> pop_data();
     auto map_end() { return map.end(); }
     void clear(); // precondition: reset all connections focusIter
     void erase(Conref cr);
     void set_offset(Height);
-    void set_slot_blocks(std::vector<ParsedBlock>&& blocks);
+    void set_slot_blocks(std::vector<Block>&& blocks);
 
     struct FocusSlot {
         FocusMap::iterator iter;

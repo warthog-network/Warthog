@@ -1,24 +1,40 @@
 #pragma once
 
+#include "block/body/messages.hpp"
 #include "block/body/transaction_id.hpp"
 #include "entry.hpp"
-#include <map>
+#include <set>
 
 class HashView;
 namespace mempool {
-class Txmap {
+struct ComparatorTransactionId {
+    using is_transparent = std::true_type;
+    bool operator()(const TransactionMessage& m1, const TransactionId& txid2)
+    {
+        return m1.txid() < txid2;
+    }
+    bool operator()(const TransactionMessage& m1, const TransactionMessage& m2)
+    {
+        return m1.txid() < m2.txid();
+    }
+    bool operator()(const TransactionId& txid1, const TransactionMessage& m2)
+    {
+        return txid1 < m2.txid();
+    }
+};
+class Txset {
 public:
-    using map_t = std::map<TransactionId, entry::Value, std::less<>>;
-    using const_iterator = map_t::const_iterator;
-    using iterator = map_t::iterator;
+    using set_t = std::set<TransactionMessage, ComparatorTransactionId>;
+    using const_iterator = set_t::const_iterator;
+    using iterator = set_t::iterator;
 
 private:
-    map_t _map;
+    set_t _map;
     int _cacheValidity { 0 }; // incremented on mempool change
 public:
     auto cache_validity() const { return _cacheValidity; }
 
-    auto size() const{return _map.size();}
+    auto size() const { return _map.size(); }
     auto& operator()()
     {
         _cacheValidity += 1;
@@ -29,7 +45,7 @@ public:
 };
 
 struct ByFeeDesc {
-    using const_iter_t = Txmap::const_iterator;
+    using const_iter_t = Txset::const_iterator;
     bool insert(const_iter_t iter);
     [[nodiscard]] size_t erase(const_iter_t iter);
     const_iter_t smallest() const { return data.back(); }

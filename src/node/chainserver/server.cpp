@@ -299,7 +299,7 @@ void ChainServer::handle_event(GetGrid&& e)
 void ChainServer::handle_event(GetWartBalance&& e)
 {
     auto t { timing->time("GetBalance") };
-    e.callback(state.api_get_balance(e.account,TokenId::WART);
+    e.callback(state.api_get_token_balance(e.account, TokenId::WART));
 }
 
 void ChainServer::handle_event(GetTokenBalance&& e)

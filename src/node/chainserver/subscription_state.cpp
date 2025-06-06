@@ -105,13 +105,13 @@ void MinerdistSubscriptionState::on_chain_changed(const chainserver::State& a, c
     if (blocks.size() > nMiners) {
         aggregator->clear();
         for (size_t i = blocks.size() - nMiners; i < blocks.size(); ++i) {
-            aggregator->push_back(blocks[i].reward()->toAddress);
+            aggregator->push_back(blocks[i].reward().toAddress);
         }
     } else {
         if (nbi.rollback)
             aggregator->rollback(nbi.rollback->distance);
         for (auto& b : blocks)
-            aggregator->push_back(b.reward()->toAddress);
+            aggregator->push_back(b.reward().toAddress);
         fill_aggregator(a);
         aggregator->truncate(nMiners);
     }
@@ -246,7 +246,7 @@ std::optional<SessionAddressCursor> SessionData::session_cursor(const api::Block
     }
     if (blocks.size() == 0 || blocks.back().height < b.height) {
 
-        blocks.push_back({ b.header, b.height, b.confirmations });
+        blocks.push_back(b);
     }
     return SessionAddressCursor { blocks.back() };
 }
