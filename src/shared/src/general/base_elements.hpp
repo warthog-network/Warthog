@@ -2,6 +2,7 @@
 #include "base_elements_fwd.hpp"
 #include "block/body/account_id.hpp"
 #include "block/body/nonce.hpp"
+#include "block/body/transaction_id.hpp"
 #include "block/chain/height.hpp"
 #include "crypto/crypto.hpp"
 #include "defi/token/token.hpp"
@@ -36,6 +37,10 @@ struct ToIdElement : public ElementBase<AccountId> {
 struct ToAddrElement : public ElementBase<Address> {
     using base::base;
     [[nodiscard]] const auto& to_addr() const { return data; }
+};
+struct CreatorAddrElement : public ElementBase<Address> {
+    using base::base;
+    [[nodiscard]] const auto& creator_addr() const { return data; }
 };
 
 struct WartElement : public ElementBase<Wart> {
@@ -94,6 +99,8 @@ struct BuyElement {
         if (v > 1)
             throw Error(EINVBUY);
     }
+    using data_t = bool;
+    const bool& get() const{return b;}
     static constexpr size_t byte_size() { return 1; }
     bool buy() const { return b; }
 
@@ -104,6 +111,14 @@ private:
 struct PinHeightElement : public ElementBase<PinHeight> {
     using base::base;
     [[nodiscard]] const PinHeight& pin_height() const { return data; }
+};
+
+struct TransactionIdElement : public ElementBase<TransactionId> {
+    using base::base;
+    [[nodiscard]] const TransactionId& txid() const { return data; }
+    [[nodiscard]] AccountId from_id() const { return txid().accountId; }
+    [[nodiscard]] PinHeight pin_height() const { return txid().pinHeight; }
+    [[nodiscard]] NonceId nonce_id() const { return txid().nonceId; }
 };
 
 struct NonceIdElement : public ElementBase<NonceId> {
@@ -127,5 +142,10 @@ struct CombineElements : public Elements... {
     CombineElements(Elements::data_t... ts)
         : Elements(std::move(ts))...
     {
+    }
+    template <typename Element>
+    auto& get() const
+    {
+        return static_cast<const Element*>(this)->get();
     }
 };

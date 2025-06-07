@@ -31,12 +31,11 @@ struct body_vector : public std::vector<T> {
 };
 struct TokenSection {
     TokenId id;
-    body_vector<body::Transfer> transfers;
+    body_vector<body::TokenTransfer> transfers;
     body_vector<body::Order> orders;
     body_vector<body::LiquidityAdd> liquidityAdd;
     body_vector<body::LiquidityRemove> liquidityRemove;
-    body_vector<body::Cancelation> cancelations;
-    static constexpr const size_t n_vectors = 5;
+    static constexpr const size_t n_vectors = 4;
     void append_tx_ids(PinFloor, std::vector<TransactionId>& appendTo) const;
     Writer& write(Writer&);
     TokenSection(Reader&);
@@ -66,6 +65,7 @@ public:
     body_vector<Address> newAddresses;
     body::Reward reward;
     body_vector<body::WartTransfer> wartTransfers;
+    body_vector<body::Cancelation> cancelations;
     body_vector<body::TokenSection> tokens;
     body_vector<body::TokenCreation> tokenCreations;
 };

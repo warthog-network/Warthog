@@ -10,6 +10,7 @@ template <size_t N>
 struct TenBitsBlocks {
 private:
     using arr_t = std::array<size_t, N>;
+    static constexpr size_t byte_size() { return (10 * N + 7) / 8; }
     template <size_t... Is>
     static auto read_data(std::index_sequence<Is...>, Reader& rd)
     {
@@ -96,7 +97,6 @@ void TokenSection::append_tx_ids(PinFloor pf, std::vector<TransactionId>& append
     append(orders);
     append(liquidityAdd);
     append(liquidityRemove);
-    append(cancelations);
 }
 
 size_t TokenSection::byte_size() const
@@ -105,13 +105,12 @@ size_t TokenSection::byte_size() const
         + transfers.byte_size()
         + orders.byte_size()
         + liquidityAdd.byte_size()
-        + liquidityRemove.byte_size()
-        + cancelations.byte_size();
+        + liquidityRemove.byte_size();
 }
 
 Writer& TokenSection::write(Writer& w)
 {
-    w << id << TenBitsBlocks<n_vectors>(transfers, orders, liquidityAdd, liquidityRemove, cancelations);
+    w << id << TenBitsBlocks<n_vectors>(transfers, orders, liquidityAdd, liquidityRemove);
     return transfers.write_elements(w);
 }
 
@@ -123,7 +122,6 @@ TokenSection::TokenSection(Reader& r)
     orders = { tbb.at<1>(), r };
     liquidityAdd = { tbb.at<2>(), r };
     liquidityRemove = { tbb.at<3>(), r };
-    cancelations = { tbb.at<4>(), r };
 }
 
 }

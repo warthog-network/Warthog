@@ -15,7 +15,6 @@ using namespace block::body;
 namespace {
 
 struct VerifiedOrderWithId : public VerifiedOrder {
-    VerifiedOrderWithId(VerifiedOrder vo, HistoryId orderId);
     HistoryId orderId;
 };
 
@@ -310,7 +309,6 @@ struct TokenSectionInternal {
     TokenId id;
     std::vector<TokenTransferInternal> transfers;
     std::vector<OrderInternal> orders;
-    std::vector<CancelationInternal> cancelations;
     std::vector<LiquidityAddInternal> liquidityAdds;
     std::vector<LiquidityRemoveInternal> liquidityRemoves;
     TokenSectionInternal(TokenId id)
@@ -475,12 +473,9 @@ public:
             from
         };
     }
-    TransferInternalWithoutAmount __register_transfer(TokenTransfer tv) // OK
+    TransferInternalWithoutAmount __register_transfer(TokenId tokenId, AccountId toId, Funds_uint64 amount, ProcessedSigner s) // OK
     {
-        auto s { process_signer(tv) };
-        auto tokenId { tv.id };
-        auto amount { tv.amount() };
-        auto& to { accounts[tv.to_id()] };
+        auto& to { accounts[toId] };
         if (height.value() > 719118 && amount.is_zero())
             throw Error(EZEROAMOUNT);
         if (s.origin.id == to.id)
@@ -496,17 +491,14 @@ public:
     }
     void register_wart_transfer(WartTransfer tv)
     {
-        wartTransfers.push_back({ __register_transfer(tv), tv.amount() });
+        wartTransfers.push_back({ __register_transfer(TokenId::WART, tv.to_id(), tv.wart(), process_signer(tv)), tv.wart() });
     }
 
-    CancelationInternal register_cancelation(Cancelation c, TokenId tokenId)
+    CancelationInternal register_cancelation(Cancelation c)
     {
         auto signerData(process_signer(c));
-        return {
-            signerData,
-            tokenId,
-            { signerData.origin.id, c.block_pin_nonce().pin_height_from_floored(pinFloor), c.block_pin_nonce().id }
-        };
+        cancelations.push_back({ signerData,
+            { signerData.origin.id, c.block_pin_nonce().pin_height_from_floored(pinFloor), c.block_pin_nonce().id } });
     }
     LiquidityAddInternal register_liquidity_add(const LiquidityAdd& l, TokenId tokenId)
     {
@@ -537,15 +529,13 @@ public:
     void register_token_section(const TokenSection& t)
     {
         TokenSectionInternal ts(t.id);
-        for (auto tr : t.transfers)
-            ts.transfers.push_back({ __register_transfer({ tr, t.id }), tr.amount() });
-        for (auto o : t.orders)
+        for (auto& tr : t.transfers)
+            ts.transfers.push_back({ __register_transfer(t.id, tr.to_id(), tr.amount(), process_signer(tr)), tr.amount() });
+        for (auto& o : t.orders)
             ts.orders.push_back(register_new_order(o, t.id));
-        for (auto c : t.cancelations)
-            ts.cancelations.push_back(register_cancelation(c, t.id));
-        for (auto a : t.liquidityAdd)
+        for (auto& a : t.liquidityAdd)
             ts.liquidityAdds.push_back(register_liquidity_add(a, t.id));
-        for (auto r : t.liquidityRemove)
+        for (auto& r : t.liquidityRemove)
             ts.liquidityRemoves.push_back(register_liquidity_remove(r, t.id));
         tokenSections.push_back(std::move(ts));
     }
@@ -577,6 +567,10 @@ public:
     {
         return wartTransfers;
     }
+    auto& get_cancelations() const
+    {
+        return cancelations;
+    }
     AddressView get_new_address(size_t i)
     {
         return b.newAddresses[i];
@@ -603,6 +597,7 @@ private:
     RewardInternal reward;
 
     std::vector<WartTransferInternal> wartTransfers;
+    std::vector<CancelationInternal> cancelations;
     std::vector<TokenSectionInternal> tokenSections;
     // std::vector<TransferInternal> transfers;
     std::vector<TokenCreationInternal> tokenCreations;
@@ -819,6 +814,11 @@ private:
         for (auto t : b.wartTransfers)
             balanceChecker.register_wart_transfer(t);
     }
+    void register_cancelations()
+    {
+        for (auto& c : b.cancelations)
+            balanceChecker.register_cancelation(c);
+    }
     void register_token_sections()
     {
         for (auto t : b.tokens)
@@ -916,6 +916,7 @@ private:
     {
         process_reward();
         process_wart_transfers();
+        process_cancelations();
         process_token_sections();
     }
 
@@ -997,6 +998,31 @@ private:
         }
     }
 
+    void process_cancelations()
+    {
+        const auto& balanceChecker { this->balanceChecker }; // const lock balanceChecker
+        for (auto& c : balanceChecker.get_cancelations()) {
+            auto verified { verify(c) };
+            auto& ref { history.push_cancelation(verified) };
+            api.cancelations.push_back(
+                { .origin { c.origin },
+                    .fee { c.compactFee.uncompact() },
+                    .txhash { ref.he.hash },
+                    .order {} });
+            auto o { db.select_order(verified.cancelation.cancelTxid) };
+            if (o) { // transaction is removed from the database
+                deleteOrders.push_back({ o->id, o->buy });
+                api.cancelations.back().order = api::Block::Cancelation::OrderData {
+                    .tid { o->tid },
+                    .total { o->total },
+                    .filled { o->filled },
+                    .limit { o->limit },
+                    .buy = o->buy
+                };
+            }
+        }
+    }
+
     void process_token_transfers(const TokenIdHashNamePrecision& token, const std::vector<TokenTransferInternal>& transfers)
     {
         for (auto& tr : transfers) {
@@ -1070,29 +1096,6 @@ private:
         }
         matchDeltas.push_back(std::move(m));
     }
-    void process_cancelations(const TokenIdHashNamePrecision& token, const std::vector<CancelationInternal>& cancelations)
-    {
-        for (auto& c : cancelations) {
-            auto verified { verify(c, token.hash) };
-            auto& ref { history.push_cancelation(verified) };
-            api.cancelations.push_back(
-                { .origin { c.origin },
-                    .fee { c.compactFee.uncompact() },
-                    .txhash { ref.he.hash },
-                    .order {} });
-            auto o { db.select_order(verified.cancelation.cancelTxid) };
-            if (o) { // transaction is removed from the database
-                deleteOrders.push_back({ o->id, o->buy });
-                api.cancelations.back().order = api::Block::Cancelation::OrderData {
-                    .tid { o->tid },
-                    .total { o->total },
-                    .filled { o->filled },
-                    .limit { o->limit },
-                    .buy = o->buy
-                };
-            }
-        }
-    }
     void process_liquidity_adds(const TokenIdHashNamePrecision& ihn, const std::vector<LiquidityAddInternal>& orders)
     {
     }
@@ -1128,6 +1131,7 @@ public:
         /// Read block sections
         verify_new_address_policy(); // new address section
         register_wart_transfers(); // WART transfer section
+        register_cancelations();
         register_token_sections();
         register_token_creations(); // token creation section
 

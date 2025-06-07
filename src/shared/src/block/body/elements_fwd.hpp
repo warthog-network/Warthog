@@ -10,12 +10,11 @@ struct SignedCombined;
 
 using Reward = Combined<ToIdElement, WartElement>;
 using TokenCreation = SignedCombined<TokenSupplyElement, TokenPrecisionElement, TokenNameElement>;
-using Transfer = SignedCombined<ToIdElement, AmountElement>;
+using WartTransfer = SignedCombined<ToIdElement, WartElement>;
+using TokenTransfer = SignedCombined<ToIdElement, AmountElement>;
 using Order = SignedCombined<BuyElement, AmountElement, LimitPriceElement>;
 using Cancelation = SignedCombined<CancelPinNonceElement>;
 using LiquidityAdd = SignedCombined<WartElement, AmountElement>;
 using LiquidityRemove = SignedCombined<AmountElement>;
-struct TokenTransfer;
-struct WartTransfer;
 }
 }

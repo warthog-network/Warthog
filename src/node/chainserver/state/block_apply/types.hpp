@@ -69,16 +69,15 @@ struct OrderInternal : public SignerData {
 
 struct CancelationInternal;
 struct VerifiedCancelation : public VerifiedTransaction {
-    VerifiedCancelation(const CancelationInternal&, const TransactionVerifier&, HashView tokenHash);
+    VerifiedCancelation(const CancelationInternal&, const TransactionVerifier&);
     const CancelationInternal& cancelation;
 };
 
 struct CancelationInternal : public SignerData {
-    TokenId tokenId;
     TransactionId cancelTxid;
-    [[nodiscard]] VerifiedCancelation verify(const TransactionVerifier& tv, HashView tokenHash) const
+    [[nodiscard]] VerifiedCancelation verify(const TransactionVerifier& tv) const
     {
-        return { *this, tv, tokenHash };
+        return { *this, tv };
     }
 };
 

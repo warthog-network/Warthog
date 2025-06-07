@@ -233,29 +233,6 @@ struct SignedCombined : public Combined<OriginAccountIdElement, PinNonceElement,
 //     using View::View;
 // };
 
-struct TokenTransfer : public Transfer {
-    TokenId id;
-    TokenTransfer(Transfer t, TokenId id)
-        : Transfer(std::move(t))
-        , id(id) { };
-};
-
-struct WartTransfer : public TokenTransfer {
-
-    WartTransfer(Reader& r)
-        : WartTransfer(Transfer { r })
-    {
-    }
-    WartTransfer(const Transfer& v)
-        : TokenTransfer(v, TokenId(0))
-    {
-    }
-    Wart amount() const
-    {
-        return Wart::from_funds_throw(Transfer::amount());
-    }
-};
-
 // struct Order : public MessageView<
 //                    AccountId,
 //                    PinNonce,
