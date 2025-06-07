@@ -1,0 +1,14 @@
+#pragma once
+struct ToIdElement;
+struct WartElement;
+struct AmountElement;
+struct OriginAccountIdElement;
+struct CancelPinNonceElement;
+struct PinNonceElement;
+struct CompactFeeElement;
+struct TokenSupplyElement;
+struct TokenPrecisionElement;
+struct TokenNameElement;
+struct SignatureElement;
+struct LimitPriceElement;
+struct BuyElement;

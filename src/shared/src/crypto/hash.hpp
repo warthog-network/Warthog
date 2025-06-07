@@ -68,3 +68,11 @@ public:
     {
     }
 };
+
+class PinHash : public Hash {
+public:
+    explicit PinHash(Hash h)
+        : Hash(h)
+    {
+    }
+};

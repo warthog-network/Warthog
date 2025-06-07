@@ -5,11 +5,19 @@
 namespace mempool {
 struct Entry : public TransactionMessage {
     TxHash txhash;
-    Entry(TransactionMessage m, HashView pinHash)
+    TxHeight txHeight; // when was the account first registered
+    Entry(TransactionMessage m, const TxHash& txHash, TxHeight txHeight)
         : TransactionMessage(std::move(m))
-        , txhash(static_cast<TransactionMessage*>(this)->txhash(pinHash))
+        , txhash(txHash)
+        , txHeight(txHeight)
     {
     }
+    // Entry(TransactionMessage m, const PinHash& pinHash, TxHeight txHeight)
+    //     : TransactionMessage(std::move(m))
+    //     , txhash(static_cast<TransactionMessage*>(this)->txhash(pinHash))
+    //     , txHeight(txHeight)
+    // {
+    // }
 };
 }
 

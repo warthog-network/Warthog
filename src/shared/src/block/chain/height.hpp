@@ -303,13 +303,17 @@ class PinHeight : public Height {
 public:
     explicit PinHeight(const Height h);
 };
-struct AccountHeight : public Height {
-    using Height::Height;
+struct AccountHeight : public NonzeroHeight {
+    using NonzeroHeight::NonzeroHeight;
 };
 
-struct TransactionHeight : public Height {
-    TransactionHeight(PinHeight ph, AccountHeight ah)
-        : Height(std::max(Height(ph), Height(ah)))
+struct TxHeight : public NonzeroHeight {
+    TxHeight(PinHeight ph, AccountHeight ah)
+        : NonzeroHeight([&]() -> NonzeroHeight {
+            if (ah < ph)
+                return NonzeroHeight(ph);
+            return ah;
+        }())
     {
     }
 };

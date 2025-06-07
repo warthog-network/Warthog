@@ -142,12 +142,22 @@ public:
             return static_cast<HeaderView>(operator[](h.nonzero_assert())).hash();
         return Hash(operator[]((h + 1).nonzero_assert()).prevhash());
     };
+    [[nodiscard]] std::optional<PinHash> get_hash(PinHeight ph) const
+    {
+        if (auto h { get_hash(Height(ph)) })
+            return PinHash { *h };
+        return {};
+    };
 
     [[nodiscard]] Hash hash_at(Height height) const
     {
         auto h = get_hash(height);
         assert(h);
         return *h;
+    };
+    [[nodiscard]] PinHash hash_at(PinHeight height) const
+    {
+        return PinHash(hash_at(Height(height)));
     };
 
     void clear();
@@ -162,4 +172,3 @@ protected: // variables
     std::vector<SharedBatchView> completeBatches;
     Worksum worksum;
 };
-

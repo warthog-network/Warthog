@@ -427,7 +427,7 @@ public:
     static RewardInternal register_reward(const block::Body& b, Accounts& accounts, NonzeroHeight h)
     {
         auto r { b.reward };
-        auto& a { accounts[r.destination_acc_id()] };
+        auto& a { accounts[r.to_id()] };
         auto am { r.wart() };
         a.add(TokenId::WART, am);
         return {
@@ -480,7 +480,7 @@ public:
         auto s { process_signer(tv) };
         auto tokenId { tv.id };
         auto amount { tv.amount() };
-        auto& to { accounts[tv.destination_acc_id()] };
+        auto& to { accounts[tv.to_id()] };
         if (height.value() > 719118 && amount.is_zero())
             throw Error(EZEROAMOUNT);
         if (s.origin.id == to.id)

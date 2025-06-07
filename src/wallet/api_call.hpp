@@ -20,7 +20,7 @@ public:
         , port(port) {};
     Funds_uint64 get_balance(const std::string& account);
     std::variant<TxHash, Error> send_transaction(const std::string& txjson);
-    std::pair<PinHeight, Hash> get_pin();
+    std::pair<PinHeight, PinHash> get_pin();
 private:
     bool http_get(const std::string& get, std::string& out);
     int http_post(const std::string& path, const std::vector<uint8_t>& postdata, std::string& out);

@@ -24,7 +24,7 @@ src_wh=[
     './src/block/header/view.cpp',
     './src/defi/uint64/price.cpp',
     './src/defi/uint64/orderbook.cpp',
-    './src/communication/create_payment.cpp',
+    './src/communication/create_transaction.cpp',
     './src/crypto/address.cpp',
     './src/crypto/crypto.cpp',
     './src/crypto/hash.cpp',

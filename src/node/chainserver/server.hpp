@@ -5,7 +5,7 @@
 #include "api/types/height_or_hash.hpp"
 #include "chainserver/mining_subscription.hpp"
 #include "chainserver/subscription_state.hpp"
-#include "communication/create_payment.hpp"
+#include "communication/create_transaction.hpp"
 #include "communication/stage_operation/request.hpp"
 #include "general/logging.hpp"
 #include "state/state.hpp"

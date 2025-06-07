@@ -1,6 +1,6 @@
 #include "consensus.hpp"
 #include "chainserver/db/chain_db.hpp"
-#include "communication/create_payment.hpp"
+#include "communication/create_transaction.hpp"
 #include "global/globals.hpp"
 #include <spdlog/spdlog.h>
 namespace chainserver {
@@ -70,7 +70,7 @@ void Chainstate::fork(Chainstate::ForkData&& fd)
         TxHash txhash { tx.txhash(hash) };
 
         if (!fd.appendResult.newTxIds.contains(tx.txid())) {
-            TransactionHeight txh { ph, account_height(fromId) };
+            TxHeight txh { ph, account_height(fromId) };
             _mempool.insert_tx(tx, txh, txhash, from);
         }
     }
@@ -132,7 +132,7 @@ auto Chainstate::rollback(const RollbackResult& rb) -> HeaderchainRollback
         Hash hash { headers().hash_at(ph) };
         TxHash txhash { tx.txhash(hash) };
 
-        TransactionHeight txh { ph, account_height(fromId) };
+        TxHeight txh { ph, account_height(fromId) };
         _mempool.insert_tx(tx, txh, txhash, from);
     }
     return HeaderchainRollback {
@@ -215,7 +215,7 @@ auto Chainstate::append(AppendSingle d) -> HeaderchainAppend
     return headers().get_append(l);
 }
 
-TxHash Chainstate::insert_tx(const WartTransferMessage& pm)
+TxHash Chainstate::insert_tx(const TransactionMessage& pm)
 {
     if (pm.pin_height() < (length() + 1).pin_begin())
         throw Error(EPINHEIGHT);
@@ -227,19 +227,19 @@ TxHash Chainstate::insert_tx(const WartTransferMessage& pm)
     if (pm.amount().is_zero())
         throw Error(EZEROAMOUNT);
     auto txHash { pm.txhash(*h) };
-    if (pm.from_address(txHash) == pm.destination_address())
+    if (pm.from_address(txHash) == pm.to_address())
         throw Error(ESELFSEND);
 
     auto p = db.lookup_address(pm.from_id());
     if (!p)
         throw Error(EACCIDNOTFOUND);
-    TransactionHeight th(pm.pin_height(), account_height(pm.from_id()));
+    TxHeight th(pm.pin_height(), account_height(pm.from_id()));
 
     _mempool.insert_tx_throw(pm, th, txHash, { *p, pm.amount() });
     return txHash;
 }
 
-TxHash Chainstate::insert_tx(const WartTransferCreate& m)
+TxHash Chainstate::create_tx(const WartTransferCreate& m)
 {
     PinHeight pinHeight = m.pin_height();
     if (pinHeight > length())
@@ -260,7 +260,7 @@ TxHash Chainstate::insert_tx(const WartTransferCreate& m)
 
     AddressFunds af { fromAddr, balance };
     throw Error(ENONCE);
-    TransactionHeight th(pinHeight, account_height(*accId));
+    TxHeight th(pinHeight, account_height(*accId));
 
     auto [txid, shared] { m.mempool_data(*accId, th, txHash) };
     WartTransferMessage pm(txid, shared, fromAddr, m.wart());

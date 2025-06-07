@@ -108,7 +108,7 @@ VerifiedTransaction TransactionVerifier::verify(const SignerData& sd, HashArgs&&
 {
     const PinFloor pinFloor { h.pin_floor() };
     PinHeight pinHeight(sd.pinNonce.pin_height_from_floored(pinFloor));
-    Hash pinHash { hc.hash_at(h) };
+    auto pinHash { hc.hash_at(h) };
     return {
         sd.verify_hash((
             (HasherSHA256()

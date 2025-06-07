@@ -59,8 +59,8 @@ struct Chainstate {
     [[nodiscard]] auto append(AppendMulti) -> HeaderchainAppend;
     [[nodiscard]] auto append(AppendSingle) -> HeaderchainAppend;
 
-    TxHash insert_tx(const WartTransferMessage& m);
-    [[nodiscard]] TxHash insert_tx(const WartTransferCreate& m);
+    TxHash insert_tx(const TransactionMessage& m);
+    [[nodiscard]] TxHash create_tx(const WartTransferCreate& m);
 
     // const functions
     Worksum work_with_new_block() const { return headerchain.total_work() + headerchain.next_target(); };

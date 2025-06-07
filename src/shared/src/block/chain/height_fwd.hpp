@@ -8,5 +8,5 @@ class NonzeroHeight;
 struct HeightRange;
 class PrevHeight;
 class PinHeight;
-struct TransactionHeight;
+struct TxHeight;
 struct PinFloor;

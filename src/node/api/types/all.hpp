@@ -33,7 +33,7 @@ struct ChainHead {
     Target nextTarget;
     Hash hash;
     Height height;
-    Hash pinHash;
+    PinHash pinHash;
     PinHeight pinHeight;
     uint64_t hashrate;
 };
@@ -228,7 +228,7 @@ struct Richlist {
     std::vector<std::pair<Address, Wart>> entries;
 };
 struct MempoolEntry : public WartTransferMessage {
-    Hash txHash;
+    TxHash txHash;
 };
 struct MempoolEntries {
     std::vector<MempoolEntry> entries;

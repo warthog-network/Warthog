@@ -1,24 +1,10 @@
 #pragma once
-// #include "block/body/account_id.hpp"
-// #include "block/body/nonce.hpp"
-// #include "block/body/transaction_id.hpp"
-// #include "block/chain/height.hpp"
-// #include "defi/token/token.hpp"
-// #include "defi/uint64/price.hpp"
-// #include "elements_fwd.hpp"
-// #include "general/compact_uint.hpp"
-// #include "general/funds.hpp"
-// #include "general/reader.hpp"
-#include "block/body/account_id.hpp"
-#include "block/body/nonce.hpp"
 #include "block/body/transaction_id.hpp"
-#include "crypto/crypto.hpp"
-#include "defi/token/token.hpp"
-#include "defi/uint64/price.hpp"
 #include "elements_fwd.hpp"
 #include "general/compact_uint.hpp"
 #include "general/funds.hpp"
 #include "general/reader.hpp"
+#include "general/base_elements.hpp"
 namespace block {
 namespace body {
 // constexpr static size_t SIGLEN { 65 };
@@ -31,68 +17,6 @@ namespace body {
 // constexpr static size_t CancelationSize { 16 + SIGLEN }; // TODO
 // constexpr static size_t TokenCreationSize { 8 + 8 + 5 + 2 + SIGLEN };
 
-struct DestinationIdElement : protected AccountId {
-    using AccountId::AccountId;
-    [[nodiscard]] const AccountId& destination_acc_id() const { return *this; }
-};
-struct WartElement : protected Wart {
-    using Wart::Wart;
-    [[nodiscard]] const Wart& wart() const { return *this; }
-};
-struct AmountElement : protected Funds_uint64 {
-    using Funds_uint64::Funds_uint64;
-    [[nodiscard]] const Funds_uint64& amount() const { return *this; }
-};
-struct OriginAccountIdElement : protected AccountId {
-    using AccountId::AccountId;
-    [[nodiscard]] const AccountId& origin_account_id() const { return *this; }
-};
-struct CancelPinNonceElement : protected PinNonce {
-    using PinNonce::PinNonce;
-    [[nodiscard]] const PinNonce& block_pin_nonce() const { return *this; }
-};
-struct PinNonceElement : protected PinNonce {
-    using PinNonce::PinNonce;
-    [[nodiscard]] const PinNonce& pin_nonce() const { return *this; }
-};
-struct CompactFeeElement : protected CompactUInt {
-    using CompactUInt::CompactUInt;
-    [[nodiscard]] const CompactUInt& compact_fee() const { return *this; }
-    [[nodiscard]] Wart fee() const { return this->uncompact(); }
-};
-struct TokenSupplyElement : protected Funds_uint64 {
-    using Funds_uint64::Funds_uint64;
-    [[nodiscard]] const Funds_uint64& token_supply() const { return *this; }
-};
-struct TokenPrecisionElement : protected TokenPrecision {
-    using TokenPrecision::TokenPrecision;
-    [[nodiscard]] const TokenPrecision& token_precision() const { return *this; }
-};
-struct TokenNameElement : protected TokenName {
-    using TokenName::TokenName;
-    [[nodiscard]] const TokenName& token_name() const { return *this; }
-};
-struct SignatureElement : protected RecoverableSignature {
-    using RecoverableSignature::RecoverableSignature;
-    [[nodiscard]] const RecoverableSignature& signature() const { return *this; }
-};
-struct LimitPriceElement : protected Price_uint64 {
-    using Price_uint64::Price_uint64;
-    [[nodiscard]] const Price_uint64& limit() const { return *this; }
-};
-struct BuyElement {
-    BuyElement(uint8_t v)
-        : b(v != 0)
-    {
-        if (v > 1)
-            throw Error(EINVBUY);
-    }
-    static constexpr size_t byte_size() { return 1; }
-    bool buy() const { return b; }
-
-private:
-    bool b;
-};
 
 template <typename... Ts>
 struct Combined : public Ts... {

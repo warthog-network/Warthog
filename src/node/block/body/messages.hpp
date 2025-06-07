@@ -36,6 +36,9 @@ private:
 };
 
 template <typename... Ts>
+class CreatedTransactionMsg;
+
+template <typename... Ts>
 class TransactionMsg : public MsgBase {
 
 protected:
@@ -48,6 +51,7 @@ public:
         , _signature(signature)
     {
     }
+    TransactionMsg(CreatedTransactionMsg<Ts...>);
     TransactionMsg(Reader& r)
         : MsgBase { r }
         , data({ Ts(r)... })
@@ -65,7 +69,7 @@ public:
                  << m._signature;
     }
 
-    [[nodiscard]] TxHash txhash(HashView pinHash) const
+    [[nodiscard]] TxHash txhash(const PinHash& pinHash) const
     {
 
         return std::apply([&](const auto&... arg) {
@@ -79,7 +83,8 @@ public:
         },
             data);
     };
-    [[nodiscard]] Address from_address(HashView txHash) const
+    [[nodiscard]] Wart spend_wart_throw() const { return fee(); } // default only spend fee, but is overridden in WartTransferMessage
+    [[nodiscard]] Address from_address(const TxHash& txHash) const
     {
         return _signature.recover_pubkey(txHash.data()).address();
     }
@@ -95,14 +100,23 @@ protected:
     RecoverableSignature _signature;
 };
 
+template <typename... Ts>
+class CreatedTransactionMsg : public TransactionMsg<Ts...> {
+};
+template <typename... Ts>
+TransactionMsg<Ts...>::TransactionMsg(CreatedTransactionMsg<Ts...> m)
+    : TransactionMsg<Ts...>(std::move(*(TransactionMsg<Ts...>*)(&m)))
+{
+}
+
 class WartTransferMessage : public TransactionMsg<Address, Wart> {
 public:
     using WartTransfer = block::body::WartTransfer;
     using TransactionMsg<Address, Wart>::TransactionMsg;
 
-    [[nodiscard]] const auto& destination_address() const { return get<0>(); }
+    [[nodiscard]] const auto& to_address() const { return get<0>(); }
     [[nodiscard]] const auto& amount() const { return get<1>(); }
-    [[nodiscard]] Funds_uint64 spend_throw() const { return Funds_uint64::sum_throw(fee(), amount()); }
+    [[nodiscard]] Wart spend_wart_throw() const { return Wart::sum_throw(fee(), amount()); }
 };
 
 class TokenTransferMessage : public TransactionMsg<TokenHash, Address, Funds_uint64> { // for defi we include the token hash
@@ -116,7 +130,6 @@ public:
     [[nodiscard]] const auto& token_hash() const { return get<0>(); }
     [[nodiscard]] const auto& address() const { return get<1>(); }
     [[nodiscard]] const auto& amount() const { return get<2>(); }
-    [[nodiscard]] Funds_uint64 spend_throw() const { return Funds_uint64::sum_throw(fee(), amount()); }
 };
 // class CreateOrderMessage2: public TransactionMessage<> {
 //     RecoverableSignature signature;
@@ -139,12 +152,28 @@ struct TransactionMessage : public TransactionVariant {
         return *visit([](const auto& m) -> const RecoverableSignature* { return &m.signature(); });
     }
     [[nodiscard]] auto compact_fee() const { return base().compact_fee(); }
+    [[nodiscard]] auto spend_wart_throw() const
+    {
+        return visit([](auto& m) { return m.spend_wart_throw(); });
+    }
+    [[nodiscard]] auto spend_wart_assert() const
+    {
+        try {
+            return spend_wart_throw();
+        } catch (Error e) {
+            assert(false);
+        }
+    }
     [[nodiscard]] auto& txid() const { return base().txid(); }
     [[nodiscard]] auto reserved() const { return base().reserved(); }
     [[nodiscard]] AccountId from_id() const { return base().from_id(); }
     [[nodiscard]] PinHeight pin_height() const { return base().pin_height(); }
     [[nodiscard]] NonceId nonce_id() const { return base().nonce_id(); }
-    [[nodiscard]] TxHash txhash(HashView pinHash) const
+    [[nodiscard]] auto from_address(const TxHash txHash) const
+    {
+        return visit([&](auto& m) { return m.from_address(txHash); });
+    }
+    [[nodiscard]] TxHash txhash(const PinHash& pinHash) const
     {
         return visit([&](const auto& m) { return m.txhash(pinHash); });
     }

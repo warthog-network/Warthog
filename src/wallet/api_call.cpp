@@ -35,7 +35,7 @@ int Endpoint::http_post(const std::string& path, const std::vector<uint8_t>& pos
     return false;
 }
 
-std::pair<PinHeight, Hash> Endpoint::get_pin()
+std::pair<PinHeight, PinHash> Endpoint::get_pin()
 {
     std::string out;
     std::string url = "/chain/head";
@@ -48,7 +48,7 @@ std::pair<PinHeight, Hash> Endpoint::get_pin()
         auto pinHeight = Height(parsed["data"]["pinHeight"].get<int32_t>()).pin_height();
         auto pinHash{Hash::parse_string(h)};
         if (pinHeight && pinHash)
-            return make_pair(*pinHeight, *pinHash);
+            return make_pair(*pinHeight, PinHash(*pinHash));
     } catch (...) {
     }
     throw std::runtime_error("API request failed, response is malformed. Is the node version compatible with this wallet?");

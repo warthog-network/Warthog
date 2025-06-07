@@ -8,7 +8,7 @@
 #include "block/body/view.hpp"
 #include "block/chain/history/history.hpp"
 #include "block/header/header_impl.hpp"
-#include "communication/create_payment.hpp"
+#include "communication/create_transaction.hpp"
 #include "eventloop/types/chainstate.hpp"
 #include "general/hex.hpp"
 #include "general/is_testnet.hpp"
@@ -125,7 +125,7 @@ auto State::api_tx_cache() const -> const TransactionIds
     return chainstate.txids();
 }
 
-std::optional<api::Transaction> State::api_get_tx(const Hash& txHash) const
+std::optional<api::Transaction> State::api_get_tx(const TxHash& txHash) const
 {
     if (auto p = chainstate.mempool()[txHash]; p) {
         auto& tx = *p;
@@ -696,7 +696,7 @@ auto State::append_mined_block(const ParsedBlock& b) -> StateUpdateWithAPIBlocks
 std::pair<mempool::Updates, TxHash> State::append_gentx(const WartTransferCreate& m)
 {
     try {
-        auto txhash { chainstate.insert_tx(m) };
+        auto txhash { chainstate.create_tx(m) };
         auto log { chainstate.pop_mempool_updates() };
         spdlog::info("Added new transaction to mempool");
         return { std::move(log), std::move(txhash) };
@@ -770,6 +770,7 @@ api::ChainHead State::api_get_head() const
 {
     NonzeroHeight nextHeight { next_height() };
     PinFloor pf { nextHeight.pin_floor() };
+    PinHeight ph{pf};
     return api::ChainHead {
         .signedSnapshot { signedSnapshot },
         .worksum { chainstate.headers().total_work() },

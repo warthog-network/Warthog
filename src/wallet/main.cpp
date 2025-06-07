@@ -1,6 +1,6 @@
 #include "api_call.hpp"
 #include "cmdline/cmdline.h"
-#include "communication/create_payment.hpp"
+#include "communication/create_transaction.hpp"
 #include "crypto/crypto.hpp"
 #include "general/hex.hpp"
 #include "general/params.hpp"

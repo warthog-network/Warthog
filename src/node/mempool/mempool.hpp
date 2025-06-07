@@ -1,7 +1,6 @@
 #pragma once
 #include "block/body/messages.hpp"
 #include "comparators.hpp"
-#include "defi/token/account_token.hpp"
 #include "general/address_funds.hpp"
 #include "mempool/updates.hpp"
 namespace chainserver {
@@ -10,19 +9,19 @@ struct TransactionIds;
 namespace mempool {
 
 struct LockedBalance {
-    LockedBalance(const Funds_uint64& balance)
+    LockedBalance(const Wart& balance)
         : avail(balance) {};
 
-    void lock(Funds_uint64 amount);
-    void unlock(Funds_uint64 amount);
-    [[nodiscard]] bool set_avail(Funds_uint64 amount);
-    Funds_uint64 remaining() const { return Funds_uint64::diff_assert(avail, used); }
-    Funds_uint64 locked() const { return used; }
+    void lock(Wart amount);
+    void unlock(Wart amount);
+    [[nodiscard]] bool set_avail(Wart amount);
+    Wart remaining() const { return Wart::diff_assert(avail, used); }
+    Wart locked() const { return used; }
     bool is_clean() { return used.is_zero(); }
 
 private:
-    Funds_uint64 avail { Funds_uint64::zero() };
-    Funds_uint64 used { Funds_uint64::zero() };
+    Wart avail { Wart::zero() };
+    Wart used { Wart::zero() };
 };
 
 class Mempool {
@@ -42,10 +41,10 @@ public:
         updates.clear();
     }
     void apply_log(const Updates& log);
-    Error insert_tx(const WartTransferMessage& pm, TransactionHeight txh, const TxHash& hash, const AddressFunds& e);
-    void insert_tx_throw(const WartTransferMessage& pm, TransactionHeight txh, const TxHash& hash, const AddressFunds& e);
+    Error insert_tx(const TransactionMessage& pm, TxHeight txh, const TxHash& hash, const AddressFunds& e);
+    void insert_tx_throw(const TransactionMessage& pm, TxHeight txh, const TxHash& hash, const AddressFunds& e);
     void erase(TransactionId id);
-    void set_balance(AccountToken, Funds_uint64 newBalance);
+    void set_wart_balance(AccountId, Wart newBalance);
     void erase_from_height(Height);
     void erase_before_height(Height);
 
@@ -59,14 +58,14 @@ public:
 
     // operator[]
     [[nodiscard]] auto operator[](const TransactionId& id) const
-        -> std::optional<WartTransferMessage>;
+        -> std::optional<TransactionMessage>;
     [[nodiscard]] auto operator[](const HashView txHash) const
-        -> std::optional<WartTransferMessage>;
+        -> std::optional<TransactionMessage>;
     [[nodiscard]] size_t size() const { return txs.size(); }
     [[nodiscard]] CompactUInt min_fee() const;
 
 private:
-    using BalanceEntries = std::map<AccountToken, LockedBalance>;
+    using BalanceEntries = std::map<AccountId, LockedBalance>;
     void apply_logevent(const Put&);
     void apply_logevent(const Erase&);
     void erase_internal(Txset::const_iterator);

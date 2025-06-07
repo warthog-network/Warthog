@@ -4,20 +4,20 @@
 namespace mempool {
 auto Txset::by_fee_inc(AccountId id) const -> std::vector<const_iterator>
 {
-    auto lb { _map.lower_bound(id) };
-    auto ub { _map.upper_bound(id) };
+    auto lb { _set.lower_bound(id) };
+    auto ub { _set.upper_bound(id) };
     std::vector<const_iterator> iterators;
     for (auto iter { lb }; iter != ub; ++iter)
         iterators.push_back(iter);
-    std::sort(iterators.begin(), iterators.end(), [](auto iter1, auto iter2) {
-        return iter1->second.fee < iter2->second.fee;
+    std::sort(iterators.begin(), iterators.end(), [](const_iterator iter1, const_iterator iter2) {
+        return iter1->compact_fee() < iter2->compact_fee();
     });
     return iterators;
 };
 
 bool ByFeeDesc::insert(const_iter_t iter)
 {
-    auto pos = std::lower_bound(data.begin(), data.end(), iter, [](const_iter_t i1, const_iter_t i2) { return i1->second.fee > i2->second.fee; });
+    auto pos = std::lower_bound(data.begin(), data.end(), iter, [](const_iter_t i1, const_iter_t i2) { return i1->compact_fee() > i2->compact_fee(); });
     if (pos != data.end() && *pos == iter)
         return false;
     data.insert(pos, iter);

@@ -6,6 +6,10 @@ struct AddressFunds {
     Address address;
     Funds_uint64 funds;
 };
+struct AddressWart {
+    Address address;
+    Wart funds;
+};
 struct AccountWart {
     AccountId accointId;
     Wart funds;
