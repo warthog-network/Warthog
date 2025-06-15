@@ -10,10 +10,10 @@
 #include "general/compact_uint.hpp"
 
 template <typename Derived, typename... Ts>
-class TransactionCreate : public CombineElements<PinHeightElement, NonceIdElement, NonceReservedElement, CompactFeeElement, Ts..., SignatureElement> {
+class TransactionCreate : public CombineElements<PinHeightEl, NonceIdEl, NonceReservedEl, CompactFeeEl, Ts..., SignatureEl> {
 
 public:
-    using CombineElements<PinHeightElement, NonceIdElement, NonceReservedElement, CompactFeeElement, Ts..., SignatureElement>::CombineElements;
+    using CombineElements<PinHeightEl, NonceIdEl, NonceReservedEl, CompactFeeEl, Ts..., SignatureEl>::CombineElements;
     [[nodiscard]] auto create_message(AccountId aid) const
     {
         TransactionId txid(aid, this->pin_height(), this->nonce_id());
@@ -43,14 +43,14 @@ public:
     }
 };
 
-class WartTransferCreate : public TransactionCreate<WartTransferCreate, ToAddrElement, WartElement> {
+class WartTransferCreate : public TransactionCreate<WartTransferCreate, ToAddrEl, WartEl> {
 public:
     using message_t = WartTransferMessage;
     using TransactionCreate::TransactionCreate;
     operator std::string();
 };
 
-class TokenTransferCreate : public TransactionCreate<TokenTransferCreate, ToAddrElement, AmountElement, TokenHashElement> {
+class TokenTransferCreate : public TransactionCreate<TokenTransferCreate, ToAddrEl, AmountEl, TokenHashEl> {
 public:
     using message_t = TokenTransferMessage;
     using TransactionCreate::TransactionCreate;

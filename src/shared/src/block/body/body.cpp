@@ -156,6 +156,7 @@ Body Body::parse_throw(std::span<const uint8_t> data, NonzeroHeight h, BlockVers
                 b.wartTransfers = { rd.uint32(), rd };
 
                 if (block_v4) {
+                    b.cancelations = { rd.uint16(), rd };
                     b.tokens = { rd.uint16(), rd };
 
                     // // read new token section
@@ -194,6 +195,7 @@ size_t Body::byte_size() const
     res += 2 + newAddresses.byte_size();
     res += reward.byte_size();
     res += 4 + wartTransfers.byte_size();
+    res += 2 + cancelations.byte_size();
     res += 2 + tokens.byte_size();
 
     return res;
@@ -207,6 +209,7 @@ std::vector<uint8_t> Body::serialize() const
     newAddresses.write<uint16_t>(w);
     w << reward;
     wartTransfers.write<uint32_t>(w);
+    cancelations.write<uint16_t>(w);
     tokens.write<uint16_t>(w);
     assert(w.remaining() == 0);
     return res;

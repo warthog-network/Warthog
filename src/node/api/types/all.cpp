@@ -10,40 +10,4 @@ void Block::set_reward(Reward r)
     actions.reward = r;
 }
 
-void Block::push_history(const Hash& txid,
-    const std::vector<uint8_t>& data, chainserver::DBCache& c,
-    PinFloor pinFloor)
-{
-    auto parsed { history::Data::parse_throw(data) };
-    if (std::holds_alternative<history::WartTransferData>(parsed)) {
-        auto& d = std::get<history::WartTransferData>(parsed);
-        actions.wartTransfers.push_back(
-            api::Block::Transfer {
-                .fromAddress = c.accounts[d.fromAccountId],
-                .fee = d.compactFee.uncompact(),
-                .nonceId = d.pinNonce.id,
-                .pinHeight = d.pinNonce.pin_height_from_floored(pinFloor),
-                .txhash = txid,
-                .toAddress = c.accounts[d.toAccountId],
-                .amount = d.amount });
-    } else if (std::holds_alternative<history::TokenTransferData>(parsed)) {
-        auto& d = std::get<history::TokenTransferData>(parsed);
-        auto& tokenData { c.tokens[d.tokenId] };
-
-        actions.tokenTransfers.push_back(
-            api::Block::TokenTransfer {
-                .tokenInfo = tokenData,
-                .fromAddress = c.accounts[d.fromAccountId],
-                .fee = d.compactFee.uncompact(),
-                .nonceId = d.pinNonce.id,
-                .pinHeight = d.pinNonce.pin_height_from_floored(pinFloor),
-                .txhash = txid,
-                .toAddress = c.accounts[d.toAccountId],
-                .amount = { d.amount, tokenData.precision } });
-    } else {
-        auto& d = std::get<history::RewardData>(parsed);
-        auto toAddress = c.accounts[d.toAccountId];
-        set_reward(Reward { txid, toAddress, d.miningReward });
-    }
-}
 }

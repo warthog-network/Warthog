@@ -4,6 +4,12 @@
 
 namespace defi {
 struct Order_uint64 {
+    Order_uint64(Reader& r)
+        : amount(r)
+        , limit(r) { };
+    Order_uint64(Funds_uint64 amount, Price_uint64 limit)
+        : amount(std::move(amount))
+        , limit(std::move(limit)) { };
     Funds_uint64 amount;
     Price_uint64 limit;
 };
@@ -25,6 +31,9 @@ struct BaseQuote_uint64 {
         , quote(quote)
     {
     }
+    BaseQuote_uint64(Reader& r)
+        : base(r)
+        , quote(r) { };
     // BaseQuote_uint64 operator-(const Delta_uint64& bq) const
     // {
     //     auto res { *this };

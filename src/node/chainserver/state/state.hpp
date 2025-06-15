@@ -7,11 +7,11 @@
 #include "communication/messages.hpp"
 #include "communication/mining_task.hpp"
 #include "communication/stage_operation/result.hpp"
+#include "defi/token/info.hpp"
 #include "general/result.hpp"
 #include "helpers/consensus.hpp"
 #include "helpers/past_chains.hpp"
 #include <chrono>
-
 
 namespace chainserver {
 struct MiningCache {
@@ -42,7 +42,7 @@ struct MiningCache {
     uint32_t timestamp;
     void update_validity(CacheValidity);
     [[nodiscard]] const VersionedBodyContainer* lookup(const Address&, bool disableTxs) const;
-    const BodyContainer& insert(const Address& a, bool disableTxs, BodyContainer);
+    const BodyContainer& insert(const Address& a, bool disableTxs, VersionedBodyContainer);
     std::vector<Item> cache;
 };
 class State {

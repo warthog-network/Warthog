@@ -27,26 +27,12 @@ struct RewardInternal {
     Hash hash() const;
 };
 
-struct ProcessedSwap : public SwapInternal {
-    Hash hash;
-
-protected:
-    ProcessedSwap(SwapInternal si, bool buyBase, Height h);
-};
-
-struct ProcessedBuySwap : public ProcessedSwap {
-    ProcessedBuySwap(BuySwapInternal s, Height h)
-        : ProcessedSwap(s, true, h)
-    {
-    }
-};
-
-struct ProcessedSellSwap : public ProcessedSwap {
-    ProcessedSellSwap(SellSwapInternal s, Height h)
-        : ProcessedSwap(s, false, h)
-    {
-    }
-};
+// struct ProcessedMatch : public history::MatchData {
+//     Hash hash;
+//
+// protected:
+//     ProcessedMatch(const Hash& blockHash, TokenId tokenId);
+// };
 
 struct TransferInternalWithoutAmount : public SignerData {
     IdAddressView to;

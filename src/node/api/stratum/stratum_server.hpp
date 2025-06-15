@@ -81,7 +81,7 @@ class StratumServer {
             clean = true;
         }
         Block* find_block(const std::string& jobId);
-        Block* add_block(const std::string& jobId, ParsedBlock&& b);
+        Block* add_block(const std::string& jobId, Block&& b);
 
     private:
         std::map<std::string, Block> blocks;

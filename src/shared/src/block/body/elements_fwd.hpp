@@ -8,13 +8,13 @@ struct Combined;
 template <typename... Ts>
 struct SignedCombined;
 
-using Reward = Combined<ToIdElement, WartElement>;
-using TokenCreation = SignedCombined<TokenSupplyElement, TokenPrecisionElement, TokenNameElement>;
-using WartTransfer = SignedCombined<ToIdElement, WartElement>;
-using TokenTransfer = SignedCombined<ToIdElement, AmountElement>;
-using Order = SignedCombined<BuyElement, AmountElement, LimitPriceElement>;
-using Cancelation = SignedCombined<CancelPinNonceElement>;
-using LiquidityAdd = SignedCombined<WartElement, AmountElement>;
-using LiquidityRemove = SignedCombined<AmountElement>;
+using Reward = Combined<ToAccIdEl, WartEl>;
+using TokenCreation = SignedCombined<TokenSupplyEl, TokenPrecisionEl, TokenNameEl>;
+using WartTransfer = SignedCombined<ToAccIdEl, WartEl>;
+using TokenTransfer = SignedCombined<ToAccIdEl, AmountEl>;
+using Order = SignedCombined<BuyEl, AmountEl, LimitPriceEl>;
+using Cancelation = SignedCombined<CancelPinNonceEl>;
+using LiquidityAdd = SignedCombined<WartEl, AmountEl>;
+using LiquidityRemove = SignedCombined<AmountEl>;
 }
 }

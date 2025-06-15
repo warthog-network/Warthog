@@ -48,6 +48,10 @@ inline HashView::HashView(const Hash& h)
 {
 }
 
+class BlockHash : public Hash {
+    using Hash::Hash;
+};
+
 class TokenHash : public Hash {
     using Hash::Hash;
 };

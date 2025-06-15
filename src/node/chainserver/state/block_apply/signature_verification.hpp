@@ -40,6 +40,7 @@ struct SignerData {
     PinNonce pinNonce;
     CompactUInt compactFee;
     RecoverableSignature signature;
+    Wart fee() const { return compactFee.uncompact(); }
 
 private:
     VerifiedHash verify_hash(Hash h) const

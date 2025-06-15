@@ -1,5 +1,4 @@
 #pragma once
-#include "../../account_cache.hpp"
 #include "../../transaction_ids.hpp"
 #include "../update/update.hpp"
 #include "block/body/account_id.hpp"
@@ -7,6 +6,8 @@
 #include "block/chain/history/index.hpp"
 #include "block/chain/offsts.hpp"
 #include "chainserver/db/deletion_key.hpp"
+#include "chainserver/db/types_fwd.hpp"
+#include "defi/token/account_token.hpp"
 #include "mempool/mempool.hpp"
 #include <cstdint>
 

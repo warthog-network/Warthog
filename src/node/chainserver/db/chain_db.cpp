@@ -1,6 +1,7 @@
 #include "chain_db.hpp"
 #include "api/types/all.hpp"
 #include "block/chain/header_chain.hpp"
+#include "block/chain/history/history.hpp"
 #include "block/header/header_impl.hpp"
 #include "block/header/view_inline.hpp"
 #include "chainserver/db/ids.hpp"
@@ -865,7 +866,7 @@ void ChainDB::delete_history_from(NonzeroHeight h)
     cache.nextHistoryId = HistoryId { nextHistoryId };
 }
 
-std::optional<std::pair<std::vector<uint8_t>, HistoryId>> ChainDB::lookup_history(const HashView hash)
+std::optional<std::pair<std::vector<uint8_t>, HistoryId>> ChainDB::lookup_history(const HashView hash) const
 {
     return stmtHistoryLookup.one(hash).process([](auto& o) {
         return std::pair<std::vector<uint8_t>, HistoryId> {
@@ -879,14 +880,34 @@ size_t ChainDB::byte_size() const
     return stmtGetDBSize.one().get<int64_t>(0);
 }
 
-std::vector<std::pair<Hash, std::vector<uint8_t>>> ChainDB::lookup_history_range(HistoryId lower, HistoryId upper)
+std::vector<history::Entry> ChainDB::lookup_history_range(HistoryId lower, HistoryId upper) const
 {
     int64_t l = lower.value();
     int64_t u = (upper == HistoryId { 0 } ? std::numeric_limits<int64_t>::max() : upper.value());
-    return stmtHistoryLookupRange.all([&](const sqlite::Row& r) {
-        return std::pair<Hash, std::vector<uint8_t>> { r[0], r[1] };
-    },
-        l, u);
+    try {
+        return stmtHistoryLookupRange.all([&](const sqlite::Row& r) {
+            return history::Entry { r[0], std::vector<uint8_t> { r[1] } };
+        },
+            l, u);
+    } catch (...) {
+        spdlog::error("Cannot load history entries [{},{}]", lower.value(), upper.value());
+        throw;
+    }
+}
+
+std::optional<history::Entry> ChainDB::lookup_history(HistoryId id) const
+{
+    auto v { lookup_history_range(id, id + 1) };
+    if (v.size() == 0)
+        return std::nullopt;
+    return std::move(v.front());
+}
+
+history::Entry ChainDB::fetch_history(HistoryId id) const
+{
+    if (auto e { lookup_history(id) })
+        return std::move(*e);
+    throw std::runtime_error("Cannot load database entry with id " + std::to_string(id.value()));
 }
 
 void ChainDB::insertAccountHistory(AccountId accountId, HistoryId historyId)

@@ -192,9 +192,10 @@ struct AggregatorMatch {
 
 struct MatchStateDelta {
     TokenId tokenId;
-    defi::PoolLiquidity_uint64 pool;
-    std::vector<chain_db::OrderFillstate> orderFillstates;
+    defi::PoolLiquidity_uint64 pool; // pool liquidity after match
     std::vector<chain_db::OrderDelete> orderDeletes;
+    std::optional<chain_db::OrderFillstate> orderBuyPartial;
+    std::optional<chain_db::OrderFillstate> orderSellPartial;
     MatchStateDelta(TokenId tokenId, defi::PoolLiquidity_uint64 pool)
         : tokenId(tokenId)
         , pool(std::move(pool))
@@ -257,7 +258,8 @@ MatchActions::MatchActions(const AggregatorMatch& am, TokenId tokenId, const def
                 assert(orderFilled == o.order.amount);
                 orderDeletes.push_back({ .id { o.id }, .buy = false });
             } else {
-                orderFillstates.push_back({ .id { o.id }, .buy = false, .filled { orderFilled } });
+                assert(remaining == 0);
+                orderSellPartial.emplace(chain_db::OrderFillstate { .id { o.id }, .buy = false, .filled { orderFilled } });
             }
             sellSwaps.push_back(SellSwapInternal { { .oId { o.id }, .txid { o.txid }, .base { b }, .quote { Wart::from_funds_throw(*q) } } });
             // order swapped b -> q
@@ -286,7 +288,8 @@ MatchActions::MatchActions(const AggregatorMatch& am, TokenId tokenId, const def
                 assert(orderFilled == o.order.amount);
                 orderDeletes.push_back({ .id { o.id }, .buy = true });
             } else {
-                orderFillstates.push_back({ .id { o.id }, .buy = true, .filled { orderFilled } });
+                assert(remaining == 0);
+                orderBuyPartial.emplace(chain_db::OrderFillstate { .id { o.id }, .buy = false, .filled { orderFilled } });
             }
             buySwaps.push_back(BuySwapInternal { { .oId { o.id }, .txid { o.txid }, .base { *b }, .quote { Wart::from_funds_throw(q) } } });
         }
@@ -635,16 +638,9 @@ struct InsertHistoryEntry {
         , historyId(historyId)
     {
     }
-    InsertHistoryEntry(ProcessedBuySwap h, HistoryId historyId)
-        : he(std::move(h))
+    InsertHistoryEntry(history::MatchData md, Hash h, HistoryId historyId)
+        : he(std::move(h), std::move(md))
         , historyId(historyId)
-        , parent(HistoryId(h.oId.value()))
-    {
-    }
-    InsertHistoryEntry(ProcessedSellSwap h, HistoryId historyId)
-        : he(std::move(h))
-        , historyId(historyId)
-        , parent(HistoryId(h.oId.value()))
     {
     }
     history::Entry he;
@@ -671,7 +667,7 @@ struct HistoryEntries {
     {
         // insert history for payouts and payments
         for (auto& p : insertHistory) {
-            auto inserted { db.insertHistory(p.he.hash, p.he.data) };
+            auto inserted { db.insertHistory(p.he.hash, p.he.data.serialize()) };
             if (p.parent)
                 db.insert_history_link(*p.parent, p.historyId);
             assert(p.historyId == inserted);
@@ -720,6 +716,24 @@ public:
             entries.insertAccountHistory.push_back({ aid2, h.hid });
         return h;
     };
+    ForAccounts for_accounts(const std::vector<AccountId>& accounts)
+    {
+        ForAccounts h { next_id(), *this };
+        for (auto& aid : accounts)
+            entries.insertAccountHistory.push_back({ aid, h.hid });
+        return h;
+    };
+    // ForAccounts for_accounts(const auto& account_id_generator)
+    // {
+    //     ForAccounts h { next_id(), *this };
+    //     while (true) {
+    //         if (std::optional<AccountId> aid { account_id_generator() })
+    //             entries.insertAccountHistory.push_back({ *aid, h.hid });
+    //         else
+    //             break;
+    //     }
+    //     return h;
+    // };
 
     [[nodiscard]] const auto& push_reward(const RewardInternal& r)
     {
@@ -741,13 +755,9 @@ public:
     {
         return for_accounts(r.ti.origin.id, r.ti.to.id).insert_history(r, tokenId);
     }
-    [[nodiscard]] auto& push_swap(const BuySwapInternal& t, Height h)
+    [[nodiscard]] auto& push_match(const std::vector<AccountId>& accounts, const history::MatchData& t, const BlockHash& blockHash, TokenId tokenId)
     {
-        return for_account(t.txid.accountId).insert_history(ProcessedBuySwap(t, h));
-    }
-    [[nodiscard]] auto& push_swap(const SellSwapInternal& t, Height h)
-    {
-        return for_account(t.txid.accountId).insert_history(ProcessedSellSwap(t, h));
+        return for_accounts(accounts).insert_history(t, hash_args_SHA256(blockHash, tokenId));
     }
 };
 
@@ -967,7 +977,6 @@ private:
             auto ihn { db_token(ts.id).id_hash_name_precision() };
             process_token_transfers(ihn, ts.transfers);
             process_new_orders(ihn, ts.orders);
-            process_cancelations(ihn, ts.cancelations);
             process_liquidity_adds(ihn, ts.liquidityAdds);
             process_liquidity_removes(ihn, ts.liquidityRemoves);
         }
@@ -987,11 +996,11 @@ private:
 
             auto& ref { history.push_wart_transfer(verified) };
             api.wartTransfers.push_back(api::Block::Transfer {
+                .txhash { ref.he.hash },
                 .fromAddress { tr.origin.address },
                 .fee { tr.compactFee.uncompact() },
                 .nonceId { tr.pinNonce.id },
                 .pinHeight { verified.txid.pinHeight },
-                .txhash { ref.he.hash },
                 .toAddress { tr.to.address },
                 .amount { tr.amount },
             });
@@ -1005,10 +1014,14 @@ private:
             auto verified { verify(c) };
             auto& ref { history.push_cancelation(verified) };
             api.cancelations.push_back(
-                { .origin { c.origin },
-                    .fee { c.compactFee.uncompact() },
+                // Hash txhash;
+                // Wart fee;
+                // Address address;
+                {
                     .txhash { ref.he.hash },
-                    .order {} });
+                    .fee { c.compactFee.uncompact() },
+                    .address { c.origin.address },
+                });
             auto o { db.select_order(verified.cancelation.cancelTxid) };
             if (o) { // transaction is removed from the database
                 deleteOrders.push_back({ o->id, o->buy });
@@ -1030,12 +1043,12 @@ private:
 
             auto& ref { history.push_token_transfer(verified, token.id) };
             api.tokenTransfers.push_back(api::Block::TokenTransfer {
+                .txhash { ref.he.hash },
                 .tokenInfo { token },
                 .fromAddress { tr.origin.address },
                 .fee { tr.compactFee.uncompact() },
                 .nonceId { tr.pinNonce.id },
                 .pinHeight { verified.txid.pinHeight },
-                .txhash { ref.he.hash },
                 .toAddress { tr.to.address },
                 .amount { tr.amount, token.precision },
             });
@@ -1053,13 +1066,13 @@ private:
         for (auto& o : orders) {
             auto verified { verify(o, token.hash) };
             auto& ref { history.push_order(verified) };
-            api.newOrders.push_back(api::Block::NewOrder { .tokenInfo { token },
-                .fee { o.compactFee.uncompact() },
+            api.newOrders.push_back(api::Block::NewOrder {
+                .txhash { verified.hash },
+                .tokenInfo { token },
+                .fee { o.fee() },
                 .amount { o.amount.funds, token.precision },
                 .limit { o.limit },
                 .buy = o.buy,
-                .txid { verified.txid },
-                .txhash { verified.hash },
                 .address { o.origin.address } });
             no.push_back({ verified, ref.historyId });
             insertOrders.push_back(chain_db::OrderData {
@@ -1073,26 +1086,26 @@ private:
         }
 
         MatchActions m(db, no, token.id, poolLiquidity);
+        history::MatchData d(poolLiquidity, m.pool);
 
-        for (auto& s : m.buySwaps) {
-            auto& ref { history.push_swap(s, height) };
-            api.swaps.push_back(api::Block::Swap {
-                .tokenInfo { token },
-                .txhash { ref.he.hash },
-                .buy = true,
-                .fillQuote { s.quote },
-                .fillBase { s.base, token.precision },
-            });
-        }
+        api.matches.push_back({ .tokenInfo { token },
+            .liquidityBefore { poolLiquidity },
+            .liquidityAfter { m.pool },
+            .swaps {} });
+        auto b { api.matches.back() };
+
+        for (auto& s : m.buySwaps) 
+            d.buy_swaps().push_back({ s.base,s.quote });
+        for (auto& s : m.sellSwaps) 
+            d.buy_swaps().push_back({ s.base,s.quote });
         for (auto& s : m.sellSwaps) {
-            auto& ref { history.push_swap(s, height) };
-            api.swaps.push_back({
-                .tokenInfo { token },
-                .txhash { ref.he.hash },
-                .buy = false,
-                .fillQuote { s.quote },
-                .fillBase { s.base, token.precision },
-            });
+            // auto& ref { history.push_swap(s, height) };
+            // b.swaps.push_back({
+            //     .buy = false,
+            //     .orderId { s.oId },
+            //     .fillQuote { s.quote },
+            //     .fillBase { s.base, token.precision },
+            // });
         }
         matchDeltas.push_back(std::move(m));
     }

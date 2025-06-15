@@ -1,259 +1,138 @@
 #include "history.hpp"
-#include "general/writer.hpp"
 
 namespace history {
-namespace {
-    std::vector<uint8_t> serialize(const Data& entry)
-    {
-        return std::visit([](auto& e) {
-            std::vector<uint8_t> data(1 + e.bytesize);
-            Writer w(data);
-            w << e.indicator;
-            e.write(w);
-            return data;
-        },
-            entry);
-    }
-}
 
 Entry::Entry(const RewardInternal& p)
     : hash(p.hash())
+    , data(RewardData {
+          p.toAccountId,
+          p.amount })
 {
-    data = serialize(RewardData {
-        p.toAccountId,
-        p.amount });
 }
 
 Entry::Entry(const VerifiedWartTransfer& p)
     : hash(static_cast<const Hash&>(p.hash))
+    , data(WartTransferData {
+          p.ti.pinNonce,
+          p.ti.compactFee,
+          p.ti.origin.id,
+          p.ti.to.id,
+          p.ti.amount,
+      })
 {
-    data = serialize(WartTransferData {
-        p.ti.origin.id,
-        p.ti.compactFee,
-        p.ti.to.id,
-        p.ti.amount,
-        p.ti.pinNonce });
 }
 
 Entry::Entry(const VerifiedTokenTransfer& p, TokenId tokenId)
     : hash(p.hash)
+    , data(TokenTransferData {
+          p.ti.pinNonce,
+          p.ti.compactFee,
+          tokenId,
+          p.txid.accountId,
+          p.ti.to.id,
+          p.ti.amount,
+      })
 {
-    data = serialize(TokenTransferData {
-        .tokenId { tokenId },
-        .fromAccountId { p.txid.accountId },
-        .compactFee { p.ti.compactFee },
-        .toAccountId { p.ti.to.id },
-        .amount { p.ti.amount },
-        .pinNonce { p.ti.pinNonce } });
 }
 Entry::Entry(const VerifiedOrder& p)
     : hash(p.hash)
+    , data(OrderData {
+          p.order.pinNonce,
+          p.order.compactFee,
+          p.order.amount.tokenId,
+          p.order.buy,
+          p.txid.accountId,
+          p.order.limit,
+          p.order.amount.funds,
+      })
 {
-    data = serialize(OrderData {
-        .tokenId { p.order.amount.tokenId },
-        .buy = p.order.buy,
-        .accountId { p.txid.accountId },
-        .compactFee { p.order.compactFee },
-        .limit { p.order.limit },
-        .amount { p.order.amount.funds },
-        .pinNonce { p.order.pinNonce } });
 }
 
 Entry::Entry(const VerifiedCancelation& p)
     : hash(p.hash)
+    , data(CancelationData {
+          p.cancelation.pinNonce,
+          p.cancelation.compactFee,
+          p.cancelation.cancelTxid })
 {
-    data = serialize(CancelationData {
-        .tokenId { p.cancelation.tokenId },
-        .cancelTxid { p.cancelation.cancelTxid },
-        .accountId { p.cancelation.origin.id },
-        .compactFee { p.cancelation.compactFee } });
-}
-TokenTransferData TokenTransferData::parse(Reader& r)
-{
-    if (r.remaining() != bytesize)
-        throw std::runtime_error("Cannot parse TokenTransferData.");
-    return TokenTransferData {
-        .tokenId { r },
-        .fromAccountId { r },
-        .compactFee { r },
-        .toAccountId { r },
-        .amount { Funds_uint64::from_value_throw(r) },
-        .pinNonce { r }
-    };
 }
 
 Entry::Entry(const VerifiedTokenCreation& p, TokenId tokenId)
     : hash(p.hash)
-{
-    data = serialize(TokenCreationData {
-        .creatorAccountId { p.tci.origin.id },
-        .pinNonce { p.tci.pinNonce },
-        .tokenName { p.tci.name },
-        .compactFee { p.tci.compactFee },
-        .tokenId { tokenId } });
-}
-
-Entry::Entry(const ProcessedBuySwap& p)
-    : hash(p.hash)
-    , data(serialize(BuySwapData { p }))
+    , data(TokenCreationData {
+          p.tci.pinNonce,
+          p.tci.compactFee,
+          tokenId,
+          p.tci.origin.id,
+          p.tci.supply,
+          p.tci.name,
+    })
 {
 }
 
-Entry::Entry(const ProcessedSellSwap& p)
-    : hash(p.hash)
-    , data(serialize(SellSwapData { p }))
+Entry::Entry(Hash hash, MatchData m)
+    : hash(std::move(hash))
+    , data(std::move(m))
 {
 }
 
-void TokenTransferData::write(Writer& w) const
-{
-    assert(w.remaining() == bytesize);
-    w << tokenId << fromAccountId << compactFee << toAccountId
-      << amount << pinNonce;
-}
 
-OrderData OrderData::parse(Reader& r)
-{
-    return OrderData { r, r, r, r, Price_uint64::from_uint32_throw(r.uint32()), r, r };
-}
-
-void OrderData::write(Writer& w) const
-{
-    assert(w.remaining() == bytesize);
-    w << tokenId << buy << accountId << compactFee << amount
-      << limit.to_uint32() << pinNonce;
-}
-
-void CancelationData::write(Writer& w) const
-{
-    assert(w.remaining() == bytesize);
-    w << tokenId << cancelTxid << accountId << compactFee;
-}
-
-CancelationData CancelationData::parse(Reader& r)
-{
-    return { r, r, r, r };
-}
-
-void WartTransferData::write(Writer& w) const
-{
-    assert(w.remaining() == bytesize);
-    w << fromAccountId << compactFee << toAccountId
-      << amount << pinNonce;
-}
-
-WartTransferData WartTransferData::parse(Reader& r)
-{
-    if (r.remaining() != bytesize)
-        throw std::runtime_error("Cannot parse TransferData.");
-    return WartTransferData {
-        .fromAccountId { r },
-        .compactFee { r },
-        .toAccountId { r },
-        .amount { r },
-        .pinNonce { r }
-    };
-}
-
-void RewardData::write(Writer& w) const
-{
-    assert(w.remaining() == bytesize);
-    w << toAccountId << miningReward;
-}
-
-RewardData RewardData::parse(Reader& r)
-{
-    if (r.remaining() != bytesize)
-        throw std::runtime_error("Cannot parse RewardData.");
-    return RewardData {
-        .toAccountId { r },
-        .miningReward { r }
-    };
-}
-
-void TokenCreationData::write(Writer& w) const
-{
-    assert(w.remaining() == bytesize);
-    w << creatorAccountId << compactFee << pinNonce << tokenName << tokenId;
-}
-
-TokenCreationData TokenCreationData::parse(Reader& r)
-{
-    if (r.remaining() != bytesize)
-        throw std::runtime_error("Cannot parse TokenCreationData.");
-    return TokenCreationData {
-        .creatorAccountId { r },
-        .pinNonce { r },
-        .tokenName { r },
-        .compactFee { r },
-        .tokenId { r },
-    };
-}
-void SwapData::write(Writer& w) const
-{
-    assert(w.remaining() == bytesize);
-    w << oId << accId << base << quote;
-}
-
-SwapData SwapData::parse(Reader& r)
-{
-    if (r.remaining() != bytesize)
-        throw std::runtime_error("Cannot parse TokenCreationData.");
-    return SwapData { r, r, r, r };
-}
-
-// do metaprogramming dance
+// // do metaprogramming dance
+// //
+// template <typename V, uint8_t prevcode>
+// V check(uint8_t, Reader&)
+// {
+//     throw std::runtime_error("Cannot parse history entry, unknown variant type");
+// }
 //
-template <typename V, uint8_t prevcode>
-V check(uint8_t, Reader&)
-{
-    throw std::runtime_error("Cannot parse history entry, unknown variant type");
-}
-
-template <typename V, uint8_t prevIndicator, typename T, typename... S>
-V check(uint8_t indicator, Reader& r)
-{
-    // variant indicators must be all different and in order
-    static_assert(prevIndicator < T::indicator);
-    if (T::indicator == indicator)
-        return T::parse(r);
-    return check<V, T::indicator, S...>(indicator, r);
-}
-
-template <typename Variant, typename T, typename... S>
-Variant check_first(uint8_t indicator, Reader& r)
-{
-    if (T::indicator == indicator)
-        return T::parse(r);
-    return check<Variant, T::indicator, S...>(indicator, r);
-}
-
-template <typename... Types>
-auto parse_recursive(Reader& r)
-{
-    using Variant = std::variant<Types...>;
-    auto indicator { r.uint8() };
-    return check_first<Variant, Types...>(indicator, r);
-}
-
-template <typename T>
-class VariantParser {
-};
-
-template <typename... Types>
-struct VariantParser<std::variant<Types...>> {
-    static Data parse(std::vector<uint8_t>& v)
-    {
-        Reader r(v);
-        auto res { parse_recursive<Types...>(r) };
-        if (!r.eof())
-            throw Error(EMSGINTEGRITY);
-        return res;
-    }
-};
-
-Data Data::parse_throw(std::vector<uint8_t> v)
-{
-    return VariantParser<data_t>::parse(v);
-}
+// template <typename V, uint8_t prevIndicator, typename T, typename... S>
+// V check(uint8_t indicator, Reader& r)
+// {
+//     // variant indicators must be all different and in order
+//     static_assert(prevIndicator < T::indicator);
+//     if (T::indicator == indicator)
+//         return T(r);
+//     return check<V, T::indicator, S...>(indicator, r);
+// }
+//
+// template <typename Variant, typename T, typename... S>
+// Variant check_first(uint8_t indicator, Reader& r)
+// {
+//     if (T::indicator == indicator)
+//         return T(r);
+//     return check<Variant, T::indicator, S...>(indicator, r);
+// }
+//
+// template <typename... Types>
+// auto parse_recursive(Reader& r)
+// {
+//     using Variant = wrt::variant<Types...>;
+//     auto indicator { r.uint8() };
+//     return check_first<Variant, Types...>(indicator, r);
+// }
+//
+// template <typename T>
+// class VariantParser {
+// };
+//
+// template <typename... Types>
+// struct VariantParser<wrt::variant<Types...>> {
+//     static Data parse(std::vector<uint8_t>& v)
+//     {
+//         Reader r(v);
+//         auto res { parse_recursive<Types...>(r) };
+//         if (!r.eof())
+//             throw Error(EMSGINTEGRITY);
+//         return res;
+//     }
+// };
+//
+// Data Data::parse_throw(std::vector<uint8_t> v)
+// {
+//     Reader r(v);
+//     using AA = HistoryVariant<WartTransferData>;
+//     AA a(v);
+//
+//     return VariantParser<data_t>::parse(v);
+// }
 }

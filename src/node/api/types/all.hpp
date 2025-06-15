@@ -11,6 +11,7 @@
 #include "communication/mining_task.hpp"
 #include "crypto/address.hpp"
 #include "defi/token/token.hpp"
+#include "defi/uint64/pool.hpp"
 #include "defi/uint64/price.hpp"
 #include "eventloop/peer_chain.hpp"
 #include "eventloop/types/conndata.hpp"
@@ -109,40 +110,44 @@ struct BlockSummary {
 struct Block {
     static constexpr const char eventName[] = "blockAppend";
     struct Transfer {
+        Hash txhash;
         Address fromAddress;
         Wart fee;
         NonceId nonceId;
         PinHeight pinHeight;
-        Hash txhash;
         Address toAddress;
         Wart amount;
     };
     struct TokenTransfer {
+        Hash txhash;
         TokenIdHashNamePrecision tokenInfo;
         Address fromAddress;
         Wart fee;
         NonceId nonceId;
         PinHeight pinHeight;
-        Hash txhash;
         Address toAddress;
         FundsDecimal amount;
     };
     struct NewOrder {
+        Hash txhash;
         TokenIdHashNamePrecision tokenInfo;
         Wart fee;
         FundsDecimal amount;
         Price_uint64 limit;
         bool buy;
-        TransactionId txid;
-        Hash txhash;
         Address address;
     };
-    struct Swap {
+    struct Match {
+        struct Swap {
+            HistoryId orderId;
+            Wart fillQuote;
+            FundsDecimal fillBase;
+        };
         TokenIdHashNamePrecision tokenInfo;
-        Hash txhash;
-        bool buy;
-        Wart fillQuote;
-        FundsDecimal fillBase;
+        defi::BaseQuote_uint64 liquidityBefore;
+        defi::BaseQuote_uint64 liquidityAfter;
+        std::vector<Swap> buySwaps;
+        std::vector<Swap> sellSwaps;
     };
     struct Reward {
         Hash txhash;
@@ -150,25 +155,16 @@ struct Block {
         Wart amount;
     };
     struct TokenCreation {
-        TransactionId txid;
-        Hash txhash;
+        TxHash txhash;
         TokenName tokenName;
         FundsDecimal supply;
         TokenId tokenId;
         Wart fee;
     };
     struct Cancelation {
-        struct OrderData {
-            TokenId tid;
-            Funds_uint64 total;
-            Funds_uint64 filled;
-            Price_uint64 limit;
-            bool buy;
-        };
-        IdAddress origin;
-        Wart fee;
         Hash txhash;
-        std::optional<OrderData> order;
+        Wart fee;
+        Address address;
     };
     Header header;
     NonzeroHeight height;
@@ -181,12 +177,9 @@ public:
         std::vector<TokenTransfer> tokenTransfers;
         std::vector<TokenCreation> tokenCreations;
         std::vector<NewOrder> newOrders;
-        std::vector<Swap> swaps;
+        std::vector<Match> matches;
         std::vector<Cancelation> cancelations;
     } actions;
-    void push_history(const Hash& txid,
-        const std::vector<uint8_t>& data, chainserver::DBCache& cache,
-        PinFloor pinFloor);
 
     Block(Header header,
         NonzeroHeight height, uint32_t confirmations,

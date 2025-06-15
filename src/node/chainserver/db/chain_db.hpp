@@ -6,6 +6,7 @@
 #include "block/block.hpp"
 #include "block/block_fwd.hpp"
 #include "block/body/container.hpp"
+#include "block/chain/history/history.hpp"
 #include "block/chain/offsts.hpp"
 #include "block/chain/worksum.hpp"
 #include "block/id.hpp"
@@ -200,10 +201,11 @@ public:
     HistoryId insertHistory(const HashView hash,
         const std::vector<uint8_t>& data);
     void delete_history_from(NonzeroHeight);
-    std::optional<std::pair<std::vector<uint8_t>, HistoryId>> lookup_history(const HashView hash);
+    std::optional<std::pair<std::vector<uint8_t>, HistoryId>> lookup_history(const HashView hash) const;
 
-    std::vector<std::pair<Hash, std::vector<uint8_t>>>
-    lookup_history_range(HistoryId lower, HistoryId upper);
+    [[nodiscard]] std::vector<history::Entry> lookup_history_range(HistoryId lower, HistoryId upper) const;
+    [[nodiscard]] std::optional<history::Entry> lookup_history(HistoryId id) const;
+    [[nodiscard]] history::Entry fetch_history(HistoryId id) const;
     void insertAccountHistory(AccountId accountId, HistoryId historyId);
     HistoryId next_history_id() const
     {

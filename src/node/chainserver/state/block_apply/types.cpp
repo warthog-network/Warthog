@@ -1,9 +1,8 @@
 #include "types.hpp"
-ProcessedSwap::ProcessedSwap(SwapInternal si, bool buyBase, Height h)
-    : SwapInternal(std::move(si))
-    , hash(HasherSHA256() << uint8_t(buyBase) << si.txid.accountId << base << quote << h)
-{
-}
+// ProcessedMatch::ProcessedMatch(const Hash& blockHash, TokenId tokenId){
+//     , hash(HasherSHA256() << uint8_t(buyBase) << si.txid.accountId << base << quote << h)
+// {
+// }
 
 Hash RewardInternal::hash() const
 {

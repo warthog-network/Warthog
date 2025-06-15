@@ -12,13 +12,31 @@ struct variant : public std::variant<Ts...> {
     Overload(Rs...) -> Overload<Rs...>;
 
     template <typename... U>
-    auto visit_overload(U&&... u) const
+    auto visit_overload(U&&... u) &
     {
         return visit(Overload { std::forward<U>(u)... });
     }
-    auto visit(auto lambda) const
+    template <typename... U>
+    auto visit_overload(U&&... u) const&
+    {
+        return visit(Overload { std::forward<U>(u)... });
+    }
+    template <typename... U>
+    auto visit_overload(U&&... u) &&
+    {
+        return std::move(*this).visit(Overload { std::forward<U>(u)... });
+    }
+    auto visit(auto lambda) &
     {
         return std::visit(lambda, *this);
+    }
+    auto visit(auto lambda) const&
+    {
+        return std::visit(lambda, *this);
+    }
+    auto visit(auto lambda) &&
+    {
+        return std::visit(lambda, std::move(*this));
     }
     template <typename T>
     bool holds() const { return std::holds_alternative<T>(*this); }

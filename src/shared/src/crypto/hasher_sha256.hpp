@@ -145,7 +145,7 @@ inline Hash hashSHA256(const std::vector<uint8_t>& vec)
 }
 
 template <typename... Ts>
-inline Hash hash_args_SHA256(Ts&&... ts)
+[[nodiscard]] inline Hash hash_args_SHA256(Ts&&... ts)
 {
     return HasherSHA256() << (std::forward<Ts>(ts) << ...);
 }

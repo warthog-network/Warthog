@@ -454,7 +454,7 @@ Block* StratumServer::AddressData::find_block(const std::string& jobId)
         return nullptr;
     return &iter->second;
 }
-Block* StratumServer::AddressData::add_block(const std::string& jobId, ParsedBlock&& b)
+Block* StratumServer::AddressData::add_block(const std::string& jobId, Block&& b)
 {
     // delete old blocks when new block is available
     if (!blocks.empty() && blocks.begin()->second.header.prevhash() != b.header.prevhash()) {

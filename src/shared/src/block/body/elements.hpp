@@ -38,8 +38,8 @@ struct Combined : public Ts... {
     }
 };
 template <typename... Ts>
-struct SignedCombined : public Combined<OriginAccountIdElement, PinNonceElement, CompactFeeElement, Ts..., SignatureElement> {
-    using Combined<OriginAccountIdElement, PinNonceElement, CompactFeeElement, Ts..., SignatureElement>::Combined;
+struct SignedCombined : public Combined<OriginAccIdEl, PinNonceEl, CompactFeeEl, Ts..., SignatureEl> {
+    using Combined<OriginAccIdEl, PinNonceEl, CompactFeeEl, Ts..., SignatureEl>::Combined;
     [[nodiscard]] TransactionId txid(PinHeight pinHeight) const
     {
         PinNonce pn = this->pin_nonce();
