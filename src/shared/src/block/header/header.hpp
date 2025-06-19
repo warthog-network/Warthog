@@ -37,7 +37,7 @@ public:
     inline double janus_number() const;
     inline uint32_t nonce() const;
     void set_nonce(std::array<uint8_t, 4>);
-    inline Hash hash() const;
+    inline BlockHash hash() const;
     constexpr static size_t byte_size()
     {
         return HEADERBYTELENGTH;

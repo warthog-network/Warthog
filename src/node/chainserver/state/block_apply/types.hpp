@@ -5,6 +5,7 @@
 #include "crypto/address.hpp"
 #include "crypto/hash.hpp"
 #include "defi/token/token.hpp"
+#include "defi/types.hpp"
 #include "defi/uint64/price.hpp"
 #include "signature_verification.hpp"
 struct SwapInternal {
@@ -67,10 +68,32 @@ struct CancelationInternal : public SignerData {
     }
 };
 
-struct LiquidityAddInternal : public SignerData {
+struct LiquidityDepositsInternal;
+struct VerifiedLiquidityDeposit : public VerifiedTransaction {
+    VerifiedLiquidityDeposit(const LiquidityDepositsInternal&, const TransactionVerifier&);
+    const LiquidityDepositsInternal& liquidityAdd;
 };
 
-struct LiquidityRemoveInternal : public SignerData {
+struct LiquidityDepositsInternal : public SignerData {
+    defi::BaseQuote basequote;
+    [[nodiscard]] VerifiedLiquidityDeposit verify(const TransactionVerifier& tv) const
+    {
+        return { *this, tv };
+    }
+};
+
+struct LiquidityWithdrawalInternal;
+struct VerifiedLiquidityWithdrawal : public VerifiedTransaction {
+    VerifiedLiquidityWithdrawal(const LiquidityWithdrawalInternal&, const TransactionVerifier&);
+    const LiquidityWithdrawalInternal& liquidityAdd;
+};
+
+struct LiquidityWithdrawalInternal : public SignerData {
+    Funds_uint64 poolShares;
+    [[nodiscard]] VerifiedLiquidityWithdrawal verify(const TransactionVerifier& tv) const{
+        return {*this,tv};
+
+    }
 };
 
 struct WartTransferInternal;
@@ -133,4 +156,3 @@ struct TokenCreationInternal : public SignerData {
         return { *this, tv };
     }
 };
-

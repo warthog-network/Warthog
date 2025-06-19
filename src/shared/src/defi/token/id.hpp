@@ -1,28 +1,19 @@
 #pragma once
 #include "general/with_uint64.hpp"
-struct TokenId : public IsUint32 {
-    using IsUint32::IsUint32;
-
+struct TokenId : public UInt32WithOperators<TokenId> {
+    using UInt32WithOperators::UInt32WithOperators;
     static const TokenId WART;
-    bool operator==(const TokenId&) const = default;
-    auto operator-(TokenId a)
-    {
-        return val - a.val;
-    }
-    TokenId operator-(uint32_t i) const
-    {
-        return TokenId(val - i);
-    }
-    TokenId operator+(uint32_t i) const
-    {
-        return TokenId(val + i);
-    }
-    TokenId operator++(int)
-    {
-        return TokenId(val++);
-    }
 };
-inline constexpr TokenId TokenId::WART{0};
+
+struct ShareId : public TokenId {
+    ShareId(TokenId id)
+        : TokenId(std::move(id))
+    {
+    }
+    using TokenId::TokenId;
+};
+
+inline constexpr TokenId TokenId::WART { 0 };
 
 struct TokenForkId : public IsUint64 {
     using IsUint64::IsUint64;

@@ -47,7 +47,7 @@ inline uint32_t Header::nonce() const
 {
     return static_cast<HeaderView>(*this).nonce();
 }
-inline Hash Header::hash() const
+inline BlockHash Header::hash() const
 {
     return static_cast<HeaderView>(*this).hash();
 }

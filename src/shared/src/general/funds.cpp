@@ -145,7 +145,11 @@ Wart Wart::parse_throw(std::string_view s)
 
 std::string Wart::to_string() const
 {
-    return FundsDecimal { val, TokenPrecision::digits8() }.to_string();
+    return FundsDecimal { val, Wart::precision }.to_string();
+}
+Writer& operator<<(Writer& w, const FundsDecimal& fd)
+{
+    return w << fd.funds<< fd.precision;
 }
 
 Wart::Wart(Reader& r)

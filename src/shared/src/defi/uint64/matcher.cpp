@@ -3,7 +3,7 @@
 #include <variant>
 
 namespace defi {
-std::optional<Delta_uint64> FilledAndPool::balance_pool_interaction() const
+std::optional<NonzeroDelta_uint64> FilledAndPool::balance_pool_interaction() const
 {
     struct ret_t {
         std::strong_ordering rel;
@@ -103,10 +103,10 @@ std::optional<Delta_uint64> FilledAndPool::balance_pool_interaction() const
     auto baseRet { nondecreasing_relation_base(0) };
     auto quoteRet { nondecreasing_releation_quote(0) };
     auto make_toPool = [&](bool isQuote,
-                           uint64_t toPool) -> std::optional<Delta_uint64> {
+                           uint64_t toPool) -> std::optional<NonzeroDelta_uint64> {
         if (toPool == 0)
             return {};
-        return Delta_uint64 { isQuote, toPool };
+        return NonzeroDelta_uint64 { isQuote, NonzeroFunds_uint64(toPool) };
     };
     if (baseRet.rel == std::strong_ordering::greater) {
         // need to push quote to pool

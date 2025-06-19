@@ -1,7 +1,9 @@
 #pragma once
 struct ToAccIdEl;
 struct WartEl;
+struct QuoteWartEl;
 struct AmountEl;
+struct BaseAmountEl;
 struct OriginAccIdEl;
 struct CancelPinNonceEl;
 struct PinNonceEl;

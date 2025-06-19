@@ -30,6 +30,43 @@ public:
 protected:
     uint32_t val;
 };
+template <typename T>
+class UInt32WithIncrement : public IsUint32 {
+public:
+    using IsUint32::IsUint32;
+    T operator++(int)
+    {
+        return T(val++);
+    }
+};
+
+template <typename T>
+class UInt32WithOperators : public UInt32WithIncrement<T> {
+public:
+    using UInt32WithIncrement<T>::UInt32WithIncrement;
+    using parent_t = UInt32WithOperators<T>;
+    size_t operator-(T a)
+    {
+        return this->val - a.val;
+    }
+    T operator-(size_t i) const
+    {
+        return T(this->val - i);
+    }
+    T operator+(size_t i) const
+    {
+        return T(this->val + i);
+    }
+    T operator++(int)
+    {
+        return T(this->val++);
+    }
+    T operator++()
+    {
+        return T(++this->val);
+    }
+};
+
 struct IsUint64 {
 public:
     explicit IsUint64(int64_t w);

@@ -14,7 +14,7 @@ using WartTransfer = SignedCombined<ToAccIdEl, WartEl>;
 using TokenTransfer = SignedCombined<ToAccIdEl, AmountEl>;
 using Order = SignedCombined<BuyEl, AmountEl, LimitPriceEl>;
 using Cancelation = SignedCombined<CancelPinNonceEl>;
-using LiquidityAdd = SignedCombined<WartEl, AmountEl>;
-using LiquidityRemove = SignedCombined<AmountEl>;
+using LiquidityDeposit = SignedCombined<QuoteWartEl, BaseAmountEl>;
+using LiquidityWithdraw = SignedCombined<AmountEl>;
 }
 }

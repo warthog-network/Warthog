@@ -24,6 +24,25 @@ VerifiedOrder::VerifiedOrder(const OrderInternal& o, const TransactionVerifier& 
 
 {
 }
+VerifiedCancelation::VerifiedCancelation(const CancelationInternal& c, const TransactionVerifier& verifier)
+    : VerifiedTransaction(verifier.verify(
+          c,
+          c.compactFee.uncompact(),
+          c.cancelTxid))
+    , cancelation(c)
+{
+}
+
+VerifiedLiquidityDeposit::VerifiedLiquidityDeposit(const LiquidityDepositsInternal& l, const TransactionVerifier& verifier)
+    : VerifiedTransaction(verifier.verify(l, l.basequote))
+    , liquidityAdd { l }
+{
+}
+VerifiedLiquidityWithdrawal::VerifiedLiquidityWithdrawal(const LiquidityWithdrawalInternal& l, const TransactionVerifier& verifier)
+    : VerifiedTransaction(verifier.verify(l, l.poolShares))
+    , liquidityAdd(l)
+{
+}
 
 VerifiedTokenTransfer::VerifiedTokenTransfer(const TokenTransferInternal& ti, const TransactionVerifier& verifier, HashView tokenHash)
     : VerifiedTransaction(verifier.verify(ti,

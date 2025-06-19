@@ -15,53 +15,33 @@ class TxIdVerifier;
 namespace history {
 template <uint8_t I, typename... Ts>
 requires(I < 256)
-struct ICombine : public CombineElements<Ts...> {
+struct IdCombine : public CombineElements<Ts...> {
     using CombineElements<Ts...>::CombineElements;
     constexpr static uint8_t indicator = I;
 };
 
-using WartTransferData
-    = ICombine<1, PinNonceEl, CompactFeeEl, OriginAccIdEl, ToAccIdEl, WartEl>;
+template <uint8_t I, typename... Ts>
+requires(I < 256)
+using IdCombineSigned = IdCombine<I, PinNonceEl, CompactFeeEl, Ts...>;
 
-using RewardData
-    = ICombine<2, ToAccIdEl, WartEl>;
+using WartTransferData = IdCombineSigned<1, OriginAccIdEl, ToAccIdEl, WartEl>;
+using RewardData = IdCombine<2, ToAccIdEl, WartEl>;
+using TokenCreationData = IdCombineSigned<3, TokenIdEl, OwnerIdEl, TokenSupplyEl, TokenNameEl>;
+using TokenTransferData = IdCombineSigned<4, TokenIdEl, OriginAccIdEl, ToAccIdEl, AmountEl>;
+using OrderData = IdCombineSigned<5, TokenIdEl, BuyEl, AccountIdEl, LimitPriceEl, AmountEl>;
+using CancelationData = IdCombineSigned<6, CancelTxidEl>;
 
-using TokenCreationData
-    = ICombine<3, PinNonceEl, CompactFeeEl, TokenIdEl, OwnerIdEl, TokenSupplyEl, TokenNameEl>;
-
-using TokenTransferData
-    = ICombine<4, PinNonceEl, CompactFeeEl, TokenIdEl, OriginAccIdEl, ToAccIdEl, AmountEl>;
-
-using OrderData
-    = ICombine<5, PinNonceEl, CompactFeeEl, TokenIdEl, BuyEl, AccountIdEl, LimitPriceEl, AmountEl>;
-
-using CancelationData
-    = ICombine<6, PinNonceEl, CompactFeeEl, CancelTxidEl>;
-
-struct BaseQuote : public CombineElements<BaseEl, QuoteEl> {
-    using CombineElements::CombineElements;
-    BaseQuote(const defi::BaseQuote_uint64& b)
-        : CombineElements(b.base, Wart::from_funds_throw(b.quote))
-    {
-    }
-};
-
-struct PoolBeforeEl : public ElementBase<BaseQuote> {
+struct PoolBeforeEl : public ElementBase<defi::BaseQuote> {
     using base::base;
     [[nodiscard]] const auto& pool_before() const { return data; }
 };
 
-struct PoolAfterEl : public ElementBase<BaseQuote> {
+struct PoolAfterEl : public ElementBase<defi::BaseQuote> {
     using base::base;
     [[nodiscard]] const auto& pool_after() const { return data; }
 };
 
-// struct SwapEl : public ElementBase<BaseQuote> {
-//     using base::base;
-//     [[nodiscard]] const auto& swap() const { return data; }
-// };
-//
-using Swap = CombineElements<OrderIdEl, BaseQuote>;
+using Swap = CombineElements<OrderIdEl, defi::BaseQuote>;
 
 template <typename T>
 struct vect_len32_base : public std::vector<T> {
@@ -108,24 +88,28 @@ struct vect_len32<T> : public vect_len32_base<T> {
     }
 };
 
-struct BuySwapsEl : public ElementBase<vect_len32<BaseQuote>> {
+struct BuySwapsEl : public ElementBase<vect_len32<CombineElements<BaseEl, QuoteEl, ReferredHistoryIdEl>>> {
     using base::base;
     [[nodiscard]] const auto& buy_swaps() const { return data; }
     [[nodiscard]] auto& buy_swaps() { return data; }
 };
-struct SellSwapsEl : public ElementBase<vect_len32<BaseQuote>> {
+
+struct SellSwapsEl : public ElementBase<vect_len32<CombineElements<BaseEl, QuoteEl, ReferredHistoryIdEl>>> {
     using base::base;
     [[nodiscard]] const auto& sell_swaps() const { return data; }
     [[nodiscard]] auto& sell_swaps() { return data; }
 };
 
-struct MatchData : public ICombine<7, PoolBeforeEl, PoolAfterEl, BuySwapsEl, SellSwapsEl> {
+struct MatchData : public IdCombine<7, PoolBeforeEl, PoolAfterEl, BuySwapsEl, SellSwapsEl> {
     MatchData(defi::PoolLiquidity_uint64 poolBefore, defi::PoolLiquidity_uint64 poolAfter)
         : MatchData(defi::BaseQuote_uint64(std::move(poolBefore)), std::move(poolAfter), {}, {})
     {
     }
-    using ICombine::ICombine;
+    using IdCombine::IdCombine;
 };
+
+using LiquidityDeposit = IdCombineSigned<8, BaseEl, QuoteEl, SharesEl, TokenIdEl>;
+using LiquidityWithdraw = IdCombineSigned<9, BaseEl, QuoteEl, SharesEl, TokenIdEl>;
 
 template <typename gen_parse_exception, typename... Ts>
 struct IndicatorVariant : public wrt::variant<Ts...> {
@@ -184,7 +168,7 @@ public:
     }
 };
 
-using HistoryVariant = IndicatorVariant<decltype([]() { return std::runtime_error("Cannot parse history entry"); }), WartTransferData, RewardData, TokenCreationData, TokenTransferData, OrderData, CancelationData, MatchData>;
+using HistoryVariant = IndicatorVariant<decltype([]() { return std::runtime_error("Cannot parse history entry"); }), WartTransferData, RewardData, TokenCreationData, TokenTransferData, OrderData, CancelationData, MatchData, LiquidityDeposit, LiquidityWithdraw>;
 
 struct Entry {
     Entry(const RewardInternal& p);
@@ -193,13 +177,15 @@ struct Entry {
     Entry(const VerifiedOrder& p);
     Entry(const VerifiedCancelation& p);
     Entry(const VerifiedTokenCreation& p, TokenId);
+    Entry(const VerifiedLiquidityDeposit& p, Funds_uint64 receivedShares, TokenId tokenId);
+    Entry(const VerifiedLiquidityWithdrawal& p, Funds_uint64 receivedBase, Wart receivedQuote, TokenId tokenId);
     Entry(Hash h, MatchData);
     Entry(Hash h, HistoryVariant data)
         : hash(std::move(h))
         , data(std::move(data))
     {
     }
-    Hash hash;
+    TxHash hash;
     HistoryVariant data;
 };
 

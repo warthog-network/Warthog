@@ -11,7 +11,7 @@ Entry::Entry(const RewardInternal& p)
 }
 
 Entry::Entry(const VerifiedWartTransfer& p)
-    : hash(static_cast<const Hash&>(p.hash))
+    : hash(p.hash)
     , data(WartTransferData {
           p.ti.pinNonce,
           p.ti.compactFee,
@@ -59,6 +59,7 @@ Entry::Entry(const VerifiedCancelation& p)
 
 Entry::Entry(const VerifiedTokenCreation& p, TokenId tokenId)
     : hash(p.hash)
+    // = ICombine<3, PinNonceEl, CompactFeeEl, TokenIdEl, OwnerIdEl, TokenSupplyEl, TokenNameEl>;
     , data(TokenCreationData {
           p.tci.pinNonce,
           p.tci.compactFee,
@@ -66,7 +67,31 @@ Entry::Entry(const VerifiedTokenCreation& p, TokenId tokenId)
           p.tci.origin.id,
           p.tci.supply,
           p.tci.name,
-    })
+      })
+{
+}
+
+Entry::Entry(const VerifiedLiquidityDeposit& p, Funds_uint64 receivedShares, TokenId tokenId)
+    : hash(p.hash)
+    , data(LiquidityDeposit {
+          p.liquidityAdd.pinNonce,
+          p.liquidityAdd.compactFee,
+          p.liquidityAdd.basequote.base(),
+          p.liquidityAdd.basequote.quote(),
+          receivedShares,
+          tokenId })
+{
+}
+
+Entry::Entry(const VerifiedLiquidityWithdrawal& w, Funds_uint64 receivedBase, Wart receivedQuote, TokenId tokenId)
+    : hash(w.hash)
+    , data(LiquidityWithdraw {
+          w.liquidityAdd.pinNonce,
+          w.liquidityAdd.compactFee,
+          receivedBase,
+          receivedQuote,
+          w.liquidityAdd.poolShares,
+          tokenId })
 {
 }
 
@@ -75,7 +100,6 @@ Entry::Entry(Hash hash, MatchData m)
     , data(std::move(m))
 {
 }
-
 
 // // do metaprogramming dance
 // //

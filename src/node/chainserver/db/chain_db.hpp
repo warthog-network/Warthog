@@ -41,12 +41,21 @@ struct Candle {
     Funds_uint64 volume;
 };
 
-struct PoolData {
-    TokenId shareId; // pool shares id
+struct PoolData : public defi::Pool_uint64 {
+    PoolData(ShareId shareId, TokenId tokenId, Funds_uint64 base, Funds_uint64 quote, Funds_uint64 shares)
+        : defi::Pool_uint64(base.value(), quote.value(), shares.value())
+        , shareId(shareId)
+        , tokenId(tokenId)
+    {
+    }
+    PoolData(ShareId shareId, TokenId tokenId)
+        : PoolData(std::move(shareId), std::move(tokenId), Funds_uint64::zero(), Funds_uint64::zero(), Funds_uint64::zero())
+    {
+    }
+
+    ShareId shareId; // pool shares id
     TokenId tokenId;
-    Funds_uint64 base;
-    Funds_uint64 quote;
-    Funds_uint64 shares;
+
     defi::PoolLiquidity_uint64 liquidity() const { return { base, quote }; }
 };
 
@@ -149,7 +158,7 @@ public:
 
     /////////////////////
     // Pool functions
-    void insert_pool(TokenId shareId, TokenId tokenId);
+    void insert_pool(ShareId shareId, TokenId tokenId, const defi::Pool& pool);
     [[nodiscard]] std::optional<PoolData> select_pool(TokenId shareIdOrTokenId) const;
     void update_pool(TokenId shareId, Funds_uint64 base, Funds_uint64 quote, Funds_uint64 shares);
     void set_pool_liquidity(TokenId, const defi::PoolLiquidity_uint64&);

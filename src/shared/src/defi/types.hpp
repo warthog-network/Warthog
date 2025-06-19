@@ -1,13 +1,20 @@
 #pragma once
-#include "../uint64/types.hpp"
+#include "general/base_elements.hpp"
 #include "general/funds.hpp"
+#include "uint64/types.hpp"
 namespace defi {
-struct BaseQuote {
-    BaseQuote(BaseQuote_uint64 bq)
-        : base(bq.base)
-        , quote(Wart::from_funds_throw(bq.quote)) { };
-    Funds_uint64 base;
-    Wart quote;
+struct BaseQuote : public CombineElements<BaseEl, QuoteEl> {
+    using CombineElements::CombineElements;
+    BaseQuote(const defi::BaseQuote_uint64& b)
+        : CombineElements(b.base, Wart::from_funds_throw(b.quote))
+    {
+    }
 };
+
+// struct Pool {
+//     Wart wart;
+//     Funds_uint64 base;
+//     Funds_uint64 shares;
+// };
 
 }

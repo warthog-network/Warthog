@@ -47,6 +47,8 @@ struct PoolLiquidity_uint64 : public BaseQuote_uint64 {
 
     [[nodiscard]] Funds_uint64 sell(Funds_uint64 baseAdd, uint64_t feeE4 = 10)
     {
+        if (baseAdd == 0)
+            return 0;
         auto quoteDelta = swapped_amount(base.value(), baseAdd.value(), quote.value(), feeE4);
         quote.subtract_assert(Funds_uint64(quoteDelta));
         base.add_assert(Funds_uint64(baseAdd));
@@ -55,6 +57,8 @@ struct PoolLiquidity_uint64 : public BaseQuote_uint64 {
 
     [[nodiscard]] Funds_uint64 buy(Funds_uint64 quoteAdd, uint64_t feeE4 = 10)
     {
+        if (quoteAdd == 0)
+            return 0;
         auto baseDelta = swapped_amount(quote.value(), quoteAdd.value(), base.value(), feeE4);
         base.subtract_assert(Funds_uint64::from_value_throw(baseDelta));
         quote.add_assert(quoteAdd);
@@ -87,51 +91,74 @@ private:
 };
 
 class Pool_uint64 : public PoolLiquidity_uint64 {
-public:
-    Pool_uint64(uint64_t base, uint64_t quote)
-        : PoolLiquidity_uint64(base, quote)
-    {
-        assert(base != 0 && quote != 0);
-    }
 
-    [[nodiscard]] uint64_t deposit(Funds_uint64 addBase, Funds_uint64 addQuote)
+public:
+    Pool_uint64(uint64_t base, uint64_t quote, uint64_t shares)
+        : PoolLiquidity_uint64(base, quote)
+        , sharesTotal(shares)
+    {
+    }
+    Pool_uint64()
+        : Pool_uint64(0, 0, 0)
+    {
+    }
+    [[nodiscard]] Funds_uint64 deposit(Funds_uint64 addBase, Funds_uint64 addQuote)
     {
         auto s0 { Prod128(base, quote).sqrt() };
         base.add_assert(addBase);
         quote.add_assert(addQuote);
         auto s1 { Prod128(base, quote).sqrt() };
         assert(s1 >= s0);
-        auto newTokensTotal { tokensTotal == 0 ? s1 : Prod128(tokensTotal, s1).divide_floor(s0) };
-        assert(newTokensTotal.has_value()); // no overflow because tokensTotal <= s0 (fees)
-        assert(*newTokensTotal <= s1);
-        auto result { *newTokensTotal - tokensTotal };
-        tokensTotal = *newTokensTotal;
-        return result;
+        if (sharesTotal == 0) {
+            sharesTotal = s1;
+            return s1;
+        } else {
+            Nonzero_uint64 nonzero_s0 { s0 }; // nonzero because 0 < sharesTotal <= s0
+            auto newSharesTotal { Prod128(sharesTotal, s1).divide_floor(nonzero_s0) };
+            assert(newSharesTotal.has_value()); // no overflow because sharesTotal <= s0 (fees)
+            assert(*newSharesTotal <= s1);
+            auto result { *newSharesTotal - sharesTotal };
+            sharesTotal = *newSharesTotal;
+            return result;
+        }
     }
 
-    [[nodiscard]] BaseQuote_uint64 liquidity_equivalent(uint64_t tokens) const
+    [[nodiscard]] BaseQuote_uint64 liquidity_equivalent(Nonzero_uint64 shares) const
     {
-        assert(tokens <= tokensTotal);
-        auto b { Prod128(tokens, base).divide_floor(tokensTotal) };
+        assert(shares <= sharesTotal);
+        Nonzero_uint64 totalShares(sharesTotal); // At this point we know that sharesTotal > 0
+        auto b { Prod128(shares.value(), base).divide_floor(totalShares) };
         assert(b.has_value());
-        auto q { Prod128(tokens, quote).divide_floor(tokensTotal) };
+        auto q { Prod128(shares.value(), quote).divide_floor(totalShares) };
         assert(q.has_value());
         return { *b, *q };
     }
-
-    void withdraw(BaseQuote_uint64 liquidity, uint64_t tokens)
+    std::optional<BaseQuote_uint64> withdraw_liquity(Nonzero_uint64 shares)
     {
-        base.subtract_assert(liquidity.base);
-        quote.subtract_assert(liquidity.quote);
-        assert(tokensTotal >= tokens);
-        tokensTotal -= tokens;
+        if (sharesTotal < shares) 
+            return {};
+        auto le { liquidity_equivalent(shares) };
+        sharesTotal-= shares;
+        base.subtract_assert(le.base);
+        quote.subtract_assert(le.quote);
+        return le;
     }
 
     auto base_total() const { return base; }
     auto quote_total() const { return quote; }
+    auto shares_total() const { return sharesTotal; }
 
 private:
-    uint64_t tokensTotal { 0 };
+    void withdraw(BaseQuote_uint64 liquidity, uint64_t shares)
+    {
+        assert(sharesTotal >= shares);
+        base.subtract_assert(liquidity.base);
+        quote.subtract_assert(liquidity.quote);
+        sharesTotal -= shares;
+    }
+
+private:
+    uint64_t sharesTotal { 0 };
 };
 
 } // namespace defi

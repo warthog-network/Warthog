@@ -11,6 +11,7 @@
 #include "communication/mining_task.hpp"
 #include "crypto/address.hpp"
 #include "defi/token/token.hpp"
+#include "defi/types.hpp"
 #include "defi/uint64/pool.hpp"
 #include "defi/uint64/price.hpp"
 #include "eventloop/peer_chain.hpp"
@@ -126,16 +127,20 @@ struct Block {
         NonceId nonceId;
         PinHeight pinHeight;
         Address toAddress;
-        FundsDecimal amount;
+        Funds_uint64 amount;
+
+        FundsDecimal amount_decimal() const { return { amount, tokenInfo.precision }; }
     };
     struct NewOrder {
         Hash txhash;
         TokenIdHashNamePrecision tokenInfo;
         Wart fee;
-        FundsDecimal amount;
+        Funds_uint64 amount;
         Price_uint64 limit;
         bool buy;
         Address address;
+
+        FundsDecimal amount_decimal() const { return { amount, buy ? tokenInfo.precision : Wart::precision }; }
     };
     struct Match {
         struct Swap {
@@ -143,9 +148,10 @@ struct Block {
             Wart fillQuote;
             FundsDecimal fillBase;
         };
+        Hash txhash;
         TokenIdHashNamePrecision tokenInfo;
-        defi::BaseQuote_uint64 liquidityBefore;
-        defi::BaseQuote_uint64 liquidityAfter;
+        defi::BaseQuote liquidityBefore;
+        defi::BaseQuote liquidityAfter;
         std::vector<Swap> buySwaps;
         std::vector<Swap> sellSwaps;
     };
@@ -166,6 +172,20 @@ struct Block {
         Wart fee;
         Address address;
     };
+    struct LiquidityDeposit {
+        TxHash txhash;
+        Wart fee;
+        Funds_uint64 baseDeposit;
+        Wart quoteDeposit;
+        Funds_uint64 sharesReceived;
+    };
+    struct LiquidityWithdrawal {
+        TxHash txhash;
+        Wart fee;
+        Funds_uint64 sharesDeposit;
+        Funds_uint64 baseReceived;
+        Wart quoteReceived;
+    };
     Header header;
     NonzeroHeight height;
     uint32_t confirmations = 0;
@@ -178,6 +198,8 @@ public:
         std::vector<TokenCreation> tokenCreations;
         std::vector<NewOrder> newOrders;
         std::vector<Match> matches;
+        std::vector<LiquidityDeposit> liquidityDeposit;
+        std::vector<LiquidityWithdrawal> liquidityWithdrawal;
         std::vector<Cancelation> cancelations;
     } actions;
 

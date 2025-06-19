@@ -6,7 +6,7 @@
 namespace defi {
 
 struct FillResult_uint64 {
-    std::optional<Delta_uint64> toPool;
+    std::optional<NonzeroDelta_uint64> toPool;
     BaseQuote_uint64 filled;
     bool operator==(const FillResult_uint64&) const = default;
 };
@@ -14,7 +14,7 @@ struct FillResult_uint64 {
 using MatchResult_uint64 = FillResult_uint64;
 
 namespace fair_batch_matching {
-std::optional<Delta_uint64> balance_pool_interaction(const PoolLiquidity_uint64);
+std::optional<NonzeroDelta_uint64> balance_pool_interaction(const PoolLiquidity_uint64);
 }
 
 class FilledAndPool {
@@ -24,7 +24,7 @@ public:
         , pool { std::move(pool) }
     {
     }
-    std::optional<Delta_uint64> balance_pool_interaction() const;
+    std::optional<NonzeroDelta_uint64> balance_pool_interaction() const;
 
     BaseQuote_uint64 in;
     PoolLiquidity_uint64 pool;
@@ -80,11 +80,12 @@ public:
         }
 
         v = (toPool0->isQuote ? v0 : v1);
-        auto toPool { [&]() -> std::optional<Delta_uint64> {
+        auto toPool { [&]() -> std::optional<NonzeroDelta_uint64> {
             auto& ref { toPool0->isQuote ? *toPool0 : *toPool1 };
             if (ref.amount == 0)
                 return {};
-            return ref;
+NonzeroFunds_uint64(0);
+            return NonzeroDelta_uint64(ref.isQuote, NonzeroFunds_uint64(ref.amount));
         }() };
 
         return { .toPool { toPool }, .filled { in } };

@@ -15,4 +15,8 @@ struct Block {
     auto tx_ids() const { return body.tx_ids(height); }
     Block(NonzeroHeight height, std::span<const uint8_t, 80> header, std::vector<uint8_t> body);
 };
+
+struct BlockWithHash: public Block {
+    BlockHash hash;
+};
 }

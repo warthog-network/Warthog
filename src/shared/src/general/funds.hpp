@@ -169,9 +169,36 @@ public:
     static Funds_uint64 parse_throw(std::string_view, TokenPrecision);
     FundsDecimal to_decimal(TokenPrecision d) const;
 };
+class NonzeroFunds_uint64 {
+public:
+    constexpr NonzeroFunds_uint64(Funds_uint64 f)
+        : funds_(f)
+    {
+        assert(f != 0);
+    }
+    NonzeroFunds_uint64(Reader& r)
+        : funds_(r) { };
+    auto& get() const { return funds_; }
+    operator auto &() const { return get(); }
+    auto operator<=>(const NonzeroFunds_uint64&) const = default;
+
+private:
+    Funds_uint64 funds_;
+};
 struct FundsDecimal {
     Funds_uint64 funds;
     TokenPrecision precision;
+    constexpr static size_t byte_size() { return Funds_uint64::byte_size() + TokenPrecision::byte_size(); }
+    friend Writer& operator<<(Writer& w, const FundsDecimal& fd);
+    FundsDecimal(Reader& r)
+        : FundsDecimal(r, r)
+    {
+    }
+    FundsDecimal(Funds_uint64 funds, TokenPrecision precision)
+        : funds(std::move(funds))
+        , precision(std::move(precision))
+    {
+    }
     static FundsDecimal zero() { return { 0, 0 }; }
     std::string to_string() const;
 };
@@ -188,6 +215,7 @@ struct TokenFunds {
 
 class Wart : public FundsBase<Wart> {
 public:
+    static constexpr TokenPrecision precision { TokenPrecision::digits8() };
     constexpr Wart(uint64_t v)
         : FundsBase<Wart>(from_value_throw(v))
     {

@@ -160,29 +160,29 @@ void push_history(api::Block& b, const history::Entry& e, chainserver::DBCache& 
                 .address { c.accounts[d.cancel_account_id()] },
             });
         },
-        [&](history::BuySwapData&& d) {
-            auto& referred{c.history[d.referred_history_id()]};
-            auto& o{referred.data.get<history::OrderData>()};
-            auto& tokenData { c.tokens[o.token_id()] };
-            b.actions.swaps.push_back(api::Block::Swap{
-                .tokenInfo{tokenData.id_hash_name_precision()},
-                .txhash{e.hash},
-                .buy=o.buy(),
-                .fillQuote{d.quote_wart()},
-                .fillBase{d.base_amount(), tokenData.precision},
-            });
-        },
-        [&](history::SellSwapData&& d) {
-            auto& referred{c.history[d.referred_history_id()]};
-            auto& o{referred.data.get<history::OrderData>()};
-            auto& tokenData { c.tokens[o.token_id()] };
-            b.actions.swaps.push_back(api::Block::Swap{
-                .tokenInfo{tokenData.id_hash_name_precision()},
-                .txhash{e.hash},
-                .buy=o.buy(),
-                .fillQuote{d.quote_wart()},
-                .fillBase{d.base_amount(), tokenData.precision},
-            });
+        // [&](history::BuySwapData&& d) {
+        //     auto& referred{c.history[d.referred_history_id()]};
+        //     auto& o{referred.data.get<history::OrderData>()};
+        //     auto& tokenData { c.tokens[o.token_id()] };
+        //     b.actions.swaps.push_back(api::Block::Swap{
+        //         .tokenInfo{tokenData.id_hash_name_precision()},
+        //         .txhash{e.hash},
+        //         .buy=o.buy(),
+        //         .fillQuote{d.quote_wart()},
+        //         .fillBase{d.base_amount(), tokenData.precision},
+        //     });
+        // },
+        [&](history::MatchData&& d) {
+            // auto& referred{c.history[d.referred_history_id()]};
+            // auto& o{referred.data.get<history::OrderData>()};
+            // auto& tokenData { c.tokens[o.token_id()] };
+            // b.actions.swaps.push_back(api::Block::Swap{
+            //     .tokenInfo{tokenData.id_hash_name_precision()},
+            //     .txhash{e.hash},
+            //     .buy=o.buy(),
+            //     .fillQuote{d.quote_wart()},
+            //     .fillBase{d.base_amount(), tokenData.precision},
+            // });
         });
 }
 }
@@ -729,7 +729,7 @@ auto State::apply_signed_snapshot(SignedSnapshot&& ssnew) -> std::optional<State
     return res;
 }
 
-auto State::append_mined_block(const ParsedBlock& b) -> StateUpdateWithAPIBlocks
+auto State::append_mined_block(const Block& b) -> StateUpdateWithAPIBlocks
 {
     auto nextHeight { next_height() };
     if (nextHeight != b.height)

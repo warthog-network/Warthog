@@ -77,7 +77,6 @@ struct ElementBase<T> {
         : data(std::move(t))
     {
     }
-    using base = ElementBase;
     using data_t = T;
 
 protected:
@@ -85,100 +84,96 @@ protected:
 };
 
 struct AccountIdEl : public ElementBase<AccountId> {
-    using base::base;
+    using ElementBase::ElementBase;
     [[nodiscard]] const AccountId& account_id() const { return data; }
 };
 struct ToAccIdEl : public ElementBase<AccountId> {
-    using base::base;
+    using ElementBase::ElementBase;
     [[nodiscard]] const AccountId& to_id() const { return data; }
 };
 struct OriginAccIdEl : public ElementBase<AccountId> {
-    using base::base;
+    using ElementBase::ElementBase;
     [[nodiscard]] const AccountId& origin_account_id() const { return data; }
 };
 struct OwnerIdEl : public ElementBase<AccountId> {
-    using base::base;
+    using ElementBase::ElementBase;
     [[nodiscard]] const AccountId& owner_account_id() const { return data; }
 };
 
 struct TokenSupplyEl : public ElementBase<FundsDecimal> {
-    using base::base;
     [[nodiscard]] const auto& supply() const { return data; }
 };
 struct ToAddrEl : public ElementBase<Address> {
-    using base::base;
+    using ElementBase::ElementBase;
     [[nodiscard]] const auto& to_addr() const { return data; }
 };
 struct CreatorAddrEl : public ElementBase<Address> {
-    using base::base;
+    using ElementBase::ElementBase;
     [[nodiscard]] const auto& creator_addr() const { return data; }
 };
 
 struct WartEl : public ElementBase<Wart> {
-    using base::base;
+    using ElementBase::ElementBase;
     [[nodiscard]] const Wart& wart() const { return data; }
 };
 
 struct QuoteWartEl : public ElementBase<Wart> {
-    using base::base;
+    using ElementBase::ElementBase;
     [[nodiscard]] const Wart& quote_wart() const { return data; }
 };
 struct AmountEl : public ElementBase<Funds_uint64> {
-    using base::base;
+    using ElementBase::ElementBase;
     [[nodiscard]] const Funds_uint64& amount() const { return data; }
 };
 struct BaseAmountEl : public ElementBase<Funds_uint64> {
-    using base::base;
+    using ElementBase::ElementBase;
     [[nodiscard]] const Funds_uint64& base_amount() const { return data; }
 };
 struct CancelPinNonceEl : public ElementBase<PinNonce> {
-    using base::base;
+    using ElementBase::ElementBase;
     [[nodiscard]] const PinNonce& block_pin_nonce() const { return data; }
 };
 struct CancelTxidEl : public ElementBase<TransactionId> {
-    using base::base;
+    using ElementBase::ElementBase;
     [[nodiscard]] const auto& cancel_pin_nonce() const { return data; }
     [[nodiscard]] const auto& cancel_account_id() const { return data.accountId; }
 };
 struct OrderIdEl : public ElementBase<HistoryId> {
-    using base::base;
+    using ElementBase::ElementBase;
     [[nodiscard]] const auto& order_id() const { return data; }
 };
 struct ReferredHistoryIdEl : public ElementBase<HistoryId> {
-    using base::base;
+    using ElementBase::ElementBase;
     [[nodiscard]] const auto& referred_history_id() const { return data; }
 };
 struct PinNonceEl : public ElementBase<PinNonce> {
-    using base::base;
+    using ElementBase::ElementBase;
     [[nodiscard]] const PinNonce& pin_nonce() const { return data; }
 };
 struct CompactFeeEl : public ElementBase<CompactUInt> {
-    using base::base;
+    using ElementBase::ElementBase;
     [[nodiscard]] const CompactUInt& compact_fee() const { return data; }
     [[nodiscard]] Wart fee() const { return data.uncompact(); }
 };
 struct TokenPrecisionEl : public ElementBase<TokenPrecision> {
-    using base::base;
+    using ElementBase::ElementBase;
     [[nodiscard]] const TokenPrecision& token_precision() const { return data; }
 };
 struct TokenNameEl : public ElementBase<TokenName> {
-    using base::base;
+    using ElementBase::ElementBase;
     [[nodiscard]] const TokenName& token_name() const { return data; }
 };
 struct TokenHashEl : public ElementBase<TokenHash> {
-    using base::base;
     [[nodiscard]] const auto& token_hash() const { return data; }
 };
 struct TokenIdEl : public ElementBase<TokenId> {
-    using base::base;
+    using ElementBase::ElementBase;
     [[nodiscard]] const auto& token_id() const { return data; }
 };
 struct SignatureEl : public ElementBase<RecoverableSignature> {
-    using base::base;
     [[nodiscard]] const RecoverableSignature& signature() const { return data; }
 };
 struct LimitPriceEl : public ElementBase<Price_uint64> {
-    using base::base;
     [[nodiscard]] const Price_uint64& limit() const { return data; }
 };
 struct BuyEl {
@@ -198,12 +193,10 @@ private:
 };
 
 struct PinHeightEl : public ElementBase<PinHeight> {
-    using base::base;
     [[nodiscard]] const PinHeight& pin_height() const { return data; }
 };
 
 struct TransactionIdEl : public ElementBase<TransactionId> {
-    using base::base;
     [[nodiscard]] const TransactionId& txid() const { return data; }
     [[nodiscard]] AccountId from_id() const { return txid().accountId; }
     [[nodiscard]] PinHeight pin_height() const { return txid().pinHeight; }
@@ -211,21 +204,23 @@ struct TransactionIdEl : public ElementBase<TransactionId> {
 };
 
 struct NonceIdEl : public ElementBase<NonceId> {
-    using base::base;
     [[nodiscard]] const NonceId& nonce_id() const { return data; }
 };
 
 struct NonceReservedEl : public ElementBase<NonceReserved> {
-    using base::base;
     [[nodiscard]] const NonceReserved& nonce_reserved() const { return data; }
 };
 
 struct BaseEl : public ElementBase<Funds_uint64> {
-    using base::base;
+    using ElementBase::ElementBase;
     [[nodiscard]] const auto& base() const { return data; }
 };
 
 struct QuoteEl : public ElementBase<Wart> {
-    using base::base;
+    using ElementBase::ElementBase;
     [[nodiscard]] const auto& quote() const { return data; }
+};
+struct SharesEl : public ElementBase<Funds_uint64> {
+    using ElementBase::ElementBase;
+    [[nodiscard]] const auto& shares() const { return data; }
 };

@@ -1,10 +1,10 @@
 #pragma once
 #include "general/view.hpp"
+#include "pow_version.hpp"
 #include <array>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
-#include "pow_version.hpp"
 class HeaderGenerator;
 class BlockVersion;
 class HashView;
@@ -12,9 +12,9 @@ class TargetV1;
 class TargetV2;
 class Target;
 class Hash;
+class BlockHash;
 class NonzeroHeight;
 class Header;
-
 
 class HeaderView : public View<80> {
     friend class HeaderGenerator;
@@ -42,7 +42,7 @@ public:
     inline HashView merkleroot() const;
     inline uint32_t timestamp() const;
     inline uint32_t nonce() const;
-    Hash hash() const;
+    BlockHash hash() const;
     bool operator==(const HeaderView rhs) const;
     bool operator==(const Header& arr) const;
     struct HeaderComparator {

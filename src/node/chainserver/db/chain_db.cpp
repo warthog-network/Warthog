@@ -266,7 +266,7 @@ ChainDB::ChainDB(const std::string& path)
     , stmtSelectQuoteBuy(db, "SELECT (id, token_id, totalQuote, filledQuote, limit) FROM BuyOrders WHERE account_id = ? AND pin_height = ? AND nonce_id = ?")
     , stmtInsertCanceled(db, "INSERT INTO Canceled (id, account_id, pin_height, nonce_id) VALUES (?,?,?,?)")
     , stmtDeleteCanceled(db, "DELETE FROM Canceled WHERE id = ?")
-    , stmtInsertPool(db, "INSERT INTO Pools (id, token_id, pool_wart, pool_token, pool_shares) VALUES (?,?,0,0,0)")
+    , stmtInsertPool(db, "INSERT INTO Pools (id, token_id, pool_wart, pool_token, pool_shares) VALUES (?,?,?,?,?)")
     , stmtSelectPool(db, "SELECT (id, token_id, liquidity_token, liquidity_wart, pool_shares) FROM Pools WHERE token_id=? OR id=?")
     , stmtUpdatePool(db, "UPDATE Pools SET liquidity_base=?, liquidity_quote=?, pool_shares=? WHERE id=?")
     , stmtUpdatePoolLiquidity(db, "UPDATE Pools SET liquidity_base=?, liquidity_quote=? WHERE token_id=?")
@@ -703,10 +703,11 @@ void ChainDB::delete_canceled(CancelId cid)
     stmtDeleteCanceled.run(cid);
 }
 
-void ChainDB::insert_pool(TokenId shareId, TokenId tokenId)
+void ChainDB::insert_pool(ShareId shareId, TokenId tokenId, const defi::Pool& p)
 {
-    stmtInsertPool.run(shareId, tokenId);
+    stmtInsertPool.run(shareId, tokenId, p.wart, p.base, p.shares);
 }
+
 std::optional<PoolData> ChainDB::select_pool(TokenId shareIdOrTokenId) const
 {
     return stmtSelectPool.one(shareIdOrTokenId).process([](auto o) {

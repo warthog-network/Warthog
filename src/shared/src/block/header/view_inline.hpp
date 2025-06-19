@@ -46,7 +46,7 @@ inline uint32_t HeaderView::nonce() const
 {
     return readuint32(data() + offset_nonce);
 }
-inline Hash HeaderView::hash() const
+inline BlockHash HeaderView::hash() const
 {
     auto h = hashSHA256(data(), bytesize);
     return hashSHA256(h.data(), 32);

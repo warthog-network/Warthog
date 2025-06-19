@@ -3,6 +3,7 @@
 #include "price.hpp"
 
 namespace defi {
+
 struct Order_uint64 {
     Order_uint64(Reader& r)
         : amount(r)
@@ -20,6 +21,21 @@ struct Delta_uint64 {
     bool isQuote { false };
     Funds_uint64 amount;
     BaseQuote_uint64 base_quote() const;
+};
+struct NonzeroDelta_uint64 {
+    explicit NonzeroDelta_uint64(bool isQuote, NonzeroFunds_uint64 amount)
+        : isQuote_(std::move(isQuote))
+        , amount_(std::move(amount))
+    {
+    }
+    Delta_uint64 get() const { return { isQuote_, amount_.get() }; }
+    bool is_quote() const { return isQuote_; }
+    auto amount() const { return amount_; }
+    bool operator==(const NonzeroDelta_uint64&) const = default;
+
+private:
+    bool isQuote_ { false };
+    NonzeroFunds_uint64 amount_;
 };
 
 struct BaseQuote_uint64 {

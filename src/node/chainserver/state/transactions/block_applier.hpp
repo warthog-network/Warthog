@@ -19,7 +19,7 @@ struct BlockApplier {
     }
     TransactionIds&& move_new_txids() { return std::move(preparer.newTxIds); };
     auto&& move_balance_updates() { return std::move(balanceUpdates); };
-    [[nodiscard]] api::Block apply_block(const Block& bv, BlockId blockId);
+    [[nodiscard]] api::Block apply_block(const BlockWithHash& bv, BlockId blockId);
 
 private: // private methods
     friend class Preparation;
@@ -29,7 +29,7 @@ private: // private methods
         const Headerchain& hc;
         const std::set<TransactionId, ByPinHeight>& baseTxIds;
         TransactionIds newTxIds;
-        Preparation prepare(const Block&) const;
+        Preparation prepare(const BlockWithHash&) const;
     };
 
 private: // private data

@@ -33,8 +33,8 @@ struct TokenSection {
     TokenId id;
     body_vector<body::TokenTransfer> transfers;
     body_vector<body::Order> orders;
-    body_vector<body::LiquidityAdd> liquidityAdd;
-    body_vector<body::LiquidityRemove> liquidityRemove;
+    body_vector<body::LiquidityDeposit> liquidityAdd;
+    body_vector<body::LiquidityWithdraw> liquidityRemove;
     static constexpr const size_t n_vectors = 4;
     void append_tx_ids(PinFloor, std::vector<TransactionId>& appendTo) const;
     Writer& write(Writer&);

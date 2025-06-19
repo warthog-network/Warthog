@@ -1,5 +1,6 @@
 #pragma once
 #include "general/funds.hpp"
+#include "nonzero.hpp"
 #include <bit>
 #include <cassert>
 #include <cstdint>
@@ -134,7 +135,7 @@ public:
         }
     }
     // returns std::nullopt on overflow
-    [[nodiscard]] std::optional<uint64_t> divide_floor(uint64_t v) const
+    [[nodiscard]] std::optional<uint64_t> divide_floor(Nonzero_uint64 v) const
     {
         return div(v, false);
     }
@@ -149,6 +150,7 @@ public:
 private:
     [[nodiscard]] std::optional<uint64_t> div(uint64_t v, bool ceil) const
     {
+        assert(v != 0);
         if (upper == 0)
             return lower / v + ceil && (lower % v != 0);
         auto shift { std::countl_zero(upper) };
