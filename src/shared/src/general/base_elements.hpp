@@ -155,18 +155,22 @@ struct CompactFeeEl : public ElementBase<CompactUInt> {
     [[nodiscard]] const CompactUInt& compact_fee() const { return data; }
     [[nodiscard]] Wart fee() const { return data.uncompact(); }
 };
-struct TokenPrecisionEl : public ElementBase<TokenPrecision> {
+struct TokenPrecisionEl : public ElementBase<AssetPrecision> {
     using ElementBase::ElementBase;
-    [[nodiscard]] const TokenPrecision& token_precision() const { return data; }
+    [[nodiscard]] const AssetPrecision& token_precision() const { return data; }
 };
-struct TokenNameEl : public ElementBase<TokenName> {
+struct TokenNameEl : public ElementBase<AssetName> {
     using ElementBase::ElementBase;
-    [[nodiscard]] const TokenName& token_name() const { return data; }
+    [[nodiscard]] const AssetName& token_name() const { return data; }
 };
-struct TokenHashEl : public ElementBase<TokenHash> {
+struct TokenHashEl : public ElementBase<AssetHash> {
     [[nodiscard]] const auto& token_hash() const { return data; }
 };
 struct TokenIdEl : public ElementBase<TokenId> {
+    using ElementBase::ElementBase;
+    [[nodiscard]] const auto& token_id() const { return data; }
+};
+struct AssetIdEl : public ElementBase<AssetId> {
     using ElementBase::ElementBase;
     [[nodiscard]] const auto& token_id() const { return data; }
 };

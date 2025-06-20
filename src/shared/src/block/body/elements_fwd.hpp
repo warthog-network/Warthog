@@ -12,6 +12,7 @@ using Reward = Combined<ToAccIdEl, WartEl>;
 using TokenCreation = SignedCombined<TokenSupplyEl, TokenPrecisionEl, TokenNameEl>;
 using WartTransfer = SignedCombined<ToAccIdEl, WartEl>;
 using TokenTransfer = SignedCombined<ToAccIdEl, AmountEl>;
+using ShareTransfer = SignedCombined<ToAccIdEl, AmountEl>;
 using Order = SignedCombined<BuyEl, AmountEl, LimitPriceEl>;
 using Cancelation = SignedCombined<CancelPinNonceEl>;
 using LiquidityDeposit = SignedCombined<QuoteWartEl, BaseAmountEl>;

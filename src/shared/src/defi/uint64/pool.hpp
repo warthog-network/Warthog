@@ -123,22 +123,22 @@ public:
         }
     }
 
-    [[nodiscard]] BaseQuote_uint64 liquidity_equivalent(Nonzero_uint64 shares) const
+    [[nodiscard]] BaseQuote_uint64 liquidity_equivalent(NonzeroFunds_uint64 shares) const
     {
-        assert(shares <= sharesTotal);
+        assert(shares.value() <= sharesTotal);
         Nonzero_uint64 totalShares(sharesTotal); // At this point we know that sharesTotal > 0
-        auto b { Prod128(shares.value(), base).divide_floor(totalShares) };
+        auto b { Prod128(shares, base).divide_floor(totalShares) };
         assert(b.has_value());
-        auto q { Prod128(shares.value(), quote).divide_floor(totalShares) };
+        auto q { Prod128(shares, quote).divide_floor(totalShares) };
         assert(q.has_value());
         return { *b, *q };
     }
-    std::optional<BaseQuote_uint64> withdraw_liquity(Nonzero_uint64 shares)
+    [[nodiscard]] std::optional<BaseQuote_uint64> withdraw_liquity(NonzeroFunds_uint64 shares)
     {
-        if (sharesTotal < shares) 
+        if (sharesTotal < shares.value())
             return {};
         auto le { liquidity_equivalent(shares) };
-        sharesTotal-= shares;
+        sharesTotal -= shares.value();
         base.subtract_assert(le.base);
         quote.subtract_assert(le.quote);
         return le;

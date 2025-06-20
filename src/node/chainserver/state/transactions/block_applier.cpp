@@ -182,22 +182,22 @@ struct AggregatorMatch {
     SellOrderAggregator sellAscAggregator;
     BuyOrderAggregator buyDescAggregator;
     defi::MatchResult_uint64 m;
-    AggregatorMatch(const ChainDB& db, const UnsortedOrderbook& unsortedOrderbook, TokenId tid, const defi::PoolLiquidity_uint64& p)
-        : sellAscAggregator { db.base_order_loader_ascending(tid), unsortedOrderbook.sells }
-        , buyDescAggregator { db.quote_order_loader_descending(tid), unsortedOrderbook.buys }
+    AggregatorMatch(const ChainDB& db, const UnsortedOrderbook& unsortedOrderbook, AssetId aid, const defi::PoolLiquidity_uint64& p)
+        : sellAscAggregator { db.base_order_loader_ascending(aid), unsortedOrderbook.sells }
+        , buyDescAggregator { db.quote_order_loader_descending(aid), unsortedOrderbook.buys }
         , m { defi::match_lazy(sellAscAggregator, buyDescAggregator, p) }
     {
     }
 };
 
 struct MatchStateDelta {
-    TokenId tokenId;
+    AssetId assetId;
     defi::PoolLiquidity_uint64 pool; // pool liquidity after match
     std::vector<chain_db::OrderDelete> orderDeletes;
     std::optional<chain_db::OrderFillstate> orderBuyPartial;
     std::optional<chain_db::OrderFillstate> orderSellPartial;
-    MatchStateDelta(TokenId tokenId, defi::PoolLiquidity_uint64 pool)
-        : tokenId(tokenId)
+    MatchStateDelta(AssetId assetId, defi::PoolLiquidity_uint64 pool)
+        : assetId(assetId)
         , pool(std::move(pool))
     {
     }
@@ -205,11 +205,11 @@ struct MatchStateDelta {
 
 struct MatchActions : public MatchStateDelta {
 private:
-    MatchActions(const AggregatorMatch& m, TokenId tokenId, const defi::PoolLiquidity_uint64& p);
+    MatchActions(const AggregatorMatch& m, AssetId assetId, const defi::PoolLiquidity_uint64& p);
 
 public:
-    MatchActions(const ChainDB& db, const UnsortedOrderbook& unsortedOrderbook, TokenId tid, const defi::PoolLiquidity_uint64& p)
-        : MatchActions(AggregatorMatch { db, unsortedOrderbook, tid, p }, tid, p)
+    MatchActions(const ChainDB& db, const UnsortedOrderbook& unsortedOrderbook, AssetId aid, const defi::PoolLiquidity_uint64& p)
+        : MatchActions(AggregatorMatch { db, unsortedOrderbook, aid, p }, aid, p)
     {
     }
 
@@ -219,8 +219,8 @@ public:
     std::vector<SellSwapInternal> sellSwaps;
 };
 
-MatchActions::MatchActions(const AggregatorMatch& am, TokenId tokenId, const defi::PoolLiquidity_uint64& p)
-    : MatchStateDelta { tokenId, p }
+MatchActions::MatchActions(const AggregatorMatch& am, AssetId assetId, const defi::PoolLiquidity_uint64& p)
+    : MatchStateDelta { assetId, p }
 {
     auto& m { am.m };
     Funds_uint64 fromPool { 0 };
@@ -260,7 +260,7 @@ MatchActions::MatchActions(const AggregatorMatch& am, TokenId tokenId, const def
                 orderDeletes.push_back({ .id { o.id }, .buy = false });
             } else {
                 assert(remaining == 0);
-                orderSellPartial.emplace(chain_db::OrderFillstate { .id { o.id }, .buy = false, .filled { orderFilled } });
+                orderSellPartial.emplace(chain_db::OrderFillstate { .id { o.id }, .filled { orderFilled } });
             }
             sellSwaps.push_back(SellSwapInternal { { .oId { o.id }, .txid { o.txid }, .base { b }, .quote { Wart::from_funds_throw(*q) } } });
             // order swapped b -> q
@@ -291,7 +291,7 @@ MatchActions::MatchActions(const AggregatorMatch& am, TokenId tokenId, const def
                 orderDeletes.push_back({ .id { o.id }, .buy = true });
             } else {
                 assert(remaining == 0);
-                orderBuyPartial.emplace(chain_db::OrderFillstate { .id { o.id }, .buy = false, .filled { orderFilled } });
+                orderBuyPartial.emplace(chain_db::OrderFillstate { .id { o.id }, .filled { orderFilled } });
             }
             buySwaps.push_back(BuySwapInternal { { .oId { o.id }, .txid { o.txid }, .base { *b }, .quote { Wart::from_funds_throw(q) } } });
         }
@@ -311,12 +311,18 @@ struct NewOrdersInternal : UnsortedOrderbook {
 };
 
 struct TokenSectionInternal {
-    TokenId id;
-    std::vector<TokenTransferInternal> transfers;
+private:
+    AssetId id;
+
+public:
+    auto asset_id() const { return id; }
+    auto share_id() const { return id.share_id(); }
+    std::vector<TokenTransferInternal> assetTransfers;
+    std::vector<TokenTransferInternal> sharesTransfers;
     std::vector<OrderInternal> orders;
     std::vector<LiquidityDepositsInternal> liquidityAdds;
     std::vector<LiquidityWithdrawalInternal> liquidityRemoves;
-    TokenSectionInternal(TokenId id)
+    TokenSectionInternal(AssetId id)
         : id(id)
     {
     }
@@ -505,10 +511,10 @@ public:
         cancelations.push_back({ signerData,
             { signerData.origin.id, c.block_pin_nonce().pin_height_from_floored(pinFloor), c.block_pin_nonce().id } });
     }
-    LiquidityDepositsInternal register_liquidity_deposit(const LiquidityDeposit& l, TokenId tid)
+    LiquidityDepositsInternal register_liquidity_deposit(const LiquidityDeposit& l, AssetId aid)
     {
         auto& a { accounts[l.origin_account_id()] };
-        a.subtract(tid, l.base_amount());
+        a.subtract(aid.token_id(), l.base_amount());
         a.subtract(TokenId::WART, l.quote_wart());
 
         return { process_signer(l), defi::BaseQuote { l.base_amount(), l.quote_wart() } };
@@ -518,11 +524,13 @@ public:
         accounts[aid].add(tid, amount);
     }
 
-    LiquidityWithdrawalInternal register_liquidity_withdraw(LiquidityWithdraw l)
+    LiquidityWithdrawalInternal register_liquidity_withdraw(LiquidityWithdraw l, ShareId shareId)
     {
+        auto& a { accounts[l.origin_account_id()] };
+        a.subtract(shareId.token_id(), l.amount());
         return { process_signer(l), l.amount() };
     }
-    OrderInternal register_new_order(Order o, TokenId tokenId)
+    OrderInternal register_new_order(Order o, AssetId aid)
     {
         auto s { process_signer(o) };
 
@@ -531,26 +539,30 @@ public:
         if (buy)
             s.account.subtract(TokenId::WART, amount);
         else
-            s.account.subtract(tokenId, amount);
+            s.account.subtract(aid.token_id(), amount);
 
         return {
             std::move(s),
             o.limit(),
-            TokenFunds { tokenId, amount },
+            TokenFunds { aid.token_id(), amount },
             buy
         };
     }
     void register_token_section(const TokenSection& t)
     {
-        TokenSectionInternal ts(t.id);
-        for (auto& tr : t.transfers)
-            ts.transfers.push_back({ __register_transfer(t.id, tr.to_id(), tr.amount(), process_signer(tr)), tr.amount() });
+        auto aid { t.asset_id() };
+        auto sid { t.share_id() };
+        TokenSectionInternal ts(t.asset_id());
+        for (auto& tr : t.assetTransfers)
+            ts.assetTransfers.push_back({ __register_transfer(aid.token_id(), tr.to_id(), tr.amount(), process_signer(tr)), tr.amount() });
+        for (auto& tr : t.shareTransfers)
+            ts.sharesTransfers.push_back({ __register_transfer(sid.token_id(), tr.to_id(), tr.amount(), process_signer(tr)), tr.amount() });
         for (auto& o : t.orders)
-            ts.orders.push_back(register_new_order(o, t.id));
+            ts.orders.push_back(register_new_order(o, aid));
         for (auto& a : t.liquidityAdd)
-            ts.liquidityAdds.push_back(register_liquidity_deposit(a, t.id));
+            ts.liquidityAdds.push_back(register_liquidity_deposit(a, t.asset_id()));
         for (auto& r : t.liquidityRemove)
-            ts.liquidityRemoves.push_back(register_liquidity_withdraw(r));
+            ts.liquidityRemoves.push_back(register_liquidity_withdraw(r, t.share_id()));
         tokenSections.push_back(std::move(ts));
     }
 
@@ -644,8 +656,8 @@ struct InsertHistoryEntry {
         , historyId(historyId)
     {
     }
-    InsertHistoryEntry(const VerifiedTokenCreation& t, TokenId tokenId, HistoryId historyId)
-        : he(t, tokenId)
+    InsertHistoryEntry(const VerifiedAssetCreation& t, AssetId assetId, HistoryId historyId)
+        : he(t, assetId)
         , historyId(historyId)
     {
     }
@@ -776,9 +788,9 @@ public:
     {
         return for_accounts(r.ti.origin.id, r.ti.to.id).insert_history(r, tokenId);
     }
-    [[nodiscard]] auto& push_token_creation(const VerifiedTokenCreation& t, TokenId tokenId)
+    [[nodiscard]] auto& push_asset_creation(const VerifiedAssetCreation& t, AssetId assetId)
     {
-        return for_account(t.tci.origin.id).insert_history(t, tokenId);
+        return for_account(t.tci.origin.id).insert_history(t, assetId);
     }
     [[nodiscard]] auto& push_match(const std::vector<AccountId>& accounts, const history::MatchData& t, const BlockHash& blockHash, TokenId tokenId)
     {
@@ -807,7 +819,7 @@ public:
     std::vector<std::tuple<AccountToken, Funds_uint64>> insertBalances;
     std::vector<std::tuple<AddressView, AccountId>> insertAccounts;
     std::vector<chain_db::OrderDelete> deleteOrders;
-    std::vector<chain_db::TokenData> insertTokenCreations;
+    std::vector<chain_db::AssetData> insertAssetCreations;
     std::vector<chain_db::OrderData> insertOrders;
     std::vector<TransactionId> insertCancelOrder;
     std::vector<MatchStateDelta> matchDeltas;
@@ -874,26 +886,26 @@ private:
         for (size_t i { 0 }; i < body.tokenCreations.size(); ++i)
             balanceChecker.register_token_creation(body.tokenCreations[i], i, height);
 
-        const auto beginNewTokenId = db.next_token_id(); // they start from this index
+        const auto beginNewTokenId = db.next_asset_id(); // they start from this index
         for (auto& tc : balanceChecker.token_creations()) {
-            auto tokenId { beginNewTokenId + tc.index };
+            auto assetId { beginNewTokenId + tc.index };
             const auto verified { tc.verify(txVerifier) };
-            insertTokenCreations.push_back(chain_db::TokenData {
-                .id { tokenId },
+            insertAssetCreations.push_back(chain_db::AssetData {
+                .id { assetId },
                 .height { height },
                 .ownerAccountId { tc.origin.id },
                 .supply { tc.supply },
-                .groupId { tokenId },
+                .groupId { assetId.token_id() },
                 .parentId { TokenId { 0 } },
                 .name { tc.name },
                 .hash { verified.hash },
                 .data {} });
-            auto& ref { history.push_token_creation(verified, tokenId) };
+            auto& ref { history.push_asset_creation(verified, assetId) };
             api.tokenCreations.push_back({
                 .txhash { ref.he.hash },
                 .tokenName { tc.name },
                 .supply { tc.supply },
-                .tokenId { tokenId },
+                .tokenId { assetId },
                 .fee { tc.compactFee.uncompact() },
             });
         }
@@ -923,7 +935,7 @@ private:
     }
     auto db_token(TokenId id)
     {
-        if (auto address { db.lookup_token(id) })
+        if (auto address { db.lookup_asset(id) })
             return *address;
         throw Error(ETOKIDNOTFOUND); // invalid token id (not found in database)
     }
@@ -986,19 +998,20 @@ private:
         return !baseTxIds.contains(tid) && !newTxIds.contains(tid) && txset.emplace(tid).second;
     }
 
-    struct TokenHandle {
+    struct AssetHandle {
         struct LoadedPool {
             bool create;
             PoolData pool;
         };
-        TokenHandle(TokenIdHashNamePrecision t)
+        AssetHandle(AssetIdHashNamePrecision t)
             : _info(std::move(t))
         {
         }
         auto& info() const { return _info; }
         auto& hash() const { return info().hash; }
         auto& precision() const { return info().precision; }
-        auto& id() const { return _info.id; }
+        auto id() const { return _info.id; }
+        auto share_id() const { return id().share_id(); }
         auto& name() const { return _info.name; }
         [[nodiscard]] auto& get_pool(const ChainDB& db) const
         {
@@ -1006,23 +1019,22 @@ private:
                 if (auto p { db.select_pool(info().id) })
                     o.emplace(LoadedPool { false, *p });
                 else
-                    o.emplace(LoadedPool {
-                        true, PoolData { ShareId { db.next_token_id() }, info().id } });
+                    o.emplace(LoadedPool { true, PoolData::zero(id()) });
             }
             return o->pool;
         }
 
     private:
-        TokenIdHashNamePrecision _info;
+        AssetIdHashNamePrecision _info;
         mutable std::optional<LoadedPool> o;
     };
     void process_token_sections()
     {
         auto ts { balanceChecker.get_token_sections() };
         for (auto& ts : balanceChecker.get_token_sections()) {
-            auto ihn { db_token(ts.id).id_hash_name_precision() };
-            TokenHandle th(ihn);
-            process_token_transfers(th, ts.transfers);
+            auto ihn { db_token(ts.asset_id()).id_hash_name_precision() };
+            AssetHandle th(ihn);
+            process_token_transfers(th, ts.sharesTransfers);
             match_new_orders(th, ts.orders);
             process_liquidity_deposits(th, ts.liquidityAdds);
             process_liquidity_withdrawals(th, ts.liquidityRemoves);
@@ -1076,12 +1088,12 @@ private:
         }
     }
 
-    void process_token_transfers(TokenHandle& token, const std::vector<TokenTransferInternal>& transfers)
+    void process_token_transfers(AssetHandle& token, const std::vector<TokenTransferInternal>& transfers)
     {
         for (auto& tr : transfers) {
             auto verified { verify(tr, token.info().hash) };
 
-            auto& ref { history.push_token_transfer(verified, token.info().id) };
+            auto& ref { history.push_token_transfer(verified, token.id().token_id()) };
             api.tokenTransfers.push_back(api::Block::TokenTransfer {
                 .txhash { ref.he.hash },
                 .tokenInfo { token.info() },
@@ -1094,19 +1106,19 @@ private:
             });
         }
     }
-    void match_new_orders(TokenHandle& token, const std::vector<OrderInternal>& orders)
+    void match_new_orders(AssetHandle& asset, const std::vector<OrderInternal>& orders)
     {
         if (orders.size() == 0)
             return;
-        auto& p { token.get_pool(db) };
+        auto& p { asset.get_pool(db) };
         auto poolLiquidity { p.liquidity() };
         NewOrdersInternal no;
         for (auto& o : orders) {
-            auto verified { verify(o, token.hash()) };
+            auto verified { verify(o, asset.hash()) };
             auto& ref { history.push_order(verified) };
             api.newOrders.push_back(api::Block::NewOrder {
                 .txhash { verified.hash },
-                .tokenInfo { token.info() },
+                .tokenInfo { asset.info() },
                 .fee { o.fee() },
                 .amount { o.amount.funds },
                 .limit { o.limit },
@@ -1117,13 +1129,13 @@ private:
                 .id { ref.historyId },
                 .buy = o.buy,
                 .txid { verified.txid },
-                .tid { token.id() },
+                .aid { asset.id() },
                 .total { o.amount.funds },
                 .filled { Funds_uint64::zero() },
                 .limit { o.limit } });
         }
 
-        MatchActions m(db, no, token.info().id, poolLiquidity);
+        MatchActions m(db, no, asset.info().id, poolLiquidity);
 
         history::MatchData d(poolLiquidity, m.pool);
         std::vector<AccountId> accounts;
@@ -1136,10 +1148,10 @@ private:
             accounts.push_back(s.txid.accountId);
         }
         matchDeltas.push_back(std::move(m));
-        auto& ref { history.push_match(accounts, d, blockhash, token.id()) };
+        auto& ref { history.push_match(accounts, d, blockhash, asset.id()) };
 
         api.matches.push_back({ .txhash { ref.he.hash },
-            .tokenInfo { token.info() },
+            .tokenInfo { asset.info() },
             .liquidityBefore { poolLiquidity },
             .liquidityAfter { m.pool },
             .buySwaps {},
@@ -1147,32 +1159,45 @@ private:
         auto b { api.matches.back() };
     }
 
-    void process_liquidity_deposits(const TokenHandle& td, const std::vector<LiquidityDepositsInternal>& deposits)
+    void process_liquidity_deposits(const AssetHandle& td, const std::vector<LiquidityDepositsInternal>& deposits)
     {
         auto& pool { td.get_pool(db) };
         for (auto& a : deposits) {
             auto v { verify(a) };
             auto shares { pool.deposit(a.basequote.base(), a.basequote.quote().E8()) };
             balanceChecker.add_balance(a.origin.id, td.id(), shares);
-            auto& ref{history.push_liquidity_deposit(v, shares, td.id())};
-            api.liquidityDeposit.push_back({
-                .txhash{ref.he.hash},
-                .fee{v.liquidityAdd.fee()},
-                .baseDeposit{v.liquidityAdd.basequote.base()},
-                .quoteDeposit{v.liquidityAdd.basequote.quote()},
-                .sharesReceived{shares}}
-            );
+            auto& ref { history.push_liquidity_deposit(v, shares, td.id()) };
+            api.liquidityDeposit.push_back(
+                { .txhash { ref.he.hash },
+                    .fee { v.liquidityAdd.fee() },
+                    .baseDeposited { v.liquidityAdd.basequote.base() },
+                    .quoteDeposited { v.liquidityAdd.basequote.quote() },
+                    .sharesReceived { shares } });
         }
     }
 
-    void process_liquidity_withdrawals(const TokenHandle& td, const std::vector<LiquidityWithdrawalInternal>& withdrawals)
+    void process_liquidity_withdrawals(const AssetHandle& td, const std::vector<LiquidityWithdrawalInternal>& withdrawals)
     {
         auto& pool { td.get_pool(db) };
         for (auto& a : withdrawals) {
             auto v { verify(a) };
-            pool.withdraw_liquity(a.poolShares);
-            auto shares { pool.deposit(a.basequote.base(), a.basequote.quote().E8()) };
-            balanceChecker.add_balance(a.origin.id, td.id(), shares);
+            auto w { pool.withdraw_liquity(a.poolShares) };
+            if (!w)
+                throw Error(EPOOLREDEEM);
+            // credit withdrawn balance
+            auto baseReceived { w->base };
+            Wart quoteReceived { Wart::from_funds_throw(w->quote) };
+            balanceChecker.add_balance(a.origin.id, td.id(), baseReceived);
+            balanceChecker.add_balance(a.origin.id, TokenId::WART, quoteReceived);
+
+            auto& ref { history.push_liquidity_withdrawal(v, baseReceived, quoteReceived, td.id()) };
+            api.liquidityWithdrawal.push_back({
+                .txhash { ref.he.hash },
+                .fee { v.liquidityAdd.fee() },
+                .sharesRedeemed { a.poolShares },
+                .baseReceived { baseReceived },
+                .quoteReceived { quoteReceived },
+            });
         }
     }
 
@@ -1248,19 +1273,20 @@ api::Block BlockApplier::apply_block(const BlockWithHash& b, BlockId blockId)
 
         for (auto& d : prepared.deleteOrders) // delete orders
             db.delete_order(d);
-
         for (auto& o : prepared.insertOrders) // new orders
             db.insert_order(o);
         for (auto& d : prepared.matchDeltas) {
-            for (auto& o : d.orderFillstates) // update fillstates
-                db.change_fillstate(o);
-            for (auto& o : d.orderDeletes) // delete filled orders
+            if (auto& o { d.orderBuyPartial })
+                db.change_fillstate(*o, true);
+            if (auto& o { d.orderSellPartial })
+                db.change_fillstate(*o, false);
+            for (auto& o : d.orderDeletes)
                 db.delete_order(o);
             db.set_pool_liquidity(d.tokenId, d.pool);
         }
 
         // insert token creations
-        for (auto& tc : prepared.insertTokenCreations)
+        for (auto& tc : prepared.insertAssetCreations)
             db.insert_new_token(tc);
 
         // insert new balances

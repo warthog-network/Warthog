@@ -677,7 +677,7 @@ json to_json(const TransactionId& txid)
     };
 }
 
-json to_json(const TokenIdHashNamePrecision& t)
+json to_json(const AssetIdHashNamePrecision& t)
 {
     return {
         { "hash", serialize_hex(t.hash) },

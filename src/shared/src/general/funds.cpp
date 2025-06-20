@@ -8,13 +8,13 @@
 #include <cstring>
 #include <limits>
 
-Writer& operator<<(Writer& w, const TokenPrecision& p)
+Writer& operator<<(Writer& w, const AssetPrecision& p)
 {
     return w << p.val;
 }
 
-TokenPrecision::TokenPrecision(Reader& r)
-    : TokenPrecision(from_number_throw(r.uint8()))
+AssetPrecision::AssetPrecision(Reader& r)
+    : AssetPrecision(from_number_throw(r.uint8()))
 {
 }
 
@@ -55,7 +55,7 @@ ParsedFunds::ParsedFunds(std::string_view s)
 {
 }
 
-Funds_uint64 Funds_uint64::parse_throw(std::string_view s, TokenPrecision d)
+Funds_uint64 Funds_uint64::parse_throw(std::string_view s, AssetPrecision d)
 {
     if (auto o { Funds_uint64::parse(s, d) }; o.has_value()) {
         return *o;
@@ -96,7 +96,7 @@ Funds_uint64::Funds_uint64(Reader& r)
 {
 }
 
-std::optional<Funds_uint64> Funds_uint64::parse(std::string_view s, TokenPrecision digits)
+std::optional<Funds_uint64> Funds_uint64::parse(std::string_view s, AssetPrecision digits)
 {
     auto fd { ParsedFunds::parse(s) };
     if (!fd)
@@ -104,7 +104,7 @@ std::optional<Funds_uint64> Funds_uint64::parse(std::string_view s, TokenPrecisi
     return parse(*fd, digits);
 }
 
-std::optional<Funds_uint64> Funds_uint64::parse(ParsedFunds fd, TokenPrecision digits)
+std::optional<Funds_uint64> Funds_uint64::parse(ParsedFunds fd, AssetPrecision digits)
 {
     if (fd.decimalPlaces > digits())
         return {};
@@ -129,7 +129,7 @@ std::optional<Wart> Wart::parse(std::string_view s)
 
 std::optional<Wart> Wart::parse(ParsedFunds fd)
 {
-    auto p { Funds_uint64::parse(fd, TokenPrecision::digits8()) };
+    auto p { Funds_uint64::parse(fd, AssetPrecision::digits8()) };
     if (p)
         return Wart::from_value(p->value());
     return {};

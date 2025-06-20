@@ -6,7 +6,7 @@ class ChainDBTransaction;
 struct OrderDelete;
 struct OrderFillstate;
 struct OrderData;
-struct TokenData;
+struct AssetData;
 }
 
 using ChainDB = chain_db::ChainDB;

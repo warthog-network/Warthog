@@ -157,7 +157,7 @@ public:
     {
     }
     Data(const ChainDB& db)
-        : BaseData(db.next_account_id(), db.next_token_id(), db.next_state_id().value(), {})
+        : BaseData(db.next_account_id(), db.next_asset_id(), db.next_state_id().value(), {})
     {
     }
     auto& next_account_id() const { return get<0>(); }

@@ -57,13 +57,13 @@ Entry::Entry(const VerifiedCancelation& p)
 {
 }
 
-Entry::Entry(const VerifiedTokenCreation& p, TokenId tokenId)
+Entry::Entry(const VerifiedAssetCreation& p, AssetId assetId)
     : hash(p.hash)
-    // = ICombine<3, PinNonceEl, CompactFeeEl, TokenIdEl, OwnerIdEl, TokenSupplyEl, TokenNameEl>;
-    , data(TokenCreationData {
+    // = ICombine<3, PinNonceEl, CompactFeeEl, AssetIdEl, OwnerIdEl, TokenSupplyEl, TokenNameEl>;
+    , data(AssetCreationData {
           p.tci.pinNonce,
           p.tci.compactFee,
-          tokenId,
+          assetId,
           p.tci.origin.id,
           p.tci.supply,
           p.tci.name,

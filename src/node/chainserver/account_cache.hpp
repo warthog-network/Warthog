@@ -26,10 +26,10 @@ public:
     {
     }
 
-    [[nodiscard]] const TokenInfo& operator[](TokenId id);
+    [[nodiscard]] const AssetInfo& operator[](TokenId id);
 
 private:
-    std::map<TokenId, TokenInfo> map;
+    std::map<TokenId, AssetInfo> map;
     const ChainDB& db;
 };
 

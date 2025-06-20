@@ -53,7 +53,7 @@ ChainDB::Database::Database(const std::string& path)
          "close INTEGER NOT NULL, "
          "quantity INTEGER NOT NULL, " // base amount traded
          "volume INTEGER NOT NULL, " // quote amount traded
-         "PRIMARY KEY(token_id, timestamp))");
+         "PRIMARY KEY(asset_id, timestamp))");
     exec("CREATE INDEX IF NOT EXISTS `Candles5mIndex` ON "
          "`Candles5m` (timestamp)");
 
@@ -67,7 +67,7 @@ ChainDB::Database::Database(const std::string& path)
          "close INTEGER NOT NULL, "
          "quantity INTEGER NOT NULL, " // base amount traded
          "volume INTEGER NOT NULL, " // quote amount traded
-         "PRIMARY KEY(token_id, timestamp))");
+         "PRIMARY KEY(asset_id, timestamp))");
     exec("CREATE INDEX IF NOT EXISTS `Candles1hIndex` ON "
          "`Candles1h` (timestamp)");
 
@@ -77,13 +77,13 @@ ChainDB::Database::Database(const std::string& path)
          "account_id INTEGER NOT NULL, "
          "pin_height INTEGER NOT NULL, "
          "nonce_id INTEGER NOT NULL, "
-         "token_id INTEGER NOT NULL, "
+         "asset_id INTEGER NOT NULL, "
          "totalBase INTEGER NOT NULL, "
          "filledBase INTEGER NOT NULL, "
          "limit NOT NULL DEFAULT 0, "
          "PRIMARY KEY(`id`))");
     exec("CREATE INDEX IF NOT EXISTS `SellOrderIndex` ON "
-         "`SellOrders` (token_id, limit ASC, id ASC)");
+         "`SellOrders` (asset_id, limit ASC, id ASC)");
     exec("CREATE UNIQUE INDEX IF NOT EXISTS `SellOrderAccountIndex` ON "
          "`SellOrders` (account_id, pin_height, nonce_id)");
 
@@ -93,13 +93,13 @@ ChainDB::Database::Database(const std::string& path)
          "account_id INTEGER NOT NULL, "
          "pin_height INTEGER NOT NULL, "
          "nonce_id INTEGER NOT NULL, "
-         "token_id INTEGER NOT NULL, "
+         "asset_id INTEGER NOT NULL, "
          "totalQuote INTEGER NOT NULL, "
          "filledQuote INTEGER NOT NULL, "
          "limit NOT NULL DEFAULT 0, "
          "PRIMARY KEY(`id`))");
     exec("CREATE INDEX IF NOT EXISTS `BuyOrderIndex` ON "
-         "`BuyOrders` (token_id, limit DESC, id ASC)");
+         "`BuyOrders` (asset_id, limit DESC, id ASC)");
     exec("CREATE UNIQUE INDEX IF NOT EXISTS `BuyOrderAccountIndex` ON "
          "`BuyOrders` (account_id, pin_height, nonce_id)");
 
@@ -114,23 +114,22 @@ ChainDB::Database::Database(const std::string& path)
 
     // Pools
     exec("CREATE TABLE IF NOT EXISTS Pools ("
-         "id INTEGER NOT NULL, " // this one is also share id
-         "token_id INTEGER UNIQUE NOT NULL, "
+         "asset_id INTEGER NOT NULL, "
          "`liquidity_token` INTEGER NOT NULL, "
          "`liquidity_wart` INTEGER NOT NULL, "
          "`pool_shares` INTEGER NOT NULL, "
-         "PRIMARY KEY(`id`))");
+         "PRIMARY KEY(`asset_id`))");
 
     // Peg
     exec("CREATE TABLE IF NOT EXISTS Peg ("
          "id INTEGER NOT NULL, "
          "account_id INTEGER NOT NULL, "
-         "out_token_id INTEGER NOT NULL, "
+         "out_asset_id INTEGER NOT NULL, "
          "out_total INTEGER NOT NULL, "
          "out_paid INTEGER NOT NULL DEFAULT 0, "
          "in_total INTEGER NOT NULL, "
          "in_burnt INTEGER NOT NULL DEFAULT 0"
-         "in_token_id INTEGER NOT NULL UNIQUE, "
+         "in_asset_id INTEGER NOT NULL UNIQUE, "
          "expiration_height INTEGER NOT NULL, "
          "PRIMARY KEY(`id`))");
     exec("CREATE INDEX IF NOT EXISTS `PegIndex` ON "
@@ -140,15 +139,15 @@ ChainDB::Database::Database(const std::string& path)
     exec("CREATE TABLE IF NOT EXISTS TokenForkBalances ("
          "`id` INTEGER NOT NULL, "
          "`account_id` INTEGER NOT NULL, "
-         "`token_id` INTEGER NOT NULL, "
+         "`asset_id` INTEGER NOT NULL, "
          "`height` INTEGER NOT NULL, "
          "`balance` INTEGER NOT NULL, "
          "PRIMARY KEY(`id`))");
     exec("CREATE UNIQUE INDEX IF NOT EXISTS `TokenForkBalancesIndex` "
-         "ON `TokenForks` (account_id, token_id, height)");
+         "ON `TokenForks` (account_id, asset_id, height)");
 
-    // Tokens
-    exec("CREATE TABLE IF NOT EXISTS \"Tokens\" ( "
+    // Assets
+    exec("CREATE TABLE IF NOT EXISTS \"Assets\" ( "
          "`id` INTEGER DEFAULT NULL, "
          "`height` INTEGER NOT NULL, "
          "`owner_account_id` INTEGER NOT NULL, "
@@ -160,10 +159,10 @@ ChainDB::Database::Database(const std::string& path)
          "`precision` INTEGER NOT NULL UNIQUE, "
          "`data` BLOB,"
          "PRIMARY KEY(id))");
-    exec("CREATE INDEX IF NOT EXISTS `TokensIndex` ON "
-         "`Tokens` (height)");
-    exec("CREATE INDEX IF NOT EXISTS `TokensParentIndex` ON "
-         "`Tokens` (parent_id, height)");
+    exec("CREATE INDEX IF NOT EXISTS `AssetsIndex` ON "
+         "`Assets` (height)");
+    exec("CREATE INDEX IF NOT EXISTS `AssetsParentIndex` ON "
+         "`Assets` (parent_id, height)");
 
     exec("CREATE TABLE IF NOT EXISTS \"Balances\" (`id` INTEGER NOT NULL, `account_id` INTEGER NOT NULL, `token_id` INTEGER NOT NULL, `balance` INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(`id`))");
     exec("CREATE UNIQUE INDEX IF NOT EXISTS `Balance_index` ON "
@@ -210,9 +209,8 @@ ChainDB::Cache ChainDB::Cache::init(SQLite::Database& db)
     };
 
     auto nextStateId = get_int64("SELECT COALESCE(0,value)+1 FROM Metadata WHERE key=" + std::to_string(METATYPES::MAXSTATE));
-
-    auto nextAccountId = AccountId(get_int64("SELECT coalesce(max(ROWID),0) FROM `Accounts`"));
-    auto nextTokenId = TokenId(get_int64("SELECT coalesce(max(ROWID),0) FROM `Tokens`"));
+    auto nextAccountId = AccountId(get_int64("SELECT coalesce(max(ROWID),0) + 1 FROM `Accounts`"));
+    auto nextAssetId = AssetId(get_int64("SELECT coalesce(max(ROWID),0) + 1 FROM `Assets`"));
 
     int64_t hid = db.execAndGet("SELECT coalesce(max(id)+1,1) FROM History")
                       .getInt64();
@@ -220,7 +218,7 @@ ChainDB::Cache ChainDB::Cache::init(SQLite::Database& db)
         throw std::runtime_error("Database corrupted, negative history id.");
     return {
         .nextAccountId { nextAccountId },
-        .nextTokenId { nextTokenId },
+        .nextAssetId { nextAssetId },
         .nextStateId { nextStateId },
         .nextHistoryId = HistoryId { uint64_t(hid) },
         .deletionKey { 2 }
@@ -247,29 +245,29 @@ ChainDB::ChainDB(const std::string& path)
           db, "SELECT ROWID, `height`, `header`, `body` FROM \"Blocks\" WHERE `hash`=?;")
     , stmtPruneCandles5m(db, "DELETE FROM Candles5m WHERE timestamp >=?")
     , stmtInsertCandles5m(db, "INSERT OR REPLACE INTO Candles5m (tokenId, timestamp, open, high, low, close, quantity, volume) VALUES (?,?,?,?,?,?,?,?)")
-    , stmtSelectCandles5m(db, "SELECT (timestamp, open, high, low, close, quantity, volume) FROM Candles5m WHERE token_id=? AND timestamp>=? AND timestamp<=?")
+    , stmtSelectCandles5m(db, "SELECT (timestamp, open, high, low, close, quantity, volume) FROM Candles5m WHERE asset_id=? AND timestamp>=? AND timestamp<=?")
     , stmtPruneCandles1h(db, "DELETE FROM Candles1h WHERE timestamp >=?")
     , stmtInsertCandles1h(db, "INSERT OR REPLACE INTO Candles1h (tokenId, timestamp, open, high, low, close, quantity, volume) VALUES (?,?,?,?,?,?,?,?)")
-    , stmtSelectCandles1h(db, "SELECT (timestamp, open, high, low, close, quantity, volume) FROM Candles1h WHERE token_id=? AND timestamp>=? AND timestamp<=?")
+    , stmtSelectCandles1h(db, "SELECT (timestamp, open, high, low, close, quantity, volume) FROM Candles1h WHERE asset_id=? AND timestamp>=? AND timestamp<=?")
 
-    , stmtInsertBaseSellOrder(db, "INSERT INTO SellOrders (id, account_id, pin_height, nonce_id, token_id, totalBase, filledBase, limit) VALUES(?,?,?,?,?,?,?,?)")
+    , stmtInsertBaseSellOrder(db, "INSERT INTO SellOrders (id, account_id, pin_height, nonce_id, asset_id, totalBase, filledBase, limit) VALUES(?,?,?,?,?,?,?,?)")
     , stmtUpdateFillBaseSellOrder(db, "UPDATE SellOrders SET filledBase = ? WHERE id = ?")
     , stmtDeleteBaseSellOrder(db, "DELETE FROM SellOrders WHERE id = ?")
     , stmtDeleteBaseSellOrderTxid(db, "DELETE FROM SellOrders WHERE account_id = ? AND pin_height = ? AND nonce_id = ?")
-    , stmtInsertQuoteBuyOrder(db, "INSERT INTO BuyOrders (id, account_id, pin_height, nonce_id, token_id, totalQuote, filledQuote, limit) VALUES(?,?,?,?,?,?,?,?)")
+    , stmtInsertQuoteBuyOrder(db, "INSERT INTO BuyOrders (id, account_id, pin_height, nonce_id, asset_id, totalQuote, filledQuote, limit) VALUES(?,?,?,?,?,?,?,?)")
     , stmtUpdateFillQuoteBuyOrder(db, "UPDATE BuyOrders SET filledQuote = ? WHERE id = ?")
     , stmtDeleteQuoteBuyOrder(db, "DELETE FROM BuyOrders WHERE id = ?")
     , stmtDeleteQuoteBuyOrderTxid(db, "DELETE FROM BuyOrders WHERE account_id = ? AND pin_height = ? AND nonce_id = ?")
-    , stmtSelectBaseSellOrderAsc(db, "SELECT (id, account_id, pin_height, nonce_id, totalBase, filledBase, limit) FROM SellOrders WHERE token_id=? ORDER BY limit ASC, id ASC")
-    , stmtSelectQuoteBuyOrderDesc(db, "SELECT (id, account_id, pin_height, nonce_id, totalQuote, filledQuote, limit) FROM BuyOrders WHERE token_id=? ORDER BY limit DESC, id ASC")
-    , stmtSelectBaseSell(db, "SELECT (id, token_id, totalBase, filledBase, limit) FROM SellOrders WHERE account_id = ? AND pin_height = ? AND nonce_id = ?")
-    , stmtSelectQuoteBuy(db, "SELECT (id, token_id, totalQuote, filledQuote, limit) FROM BuyOrders WHERE account_id = ? AND pin_height = ? AND nonce_id = ?")
+    , stmtSelectBaseSellOrderAsc(db, "SELECT (id, account_id, pin_height, nonce_id, totalBase, filledBase, limit) FROM SellOrders WHERE asset_id=? ORDER BY limit ASC, id ASC")
+    , stmtSelectQuoteBuyOrderDesc(db, "SELECT (id, account_id, pin_height, nonce_id, totalQuote, filledQuote, limit) FROM BuyOrders WHERE asset_id=? ORDER BY limit DESC, id ASC")
+    , stmtSelectBaseSell(db, "SELECT (id, asset_id, totalBase, filledBase, limit) FROM SellOrders WHERE account_id = ? AND pin_height = ? AND nonce_id = ?")
+    , stmtSelectQuoteBuy(db, "SELECT (id, asset_id, totalQuote, filledQuote, limit) FROM BuyOrders WHERE account_id = ? AND pin_height = ? AND nonce_id = ?")
     , stmtInsertCanceled(db, "INSERT INTO Canceled (id, account_id, pin_height, nonce_id) VALUES (?,?,?,?)")
     , stmtDeleteCanceled(db, "DELETE FROM Canceled WHERE id = ?")
-    , stmtInsertPool(db, "INSERT INTO Pools (id, token_id, pool_wart, pool_token, pool_shares) VALUES (?,?,?,?,?)")
-    , stmtSelectPool(db, "SELECT (id, token_id, liquidity_token, liquidity_wart, pool_shares) FROM Pools WHERE token_id=? OR id=?")
-    , stmtUpdatePool(db, "UPDATE Pools SET liquidity_base=?, liquidity_quote=?, pool_shares=? WHERE id=?")
-    , stmtUpdatePoolLiquidity(db, "UPDATE Pools SET liquidity_base=?, liquidity_quote=? WHERE token_id=?")
+    , stmtInsertPool(db, "INSERT INTO Pools (asset_id, pool_wart, pool_token, pool_shares) VALUES (?,?,?,?)")
+    , stmtSelectPool(db, "SELECT (asset_id, liquidity_token, liquidity_wart, pool_shares) FROM Pools WHERE asset_id=?")
+    , stmtUpdatePool(db, "UPDATE Pools SET liquidity_base=?, liquidity_quote=?, pool_shares=? WHERE asset_id=?")
+    , stmtUpdatePoolLiquidity(db, "UPDATE Pools SET liquidity_base=?, liquidity_quote=? WHERE asset_id=?")
     , stmtTokenForkBalanceInsert(db, "INSERT INTO TokenForkBalances "
                                      "(id, account_id, token_id, height, balance) "
                                      "VALUES (?,?,?,?)")
@@ -281,16 +279,16 @@ ChainDB::ChainDB(const std::string& path)
 
     , stmtTokenForkBalancePrune(db, "DELETE FROM TokenForkBalances WHERE id>=?")
 
-    , stmtTokenInsert(db, "INSERT INTO `Tokens` ( `id`, `height`, `owner_account_id`, total_supply, group_id, parent_id, name, hash, precision, data) VALUES (?,?,?,?,?,?,?,?,?,?)")
-    , stmtTokenPrune(db, "DELETE FROM Tokens WHERE id>=?")
-    , stmtTokenSelectForkHeight(db, "SELECT height FROM Tokens WHERE parent_id=? AND height>=? ORDER BY height DESC LIMIT 1")
-    , stmtTokenLookup(db, "SELECT (id, height, owner_account_id, total_supply, group_id, parent_id, name, hash, precision, data) FROM Tokens WHERE `id`=?")
-    , stmtTokenLookupByHash(db, "SELECT (id, height, owner_account_id, total_supply, group_id, parent_id, name, hash, precision, data) FROM Tokens WHERE `hash`=?")
+    , stmtTokenInsert(db, "INSERT INTO `Assets` ( `id`, `height`, `owner_account_id`, total_supply, group_id, parent_id, name, hash, precision, data) VALUES (?,?,?,?,?,?,?,?,?,?)")
+    , stmtTokenPrune(db, "DELETE FROM Assets WHERE id>=?")
+    , stmtTokenSelectForkHeight(db, "SELECT height FROM Assets WHERE parent_id=? AND height>=? ORDER BY height DESC LIMIT 1")
+    , stmtAssetLookup(db, "SELECT (id, height, owner_account_id, total_supply, group_id, parent_id, name, hash, precision, data) FROM Assets WHERE `id`=?")
+    , stmtTokenLookupByHash(db, "SELECT (id, height, owner_account_id, total_supply, group_id, parent_id, name, hash, precision, data) FROM Assets WHERE `hash`=?")
     , stmtSelectBalanceId(db, "SELECT `account_id`, `token_id`, `balance` FROM `Balances` WHERE `id`=?")
     , stmtTokenInsertBalance(db, "INSERT INTO `Balances` ( id, `token_id`, `account_id`, `balance`) VALUES (?,?,?,?)")
     , stmtBalancePrune(db, "DELETE FROM Balances WHERE id>=?")
     , stmtTokenSelectBalance(db, "SELECT `id`, `balance` FROM `Balances` WHERE `token_id`=? AND `account_id`=?")
-    , stmtAccountSelectTokens(db, "SELECT `token_id`, `balance` FROM `Balances` WHERE `account_id`=? LIMIT ?")
+    , stmtAccountSelectAssets(db, "SELECT `token_id`, `balance` FROM `Balances` WHERE `account_id`=? LIMIT ?")
     , stmtTokenUpdateBalance(db, "UPDATE `Balances` SET `balance`=? WHERE `id`=?")
     , stmtTokenSelectRichlist(db, "SELECT `address`, `balance` FROM `Balances` JOIN `Accounts` on Accounts.id = Balances.account_id WHERE `token_id`=? ORDER BY `balance` DESC LIMIT ?")
     , stmtConsensusHeaders(db, "SELECT c.height, c.history_cursor, c.account_cursor, b.header "
@@ -354,7 +352,6 @@ ChainDB::ChainDB(const std::string& path)
     // BELOW STATEMENTS REQUIRED FOR INDEXING NODES
     //
     , stmtAddressLookup(db, "SELECT `ROWID`, FROM `Accounts` JOIN `Balances` on AccountsWHERE `address`=?")
-    // , stmtTokenSelectBalance(db, "SELECT `id`, `balance` FROM `Balances` WHERE `token_id`=? AND `account_id`=?")
     , stmtHistoryById(db, "SELECT h.id, `hash`,`data` FROM `History` `h` JOIN "
                           "`AccountHistory` `ah` ON h.id=`ah`.history_id WHERE "
                           "ah.`account_id`=? AND h.id<? ORDER BY h.id DESC LIMIT 100")
@@ -632,13 +629,13 @@ std::vector<Candle> ChainDB::select_candles_1h(TokenId tid, Timestamp from, Time
 void ChainDB::insert_order(const chain_db::OrderData& o)
 {
     if (o.buy)
-        stmtInsertQuoteBuyOrder.run(o.id, o.txid.accountId, o.txid.pinHeight, o.txid.nonceId, o.tid, o.total, o.filled, o.limit);
+        stmtInsertQuoteBuyOrder.run(o.id, o.txid.accountId, o.txid.pinHeight, o.txid.nonceId, o.aid, o.total, o.filled, o.limit);
     else
-        stmtInsertBaseSellOrder.run(o.id, o.txid.accountId, o.txid.pinHeight, o.txid.nonceId, o.tid, o.total, o.filled, o.limit);
+        stmtInsertBaseSellOrder.run(o.id, o.txid.accountId, o.txid.pinHeight, o.txid.nonceId, o.aid, o.total, o.filled, o.limit);
 }
-void ChainDB::change_fillstate(const chain_db::OrderFillstate& o)
+void ChainDB::change_fillstate(const chain_db::OrderFillstate& o, bool buy)
 {
-    if (o.buy)
+    if (buy)
         stmtUpdateFillQuoteBuyOrder.run(o.filled, o.id);
     else
         stmtUpdateFillBaseSellOrder.run(o.filled, o.id);
@@ -659,13 +656,13 @@ std::optional<chain_db::OrderData> ChainDB::select_order(TransactionId id) const
     std::optional<chain_db::OrderData> res {
         stmtSelectBaseSell.one(id.accountId, id.pinHeight, id.nonceId).process([&](auto o) {
             return ret_t {
-                .id = o[0],
+                .id { o[0] },
                 .buy = false,
-                .txid = id,
-                .tid = o[1],
-                .total = o[2],
-                .filled = o[3],
-                .limit = o[4]
+                .txid { id },
+                .aid { o[1] },
+                .total { o[2] },
+                .filled { o[3] },
+                .limit { o[4] }
             };
         })
     };
@@ -675,7 +672,7 @@ std::optional<chain_db::OrderData> ChainDB::select_order(TransactionId id) const
                 .id = o[0],
                 .buy = true,
                 .txid = id,
-                .tid = o[1],
+                .aid = o[1],
                 .total = o[2],
                 .filled = o[3],
                 .limit = o[4]
@@ -684,14 +681,14 @@ std::optional<chain_db::OrderData> ChainDB::select_order(TransactionId id) const
     }
     return res;
 }
-OrderLoaderAscending ChainDB::base_order_loader_ascending(TokenId tid) const
+OrderLoaderAscending ChainDB::base_order_loader_ascending(AssetId aid) const
 {
-    return { stmtSelectBaseSellOrderAsc.bind_multiple(tid) };
+    return { stmtSelectBaseSellOrderAsc.bind_multiple(aid) };
 }
 
-OrderLoaderDescending ChainDB::quote_order_loader_descending(TokenId tid) const
+OrderLoaderDescending ChainDB::quote_order_loader_descending(AssetId aid) const
 {
-    return { stmtSelectQuoteBuyOrderDesc.bind_multiple(tid) };
+    return { stmtSelectQuoteBuyOrderDesc.bind_multiple(aid) };
 }
 
 void ChainDB::insert_canceled(CancelId cid, AccountId aid, PinHeight ph, NonceId nid)
@@ -703,20 +700,19 @@ void ChainDB::delete_canceled(CancelId cid)
     stmtDeleteCanceled.run(cid);
 }
 
-void ChainDB::insert_pool(ShareId shareId, TokenId tokenId, const defi::Pool& p)
+void ChainDB::insert_pool(const PoolData& d)
 {
-    stmtInsertPool.run(shareId, tokenId, p.wart, p.base, p.shares);
+    stmtInsertPool.run(d.asset_id(), d.quote, d.base, d.shares_total());
 }
 
-std::optional<PoolData> ChainDB::select_pool(TokenId shareIdOrTokenId) const
+std::optional<PoolData> ChainDB::select_pool(AssetId assetId) const
 {
-    return stmtSelectPool.one(shareIdOrTokenId).process([](auto o) {
+    return stmtSelectPool.one(assetId).process([](auto o) -> PoolData {
         return PoolData {
-            .shareId = o[0],
-            .tokenId = o[1],
-            .base = o[2],
-            .quote = o[3],
-            .shares = o[4]
+            { .assetId = o[0],
+                .base = o[1],
+                .quote = o[2],
+                .shares = o[3] }
         };
     });
 }
@@ -737,7 +733,7 @@ void ChainDB::insert_token_fork_balance(TokenForkBalanceId id, TokenId tokenId, 
 
 // bool ChainDB::fork_balance_exists(AccountToken at, NonzeroHeight h)
 // {
-//     return stmtTokenForkBalanceEntryExists.one(at.account_id(), at.token_id(), h)
+//     return stmtTokenForkBalanceEntryExists.one(at.account_id(), at.asset_id(), h)
 //         .process([](auto& o) {
 //             return o.has_value();
 //         });
@@ -751,9 +747,9 @@ std::optional<std::pair<NonzeroHeight, Funds_uint64>> ChainDB::get_balance_snaps
     return std::pair<NonzeroHeight, Funds_uint64> { res[0], res[1] };
 }
 
-void ChainDB::insert_new_token(const TokenData& d)
+void ChainDB::insert_new_token(const AssetData& d)
 {
-    auto id { cache.nextTokenId++ };
+    auto id { cache.nextAssetId++ };
     if (id != d.id)
         throw std::runtime_error("Internal error, token id inconsistent.");
     stmtTokenInsert.run(d.id, d.height, d.ownerAccountId, d.supply.funds.value(), d.groupId, d.parentId, d.name, d.hash, d.supply.precision.value(), d.data);
@@ -773,9 +769,9 @@ void ChainDB::insert_token_balance(AccountToken at, Funds_uint64 balance)
     cache.nextStateId++;
 }
 
-std::optional<std::pair<BalanceId, Funds_uint64>> ChainDB::get_balance(AccountToken at) const
+std::optional<std::pair<BalanceId, Funds_uint64>> ChainDB::get_balance(AccountId aid, TokenId tid) const
 {
-    auto res { stmtTokenSelectBalance.one(at.token_id(), at.account_id()) };
+    auto res { stmtTokenSelectBalance.one(tid, aid) };
     if (!res.has_value())
         return {};
     return std::pair { res.get<BalanceId>(0), res.get<Funds_uint64>(1) };
@@ -783,7 +779,7 @@ std::optional<std::pair<BalanceId, Funds_uint64>> ChainDB::get_balance(AccountTo
 
 std::vector<std::pair<TokenId, Funds_uint64>> ChainDB::get_tokens(AccountId accountId, size_t limit)
 {
-    return stmtAccountSelectTokens.all([&](const sqlite::Row& r) {
+    return stmtAccountSelectAssets.all([&](const sqlite::Row& r) {
         return std::pair { TokenId { r[0] }, Funds_uint64 { r[1] } };
     },
         accountId, limit);
@@ -962,10 +958,28 @@ Address ChainDB::fetch_address(AccountId id) const
 //     });
 // }
 
-std::optional<TokenInfo> ChainDB::lookup_token(TokenId id) const
+std::optional<AssetInfo> ChainDB::lookup_asset(AssetId id) const
 {
-    // , stmtTokenLookup(db, "SELECT (heightn,owner_account_id, total_supply, group_id, name, hash, data) FROM Tokens WHERE `id`=?")
-    return stmtTokenLookup.one(id).process([](auto& o) -> TokenInfo {
+    // , stmtAssetLookup(db, "SELECT (id, height, owner_account_id, total_supply, group_id, parent_id, name, hash, precision, data) FROM Assets WHERE `id`=?")
+    return stmtAssetLookup.one(id).process([](auto& o) -> AssetInfo {
+        return {
+            .id = o[0],
+            .height = o[1],
+            .ownerAccountId = o[2],
+            .totalSupply = o[3],
+            .group_id = o[4],
+            .parent_id = o[5],
+            .name = o[6],
+            .hash = o[7],
+            .precision = o[8]
+            // TODO: data element at o[9]
+        };
+    });
+}
+
+std::optional<AssetInfo> ChainDB::lookup_asset(AssetHash hash) const
+{
+    return stmtTokenLookupByHash.one(hash).process([](auto& o) -> AssetInfo {
         return {
             .id = o[0],
             .height = o[1],
@@ -980,26 +994,9 @@ std::optional<TokenInfo> ChainDB::lookup_token(TokenId id) const
     });
 }
 
-std::optional<TokenInfo> ChainDB::lookup_token(TokenHash hash) const
+AssetInfo ChainDB::fetch_asset(AssetId id) const
 {
-    return stmtTokenLookupByHash.one(hash).process([](auto& o) -> TokenInfo {
-        return {
-            .id = o[0],
-            .height = o[1],
-            .ownerAccountId = o[2],
-            .totalSupply = o[3],
-            .group_id = o[4],
-            .parent_id = o[5],
-            .name = o[6],
-            .hash = o[7],
-            .precision = o[8]
-        };
-    });
-}
-
-TokenInfo ChainDB::fetch_token(TokenId id) const
-{
-    auto p { lookup_token(id) };
+    auto p { lookup_asset(id) };
     if (!p) {
         throw std::runtime_error("Database corrupted (fetch_token(" + std::to_string(id.value()) + ")");
     }
@@ -1031,22 +1028,25 @@ void ChainDB::delete_bad_block(HashView blockhash)
     stmtScheduleDelete2.run(id);
 }
 
-std::pair<std::optional<BalanceId>, Funds_uint64> ChainDB::get_token_balance_recursive(AccountToken ac, TokenLookupTrace* trace) const
+std::pair<std::optional<BalanceId>, Funds_uint64> ChainDB::get_token_balance_recursive(AccountId aid, TokenId tid, AssetLookupTrace* trace) const
 {
     while (true) {
         // direct lookup
-        if (auto b { get_balance(ac) })
+        if (auto b { get_balance(aid, tid) })
             return *b;
 
+        auto assetId { tid.get_asset_id() };
+        if (tid == TokenId::WART || !assetId)
+            goto notfound; // tokenId is of ShareId type (pool share) and cannot have any parent
         // get token fork height
-        auto o { lookup_token(ac.token_id()) };
+        auto o { lookup_asset(*assetId) };
         if (!o)
-            throw std::runtime_error("Database error: Cannot find token info for id " + std::to_string(ac.token_id().value()) + ".");
-        const TokenInfo& tokenInfo { *o };
-        auto h { tokenInfo.height };
-        auto& p { tokenInfo.parent_id };
+            throw std::runtime_error("Database error: Cannot find token info for id " + std::to_string(tid.value()) + ".");
+        const AssetInfo& assetInfo { *o };
+        auto h { assetInfo.height };
+        auto& p { assetInfo.parent_id };
         if (!p) { // has no parent, i.e. was not forked, no entry found
-            return { std::nullopt, Funds_uint64::zero() };
+            goto notfound;
         }
         if (trace)
             trace->steps.push_back({ *p, h });
@@ -1056,8 +1056,10 @@ std::pair<std::optional<BalanceId>, Funds_uint64> ChainDB::get_token_balance_rec
                 trace->steps.back().snapshotHeight = height;
             return { std::nullopt, funds };
         };
-        ac.token_id() = *p;
+        tid = *p;
     }
+notfound:
+    return { std::nullopt, Funds_uint64::zero() };
 }
 
 chainserver::TransactionIds ChainDB::fetch_tx_ids(Height height) const

@@ -5,12 +5,12 @@
 #include <cassert>
 #include <optional>
 
-class TokenPrecision { // number of decimal places
+class AssetPrecision { // number of decimal places
 private:
     uint8_t val;
 
     struct Token { };
-    constexpr TokenPrecision(uint8_t v, Token)
+    constexpr AssetPrecision(uint8_t v, Token)
         : val(v)
     {
     }
@@ -20,34 +20,34 @@ private:
 public:
     static constexpr size_t byte_size() { return 1; }
     auto value() const { return val; }
-    consteval TokenPrecision(size_t v)
-        : TokenPrecision(uint8_t(v), Token())
+    consteval AssetPrecision(size_t v)
+        : AssetPrecision(uint8_t(v), Token())
     {
         if (v > max)
             throw std::runtime_error("Value " + std::to_string(v) + " exceeds maximum " + std::to_string(max) + ".");
     }
-    TokenPrecision(Reader& r);
-    friend Writer& operator<<(Writer& w, const TokenPrecision&);
-    static const TokenPrecision zero;
-    static constexpr TokenPrecision digits8()
+    AssetPrecision(Reader& r);
+    friend Writer& operator<<(Writer& w, const AssetPrecision&);
+    static const AssetPrecision zero;
+    static constexpr AssetPrecision digits8()
     {
         return 8;
     }
     constexpr auto operator()() const { return val; }
-    static constexpr TokenPrecision from_number_throw(uint8_t v)
+    static constexpr AssetPrecision from_number_throw(uint8_t v)
     {
         if (auto o { from_number(v) })
             return *o;
         throw Error(ETOKENPRECISION);
     }
-    static constexpr std::optional<TokenPrecision> from_number(uint8_t v)
+    static constexpr std::optional<AssetPrecision> from_number(uint8_t v)
     {
         if (v > max)
             return {};
-        return TokenPrecision { v, Token() };
+        return AssetPrecision { v, Token() };
     }
 };
-constexpr const TokenPrecision TokenPrecision::zero { 0 };
+constexpr const AssetPrecision AssetPrecision::zero { 0 };
 
 struct ParsedFunds {
     [[nodiscard]] static std::optional<ParsedFunds> parse(std::string_view);
@@ -164,37 +164,30 @@ public:
     }
     Funds_uint64(Reader& r);
     auto operator<=>(const Funds_uint64&) const = default;
-    static std::optional<Funds_uint64> parse(std::string_view, TokenPrecision);
-    static std::optional<Funds_uint64> parse(ParsedFunds, TokenPrecision);
-    static Funds_uint64 parse_throw(std::string_view, TokenPrecision);
-    FundsDecimal to_decimal(TokenPrecision d) const;
+    static std::optional<Funds_uint64> parse(std::string_view, AssetPrecision);
+    static std::optional<Funds_uint64> parse(ParsedFunds, AssetPrecision);
+    static Funds_uint64 parse_throw(std::string_view, AssetPrecision);
+    FundsDecimal to_decimal(AssetPrecision d) const;
 };
-class NonzeroFunds_uint64 {
+class NonzeroFunds_uint64 : public Funds_uint64 {
 public:
     constexpr NonzeroFunds_uint64(Funds_uint64 f)
-        : funds_(f)
+        : Funds_uint64(f)
     {
         assert(f != 0);
     }
-    NonzeroFunds_uint64(Reader& r)
-        : funds_(r) { };
-    auto& get() const { return funds_; }
-    operator auto &() const { return get(); }
     auto operator<=>(const NonzeroFunds_uint64&) const = default;
-
-private:
-    Funds_uint64 funds_;
 };
 struct FundsDecimal {
     Funds_uint64 funds;
-    TokenPrecision precision;
-    constexpr static size_t byte_size() { return Funds_uint64::byte_size() + TokenPrecision::byte_size(); }
+    AssetPrecision precision;
+    constexpr static size_t byte_size() { return Funds_uint64::byte_size() + AssetPrecision::byte_size(); }
     friend Writer& operator<<(Writer& w, const FundsDecimal& fd);
     FundsDecimal(Reader& r)
         : FundsDecimal(r, r)
     {
     }
-    FundsDecimal(Funds_uint64 funds, TokenPrecision precision)
+    FundsDecimal(Funds_uint64 funds, AssetPrecision precision)
         : funds(std::move(funds))
         , precision(std::move(precision))
     {
@@ -203,7 +196,7 @@ struct FundsDecimal {
     std::string to_string() const;
 };
 
-inline FundsDecimal Funds_uint64::to_decimal(TokenPrecision d) const
+inline FundsDecimal Funds_uint64::to_decimal(AssetPrecision d) const
 {
     return { value(), d };
 }
@@ -215,7 +208,7 @@ struct TokenFunds {
 
 class Wart : public FundsBase<Wart> {
 public:
-    static constexpr TokenPrecision precision { TokenPrecision::digits8() };
+    static constexpr AssetPrecision precision { AssetPrecision::digits8() };
     constexpr Wart(uint64_t v)
         : FundsBase<Wart>(from_value_throw(v))
     {

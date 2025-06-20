@@ -89,7 +89,7 @@ struct VerifiedLiquidityWithdrawal : public VerifiedTransaction {
 };
 
 struct LiquidityWithdrawalInternal : public SignerData {
-    Funds_uint64 poolShares;
+    NonzeroFunds_uint64 poolShares;
     [[nodiscard]] VerifiedLiquidityWithdrawal verify(const TransactionVerifier& tv) const{
         return {*this,tv};
 
@@ -141,17 +141,17 @@ struct TokenTransferInternal : public TransferInternalWithoutAmount {
 };
 
 struct TokenCreationInternal;
-struct VerifiedTokenCreation : public VerifiedTransaction {
+struct VerifiedAssetCreation : public VerifiedTransaction {
     friend struct TokenCreationInternal;
-    VerifiedTokenCreation(const TokenCreationInternal&, const TransactionVerifier&);
+    VerifiedAssetCreation(const TokenCreationInternal&, const TransactionVerifier&);
     const TokenCreationInternal& tci;
 };
 
 struct TokenCreationInternal : public SignerData {
     size_t index;
-    TokenName name;
+    AssetName name;
     FundsDecimal supply;
-    [[nodiscard]] VerifiedTokenCreation verify(const TransactionVerifier& tv) const
+    [[nodiscard]] VerifiedAssetCreation verify(const TransactionVerifier& tv) const
     {
         return { *this, tv };
     }

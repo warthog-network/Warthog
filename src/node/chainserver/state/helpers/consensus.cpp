@@ -256,7 +256,7 @@ TxHash Chainstate::create_tx(const WartTransferCreate& m)
     auto accId = db.lookup_account_id(fromAddr);
     if (!accId)
         throw Error(EADDRNOTFOUND);
-    auto [bal_id, balance] { db.get_token_balance_recursive({ *accId, TokenId::WART }) };
+    auto [bal_id, balance] { db.get_token_balance_recursive( *accId, TokenId::WART ) };
 
     AddressFunds af { fromAddr, balance };
     throw Error(ENONCE);

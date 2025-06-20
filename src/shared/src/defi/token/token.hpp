@@ -19,14 +19,14 @@ enum class TokenMintType {
     Auction = 1
 };
 
-class TokenName {
-    TokenName(std::string s)
+class AssetName {
+    AssetName(std::string s)
     {
         memcpy(name, s.c_str(), s.size());
     }
 
 public:
-    static std::optional<TokenName> from_string(std::string s)
+    static std::optional<AssetName> from_string(std::string s)
     {
         if (s.size() > 5)
             return {};
@@ -34,10 +34,10 @@ public:
             if (!(c >= 'A' && c <= 'Z') && !(c >= '0' && c <= '9'))
                 return {};
         }
-        return TokenName { std::move(s) };
+        return AssetName { std::move(s) };
     }
 
-    static TokenName parse_throw(std::string s)
+    static AssetName parse_throw(std::string s)
     {
         if (auto o { from_string(s) })
             return *o;
@@ -55,18 +55,18 @@ public:
 
     View<5> view() const { return View<5>(reinterpret_cast<const uint8_t*>(name)); }
     static constexpr size_t byte_size() { return 5; }
-    TokenName(View<5>);
-    TokenName(Reader&);
+    AssetName(View<5>);
+    AssetName(Reader&);
     auto& c_str() const { return name; }
-    friend Writer& operator<<(Writer&, const TokenName&);
+    friend Writer& operator<<(Writer&, const AssetName&);
 
 private:
     char name[6] = { '\0', '\0', '\0', '\0', '\0', '\0' };
 };
 
-struct TokenIdHashNamePrecision {
-    TokenId id;
-    TokenHash hash;
-    TokenName name;
-    TokenPrecision precision;
+struct AssetIdHashNamePrecision {
+    AssetId id;
+    AssetHash hash;
+    AssetName name;
+    AssetPrecision precision;
 };

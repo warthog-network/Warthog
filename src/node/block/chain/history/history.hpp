@@ -26,7 +26,7 @@ using IdCombineSigned = IdCombine<I, PinNonceEl, CompactFeeEl, Ts...>;
 
 using WartTransferData = IdCombineSigned<1, OriginAccIdEl, ToAccIdEl, WartEl>;
 using RewardData = IdCombine<2, ToAccIdEl, WartEl>;
-using TokenCreationData = IdCombineSigned<3, TokenIdEl, OwnerIdEl, TokenSupplyEl, TokenNameEl>;
+using AssetCreationData = IdCombineSigned<3, AssetIdEl, OwnerIdEl, TokenSupplyEl, TokenNameEl>;
 using TokenTransferData = IdCombineSigned<4, TokenIdEl, OriginAccIdEl, ToAccIdEl, AmountEl>;
 using OrderData = IdCombineSigned<5, TokenIdEl, BuyEl, AccountIdEl, LimitPriceEl, AmountEl>;
 using CancelationData = IdCombineSigned<6, CancelTxidEl>;
@@ -168,7 +168,7 @@ public:
     }
 };
 
-using HistoryVariant = IndicatorVariant<decltype([]() { return std::runtime_error("Cannot parse history entry"); }), WartTransferData, RewardData, TokenCreationData, TokenTransferData, OrderData, CancelationData, MatchData, LiquidityDeposit, LiquidityWithdraw>;
+using HistoryVariant = IndicatorVariant<decltype([]() { return std::runtime_error("Cannot parse history entry"); }), WartTransferData, RewardData, AssetCreationData, TokenTransferData, OrderData, CancelationData, MatchData, LiquidityDeposit, LiquidityWithdraw>;
 
 struct Entry {
     Entry(const RewardInternal& p);
@@ -176,7 +176,7 @@ struct Entry {
     Entry(const VerifiedTokenTransfer& p, TokenId);
     Entry(const VerifiedOrder& p);
     Entry(const VerifiedCancelation& p);
-    Entry(const VerifiedTokenCreation& p, TokenId);
+    Entry(const VerifiedAssetCreation& p, AssetId);
     Entry(const VerifiedLiquidityDeposit& p, Funds_uint64 receivedShares, TokenId tokenId);
     Entry(const VerifiedLiquidityWithdrawal& p, Funds_uint64 receivedBase, Wart receivedQuote, TokenId tokenId);
     Entry(Hash h, MatchData);

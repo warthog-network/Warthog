@@ -1,6 +1,7 @@
 #pragma once
 #include "block/body/account_id.hpp"
 #include "defi/token/id.hpp"
+
 struct AccountToken {
 public:
     AccountToken(AccountId accountId, TokenId tokenId)

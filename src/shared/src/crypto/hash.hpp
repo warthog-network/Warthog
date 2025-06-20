@@ -52,7 +52,7 @@ class BlockHash : public Hash {
     using Hash::Hash;
 };
 
-class TokenHash : public Hash {
+class AssetHash : public Hash {
     using Hash::Hash;
 };
 

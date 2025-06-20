@@ -93,7 +93,8 @@ void TokenSection::append_tx_ids(PinFloor pf, std::vector<TransactionId>& append
             appendTo.push_back(tx.txid_from_floored(pf));
         }
     } };
-    append(transfers);
+    append(assetTransfers);
+    append(shareTransfers);
     append(orders);
     append(liquidityAdd);
     append(liquidityRemove);
@@ -102,7 +103,8 @@ void TokenSection::append_tx_ids(PinFloor pf, std::vector<TransactionId>& append
 size_t TokenSection::byte_size() const
 {
     return id.byte_size()
-        + transfers.byte_size()
+        + assetTransfers.byte_size()
+        + shareTransfers.byte_size()
         + orders.byte_size()
         + liquidityAdd.byte_size()
         + liquidityRemove.byte_size();
@@ -110,18 +112,24 @@ size_t TokenSection::byte_size() const
 
 Writer& TokenSection::write(Writer& w)
 {
-    w << id << TenBitsBlocks<n_vectors>(transfers, orders, liquidityAdd, liquidityRemove);
-    return transfers.write_elements(w);
+    w << id << TenBitsBlocks<n_vectors>(assetTransfers, shareTransfers, orders, liquidityAdd, liquidityRemove);
+    assetTransfers.write_elements(w);
+    shareTransfers.write_elements(w);
+    orders.write_elements(w);
+    liquidityAdd.write_elements(w);
+    liquidityRemove.write_elements(w);
+    return w;
 }
 
 TokenSection::TokenSection(Reader& r)
     : id(r)
 {
     TenBitsBlocks<n_vectors> tbb(r);
-    transfers = { tbb.at<0>(), r };
-    orders = { tbb.at<1>(), r };
-    liquidityAdd = { tbb.at<2>(), r };
-    liquidityRemove = { tbb.at<3>(), r };
+    assetTransfers = { tbb.at<0>(), r };
+    shareTransfers = { tbb.at<1>(), r };
+    orders = { tbb.at<2>(), r };
+    liquidityAdd = { tbb.at<3>(), r };
+    liquidityRemove = { tbb.at<4>(), r };
 }
 
 }

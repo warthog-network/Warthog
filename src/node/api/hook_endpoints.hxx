@@ -47,7 +47,7 @@ struct ParameterParser {
     operator api::TokenIdOrHash()
     {
         if (sv.length() == 64)
-            return { TokenHash(*this) };
+            return { AssetHash(*this) };
         return { TokenId(*this) };
     }
     operator ParsedFunds()

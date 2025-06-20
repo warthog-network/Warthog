@@ -44,7 +44,7 @@ json to_json(const api::HashrateTimeChart&);
 json to_json(const OffenseEntry& e);
 json to_json(const std::optional<SignedSnapshot>&);
 json to_json(const TransactionId&);
-json to_json(const TokenIdHashNamePrecision&);
+json to_json(const AssetIdHashNamePrecision&);
 json to_json(const chainserver::TransactionIds&);
 json to_json(const api::Round16Bit&);
 json to_json(const api::Rollback&);

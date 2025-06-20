@@ -77,7 +77,7 @@ public:
     operator Address() const { return get_array<20>(); }
     operator BodyContainer() const { return get_vector(); }
     operator Header() const { return get_array<80>(); }
-    operator TokenPrecision() const { return TokenPrecision::from_number_throw(getUInt8()); }
+    operator AssetPrecision() const { return AssetPrecision::from_number_throw(getUInt8()); }
     operator NonzeroHeight() const
     {
         return Height { *this }.nonzero_throw("NonzeroHeight cannot be 0.");
@@ -94,10 +94,10 @@ public:
         return *v;
     }
     operator uint64_t() const { return getUInt64(); }
-    operator TokenHash() const { return Hash(*this); }
-    operator TokenName() const
+    operator AssetHash() const { return Hash(*this); }
+    operator AssetName() const
     {
-        return TokenName::parse_throw(static_cast<std::string>(c));
+        return AssetName::parse_throw(static_cast<std::string>(c));
     }
     operator Price_uint64() const
     {
@@ -119,7 +119,7 @@ inline auto convert(const Worksum& ws) { return ws.to_bytes(); }
 inline auto convert(const std::vector<uint8_t>& v) { return std::span(v); }
 inline auto convert(Funds_uint64 f) { return (int64_t)f.value(); }
 inline auto convert(Price_uint64 p) { return p.to_uint32(); }
-inline auto convert(TokenName n) { return n.to_string(); }
+inline auto convert(AssetName n) { return n.to_string(); }
 inline auto convert(Wart f) { return (int64_t)f.E8(); }
 inline auto convert(int64_t i) { return i; }
 inline auto convert(int32_t i) { return i; }

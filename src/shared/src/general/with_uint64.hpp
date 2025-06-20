@@ -22,7 +22,7 @@ public:
     friend Writer& operator<<(Writer& w, const IsUint32& v);
     operator nlohmann::json() const;
 
-    uint32_t value() const
+    constexpr uint32_t value() const
     {
         return val;
     }
@@ -30,6 +30,7 @@ public:
 protected:
     uint32_t val;
 };
+
 template <typename T>
 class UInt32WithIncrement : public IsUint32 {
 public:

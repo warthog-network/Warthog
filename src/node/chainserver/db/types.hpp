@@ -9,15 +9,15 @@
 #include "defi/uint64/price.hpp"
 #include "types_fwd.hpp"
 namespace chain_db {
-struct TokenData {
-    TokenId id;
+struct AssetData {
+    AssetId id;
     NonzeroHeight height;
     AccountId ownerAccountId;
     FundsDecimal supply;
     TokenId groupId;
     TokenId parentId;
-    TokenName name;
-    TokenHash hash;
+    AssetName name;
+    AssetHash hash;
     std::vector<uint8_t> data;
 };
 struct OrderDelete {
@@ -26,14 +26,13 @@ struct OrderDelete {
 };
 struct OrderFillstate {
     HistoryId id;
-    bool buy;
     Funds_uint64 filled;
 };
 struct OrderData {
     HistoryId id;
     bool buy;
     TransactionId txid;
-    TokenId tid;
+    AssetId aid;
     Funds_uint64 total;
     Funds_uint64 filled;
     Price_uint64 limit;

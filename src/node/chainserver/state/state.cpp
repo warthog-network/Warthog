@@ -135,7 +135,7 @@ void push_history(api::Block& b, const history::Entry& e, chainserver::DBCache& 
             auto toAddress = c.accounts[d.to_id()];
             b.set_reward({ e.hash, toAddress, d.wart() });
         },
-        [&](history::TokenCreationData&& d) {
+        [&](history::AssetCreationData&& d) {
             b.actions.tokenCreations.push_back(
                 { .txhash { e.hash },
                     .tokenName { d.token_name() },
@@ -824,15 +824,15 @@ api::WartBalance State::api_get_address(AccountId accountId) const
     }
 }
 
-std::optional<TokenInfo> State::db_lookup_token(const api::TokenIdOrHash& token) const
+std::optional<AssetInfo> State::db_lookup_token(const api::TokenIdOrHash& token) const
 {
-    return token.visit([&](const auto& token) { return db.lookup_token(token); });
+    return token.visit([&](const auto& token) { return db.lookup_asset(token); });
 }
 
 auto State::api_get_token_balance(const api::AccountIdOrAddress& account, const api::TokenIdOrHash& token) const -> api::WartBalance
 {
     auto aid { account.map_alternative([&](const Address& a) { return db.lookup_account_id(a); }) };
-    auto tokenInfo { token.visit([&](const auto& token) { return db.lookup_token(token); }) };
+    auto tokenInfo { token.visit([&](const auto& token) { return db.lookup_asset(token); }) };
     if (!aid || !tokenInfo)
         return {};
 }

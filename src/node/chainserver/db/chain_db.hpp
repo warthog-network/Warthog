@@ -23,9 +23,9 @@
 struct CreatorToken;
 struct AccountToken;
 class Batch;
-class TokenName;
+class AssetName;
 class CancelId;
-class TokenInfo;
+class AssetInfo;
 struct SignedSnapshot;
 class Headerchain;
 
@@ -42,21 +42,34 @@ struct Candle {
 };
 
 struct PoolData : public defi::Pool_uint64 {
-    PoolData(ShareId shareId, TokenId tokenId, Funds_uint64 base, Funds_uint64 quote, Funds_uint64 shares)
-        : defi::Pool_uint64(base.value(), quote.value(), shares.value())
-        , shareId(shareId)
-        , tokenId(tokenId)
+    struct Initializer {
+        AssetId assetId;
+        Funds_uint64 base;
+        Funds_uint64 quote;
+        Funds_uint64 shares;
+    };
+    PoolData(Initializer i)
+        : defi::Pool_uint64(i.base.value(), i.quote.value(), i.shares.value())
+        , assetId(i.assetId)
     {
     }
-    PoolData(ShareId shareId, TokenId tokenId)
-        : PoolData(std::move(shareId), std::move(tokenId), Funds_uint64::zero(), Funds_uint64::zero(), Funds_uint64::zero())
+    static PoolData zero(AssetId assetId)
     {
+        return Initializer {
+            .assetId { assetId },
+            .base { 0 },
+            .quote { 0 },
+            .shares { 0 }
+        };
     }
 
-    ShareId shareId; // pool shares id
-    TokenId tokenId;
+    auto asset_id() const { return assetId; }
+    auto share_id() const { return assetId.share_id(); }
 
     defi::PoolLiquidity_uint64 liquidity() const { return { base, quote }; }
+
+private:
+    AssetId assetId;
 };
 
 struct BlockUndoData {
@@ -137,12 +150,12 @@ public:
     /////////////////////
     // Order functions
     void insert_order(const chain_db::OrderData&);
-    void change_fillstate(const chain_db::OrderFillstate&);
+    void change_fillstate(const chain_db::OrderFillstate&, bool buy);
     void delete_order(const chain_db::OrderDelete&);
     [[nodiscard]] std::optional<chain_db::OrderData> select_order(TransactionId) const;
 
-    [[nodiscard]] OrderLoaderAscending base_order_loader_ascending(TokenId) const;
-    [[nodiscard]] OrderLoaderDescending quote_order_loader_descending(TokenId) const;
+    [[nodiscard]] OrderLoaderAscending base_order_loader_ascending(AssetId) const;
+    [[nodiscard]] OrderLoaderDescending quote_order_loader_descending(AssetId) const;
 
     /////////////////////
     // Canceled functions
@@ -158,8 +171,8 @@ public:
 
     /////////////////////
     // Pool functions
-    void insert_pool(ShareId shareId, TokenId tokenId, const defi::Pool& pool);
-    [[nodiscard]] std::optional<PoolData> select_pool(TokenId shareIdOrTokenId) const;
+    void insert_pool(const PoolData& pool);
+    [[nodiscard]] std::optional<PoolData> select_pool(AssetId  assetId) const;
     void update_pool(TokenId shareId, Funds_uint64 base, Funds_uint64 quote, Funds_uint64 shares);
     void set_pool_liquidity(TokenId, const defi::PoolLiquidity_uint64&);
 
@@ -171,14 +184,14 @@ public:
 
     /////////////////////
     // Token functions
-    void insert_new_token(const chain_db::TokenData&);
+    void insert_new_token(const chain_db::AssetData&);
     [[nodiscard]] std::optional<NonzeroHeight> get_latest_fork_height(TokenId, Height);
 
     [[nodiscard]] std::optional<Balance> get_token_balance(BalanceId id) const;
-    [[nodiscard]] std::optional<std::pair<BalanceId, Funds_uint64>> get_balance(AccountToken) const;
-    [[nodiscard]] std::optional<TokenInfo> lookup_token(TokenId) const;
-    [[nodiscard]] std::optional<TokenInfo> lookup_token(TokenHash) const;
-    [[nodiscard]] TokenInfo fetch_token(TokenId id) const;
+    [[nodiscard]] std::optional<std::pair<BalanceId, Funds_uint64>> get_balance(AccountId aid, TokenId tid) const;
+    [[nodiscard]] std::optional<AssetInfo> lookup_asset(AssetId) const;
+    [[nodiscard]] std::optional<AssetInfo> lookup_asset(AssetHash) const;
+    [[nodiscard]] AssetInfo fetch_asset(AssetId id) const;
     void insert_token_balance(AccountToken, Funds_uint64 balance);
     void set_balance(BalanceId, Funds_uint64 balance);
     std::vector<std::pair<TokenId, Funds_uint64>> get_tokens(AccountId, size_t limit);
@@ -221,10 +234,10 @@ public:
         return cache.nextHistoryId;
     }
     auto next_account_id() const { return cache.nextAccountId; }
-    auto next_token_id() const { return cache.nextTokenId; }
+    auto next_asset_id() const { return cache.nextAssetId; }
     StateId next_state_id() const { return cache.nextStateId; }
 
-    struct TokenLookupTrace { // for debugging
+    struct AssetLookupTrace { // for debugging
         struct Step {
             TokenId parent;
             Height startHeight;
@@ -237,7 +250,7 @@ public:
         };
         std::vector<Step> steps;
     };
-    [[nodiscard]] std::pair<std::optional<BalanceId>, Funds_uint64> get_token_balance_recursive(AccountToken, TokenLookupTrace* trace = nullptr) const;
+    [[nodiscard]] std::pair<std::optional<BalanceId>, Funds_uint64> get_token_balance_recursive(AccountId aid, TokenId tid, AssetLookupTrace* trace = nullptr) const;
 
     //////////////////////////////
     // BELOW METHODS REQUIRED FOR INDEXING NODES
@@ -256,8 +269,8 @@ private:
     } db;
     struct Cache {
         AccountId nextAccountId;
-        TokenId nextTokenId;
-        StateId nextStateId; // incremental id for tables other than Accounts and Tokens
+        AssetId nextAssetId;
+        StateId nextStateId; // incremental id for tables other than Accounts and Assets
         HistoryId nextHistoryId;
         DeletionKey deletionKey;
         static Cache init(SQLite::Database& db);
@@ -310,7 +323,7 @@ private:
     Statement stmtTokenInsert;
     Statement stmtTokenPrune;
     mutable Statement stmtTokenSelectForkHeight;
-    mutable Statement stmtTokenLookup;
+    mutable Statement stmtAssetLookup;
     mutable Statement stmtTokenLookupByHash;
     mutable Statement stmtSelectBalanceId;
 
@@ -318,7 +331,7 @@ private:
     Statement stmtTokenInsertBalance;
     Statement stmtBalancePrune;
     mutable Statement stmtTokenSelectBalance;
-    mutable Statement stmtAccountSelectTokens;
+    mutable Statement stmtAccountSelectAssets;
     Statement stmtTokenUpdateBalance;
     mutable Statement stmtTokenSelectRichlist;
 

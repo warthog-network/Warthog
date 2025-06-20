@@ -131,6 +131,7 @@
     XX(131, ETOKIDNOTFOUND, "token id not found")                                  \
     XX(132, ENOPOOL, "no pool liquidity")                                          \
     XX(133, ERTCDISABLED, "WebRTC disabled, cannot receive message")               \
+    XX(194, EPOOLREDEEM, "Cannot redeem more shares than pool issued")             \
     XX(195, EINVBUY, "invalid buy value")                                          \
     XX(196, ETOKENPRECISION, "invalid token precision")                            \
     XX(197, EINVSIG, "invalid signature")                                          \
