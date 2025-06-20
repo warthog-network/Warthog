@@ -177,8 +177,8 @@ struct Entry {
     Entry(const VerifiedOrder& p);
     Entry(const VerifiedCancelation& p);
     Entry(const VerifiedAssetCreation& p, AssetId);
-    Entry(const VerifiedLiquidityDeposit& p, Funds_uint64 receivedShares, TokenId tokenId);
-    Entry(const VerifiedLiquidityWithdrawal& p, Funds_uint64 receivedBase, Wart receivedQuote, TokenId tokenId);
+    Entry(const VerifiedLiquidityDeposit& p, Funds_uint64 receivedShares, AssetId assetId);
+    Entry(const VerifiedLiquidityWithdrawal& p, Funds_uint64 receivedBase, Wart receivedQuote, AssetId assetId);
     Entry(Hash h, MatchData);
     Entry(Hash h, HistoryVariant data)
         : hash(std::move(h))

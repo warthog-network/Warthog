@@ -722,9 +722,9 @@ void ChainDB::update_pool(TokenId shareId, Funds_uint64 base, Funds_uint64 quote
     stmtUpdatePool.run(base, quote, shares, shareId);
 }
 
-void ChainDB::set_pool_liquidity(TokenId tokenId, const defi::PoolLiquidity_uint64& pl)
+void ChainDB::set_pool_liquidity(AssetId assetId, const defi::PoolLiquidity_uint64& pl)
 {
-    stmtUpdatePoolLiquidity.run(pl.base, pl.quote, tokenId);
+    stmtUpdatePoolLiquidity.run(pl.base, pl.quote, assetId);
 }
 void ChainDB::insert_token_fork_balance(TokenForkBalanceId id, TokenId tokenId, TokenForkId forkId, Funds_uint64 balance)
 {

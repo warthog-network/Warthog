@@ -136,7 +136,7 @@ void push_history(api::Block& b, const history::Entry& e, chainserver::DBCache& 
             b.set_reward({ e.hash, toAddress, d.wart() });
         },
         [&](history::AssetCreationData&& d) {
-            b.actions.tokenCreations.push_back(
+            b.actions.assetCreations.push_back(
                 { .txhash { e.hash },
                     .tokenName { d.token_name() },
                     .supply { d.supply() },

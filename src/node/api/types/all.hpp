@@ -160,11 +160,11 @@ struct Block {
         Address toAddress;
         Wart amount;
     };
-    struct TokenCreation {
+    struct AssetCreation {
         TxHash txhash;
         AssetName tokenName;
         FundsDecimal supply;
-        TokenId tokenId;
+        AssetId assetId;
         Wart fee;
     };
     struct Cancelation {
@@ -195,7 +195,7 @@ public:
         std::optional<Reward> reward;
         std::vector<Transfer> wartTransfers;
         std::vector<TokenTransfer> tokenTransfers;
-        std::vector<TokenCreation> tokenCreations;
+        std::vector<AssetCreation> assetCreations;
         std::vector<NewOrder> newOrders;
         std::vector<Match> matches;
         std::vector<LiquidityDeposit> liquidityDeposit;

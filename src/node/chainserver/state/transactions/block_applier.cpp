@@ -661,13 +661,13 @@ struct InsertHistoryEntry {
         , historyId(historyId)
     {
     }
-    InsertHistoryEntry(const VerifiedLiquidityDeposit& t, Funds_uint64 receivedShares, TokenId tokenId, HistoryId historyId)
-        : he(t, receivedShares, tokenId)
+    InsertHistoryEntry(const VerifiedLiquidityDeposit& t, Funds_uint64 receivedShares, AssetId assetId, HistoryId historyId)
+        : he(t, receivedShares, assetId)
         , historyId(historyId)
     {
     }
-    InsertHistoryEntry(const VerifiedLiquidityWithdrawal& t, Funds_uint64 receivedBase, Wart receivedQuote, TokenId tokenId, HistoryId historyId)
-        : he(t, receivedBase, receivedQuote, tokenId)
+    InsertHistoryEntry(const VerifiedLiquidityWithdrawal& t, Funds_uint64 receivedBase, Wart receivedQuote, AssetId assetId, HistoryId historyId)
+        : he(t, receivedBase, receivedQuote, assetId)
         , historyId(historyId)
     {
     }
@@ -792,17 +792,17 @@ public:
     {
         return for_account(t.tci.origin.id).insert_history(t, assetId);
     }
-    [[nodiscard]] auto& push_match(const std::vector<AccountId>& accounts, const history::MatchData& t, const BlockHash& blockHash, TokenId tokenId)
+    [[nodiscard]] auto& push_match(const std::vector<AccountId>& accounts, const history::MatchData& t, const BlockHash& blockHash, AssetId assetId)
     {
-        return for_accounts(accounts).insert_history(t, hash_args_SHA256(blockHash, tokenId));
+        return for_accounts(accounts).insert_history(t, hash_args_SHA256(blockHash, assetId));
     }
-    [[nodiscard]] auto& push_liquidity_deposit(const VerifiedLiquidityDeposit& v, Funds_uint64 sharesReceived, TokenId tid)
+    [[nodiscard]] auto& push_liquidity_deposit(const VerifiedLiquidityDeposit& v, Funds_uint64 sharesReceived, AssetId aid)
     {
-        return for_account(v.liquidityAdd.origin.id).insert_history(v, sharesReceived, tid);
+        return for_account(v.liquidityAdd.origin.id).insert_history(v, sharesReceived, aid);
     }
-    [[nodiscard]] auto& push_liquidity_withdrawal(const VerifiedLiquidityWithdrawal& v, Funds_uint64 baseReceived, Wart quoteReceived, TokenId tid)
+    [[nodiscard]] auto& push_liquidity_withdrawal(const VerifiedLiquidityWithdrawal& v, Funds_uint64 baseReceived, Wart quoteReceived, AssetId assetId)
     {
-        return for_account(v.liquidityAdd.origin.id).insert_history(v, baseReceived, quoteReceived, tid);
+        return for_account(v.liquidityAdd.origin.id).insert_history(v, baseReceived, quoteReceived, assetId);
     }
 };
 
@@ -901,11 +901,11 @@ private:
                 .hash { verified.hash },
                 .data {} });
             auto& ref { history.push_asset_creation(verified, assetId) };
-            api.tokenCreations.push_back({
+            api.assetCreations.push_back({
                 .txhash { ref.he.hash },
                 .tokenName { tc.name },
                 .supply { tc.supply },
-                .tokenId { assetId },
+                .assetId { assetId },
                 .fee { tc.compactFee.uncompact() },
             });
         }
@@ -933,7 +933,7 @@ private:
             return *address;
         throw Error(EACCIDNOTFOUND); // invalid account id (not found in database)
     }
-    auto db_token(TokenId id)
+    auto db_asset(AssetId id)
     {
         if (auto address { db.lookup_asset(id) })
             return *address;
@@ -947,7 +947,7 @@ private:
             accountData.address = db_address(accountId);
             for (auto& [tokenId, tokenFlow] : accountData.token_flow()) {
                 AccountToken at { accountId, tokenId };
-                if (auto p { db.get_balance(at) })
+                if (auto p { db.get_balance(accountId, tokenId) })
                     validate_existing_balance(at, tokenFlow, *p);
                 else
                     validate_new_balance(at, tokenFlow);
@@ -1032,7 +1032,7 @@ private:
     {
         auto ts { balanceChecker.get_token_sections() };
         for (auto& ts : balanceChecker.get_token_sections()) {
-            auto ihn { db_token(ts.asset_id()).id_hash_name_precision() };
+            auto ihn { db_asset(ts.asset_id()).id_hash_name_precision() };
             AssetHandle th(ihn);
             process_token_transfers(th, ts.sharesTransfers);
             match_new_orders(th, ts.orders);
@@ -1159,14 +1159,14 @@ private:
         auto b { api.matches.back() };
     }
 
-    void process_liquidity_deposits(const AssetHandle& td, const std::vector<LiquidityDepositsInternal>& deposits)
+    void process_liquidity_deposits(const AssetHandle& ah, const std::vector<LiquidityDepositsInternal>& deposits)
     {
-        auto& pool { td.get_pool(db) };
-        for (auto& a : deposits) {
-            auto v { verify(a) };
-            auto shares { pool.deposit(a.basequote.base(), a.basequote.quote().E8()) };
-            balanceChecker.add_balance(a.origin.id, td.id(), shares);
-            auto& ref { history.push_liquidity_deposit(v, shares, td.id()) };
+        auto& pool { ah.get_pool(db) };
+        for (auto& d : deposits) {
+            auto v { verify(d) };
+            auto shares { pool.deposit(d.basequote.base(), d.basequote.quote().E8()) };
+            balanceChecker.add_balance(d.origin.id, ah.id().token_id(), shares);
+            auto& ref { history.push_liquidity_deposit(v, shares, ah.id()) };
             api.liquidityDeposit.push_back(
                 { .txhash { ref.he.hash },
                     .fee { v.liquidityAdd.fee() },
@@ -1187,7 +1187,7 @@ private:
             // credit withdrawn balance
             auto baseReceived { w->base };
             Wart quoteReceived { Wart::from_funds_throw(w->quote) };
-            balanceChecker.add_balance(a.origin.id, td.id(), baseReceived);
+            balanceChecker.add_balance(a.origin.id, td.id().token_id(), baseReceived);
             balanceChecker.add_balance(a.origin.id, TokenId::WART, quoteReceived);
 
             auto& ref { history.push_liquidity_withdrawal(v, baseReceived, quoteReceived, td.id()) };
@@ -1282,7 +1282,7 @@ api::Block BlockApplier::apply_block(const BlockWithHash& b, BlockId blockId)
                 db.change_fillstate(*o, false);
             for (auto& o : d.orderDeletes)
                 db.delete_order(o);
-            db.set_pool_liquidity(d.tokenId, d.pool);
+            db.set_pool_liquidity(d.assetId, d.pool);
         }
 
         // insert token creations

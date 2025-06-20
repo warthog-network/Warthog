@@ -174,7 +174,7 @@ public:
     void insert_pool(const PoolData& pool);
     [[nodiscard]] std::optional<PoolData> select_pool(AssetId  assetId) const;
     void update_pool(TokenId shareId, Funds_uint64 base, Funds_uint64 quote, Funds_uint64 shares);
-    void set_pool_liquidity(TokenId, const defi::PoolLiquidity_uint64&);
+    void set_pool_liquidity(AssetId, const defi::PoolLiquidity_uint64&);
 
     /////////////////////
     // Token fork balance functions
