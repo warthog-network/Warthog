@@ -18,7 +18,7 @@ class HeaderVerifier {
 public:
     struct PreparedAppend {
         const HeaderView hv;
-        const Hash hash;
+        const BlockHash hash;
     };
     HeaderVerifier();
     HeaderVerifier(const Headerchain& hc, Height length);
@@ -51,7 +51,7 @@ private: // data
     TimestampValidator timeValidator;
     //
     // for prevhash validation
-    Hash finalHash;
+    BlockHash finalHash;
 };
 class ExtendableHeaderchain : public Headerchain {
 

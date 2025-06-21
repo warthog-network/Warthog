@@ -106,83 +106,85 @@ void push_history(api::Block& b, const history::Entry& e, chainserver::DBCache& 
     PinFloor pinFloor)
 {
     e.data.visit_overload(
-        [&](history::WartTransferData&& d) {
+        [&](const history::WartTransferData& d) {
             b.actions.wartTransfers.push_back(
                 api::Block::Transfer {
                     .txhash = e.hash,
-                    .fromAddress = c.accounts[d.origin_account_id()],
+                    .fromAddress = c.addresses[d.origin_account_id()],
                     .fee = d.fee(),
                     .nonceId = d.pin_nonce().id,
                     .pinHeight = d.pin_nonce().pin_height_from_floored(pinFloor),
-                    .toAddress = c.accounts[d.to_id()],
+                    .toAddress = c.addresses[d.to_id()],
                     .amount = d.wart() });
         },
-        [&](history::TokenTransferData&& d) {
-            auto& tokenData { c.tokens[d.token_id()] };
+        [&](const history::RewardData& d) {
+            auto toAddress = c.addresses[d.to_id()];
+            b.set_reward({ e.hash, toAddress, d.wart() });
+        },
+        [&](const history::AssetCreationData& d) {
+            b.actions.assetCreations.push_back(
+                { .txhash { e.hash },
+                    .assetName { d.asset_name() },
+                    .supply { d.supply() },
+                    .assetId { d.asset_id() },
+                    .fee { d.fee() } });
+        },
+        [&](const history::TokenTransferData& d) {
+            auto& assetData { c.assets[d.token_id().corresponding_asset_id()] };
 
             b.actions.tokenTransfers.push_back(
                 api::Block::TokenTransfer {
                     .txhash = e.hash,
-                    .tokenInfo = tokenData,
-                    .fromAddress = c.accounts[d.origin_account_id()],
+                    .assetInfo = assetData,
+                    .fromAddress = c.addresses[d.origin_account_id()],
                     .fee = d.fee(),
                     .nonceId = d.pin_nonce().id,
                     .pinHeight = d.pin_nonce().pin_height_from_floored(pinFloor),
-                    .toAddress = c.accounts[d.to_id()],
-                    .amount = { d.amount(), tokenData.precision } });
+                    .toAddress = c.addresses[d.to_id()],
+                    .amount = { d.amount() } });
         },
-        [&](history::RewardData&& d) {
-            auto toAddress = c.accounts[d.to_id()];
-            b.set_reward({ e.hash, toAddress, d.wart() });
-        },
-        [&](history::AssetCreationData&& d) {
-            b.actions.assetCreations.push_back(
-                { .txhash { e.hash },
-                    .tokenName { d.token_name() },
-                    .supply { d.supply() },
-                    .tokenId { d.token_id() },
-                    .fee { d.fee() } });
-        },
-        [&](history::OrderData&& d) {
-            auto& tokenData { c.tokens[d.token_id()] };
-            b.actions.newOrders.push_back({ .txhash { e.hash },
-                .tokenInfo { tokenData.id_hash_name_precision() },
+        [&](const history::OrderData& d) {
+            auto& assetData { c.assets[d.asset_id()] };
+            b.actions.newOrders.push_back(api::Block::NewOrder { .txhash { e.hash },
+                .assetInfo { assetData.id_hash_name_precision() },
                 .fee { d.fee() },
-                .amount { d.amount(), tokenData.precision },
+                .amount { d.amount() },
                 .limit { d.limit() },
                 .buy = d.buy(),
-                .address { c.accounts[d.account_id()] } });
+                .address { c.addresses[d.account_id()] } });
         },
-        [&](history::CancelationData&& d) {
+        [&](const history::CancelationData& d) {
             b.actions.cancelations.push_back({
                 .txhash { e.hash },
                 .fee { d.fee() },
-                .address { c.accounts[d.cancel_account_id()] },
+                .address { c.addresses[d.cancel_account_id()] },
             });
         },
-        // [&](history::BuySwapData&& d) {
-        //     auto& referred{c.history[d.referred_history_id()]};
-        //     auto& o{referred.data.get<history::OrderData>()};
-        //     auto& tokenData { c.tokens[o.token_id()] };
-        //     b.actions.swaps.push_back(api::Block::Swap{
-        //         .tokenInfo{tokenData.id_hash_name_precision()},
-        //         .txhash{e.hash},
-        //         .buy=o.buy(),
-        //         .fillQuote{d.quote_wart()},
-        //         .fillBase{d.base_amount(), tokenData.precision},
-        //     });
-        // },
-        [&](history::MatchData&& d) {
-            // auto& referred{c.history[d.referred_history_id()]};
-            // auto& o{referred.data.get<history::OrderData>()};
-            // auto& tokenData { c.tokens[o.token_id()] };
-            // b.actions.swaps.push_back(api::Block::Swap{
-            //     .tokenInfo{tokenData.id_hash_name_precision()},
-            //     .txhash{e.hash},
-            //     .buy=o.buy(),
-            //     .fillQuote{d.quote_wart()},
-            //     .fillBase{d.base_amount(), tokenData.precision},
-            // });
+        [&](const history::MatchData& d) {
+            auto& asset { c.assets[d.asset_id()] };
+            b.actions.matches.push_back(api::Block::Match { .txhash { e.hash },
+                .assetInfo { asset.id_hash_name_precision() },
+                .liquidityBefore { d.pool_before() },
+                .liquidityAfter { d.pool_after() },
+                .buySwaps {},
+                .sellSwaps {} });
+        },
+        [&](const history::LiquidityDeposit& ld) {
+            b.actions.liquidityDeposit.push_back(
+                { .txhash { e.hash },
+                    .fee { ld.fee() },
+                    .baseDeposited { ld.base() },
+                    .quoteDeposited { ld.quote() },
+                    .sharesReceived { ld.shares() } });
+        },
+        [&](const history::LiquidityWithdraw& lw) {
+            b.actions.liquidityWithdrawal.push_back({
+                .txhash { e.hash },
+                .fee { lw.fee() },
+                .sharesRedeemed { lw.shares() },
+                .baseReceived { lw.base() },
+                .quoteReceived { lw.quote() },
+            });
         });
 }
 }
@@ -200,8 +202,8 @@ std::optional<api::Block> State::api_get_block(Height zh) const
     chainserver::DBCache cache(db);
 
     auto entries { db.lookup_history_range(lower, upper) };
-    api::Block b(header, h, chainlength() - h + 1);
-    for (auto& e : entries) 
+    api::Block b(header, h, chainlength() - h + 1, {});
+    for (auto& e : entries)
         push_history(b, e, cache, pinFloor);
     return b;
 }
@@ -215,18 +217,22 @@ std::optional<api::Transaction> State::api_get_tx(const TxHash& txHash) const
 {
     if (auto p = chainstate.mempool()[txHash]; p) {
         auto& tx = *p;
-
-        return api::TransferTransaction {
-            .txhash = txHash,
-            .toAddress = tx.toAddr,
-            .confirmations = 0,
-            .height = Height(0),
-            .amount = tx.amount,
-            .fromAddress = tx.from_address(txHash),
-            .fee = tx.compact_fee(),
-            .nonceId = tx._txid.nonceId,
-            .pinHeight = tx.pin_height(),
-        };
+        tx.visit_overload(
+            [&](const WartTransferMessage& wtm) -> api::Transaction {
+                return api::TransferTransaction {
+                    .txhash = txHash,
+                    .toAddress = wtm.to_addr(),
+                    .confirmations = 0,
+                    .height = Height(0),
+                    .amount = wtm.wart(),
+                    .fromAddress = wtm.from_address(txHash),
+                    .fee = wtm.fee(),
+                    .nonceId = wtm.nonce_id(),
+                    .pinHeight = wtm.pin_height(),
+                };
+            },
+            [&](const TokenTransferMessage&) -> api::Transaction {
+            });
     }
     auto p = db.lookup_history(txHash);
     if (p) {
@@ -754,7 +760,7 @@ auto State::append_mined_block(const Block& b) -> StateUpdateWithAPIBlocks
     }
 
     chainserver::BlockApplier e { db, chainstate.headers(), chainstate.txids(), false };
-    auto apiBlock { e.apply_block(b, blockId) };
+    auto apiBlock { e.apply_block(b, prepared->hash, blockId) };
     db.set_consensus_work(chainstate.work_with_new_block());
     transaction.commit();
 

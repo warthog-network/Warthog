@@ -161,7 +161,7 @@ struct TokenPrecisionEl : public ElementBase<AssetPrecision> {
 };
 struct TokenNameEl : public ElementBase<AssetName> {
     using ElementBase::ElementBase;
-    [[nodiscard]] const AssetName& token_name() const { return data; }
+    [[nodiscard]] const AssetName& asset_name() const { return data; }
 };
 struct TokenHashEl : public ElementBase<AssetHash> {
     [[nodiscard]] const auto& token_hash() const { return data; }
@@ -172,7 +172,7 @@ struct TokenIdEl : public ElementBase<TokenId> {
 };
 struct AssetIdEl : public ElementBase<AssetId> {
     using ElementBase::ElementBase;
-    [[nodiscard]] const auto& token_id() const { return data; }
+    [[nodiscard]] const auto& asset_id() const { return data; }
 };
 struct SignatureEl : public ElementBase<RecoverableSignature> {
     [[nodiscard]] const RecoverableSignature& signature() const { return data; }

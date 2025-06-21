@@ -34,7 +34,7 @@ ApplyStageTransaction::ApplyStageTransaction(const State& s, ChainDBTransaction&
         assert(block.height == h);
 
         try {
-            auto apiBlock { ba.apply_block(block, blockId) };
+            auto apiBlock { ba.apply_block(block, hash, blockId) };
             apiBlocks.push_back(std::move(apiBlock));
         } catch (Error e) {
             std::string fname { std::to_string(now_timestamp())

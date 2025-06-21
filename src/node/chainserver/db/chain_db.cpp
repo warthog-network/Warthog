@@ -654,7 +654,8 @@ std::optional<chain_db::OrderData> ChainDB::select_order(TransactionId id) const
     using ret_t = chain_db::OrderData;
 
     std::optional<chain_db::OrderData> res {
-        stmtSelectBaseSell.one(id.accountId, id.pinHeight, id.nonceId).process([&](auto o) {
+        stmtSelectBaseSell.one(id.accountId, id.pinHeight, id.nonceId).process([&](const sqlite::Row& o) {
+            HistoryId id2{o[0]};
             return ret_t {
                 .id { o[0] },
                 .buy = false,
@@ -1035,7 +1036,7 @@ std::pair<std::optional<BalanceId>, Funds_uint64> ChainDB::get_token_balance_rec
         if (auto b { get_balance(aid, tid) })
             return *b;
 
-        auto assetId { tid.get_asset_id() };
+        auto assetId { tid.as_asset() };
         if (tid == TokenId::WART || !assetId)
             goto notfound; // tokenId is of ShareId type (pool share) and cannot have any parent
         // get token fork height

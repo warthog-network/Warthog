@@ -1,9 +1,9 @@
 #pragma once
-#include <variant>
 #include "communication/rxtx_server/api_types_fwd.hpp"
+#include "tools/variant_fwd.hpp"
 namespace api {
 struct AccountHistory;
-struct AccountIdOrAddress;;
+struct AccountIdOrAddress;
 struct AddressCount;
 struct AddressWithId;
 struct WartBalance;
@@ -33,5 +33,5 @@ struct NodeInfo;
 struct IPCounter;
 struct ThrottleState;
 struct ThrottledPeer;
-using Transaction = std::variant<RewardTransaction, TransferTransaction>;
+using Transaction = wrt::variant<RewardTransaction, TransferTransaction>;
 }

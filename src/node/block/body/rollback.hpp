@@ -141,7 +141,7 @@ public:
     }
 };
 
-using BaseData = Serializable<AccountId, TokenId, uint64_t, std::vector<BalanceIdFunds>>;
+using BaseData = Serializable<AccountId, AssetId, uint64_t, std::vector<BalanceIdFunds>>;
 class Data : protected BaseData {
 private:
     Data(Reader v)

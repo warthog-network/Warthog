@@ -39,11 +39,11 @@ Entry::Entry(const VerifiedOrder& p)
     , data(OrderData {
           p.order.pinNonce,
           p.order.compactFee,
-          p.order.amount.tokenId,
+          p.order.assetId,
           p.order.buy,
           p.txid.accountId,
           p.order.limit,
-          p.order.amount.funds,
+          p.order.amount,
       })
 {
 }
@@ -71,7 +71,7 @@ Entry::Entry(const VerifiedAssetCreation& p, AssetId assetId)
 {
 }
 
-Entry::Entry(const VerifiedLiquidityDeposit& p, Funds_uint64 receivedShares, TokenId tokenId)
+Entry::Entry(const VerifiedLiquidityDeposit& p, Funds_uint64 receivedShares, AssetId assetId)
     : hash(p.hash)
     , data(LiquidityDeposit {
           p.liquidityAdd.pinNonce,
@@ -79,11 +79,11 @@ Entry::Entry(const VerifiedLiquidityDeposit& p, Funds_uint64 receivedShares, Tok
           p.liquidityAdd.basequote.base(),
           p.liquidityAdd.basequote.quote(),
           receivedShares,
-          tokenId })
+          assetId })
 {
 }
 
-Entry::Entry(const VerifiedLiquidityWithdrawal& w, Funds_uint64 receivedBase, Wart receivedQuote, TokenId tokenId)
+Entry::Entry(const VerifiedLiquidityWithdrawal& w, Funds_uint64 receivedBase, Wart receivedQuote, AssetId assetId)
     : hash(w.hash)
     , data(LiquidityWithdraw {
           w.liquidityAdd.pinNonce,
@@ -91,7 +91,7 @@ Entry::Entry(const VerifiedLiquidityWithdrawal& w, Funds_uint64 receivedBase, Wa
           receivedBase,
           receivedQuote,
           w.liquidityAdd.poolShares,
-          tokenId })
+          assetId })
 {
 }
 

@@ -132,12 +132,12 @@ public:
     Worksum total_work() const { return worksum; }
     const std::vector<SharedBatchView>& complete_batches() const { return completeBatches; }
     [[nodiscard]] Worksum total_work_at(Height) const;
-    [[nodiscard]] std::optional<Hash> get_hash(Height h) const
+    [[nodiscard]] std::optional<BlockHash> get_hash(Height h) const
     {
         if (h > length())
             return {};
         if (length() == 0)
-            return Hash::genesis();
+            return BlockHash::genesis();
         if (h == length())
             return static_cast<HeaderView>(operator[](h.nonzero_assert())).hash();
         return Hash(operator[]((h + 1).nonzero_assert()).prevhash());
@@ -149,7 +149,7 @@ public:
         return {};
     };
 
-    [[nodiscard]] Hash hash_at(Height height) const
+    [[nodiscard]] BlockHash hash_at(Height height) const
     {
         auto h = get_hash(height);
         assert(h);

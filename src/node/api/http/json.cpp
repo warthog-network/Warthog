@@ -195,7 +195,7 @@ namespace {
             json a = json::array();
             for (auto& t : actions.tokenTransfers) {
                 json elem;
-                elem["token"] = to_json(t.tokenInfo);
+                elem["token"] = to_json(t.assetInfo);
                 elem["fromAddress"] = t.fromAddress.to_string();
                 elem["fee"] = to_json(t.fee);
                 elem["nonceId"] = t.nonceId;
@@ -211,7 +211,7 @@ namespace {
             json a = json::array();
             for (auto& o : actions.newOrders) {
                 json elem;
-                elem["token"] = to_json(o.tokenInfo);
+                elem["token"] = to_json(o.assetInfo);
                 elem["fee"] = o.fee;
                 elem["amount"] = to_json(o.amount);
                 elem["limit"] = o.limit.to_double();

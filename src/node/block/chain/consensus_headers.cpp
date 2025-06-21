@@ -76,7 +76,7 @@ tl::expected<HeaderVerifier, ChainError> HeaderVerifier::copy_apply(const std::o
 
 HeaderVerifier::HeaderVerifier()
     : nextTarget(TargetV1::genesis())
-    , finalHash(Hash::genesis())
+    , finalHash(BlockHash::genesis())
 {
     if (is_testnet()) {
         nextTarget = TargetV2::genesis_testnet();

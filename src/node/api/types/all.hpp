@@ -121,7 +121,7 @@ struct Block {
     };
     struct TokenTransfer {
         Hash txhash;
-        AssetIdHashNamePrecision tokenInfo;
+        AssetIdHashNamePrecision assetInfo;
         Address fromAddress;
         Wart fee;
         NonceId nonceId;
@@ -129,18 +129,18 @@ struct Block {
         Address toAddress;
         Funds_uint64 amount;
 
-        FundsDecimal amount_decimal() const { return { amount, tokenInfo.precision }; }
+        FundsDecimal amount_decimal() const { return { amount, assetInfo.precision }; }
     };
     struct NewOrder {
         Hash txhash;
-        AssetIdHashNamePrecision tokenInfo;
+        AssetIdHashNamePrecision assetInfo;
         Wart fee;
         Funds_uint64 amount;
         Price_uint64 limit;
         bool buy;
         Address address;
 
-        FundsDecimal amount_decimal() const { return { amount, buy ? tokenInfo.precision : Wart::precision }; }
+        FundsDecimal amount_decimal() const { return { amount, buy ? assetInfo.precision : Wart::precision }; }
     };
     struct Match {
         struct Swap {
@@ -149,7 +149,7 @@ struct Block {
             FundsDecimal fillBase;
         };
         Hash txhash;
-        AssetIdHashNamePrecision tokenInfo;
+        AssetIdHashNamePrecision assetInfo;
         defi::BaseQuote liquidityBefore;
         defi::BaseQuote liquidityAfter;
         std::vector<Swap> buySwaps;
@@ -162,7 +162,7 @@ struct Block {
     };
     struct AssetCreation {
         TxHash txhash;
-        AssetName tokenName;
+        AssetName assetName;
         FundsDecimal supply;
         AssetId assetId;
         Wart fee;

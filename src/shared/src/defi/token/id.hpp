@@ -7,7 +7,8 @@ struct AssetId;
 struct TokenId : public UInt32WithOperators<TokenId> {
     using UInt32WithOperators::UInt32WithOperators;
     static const TokenId WART;
-    std::optional<AssetId> get_asset_id() const;
+    std::optional<AssetId> as_asset() const;
+    AssetId corresponding_asset_id() const;
 };
 
 struct ShareId;
@@ -37,12 +38,17 @@ struct ShareId : public UInt32WithIncrement<ShareId> { // shares are tokens that
     AssetId asset_id() const { return AssetId { value() }; }
 };
 
-inline std::optional<AssetId> TokenId::get_asset_id() const
+inline std::optional<AssetId> TokenId::as_asset() const
 {
     if ((value() & 1) != 0) // if odd
         return {};
     return AssetId(value() >> 1);
 }
+
+inline AssetId TokenId::corresponding_asset_id() const{
+    return AssetId(value() >> 1);
+}
+
 inline ShareId AssetId::share_id() const
 {
     return ShareId(value());

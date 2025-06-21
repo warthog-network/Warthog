@@ -28,7 +28,7 @@ struct NonzeroDelta_uint64 {
         , amount_(std::move(amount))
     {
     }
-    Delta_uint64 get() const { return { isQuote_, amount_.get() }; }
+    Delta_uint64 get() const { return { isQuote_, amount_ }; }
     bool is_quote() const { return isQuote_; }
     auto amount() const { return amount_; }
     bool operator==(const NonzeroDelta_uint64&) const = default;

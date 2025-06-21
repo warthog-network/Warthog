@@ -18,7 +18,7 @@ VerifiedOrder::VerifiedOrder(const OrderInternal& o, const TransactionVerifier& 
           o,
           o.compactFee.uncompact(),
           o.limit.to_uint32(),
-          o.amount.funds,
+          o.amount,
           tokenHash))
     , order(o)
 

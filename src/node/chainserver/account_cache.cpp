@@ -4,7 +4,7 @@
 
 namespace chainserver {
 
-const AssetInfo& TokenCache::operator[](TokenId id)
+const AssetInfo& AssetCache::operator[](AssetId id)
 {
     auto iter = map.find(id);
     if (iter != map.end())
@@ -12,7 +12,7 @@ const AssetInfo& TokenCache::operator[](TokenId id)
     return map.emplace(id, db.fetch_asset(id)).first->second;
 }
 
-const Address& AccountCache::operator[](AccountId id)
+const Address& AddressCache::operator[](AccountId id)
 {
     auto iter = map.find(id);
     if (iter != map.end())

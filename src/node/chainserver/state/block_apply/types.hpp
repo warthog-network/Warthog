@@ -44,9 +44,11 @@ struct VerifiedOrder : public VerifiedTransaction {
     VerifiedOrder(const OrderInternal& o, const TransactionVerifier&, HashView tokenHash);
     const OrderInternal& order;
 };
+
 struct OrderInternal : public SignerData {
     Price_uint64 limit;
-    TokenFunds amount;
+    Funds_uint64 amount;
+    AssetId assetId;
     bool buy;
     [[nodiscard]] VerifiedOrder verify(const TransactionVerifier& tv, HashView tokenHash) const
     {

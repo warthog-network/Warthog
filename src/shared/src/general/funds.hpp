@@ -201,10 +201,6 @@ inline FundsDecimal Funds_uint64::to_decimal(AssetPrecision d) const
     return { value(), d };
 }
 
-struct TokenFunds {
-    TokenId tokenId;
-    Funds_uint64 funds;
-};
 
 class Wart : public FundsBase<Wart> {
 public:
@@ -227,10 +223,6 @@ public:
     operator Funds_uint64() const
     {
         return Funds_uint64::from_value_throw(E8());
-    }
-    operator TokenFunds() const
-    {
-        return { .tokenId { TokenId(0) }, .funds { *this } };
     }
 
 private:

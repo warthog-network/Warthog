@@ -6,9 +6,9 @@
 #include "defi/token/info.hpp"
 #include <map>
 namespace chainserver {
-class AccountCache {
+class AddressCache {
 public:
-    AccountCache(const ChainDB& db)
+    AddressCache(const ChainDB& db)
         : db(db)
     {
     }
@@ -19,17 +19,17 @@ private:
     std::map<AccountId, Address> map;
     const ChainDB& db;
 };
-class TokenCache {
+class AssetCache {
 public:
-    TokenCache(const ChainDB& db)
+    AssetCache(const ChainDB& db)
         : db(db)
     {
     }
 
-    [[nodiscard]] const AssetInfo& operator[](TokenId id);
+    [[nodiscard]] const AssetInfo& operator[](AssetId id);
 
 private:
-    std::map<TokenId, AssetInfo> map;
+    std::map<AssetId, AssetInfo> map;
     const ChainDB& db;
 };
 
@@ -50,13 +50,13 @@ private:
 class DBCache {
 public:
     DBCache(const ChainDB& db)
-        : accounts(db)
-        , tokens(db)
+        : addresses(db)
+        , assets(db)
         , history(db)
     {
     }
-    AccountCache accounts;
-    TokenCache tokens;
+    AddressCache addresses;
+    AssetCache assets;
     HistoryCache history;
 };
 

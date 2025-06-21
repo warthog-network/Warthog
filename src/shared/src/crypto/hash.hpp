@@ -40,7 +40,6 @@ public:
     Hash& operator=(const Hash&) = default;
     bool operator==(const Hash&) const = default;
     bool operator!=(const Hash&) const = default;
-    static Hash genesis();
 };
 
 inline HashView::HashView(const Hash& h)
@@ -49,7 +48,10 @@ inline HashView::HashView(const Hash& h)
 }
 
 class BlockHash : public Hash {
+public:
+    explicit BlockHash(Hash h):Hash(std::move(h)){}
     using Hash::Hash;
+    static BlockHash genesis();
 };
 
 class AssetHash : public Hash {

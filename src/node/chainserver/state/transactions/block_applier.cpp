@@ -59,7 +59,7 @@ struct SortedOrders : public std::vector<OrderData> {
             push_back(OrderData(
                 o.orderId,
                 o.txid,
-                o.order.amount.funds,
+                o.order.amount,
                 Funds_uint64::zero(),
                 o.order.limit));
         }
@@ -456,13 +456,6 @@ public:
     {
     }
 
-    void register_swap(AccountId accId, TokenFunds subtract, TokenFunds add)
-    {
-        auto& ad { accounts[accId] };
-        ad.subtract(subtract.tokenId, subtract.funds);
-        ad.add(add.tokenId, add.funds);
-    }
-
     void charge_fee(AccountData& a, CompactUInt compactFee)
     {
         auto fee { compactFee.uncompact() };
@@ -544,7 +537,8 @@ public:
         return {
             std::move(s),
             o.limit(),
-            TokenFunds { aid.token_id(), amount },
+            amount,
+            aid,
             buy
         };
     }
@@ -572,7 +566,7 @@ public:
         tokenCreations.push_back(TokenCreationInternal {
             s,
             index,
-            tc.token_name(),
+            tc.asset_name(),
             tc.supply(),
         });
     }
@@ -903,7 +897,7 @@ private:
             auto& ref { history.push_asset_creation(verified, assetId) };
             api.assetCreations.push_back({
                 .txhash { ref.he.hash },
-                .tokenName { tc.name },
+                .assetName { tc.name },
                 .supply { tc.supply },
                 .assetId { assetId },
                 .fee { tc.compactFee.uncompact() },
@@ -1096,7 +1090,7 @@ private:
             auto& ref { history.push_token_transfer(verified, token.id().token_id()) };
             api.tokenTransfers.push_back(api::Block::TokenTransfer {
                 .txhash { ref.he.hash },
-                .tokenInfo { token.info() },
+                .assetInfo { token.info() },
                 .fromAddress { tr.origin.address },
                 .fee { tr.compactFee.uncompact() },
                 .nonceId { tr.pinNonce.id },
@@ -1118,9 +1112,9 @@ private:
             auto& ref { history.push_order(verified) };
             api.newOrders.push_back(api::Block::NewOrder {
                 .txhash { verified.hash },
-                .tokenInfo { asset.info() },
+                .assetInfo { asset.info() },
                 .fee { o.fee() },
-                .amount { o.amount.funds },
+                .amount { o.amount },
                 .limit { o.limit },
                 .buy = o.buy,
                 .address { o.origin.address } });
@@ -1130,14 +1124,14 @@ private:
                 .buy = o.buy,
                 .txid { verified.txid },
                 .aid { asset.id() },
-                .total { o.amount.funds },
+                .total { o.amount },
                 .filled { Funds_uint64::zero() },
                 .limit { o.limit } });
         }
 
         MatchActions m(db, no, asset.info().id, poolLiquidity);
 
-        history::MatchData d(poolLiquidity, m.pool);
+        history::MatchData d(asset.id(), poolLiquidity, m.pool);
         std::vector<AccountId> accounts;
         for (auto& s : m.buySwaps) {
             d.buy_swaps().push_back({ s.base, s.quote, s.oId });
@@ -1151,7 +1145,7 @@ private:
         auto& ref { history.push_match(accounts, d, blockhash, asset.id()) };
 
         api.matches.push_back({ .txhash { ref.he.hash },
-            .tokenInfo { asset.info() },
+            .assetInfo { asset.info() },
             .liquidityBefore { poolLiquidity },
             .liquidityAfter { m.pool },
             .buySwaps {},
@@ -1208,13 +1202,13 @@ public:
     // * overflow check OK
     // * check every new address is indeed new OK
     // * check signatures OK
-    PreparationGenerator(const BlockApplier::Preparer& preparer, const BlockWithHash& b)
+    PreparationGenerator(const BlockApplier::Preparer& preparer, const Block& b, const BlockHash& hash)
         : Preparation(preparer.db)
         , db(preparer.db)
         , hc(preparer.hc)
         , baseTxIds(preparer.baseTxIds)
         , newTxIds(preparer.newTxIds)
-        , blockhash(b.hash)
+        , blockhash(hash)
         , body { b.body }
         , height(b.height)
         , reward(b.body.reward)
@@ -1240,14 +1234,14 @@ public:
     }
 };
 
-Preparation BlockApplier::Preparer::prepare(const BlockWithHash& b) const
+Preparation BlockApplier::Preparer::prepare(const Block& b, const Hash& h) const
 {
-    return PreparationGenerator(*this, b);
+    return PreparationGenerator(*this, b, h);
 }
 
-api::Block BlockApplier::apply_block(const BlockWithHash& b, BlockId blockId)
+api::Block BlockApplier::apply_block(const Block& block, const BlockHash& hash, BlockId blockId)
 {
-    auto prepared { preparer.prepare(b) }; // call const function
+    auto prepared { preparer.prepare(block, hash) }; // call const function
 
     // ABOVE NO DB MODIFICATIONS
     //////////////////////////////
@@ -1299,10 +1293,10 @@ api::Block BlockApplier::apply_block(const BlockWithHash& b, BlockId blockId)
         db.set_block_undo(blockId, prepared.rg.serialize());
 
         // write consensus data
-        db.insert_consensus(b.height, blockId, db.next_history_id(), prepared.rg.next_state_id());
+        db.insert_consensus(block.height, blockId, db.next_history_id(), prepared.rg.next_state_id());
 
         prepared.historyEntries.write(db);
-        return api::Block(b.header, b.height, 0, std::move(prepared.api));
+        return api::Block(block.header, block.height, 0, std::move(prepared.api));
     } catch (Error e) {
         throw std::runtime_error(std::string("Unexpected exception: ") + __PRETTY_FUNCTION__ + ":" + e.strerror());
     }
