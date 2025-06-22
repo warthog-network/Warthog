@@ -1,6 +1,5 @@
 #include "all.hpp"
 #include "block/chain/history/history.hpp"
-#include "chainserver/account_cache.hpp"
 
 namespace api {
 void Block::set_reward(Reward r)

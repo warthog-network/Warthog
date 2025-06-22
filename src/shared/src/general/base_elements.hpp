@@ -30,7 +30,7 @@ struct CombineElements : public Elements... {
     }
     friend Writer& operator<<(Writer& w, const CombineElements& e)
     {
-        return (w << ... << static_cast<const Elements*>(e)->get());
+        return (w << ... << static_cast<const Elements*>(&e)->get());
     }
 };
 

@@ -1,4 +1,4 @@
-#include "chainserver/account_cache.hpp"
+#include "helpers/cache.hpp"
 #ifndef DISABLE_LIBUV
 #include "api/http/endpoint.hpp"
 #endif
@@ -651,7 +651,7 @@ State::rollback(const Height newlength) const
     return chainserver::RollbackResult {
         .shrink { newlength, oldlength - newlength },
         .toMempool { std::move(rs.toMempool) },
-        .balanceUpdates { std::move(rs.balanceMap) },
+        .wartUpdates { std::move(rs.balanceMap) },
         .chainTxIds { db.fetch_tx_ids(newlength) },
         .deletionKey { dk }
     };
@@ -766,7 +766,7 @@ auto State::append_mined_block(const Block& b) -> StateUpdateWithAPIBlocks
 
     std::unique_lock<std::mutex> ul(chainstateMutex);
     auto headerchainAppend = chainstate.append(Chainstate::AppendSingle {
-        .balanceUpdates { e.move_balance_updates() },
+        .wartUpdates { e.move_balance_updates() },
         .signedSnapshot { signedSnapshot },
         .prepared { prepared.value() },
         .newTxIds { e.move_new_txids() },

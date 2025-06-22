@@ -21,15 +21,13 @@ protected:
 public:
     TransactionMsg(const TransactionId& txid, NonceReserved reserved, CompactUInt compactFee, Ts... ts, RecoverableSignature signature)
         : MsgBase { txid, std::move(reserved), std::move(compactFee) }
-        , Ts(std::move(ts))...
-        , SignatureEl(std::move(signature))
+        , CombineElements<Ts..., SignatureEl>(std::move(ts)...,std::move(signature))
     {
     }
     TransactionMsg(CreatedTransactionMsg<Ts...>);
     TransactionMsg(Reader& r)
         : MsgBase { r }
-        , Ts(r)...
-        , SignatureEl(r)
+        , CombineElements<Ts..., SignatureEl>(r)
     {
     }
     static constexpr size_t byte_size() { return 16 + 3 + 2 + (Ts::byte_size() + ...) + 65; }

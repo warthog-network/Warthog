@@ -1,5 +1,6 @@
 #include "consensus.hpp"
 #include "chainserver/db/chain_db.hpp"
+#include "cache.hpp"
 #include "communication/create_transaction.hpp"
 #include "global/globals.hpp"
 #include <spdlog/spdlog.h>
@@ -52,21 +53,21 @@ void Chainstate::fork(Chainstate::ForkData&& fd)
 
     //////////////////////////////
     // inform mempool about balance changes
-    auto balanceUpdates { std::move(fd.appendResult.balanceUpdates) };
-    balanceUpdates.merge(fd.rollbackResult.balanceUpdates);
+    auto balanceUpdates { std::move(fd.appendResult.wartUpdates) };
+    balanceUpdates.merge(fd.rollbackResult.wartUpdates);
     for (auto& [accountId, balance] : balanceUpdates)
-        _mempool.set_balance(accountId, balance);
+        _mempool.set_wart_balance(accountId, balance);
 
     //////////////////////////////
     // insert transactions into mempool
-    AccountCache accountCache(db);
+    AddressCache accountCache(db);
     for (auto& tx : fd.rollbackResult.toMempool) {
         AccountId fromId { tx.from_id() };
         auto& from { accountCache[fromId] };
 
         PinHeight ph { tx.pin_height() };
         assert(ph <= forkHeight - 1);
-        Hash hash { headers().hash_at(ph) };
+        auto hash { headers().hash_at(ph) };
         TxHash txhash { tx.txhash(hash) };
 
         if (!fd.appendResult.newTxIds.contains(tx.txid())) {
@@ -116,20 +117,20 @@ auto Chainstate::rollback(const RollbackResult& rb) -> HeaderchainRollback
 
     //////////////////////////////
     // inform mempool about balance changes
-    auto& balanceUpdates { rb.balanceUpdates };
-    for (auto& [accountId, balance] : balanceUpdates)
-        _mempool.set_balance(accountId, balance);
+    auto& balanceUpdates { rb.wartUpdates };
+    for (auto& [accountId, wart] : balanceUpdates)
+        _mempool.set_wart_balance(accountId, wart);
 
     //////////////////////////////
     // insert transactions into mempool
-    AccountCache accountCache(db);
+    AddressCache accountCache(db);
     for (auto& tx : rb.toMempool) {
         AccountId fromId { tx.from_id() };
         auto& from { accountCache[fromId] };
 
         PinHeight ph { tx.pin_height() };
         assert(ph <= forkHeight - 1);
-        Hash hash { headers().hash_at(ph) };
+        auto hash { headers().hash_at(ph) };
         TxHash txhash { tx.txhash(hash) };
 
         TxHeight txh { ph, account_height(fromId) };
@@ -159,9 +160,9 @@ auto Chainstate::append(AppendMulti ad) -> HeaderchainAppend
 
     //////////////////////////////
     // inform mempool about balance changes
-    auto& balanceUpdates { ad.appendResult.balanceUpdates };
-    for (auto& [accountId, balance] : balanceUpdates)
-        _mempool.set_balance(accountId, balance);
+    auto& wartUpdates { ad.appendResult.wartUpdates };
+    for (auto& [accountId, balance] : wartUpdates)
+        _mempool.set_wart_balance(accountId, balance);
 
     // remove from mempool
     // remove outdated transactions
@@ -193,9 +194,9 @@ auto Chainstate::append(AppendSingle d) -> HeaderchainAppend
 
     //////////////////////////////
     // inform mempool about balance changes
-    auto& balanceUpdates { d.balanceUpdates };
-    for (auto& [accountId, balance] : balanceUpdates)
-        _mempool.set_balance(accountId, balance);
+    auto& wartUpdates { d.wartUpdates };
+    for (auto& [accountId, balance] : wartUpdates)
+        _mempool.set_wart_balance(accountId, balance);
 
     // remove from mempool
     // remove outdated transactions

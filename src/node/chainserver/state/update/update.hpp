@@ -13,7 +13,7 @@ namespace state_update {
     };
     struct StateUpdateWithAPIBlocks {
         StateUpdate update;
-        std::vector<api::Block> appendedBlocks;
+        std::vector<api::CompleteBlock> appendedBlocks;
     };
 
 }

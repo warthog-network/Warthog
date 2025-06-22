@@ -655,15 +655,14 @@ std::optional<chain_db::OrderData> ChainDB::select_order(TransactionId id) const
 
     std::optional<chain_db::OrderData> res {
         stmtSelectBaseSell.one(id.accountId, id.pinHeight, id.nonceId).process([&](const sqlite::Row& o) {
-            HistoryId id2{o[0]};
             return ret_t {
-                .id { o[0] },
+                .id = o[0],
                 .buy = false,
                 .txid { id },
-                .aid { o[1] },
-                .total { o[2] },
-                .filled { o[3] },
-                .limit { o[4] }
+                .aid = o[1],
+                .total = o[2] ,
+                .filled = o[3] ,
+                .limit = o[4]
             };
         })
     };

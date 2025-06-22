@@ -108,6 +108,7 @@ public:
     }
     operator Worksum() const { return get_array<32>(); }
     operator TokenId() const { return TokenId(getUInt32()); }
+    operator AssetId() const { return AssetId(getUInt32()); }
 };
 
 namespace bind_convert {

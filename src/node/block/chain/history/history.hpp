@@ -52,7 +52,7 @@ public:
         size_t N { r.uint32() };
         this->reserve(N);
         for (size_t i { 0 }; i < N; ++i) {
-            push_back(T { r });
+            this->push_back(T { r });
         }
     }
     friend Writer& operator<<(Writer& w, const vect_len32_base<T>& v)
@@ -73,6 +73,7 @@ struct vect_len32 : public vect_len32_base<T> {
         for (auto& e : *this) {
             N += e.byte_size();
         }
+        return N;
     }
 };
 template <HasStaticBytesize T>
@@ -145,13 +146,14 @@ public:
     }
     size_t byte_size() const
     {
-        return 1 + visit([](auto& t) { return t.byte_size(); });
+        return 1 + this->visit([](auto& t) { return t.byte_size(); });
     }
-    friend Writer& operator<<(Writer& w, const IndicatorVariant<Ts...>& f)
+    friend Writer& operator<<(Writer& w, const IndicatorVariant& f)
     {
         f.visit([&](auto& v) {
             w << v.indicator << v;
         });
+        return w;
     }
     std::vector<uint8_t> serialize() const
     {

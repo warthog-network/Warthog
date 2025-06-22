@@ -40,7 +40,7 @@ src= [
   './block/header/batch.cpp',
   './block/header/shared_batch.cpp',
   './block/header/timestamprule.cpp',
-  './chainserver/account_cache.cpp',
+  './chainserver/state/helpers/cache.cpp',
   './chainserver/db/chain_db.cpp',
   './chainserver/mining_subscription.cpp',
   './chainserver/server.cpp',

@@ -22,7 +22,7 @@ private:
     Height chainlength;
     std::optional<RollbackResult> rb;
     std::optional<AppendBlocksResult> applyResult;
-    std::vector<api::Block> apiBlocks;
+    std::vector<api::CompleteBlock> apiBlocks;
 
     bool commited = false;
 };

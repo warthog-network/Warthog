@@ -156,7 +156,7 @@ struct Block {
         std::vector<Swap> sellSwaps;
     };
     struct Reward {
-        Hash txhash;
+        TxHash txhash;
         Address toAddress;
         Wart amount;
     };
@@ -215,7 +215,7 @@ public:
     void set_reward(Reward r);
 };
 struct CompleteBlock : public Block {
-    CompleteBlock(Block b)
+    explicit CompleteBlock(Block b)
         : Block(std::move(b))
     {
         if (!actions.reward)

@@ -1,6 +1,7 @@
 #include "block_applier.hpp"
 #include "api/types/all.hpp"
 #include "block/body/rollback.hpp"
+#include "defi/serialize.hpp"
 #include "block/chain/header_chain.hpp"
 #include "block/chain/history/history.hpp"
 #include "chainserver/db/chain_db.hpp"
@@ -1239,7 +1240,7 @@ Preparation BlockApplier::Preparer::prepare(const Block& b, const Hash& h) const
     return PreparationGenerator(*this, b, h);
 }
 
-api::Block BlockApplier::apply_block(const Block& block, const BlockHash& hash, BlockId blockId)
+api::CompleteBlock BlockApplier::apply_block(const Block& block, const BlockHash& hash, BlockId blockId)
 {
     auto prepared { preparer.prepare(block, hash) }; // call const function
 
@@ -1250,6 +1251,11 @@ api::Block BlockApplier::apply_block(const Block& block, const BlockHash& hash, 
     //////////////////////////////
     // BELOW NO "Error" TROWS
 
+    auto update_wart_balance { [this](AccountToken at, Funds_uint64 bal) {
+        if (at.token_id() == TokenId::WART) {
+            WART_BalanceUpdates.insert_or_assign(at.account_id(), Wart::from_funds_throw(bal));
+        }
+    } };
     try {
         preparer.newTxIds.merge(std::move(prepared.txset));
 
@@ -1259,7 +1265,7 @@ api::Block BlockApplier::apply_block(const Block& block, const BlockHash& hash, 
         // update old balances
         for (auto& [balId, accountToken, bal] : prepared.updateBalances) {
             db.set_balance(balId, bal);
-            balanceUpdates.insert_or_assign(accountToken, bal);
+            update_wart_balance(accountToken, bal);
         }
 
         for (auto& [address, accId] : prepared.insertAccounts) // new accounts
@@ -1286,7 +1292,7 @@ api::Block BlockApplier::apply_block(const Block& block, const BlockHash& hash, 
         // insert new balances
         for (auto& [at, bal] : prepared.insertBalances) {
             db.insert_token_balance(at, bal);
-            balanceUpdates.insert_or_assign(at, bal);
+            update_wart_balance(at, bal);
         }
 
         // write undo data
@@ -1296,7 +1302,7 @@ api::Block BlockApplier::apply_block(const Block& block, const BlockHash& hash, 
         db.insert_consensus(block.height, blockId, db.next_history_id(), prepared.rg.next_state_id());
 
         prepared.historyEntries.write(db);
-        return api::Block(block.header, block.height, 0, std::move(prepared.api));
+        return api::CompleteBlock(api::Block(block.header, block.height, 0, std::move(prepared.api)));
     } catch (Error e) {
         throw std::runtime_error(std::string("Unexpected exception: ") + __PRETTY_FUNCTION__ + ":" + e.strerror());
     }

@@ -22,7 +22,7 @@ private:
     }
 
 public:
-    static constexpr size_t byte_size() { return 8; }
+    static constexpr size_t byte_size() { return 4; }
     static auto from_uint32(uint32_t data)
     {
         return compose(data & 0x0000FFFFu, data >> 16);
