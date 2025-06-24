@@ -1,7 +1,6 @@
 #pragma once
 #include "../request_sender_declaration.hpp"
 #include "attorney_declaration.hpp"
-#include "block/block.hpp"
 #include "block/chain/header_chain.hpp"
 #include "forks.hpp"
 #include "block/chain/offender.hpp"

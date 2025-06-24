@@ -63,10 +63,10 @@ bool Focus::has_data()
     return false;
 }
 
-std::vector<ParsedBlock> Focus::pop_data()
+std::vector<Block> Focus::pop_data()
 {
     assert(has_data());
-    std::vector<ParsedBlock> out;
+    std::vector<Block> out;
     for (auto iter = map.begin(); iter != map.end();) {
         Node node { .iter = iter };
         if (!node.covers_next(downloadLength))
@@ -207,7 +207,7 @@ void Focus::set_offset(Height newOffset)
     }
 }
 
-void Focus::set_slot_blocks(std::vector<ParsedBlock>&& blocks)
+void Focus::set_slot_blocks(std::vector<Block>&& blocks)
 {
     if (blocks.size() == 0)
         return;

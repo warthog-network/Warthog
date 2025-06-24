@@ -1,6 +1,6 @@
 #pragma once
 #include "general/reader_declaration.hpp"
-#include "general/serializer.hxx"
+#include "general/serializer_fwd.hxx"
 #include "nlohmann/json_fwd.hpp"
 #include <cstdint>
 
@@ -26,14 +26,14 @@ public:
     {
         return val;
     }
+    void serialize(Serializer auto& s) const
+    {
+        s << value();
+    }
 
 protected:
     uint32_t val;
 };
-auto&& operator<<(Serializer auto&& s, const IsUint32& v)
-{
-    return std::forward<decltype(s)>(s << v.value());
-}
 
 template <typename T>
 class UInt32WithIncrement : public IsUint32 {
@@ -90,14 +90,14 @@ public:
     {
         return val;
     }
+    void serialize(Serializer auto& s) const
+    {
+        s << value();
+    }
 
 protected:
     uint64_t val;
 };
-auto&& operator<<(Serializer auto&& s, const IsUint64& v)
-{
-    return std::forward<decltype(s)>(s << v.value());
-}
 
 template <typename T>
 class UInt64WithIncrement : public IsUint64 {

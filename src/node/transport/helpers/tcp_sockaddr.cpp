@@ -8,9 +8,6 @@
 #include <stdexcept>
 
 
-Writer& operator<<(Writer& w, const Sockaddr4& addr){
-    return w<<addr.ip<<addr.port;
-}
 
 std::string TCPPeeraddr::to_string() const
 {

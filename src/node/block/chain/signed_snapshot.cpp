@@ -9,12 +9,15 @@
 #include <array>
 #include <string_view>
 
-Writer& operator<<(Writer& w, const SignedSnapshot::Priority& p){
-    return w<<p.importance<<p.height;
+Writer& operator<<(Writer& w, const SignedSnapshot::Priority& p)
+{
+    return w << p.importance << p.height;
 }
 
 SignedSnapshot::Priority::Priority(Reader& r)
-    : Priority({r.uint16(), Height(r)}) {}
+    : Priority({ r.uint16(), Height(r) })
+{
+}
 uint16_t SignedSnapshot::get_importance()
 {
     return SnapshotSigner::get_importance(signature.recover_pubkey(hash));
@@ -30,9 +33,10 @@ bool SignedSnapshot::compatible_inefficient(const HeaderchainSkeleton& hc) const
     return (hc.length() < priority.height) || hc.inefficient_search_header(priority.height).value().hash() == hash;
 }
 
-
 SignedSnapshot::SignedSnapshot(Reader& r)
-    : SignedSnapshot({ NonzeroHeight(r.uint32()), Hash{r.view<HashView>()}, r.view<65>() }) {}
+    : SignedSnapshot({ NonzeroHeight(r.uint32()), Hash { r.view<HashView>() }, r.view<65>() })
+{
+}
 
 Writer& operator<<(Writer& w, const SignedSnapshot& sp)
 {
@@ -57,7 +61,7 @@ uint16_t SnapshotSigner::get_importance(const PubKey& pk)
         "03b612b5bb4648cedc65080452418486c13249d21c30ff2fc08322012e1196d868"sv,
         "0283df9d39202c98d3c40402d23662d3d77c30b48ec171ba8cd39b77ff2b89ff71"sv
     };
-    auto pos = std::find(leaderPubkeys.begin(),leaderPubkeys.end(), hex);
+    auto pos = std::find(leaderPubkeys.begin(), leaderPubkeys.end(), hex);
     if (pos == leaderPubkeys.end())
         throw Error(EBADLEADER);
     return pos - leaderPubkeys.begin();

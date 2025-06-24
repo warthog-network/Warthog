@@ -1,4 +1,5 @@
 #pragma once
+#include "general/serializer_fwd.hxx"
 #include "transport/helpers/ip.hpp"
 #include <string>
 #include <vector>
@@ -28,19 +29,23 @@ private:
 
 struct IdentityIps {
     IdentityIps(Reader& r);
-    IdentityIps() {};
-    friend Writer& operator<<(Writer&, const IdentityIps&);
+    IdentityIps() { };
+    void serialize(Serializer auto& s)
+    {
+        return s << ipv4 << ipv6;
+    };
     bool assign_if_routable(IP);
     [[nodiscard]] static IdentityIps from_sdp(const std::string& sdp);
     auto& get_ip4() const { return ipv4; };
     auto& get_ip6() const { return ipv6; };
-    std::optional<IP> get_ip_with_type(IpType t)const {
+    std::optional<IP> get_ip_with_type(IpType t) const
+    {
         using enum IpType;
-        if (t==v4){
-            if (auto ip{get_ip4()}) 
+        if (t == v4) {
+            if (auto ip { get_ip4() })
                 return *ip;
-        }else{ // t==v6
-            if (auto ip{get_ip6()}) 
+        } else { // t==v6
+            if (auto ip { get_ip6() })
                 return *ip;
         }
         return {};

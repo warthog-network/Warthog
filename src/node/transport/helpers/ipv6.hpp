@@ -1,4 +1,5 @@
 #pragma once
+#include "general/serializer_fwd.hxx"
 #include "ip_type.hpp"
 #include <array>
 #include <cstdint>
@@ -65,7 +66,7 @@ public:
     Block32View block32_view() const;
     static constexpr IPv6 from_data(const uint8_t* pos, size_t len = byte_size())
     {
-        return IPv6{ std::span<const uint8_t, 16> { pos, len } };
+        return IPv6 { std::span<const uint8_t, 16> { pos, len } };
     }
     explicit constexpr IPv6(std::span<const uint8_t, 16> s)
     {
@@ -75,7 +76,11 @@ public:
         : data(data)
     {
     }
-    friend Writer& operator<<(Writer&, const IPv6&);
+    void serialize(Serializer auto& s)
+    {
+        return s << data;
+    }
+
     auto operator<=>(const IPv6& rhs) const = default;
     static constexpr std::optional<IPv6> parse(const std::string_view&);
     static constexpr size_t byte_size() { return 16; }
@@ -114,12 +119,12 @@ public:
 
     constexpr IPv6(const std::string_view& s)
         : IPv6(
-            [&] {
-                auto ea { parse(s) };
-                if (ea)
-                    return *ea;
-                throw std::runtime_error("Cannot parse ip address \"" + std::string(s) + "\".");
-            }()) {};
+              [&] {
+                  auto ea { parse(s) };
+                  if (ea)
+                      return *ea;
+                  throw std::runtime_error("Cannot parse ip address \"" + std::string(s) + "\".");
+              }()) {};
     std::array<uint8_t, 16> data;
     std::string to_string() const;
 };

@@ -4,6 +4,9 @@
 #include <cstdint>
 static_assert(CHAR_BIT == 8);
 
+template <typename T>
+concept ByteSwappable = std::is_same_v<T, uint8_t> || std::is_same_v<T, uint16_t> || std::is_same_v<T, uint32_t> || std::is_same_v<T, uint64_t>;
+
 constexpr inline uint64_t byte_swap(uint64_t x)
 {
     return (((x & 0xff00000000000000ull) >> 56)
@@ -31,7 +34,7 @@ constexpr inline uint8_t byte_swap(uint8_t x)
     return x;
 }
 
-constexpr inline auto network_byte_swap(std::unsigned_integral auto x)
+constexpr inline auto network_byte_swap(ByteSwappable auto x)
 {
     if constexpr (std::endian::native != std::endian::big) {
         return byte_swap(x);

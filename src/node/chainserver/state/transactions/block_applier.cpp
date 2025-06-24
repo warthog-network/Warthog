@@ -1,7 +1,6 @@
 #include "block_applier.hpp"
 #include "api/types/all.hpp"
 #include "block/body/rollback.hpp"
-#include "defi/serialize.hpp"
 #include "block/chain/header_chain.hpp"
 #include "block/chain/history/history.hpp"
 #include "chainserver/db/chain_db.hpp"
@@ -1091,13 +1090,13 @@ private:
             auto& ref { history.push_token_transfer(verified, token.id().token_id()) };
             api.tokenTransfers.push_back(api::block::TokenTransfer {
                 .txhash { ref.he.hash },
-                .assetInfo { token.info() },
                 .fromAddress { tr.origin.address },
                 .fee { tr.compactFee.uncompact() },
                 .nonceId { tr.pinNonce.id },
                 .pinHeight { verified.txid.pinHeight },
                 .toAddress { tr.to.address },
                 .amount { tr.amount },
+                .assetInfo { token.info() },
             });
         }
     }

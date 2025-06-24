@@ -180,7 +180,3 @@ bool IdentityIps::assign_if_routable(IP ip)
     return false;
 }
 
-Writer& operator<<(Writer& w, const IdentityIps& id)
-{
-    return w << id.ipv4 << id.ipv6;
-};

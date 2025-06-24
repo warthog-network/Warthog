@@ -1,4 +1,5 @@
 #pragma once
+#include "general/serializer_fwd.hxx"
 #include "transport/helpers/ip.hpp"
 extern "C" {
 struct sockaddr_storage;
@@ -6,7 +7,10 @@ struct sockaddr;
 }
 struct Sockaddr4 {
     Sockaddr4(Reader& r);
-    friend Writer& operator<<(Writer&, const Sockaddr4&);
+    void serialize(Serializer auto& s)
+    {
+        return s << ip << port;
+    }
     static constexpr size_t byte_size() { return IPv4::byte_size() + sizeof(port); }
     constexpr Sockaddr4(IPv4 ipv4, uint16_t port)
         : ip(ipv4)

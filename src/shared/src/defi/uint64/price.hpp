@@ -1,4 +1,5 @@
 #pragma once
+#include "general/serializer_fwd.hxx"
 #include "prod.hpp"
 #include <bit>
 #include <cassert>
@@ -34,6 +35,10 @@ public:
         throw Error(EBADPRICE);
     }
     Price_uint64(Reader& r);
+    void serialize(Serializer auto& s) const
+    {
+        s << to_uint32();
+    }
     uint32_t to_uint32() const
     {
         return uint32_t(_m) + (uint32_t(_e) << 16);

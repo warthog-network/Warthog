@@ -24,8 +24,8 @@ class CompactUInt {
 
 public:
     CompactUInt(Reader& r);
-    static consteval size_t byte_size(){return sizeof(val);}
-    static constexpr auto smallest(){return CompactUInt(0);}
+    static consteval size_t byte_size() { return sizeof(val); }
+    static constexpr auto smallest() { return CompactUInt(0); }
     static CompactUInt from_value_assert(uint16_t val)
     {
         auto v { from_value(val) };
@@ -61,6 +61,10 @@ public:
         assert(res.val != 0);
     }
     uint16_t value() const { return val; }
+    void serialize(Serializer auto&& s)
+    {
+        s << value();
+    }
 
     // default comparison is correct even without uncompacting.
     auto operator<=>(const CompactUInt&) const = default;

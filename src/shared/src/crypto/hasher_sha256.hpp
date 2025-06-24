@@ -1,8 +1,6 @@
 #pragma once
 
 #include "general/serializer.hxx"
-#include "general/with_uint64.hpp"
-
 #include "hash.hpp"
 #include "sha2.hpp"
 #include <array>
