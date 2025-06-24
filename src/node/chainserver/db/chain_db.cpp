@@ -9,6 +9,7 @@
 #include "defi/token/account_token.hpp"
 #include "defi/token/info.hpp"
 #include "defi/token/token.hpp"
+#include "general/address_funds.hpp"
 #include "general/hex.hpp"
 #include "general/writer.hpp"
 #include "global/globals.hpp"
@@ -351,7 +352,7 @@ ChainDB::ChainDB(const std::string& path)
 
     // BELOW STATEMENTS REQUIRED FOR INDEXING NODES
     //
-    , stmtAddressLookup(db, "SELECT `ROWID`, FROM `Accounts` JOIN `Balances` on AccountsWHERE `address`=?")
+    , stmtAddressLookup(db, "SELECT `ROWID`, FROM `Accounts` JOIN `Balances` on Accounts WHERE `address`=?")
     , stmtHistoryById(db, "SELECT h.id, `hash`,`data` FROM `History` `h` JOIN "
                           "`AccountHistory` `ah` ON h.id=`ah`.history_id WHERE "
                           "ah.`account_id`=? AND h.id<? ORDER BY h.id DESC LIMIT 100")
@@ -660,8 +661,8 @@ std::optional<chain_db::OrderData> ChainDB::select_order(TransactionId id) const
                 .buy = false,
                 .txid { id },
                 .aid = o[1],
-                .total = o[2] ,
-                .filled = o[3] ,
+                .total = o[2],
+                .filled = o[3],
                 .limit = o[4]
             };
         })
@@ -777,6 +778,15 @@ std::optional<std::pair<BalanceId, Funds_uint64>> ChainDB::get_balance(AccountId
     return std::pair { res.get<BalanceId>(0), res.get<Funds_uint64>(1) };
 }
 
+Wart ChainDB::get_wart_balance(AccountId aid) const
+{
+    auto b { get_balance(aid, TokenId::WART) };
+    if (b) {
+        return Wart::from_funds_throw(b->second);
+    }
+    return Wart::zero();
+}
+
 std::vector<std::pair<TokenId, Funds_uint64>> ChainDB::get_tokens(AccountId accountId, size_t limit)
 {
     return stmtAccountSelectAssets.all([&](const sqlite::Row& r) {
@@ -863,11 +873,11 @@ void ChainDB::delete_history_from(NonzeroHeight h)
     cache.nextHistoryId = HistoryId { nextHistoryId };
 }
 
-std::optional<std::pair<std::vector<uint8_t>, HistoryId>> ChainDB::lookup_history(const HashView hash) const
+std::optional<std::pair<history::HistoryVariant, HistoryId>> ChainDB::lookup_history(const HashView hash) const
 {
     return stmtHistoryLookup.one(hash).process([](auto& o) {
-        return std::pair<std::vector<uint8_t>, HistoryId> {
-            o[1], o[0]
+        return std::pair<history::HistoryVariant, HistoryId> {
+            std::vector<uint8_t> { o[1] }, o[0]
         };
     });
 }
@@ -912,20 +922,19 @@ void ChainDB::insertAccountHistory(AccountId accountId, HistoryId historyId)
     stmtAccountHistoryInsert.run(accountId, historyId);
 }
 
-std::optional<AccountId> ChainDB::lookup_account_id(const AddressView address) const
+std::optional<AccountId> ChainDB::lookup_account(const AddressView address) const
 {
     return stmtAddressLookup.one(address).process([](auto& p) {
         return AccountId { p[0] };
     });
 }
 
-std::vector<std::tuple<HistoryId, Hash, std::vector<uint8_t>>> ChainDB::lookup_history_100_desc(
-    AccountId accountId, int64_t beforeId)
+std::vector<std::tuple<HistoryId, history::Entry>> ChainDB::lookup_history_100_desc(AccountId accountId, int64_t beforeId)
 {
     return stmtHistoryById.all(
         [&](const sqlite::Row& row) {
-            return std::tuple<HistoryId, Hash, std::vector<uint8_t>>(
-                { row[0], row[1], row[2] });
+            return std::tuple<HistoryId, history::Entry>(
+                { row[0], { row[1], std::vector<uint8_t>(row[2]) } });
         },
         accountId, beforeId);
 }

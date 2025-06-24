@@ -1,8 +1,7 @@
 #pragma once
-#include "general/byte_order.hpp"
 #include "ip_type.hpp"
 #include <array>
-#include <compare>
+#include <cstdint>
 #include <cstring>
 #include <optional>
 #include <span>
@@ -66,13 +65,13 @@ public:
     Block32View block32_view() const;
     static constexpr IPv6 from_data(const uint8_t* pos, size_t len = byte_size())
     {
-        return { std::span<const uint8_t, 16> { pos, len } };
+        return IPv6{ std::span<const uint8_t, 16> { pos, len } };
     }
-    constexpr IPv6(std::span<const uint8_t, 16> s)
+    explicit constexpr IPv6(std::span<const uint8_t, 16> s)
     {
         std::copy(s.begin(), s.end(), data.begin());
     }
-    constexpr IPv6(std::array<uint8_t, 16> data)
+    explicit constexpr IPv6(std::array<uint8_t, 16> data)
         : data(data)
     {
     }
@@ -210,7 +209,7 @@ constexpr std::optional<IPv6> IPv6::parse(const std::string_view& s)
         if (pos == npos) {
             if (i != 7 || !write_part(&out[2 * 7], s.substr(start)))
                 return {};
-            return out;
+            return IPv6(out);
         } else {
             if (pos == start) {
                 if (doubleColon)
@@ -233,7 +232,7 @@ constexpr std::optional<IPv6> IPv6::parse(const std::string_view& s)
                 if (pos + 1 == s.length()) {
                     out[2 * i] = 0;
                     out[2 * i + 1] = 0;
-                    return out;
+                    return IPv6(out);
                 }
             } else {
                 if (!write_part(&out[2 * i], s.substr(start, pos - start)))

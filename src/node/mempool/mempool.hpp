@@ -1,4 +1,5 @@
 #pragma once
+#include "chainserver/state/helpers/cache_fwd.hpp"
 #include "block/body/messages.hpp"
 #include "comparators.hpp"
 #include "general/address_funds.hpp"
@@ -41,8 +42,8 @@ public:
         updates.clear();
     }
     void apply_log(const Updates& log);
-    Error insert_tx(const TransactionMessage& pm, TxHeight txh, const TxHash& hash, const AddressFunds& e);
-    void insert_tx_throw(const TransactionMessage& pm, TxHeight txh, const TxHash& hash, const AddressFunds& e);
+    Error insert_tx(const TransactionMessage& pm, TxHeight txh, const TxHash& hash, const Address&, chainserver::WartCache& wartCache);
+    void insert_tx_throw(const TransactionMessage& pm, TxHeight txh, const TxHash& hash, const Address& fromAddr, chainserver::WartCache& wartCache);
     void erase(TransactionId id);
     void set_wart_balance(AccountId, Wart newBalance);
     void erase_from_height(Height);
@@ -50,7 +51,7 @@ public:
 
     // getters
     [[nodiscard]] auto cache_validity() const { return txs.cache_validity(); }
-    [[nodiscard]] auto get_transactions(size_t n, NonzeroHeight height, std::vector<Hash>* hashes = nullptr) const
+    [[nodiscard]] auto get_transactions(size_t n, NonzeroHeight height, std::vector<TxHash>* hashes = nullptr) const
         -> std::vector<TransactionMessage>;
     [[nodiscard]] auto sample(size_t) const -> std::vector<TxidWithFee>;
     [[nodiscard]] auto filter_new(const std::vector<TxidWithFee>&) const

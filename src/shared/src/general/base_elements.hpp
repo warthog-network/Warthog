@@ -100,7 +100,7 @@ struct OwnerIdEl : public ElementBase<AccountId> {
     [[nodiscard]] const AccountId& owner_account_id() const { return data; }
 };
 
-struct TokenSupplyEl : public ElementBase<FundsDecimal> {
+struct AssetSupplyEl : public ElementBase<FundsDecimal> {
     [[nodiscard]] const auto& supply() const { return data; }
 };
 struct ToAddrEl : public ElementBase<Address> {
@@ -155,16 +155,16 @@ struct CompactFeeEl : public ElementBase<CompactUInt> {
     [[nodiscard]] const CompactUInt& compact_fee() const { return data; }
     [[nodiscard]] Wart fee() const { return data.uncompact(); }
 };
-struct TokenPrecisionEl : public ElementBase<AssetPrecision> {
+struct AssetPrecisionEl : public ElementBase<AssetPrecision> {
     using ElementBase::ElementBase;
     [[nodiscard]] const AssetPrecision& token_precision() const { return data; }
 };
-struct TokenNameEl : public ElementBase<AssetName> {
+struct AssetNameEl : public ElementBase<AssetName> {
     using ElementBase::ElementBase;
     [[nodiscard]] const AssetName& asset_name() const { return data; }
 };
-struct TokenHashEl : public ElementBase<AssetHash> {
-    [[nodiscard]] const auto& token_hash() const { return data; }
+struct AssetHashEl : public ElementBase<AssetHash> {
+    [[nodiscard]] const auto& asset_hash() const { return data; }
 };
 struct TokenIdEl : public ElementBase<TokenId> {
     using ElementBase::ElementBase;

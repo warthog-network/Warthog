@@ -20,10 +20,6 @@ auto last_element_vector(const Headerchain& hc, Batchslot begin)
 }
 }
 
-Writer& operator<<(Writer& w, const Headervec& hv){
-    return w<<Range(hv.bytes);
-}
-
 Headervec::Headervec(const std::vector<HeaderView>& v)
 {
     bytes.resize(80 * v.size());
@@ -88,7 +84,7 @@ Grid::Grid(std::span<const uint8_t> s)
     assign(s.begin().base(), s.end().base());
 }
 Grid::Grid(Reader& r)
-    :Grid(r.span_4())
+    : Grid(r.span_4())
 {
 }
 
@@ -103,6 +99,7 @@ bool Grid::valid_checkpoint() const
     return is_testnet() || (!cp)
         || (cp->slot < slot_end() && cp->finalHeader == operator[](cp->slot));
 }
-Writer& operator<<(Writer& w, const Grid& g){
-    return w<<Range(g.raw());
+Writer& operator<<(Writer& w, const Grid& g)
+{
+    return w << g.raw();
 }

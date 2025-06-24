@@ -15,6 +15,7 @@
 #include "db/sqlite_fwd.hpp"
 #include "defi/uint64/pool.hpp"
 #include "deletion_key.hpp"
+#include "general/address_funds.hpp"
 #include "general/filelock/filelock.hpp"
 #include "general/timestamp.hpp"
 #include "order_loader.hpp"
@@ -172,7 +173,7 @@ public:
     /////////////////////
     // Pool functions
     void insert_pool(const PoolData& pool);
-    [[nodiscard]] std::optional<PoolData> select_pool(AssetId  assetId) const;
+    [[nodiscard]] std::optional<PoolData> select_pool(AssetId assetId) const;
     void update_pool(TokenId shareId, Funds_uint64 base, Funds_uint64 quote, Funds_uint64 shares);
     void set_pool_liquidity(AssetId, const defi::PoolLiquidity_uint64&);
 
@@ -189,6 +190,7 @@ public:
 
     [[nodiscard]] std::optional<Balance> get_token_balance(BalanceId id) const;
     [[nodiscard]] std::optional<std::pair<BalanceId, Funds_uint64>> get_balance(AccountId aid, TokenId tid) const;
+    [[nodiscard]] Wart get_wart_balance(AccountId aid) const;
     [[nodiscard]] std::optional<AssetInfo> lookup_asset(AssetId) const;
     [[nodiscard]] std::optional<AssetInfo> lookup_asset(AssetHash) const;
     [[nodiscard]] AssetInfo fetch_asset(AssetId id) const;
@@ -223,7 +225,7 @@ public:
     HistoryId insertHistory(const HashView hash,
         const std::vector<uint8_t>& data);
     void delete_history_from(NonzeroHeight);
-    std::optional<std::pair<std::vector<uint8_t>, HistoryId>> lookup_history(const HashView hash) const;
+    std::optional<std::pair<history::HistoryVariant, HistoryId>> lookup_history(const HashView hash) const;
 
     [[nodiscard]] std::vector<history::Entry> lookup_history_range(HistoryId lower, HistoryId upper) const;
     [[nodiscard]] std::optional<history::Entry> lookup_history(HistoryId id) const;
@@ -254,8 +256,8 @@ public:
 
     //////////////////////////////
     // BELOW METHODS REQUIRED FOR INDEXING NODES
-    std::optional<AccountId> lookup_account_id(const AddressView address) const; // for indexing nodes
-    std::vector<std::tuple<HistoryId, Hash, std::vector<uint8_t>>> lookup_history_100_desc(AccountId account_id, int64_t beforeId);
+    std::optional<AccountId> lookup_account(const AddressView address) const; // for indexing nodes
+    std::vector<std::tuple<HistoryId, history::Entry>> lookup_history_100_desc(AccountId account_id, int64_t beforeId);
     size_t byte_size() const;
 
 private:

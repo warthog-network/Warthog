@@ -19,9 +19,9 @@ protected:
     using parent = TransactionMsg;
 
 public:
-    TransactionMsg(const TransactionId& txid, NonceReserved reserved, CompactUInt compactFee, Ts... ts, RecoverableSignature signature)
+    TransactionMsg(const TransactionId& txid, NonceReserved reserved, CompactUInt compactFee, Ts::data_t... ts, RecoverableSignature signature)
         : MsgBase { txid, std::move(reserved), std::move(compactFee) }
-        , CombineElements<Ts..., SignatureEl>(std::move(ts)...,std::move(signature))
+        , CombineElements<Ts..., SignatureEl>(std::move(ts)..., std::move(signature))
     {
     }
     TransactionMsg(CreatedTransactionMsg<Ts...>);
@@ -71,28 +71,62 @@ TransactionMsg<Ts...>::TransactionMsg(CreatedTransactionMsg<Ts...> m)
 class WartTransferMessage : public TransactionMsg<ToAddrEl, WartEl> {
 public:
     using WartTransfer = block::body::WartTransfer;
-    using TransactionMsg::TransactionMsg;
+    WartTransferMessage(TransactionId txid, NonceReserved nr, CompactUInt fee, Address addr, Wart wart, RecoverableSignature sgn)
+        : TransactionMsg(std::move(txid), std::move(nr), std::move(fee), std::move(addr), std::move(wart), std::move(sgn))
+    {
+        check_throw();
+    };
+    WartTransferMessage(Reader& r)
+        : TransactionMsg(r)
+    {
+        check_throw();
+    }
+    void check_throw()
+    {
+        if (wart().is_zero())
+            throw Error(EZEROWART);
+    }
 
     [[nodiscard]] Wart spend_wart_throw() const { return Wart::sum_throw(fee(), wart()); }
 };
 
-class TokenTransferMessage : public TransactionMsg<TokenHashEl, CreatorAddrEl, AmountEl> { // for defi we include the token hash
+class TokenTransferMessage : public TransactionMsg<AssetHashEl, ToAddrEl, AmountEl> { // for defi we include the token hash
 public:
-    using TransactionMsg::TransactionMsg;
+    TokenTransferMessage(TransactionId txid, NonceReserved nr, CompactUInt fee, AssetHash ah, Address addr, Funds_uint64 amount, RecoverableSignature sgn)
+        : TransactionMsg(std::move(txid), std::move(nr), std::move(fee), std::move(ah), std::move(addr), std::move(amount), std::move(sgn))
+    {
+        check_throw();
+    };
+    TokenTransferMessage(Reader& r)
+        : TransactionMsg(r)
+    {
+        check_throw();
+    }
+    void check_throw()
+    {
+        if (amount().is_zero())
+            throw Error(EZEROAMOUNT);
+    }
 };
 
-class OrderMessage : public TransactionMsg<TokenHashEl, BuyEl, AmountEl, LimitPriceEl> { // for defi we include the token hash
+class OrderMessage : public TransactionMsg<AssetHashEl, BuyEl, AmountEl, LimitPriceEl> { // for defi we include the token hash
 public:
     using TransactionMsg::TransactionMsg;
 };
 
 class CancelationMessage : public TransactionMsg<CancelPinNonceEl> {
+public:
+    using TransactionMsg::TransactionMsg;
 };
-class LiquidityAddMessage : public TransactionMsg<TokenHashEl, WartEl, AmountEl> {
+class LiquidityAddMessage : public TransactionMsg<AssetHashEl, WartEl, AmountEl> {
+public:
+    using TransactionMsg::TransactionMsg;
 };
-class LiquidityRemoveMessage : public TransactionMsg<TokenHashEl, AmountEl> {
+class LiquidityRemoveMessage : public TransactionMsg<AssetHashEl, AmountEl> {
+public:
+    using TransactionMsg::TransactionMsg;
 };
-using TransactionVariant = wrt::variant<WartTransferMessage, TokenTransferMessage>;
+using TransactionVariant = wrt::variant<WartTransferMessage, TokenTransferMessage, OrderMessage, CancelationMessage, LiquidityAddMessage, LiquidityRemoveMessage>;
 
 struct TransactionMessage : public TransactionVariant {
     const MsgBase& base() const

@@ -67,3 +67,5 @@ protected:
 };
 
 Writer& operator<<(Writer& w, const PinNonce& n);
+HasherSHA256& operator<<(HasherSHA256& w, const PinNonce& n);
+HasherSHA256&& operator<<(HasherSHA256&& w, const PinNonce& n);

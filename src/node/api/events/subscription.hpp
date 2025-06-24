@@ -59,7 +59,7 @@ namespace events {
     struct ChainAppend {
         static constexpr auto eventName { "chain.append" };
         api::ChainHead head;
-        std::vector<api::Block> newBlocks;
+        std::vector<api::CompleteBlock> newBlocks;
     };
     struct ChainFork {
         static constexpr auto eventName { "chain.fork" };

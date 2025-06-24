@@ -258,7 +258,7 @@ json to_json(const FundsDecimal& fd)
         { "precision", fd.precision.value() }
     };
 }
-auto to_json_visit(const api::TransferTransaction& tx)
+auto to_json_visit(const api::WartTransferTransaction& tx)
 {
     json j;
     json jtx;

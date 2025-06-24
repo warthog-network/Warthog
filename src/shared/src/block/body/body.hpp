@@ -77,7 +77,7 @@ public:
     body_vector<body::WartTransfer> wartTransfers;
     body_vector<body::Cancelation> cancelations;
     body_vector<body::TokenSection> tokens;
-    body_vector<body::TokenCreation> tokenCreations;
+    body_vector<body::AssetCreation> tokenCreations;
 };
 
 }

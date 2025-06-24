@@ -26,7 +26,7 @@ using IdCombineSigned = IdCombine<I, PinNonceEl, CompactFeeEl, Ts...>;
 
 using WartTransferData = IdCombineSigned<1, OriginAccIdEl, ToAccIdEl, WartEl>;
 using RewardData = IdCombine<2, ToAccIdEl, WartEl>;
-using AssetCreationData = IdCombineSigned<3, AssetIdEl, OwnerIdEl, TokenSupplyEl, TokenNameEl>;
+using AssetCreationData = IdCombineSigned<3, AssetIdEl, OwnerIdEl, AssetSupplyEl, AssetNameEl>;
 using TokenTransferData = IdCombineSigned<4, TokenIdEl, OriginAccIdEl, ToAccIdEl, AmountEl>;
 using OrderData = IdCombineSigned<5, AssetIdEl, BuyEl, AccountIdEl, LimitPriceEl, AmountEl>;
 using CancelationData = IdCombineSigned<6, CancelTxidEl>;

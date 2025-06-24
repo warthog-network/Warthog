@@ -117,7 +117,10 @@ public:
     {
         return bytes.size();
     }
-    friend Writer& operator<<(Writer&, const Headervec&);
+
+    friend auto&& operator<<(Serializer auto&& s, const Headervec& hv){
+        return std::forward<decltype(s)>( s<< hv.bytes);
+    };
 
 
 protected:

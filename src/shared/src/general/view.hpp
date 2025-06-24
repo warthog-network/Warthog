@@ -15,6 +15,7 @@ struct View {
     const uint8_t* data() const { return pos; }
     uint8_t operator[](size_t i) const { return *(pos + i); }
     std::span<const uint8_t> span() const { return { data(), size() }; }
+    operator std::span<const uint8_t>() const { return span(); }
     operator std::array<uint8_t, N>()
     {
         std::array<uint8_t, N> res;

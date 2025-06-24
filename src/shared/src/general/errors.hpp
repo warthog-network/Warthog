@@ -82,7 +82,7 @@
     XX(81, EGRIDMISMATCH, "grid mismatch")                                         \
     XX(82, ESELFSEND, "self send transaction not allowed")                         \
     XX(83, EBLOCKVERSION, "unsupported block version")                             \
-    XX(84, EZEROAMOUNT, "transactions cannot send 0 WART")                         \
+    XX(84, EZEROAMOUNT, "transactions cannot send 0 tokens")                       \
     XX(85, ENOINIT, "first message must be init message")                          \
     XX(86, EINVINIT, "only first message can be init message")                     \
     XX(87, EFAKEACCID, "fake account id")                                          \
@@ -131,6 +131,7 @@
     XX(131, ETOKIDNOTFOUND, "token id not found")                                  \
     XX(132, ENOPOOL, "no pool liquidity")                                          \
     XX(133, ERTCDISABLED, "WebRTC disabled, cannot receive message")               \
+    XX(193, EZEROWART, "transactions cannot send 0 WART")                          \
     XX(194, EPOOLREDEEM, "Cannot redeem more shares than pool issued")             \
     XX(195, EINVBUY, "invalid buy value")                                          \
     XX(196, ETOKENPRECISION, "invalid token precision")                            \

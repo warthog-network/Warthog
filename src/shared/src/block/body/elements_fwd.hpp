@@ -9,7 +9,7 @@ template <typename... Ts>
 struct SignedCombined;
 
 using Reward = Combined<ToAccIdEl, WartEl>;
-using TokenCreation = SignedCombined<TokenSupplyEl, TokenPrecisionEl, TokenNameEl>;
+using AssetCreation = SignedCombined<AssetSupplyEl, AssetPrecisionEl, AssetNameEl>;
 using WartTransfer = SignedCombined<ToAccIdEl, WartEl>;
 using TokenTransfer = SignedCombined<ToAccIdEl, AmountEl>;
 using ShareTransfer = SignedCombined<ToAccIdEl, AmountEl>;

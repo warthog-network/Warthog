@@ -50,26 +50,6 @@ struct Head {
     bool synced;
 };
 
-struct RewardTransaction {
-    Hash txhash;
-    Address toAddress;
-    uint32_t confirmations;
-    Height height { 0 };
-    uint32_t timestamp = 0;
-    Wart amount;
-};
-struct TransferTransaction {
-    Hash txhash;
-    Address toAddress;
-    uint32_t confirmations;
-    Height height { 0 };
-    uint32_t timestamp = 0;
-    Wart amount;
-    Address fromAddress;
-    Wart fee;
-    NonceId nonceId;
-    PinHeight pinHeight { PinHeight::undef() };
-};
 struct AddressWithId {
     Address address;
     AccountId accountId;
@@ -107,113 +87,117 @@ struct BlockSummary {
     Wart totalTxFee;
     Wart blockReward;
 };
+namespace block {
+struct Reward {
+    TxHash txhash;
+    Address toAddress;
+    Wart amount;
+};
+struct WartTransfer {
+    Hash txhash;
+    Address fromAddress;
+    Wart fee;
+    NonceId nonceId;
+    PinHeight pinHeight;
+    Address toAddress;
+    Wart amount;
+};
+struct TokenTransfer {
+    Hash txhash;
+    Address fromAddress;
+    Wart fee;
+    NonceId nonceId;
+    PinHeight pinHeight;
+    Address toAddress;
+    Funds_uint64 amount;
+    AssetIdHashNamePrecision assetInfo;
+
+    FundsDecimal amount_decimal() const { return { amount, assetInfo.precision }; }
+};
+struct NewOrder {
+    Hash txhash;
+    AssetIdHashNamePrecision assetInfo;
+    Wart fee;
+    Funds_uint64 amount;
+    Price_uint64 limit;
+    bool buy;
+    Address address;
+
+    FundsDecimal amount_decimal() const { return { amount, buy ? assetInfo.precision : Wart::precision }; }
+};
+struct Match {
+    struct Swap {
+        HistoryId orderId;
+        Wart fillQuote;
+        FundsDecimal fillBase;
+    };
+    Hash txhash;
+    AssetIdHashNamePrecision assetInfo;
+    defi::BaseQuote liquidityBefore;
+    defi::BaseQuote liquidityAfter;
+    std::vector<Swap> buySwaps;
+    std::vector<Swap> sellSwaps;
+};
+struct AssetCreation {
+    TxHash txhash;
+    AssetName assetName;
+    FundsDecimal supply;
+    AssetId assetId;
+    Wart fee;
+};
+struct Cancelation {
+    Hash txhash;
+    Wart fee;
+    Address address;
+};
+struct LiquidityDeposit {
+    TxHash txhash;
+    Wart fee;
+    Funds_uint64 baseDeposited;
+    Wart quoteDeposited;
+    Funds_uint64 sharesReceived;
+};
+struct LiquidityWithdrawal {
+    TxHash txhash;
+    Wart fee;
+    Funds_uint64 sharesRedeemed;
+    Funds_uint64 baseReceived;
+    Wart quoteReceived;
+};
+struct Actions {
+    std::optional<block::Reward> reward;
+    std::vector<block::WartTransfer> wartTransfers;
+    std::vector<block::TokenTransfer> tokenTransfers;
+    std::vector<block::AssetCreation> assetCreations;
+    std::vector<block::NewOrder> newOrders;
+    std::vector<block::Match> matches;
+    std::vector<block::LiquidityDeposit> liquidityDeposit;
+    std::vector<block::LiquidityWithdrawal> liquidityWithdrawal;
+    std::vector<block::Cancelation> cancelations;
+};
+}
 
 struct Block {
     static constexpr const char eventName[] = "blockAppend";
-    struct Transfer {
-        Hash txhash;
-        Address fromAddress;
-        Wart fee;
-        NonceId nonceId;
-        PinHeight pinHeight;
-        Address toAddress;
-        Wart amount;
-    };
-    struct TokenTransfer {
-        Hash txhash;
-        AssetIdHashNamePrecision assetInfo;
-        Address fromAddress;
-        Wart fee;
-        NonceId nonceId;
-        PinHeight pinHeight;
-        Address toAddress;
-        Funds_uint64 amount;
-
-        FundsDecimal amount_decimal() const { return { amount, assetInfo.precision }; }
-    };
-    struct NewOrder {
-        Hash txhash;
-        AssetIdHashNamePrecision assetInfo;
-        Wart fee;
-        Funds_uint64 amount;
-        Price_uint64 limit;
-        bool buy;
-        Address address;
-
-        FundsDecimal amount_decimal() const { return { amount, buy ? assetInfo.precision : Wart::precision }; }
-    };
-    struct Match {
-        struct Swap {
-            HistoryId orderId;
-            Wart fillQuote;
-            FundsDecimal fillBase;
-        };
-        Hash txhash;
-        AssetIdHashNamePrecision assetInfo;
-        defi::BaseQuote liquidityBefore;
-        defi::BaseQuote liquidityAfter;
-        std::vector<Swap> buySwaps;
-        std::vector<Swap> sellSwaps;
-    };
-    struct Reward {
-        TxHash txhash;
-        Address toAddress;
-        Wart amount;
-    };
-    struct AssetCreation {
-        TxHash txhash;
-        AssetName assetName;
-        FundsDecimal supply;
-        AssetId assetId;
-        Wart fee;
-    };
-    struct Cancelation {
-        Hash txhash;
-        Wart fee;
-        Address address;
-    };
-    struct LiquidityDeposit {
-        TxHash txhash;
-        Wart fee;
-        Funds_uint64 baseDeposited;
-        Wart quoteDeposited;
-        Funds_uint64 sharesReceived;
-    };
-    struct LiquidityWithdrawal {
-        TxHash txhash;
-        Wart fee;
-        Funds_uint64 sharesRedeemed;
-        Funds_uint64 baseReceived;
-        Wart quoteReceived;
-    };
     Header header;
     NonzeroHeight height;
     uint32_t confirmations = 0;
 
 public:
-    struct Actions {
-        std::optional<Reward> reward;
-        std::vector<Transfer> wartTransfers;
-        std::vector<TokenTransfer> tokenTransfers;
-        std::vector<AssetCreation> assetCreations;
-        std::vector<NewOrder> newOrders;
-        std::vector<Match> matches;
-        std::vector<LiquidityDeposit> liquidityDeposit;
-        std::vector<LiquidityWithdrawal> liquidityWithdrawal;
-        std::vector<Cancelation> cancelations;
-    } actions;
+    block::Actions actions;
 
     Block(Header header,
         NonzeroHeight height, uint32_t confirmations,
-        Actions actions)
+        block::Actions actions)
         : header(header)
         , height(height)
         , confirmations(confirmations)
         , actions(std::move(actions))
     {
     }
-    void set_reward(Reward r);
+    void set_reward(block::Reward r);
 };
+
 struct CompleteBlock : public Block {
     explicit CompleteBlock(Block b)
         : Block(std::move(b))
@@ -222,6 +206,17 @@ struct CompleteBlock : public Block {
             throw std::runtime_error("API Block is incomplete.");
     }
     auto& reward() const { return *actions.reward; }
+};
+
+
+struct TemporalInfo {
+    uint32_t confirmations;
+    Height height { 0 };
+    uint32_t timestamp = 0;
+};
+
+template <typename TxType>
+struct Temporal : public TemporalInfo,public TxType {
 };
 
 struct AddressCount {

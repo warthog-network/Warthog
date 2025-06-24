@@ -5,6 +5,7 @@
 #include "block/chain/consensus_headers.hpp"
 #include "block/chain/history/index.hpp"
 #include "block/chain/offsts.hpp"
+#include "cache_fwd.hpp"
 #include "chainserver/db/deletion_key.hpp"
 #include "chainserver/db/types_fwd.hpp"
 #include "defi/token/account_token.hpp"
@@ -14,7 +15,7 @@
 namespace chainserver {
 struct RollbackResult {
     ShrinkInfo shrink;
-    std::vector<WartTransferMessage> toMempool;
+    std::vector<TransactionMessage> toMempool;
     std::map<AccountId, Wart> wartUpdates;
     TransactionIds chainTxIds;
     DeletionKey deletionKey;
@@ -61,6 +62,7 @@ struct Chainstate {
     [[nodiscard]] auto append(AppendSingle) -> HeaderchainAppend;
 
     TxHash insert_tx(const TransactionMessage& m);
+    TxHash insert_tx(const TransactionMessage& m, WartCache& ac);
     [[nodiscard]] TxHash create_tx(const WartTransferCreate& m);
 
     // const functions

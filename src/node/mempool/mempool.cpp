@@ -1,5 +1,7 @@
 #include "mempool.hpp"
 #include "api/events/emit.hpp"
+#include "chainserver/state/helpers/cache.hpp"
+// #include "api/events/emit.hpp"
 namespace mempool {
 bool LockedBalance::set_avail(Wart amount)
 {
@@ -21,7 +23,7 @@ void LockedBalance::unlock(Wart amount)
     used.subtract_assert(amount);
 }
 
-std::vector<TransactionMessage> Mempool::get_transactions(size_t n, NonzeroHeight height, std::vector<Hash>* hashes) const
+std::vector<TransactionMessage> Mempool::get_transactions(size_t n, NonzeroHeight height, std::vector<TxHash>* hashes) const
 {
     std::vector<TransactionMessage> res;
     res.reserve(n);
@@ -189,13 +191,10 @@ void Mempool::set_wart_balance(AccountId aid, Wart newBalance)
     assert(false); // should not happen
 }
 
-Error Mempool::insert_tx(const TransactionMessage& pm,
-    TxHeight txh,
-    const TxHash& txhash,
-    const AddressFunds& af)
+Error Mempool::insert_tx(const TransactionMessage& pm, TxHeight txh, const TxHash& hash, const Address& fromAddr, chainserver::WartCache& wartCache)
 {
     try {
-        insert_tx_throw(pm, txh, txhash, af);
+        insert_tx_throw(pm, txh, hash, fromAddr, wartCache);
         return 0;
     } catch (Error e) {
         return e;
@@ -204,15 +203,20 @@ Error Mempool::insert_tx(const TransactionMessage& pm,
 
 void Mempool::insert_tx_throw(const TransactionMessage& pm,
     TxHeight txh,
-    const TxHash& txhash,
-    const AddressFunds& af)
+    const TxHash& txhash, const Address& fromAddr, chainserver::WartCache& wartCache)
 {
-    if (pm.from_address(txhash) != af.address)
+    if (pm.from_address(txhash) != fromAddr)
         throw Error(EFAKEACCID);
 
-    if (af.funds.is_zero())
-        throw Error(EBALANCE);
-    auto balanceIter = lockedBalances.try_emplace(pm.from_id(), af.funds).first;
+    auto fromId { pm.from_id() };
+    auto balanceIter { lockedBalances.upper_bound(pm.from_id()) };
+    if (balanceIter == lockedBalances.end() || balanceIter->first != pm.from_id()) {
+        // need to insert
+        auto wart { wartCache[fromId] };
+        if (wart.is_zero())
+            throw Error(EBALANCE);
+        balanceIter = lockedBalances.emplace_hint(balanceIter, pm.from_id(), wart);
+    }
     auto& e { balanceIter->second };
     const Wart spend { pm.spend_wart_throw() };
 

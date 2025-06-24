@@ -1,5 +1,6 @@
 #pragma once
 #include "general/reader_declaration.hpp"
+#include "general/serializer.hxx"
 #include "nlohmann/json_fwd.hpp"
 #include <cstdint>
 
@@ -19,7 +20,6 @@ public:
 
     bool operator==(const IsUint32&) const = default;
     auto operator<=>(const IsUint32&) const = default;
-    friend Writer& operator<<(Writer& w, const IsUint32& v);
     operator nlohmann::json() const;
 
     constexpr uint32_t value() const
@@ -30,6 +30,10 @@ public:
 protected:
     uint32_t val;
 };
+auto&& operator<<(Serializer auto&& s, const IsUint32& v)
+{
+    return std::forward<decltype(s)>(s << v.value());
+}
 
 template <typename T>
 class UInt32WithIncrement : public IsUint32 {
@@ -80,7 +84,6 @@ public:
 
     bool operator==(const IsUint64&) const = default;
     auto operator<=>(const IsUint64&) const = default;
-    friend Writer& operator<<(Writer& w, const IsUint64& v);
 
     operator nlohmann::json() const;
     uint64_t value() const
@@ -91,6 +94,10 @@ public:
 protected:
     uint64_t val;
 };
+auto&& operator<<(Serializer auto&& s, const IsUint64& v)
+{
+    return std::forward<decltype(s)>(s << v.value());
+}
 
 template <typename T>
 class UInt64WithIncrement : public IsUint64 {

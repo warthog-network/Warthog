@@ -50,7 +50,7 @@ public:
     operator std::string();
 };
 
-class TokenTransferCreate : public TransactionCreate<TokenTransferCreate, ToAddrEl, AmountEl, TokenHashEl> {
+class TokenTransferCreate : public TransactionCreate<TokenTransferCreate, ToAddrEl, AmountEl, AssetHashEl> {
 public:
     using message_t = TokenTransferMessage;
     using TransactionCreate::TransactionCreate;

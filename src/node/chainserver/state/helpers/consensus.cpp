@@ -1,6 +1,6 @@
 #include "consensus.hpp"
-#include "chainserver/db/chain_db.hpp"
 #include "cache.hpp"
+#include "chainserver/db/chain_db.hpp"
 #include "communication/create_transaction.hpp"
 #include "global/globals.hpp"
 #include <spdlog/spdlog.h>
@@ -60,19 +60,20 @@ void Chainstate::fork(Chainstate::ForkData&& fd)
 
     //////////////////////////////
     // insert transactions into mempool
-    AddressCache accountCache(db);
+    AddressCache addressCache(db);
+    WartCache wartCache(db);
     for (auto& tx : fd.rollbackResult.toMempool) {
         AccountId fromId { tx.from_id() };
-        auto& from { accountCache[fromId] };
+        auto& fromAddr { addressCache.get_throw(fromId) };
 
         PinHeight ph { tx.pin_height() };
         assert(ph <= forkHeight - 1);
         auto hash { headers().hash_at(ph) };
-        TxHash txhash { tx.txhash(hash) };
+        auto txhash { tx.txhash(hash) };
 
         if (!fd.appendResult.newTxIds.contains(tx.txid())) {
             TxHeight txh { ph, account_height(fromId) };
-            _mempool.insert_tx(tx, txh, txhash, from);
+            _mempool.insert_tx(tx, txh, txhash, fromAddr, wartCache);
         }
     }
 
@@ -123,10 +124,11 @@ auto Chainstate::rollback(const RollbackResult& rb) -> HeaderchainRollback
 
     //////////////////////////////
     // insert transactions into mempool
-    AddressCache accountCache(db);
+    AddressCache addressCache(db);
+    WartCache wartCache(db);
     for (auto& tx : rb.toMempool) {
         AccountId fromId { tx.from_id() };
-        auto& from { accountCache[fromId] };
+        auto& from { addressCache.fetch(fromId) };
 
         PinHeight ph { tx.pin_height() };
         assert(ph <= forkHeight - 1);
@@ -134,7 +136,7 @@ auto Chainstate::rollback(const RollbackResult& rb) -> HeaderchainRollback
         TxHash txhash { tx.txhash(hash) };
 
         TxHeight txh { ph, account_height(fromId) };
-        _mempool.insert_tx(tx, txh, txhash, from);
+        _mempool.insert_tx(tx, txh, txhash, from, wartCache);
     }
     return HeaderchainRollback {
         .shrink { rb.shrink },
@@ -216,27 +218,32 @@ auto Chainstate::append(AppendSingle d) -> HeaderchainAppend
     return headers().get_append(l);
 }
 
-TxHash Chainstate::insert_tx(const TransactionMessage& pm)
+TxHash Chainstate::insert_tx(const TransactionMessage& tm, WartCache& wc)
 {
-    if (pm.pin_height() < (length() + 1).pin_begin())
+    if (tm.pin_height() < (length() + 1).pin_begin())
         throw Error(EPINHEIGHT);
-    if (txids().contains(pm.txid()))
+    if (txids().contains(tm.txid()))
         throw Error(ENONCE);
-    auto h = headers().get_hash(pm.pin_height());
+    auto h = headers().get_hash(tm.pin_height());
     if (!h)
         throw Error(EPINHEIGHT);
-    if (pm.amount().is_zero())
-        throw Error(EZEROAMOUNT);
-    auto txHash { pm.txhash(*h) };
-    if (pm.from_address(txHash) == pm.to_address())
-        throw Error(ESELFSEND);
+    auto txHash { tm.txhash(*h) };
 
-    auto p = db.lookup_address(pm.from_id());
+    auto p = db.lookup_address(tm.from_id());
     if (!p)
         throw Error(EACCIDNOTFOUND);
-    TxHeight th(pm.pin_height(), account_height(pm.from_id()));
+    tm.visit_overload(
+        [&](const WartTransferMessage& m) {
+            if (*p == m.to_addr())
+                throw Error(ESELFSEND);
+        },
+        [&](const TokenTransferMessage& m) {
+            if (*p == m.to_addr())
+                throw Error(ESELFSEND);
+        });
+    TxHeight th(tm.pin_height(), account_height(tm.from_id()));
 
-    _mempool.insert_tx_throw(pm, th, txHash, { *p, pm.amount() });
+    _mempool.insert_tx_throw(tm, th, txHash, { *p, tm.amount() });
     return txHash;
 }
 
@@ -254,10 +261,10 @@ TxHash Chainstate::create_tx(const WartTransferCreate& m)
     auto fromAddr = m.from_address(txHash);
     if (fromAddr == m.to_addr())
         throw Error(ESELFSEND);
-    auto accId = db.lookup_account_id(fromAddr);
+    auto accId = db.lookup_account(fromAddr);
     if (!accId)
         throw Error(EADDRNOTFOUND);
-    auto [bal_id, balance] { db.get_token_balance_recursive( *accId, TokenId::WART ) };
+    auto [bal_id, balance] { db.get_token_balance_recursive(*accId, TokenId::WART) };
 
     AddressFunds af { fromAddr, balance };
     throw Error(ENONCE);

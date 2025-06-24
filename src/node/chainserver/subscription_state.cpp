@@ -387,15 +387,15 @@ void AddressSubscriptionState::session_rollback(Height h)
 }
 void AddressSubscriptionState::session_block(const api::Block& b)
 {
-    if (auto& r { b.reward() }) {
+    if (auto& r { b.actions.reward }) {
         if (auto c { session_address_cursor(b, r->toAddress, b.height) })
             c->b.set_reward(*r);
     }
-    for (auto& t : b.transfers) {
+    for (auto& t : b.actions.wartTransfers) {
         if (auto c { session_address_cursor(b, t.toAddress, b.height) })
-            c->b.transfers.push_back(t);
+            c->b.actions.wartTransfers.push_back(t);
         if (auto c { session_address_cursor(b, t.fromAddress, b.height) })
-            c->b.transfers.push_back(t);
+            c->b.actions.wartTransfers.push_back(t);
     }
 }
 std::optional<SessionAddressCursor> AddressSubscriptionState::session_address_cursor(const api::Block& b, const Address& a, Height h)

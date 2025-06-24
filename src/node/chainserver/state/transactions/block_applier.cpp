@@ -561,7 +561,7 @@ public:
         tokenSections.push_back(std::move(ts));
     }
 
-    void register_token_creation(const TokenCreation& tc, size_t index, Height)
+    void register_token_creation(const AssetCreation& tc, size_t index, Height)
     {
         auto s { process_signer(tc) };
         tokenCreations.push_back(TokenCreationInternal {
@@ -818,7 +818,7 @@ public:
     std::vector<chain_db::OrderData> insertOrders;
     std::vector<TransactionId> insertCancelOrder;
     std::vector<MatchStateDelta> matchDeltas;
-    api::Block::Actions api;
+    api::block::Actions api;
 
 private:
     friend class PreparationGenerator;
@@ -854,7 +854,7 @@ private:
         for (auto address : body.newAddresses) {
             if (newAddresses.emplace(address).second == false)
                 throw Error(EADDRPOLICY);
-            if (db.lookup_account_id(address))
+            if (db.lookup_account(address))
                 throw Error(EADDRPOLICY);
         }
     }
@@ -922,7 +922,7 @@ private:
         Funds_uint64 newbalance { Funds_uint64::diff_throw(totalIn, tokenFlow.out()) };
         updateBalances.push_back({ balanceId, at, newbalance });
     }
-    auto db_address(AccountId id)
+    auto db_addr(AccountId id)
     {
         if (auto address { db.lookup_address(id) })
             return *address;
@@ -939,7 +939,7 @@ private:
     {
         // process old accounts
         for (auto& [accountId, accountData] : balanceChecker.old_accounts()) {
-            accountData.address = db_address(accountId);
+            accountData.address = db_addr(accountId);
             for (auto& [tokenId, tokenFlow] : accountData.token_flow()) {
                 AccountToken at { accountId, tokenId };
                 if (auto p { db.get_balance(accountId, tokenId) })
@@ -980,7 +980,7 @@ private:
             throw Error(EBALANCE);
         assert(!r.toAddress.is_null());
         auto& ref { history.push_reward(r) };
-        api.reward = api::Block::Reward {
+        api.reward = api::block::Reward {
             .txhash { ref.he.hash },
             .toAddress { r.toAddress },
             .amount { r.amount },
@@ -1049,7 +1049,7 @@ private:
             auto verified { verify(tr) };
 
             auto& ref { history.push_wart_transfer(verified) };
-            api.wartTransfers.push_back(api::Block::Transfer {
+            api.wartTransfers.push_back(api::block::WartTransfer {
                 .txhash { ref.he.hash },
                 .fromAddress { tr.origin.address },
                 .fee { tr.compactFee.uncompact() },
@@ -1089,7 +1089,7 @@ private:
             auto verified { verify(tr, token.info().hash) };
 
             auto& ref { history.push_token_transfer(verified, token.id().token_id()) };
-            api.tokenTransfers.push_back(api::Block::TokenTransfer {
+            api.tokenTransfers.push_back(api::block::TokenTransfer {
                 .txhash { ref.he.hash },
                 .assetInfo { token.info() },
                 .fromAddress { tr.origin.address },
@@ -1111,7 +1111,7 @@ private:
         for (auto& o : orders) {
             auto verified { verify(o, asset.hash()) };
             auto& ref { history.push_order(verified) };
-            api.newOrders.push_back(api::Block::NewOrder {
+            api.newOrders.push_back(api::block::NewOrder {
                 .txhash { verified.hash },
                 .assetInfo { asset.info() },
                 .fee { o.fee() },

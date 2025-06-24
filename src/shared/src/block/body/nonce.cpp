@@ -52,6 +52,15 @@ std::optional<PinNonce> PinNonce::make_pin_nonce(NonceId nid, NonzeroHeight heig
 
 // PinNonce
 
+HasherSHA256& operator<<(HasherSHA256& w, const PinNonce& n)
+{
+    return w << n.id << n.relativePin << n.reserved;
+};
+HasherSHA256&& operator<<(HasherSHA256&& w, const PinNonce& n)
+{
+    w << n.id << n.relativePin << n.reserved;
+    return std::move(w);
+};
 Writer& operator<<(Writer& w, const PinNonce& n)
 {
     return w << n.id << n.relativePin << n.reserved;

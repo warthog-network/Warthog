@@ -46,7 +46,7 @@ InitMsgGeneratorV1::operator Sndbuffer() const
        << cs.headers().length()
        << cs.total_work()
        << (uint32_t)(cs.headers().complete_batches().size() * 80)
-       << Range(cs.grid().raw());
+       << cs.grid().raw();
     return mw;
 }
 
@@ -259,7 +259,7 @@ InitMsgGeneratorV3::operator Sndbuffer() const
        << cs.headers().length()
        << cs.total_work()
        << (uint32_t)(cs.headers().complete_batches().size() * 80)
-       << Range(cs.grid().raw())
+       << cs.grid().raw()
        << uint8_t(rtcEnabled);
     return mw;
 }

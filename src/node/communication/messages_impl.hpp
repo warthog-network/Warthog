@@ -28,11 +28,11 @@ struct MessageWriter {
         writer << b;
         return *this;
     }
-    MessageWriter& operator<<(const Range& r)
-    {
-        writer << r;
-        return *this;
-    }
+    // MessageWriter& operator<<(const Range& r)
+    // {
+    //     writer << r;
+    //     return *this;
+    // }
 
     MessageWriter& operator<<(const Worksum& worksum)
     {

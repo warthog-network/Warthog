@@ -30,7 +30,7 @@ struct RandNonce : public WithNonce {
 
 struct String16 {
     String16();
-    String16(std::string data);
+    explicit String16(std::string data);
     String16(Reader& r);
 
     size_t byte_size() const;

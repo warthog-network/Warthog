@@ -52,7 +52,7 @@ IPv6::IPv6(Reader& r)
 
 Writer& operator<<(Writer& w, const IPv6& ip)
 {
-    return w << Range(ip.data);
+    return w << ip.data;
 }
 
 std::string IPv6::to_string() const

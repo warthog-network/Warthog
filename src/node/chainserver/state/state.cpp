@@ -108,17 +108,17 @@ void push_history(api::Block& b, const history::Entry& e, chainserver::DBCache& 
     e.data.visit_overload(
         [&](const history::WartTransferData& d) {
             b.actions.wartTransfers.push_back(
-                api::Block::Transfer {
+                api::block::WartTransfer {
                     .txhash = e.hash,
-                    .fromAddress = c.addresses[d.origin_account_id()],
+                    .fromAddress = c.addresses.fetch(d.origin_account_id()),
                     .fee = d.fee(),
                     .nonceId = d.pin_nonce().id,
                     .pinHeight = d.pin_nonce().pin_height_from_floored(pinFloor),
-                    .toAddress = c.addresses[d.to_id()],
+                    .toAddress = c.addresses.fetch(d.to_id()),
                     .amount = d.wart() });
         },
         [&](const history::RewardData& d) {
-            auto toAddress = c.addresses[d.to_id()];
+            auto toAddress = c.addresses.fetch(d.to_id());
             b.set_reward({ e.hash, toAddress, d.wart() });
         },
         [&](const history::AssetCreationData& d) {
@@ -133,36 +133,36 @@ void push_history(api::Block& b, const history::Entry& e, chainserver::DBCache& 
             auto& assetData { c.assets[d.token_id().corresponding_asset_id()] };
 
             b.actions.tokenTransfers.push_back(
-                api::Block::TokenTransfer {
+                api::block::TokenTransfer {
                     .txhash = e.hash,
                     .assetInfo = assetData,
-                    .fromAddress = c.addresses[d.origin_account_id()],
+                    .fromAddress = c.addresses.fetch(d.origin_account_id()),
                     .fee = d.fee(),
                     .nonceId = d.pin_nonce().id,
                     .pinHeight = d.pin_nonce().pin_height_from_floored(pinFloor),
-                    .toAddress = c.addresses[d.to_id()],
+                    .toAddress = c.addresses.fetch(d.to_id()),
                     .amount = { d.amount() } });
         },
         [&](const history::OrderData& d) {
             auto& assetData { c.assets[d.asset_id()] };
-            b.actions.newOrders.push_back(api::Block::NewOrder { .txhash { e.hash },
+            b.actions.newOrders.push_back(api::block::NewOrder { .txhash { e.hash },
                 .assetInfo { assetData.id_hash_name_precision() },
                 .fee { d.fee() },
                 .amount { d.amount() },
                 .limit { d.limit() },
                 .buy = d.buy(),
-                .address { c.addresses[d.account_id()] } });
+                .address { c.addresses.fetch(d.account_id()) } });
         },
         [&](const history::CancelationData& d) {
             b.actions.cancelations.push_back({
                 .txhash { e.hash },
                 .fee { d.fee() },
-                .address { c.addresses[d.cancel_account_id()] },
+                .address { c.addresses.fetch(d.cancel_account_id()) },
             });
         },
         [&](const history::MatchData& d) {
             auto& asset { c.assets[d.asset_id()] };
-            b.actions.matches.push_back(api::Block::Match { .txhash { e.hash },
+            b.actions.matches.push_back(api::block::Match { .txhash { e.hash },
                 .assetInfo { asset.id_hash_name_precision() },
                 .liquidityBefore { d.pool_before() },
                 .liquidityAfter { d.pool_after() },
@@ -217,21 +217,33 @@ std::optional<api::Transaction> State::api_get_tx(const TxHash& txHash) const
 {
     if (auto p = chainstate.mempool()[txHash]; p) {
         auto& tx = *p;
+        auto gen_temporal = []() { return api::TemporalInfo { 0, Height(0), 0 }; };
         tx.visit_overload(
             [&](const WartTransferMessage& wtm) -> api::Transaction {
-                return api::TransferTransaction {
-                    .txhash = txHash,
-                    .toAddress = wtm.to_addr(),
-                    .confirmations = 0,
-                    .height = Height(0),
-                    .amount = wtm.wart(),
-                    .fromAddress = wtm.from_address(txHash),
-                    .fee = wtm.fee(),
-                    .nonceId = wtm.nonce_id(),
-                    .pinHeight = wtm.pin_height(),
+                return api::WartTransferTransaction {
+                    gen_temporal(), {
+                                        .txhash = txHash,
+                                        .fromAddress = wtm.from_address(txHash),
+                                        .fee = wtm.fee(),
+                                        .nonceId = wtm.nonce_id(),
+                                        .pinHeight = wtm.pin_height(),
+                                        .toAddress = wtm.to_addr(),
+                                        .amount = wtm.wart(),
+                                    }
                 };
             },
-            [&](const TokenTransferMessage&) -> api::Transaction {
+            [&](const TokenTransferMessage& ttm) -> api::Transaction {
+                return api::TokenTransferTransaction {
+                    gen_temporal(), {
+                                        .txhash = txHash,
+                                        .fromAddress = ttm.from_address(txHash),
+                                        .fee = ttm.fee(),
+                                        .nonceId = ttm.nonce_id(),
+                                        .pinHeight = ttm.pin_height(),
+                                        .toAddress = ttm.to_addr(),
+                                        .amount = ttm.amount(),
+                                    }
+                };
             });
     }
     auto p = db.lookup_history(txHash);
@@ -243,7 +255,7 @@ std::optional<api::Transaction> State::api_get_tx(const TxHash& txHash) const
         NonzeroHeight h { chainstate.history_height(historyIndex) };
         if (std::holds_alternative<history::WartTransferData>(parsed)) {
             auto& d = std::get<history::WartTransferData>(parsed);
-            return api::TransferTransaction {
+            return api::WartTransferTransaction {
                 .txhash = txHash,
                 .toAddress = db.fetch_address(d.toAccountId),
                 .confirmations = (chainlength() - h) + 1,
@@ -334,7 +346,7 @@ auto State::api_get_transaction_range(HistoryId lower, HistoryId upper) const ->
             auto h { chainstate.history_height(id) };
             auto pinFloor { h.pin_floor() };
             auto header { chainstate.headers()[h] };
-            auto b { api::Block(header, h, chainlength() - h + 1) };
+            auto b { api::Block(header, h, chainlength() - h + 1, {}) };
             auto beginId { chainstate.historyOffset(h) };
             return std::tuple { pinFloor, beginId, b };
         };
@@ -348,8 +360,7 @@ auto State::api_get_transaction_range(HistoryId lower, HistoryId upper) const ->
                 tmp = update_tmp(id);
             }
 
-            auto& [hash, data] = lookup[lookup.size() - 1 - i];
-            block.push_history(hash, data, cache, pinFloor);
+            push_history(block, lookup[lookup.size() - 1 - i], cache, pinFloor);
         }
         res.count = lookup.size();
         res.blocks_reversed.push_back(std::get<2>(tmp));
@@ -800,7 +811,7 @@ std::pair<mempool::Updates, TxHash> State::append_gentx(const WartTransferCreate
 
 api::WartBalance State::api_get_address(AddressView address) const
 {
-    if (auto p = db.lookup_account_id(address); p) {
+    if (auto p = db.lookup_account(address); p) {
         return api::WartBalance {
             api::AddressWithId {
                 address,
@@ -849,7 +860,7 @@ auto State::insert_txs(const TxVec& txs) -> std::pair<std::vector<Error>, mempoo
     res.reserve(txs.size());
     for (auto& tx : txs) {
         try {
-            chainstate.insert_tx(tx);
+            chainstate.insert_txs(tx);
             res.push_back(0);
         } catch (const Error& e) {
             res.push_back(e.code);
@@ -891,7 +902,7 @@ auto State::api_get_mempool(size_t n) const -> api::MempoolEntries
 
 auto State::api_get_history(Address a, int64_t beforeId) const -> std::optional<api::AccountHistory>
 {
-    auto p = db.lookup_account_id(a);
+    auto p = db.lookup_account(a);
     if (!p)
         return {};
     auto& [accountId, balance] = *p;

@@ -4,6 +4,7 @@
 #include "block/chain/history/index.hpp"
 #include "chainserver/db/types_fwd.hpp"
 #include "defi/token/info.hpp"
+#include "general/address_funds.hpp"
 #include <map>
 namespace chainserver {
 class AddressCache {
@@ -13,12 +14,28 @@ public:
     {
     }
 
-    [[nodiscard]] const Address& operator[](AccountId id);
+    const std::optional<Address>& get(AccountId);
+    const Address& get_throw(AccountId);
+    const Address& fetch(AccountId);
 
 private:
-    std::map<AccountId, Address> map;
+    std::map<AccountId, std::optional<Address>> map;
     const ChainDB& db;
 };
+
+class WartCache {
+public:
+    WartCache(const ChainDB& db)
+        : db(db)
+    {
+    }
+    Wart operator[](AccountId aid);
+
+private:
+    std::map<AccountId, Wart> map;
+    const ChainDB& db;
+};
+
 class AssetCache {
 public:
     AssetCache(const ChainDB& db)
@@ -51,11 +68,13 @@ class DBCache {
 public:
     DBCache(const ChainDB& db)
         : addresses(db)
+        , wart(db)
         , assets(db)
         , history(db)
     {
     }
     AddressCache addresses;
+    WartCache wart;
     AssetCache assets;
     HistoryCache history;
 };
