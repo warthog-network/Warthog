@@ -76,7 +76,7 @@ Use at your own risk.
 - <a href="https://tradeogre.com/exchange/WART-USDT">TradeOgre exchange</a>
 - <a href="https://www.coinex.com/en/exchange/WART-USDT">CoinEx exchange</a>
 - <a href="https://www.bit.com/spot?pair=WART-USDT">Bit.com Exchange</a>
-- <a href="https://www.caldera.trade/get-started">Caldera OTC bot</a>
+- <a href="https://bitcointry.com/en/exchange/WART_USDT">Bitcointry Exchange</a>
 
 
 ## 📦 Component overview
@@ -96,7 +96,7 @@ Prebuilt binaries of the node daemon and cli wallet for Linux and Windows can be
 
 Prebuilt binaries of the miner for Linux and HiveOS can be downloaded [here](https://github.com/CoinFuMasterShifu/janusminer/releases)
 
-To compile from source see below or [here](https://warthog.network/docs/) for a more detailed guide.
+To compile from source see below or [here](https://docs.warthog.network/guides/node/compiling/) for a more detailed guide.
 
 ## 😵‍💫 BUILD INSTRUCTIONS
 
