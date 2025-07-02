@@ -42,8 +42,8 @@ public:
         updates.clear();
     }
     void apply_log(const Updates& log);
-    Error insert_tx(const TransactionMessage& pm, TxHeight txh, const TxHash& hash, const Address&, chainserver::WartCache& wartCache);
-    void insert_tx_throw(const TransactionMessage& pm, TxHeight txh, const TxHash& hash, const Address& fromAddr, chainserver::WartCache& wartCache);
+    Error insert_tx(const TransactionMessage& pm, TxHeight txh, const TxHash& hash, chainserver::WartCache& wartCache);
+    void insert_tx_throw(const TransactionMessage& pm, TxHeight txh, const TxHash& hash, chainserver::WartCache& wartCache);
     void erase(TransactionId id);
     void set_wart_balance(AccountId, Wart newBalance);
     void erase_from_height(Height);

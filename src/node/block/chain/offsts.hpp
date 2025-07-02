@@ -7,7 +7,7 @@
 template <typename HeightType, typename T>
 struct Heights {
     Heights(std::vector<T> data = {})
-        : data(std::move(data)) {};
+        : data(std::move(data)) { };
     const T& at(NonzeroHeight h) const
     {
         return data.at((h - 1).value());
@@ -21,6 +21,7 @@ struct Heights {
     {
         data.push_back(std::move(v));
     }
+    auto& last() const { return data.back(); }
     [[nodiscard]] HeightType height(const T& t) const
     {
         auto iter = std::upper_bound(data.begin(), data.end(),

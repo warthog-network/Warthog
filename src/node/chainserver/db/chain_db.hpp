@@ -192,8 +192,9 @@ public:
     [[nodiscard]] std::optional<std::pair<BalanceId, Funds_uint64>> get_balance(AccountId aid, TokenId tid) const;
     [[nodiscard]] Wart get_wart_balance(AccountId aid) const;
     [[nodiscard]] std::optional<AssetInfo> lookup_asset(AssetId) const;
-    [[nodiscard]] std::optional<AssetInfo> lookup_asset(AssetHash) const;
     [[nodiscard]] AssetInfo fetch_asset(AssetId id) const;
+    [[nodiscard]] std::optional<AssetInfo> lookup_asset(const AssetHash&) const;
+    [[nodiscard]] AssetInfo fetch_asset(const AssetHash&) const;
     void insert_token_balance(AccountToken, Funds_uint64 balance);
     void set_balance(BalanceId, Funds_uint64 balance);
     std::vector<std::pair<TokenId, Funds_uint64>> get_tokens(AccountId, size_t limit);

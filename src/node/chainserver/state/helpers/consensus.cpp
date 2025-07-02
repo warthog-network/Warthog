@@ -64,6 +64,8 @@ void Chainstate::fork(Chainstate::ForkData&& fd)
     WartCache wartCache(db);
     for (auto& tx : fd.rollbackResult.toMempool) {
         AccountId fromId { tx.from_id() };
+        if (fromId >= db.next_account_id())
+            continue;
         auto& fromAddr { addressCache.get_throw(fromId) };
 
         PinHeight ph { tx.pin_height() };
@@ -229,22 +231,15 @@ TxHash Chainstate::insert_tx(const TransactionMessage& tm, WartCache& wc)
         throw Error(EPINHEIGHT);
     auto txHash { tm.txhash(*h) };
 
-    auto p = db.lookup_address(tm.from_id());
-    if (!p)
+    auto fromAddr = db.lookup_address(tm.from_id());
+    if (!fromAddr)
         throw Error(EACCIDNOTFOUND);
-    tm.visit_overload(
-        [&](const WartTransferMessage& m) {
-            if (*p == m.to_addr())
-                throw Error(ESELFSEND);
-        },
-        [&](const TokenTransferMessage& m) {
-            if (*p == m.to_addr())
-                throw Error(ESELFSEND);
-        });
+    if (tm.from_address(txHash) != fromAddr)
+        throw Error(EFAKEACCID);
+
     TxHeight th(tm.pin_height(), account_height(tm.from_id()));
 
-    _mempool.insert_tx_throw(tm, th, txHash, { *p, tm.amount() });
-    return txHash;
+    return insert_tx_internal(tm, th, txHash, wc, *fromAddr);
 }
 
 TxHash Chainstate::create_tx(const WartTransferCreate& m)
@@ -264,18 +259,36 @@ TxHash Chainstate::create_tx(const WartTransferCreate& m)
     auto accId = db.lookup_account(fromAddr);
     if (!accId)
         throw Error(EADDRNOTFOUND);
-    auto [bal_id, balance] { db.get_token_balance_recursive(*accId, TokenId::WART) };
 
-    AddressFunds af { fromAddr, balance };
-    throw Error(ENONCE);
     TxHeight th(pinHeight, account_height(*accId));
 
-    auto [txid, shared] { m.mempool_data(*accId, th, txHash) };
-    WartTransferMessage pm(txid, shared, fromAddr, m.wart());
+    TransactionId txid(*accId, pinHeight, m.nonce_id());
+    if (txids().contains(txid))
+        throw Error(ENONCE);
 
-    // mempool::entry::Shared s();
-    if (txids().contains(pm.txid()))
-        _mempool.insert_tx_throw(pm, th, txHash, af);
+    WartTransferMessage pm(txid, m.nonce_reserved(), m.compact_fee(), m.to_addr(), m.wart(), m.signature());
+
+    WartCache wc(db);
+    return insert_tx_internal({ std::move(pm) }, th, txHash, wc, fromAddr);
+}
+
+TxHash Chainstate::insert_tx_internal(const TransactionMessage& m, TxHeight th, TxHash txHash, WartCache wc, const Address fromAddr)
+{
+    // additional checks
+    m.visit_overload(
+        [&](const WartTransferMessage& m) {
+            if (fromAddr == m.to_addr())
+                throw Error(ESELFSEND);
+        },
+        [&](const TokenTransferMessage& m) {
+            if (fromAddr == m.to_addr())
+                throw Error(ESELFSEND);
+        },
+        [&](const auto& m) {
+            // if (*fromAddr == m.to_addr())
+            //     throw Error(ESELFSEND);
+        });
+    _mempool.insert_tx_throw(TransactionMessage { std::move(m) }, th, txHash, wc);
     return txHash;
 }
 

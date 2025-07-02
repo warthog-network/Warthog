@@ -91,6 +91,7 @@ struct Chainstate {
     }
 
 protected:
+    TxHash insert_tx_internal(const TransactionMessage&, TxHeight, TxHash, WartCache, const Address fromAddr);
     void prune_txids();
     Chainstate(std::tuple<std::vector<Batch>, HistoryHeights, AccountHeights> init,
         const ChainDB& db, BatchRegistry& br);

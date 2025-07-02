@@ -6,7 +6,6 @@
 #include "transport/tcp/connection.hpp"
 #endif
 #include <algorithm>
-#include <future>
 #include <random>
 
 AddressManager::OutboundClosedEvent::OutboundClosedEvent(std::shared_ptr<ConnectionBase> c, Error reason)
@@ -119,7 +118,7 @@ auto AddressManager::insert(ConnectionBase::ConnectionVariant& convar, const Con
         }
 #endif
         if (ipCounter.contains(*ip))
-            return tl::unexpected(EDUPLICATECONNECTION);
+            return Error(EDUPLICATECONNECTION);
     }
 
     if (auto c { eviction_candidate() })

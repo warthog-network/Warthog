@@ -126,11 +126,7 @@ struct NewOrder {
     FundsDecimal amount_decimal() const { return { amount, buy ? assetInfo.precision : Wart::precision }; }
 };
 struct Match {
-    struct Swap {
-        HistoryId orderId;
-        Wart fillQuote;
-        FundsDecimal fillBase;
-    };
+    using Swap = CombineElements<BaseEl, QuoteEl, ReferredHistoryIdEl>;
     Hash txhash;
     AssetIdHashNamePrecision assetInfo;
     defi::BaseQuote liquidityBefore;
@@ -142,7 +138,7 @@ struct AssetCreation {
     TxHash txhash;
     AssetName assetName;
     FundsDecimal supply;
-    AssetId assetId;
+    std::optional<AssetId> assetId;
     Wart fee;
 };
 struct Cancelation {
@@ -155,14 +151,14 @@ struct LiquidityDeposit {
     Wart fee;
     Funds_uint64 baseDeposited;
     Wart quoteDeposited;
-    Funds_uint64 sharesReceived;
+    std::optional<Funds_uint64> sharesReceived;
 };
 struct LiquidityWithdrawal {
     TxHash txhash;
     Wart fee;
     Funds_uint64 sharesRedeemed;
-    Funds_uint64 baseReceived;
-    Wart quoteReceived;
+    std::optional<Funds_uint64> baseReceived;
+    std::optional<Wart> quoteReceived;
 };
 struct Actions {
     std::optional<block::Reward> reward;

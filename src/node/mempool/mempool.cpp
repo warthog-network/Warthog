@@ -191,10 +191,10 @@ void Mempool::set_wart_balance(AccountId aid, Wart newBalance)
     assert(false); // should not happen
 }
 
-Error Mempool::insert_tx(const TransactionMessage& pm, TxHeight txh, const TxHash& hash, const Address& fromAddr, chainserver::WartCache& wartCache)
+Error Mempool::insert_tx(const TransactionMessage& pm, TxHeight txh, const TxHash& hash, chainserver::WartCache& wartCache)
 {
     try {
-        insert_tx_throw(pm, txh, hash, fromAddr, wartCache);
+        insert_tx_throw(pm, txh, hash, wartCache);
         return 0;
     } catch (Error e) {
         return e;
@@ -203,10 +203,8 @@ Error Mempool::insert_tx(const TransactionMessage& pm, TxHeight txh, const TxHas
 
 void Mempool::insert_tx_throw(const TransactionMessage& pm,
     TxHeight txh,
-    const TxHash& txhash, const Address& fromAddr, chainserver::WartCache& wartCache)
+    const TxHash& txhash, chainserver::WartCache& wartCache)
 {
-    if (pm.from_address(txhash) != fromAddr)
-        throw Error(EFAKEACCID);
 
     auto fromId { pm.from_id() };
     auto balanceIter { lockedBalances.upper_bound(pm.from_id()) };

@@ -4,6 +4,7 @@
 #include "block/block_fwd.hpp"
 #include "block/chain/height_header_work.hpp"
 #include "block/chain/range.hpp"
+#include "chainserver/state/helpers/cache.hpp"
 #include "communication/messages.hpp"
 #include "communication/mining_task.hpp"
 #include "communication/stage_operation/result.hpp"
@@ -45,6 +46,7 @@ struct MiningCache {
     const BodyContainer& insert(const Address& a, bool disableTxs, VersionedBodyContainer);
     std::vector<Item> cache;
 };
+
 class State {
     friend class ApplyStageTransaction;
     friend class SetSignedPinTransaction;
@@ -58,8 +60,8 @@ public:
     State(ChainDB& b, BatchRegistry&, std::optional<SnapshotSigner> snapshotSigner);
 
     // concurrent methods
-    Batch get_headers_concurrent(BatchSelector selector);
-    std::optional<HeaderView> get_header_concurrent(Descriptor descriptor, Height height);
+    Batch get_headers_concurrent(BatchSelector selector) const;
+    std::optional<HeaderView> get_header_concurrent(Descriptor descriptor, Height height) const;
     ConsensusSlave get_chainstate_concurrent();
 
     // normal methods
@@ -141,6 +143,9 @@ public:
     [[nodiscard]] auto append_mined_block(const Block&) -> StateUpdateWithAPIBlocks;
 
 private:
+    api::Transaction api_dispatch_mempool(const TxHash&, TransactionMessage&&) const;
+    api::Transaction api_dispatch_history(const TxHash&, history::HistoryVariant&&, NonzeroHeight) const;
+
     // transaction helpers
     [[nodiscard]] chainserver::RollbackResult rollback(const Height newlength) const;
 
@@ -153,6 +158,7 @@ private:
 private:
     using tp = std::chrono::steady_clock::time_point;
     ChainDB& db;
+    mutable DBCache dbcache;
     BatchRegistry& batchRegistry;
 
     std::optional<SnapshotSigner> snapshotSigner;
@@ -162,7 +168,7 @@ private:
     tp signAfter { tp::max() };
     bool signingEnabled { true };
 
-    std::mutex chainstateMutex; // protects pastChains and chainstate
+    mutable std::mutex chainstateMutex; // protects pastChains and chainstate
     BlockCache blockCache;
     chainserver::Chainstate chainstate;
 

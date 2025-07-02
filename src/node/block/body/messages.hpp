@@ -126,7 +126,13 @@ class LiquidityRemoveMessage : public TransactionMsg<AssetHashEl, AmountEl> {
 public:
     using TransactionMsg::TransactionMsg;
 };
-using TransactionVariant = wrt::variant<WartTransferMessage, TokenTransferMessage, OrderMessage, CancelationMessage, LiquidityAddMessage, LiquidityRemoveMessage>;
+
+class AssetCreationMessage : public TransactionMsg<AssetSupplyEl, AssetNameEl> {
+public:
+    using TransactionMsg::TransactionMsg;
+};
+
+using TransactionVariant = wrt::variant<WartTransferMessage, TokenTransferMessage, OrderMessage, CancelationMessage, LiquidityAddMessage, LiquidityRemoveMessage, AssetCreationMessage>;
 
 struct TransactionMessage : public TransactionVariant {
     const MsgBase& base() const

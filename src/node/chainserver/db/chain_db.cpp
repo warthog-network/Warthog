@@ -986,7 +986,15 @@ std::optional<AssetInfo> ChainDB::lookup_asset(AssetId id) const
     });
 }
 
-std::optional<AssetInfo> ChainDB::lookup_asset(AssetHash hash) const
+AssetInfo ChainDB::fetch_asset(AssetId id) const
+{
+    auto p { lookup_asset(id) };
+    if (!p) {
+        throw std::runtime_error("Database corrupted (fetch_token(" + std::to_string(id.value()) + ")");
+    }
+    return *p;
+}
+std::optional<AssetInfo> ChainDB::lookup_asset(const AssetHash& hash) const
 {
     return stmtTokenLookupByHash.one(hash).process([](auto& o) -> AssetInfo {
         return {
@@ -1003,11 +1011,11 @@ std::optional<AssetInfo> ChainDB::lookup_asset(AssetHash hash) const
     });
 }
 
-AssetInfo ChainDB::fetch_asset(AssetId id) const
+AssetInfo ChainDB::fetch_asset(const AssetHash& hash) const
 {
-    auto p { lookup_asset(id) };
+    auto p { lookup_asset(hash) };
     if (!p) {
-        throw std::runtime_error("Database corrupted (fetch_token(" + std::to_string(id.value()) + ")");
+        throw std::runtime_error("Database corrupted (fetch_token(" + hash.hex_string() + ")");
     }
     return *p;
 }

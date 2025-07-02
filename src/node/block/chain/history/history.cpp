@@ -1,6 +1,10 @@
 #include "history.hpp"
 
 namespace history {
+TxHash TokenTransferData::hash() const
+{
+
+}
 
 Entry::Entry(const RewardInternal& p)
     : hash(p.hash())

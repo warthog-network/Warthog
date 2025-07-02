@@ -46,6 +46,7 @@ const BodyContainer& MiningCache::insert(const Address& a, bool disableTxs, Vers
 
 State::State(ChainDB& db, BatchRegistry& br, std::optional<SnapshotSigner> snapshotSigner)
     : db(db)
+    , dbcache(db)
     , batchRegistry(br)
     , snapshotSigner(std::move(snapshotSigner))
     , signedSnapshot(db.get_signed_snapshot())
@@ -130,21 +131,21 @@ void push_history(api::Block& b, const history::Entry& e, chainserver::DBCache& 
                     .fee { d.fee() } });
         },
         [&](const history::TokenTransferData& d) {
-            auto& assetData { c.assets[d.token_id().corresponding_asset_id()] };
+            auto& assetData { c.assetsById[d.token_id().corresponding_asset_id()] };
 
             b.actions.tokenTransfers.push_back(
                 api::block::TokenTransfer {
                     .txhash = e.hash,
-                    .assetInfo = assetData,
                     .fromAddress = c.addresses.fetch(d.origin_account_id()),
                     .fee = d.fee(),
                     .nonceId = d.pin_nonce().id,
                     .pinHeight = d.pin_nonce().pin_height_from_floored(pinFloor),
                     .toAddress = c.addresses.fetch(d.to_id()),
-                    .amount = { d.amount() } });
+                    .amount = { d.amount() },
+                    .assetInfo = assetData });
         },
         [&](const history::OrderData& d) {
-            auto& assetData { c.assets[d.asset_id()] };
+            auto& assetData { c.assetsById[d.asset_id()] };
             b.actions.newOrders.push_back(api::block::NewOrder { .txhash { e.hash },
                 .assetInfo { assetData.id_hash_name_precision() },
                 .fee { d.fee() },
@@ -161,7 +162,7 @@ void push_history(api::Block& b, const history::Entry& e, chainserver::DBCache& 
             });
         },
         [&](const history::MatchData& d) {
-            auto& asset { c.assets[d.asset_id()] };
+            auto& asset { c.assetsById[d.asset_id()] };
             b.actions.matches.push_back(api::block::Match { .txhash { e.hash },
                 .assetInfo { asset.id_hash_name_precision() },
                 .liquidityBefore { d.pool_before() },
@@ -199,12 +200,11 @@ std::optional<api::Block> State::api_get_block(Height zh) const
     auto upper = (h == chainlength() ? HistoryId { 0 }
                                      : chainstate.historyOffset(h + 1));
     auto header = chainstate.headers()[h];
-    chainserver::DBCache cache(db);
 
     auto entries { db.lookup_history_range(lower, upper) };
     api::Block b(header, h, chainlength() - h + 1, {});
     for (auto& e : entries)
-        push_history(b, e, cache, pinFloor);
+        push_history(b, e, dbcache, pinFloor);
     return b;
 }
 
@@ -213,72 +213,197 @@ auto State::api_tx_cache() const -> const TransactionIds
     return chainstate.txids();
 }
 
+api::Transaction State::api_dispatch_mempool(const TxHash& txHash, TransactionMessage&& tx) const
+{
+    auto gen_temporal = []() { return api::TemporalInfo { 0, Height(0), 0 }; };
+    return std::move(tx).visit_overload(
+        [&](WartTransferMessage&& wtm) -> api::Transaction {
+            return api::WartTransferTransaction {
+                gen_temporal(), {
+                                    .txhash = txHash,
+                                    .fromAddress = wtm.from_address(txHash),
+                                    .fee = wtm.fee(),
+                                    .nonceId = wtm.nonce_id(),
+                                    .pinHeight = wtm.pin_height(),
+                                    .toAddress = wtm.to_addr(),
+                                    .amount = wtm.wart(),
+                                }
+            };
+        },
+        [&](TokenTransferMessage&& ttm) -> api::Transaction {
+            // ttm.byte_size
+            auto& a { dbcache.assetsByHash[ttm.asset_hash()] };
+            return api::TokenTransferTransaction {
+                gen_temporal(), { // AssetIdHashNamePrecision assetInfo;
+                                    .txhash = txHash,
+                                    .fromAddress = ttm.from_address(txHash),
+                                    .fee = ttm.fee(),
+                                    .nonceId = ttm.nonce_id(),
+                                    .pinHeight = ttm.pin_height(),
+                                    .toAddress = ttm.to_addr(),
+                                    .amount = ttm.amount(),
+                                    .assetInfo { a.id_hash_name_precision() } }
+            };
+        },
+        [&](OrderMessage&& o) -> api::Transaction {
+            auto& a { dbcache.assetsByHash[o.asset_hash()] };
+            return api::NewOrderTransaction {
+                gen_temporal(), {
+
+                                    .txhash = txHash,
+                                    .assetInfo { a.id_hash_name_precision() },
+                                    .fee { o.fee() },
+                                    .amount { o.amount() },
+                                    .limit { o.limit() },
+                                    .buy = o.buy(),
+                                    .address { o.from_address(txHash) },
+                                }
+            };
+        },
+        [&](CancelationMessage&& a) -> api::Transaction {
+            return api::CancelationTransaction {
+                gen_temporal(),
+                {
+                    .txhash { txHash },
+                    .fee { a.fee() },
+                    .address { a.from_address(txHash) },
+                }
+            };
+        },
+        [&](LiquidityAddMessage&& rd) -> api::Transaction {
+            return api::LiquidityDepositTransaction {
+                gen_temporal(), { .txhash { txHash }, .fee { rd.fee() }, .baseDeposited { rd.amount() }, .quoteDeposited { rd.wart() }, .sharesReceived { std::nullopt } }
+            };
+        },
+        [&](LiquidityRemoveMessage&& rm) -> api::Transaction {
+            return api::LiquidityWithdrawalTransaction {
+                gen_temporal(), { .txhash { txHash }, .fee { rm.fee() }, .sharesRedeemed { rm.amount() }, .baseReceived { std::nullopt }, .quoteReceived { std::nullopt } }
+            };
+        },
+        [&](AssetCreationMessage&& rm) -> api::Transaction {
+            return api::AssetCreationTransaction {
+                gen_temporal(), {
+                                    .txhash { txHash },
+                                    .assetName { rm.asset_name() },
+                                    .supply { rm.supply() },
+                                    .assetId { std::nullopt },
+                                    .fee { rm.fee() },
+                                }
+            };
+        });
+}
+
+api::Transaction State::api_dispatch_history(const TxHash& txHash, history::HistoryVariant&& tx, NonzeroHeight h) const
+{
+    auto gen_temporal = [&]() { return api::TemporalInfo { (chainlength() + 1) - h, h, get_headers()[h].timestamp() }; };
+    auto fetch_addr { [&](AccountId aid) {
+        return dbcache.addresses.fetch(aid);
+    } };
+    return std::move(tx).visit_overload(
+        [&](history::WartTransferData&& wtm) -> api::Transaction {
+            return api::WartTransferTransaction {
+                gen_temporal(), {
+                                    .txhash = txHash,
+                                    .fromAddress = fetch_addr(wtm.origin_account_id()),
+                                    .fee = wtm.fee(),
+                                    .nonceId = wtm.pin_nonce().id,
+                                    .pinHeight = wtm.pin_nonce().pin_height_from_floored(h.pin_floor()),
+                                    .toAddress = fetch_addr(wtm.to_id()),
+                                    .amount = wtm.wart(),
+                                }
+            };
+        },
+        [&](history::TokenTransferData&& ttm) -> api::Transaction {
+            auto& a { dbcache.assetsById[ttm.token_id().corresponding_asset_id()] };
+            return api::TokenTransferTransaction {
+                gen_temporal(), { // AssetIdHashNamePrecision assetInfo;
+                                    .txhash = txHash,
+                                    .fromAddress = fetch_addr(ttm.origin_account_id()),
+                                    .fee = ttm.fee(),
+                                    .nonceId = ttm.pin_nonce().id,
+                                    .pinHeight = ttm.pin_nonce().pin_height_from_floored(h.pin_floor()),
+                                    .toAddress = fetch_addr(ttm.to_id()),
+                                    .amount = ttm.amount(),
+                                    .assetInfo { a.id_hash_name_precision() } }
+            };
+        },
+        [&](history::OrderData&& o) -> api::Transaction {
+            auto& a { dbcache.assetsById[o.asset_id()] };
+            return api::NewOrderTransaction {
+                gen_temporal(), {
+
+                                    .txhash = txHash,
+                                    .assetInfo { a.id_hash_name_precision() },
+                                    .fee { o.fee() },
+                                    .amount { o.amount() },
+                                    .limit { o.limit() },
+                                    .buy = o.buy(),
+                                    .address { fetch_addr(o.account_id()) },
+                                }
+            };
+        },
+        [&](history::CancelationData&& a) -> api::Transaction {
+            return api::CancelationTransaction {
+                gen_temporal(),
+                {
+                    .txhash { txHash },
+                    .fee { a.fee() },
+                    .address { fetch_addr(a.cancel_account_id()) },
+                }
+            };
+        },
+        [&](history::LiquidityDeposit&& rd) -> api::Transaction {
+            return api::LiquidityDepositTransaction {
+                gen_temporal(), { .txhash { txHash }, .fee { rd.fee() }, .baseDeposited { rd.base() }, .quoteDeposited { rd.quote() }, .sharesReceived { rd.shares() } }
+            };
+        },
+        [&](history::LiquidityWithdraw&& rm) -> api::Transaction {
+            return api::LiquidityWithdrawalTransaction {
+                gen_temporal(), { .txhash { txHash }, .fee { rm.fee() }, .sharesRedeemed { rm.shares() }, .baseReceived { rm.base() }, .quoteReceived { rm.quote() } }
+            };
+        },
+        [&](history::RewardData&& rm) -> api::Transaction {
+            return api::RewardTransaction {
+                gen_temporal(), { .txhash { txHash }, .toAddress { fetch_addr(rm.to_id()) }, .amount { rm.wart() } }
+            };
+        },
+        [&](history::AssetCreationData&& rm) -> api::Transaction {
+            return api::AssetCreationTransaction {
+                gen_temporal(), {
+                                    .txhash { txHash },
+                                    .assetName { rm.asset_name() },
+                                    .supply { rm.supply() },
+                                    .assetId { rm.asset_id() },
+                                    .fee { rm.fee() },
+                                }
+            };
+        },
+        [&](history::MatchData&& rm) -> api::Transaction {
+            auto& a { dbcache.assetsById[rm.asset_id()] };
+            return api::MatchTransaction {
+                gen_temporal(), {
+                                    .txhash { txHash },
+                                    .assetInfo { a.id_hash_name_precision() },
+                                    .liquidityBefore { rm.pool_before() },
+                                    .liquidityAfter { rm.pool_after() },
+                                    .buySwaps { rm.buy_swaps() },
+                                    .sellSwaps { rm.sell_swaps() },
+                                }
+            };
+            // AssetIdEl, PoolBeforeEl, PoolAfterEl, BuySwapsEl, SellSwapsEl
+        }
+
+    );
+}
+
 std::optional<api::Transaction> State::api_get_tx(const TxHash& txHash) const
 {
-    if (auto p = chainstate.mempool()[txHash]; p) {
-        auto& tx = *p;
-        auto gen_temporal = []() { return api::TemporalInfo { 0, Height(0), 0 }; };
-        tx.visit_overload(
-            [&](const WartTransferMessage& wtm) -> api::Transaction {
-                return api::WartTransferTransaction {
-                    gen_temporal(), {
-                                        .txhash = txHash,
-                                        .fromAddress = wtm.from_address(txHash),
-                                        .fee = wtm.fee(),
-                                        .nonceId = wtm.nonce_id(),
-                                        .pinHeight = wtm.pin_height(),
-                                        .toAddress = wtm.to_addr(),
-                                        .amount = wtm.wart(),
-                                    }
-                };
-            },
-            [&](const TokenTransferMessage& ttm) -> api::Transaction {
-                return api::TokenTransferTransaction {
-                    gen_temporal(), {
-                                        .txhash = txHash,
-                                        .fromAddress = ttm.from_address(txHash),
-                                        .fee = ttm.fee(),
-                                        .nonceId = ttm.nonce_id(),
-                                        .pinHeight = ttm.pin_height(),
-                                        .toAddress = ttm.to_addr(),
-                                        .amount = ttm.amount(),
-                                    }
-                };
-            });
-    }
-    auto p = db.lookup_history(txHash);
-    if (p) {
-        auto& [data, historyIndex] = *p;
-        if (data.size() == 0)
-            return {};
-        auto parsed { history::parse_throw(data) };
+    if (auto p { chainstate.mempool()[txHash] }; p)
+        return api_dispatch_mempool(txHash, std::move(*p));
+    if (auto p { db.lookup_history(txHash) }; p) {
+        auto& [parsed, historyIndex] = *p;
         NonzeroHeight h { chainstate.history_height(historyIndex) };
-        if (std::holds_alternative<history::WartTransferData>(parsed)) {
-            auto& d = std::get<history::WartTransferData>(parsed);
-            return api::WartTransferTransaction {
-                .txhash = txHash,
-                .toAddress = db.fetch_address(d.toAccountId),
-                .confirmations = (chainlength() - h) + 1,
-                .height = h,
-                .timestamp = chainstate.headers()[h].timestamp(),
-                .amount = d.amount,
-                .fromAddress = db.fetch_address(d.fromAccountId),
-                .fee = d.compactFee.uncompact(),
-                .nonceId = d.pinNonce.id,
-                .pinHeight = d.pinNonce.pin_height_from_floored(h.pin_floor())
-            };
-        } else {
-            assert(std::holds_alternative<history::RewardData>(parsed));
-            auto& d = std::get<history::RewardData>(parsed);
-            return api::RewardTransaction {
-                .txhash = txHash,
-                .toAddress = db.fetch_address(d.toAccountId),
-                .confirmations = (chainlength() - h) + 1,
-                .height = h,
-                .timestamp = chainstate.headers()[h].timestamp(),
-                .amount = d.miningReward
-            };
-        }
+        return api_dispatch_history(txHash, std::move(parsed), h);
     }
     return {};
 }
@@ -305,12 +430,10 @@ auto State::api_get_miner(NonzeroHeight h) const -> std::optional<api::AddressWi
     if (chainlength() < h)
         return {};
     auto offset { chainstate.historyOffset(h) };
-    auto lookup { db.lookup_history_range(offset, offset + 1) };
-    assert(lookup.size() == 1);
+    auto parsed { db.fetch_history(offset).data };
 
-    auto parsed = history::parse_throw(lookup[0].second);
     assert(std::holds_alternative<history::RewardData>(parsed));
-    auto minerId { std::get<history::RewardData>(parsed).toAccountId };
+    auto minerId { std::get<history::RewardData>(parsed).to_id() };
     return api::AddressWithId {
         db.fetch_address(minerId),
         minerId
@@ -380,7 +503,7 @@ void State::garbage_collect()
     }
 }
 
-Batch State::get_headers_concurrent(BatchSelector s)
+Batch State::get_headers_concurrent(BatchSelector s) const
 {
     std::unique_lock<std::mutex> lcons(chainstateMutex);
     if (s.descriptor == chainstate.descriptor()) {
@@ -390,7 +513,7 @@ Batch State::get_headers_concurrent(BatchSelector s)
     }
 }
 
-std::optional<HeaderView> State::get_header_concurrent(Descriptor descriptor, Height height)
+std::optional<HeaderView> State::get_header_concurrent(Descriptor descriptor, Height height) const
 {
     std::unique_lock<std::mutex> lcons(chainstateMutex);
     if (descriptor == chainstate.descriptor()) {
@@ -413,7 +536,6 @@ Result<ChainMiningTask> State::mining_task(const Address& a)
 
 Result<ChainMiningTask> State::mining_task(const Address& a, bool disableTxs)
 {
-
     auto md = chainstate.mining_data();
 
     NonzeroHeight height { next_height() };
@@ -555,6 +677,7 @@ auto State::add_stage(const std::vector<ParsedBlock>& blocks, const Headerchain&
         // pass {} as header arg because we can't to block any headers when
         // we have a wrong body (EINV_BODY or EMROOT)
         transaction.commit();
+        dbcache.clear();
         return { { ce }, {}, {} };
     }
 }
@@ -594,7 +717,7 @@ public:
     {
     }
 
-    void rollback_block(BlockId id, NonzeroHeight height)
+    void rollback_block(BlockId id, NonzeroHeight height, AddressCache& ac)
     {
         try {
             BlockUndoData d { fetch_undo(db, id) };
@@ -605,7 +728,7 @@ public:
                 PinHeight pinHeight = t.pin_height(pinFloor);
                 if (pinHeight <= newPinFloor) {
                     // extract transaction to mempool
-                    auto toAddress { db.lookup_address(t.toAccountId()).value() };
+                    auto toAddress { ac.fetch(t.toAccountId()) };
                     toMempool.push_back(WartTransferMessage(t, pinHeight, toAddress));
                 }
             }
@@ -694,6 +817,7 @@ auto State::apply_stage(ChainDBTransaction&& t) -> ApplyStageResult
     }
     db.set_consensus_work(stage.total_work());
     auto update { std::move(tr).commit(*this) };
+    dbcache.clear();
 
     return { { status }, update };
 }
@@ -742,6 +866,7 @@ auto State::apply_signed_snapshot(SignedSnapshot&& ssnew) -> std::optional<State
     db.set_consensus_work(chainstate.headers().total_work());
     db.set_signed_snapshot(*signedSnapshot);
     db_t.commit();
+    dbcache.clear();
 
     return res;
 }
@@ -774,6 +899,7 @@ auto State::append_mined_block(const Block& b) -> StateUpdateWithAPIBlocks
     auto apiBlock { e.apply_block(b, prepared->hash, blockId) };
     db.set_consensus_work(chainstate.work_with_new_block());
     transaction.commit();
+    dbcache.clear();
 
     std::unique_lock<std::mutex> ul(chainstateMutex);
     auto headerchainAppend = chainstate.append(Chainstate::AppendSingle {
@@ -986,11 +1112,14 @@ auto State::commit_fork(RollbackResult&& rr, AppendBlocksResult&& abr) -> StateU
     assert(!signedSnapshot || signedSnapshot->compatible(stage));
     auto headers_ptr { blockCache.add_old_chain(chainstate, rr.deletionKey) };
 
-    chainstate.fork(chainserver::Chainstate::ForkData {
-        .stage { stage },
-        .rollbackResult { std::move(rr) },
-        .appendResult { std::move(abr) },
-    });
+    {
+        std::unique_lock<std::mutex> lcons(chainstateMutex);
+        chainstate.fork(chainserver::Chainstate::ForkData {
+            .stage { stage },
+            .rollbackResult { std::move(rr) },
+            .appendResult { std::move(abr) },
+        });
+    }
 
     state_update::Fork forkMsg {
         chainstate.headers().get_fork(rr.shrink, chainstate.descriptor()),
@@ -1007,10 +1136,13 @@ auto State::commit_fork(RollbackResult&& rr, AppendBlocksResult&& abr) -> StateU
 auto State::commit_append(AppendBlocksResult&& abr) -> StateUpdate
 {
     assert(!signedSnapshot || signedSnapshot->compatible(stage));
-    auto headerchainAppend { chainstate.append(Chainstate::AppendMulti {
-        .patchedChain = stage,
-        .appendResult { std::move(abr) },
-    }) };
+    {
+        std::unique_lock<std::mutex> lcons(chainstateMutex);
+        auto headerchainAppend { chainstate.append(Chainstate::AppendMulti {
+            .patchedChain = stage,
+            .appendResult { std::move(abr) },
+        }) };
+    }
 
     return {
         .chainstateUpdate {

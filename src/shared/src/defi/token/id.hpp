@@ -7,8 +7,8 @@ struct AssetId;
 struct TokenId : public UInt32WithOperators<TokenId> {
     using UInt32WithOperators::UInt32WithOperators;
     static const TokenId WART;
-    std::optional<AssetId> as_asset() const;
-    AssetId corresponding_asset_id() const;
+    [[nodiscard]] std::optional<AssetId> as_asset() const;
+    [[nodiscard]] AssetId corresponding_asset_id() const;
 };
 
 struct ShareId;
