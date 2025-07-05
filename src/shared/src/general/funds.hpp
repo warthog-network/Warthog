@@ -1,6 +1,7 @@
 #pragma once
 #include "defi/token/id.hpp"
 #include "general/errors.hpp"
+#include "general/serializer_fwd.hxx"
 #include "general/with_uint64.hpp"
 #include <cassert>
 #include <optional>
@@ -27,7 +28,11 @@ public:
             throw std::runtime_error("Value " + std::to_string(v) + " exceeds maximum " + std::to_string(max) + ".");
     }
     AssetPrecision(Reader& r);
-    friend Writer& operator<<(Writer& w, const AssetPrecision&);
+
+    void serialize(Serializer auto&& s) const
+    {
+        s << val;
+    }
     static const AssetPrecision zero;
     static constexpr AssetPrecision digits8()
     {
@@ -182,7 +187,11 @@ struct FundsDecimal {
     Funds_uint64 funds;
     AssetPrecision precision;
     constexpr static size_t byte_size() { return Funds_uint64::byte_size() + AssetPrecision::byte_size(); }
-    friend Writer& operator<<(Writer& w, const FundsDecimal& fd);
+
+    void serialize(Serializer auto&& s) const
+    {
+        s << funds << precision;
+    }
     FundsDecimal(Reader& r)
         : FundsDecimal(r, r)
     {
@@ -200,7 +209,6 @@ inline FundsDecimal Funds_uint64::to_decimal(AssetPrecision d) const
 {
     return { value(), d };
 }
-
 
 class Wart : public FundsBase<Wart> {
 public:

@@ -6,15 +6,14 @@
 namespace block {
 
 struct VersionedBodyContainer;
-struct BodyContainer {
+struct BodyContainer: public std::vector<uint8_t> {
     BodyContainer(Reader& r);
     BodyContainer(std::vector<uint8_t> v)
-        : data(v)
+        : vector(v)
     {
     }
     VersionedBodyContainer make_versioned(BlockVersion v) &&;
     block::Body parse(NonzeroHeight, BlockVersion) const;
-    std::vector<uint8_t> data;
 };
 
 struct VersionedBodyContainer : public BodyContainer {

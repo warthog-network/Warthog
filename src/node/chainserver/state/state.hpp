@@ -99,7 +99,7 @@ public:
     auto get_header(Height h) const -> std::optional<std::pair<NonzeroHeight, Header>>;
     auto get_headers() const { return chainstate.headers(); }
     auto get_hash(Height h) const -> std::optional<Hash>;
-    auto get_blocks(DescriptedBlockRange) const -> std::vector<BodyContainer>;
+    auto get_body_data(DescriptedBlockRange) const -> std::vector<BodyContainer>;
     auto get_mempool_tx(TransactionId) const -> std::optional<WartTransferMessage>;
 
     // api getters
@@ -127,7 +127,7 @@ private:
     // delegated getters
     auto api_get_block(Height h) const -> std::optional<api::Block>;
     std::optional<NonzeroHeight> consensus_height(const Hash&) const;
-    NonzeroHeight next_height() const { return (chainlength() + 1).nonzero_assert(); }
+    NonzeroHeight next_height() const { return chainlength().add1(); }
 
     // transactions
 

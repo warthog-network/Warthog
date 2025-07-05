@@ -7,7 +7,7 @@ struct sockaddr;
 }
 struct Sockaddr4 {
     Sockaddr4(Reader& r);
-    void serialize(Serializer auto& s)
+    void serialize(Serializer auto& s) const
     {
         return s << ip << port;
     }

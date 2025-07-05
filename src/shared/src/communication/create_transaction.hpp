@@ -27,7 +27,7 @@ public:
                            << this->nonce_id()
                            << this->nonce_reserved()
                            << this->compact_fee().uncompact())
-            << ... << static_cast<Ts*>(this)->get()));
+            << ... << static_cast<const Ts*>(this)->get()));
     }
     [[nodiscard]] Address from_address(const TxHash& txHash) const
     {

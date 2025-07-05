@@ -30,7 +30,7 @@ private:
 struct IdentityIps {
     IdentityIps(Reader& r);
     IdentityIps() { };
-    void serialize(Serializer auto& s)
+    void serialize(Serializer auto& s) const
     {
         return s << ipv4 << ipv6;
     };

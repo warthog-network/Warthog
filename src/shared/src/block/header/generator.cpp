@@ -1,22 +1,22 @@
 #include "generator.hpp"
-#include "block/body/view.hpp"
+#include "block/body/body.hpp"
 #include "general/is_testnet.hpp"
 namespace {
 BlockVersion block_version(NonzeroHeight h)
 {
     if (is_testnet()) {
         if (h.value() <= 2)
-            return 3;
-        return 4;
+            return BlockVersion::v3;
+        return BlockVersion::v4;
     } else {
         if (h.value() <= TOKENSTARTHEIGHT)
-            return 3;
-        return 4;
+            return BlockVersion::v3;
+        return BlockVersion::v4;
     }
 }
 }
 HeaderGenerator::HeaderGenerator(std::array<uint8_t, 32> prevhash,
-    const BodyView& bv, Target target,
+    const block::Body& bv, Target target,
     uint32_t timestamp, NonzeroHeight height)
     : version(block_version(height))
     , prevhash(prevhash)

@@ -55,7 +55,7 @@ public:
         MempoolTxsCb callback;
     };
     struct LookupTxHash {
-        const Hash hash;
+        const TxHash hash;
         TxCb callback;
     };
     struct LookupLatestTxs {
@@ -175,7 +175,7 @@ private:
     {
         std::unique_lock l(mutex);
         if (switching)
-            e.callback(tl::make_unexpected(ESWITCHING));
+            e.callback(Error(ESWITCHING));
         else {
             haswork = true;
             events.emplace(std::forward<T>(e));

@@ -60,13 +60,11 @@ void Chainstate::fork(Chainstate::ForkData&& fd)
 
     //////////////////////////////
     // insert transactions into mempool
-    AddressCache addressCache(db);
     WartCache wartCache(db);
     for (auto& tx : fd.rollbackResult.toMempool) {
         AccountId fromId { tx.from_id() };
         if (fromId >= db.next_account_id())
             continue;
-        auto& fromAddr { addressCache.get_throw(fromId) };
 
         PinHeight ph { tx.pin_height() };
         assert(ph <= forkHeight - 1);
@@ -75,7 +73,8 @@ void Chainstate::fork(Chainstate::ForkData&& fd)
 
         if (!fd.appendResult.newTxIds.contains(tx.txid())) {
             TxHeight txh { ph, account_height(fromId) };
-            _mempool.insert_tx(tx, txh, txhash, fromAddr, wartCache);
+            // TODO_Shifu: We need to make sure that the account id's are always correct (in case of rollbacks)
+            _mempool.insert_tx(tx, txh, txhash, wartCache);
         }
     }
 
@@ -130,7 +129,6 @@ auto Chainstate::rollback(const RollbackResult& rb) -> HeaderchainRollback
     WartCache wartCache(db);
     for (auto& tx : rb.toMempool) {
         AccountId fromId { tx.from_id() };
-        auto& from { addressCache.fetch(fromId) };
 
         PinHeight ph { tx.pin_height() };
         assert(ph <= forkHeight - 1);
@@ -138,7 +136,8 @@ auto Chainstate::rollback(const RollbackResult& rb) -> HeaderchainRollback
         TxHash txhash { tx.txhash(hash) };
 
         TxHeight txh { ph, account_height(fromId) };
-        _mempool.insert_tx(tx, txh, txhash, from, wartCache);
+        // TODO_Shifu: We need to make sure that the account id's are always correct (in case of rollbacks)
+        _mempool.insert_tx(tx, txh, txhash, wartCache);
     }
     return HeaderchainRollback {
         .shrink { rb.shrink },

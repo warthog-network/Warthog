@@ -21,7 +21,7 @@ BlockWorker parse_block_worker(const std::vector<uint8_t>& s)
         json parsed = json::parse(s);
 
         auto height { Height(parsed.at("height").get<uint32_t>()).nonzero_throw(EBADHEIGHT) };
-        auto header { hex_to_arr<80>(parsed.at("header").get<std::string>()) };
+        Header header { hex_to_arr<80>(parsed.at("header").get<std::string>()) };
         auto body { hex_to_vec(parsed.at("body").get<std::string>()) };
         block::BodyContainer container(body);
         BlockWorker mt {

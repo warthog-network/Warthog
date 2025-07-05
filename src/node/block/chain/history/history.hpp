@@ -29,7 +29,6 @@ using RewardData = IdCombine<2, ToAccIdEl, WartEl>;
 using AssetCreationData = IdCombineSigned<3, AssetIdEl, OwnerIdEl, AssetSupplyEl, AssetNameEl>;
 struct TokenTransferData : public IdCombineSigned<4, TokenIdEl, OriginAccIdEl, ToAccIdEl, AmountEl> {
     using IdCombineSigned<4, TokenIdEl, OriginAccIdEl, ToAccIdEl, AmountEl>::IdCombineSigned;
-    TxHash hash() const ;
 };
 using OrderData = IdCombineSigned<5, AssetIdEl, BuyEl, AccountIdEl, LimitPriceEl, AmountEl>;
 using CancelationData = IdCombineSigned<6, CancelTxidEl>;

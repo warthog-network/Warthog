@@ -7,7 +7,16 @@
 #include "general/writer.hpp"
 #include "tools/variant.hpp"
 
-using MsgBase = CombineElements<TransactionIdEl, NonceReservedEl, CompactFeeEl>;
+struct MsgBase : public CombineElements<TransactionIdEl, NonceReservedEl, CompactFeeEl> {
+    using CombineElements::CombineElements;
+    auto pin_nonce_throw(NonzeroHeight height)
+    {
+        auto pn { PinNonce::make_pin_nonce(nonce_id(), height, pin_height()) };
+        if (!pn)
+            throw std::runtime_error("Cannot make pin_nonce");
+        return *pn;
+    }
+};
 
 template <typename... Ts>
 class CreatedTransactionMsg;
@@ -90,10 +99,10 @@ public:
     [[nodiscard]] Wart spend_wart_throw() const { return Wart::sum_throw(fee(), wart()); }
 };
 
-class TokenTransferMessage : public TransactionMsg<AssetHashEl, ToAddrEl, AmountEl> { // for defi we include the token hash
+class TokenTransferMessage : public TransactionMsg<AssetHashEl, PoolFlagEl, ToAddrEl, AmountEl> { // for defi we include the asset hash
 public:
-    TokenTransferMessage(TransactionId txid, NonceReserved nr, CompactUInt fee, AssetHash ah, Address addr, Funds_uint64 amount, RecoverableSignature sgn)
-        : TransactionMsg(std::move(txid), std::move(nr), std::move(fee), std::move(ah), std::move(addr), std::move(amount), std::move(sgn))
+    TokenTransferMessage(TransactionId txid, NonceReserved nr, CompactUInt fee, AssetHash ah, bool poolFlag, Address addr, Funds_uint64 amount, RecoverableSignature sgn)
+        : TransactionMsg(std::move(txid), std::move(nr), std::move(fee), std::move(ah), poolFlag, std::move(addr), std::move(amount), std::move(sgn))
     {
         check_throw();
     };

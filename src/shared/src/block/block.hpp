@@ -1,8 +1,9 @@
 #pragma once
 #include "block/body/body.hpp"
-#include "block_fwd.hpp"
+#include "block/body/container.hpp"
 #include "block/chain/height.hpp"
 #include "block/header/header.hpp"
+#include "block_fwd.hpp"
 
 struct TransactionId;
 
@@ -10,13 +11,13 @@ namespace block {
 struct Block {
     NonzeroHeight height;
     Header header;
-    std::vector<uint8_t> bodyData;
+    BodyContainer bodyData;
     Body body;
     auto tx_ids() const { return body.tx_ids(height); }
-    Block(NonzeroHeight height, std::span<const uint8_t, 80> header, std::vector<uint8_t> body);
+    Block(NonzeroHeight height, HeaderView header, BodyContainer body);
 };
 
-struct BlockWithHash: public Block {
+struct BlockWithHash : public Block {
     BlockHash hash;
 };
 }

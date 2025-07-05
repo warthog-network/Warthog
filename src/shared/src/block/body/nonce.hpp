@@ -58,7 +58,7 @@ public:
     NonceId id;
     uint8_t relativePin;
     NonceReserved reserved { std::array<uint8_t, 3> { 0, 0, 0 } };
-    void serialize(Serializer auto& s) const
+    void serialize(Serializer auto& s) const 
     {
         s << id << relativePin << reserved;
     }

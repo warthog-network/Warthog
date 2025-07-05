@@ -1,10 +1,10 @@
 #pragma once
 #include "block/body/transaction_id.hpp"
 #include "elements_fwd.hpp"
-#include "general/compact_uint.hpp"
-#include "general/funds.hpp"
-#include "general/reader.hpp"
 #include "general/base_elements.hpp"
+#include "general/compact_uint.hpp"
+#include "general/reader.hpp"
+#include "general/serializer_fwd.hxx"
 namespace block {
 namespace body {
 // constexpr static size_t SIGLEN { 65 };
@@ -17,7 +17,6 @@ namespace body {
 // constexpr static size_t CancelationSize { 16 + SIGLEN }; // TODO
 // constexpr static size_t TokenCreationSize { 8 + 8 + 5 + 2 + SIGLEN };
 
-
 template <typename... Ts>
 struct Combined : public Ts... {
     Combined(Reader& r)
@@ -28,10 +27,10 @@ struct Combined : public Ts... {
         : Ts(std::move(ts))...
     {
     }
-    friend Writer& operator<<(Writer& w, const Combined<Ts...>& c)
+    void serialize(Serializer auto&& s) const
     {
-        return w << (static_cast<Ts>(c) << ...);
-    };
+        (s << ... << static_cast<const Ts*>(this)->get());
+    }
     static constexpr size_t byte_size()
     {
         return (Ts::byte_size() + ...);

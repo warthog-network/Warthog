@@ -134,6 +134,7 @@ public:
     [[nodiscard]] std::optional<BlockUndoData> get_block_undo(BlockId id) const;
     [[nodiscard]] std::optional<Block> get_block(BlockId id) const;
     [[nodiscard]] std::optional<std::pair<BlockId, Block>> get_block(HashView hash) const;
+    [[nodiscard]] std::optional<BodyContainer> get_block_body(HashView hash) const;
     // set
     std::pair<BlockId, bool> insert_protect(const Block&);
     void set_block_undo(BlockId id, const std::vector<uint8_t>& undo);
@@ -257,7 +258,7 @@ public:
 
     //////////////////////////////
     // BELOW METHODS REQUIRED FOR INDEXING NODES
-    std::optional<AccountId> lookup_account(const AddressView address) const; // for indexing nodes
+    [[nodiscard]] std::optional<AccountId> lookup_account(const AddressView address) const; // for indexing nodes
     std::vector<std::tuple<HistoryId, history::Entry>> lookup_history_100_desc(AccountId account_id, int64_t beforeId);
     size_t byte_size() const;
 

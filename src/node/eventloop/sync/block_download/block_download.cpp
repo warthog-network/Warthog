@@ -332,7 +332,7 @@ void Downloader::on_blockreq_reply(Conref cr, BlockrepMsg&& rep, BlockRequest& r
         auto height { req.range().first() + i };
         auto header { headers()[height] };
         auto& body { rep.block_bodies()[i] };
-        parsedBlocks.push_back(ParsedBlock::create_throw(height, header, std::move(body)));
+        parsedBlocks.push_back(Block(height, header, body));
     }
 
     focus.set_slot_blocks(std::move(parsedBlocks));

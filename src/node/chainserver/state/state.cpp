@@ -534,7 +534,7 @@ Result<ChainMiningTask> State::mining_task(const Address& a)
     return mining_task(a, config().node.disableTxsMining);
 }
 
-Result<ChainMiningTask> State::mining_task(const Address& a, bool disableTxs)
+Result<ChainMiningTask> State::mining_task(const Address& miner, bool disableTxs)
 {
     auto md = chainstate.mining_data();
 
@@ -543,31 +543,87 @@ Result<ChainMiningTask> State::mining_task(const Address& a, bool disableTxs)
         return Error(ENOTSYNCED);
 
     auto make_body {
-        [&]() {
+        [&]() -> block::Body {
             std::vector<TransactionMessage> transactions;
-            if (!disableTxs) {
+            if (!disableTxs)
                 transactions = chainstate.mempool().get_transactions(400, height);
+
+            auto minerReward { height.reward() };
+
+            using namespace block;
+
+            std::vector<Address> newAddresses;
+            auto addr_id {
+                [&, map = std::map<Address, AccountId> {}, nextAccountId = db.next_account_id()](const Address& address) mutable -> AccountId {
+                    auto a { db.lookup_account(address) };
+                    if (a)
+                        return a.value();
+                    auto [iter, inserted] { map.try_emplace(address, nextAccountId) };
+                    if (inserted) {
+                        nextAccountId++;
+                        newAddresses.push_back(address);
+                    }
+                    return iter->second;
+                }
+            };
+            const AccountId minerAccId { addr_id(miner) };
+            body::Entries entries;
+            auto asset {
+                [&, assetOffsets = std::map<AssetHash, size_t> {}](AssetHash hash) mutable -> auto& {
+                    auto [it, inserted] = assetOffsets.try_emplace(hash, entries.tokens.size());
+                    if (inserted)
+                        entries.tokens.push_back({ dbcache.assetsByHash[hash].id });
+                    return entries.tokens[it->second];
+                }
+            };
+
+            for (auto& tx : transactions) {
+                minerReward.add_assert(tx.fee()); // assert because
+                std::move(tx).visit_overload(
+                    [&](WartTransferMessage&& m) {
+                        entries.wartTransfers.push_back({ m.from_id(), m.pin_nonce_throw(height), m.compact_fee(), addr_id(m.to_addr()), m.wart(), m.signature() });
+                    },
+                    [&](TokenTransferMessage&& m) {
+                        auto pn { PinNonce::make_pin_nonce(m.nonce_id(), height, m.pin_height()) };
+                        if (!pn)
+                            throw std::runtime_error("Cannot make pin_nonce");
+                        auto& s { asset(m.asset_hash()) };
+                        auto& transfers = s.assetTransfers;
+                        transfers.push_back({ m.from_id(), m.pin_nonce_throw(height), m.compact_fee(), addr_id(m.to_addr()), m.amount(), m.signature() });
+                    },
+                    [&](OrderMessage&& m) {
+                        asset(m.asset_hash())
+                            .orders.push_back({ m.from_id(), m.pin_nonce_throw(height), m.compact_fee(), m.buy(), m.amount(), m.limit(), m.signature() });
+                    },
+                    [&](CancelationMessage&& m) {
+                        entries
+                            .cancelations.push_back({ m.from_id(), m.pin_nonce_throw(height), m.compact_fee(), PinNonce(m.block_pin_nonce()), m.signature() });
+                    },
+                    [&](LiquidityAddMessage&& m) {
+                        asset(m.asset_hash())
+                            .liquidityAdd.push_back({ m.from_id(), m.pin_nonce_throw(height), m.compact_fee(), m.wart(), m.amount(), m.signature() });
+                    },
+                    [&](LiquidityRemoveMessage&& m) {
+                        asset(m.asset_hash())
+                            .liquidityRemove.push_back({ m.from_id(), m.pin_nonce_throw(height), m.compact_fee(), m.amount(), m.signature() });
+                    },
+                    [&](AssetCreationMessage&& m) {
+                        entries.assetCreations
+                            .push_back({ m.from_id(), m.pin_nonce_throw(height), m.compact_fee(), AssetSupplyEl(m.supply()), m.asset_name(), m.signature() });
+                    });
             }
-
-            Funds_uint64 totalfee { Funds_uint64::zero() };
-            for (auto& p : transactions)
-                totalfee.add_assert(p.fee()); // assert because
-            // fee sum is < sum of mempool payers' balances
-
-            // mempool should have deleted out of window transactions
-            auto body { generate_body(db, height, a, transactions) };
-            return body;
+            return { std::move(newAddresses), { minerAccId, minerReward }, std::move(entries) };
         }
     };
 
     const auto b {
         [&]() -> const VersionedBodyContainer& {
             _miningCache.update_validity(mining_cache_validity());
-            if (auto* p { _miningCache.lookup(a, disableTxs) }; p != nullptr) {
+            if (auto* p { _miningCache.lookup(miner, disableTxs) }; p != nullptr) {
                 return *p;
             } else {
                 auto body { make_body() };
-                auto& b { _miningCache.insert(a, disableTxs, std::move(body)) };
+                auto& b { _miningCache.insert(miner, disableTxs, std::move(body)) };
                 return b;
             }
         }()
@@ -1074,7 +1130,7 @@ auto State::api_get_richlist(size_t N) const -> api::Richlist
     return db.lookup_richlist(N);
 }
 
-auto State::get_blocks(DescriptedBlockRange range) const -> std::vector<BodyContainer>
+auto State::get_body_data(DescriptedBlockRange range) const -> std::vector<BodyContainer>
 {
     assert(range.first() != 0);
     assert(range.last() >= range.first());
@@ -1091,7 +1147,7 @@ auto State::get_blocks(DescriptedBlockRange range) const -> std::vector<BodyCont
     }
     for (size_t i = 0; i < hashes.size(); ++i) {
         auto hash { hashes[i] };
-        auto b { db.get_block(hash) };
+        auto b { db.get_block_body(hash) };
         if (b) {
             res.push_back(std::move(b->second.body));
         } else {

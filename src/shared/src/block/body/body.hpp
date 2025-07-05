@@ -52,32 +52,71 @@ public:
         : id(tid) { };
     size_t byte_size() const;
 };
-}
 
-class Body {
+class NewAddresses {
+public:
+    NewAddresses(AccountId nextAccountId)
+        : nextAccountId(nextAccountId)
+    {
+    }
+    AccountId operator[](const Address& address)
+    {
+        auto [iter, inserted] { map.try_emplace(address, nextAccountId) };
+        if (inserted)
+            nextAccountId++;
+        return iter->second;
+    }
+    std::vector<Address> get_vector() const
+    {
+        std::vector<Address> out;
+        for (auto& [addr, _id] : map)
+            out.push_back(addr);
+        return out;
+    };
+
 private:
-    Body(Reader&, NonzeroHeight h, BlockVersion v);
-    Body(std::vector<Address> newAddresses, body::Reward reward)
+    std::map<Address, AccountId> map;
+    AccountId nextAccountId;
+};
+struct AddressReward {
+    AddressReward(std::vector<Address> newAddresses, body::Reward reward)
         : newAddresses(std::move(newAddresses))
         , reward(std::move(reward))
     {
     }
+    body_vector<Address> newAddresses;
+    body::Reward reward;
+};
+struct Entries {
+    body_vector<body::WartTransfer> wartTransfers;
+    body_vector<body::Cancelation> cancelations;
+    body_vector<body::TokenSection> tokens;
+    body_vector<body::AssetCreation> assetCreations;
+};
+
+}
+
+class Body : public body::AddressReward, public body::Entries {
+private:
+    Body(Reader&, NonzeroHeight h, BlockVersion v);
 
     template <typename T>
     using body_vector = body::body_vector<T>;
+    std::vector<Hash> merkle_leaves() const;
 
 public:
+    std::vector<uint8_t> merkle_prefix() const;
+    Hash merkle_root(Height h) const;
+    Body(std::vector<Address> newAddresses, body::Reward reward, body::Entries entries = {})
+        : AddressReward(std::move(newAddresses), std::move(reward))
+        , Entries(std::move(entries))
+    {
+    }
     std::vector<TransactionId> tx_ids(NonzeroHeight) const;
     static Body parse_throw(std::span<const uint8_t> rd, NonzeroHeight h, BlockVersion version);
     size_t byte_size() const;
     std::vector<uint8_t> serialize() const;
     Body(std::span<const uint8_t> data, BlockVersion v, NonzeroHeight h);
-    body_vector<Address> newAddresses;
-    body::Reward reward;
-    body_vector<body::WartTransfer> wartTransfers;
-    body_vector<body::Cancelation> cancelations;
-    body_vector<body::TokenSection> tokens;
-    body_vector<body::AssetCreation> tokenCreations;
 };
 
 }

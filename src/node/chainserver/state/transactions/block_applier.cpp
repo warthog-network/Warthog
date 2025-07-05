@@ -877,8 +877,8 @@ private:
 
     void register_token_creations()
     {
-        for (size_t i { 0 }; i < body.tokenCreations.size(); ++i)
-            balanceChecker.register_token_creation(body.tokenCreations[i], i, height);
+        for (size_t i { 0 }; i < body.assetCreations.size(); ++i)
+            balanceChecker.register_token_creation(body.assetCreations[i], i, height);
 
         const auto beginNewTokenId = db.next_asset_id(); // they start from this index
         for (auto& tc : balanceChecker.token_creations()) {

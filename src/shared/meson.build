@@ -16,6 +16,7 @@ src_wh=[
     './src/block/body/nonce.cpp',
     './src/block/body/transaction_id.cpp',
     './src/block/body/body.cpp',
+    './src/block/body/container.cpp',
     './src/block/chain/height.cpp',
     './src/block/chain/worksum.cpp',
     './src/block/header/generator.cpp',

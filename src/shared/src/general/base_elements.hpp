@@ -166,6 +166,29 @@ struct AssetNameEl : public ElementBase<AssetName> {
 struct AssetHashEl : public ElementBase<AssetHash> {
     [[nodiscard]] const auto& asset_hash() const { return data; }
 };
+struct BoolElBase {
+    BoolElBase(uint8_t v)
+        : b(v != 0)
+    {
+        if (v > 1)
+            throw Error(EINVBUY);
+    }
+    using data_t = bool;
+    static constexpr size_t byte_size() { return 1; }
+    const bool& get() const { return b; }
+
+private:
+    bool b;
+};
+
+struct PoolFlagEl : public BoolElBase { // specifies whether a token transfer is the asset itself or the corresponding asset's pool token (there are only pools with WART quote).
+    using BoolElBase::BoolElBase;
+    bool pool_flag() const
+    {
+        return get();
+    }
+};
+
 struct TokenIdEl : public ElementBase<TokenId> {
     using ElementBase::ElementBase;
     [[nodiscard]] const auto& token_id() const { return data; }
@@ -175,28 +198,20 @@ struct AssetIdEl : public ElementBase<AssetId> {
     [[nodiscard]] const auto& asset_id() const { return data; }
 };
 struct SignatureEl : public ElementBase<RecoverableSignature> {
+    using ElementBase::ElementBase;
     [[nodiscard]] const RecoverableSignature& signature() const { return data; }
 };
 struct LimitPriceEl : public ElementBase<Price_uint64> {
+    using ElementBase::ElementBase;
     [[nodiscard]] const Price_uint64& limit() const { return data; }
 };
-struct BuyEl {
-    BuyEl(uint8_t v)
-        : b(v != 0)
-    {
-        if (v > 1)
-            throw Error(EINVBUY);
-    }
-    using data_t = bool;
-    const bool& get() const { return b; }
-    static constexpr size_t byte_size() { return 1; }
-    bool buy() const { return b; }
-
-private:
-    bool b;
+struct BuyEl : BoolElBase {
+    using BoolElBase::BoolElBase;
+    bool buy() const { return get(); }
 };
 
 struct PinHeightEl : public ElementBase<PinHeight> {
+    using ElementBase::ElementBase;
     [[nodiscard]] const PinHeight& pin_height() const { return data; }
 };
 

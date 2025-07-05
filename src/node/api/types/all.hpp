@@ -94,7 +94,7 @@ struct Reward {
     Wart amount;
 };
 struct WartTransfer {
-    Hash txhash;
+    TxHash txhash;
     Address fromAddress;
     Wart fee;
     NonceId nonceId;
@@ -103,7 +103,7 @@ struct WartTransfer {
     Wart amount;
 };
 struct TokenTransfer {
-    Hash txhash;
+    TxHash txhash;
     Address fromAddress;
     Wart fee;
     NonceId nonceId;
@@ -115,7 +115,7 @@ struct TokenTransfer {
     FundsDecimal amount_decimal() const { return { amount, assetInfo.precision }; }
 };
 struct NewOrder {
-    Hash txhash;
+    TxHash txhash;
     AssetIdHashNamePrecision assetInfo;
     Wart fee;
     Funds_uint64 amount;
@@ -127,7 +127,7 @@ struct NewOrder {
 };
 struct Match {
     using Swap = CombineElements<BaseEl, QuoteEl, ReferredHistoryIdEl>;
-    Hash txhash;
+    TxHash txhash;
     AssetIdHashNamePrecision assetInfo;
     defi::BaseQuote liquidityBefore;
     defi::BaseQuote liquidityAfter;
@@ -142,7 +142,7 @@ struct AssetCreation {
     Wart fee;
 };
 struct Cancelation {
-    Hash txhash;
+    TxHash txhash;
     Wart fee;
     Address address;
 };

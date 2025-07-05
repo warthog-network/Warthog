@@ -1,4 +1,5 @@
 #include "body.hpp"
+#include "crypto/hasher_sha256.hpp"
 #include "general/is_testnet.hpp"
 #include "general/writer.hpp"
 namespace block {
@@ -166,12 +167,6 @@ Body Body::parse_throw(std::span<const uint8_t> data, NonzeroHeight h, BlockVers
                 if (block_v4) {
                     b.cancelations = { rd.uint16(), rd };
                     b.tokens = { rd.uint16(), rd };
-
-                    // // read new token section
-                    // if (defiEnabled && rd.remaining() != 0) {
-                    //     bs.nNewTokens = rd.uint8();
-                    // }
-                    // bs.offsetNewTokens = rd.offset();
                 }
             }
             return b;
@@ -226,4 +221,132 @@ std::vector<uint8_t> Body::serialize() const
 Body::Body(std::span<const uint8_t> data, BlockVersion v, NonzeroHeight h)
     : Body(parse_throw(data, h, v)) {
     };
+
+std::vector<Hash> Body::merkle_leaves() const
+{
+    std::vector<Hash> hashes;
+    auto add_hash { [&](const auto& s) {
+        hashes.push_back(hashSHA256(s));
+    } };
+    auto add_vec_hashes { [&](const auto& v) {
+        for (auto& e : v)
+            add_hash(e);
+    } };
+
+    add_vec_hashes(newAddresses);
+    add_hash(reward);
+    add_vec_hashes(cancelations);
+    for (auto& t : tokens) {
+        static_assert(body::TokenSection::n_vectors == 5);
+        add_vec_hashes(t.assetTransfers);
+        add_vec_hashes(t.shareTransfers);
+        add_vec_hashes(t.orders);
+        add_vec_hashes(t.liquidityAdd);
+        add_vec_hashes(t.liquidityRemove);
+    }
+    add_vec_hashes(assetCreations);
+
+    return hashes;
+};
+
+std::vector<uint8_t> Body::merkle_prefix() const
+{
+    std::vector<Hash> hashes(merkle_leaves());
+    std::vector<Hash> tmp, *from, *to;
+    from = &hashes;
+    to = &tmp;
+
+    do {
+        const size_t I { (from->size() + 1) / 2 };
+        to->clear();
+        to->reserve(I);
+        size_t j = 0;
+        for (size_t i = 0; i < I; ++i) {
+            if (I == 1) {
+                std::vector<uint8_t> res;
+                std::copy((*from)[j].begin(), (*from)[j].end(), std::back_inserter(res));
+                if (j + 1 < from->size())
+                    std::copy((*from)[j + 1].begin(), (*from)[j + 1].end(), std::back_inserter(res));
+                return res;
+            }
+            HasherSHA256 hasher {};
+            hasher.write((*from)[j]);
+            if (j + 1 < from->size()) {
+                hasher.write((*from)[j + 1]);
+            }
+
+            to->push_back(std::move(hasher));
+            j += 2;
+        }
+        std::swap(from, to);
+    } while (from->size() > 1);
+    assert(false);
+}
+
+Hash Body::merkle_root(Height h) const
+{
+    std::vector<Hash> hashes(merkle_leaves());
+    std::vector<Hash> tmp, *from, *to;
+    from = &hashes;
+    to = &tmp;
+
+    bool new_root_type = is_testnet() || h.value() >= NEWMERKLEROOT;
+    bool block_v2 = is_testnet() || h.value() >= NEWBLOCKSTRUCUTREHEIGHT;
+    if (new_root_type) {
+        do {
+            const size_t I { (from->size() + 1) / 2 };
+            to->clear();
+            to->reserve(I);
+            size_t j = 0;
+            for (size_t i = 0; i < I; ++i) {
+                HasherSHA256 hasher {};
+                hasher.write((*from)[j]);
+                if (j + 1 < from->size()) {
+                    hasher.write((*from)[j + 1]);
+                }
+
+                if (I == 1)
+                    hasher.write({ data(), block_v2 ? 10 : 4 });
+                to->push_back(std::move(hasher));
+                j += 2;
+            }
+            std::swap(from, to);
+        } while (from->size() > 1);
+        return from->front();
+    } else {
+        bool includedSeed = false;
+        bool finish = false;
+        do {
+            const size_t I { (from->size() + 1) / 2 };
+            to->clear();
+            to->reserve(I);
+            if (from->size() <= 2 && !includedSeed) {
+
+                HasherSHA256 hasher {};
+                hasher.write((*from)[0]);
+                if (1 < from->size()) {
+                    hasher.write((*from)[1]);
+                }
+                hasher.write(data(), 4);
+                includedSeed = true;
+                to->push_back(std::move(hasher));
+            } else {
+                if (from->size() == 1)
+                    finish = true;
+                size_t j = 0;
+                for (size_t i = 0; i < (from->size() + 1) / 2; ++i) {
+                    HasherSHA256 hasher {};
+                    hasher.write((*from)[j]);
+                    if (j + 1 < from->size()) {
+                        hasher.write((*from)[j + 1]);
+                    }
+                    to->push_back(std::move(hasher));
+                    j += 2;
+                }
+            }
+            std::swap(from, to);
+        } while (!finish);
+        return from->front();
+    }
+}
 }

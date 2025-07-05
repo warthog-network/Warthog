@@ -427,7 +427,7 @@ void ChainServer::handle_event(GetDBSize&& e)
 void ChainServer::handle_event(GetBlocks&& e)
 {
     auto t { timing->time("GetBlocks") };
-    e.callback(state.get_blocks(e.range));
+    e.callback(state.get_body_data(e.range));
 }
 
 void ChainServer::handle_event(stage_operation::StageSetOperation&& r)

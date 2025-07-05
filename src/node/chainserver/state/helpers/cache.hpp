@@ -4,7 +4,6 @@
 #include "block/chain/history/index.hpp"
 #include "chainserver/db/types_fwd.hpp"
 #include "defi/token/info.hpp"
-#include "general/address_funds.hpp"
 #include <map>
 
 namespace chainserver {
@@ -35,7 +34,7 @@ public:
 class WartCache : public DBCacheBase<AccountId, Wart> {
 public:
     using DBCacheBase::DBCacheBase;
-    Wart operator[](AccountId aid);
+    [[nodiscard]] Wart operator[](AccountId aid);
 };
 
 class AssetCacheById : public DBCacheBase<AssetId, AssetInfo> {

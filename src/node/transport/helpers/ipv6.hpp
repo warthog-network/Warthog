@@ -76,9 +76,9 @@ public:
         : data(data)
     {
     }
-    void serialize(Serializer auto& s)
+    void serialize(Serializer auto& s) const
     {
-        return s << data;
+        s << data;
     }
 
     auto operator<=>(const IPv6& rhs) const = default;

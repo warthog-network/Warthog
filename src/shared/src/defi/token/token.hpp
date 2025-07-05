@@ -52,13 +52,18 @@ public:
         }
         return { name, i };
     }
+    void serialize(Serializer auto&& s) const
+    {
+        for (size_t i = 0; i < 5; ++i) {
+            s << uint8_t(name[i]);
+        }
+    }
 
     View<5> view() const { return View<5>(reinterpret_cast<const uint8_t*>(name)); }
     static constexpr size_t byte_size() { return 5; }
     AssetName(View<5>);
     AssetName(Reader&);
     auto& c_str() const { return name; }
-    friend Writer& operator<<(Writer&, const AssetName&);
 
 private:
     char name[6] = { '\0', '\0', '\0', '\0', '\0', '\0' };

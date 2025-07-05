@@ -8,15 +8,19 @@ class HashView;
 namespace mempool {
 struct ComparatorTransactionId {
     using is_transparent = std::true_type;
-    bool operator()(const Entry& m1, const TransactionId& txid2)
+    bool operator()(const Entry& m1, const AccountId& accId2) const
+    {
+        return m1.txid().accountId < accId2;
+    }
+    bool operator()(const Entry& m1, const TransactionId& txid2) const
     {
         return m1.txid() < txid2;
     }
-    bool operator()(const Entry& m1, const Entry& m2)
+    bool operator()(const Entry& m1, const Entry& m2) const
     {
         return m1.txid() < m2.txid();
     }
-    bool operator()(const TransactionId& txid1, const Entry& m2)
+    bool operator()(const TransactionId& txid1, const Entry& m2) const
     {
         return txid1 < m2.txid();
     }

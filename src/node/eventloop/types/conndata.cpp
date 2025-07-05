@@ -3,6 +3,7 @@
 #include "eventloop/eventloop.hpp"
 #include "eventloop/sync/sync.hpp"
 #include "eventloop/types/peer_requests.hpp"
+#include "spdlog/spdlog.h"
 
 using namespace std::chrono_literals;
 

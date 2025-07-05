@@ -2,16 +2,10 @@
 #include "general/errors.hpp"
 #include "general/params.hpp"
 #include "general/reader.hpp"
-#include "general/writer.hpp"
 #include <cassert>
 #include <charconv>
 #include <cstring>
 #include <limits>
-
-Writer& operator<<(Writer& w, const AssetPrecision& p)
-{
-    return w << p.val;
-}
 
 AssetPrecision::AssetPrecision(Reader& r)
     : AssetPrecision(from_number_throw(r.uint8()))
@@ -146,10 +140,6 @@ Wart Wart::parse_throw(std::string_view s)
 std::string Wart::to_string() const
 {
     return FundsDecimal { val, Wart::precision }.to_string();
-}
-Writer& operator<<(Writer& w, const FundsDecimal& fd)
-{
-    return w << fd.funds<< fd.precision;
 }
 
 Wart::Wart(Reader& r)

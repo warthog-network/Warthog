@@ -498,6 +498,18 @@ std::optional<Block> ChainDB::get_block(BlockId id) const
     }
 }
 
+std::optional<BodyContainer> ChainDB::get_block_body(HashView hash) const
+{
+    auto o = stmtBlockByHash.one(hash);
+    if (!o.has_value())
+        return {};
+    try {
+        return BodyContainer(std::vector<uint8_t>(o[3]));
+    } catch (...) {
+        throw std::runtime_error("Cannot load block with hash " + serialize_hex(hash) + ".");
+    }
+}
+
 std::optional<std::pair<BlockId, Block>> ChainDB::get_block(HashView hash) const
 {
     auto o = stmtBlockByHash.one(hash);
