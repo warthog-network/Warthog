@@ -1,6 +1,9 @@
 #pragma once
 namespace block{
+namespace body{
 class Body;
+}
+using body::Body;
 struct VersionedBodyContainer;
 struct BodyContainer;
 }

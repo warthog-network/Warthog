@@ -31,9 +31,17 @@ struct Combined : public Ts... {
     {
         (s << ... << static_cast<const Ts*>(this)->get());
     }
+    void write(Writer& w) const
+    {
+        serialize(w);
+    }
     static constexpr size_t byte_size()
     {
         return (Ts::byte_size() + ...);
+    }
+    void append_merkle_leaves(std::vector<Hash>& out) const
+    {
+        out.push_back(hashSHA256(*this));
     }
 };
 template <typename... Ts>
@@ -49,6 +57,10 @@ struct SignedCombined : public Combined<OriginAccIdEl, PinNonceEl, CompactFeeEl,
         PinNonce pn = this->pin_nonce();
         auto pinHeight { pn.pin_height_from_floored(pinFloor) };
         return { this->origin_account_id(), pinHeight, pn.id };
+    }
+    void append_txids(std::vector<TransactionId>& txids, PinFloor pf) const
+    {
+        txids.push_back(txid_from_floored(pf));
     }
 };
 

@@ -570,10 +570,10 @@ Result<ChainMiningTask> State::mining_task(const Address& miner, bool disableTxs
             body::Entries entries;
             auto asset {
                 [&, assetOffsets = std::map<AssetHash, size_t> {}](AssetHash hash) mutable -> auto& {
-                    auto [it, inserted] = assetOffsets.try_emplace(hash, entries.tokens.size());
+                    auto [it, inserted] = assetOffsets.try_emplace(hash, entries.tokens().size());
                     if (inserted)
-                        entries.tokens.push_back({ dbcache.assetsByHash[hash].id });
-                    return entries.tokens[it->second];
+                        entries.tokens().push_back({ dbcache.assetsByHash[hash].id });
+                    return entries.tokens()[it->second];
                 }
             };
 
@@ -581,14 +581,14 @@ Result<ChainMiningTask> State::mining_task(const Address& miner, bool disableTxs
                 minerReward.add_assert(tx.fee()); // assert because
                 std::move(tx).visit_overload(
                     [&](WartTransferMessage&& m) {
-                        entries.wartTransfers.push_back({ m.from_id(), m.pin_nonce_throw(height), m.compact_fee(), addr_id(m.to_addr()), m.wart(), m.signature() });
+                        entries.wart_transfers().push_back({ m.from_id(), m.pin_nonce_throw(height), m.compact_fee(), addr_id(m.to_addr()), m.wart(), m.signature() });
                     },
                     [&](TokenTransferMessage&& m) {
                         auto pn { PinNonce::make_pin_nonce(m.nonce_id(), height, m.pin_height()) };
                         if (!pn)
                             throw std::runtime_error("Cannot make pin_nonce");
                         auto& s { asset(m.asset_hash()) };
-                        auto& transfers = s.assetTransfers;
+                        auto& transfers = s.asset_transfers();
                         transfers.push_back({ m.from_id(), m.pin_nonce_throw(height), m.compact_fee(), addr_id(m.to_addr()), m.amount(), m.signature() });
                     },
                     [&](OrderMessage&& m) {

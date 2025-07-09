@@ -542,7 +542,7 @@ public:
             buy
         };
     }
-    void register_token_section(const TokenSection& t)
+    void register_token_section(const block::body::elements::TokenSection& t)
     {
         auto aid { t.asset_id() };
         auto sid { t.share_id() };

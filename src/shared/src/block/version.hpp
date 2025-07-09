@@ -1,12 +1,12 @@
 #pragma once
 #include "general/with_uint64.hpp"
 class BlockVersion : public IsUint32 {
-    constexpr BlockVersion(uint32_t v)
+public:
+    explicit constexpr BlockVersion(uint32_t v)
         : IsUint32(v)
     {
     }
 
-public:
     static const BlockVersion v3;
     static const BlockVersion v4;
 
