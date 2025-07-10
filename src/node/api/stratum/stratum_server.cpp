@@ -17,194 +17,192 @@ using namespace std;
 
 namespace stratum {
 namespace messages {
-    struct MiningSubscribe {
-        int64_t id;
-    };
-    struct MiningAuthorize {
-        MiningAuthorize(int64_t id, nlohmann::json::array_t params)
-            : id(id)
-            , user(params[0].get<std::string>())
-        {
-        }
-        int64_t id;
-        std::string user;
-    };
-    struct MiningSubmit {
-        int64_t id;
-        MiningSubmit(int64_t id, nlohmann::json::array_t params)
-            : id(id)
-            , jobId(params[0].get<std::string>())
-            , extranonce2(hex_to_arr<6>(params[1].get<std::string>()))
-            , ntime(hex_to_arr<4>(params[2].get<std::string>()))
-            , nonce(hex_to_arr<4>(params[3].get<std::string>()))
-        {
-        }
-        void apply_to(const std::array<uint8_t, 4>& extra2prefix, Block& b) const
-        {
-            std::copy(extra2prefix.begin(), extra2prefix.end(), b.body.data().begin());
-            std::copy(extranonce2.begin(), extranonce2.end(), b.body.data().begin() + 4);
-            auto structure { b.body.parse_structure_throw(b.height, b.header.version()) };
-            b.header.set_merkleroot(BodyView(b.body, structure).merkle_root(b.height));
-            b.header.set_nonce(nonce);
-            b.header.set_timestamp(ntime);
-        }
-        std::string jobId;
-        std::array<uint8_t, 6> extranonce2;
-        std::array<uint8_t, 4> ntime;
-        std::array<uint8_t, 4> nonce;
-    };
+struct MiningSubscribe {
+    int64_t id;
+};
+struct MiningAuthorize {
+    MiningAuthorize(int64_t id, nlohmann::json::array_t params)
+        : id(id)
+        , user(params[0].get<std::string>())
+    {
+    }
+    int64_t id;
+    std::string user;
+};
+struct MiningSubmit {
+    int64_t id;
+    MiningSubmit(int64_t id, nlohmann::json::array_t params)
+        : id(id)
+        , jobId(params[0].get<std::string>())
+        , extranonce2(hex_to_arr<6>(params[1].get<std::string>()))
+        , ntime(hex_to_arr<4>(params[2].get<std::string>()))
+        , nonce(hex_to_arr<4>(params[3].get<std::string>()))
+    {
+    }
+    void apply_to(const std::array<uint8_t, 4>& extra2prefix, Block& b) const
+    {
+        std::copy(extra2prefix.begin(), extra2prefix.end(), b.body.data.begin());
+        std::copy(extranonce2.begin(), extranonce2.end(), b.body.data.begin() + 4);
+        b.header.set_merkleroot(b.body.merkle_root(b.height));
+        b.header.set_nonce(nonce);
+        b.header.set_timestamp(ntime);
+    }
+    std::string jobId;
+    std::array<uint8_t, 6> extranonce2;
+    std::array<uint8_t, 4> ntime;
+    std::array<uint8_t, 4> nonce;
+};
 
-    template <typename... T>
-    std::string pool_null_message(std::string method, T... t)
+template <typename... T>
+std::string pool_null_message(std::string method, T... t)
+{
+    return nlohmann::json {
+        { "id", nullptr },
+        { "method", method },
+        { "params", nlohmann::json::array({ std::forward<T>(t)... }) }
+    }.dump();
+}
+
+struct MiningNotify {
+    std::string jobId;
+    Hash prevHash;
+    std::vector<uint8_t> merklePrefix;
+    BlockVersion version;
+    uint32_t nbits;
+    uint32_t ntime;
+    bool clean { false };
+    static auto merkle_prefix(const Block& b)
+    {
+        return b.body.merkle_prefix();
+    }
+    MiningNotify(std::string jobId, const Block& b, bool clean)
+        : jobId(std::move(jobId))
+        , prevHash { b.header.prevhash() }
+        , merklePrefix(merkle_prefix(b))
+        , version(b.header.version())
+        , nbits(hton32(b.header.target_v2().binary()))
+        , ntime(b.header.timestamp())
+        , clean(clean)
+    {
+    }
+    std::string to_string()
+    {
+        return pool_null_message("mining.notify",
+            jobId,
+            serialize_hex(prevHash),
+            serialize_hex(merklePrefix),
+            serialize_hex(version.value()),
+            serialize_hex(nbits),
+            serialize_hex(ntime),
+            clean);
+    }
+};
+
+//     {
+//   "id": null,
+//   "method": "mining.notify",
+//   "params": [
+//     "jobId",         # jobId has to be sent back on submission
+//     "prevHash",      # hex encoded previous hash in block header
+//     "merklePrefix",  # hex encoded prefix of
+//     "version",       # hex encoded block version
+//     "nbits",         # hex encoded nbits, difficulty target
+//     "ntime",         # hex encoded ntime, timestamp in block header
+//     false            # clean? If yes, discard old jobs.
+//   ]
+// }
+
+struct MiningSetDifficulty {
+    double difficulty;
+    MiningSetDifficulty(const Block& b)
+    {
+        difficulty = b.header.target_v2().difficulty();
+    }
+    std::string to_string()
+    {
+        return pool_null_message("mining.set_difficulty", difficulty);
+    }
+};
+struct OK {
+    int64_t id;
+    nlohmann::json result = true;
+    OK(int64_t id, nlohmann::json result = true)
+        : id(id)
+        , result(std::move(result))
+    {
+    }
+    std::string to_string()
     {
         return nlohmann::json {
-            { "id", nullptr },
-            { "method", method },
-            { "params", nlohmann::json::array({ std::forward<T>(t)... }) }
+            { "id", id },
+            { "result", result },
+            { "error", nullptr }
         }.dump();
     }
+};
 
-    struct MiningNotify {
-        std::string jobId;
-        Hash prevHash;
-        std::vector<uint8_t> merklePrefix;
-        BlockVersion version;
-        uint32_t nbits;
-        uint32_t ntime;
-        bool clean { false };
-        static auto merkle_prefix(const Block& b)
-        {
-            auto structure { b.body.parse_structure_throw(b.height, b.header.version()) };
-            return BodyView(b.body, structure).merkle_prefix();
-        }
-        MiningNotify(std::string jobId, const Block& b, bool clean)
-            : jobId(std::move(jobId))
-            , prevHash { b.header.prevhash() }
-            , merklePrefix(merkle_prefix(b))
-            , version(b.header.version())
-            , nbits(hton32(b.header.target_v2().binary()))
-            , ntime(b.header.timestamp())
-            , clean(clean)
-        {
-        }
-        std::string to_string()
-        {
-            return pool_null_message("mining.notify",
-                jobId,
-                serialize_hex(prevHash),
-                serialize_hex(merklePrefix),
-                serialize_hex(version.value()),
-                serialize_hex(nbits),
-                serialize_hex(ntime),
-                clean);
-        }
-    };
+struct StratumError {
+    int64_t id;
+    int64_t code;
+    std::string message;
 
-    //     {
-    //   "id": null,
-    //   "method": "mining.notify",
-    //   "params": [
-    //     "jobId",         # jobId has to be sent back on submission
-    //     "prevHash",      # hex encoded previous hash in block header
-    //     "merklePrefix",  # hex encoded prefix of
-    //     "version",       # hex encoded block version
-    //     "nbits",         # hex encoded nbits, difficulty target
-    //     "ntime",         # hex encoded ntime, timestamp in block header
-    //     false            # clean? If yes, discard old jobs.
-    //   ]
-    // }
-
-    struct MiningSetDifficulty {
-        double difficulty;
-        MiningSetDifficulty(const Block& b)
-        {
-            difficulty = b.header.target_v2().difficulty();
-        }
-        std::string to_string()
-        {
-            return pool_null_message("mining.set_difficulty", difficulty);
-        }
-    };
-    struct OK {
-        int64_t id;
-        nlohmann::json result = true;
-        OK(int64_t id, nlohmann::json result = true)
-            : id(id)
-            , result(std::move(result))
-        {
-        }
-        std::string to_string()
-        {
-            return nlohmann::json {
-                { "id", id },
-                { "result", result },
-                { "error", nullptr }
-            }.dump();
-        }
-    };
-
-    struct StratumError {
-        int64_t id;
-        int64_t code;
-        std::string message;
-
-        StratumError(int64_t id, int64_t code, std::string message)
-            : id(id)
-            , code(code)
-            , message(std::move(message))
-        {
-        }
-        std::string to_string()
-        {
-            return nlohmann::json {
-                { "id", id },
-                { "result", nullptr },
-                { "error", nlohmann::json::array({ code, message, nullptr }) }
-            }.dump();
-        }
-        static StratumError BadAddress(int64_t id) { return { id, 30, "User format must be <Address>[.<Workername>]"s }; }
-        static StratumError Unauthorized(int64_t id) { return { id, 24, "Unauthorized worker."s }; }
-        static StratumError JobNotFound(int64_t id) { return { id, 21, "Job not found"s }; }
-    };
-
-    OK SubscribeResponse(const std::array<uint8_t, 4>& extra2prefix, int64_t id)
+    StratumError(int64_t id, int64_t code, std::string message)
+        : id(id)
+        , code(code)
+        , message(std::move(message))
     {
-        auto hexprefix { serialize_hex(extra2prefix) };
-        return { id, nlohmann::json::array({ nlohmann::json::array({ "mining.notify", "" }), hexprefix, 6 }) };
-    };
-
-    using message = std::variant<MiningSubscribe, MiningAuthorize, MiningSubmit>;
-
-    std::optional<messages::message> parse(std::string_view v)
-    {
-        using namespace nlohmann;
-        using array_t = json::array_t;
-        auto parsed = json::parse(v);
-        auto method { parsed["method"].get<std::string>() };
-        auto params(parsed["params"].get<array_t>());
-        auto id { parsed["id"].get<int64_t>() };
-
-        if (method == "mining.submit") {
-            return MiningSubmit(id, params);
-        } else if (method == "mining.subscribe") {
-            return MiningSubscribe { .id = id };
-        } else if (method == "mining.authorize") {
-            return MiningAuthorize(id, params);
-        }
-        cout << "Cannot parse \"" << v << "\"" << endl;
-        return {};
     }
+    std::string to_string()
+    {
+        return nlohmann::json {
+            { "id", id },
+            { "result", nullptr },
+            { "error", nlohmann::json::array({ code, message, nullptr }) }
+        }.dump();
+    }
+    static StratumError BadAddress(int64_t id) { return { id, 30, "User format must be <Address>[.<Workername>]"s }; }
+    static StratumError Unauthorized(int64_t id) { return { id, 24, "Unauthorized worker."s }; }
+    static StratumError JobNotFound(int64_t id) { return { id, 21, "Job not found"s }; }
+};
+
+OK SubscribeResponse(const std::array<uint8_t, 4>& extra2prefix, int64_t id)
+{
+    auto hexprefix { serialize_hex(extra2prefix) };
+    return { id, nlohmann::json::array({ nlohmann::json::array({ "mining.notify", "" }), hexprefix, 6 }) };
+};
+
+using message = std::variant<MiningSubscribe, MiningAuthorize, MiningSubmit>;
+
+std::optional<messages::message> parse(std::string_view v)
+{
+    using namespace nlohmann;
+    using array_t = json::array_t;
+    auto parsed = json::parse(v);
+    auto method { parsed["method"].get<std::string>() };
+    auto params(parsed["params"].get<array_t>());
+    auto id { parsed["id"].get<int64_t>() };
+
+    if (method == "mining.submit") {
+        return MiningSubmit(id, params);
+    } else if (method == "mining.subscribe") {
+        return MiningSubscribe { .id = id };
+    } else if (method == "mining.authorize") {
+        return MiningAuthorize(id, params);
+    }
+    cout << "Cannot parse \"" << v << "\"" << endl;
+    return {};
+}
 }
 
 namespace {
-    uint32_t indexCounter { 0 };
-    std::array<uint8_t, 4> next_extra2prefix()
-    {
-        std::array<uint8_t, 4> out;
-        memcpy(out.data(), &indexCounter, 4);
-        indexCounter += 1;
-        return out;
-    }
+uint32_t indexCounter { 0 };
+std::array<uint8_t, 4> next_extra2prefix()
+{
+    std::array<uint8_t, 4> out;
+    memcpy(out.data(), &indexCounter, 4);
+    indexCounter += 1;
+    return out;
+}
 }
 
 Connection::Connection(std::shared_ptr<uvw::tcp_handle> newHandle, StratumServer& server)

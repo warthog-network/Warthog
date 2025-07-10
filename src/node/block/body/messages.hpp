@@ -47,7 +47,7 @@ public:
                    << m.reserved()
                    << m.compact_fee())
                    << ... << static_cast<const Ts*>(m)->get())
-            << m._signature;
+            << m.signature;
     }
 
     [[nodiscard]] TxHash txhash(const PinHash& pinHash) const

@@ -1,11 +1,16 @@
 #pragma once
-namespace block{
-namespace body{
-class Body;
+namespace block {
+namespace body {
+struct MerkleLeaves;
+struct SerializedBody;
+class ParsedBody;
+struct Body;
 }
-using body::Body;
-struct VersionedBodyContainer;
-struct BodyContainer;
+using body::ParsedBody;
+using body::SerializedBody;
+struct VersionedBodyData;
+struct BodyData;
 }
-using block::VersionedBodyContainer;
-using block::BodyContainer;
+using block::BodyData;
+using block::VersionedBodyData;
+using block::body::Body;

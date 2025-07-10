@@ -492,19 +492,19 @@ std::optional<Block> ChainDB::get_block(BlockId id) const
     if (!o.has_value())
         return {};
     try {
-        return Block(o[0], Header(o[1]), o[2]);
+        return Block(o[0], Header(o[1]), BodyData(o[2]));
     } catch (...) {
         throw std::runtime_error("Cannot load block with id " + std::to_string(id.value()) + ". ");
     }
 }
 
-std::optional<BodyContainer> ChainDB::get_block_body(HashView hash) const
+std::optional<BodyData> ChainDB::get_block_body(HashView hash) const
 {
     auto o = stmtBlockByHash.one(hash);
     if (!o.has_value())
         return {};
     try {
-        return BodyContainer(std::vector<uint8_t>(o[3]));
+        return BodyData(std::vector<uint8_t>(o[3]));
     } catch (...) {
         throw std::runtime_error("Cannot load block with hash " + serialize_hex(hash) + ".");
     }
@@ -518,7 +518,7 @@ std::optional<std::pair<BlockId, Block>> ChainDB::get_block(HashView hash) const
     try {
         return std::pair<BlockId, Block> {
             o[0],
-            { o[1], Header(o[2]), o[3] }
+            { o[1], Header(o[2]), BodyData(o[3]) }
         };
     } catch (...) {
         throw std::runtime_error("Cannot load block with hash " + serialize_hex(hash) + ".");
@@ -534,7 +534,7 @@ std::pair<BlockId, bool> ChainDB::insert_protect(const Block& b)
         assert(schedule_exists(*blockId) || consensus_exists(b.height, *blockId));
         return { blockId.value(), false };
     } else {
-        stmtBlockInsert.run(b.height, b.header, b.bodyData, hash);
+        stmtBlockInsert.run(b.height, b.header, b.body.data, hash);
         auto lastId { db.getLastInsertRowid() };
         stmtScheduleInsert.run(lastId, 0);
         return { BlockId(lastId), true };
@@ -1108,7 +1108,6 @@ chainserver::TransactionIds ChainDB::fetch_tx_ids(Height height) const
             throw std::runtime_error("Database corrupted (consensus block id " + std::to_string(id.value()) + "+ not available)");
         }
         assert(height == b->height);
-        assert(b->bodyData.size() > 0);
         for (auto& tid : b->tx_ids()) {
             if (out.emplace(tid).second == false) {
                 throw std::runtime_error(

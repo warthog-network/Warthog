@@ -16,11 +16,10 @@ BlockVersion block_version(NonzeroHeight h)
 }
 }
 HeaderGenerator::HeaderGenerator(std::array<uint8_t, 32> prevhash,
-    const block::Body& bv, Target target,
-    uint32_t timestamp, NonzeroHeight height)
+    const Body& b, Target target, uint32_t timestamp, NonzeroHeight height)
     : version(block_version(height))
     , prevhash(prevhash)
-    , merkleroot(bv.merkle_root(height))
+    , merkleroot(b.merkle_root(height))
     , timestamp(timestamp)
     , target(target)
     , nonce(0u)

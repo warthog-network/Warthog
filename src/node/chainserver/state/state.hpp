@@ -16,6 +16,7 @@
 
 namespace chainserver {
 struct MiningCache {
+    using value_t = block::body::Body;
     struct CacheValidity {
         int db { 0 };
         int mempool { 0 };
@@ -36,14 +37,14 @@ struct MiningCache {
     struct Item {
         Address address;
         bool disableTxs;
-        VersionedBodyContainer b;
+        value_t b;
     };
 
     CacheValidity cacheValidity;
     uint32_t timestamp;
     void update_validity(CacheValidity);
-    [[nodiscard]] const VersionedBodyContainer* lookup(const Address&, bool disableTxs) const;
-    const BodyContainer& insert(const Address& a, bool disableTxs, VersionedBodyContainer);
+    [[nodiscard]] const value_t* lookup(const Address&, bool disableTxs) const;
+    const value_t& insert(const Address& a, bool disableTxs, value_t);
     std::vector<Item> cache;
 };
 
@@ -99,7 +100,7 @@ public:
     auto get_header(Height h) const -> std::optional<std::pair<NonzeroHeight, Header>>;
     auto get_headers() const { return chainstate.headers(); }
     auto get_hash(Height h) const -> std::optional<Hash>;
-    auto get_body_data(DescriptedBlockRange) const -> std::vector<BodyContainer>;
+    auto get_body_data(DescriptedBlockRange) const -> std::vector<BodyData>;
     auto get_mempool_tx(TransactionId) const -> std::optional<WartTransferMessage>;
 
     // api getters

@@ -8,7 +8,8 @@
 
 class HeaderGenerator {
 public:
-    HeaderGenerator(std::array<uint8_t, 32> prevhash, const block::Body& bv,
+    HeaderGenerator(std::array<uint8_t, 32> prevhash,
+        const Body& b,
         Target target,
         uint32_t timestamp, NonzeroHeight height);
     // member elements

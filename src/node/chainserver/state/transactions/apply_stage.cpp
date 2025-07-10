@@ -43,7 +43,7 @@ ApplyStageTransaction::ApplyStageTransaction(const State& s, ChainDBTransaction&
                 + "_failed.block" };
             std::ofstream f(fname);
             f << serialize_hex(block.header) << '\n'
-              << serialize_hex(block.bodyData);
+              << serialize_hex(block.body.data);
             res.newTxIds = ba.move_new_txids();
             return { e, h };
         }

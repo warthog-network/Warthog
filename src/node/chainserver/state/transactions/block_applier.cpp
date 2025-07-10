@@ -382,7 +382,7 @@ class BalanceChecker {
     };
 
     struct Accounts {
-        Accounts(AccountId nextAccountId, const block::Body& b)
+        Accounts(AccountId nextAccountId, const Body& b)
             : beginNew(nextAccountId)
             , end(beginNew + b.newAddresses.size())
         {
@@ -433,7 +433,7 @@ protected:
     };
 
 public:
-    static RewardInternal register_reward(const block::Body& b, Accounts& accounts, NonzeroHeight h)
+    static RewardInternal register_reward(const Body& b, Accounts& accounts, NonzeroHeight h)
     {
         auto r { b.reward };
         auto& a { accounts[r.to_id()] };
@@ -446,7 +446,7 @@ public:
             .toAddress { a.address }
         };
     }
-    BalanceChecker(AccountId nextAccountId, StateId nextStateId, const block::Body& b, NonzeroHeight height)
+    BalanceChecker(AccountId nextAccountId, StateId nextStateId, const Body& b, NonzeroHeight height)
         : height(height)
         , pinFloor(height.pin_floor())
         , b(b)
@@ -542,20 +542,20 @@ public:
             buy
         };
     }
-    void register_token_section(const block::body::elements::TokenSection& t)
+    void register_token_section(const block::body::elements::tokens::TokenSection& t)
     {
         auto aid { t.asset_id() };
         auto sid { t.share_id() };
         TokenSectionInternal ts(t.asset_id());
-        for (auto& tr : t.assetTransfers)
+        for (auto& tr : t.asset_transfers())
             ts.assetTransfers.push_back({ __register_transfer(aid.token_id(), tr.to_id(), tr.amount(), process_signer(tr)), tr.amount() });
-        for (auto& tr : t.shareTransfers)
+        for (auto& tr : t.share_transfers())
             ts.sharesTransfers.push_back({ __register_transfer(sid.token_id(), tr.to_id(), tr.amount(), process_signer(tr)), tr.amount() });
-        for (auto& o : t.orders)
+        for (auto& o : t.orders())
             ts.orders.push_back(register_new_order(o, aid));
-        for (auto& a : t.liquidityAdd)
+        for (auto& a : t.liquidity_deposits())
             ts.liquidityAdds.push_back(register_liquidity_deposit(a, t.asset_id()));
-        for (auto& r : t.liquidityRemove)
+        for (auto& r : t.liquidity_withdrawals())
             ts.liquidityRemoves.push_back(register_liquidity_withdraw(r, t.share_id()));
         tokenSections.push_back(std::move(ts));
     }
@@ -611,7 +611,7 @@ public:
 private:
     const NonzeroHeight height;
     const PinFloor pinFloor;
-    const block::Body& b;
+    const Body& b;
     Accounts accounts;
     StateIdIncrementer stateId;
     RewardInternal reward;
@@ -836,7 +836,7 @@ private:
     decltype(BlockApplier::Preparer::baseTxIds)& baseTxIds;
     const decltype(BlockApplier::Preparer::newTxIds)& newTxIds;
     const BlockHash& blockhash;
-    const block::Body& body;
+    const Body& body;
     const NonzeroHeight height;
 
     // variables needed for block verification
@@ -861,24 +861,24 @@ private:
     void register_wart_transfers()
     {
         // Read transfer section for WART coins
-        for (auto t : body.wartTransfers)
+        for (auto t : body.wart_transfers())
             balanceChecker.register_wart_transfer(t);
     }
     void register_cancelations()
     {
-        for (auto& c : body.cancelations)
+        for (auto& c : body.cancelations())
             balanceChecker.register_cancelation(c);
     }
     void register_token_sections()
     {
-        for (auto t : body.tokens)
+        for (auto t : body.tokens())
             balanceChecker.register_token_section(t);
     }
 
     void register_token_creations()
     {
-        for (size_t i { 0 }; i < body.assetCreations.size(); ++i)
-            balanceChecker.register_token_creation(body.assetCreations[i], i, height);
+        for (size_t i { 0 }; i < body.asset_creations().size(); ++i)
+            balanceChecker.register_token_creation(body.asset_creations()[i], i, height);
 
         const auto beginNewTokenId = db.next_asset_id(); // they start from this index
         for (auto& tc : balanceChecker.token_creations()) {
@@ -1141,6 +1141,7 @@ private:
             d.sell_swaps().push_back({ s.base, s.quote, s.oId });
             accounts.push_back(s.txid.accountId);
         }
+        Check whether repeated entries for same account are OK in the 'accounts' variable
         matchDeltas.push_back(std::move(m));
         auto& ref { history.push_match(accounts, d, blockhash, asset.id()) };
 

@@ -92,152 +92,151 @@ struct Inspector {
 
 namespace jsonmsg {
 namespace {
-    template <typename T>
-    json verified_json(const std::map<TCPPeeraddr, T>& map)
-    {
-        using namespace std::chrono;
-        auto now = steady_clock::now();
-        json e = json::array();
-        for (auto& [a, n] : map) {
-            json j;
-            j["endpoint"] = a.to_string();
-            j["seenSecondsAgo"] = n.outboundConnection ? 0 : duration_cast<seconds>(now - n.lastVerified).count();
-            j["outboundConnection"] = n.outboundConnection;
+template <typename T>
+json verified_json(const std::map<TCPPeeraddr, T>& map)
+{
+    using namespace std::chrono;
+    auto now = steady_clock::now();
+    json e = json::array();
+    for (auto& [a, n] : map) {
+        json j;
+        j["endpoint"] = a.to_string();
+        j["seenSecondsAgo"] = n.outboundConnection ? 0 : duration_cast<seconds>(now - n.lastVerified).count();
+        j["outboundConnection"] = n.outboundConnection;
 
-            e.push_back(j);
-        }
-        return e;
+        e.push_back(j);
     }
-    json endpoint_json(auto& v)
-    {
-        json e = json::array();
-        for (const auto& ae : v) {
-            e.push_back(ae.to_string());
+    return e;
+}
+json endpoint_json(auto& v)
+{
+    json e = json::array();
+    for (const auto& ae : v) {
+        e.push_back(ae.to_string());
+    }
+    return e;
+}
+
+json grid_json(const Grid& g)
+{
+    json out = json::array();
+    for (auto header : g) {
+        out.push_back(serialize_hex(header));
+    }
+    return out;
+}
+
+json header_json(const Header& header, NonzeroHeight height)
+{
+    auto version { header.version() };
+    const bool testnet { is_testnet() };
+    auto powVersion { POWVersion::from_params(height, version, testnet) };
+    assert(powVersion.has_value());
+    bool verusV2_2 { powVersion->uses_verus_2_2() };
+    auto verusHash { verusV2_2 ? verus_hash_v2_2(header) : verus_hash_v2_1(header) };
+    auto blockHash { header.hash() };
+    auto sha256tHash { hashSHA256(blockHash) };
+    auto target { header.target(height, testnet) };
+    uint32_t targetBE = hton32(target.binary());
+    json h;
+    h["raw"] = serialize_hex(header.data(), header.size());
+    h["timestamp"] = header.timestamp();
+    h["utc"] = format_utc(header.timestamp());
+    h["target"] = serialize_hex(targetBE);
+    h["difficulty"] = target.difficulty();
+    h["hash"] = serialize_hex(header.hash());
+    h["pow"] = json {
+        { "verusV2.2", verusV2_2 },
+        { "hashVerus", serialize_hex(verusHash) },
+        { "hashSha256t", serialize_hex(sha256tHash) },
+        { "floatVerus", CustomFloat(verusHash).to_double() },
+        { "floatSha256t", CustomFloat(sha256tHash).to_double() },
+    };
+    h["merkleroot"] = serialize_hex(header.merkleroot());
+    h["nonce"] = serialize_hex(header.nonce());
+    h["prevHash"] = serialize_hex(header.prevhash());
+    h["version"] = serialize_hex(version.value());
+    return h;
+}
+
+[[nodiscard]] json body_json(const api::Block& b)
+{
+    json out;
+    auto& actions { b.actions };
+    { // rewards
+        json a = json::array();
+        if (b.actions.reward) {
+            auto& r { *b.actions.reward };
+            json elem;
+            elem["txHash"] = serialize_hex(r.txhash);
+            elem["toAddress"] = r.toAddress.to_string();
+            elem["amount"] = to_json(r.amount);
+            a.push_back(elem);
         }
-        return e;
+        out["rewards"] = a;
     }
 
-    json grid_json(const Grid& g)
-    {
-        json out = json::array();
-        for (auto header : g) {
-            out.push_back(serialize_hex(header));
+    { // WART transfers
+        json a = json::array();
+        for (auto& t : actions.wartTransfers) {
+            json elem;
+            elem["fromAddress"] = t.fromAddress.to_string();
+            elem["fee"] = to_json(t.fee);
+            elem["nonceId"] = t.nonceId;
+            elem["pinHeight"] = t.pinHeight;
+            elem["txHash"] = serialize_hex(t.txhash);
+            elem["toAddress"] = t.toAddress.to_string();
+            elem["amount"] = to_json(t.amount);
+            a.push_back(elem);
         }
-        return out;
+        out["wartTransfers"] = a;
     }
-
-    json header_json(const Header& header, NonzeroHeight height)
-    {
-        auto version { header.version() };
-        const bool testnet { is_testnet() };
-        auto powVersion { POWVersion::from_params(height, version, testnet) };
-        assert(powVersion.has_value());
-        bool verusV2_2 { powVersion->uses_verus_2_2() };
-        auto verusHash { verusV2_2 ? verus_hash_v2_2(header) : verus_hash_v2_1(header) };
-        auto blockHash { header.hash() };
-        auto sha256tHash { hashSHA256(blockHash) };
-        auto target { header.target(height, testnet) };
-        uint32_t targetBE = hton32(target.binary());
-        json h;
-        h["raw"] = serialize_hex(header.data(), header.size());
-        h["timestamp"] = header.timestamp();
-        h["utc"] = format_utc(header.timestamp());
-        h["target"] = serialize_hex(targetBE);
-        h["difficulty"] = target.difficulty();
-        h["hash"] = serialize_hex(header.hash());
-        h["pow"] = json {
-            { "verusV2.2", verusV2_2 },
-            { "hashVerus", serialize_hex(verusHash) },
-            { "hashSha256t", serialize_hex(sha256tHash) },
-            { "floatVerus", CustomFloat(verusHash).to_double() },
-            { "floatSha256t", CustomFloat(sha256tHash).to_double() },
-        };
-        h["merkleroot"] = serialize_hex(header.merkleroot());
-        h["nonce"] = serialize_hex(header.nonce());
-        h["prevHash"] = serialize_hex(header.prevhash());
-        h["version"] = serialize_hex(version.value());
-        return h;
+    { // Token transfers
+        json a = json::array();
+        for (auto& t : actions.tokenTransfers) {
+            json elem;
+            elem["token"] = to_json(t.assetInfo);
+            elem["fromAddress"] = t.fromAddress.to_string();
+            elem["fee"] = to_json(t.fee);
+            elem["nonceId"] = t.nonceId;
+            elem["pinHeight"] = t.pinHeight;
+            elem["txHash"] = serialize_hex(t.txhash);
+            elem["toAddress"] = t.toAddress.to_string();
+            elem["amount"] = to_json(t.amount);
+            a.push_back(elem);
+        }
+        out["tokenTransfers"] = a;
     }
-
-    [[nodiscard]] json body_json(const api::Block& b)
-    {
-        json out;
-        auto& actions { b.actions };
-        { // rewards
-            json a = json::array();
-            if (b.actions.reward) {
-                auto& r { *b.actions.reward };
-                json elem;
-                elem["txHash"] = serialize_hex(r.txhash);
-                elem["toAddress"] = r.toAddress.to_string();
-                elem["amount"] = to_json(r.amount);
-                a.push_back(elem);
-            }
-            out["rewards"] = a;
+    { // Token transfers
+        json a = json::array();
+        for (auto& o : actions.newOrders) {
+            json elem;
+            elem["token"] = to_json(o.assetInfo);
+            elem["fee"] = o.fee;
+            elem["amount"] = to_json(o.amount);
+            elem["limit"] = o.limit.to_double();
+            elem["buy"] = o.buy;
+            elem["txhash"] = serialize_hex(o.txhash);
+            elem["address"] = o.address.to_string();
+            a.push_back(elem);
         }
-
-        { // WART transfers
-            json a = json::array();
-            for (auto& t : actions.wartTransfers) {
-                json elem;
-                elem["fromAddress"] = t.fromAddress.to_string();
-                elem["fee"] = to_json(t.fee);
-                elem["nonceId"] = t.nonceId;
-                elem["pinHeight"] = t.pinHeight;
-                elem["txHash"] = serialize_hex(t.txhash);
-                elem["toAddress"] = t.toAddress.to_string();
-                elem["amount"] = to_json(t.amount);
-                a.push_back(elem);
-            }
-            out["wartTransfers"] = a;
-        }
-        { // Token transfers
-            json a = json::array();
-            for (auto& t : actions.tokenTransfers) {
-                json elem;
-                elem["token"] = to_json(t.assetInfo);
-                elem["fromAddress"] = t.fromAddress.to_string();
-                elem["fee"] = to_json(t.fee);
-                elem["nonceId"] = t.nonceId;
-                elem["pinHeight"] = t.pinHeight;
-                elem["txHash"] = serialize_hex(t.txhash);
-                elem["toAddress"] = t.toAddress.to_string();
-                elem["amount"] = to_json(t.amount);
-                a.push_back(elem);
-            }
-            out["tokenTransfers"] = a;
-        }
-        { // Token transfers
-            json a = json::array();
-            for (auto& o : actions.newOrders) {
-                json elem;
-                elem["token"] = to_json(o.assetInfo);
-                elem["fee"] = o.fee;
-                elem["amount"] = to_json(o.amount);
-                elem["limit"] = o.limit.to_double();
-                elem["buy"] = o.buy;
-                elem["txid"] = to_json(o.txid);
-                elem["txhash"] = serialize_hex(o.txhash);
-                elem["address"] = o.address.to_string();
-                a.push_back(elem);
-            }
-            out["newOrders"] = a;
-        }
-        { // Swaps
-            json a = json::array();
-            for (auto& s : actions.swaps) {
-                json elem;
-                elem["token"] = jsonmsg::to_json(s.tokenInfo);
-                elem["txhash"] = serialize_hex(s.txhash);
-                elem["buy"] = s.buy;
-                elem["fillQuote"] = to_json(s.fillQuote);
-                elem["fillBase"] = to_json(s.fillBase);
-                a.push_back(elem);
-            }
-            out["swaps"] = a;
-        }
-        return out;
+        out["newOrders"] = a;
     }
+    { // Swaps
+        json a = json::array();
+        for (auto& s : actions.matches) {
+            json elem;
+            elem["token"] = jsonmsg::to_json(s.tokenInfo);
+            elem["txhash"] = serialize_hex(s.txhash);
+            elem["buy"] = s.buy;
+            elem["fillQuote"] = to_json(s.fillQuote);
+            elem["fillBase"] = to_json(s.fillBase);
+            a.push_back(elem);
+        }
+        out["swaps"] = a;
+    }
+    return out;
+}
 
 } // namespace
 
@@ -301,14 +300,14 @@ json to_json(const PeerDB::BanEntry& item)
 }
 
 namespace {
-    json to_json(const api::ThrottleState::BatchThrottler& bt)
-    {
-        return {
-            { "h1", bt.h0.value() },
-            { "h2", bt.h1.value() },
-            { "window", bt.window }
-        };
-    }
+json to_json(const api::ThrottleState::BatchThrottler& bt)
+{
+    return {
+        { "h1", bt.h0.value() },
+        { "h2", bt.h1.value() },
+        { "window", bt.window }
+    };
+}
 }
 
 json to_json(const api::ThrottleState& ts)
@@ -388,16 +387,13 @@ json to_json(const api::MiningState& ms)
     auto& mt { ms.miningTask };
     json j;
     auto height { mt.block.height };
-    auto bodyView { mt.block.body.view() };
-    auto blockReward { bodyView.reward() };
-    auto totalTxFee { bodyView.fee_sum_assert() };
+    auto blockReward { mt.block.body.reward };
     j["synced"] = ms.synced;
     j["header"] = serialize_hex(mt.block.header);
     j["difficulty"] = mt.block.header.target(height, is_testnet()).difficulty();
-    j["merklePrefix"] = serialize_hex(bodyView.merkle_prefix());
-    j["body"] = serialize_hex(mt.block.body.data());
-    j["blockReward"] = to_json(blockReward.amount_assert());
-    j["totalTxFee"] = to_json(totalTxFee);
+    j["merklePrefix"] = serialize_hex(mt.block.body.merkleLeaves.merkle_prefix());
+    j["body"] = serialize_hex(mt.block.body.data);
+    j["blockReward"] = to_json(blockReward.wart());
     j["height"] = height;
     j["testnet"] = is_testnet();
     return j;

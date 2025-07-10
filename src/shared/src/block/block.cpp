@@ -1,12 +1,8 @@
 #include "block.hpp"
 #include "block/header/header_impl.hpp"
-
 namespace block {
-Block::Block(NonzeroHeight height, HeaderView header, BodyContainer bodyData)
-    : height(height)
-    , header(header)
-    , bodyData(std::move(bodyData))
-    , body(this->bodyData, this->header.version(), height)
+Block::Block(NonzeroHeight height, HeaderView header, BodyData body)
+    : Block(height, header, Body::parse({ std::move(body), header.version() }, height))
 {
 }
 }

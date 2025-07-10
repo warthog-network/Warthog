@@ -14,7 +14,7 @@
 #include <thread>
 
 class ChainServer : public std::enable_shared_from_this<ChainServer> {
-    using getBlocksCb = std::function<void(std::vector<BodyContainer>&&)>;
+    using getBlocksCb = std::function<void(std::vector<BodyData>&&)>;
 
 public:
     // can be called concurrently

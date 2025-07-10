@@ -75,7 +75,7 @@ private:
 
 struct BlockUndoData {
     Header header;
-    block::BodyContainer body;
+    BodyData body;
     RawUndo rawUndo;
 };
 
@@ -134,7 +134,7 @@ public:
     [[nodiscard]] std::optional<BlockUndoData> get_block_undo(BlockId id) const;
     [[nodiscard]] std::optional<Block> get_block(BlockId id) const;
     [[nodiscard]] std::optional<std::pair<BlockId, Block>> get_block(HashView hash) const;
-    [[nodiscard]] std::optional<BodyContainer> get_block_body(HashView hash) const;
+    [[nodiscard]] std::optional<BodyData> get_block_body(HashView hash) const;
     // set
     std::pair<BlockId, bool> insert_protect(const Block&);
     void set_block_undo(BlockId id, const std::vector<uint8_t>& undo);

@@ -21,7 +21,7 @@ namespace events {
     struct AccountDelta {
         static constexpr auto eventName { "account.delta" };
         Address address;
-        Funds_uint64 newBalance;
+        Wart newBalance;
         std::vector<api::Block> newTransactions;
     };
 

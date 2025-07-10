@@ -31,9 +31,9 @@ MerkleWriteHook MerkleWriteHooker::hook()
     return { writer, *this };
 }
 
-std::vector<uint8_t> SerializedBody::merkle_prefix() const
+std::vector<uint8_t> MerkleLeaves::merkle_prefix() const
 {
-    const std::vector<Hash>&hashes(merkleTree.hashes), *from;
+    const std::vector<Hash>* from;
     std::vector<Hash> tmp, to;
     from = &hashes;
 
@@ -65,9 +65,9 @@ std::vector<uint8_t> SerializedBody::merkle_prefix() const
     assert(false);
 }
 
-Hash SerializedBody::merkle_root(Height h) const
+Hash MerkleLeaves::merkle_root(const BodyData& data, NonzeroHeight h) const
 {
-    const std::vector<Hash>&hashes(merkleTree.hashes), *from;
+    const std::vector<Hash>* from;
     std::vector<Hash> tmp, to;
     from = &hashes;
 
@@ -85,7 +85,7 @@ Hash SerializedBody::merkle_root(Height h) const
                 if (j + 1 < from->size())
                     hasher.write((*from)[j + 1]);
                 if (I == 1)
-                    hasher.write({ container.data(), block_v2 ? 10u : 4u });
+                    hasher.write({ data.data(), block_v2 ? 10u : 4u });
                 to.push_back(std::move(hasher));
                 j += 2;
             }
@@ -107,7 +107,7 @@ Hash SerializedBody::merkle_root(Height h) const
                 if (1 < from->size()) {
                     hasher.write((*from)[1]);
                 }
-                hasher.write({ container.data(), 4u });
+                hasher.write({ data.data(), 4u });
                 includedSeed = true;
                 to.push_back(std::move(hasher));
             } else {
@@ -131,7 +131,7 @@ Hash SerializedBody::merkle_root(Height h) const
     }
 }
 
-std::vector<TransactionId> Body::tx_ids(NonzeroHeight height) const
+std::vector<TransactionId> ParsedBody::tx_ids(NonzeroHeight height) const
 {
     auto pf { height.pin_floor() };
     std::vector<TransactionId> res;
@@ -140,7 +140,7 @@ std::vector<TransactionId> Body::tx_ids(NonzeroHeight height) const
     return res;
 }
 
-Body Body::parse_throw(std::span<const uint8_t> data, NonzeroHeight h, BlockVersion version, body::MerkleTree* ptree)
+ParsedBody ParsedBody::parse_throw(std::span<const uint8_t> data, NonzeroHeight h, BlockVersion version, body::MerkleLeaves* ptree)
 {
     if (data.size() > MAXBLOCKSIZE)
         throw Error(EINV_BODY);
@@ -172,7 +172,7 @@ Body Body::parse_throw(std::span<const uint8_t> data, NonzeroHeight h, BlockVers
         };
         body::Entries entries(merkle);
         entries.validate_version(version);
-        return Body { std::move(addresses), std::move(reward), std::move(entries) };
+        return ParsedBody { std::move(addresses), std::move(reward), std::move(entries) };
     } catch (const Error& e) {
         if (e.code == EMSGINTEGRITY)
             throw Error(EINV_BODY); // more meaningful error
@@ -180,7 +180,7 @@ Body Body::parse_throw(std::span<const uint8_t> data, NonzeroHeight h, BlockVers
     }
 }
 
-size_t Body::byte_size() const
+size_t ParsedBody::byte_size() const
 {
     size_t res { 0 };
     res += 10; // for mining
@@ -190,10 +190,10 @@ size_t Body::byte_size() const
     return res;
 }
 
-SerializedBody Body::serialize() const
+SerializedBody ParsedBody::serialize() const
 {
     std::vector<uint8_t> res(byte_size(), 0);
-    MerkleTree tree;
+    MerkleLeaves tree;
     Writer w(res);
     MerkleWriteHooker merkle(w, &tree);
     w.skip(10); // for mining
@@ -204,12 +204,26 @@ SerializedBody Body::serialize() const
     }
     entries().write(merkle);
     assert(w.remaining() == 0);
-    return { std::move(res), std::move(tree) };
+    return { VersionedBodyData {
+                 std::move(res),
+                 BlockVersion::v4,
+             },
+        std::move(tree) };
 };
 
-Body::Body(std::span<const uint8_t> data, BlockVersion v, NonzeroHeight h, body::MerkleTree* ptree)
-    : Body(parse_throw(data, h, v, ptree)) {
+ParsedBody::ParsedBody(std::span<const uint8_t> data, BlockVersion v, NonzeroHeight h, body::MerkleLeaves* ptree)
+    : ParsedBody(parse_throw(data, h, v, ptree)) {
     };
 
+Body Body::parse_throw(VersionedBodyData c, NonzeroHeight h)
+{
+    auto p { c.parse(h, c.version) };
+    return Body(std::move(p.first), std::move(c), std::move(p.second));
+}
+Body Body::serialize(ParsedBody b)
+{
+    auto ser { b.serialize() };
+    return Body { std::move(b), std::move(ser.container), std::move(ser.merkleTree) };
+}
 }
 }

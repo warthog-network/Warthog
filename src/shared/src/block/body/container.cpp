@@ -5,23 +5,25 @@
 
 namespace block {
 
-BodyContainer::BodyContainer(Reader& r)
-    : data(to_vector(r.span_4()))
+BodyData::BodyData(Reader& r)
+    : std::vector<uint8_t>(to_vector(r.span_4()))
 {
 }
 
-VersionedBodyContainer::VersionedBodyContainer(BodyContainer bc, BlockVersion v)
-    : BodyContainer(std::move(bc))
+VersionedBodyData::VersionedBodyData(BodyData bc, BlockVersion v)
+    : BodyData(std::move(bc))
     , version(v)
 {
 }
 
-block::Body BodyContainer::parse(NonzeroHeight h, BlockVersion version) const
+std::pair<ParsedBody, body::MerkleLeaves> BodyData::parse(NonzeroHeight h, BlockVersion version) const
 {
-    return block::Body::parse_throw(data, h, version);
+    body::MerkleLeaves l;
+    auto body { Body::parse_throw(*this, h, version, &l) };
+    return { std::move(body), std::move(l) };
 }
 
-VersionedBodyContainer BodyContainer::make_versioned(BlockVersion v) &&
+VersionedBodyData BodyData::make_versioned(BlockVersion v) &&
 {
     return { std::move(*this), v };
 }

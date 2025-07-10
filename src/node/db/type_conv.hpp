@@ -75,7 +75,7 @@ public:
     operator auto() const { return BalanceId { getUInt64() }; }
     operator std::vector<uint8_t>() const { return get_vector(); }
     operator Address() const { return get_array<20>(); }
-    operator BodyContainer() const { return get_vector(); }
+    operator BodyData() const { return get_vector(); }
     operator Header() const { return get_array<80>(); }
     operator AssetPrecision() const { return AssetPrecision::from_number_throw(getUInt8()); }
     operator NonzeroHeight() const

@@ -167,7 +167,7 @@ private:
     //////////////////////////////
     // Private async functions
 
-    void async_forward_blockrep(uint64_t conId, std::vector<BodyContainer>&& blocks);
+    void async_forward_blockrep(uint64_t conId, std::vector<BodyData>&& blocks);
 
     //////////////////////////////
     // Connection related functions
@@ -285,7 +285,7 @@ private:
     };
     struct OnForwardBlockrep {
         uint64_t conId;
-        std::vector<BodyContainer> blocks;
+        std::vector<BodyData> blocks;
     };
     struct GetHashrateBlockChart {
         HashrateBlockChartCb cb;

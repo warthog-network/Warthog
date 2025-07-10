@@ -10,12 +10,13 @@
 
 namespace block {
 namespace body {
-struct MerkleTree {
+struct MerkleLeaves {
     void add_hash(Hash hash)
     {
         hashes.push_back(std::move(hash));
     }
-    void root() { }
+    std::vector<uint8_t> merkle_prefix() const; // only since shifus merkle tree
+    Hash merkle_root(const BodyData& data, NonzeroHeight h) const;
     std::vector<Hash> hashes;
 };
 
@@ -54,7 +55,7 @@ private:
 struct MerkleReadHooker {
     friend MerkleReadHook;
 
-    MerkleReadHooker(Reader& r, MerkleTree* tree)
+    MerkleReadHooker(Reader& r, MerkleLeaves* tree)
         : reader(r)
         , tree(tree)
     {
@@ -78,7 +79,7 @@ public:
     Reader& reader;
 
 private:
-    MerkleTree* tree;
+    MerkleLeaves* tree;
 };
 
 inline MerkleReadHook::~MerkleReadHook()
@@ -116,7 +117,7 @@ private:
     const uint8_t* begin;
 };
 struct MerkleWriteHooker {
-    MerkleWriteHooker(Writer& w, MerkleTree* tree)
+    MerkleWriteHooker(Writer& w, MerkleLeaves* tree)
         : writer(w)
         , tree(tree)
     {
@@ -134,7 +135,7 @@ public:
     Writer& writer;
 
 private:
-    MerkleTree* tree;
+    MerkleLeaves* tree;
 };
 template <typename T>
 struct body_vector : public std::vector<T> {
@@ -488,10 +489,9 @@ struct Entries : public CombineElements<WartTransfers, Cancelations, TokenSectio
 };
 }
 struct SerializedBody {
-    BodyContainer container;
-    MerkleTree merkleTree;
-    std::vector<uint8_t> merkle_prefix() const;
-    Hash merkle_root(Height h) const;
+    VersionedBodyData container;
+    MerkleLeaves merkleTree;
+    Hash merkle_root(NonzeroHeight h) const { return merkleTree.merkle_root(container, h); }
 };
 
 struct AddressReward {
@@ -506,22 +506,45 @@ struct AddressReward {
 using elements::Entries;
 using elements::tokens::TokenSection;
 
-class Body : public AddressReward, public Entries {
+class ParsedBody : public AddressReward, public Entries {
 private:
     template <typename T>
     using body_vector = body_vector<T>;
 
 public:
-    Body(std::vector<Address> newAddresses, Reward reward, Entries entries)
+    ParsedBody(std::vector<Address> newAddresses, Reward reward, Entries entries)
         : AddressReward(std::move(newAddresses), std::move(reward))
         , Entries(std::move(entries))
     {
     }
     std::vector<TransactionId> tx_ids(NonzeroHeight) const;
-    static Body parse_throw(std::span<const uint8_t> rd, NonzeroHeight h, BlockVersion version, MerkleTree* ptree);
+    [[nodiscard]] static ParsedBody parse_throw(std::span<const uint8_t> rd, NonzeroHeight h, BlockVersion version, MerkleLeaves* ptree);
     size_t byte_size() const;
-    SerializedBody serialize() const;
-    Body(std::span<const uint8_t> data, BlockVersion v, NonzeroHeight h, MerkleTree*);
+    [[nodiscard]] SerializedBody serialize() const;
+    ParsedBody(std::span<const uint8_t> data, BlockVersion v, NonzeroHeight h, MerkleLeaves*);
+};
+
+struct Body : public ParsedBody {
+    VersionedBodyData data;
+    MerkleLeaves merkleLeaves;
+    [[nodiscard]] static Body parse_throw(VersionedBodyData c, NonzeroHeight h);
+    [[nodiscard]] static Body serialize(ParsedBody);
+    auto merkle_root(NonzeroHeight h) const
+    {
+        return merkleLeaves.merkle_root(data, h);
+    }
+    auto merkle_prefix() const
+    {
+        return merkleLeaves.merkle_prefix();
+    }
+
+private:
+    Body(ParsedBody parsed, VersionedBodyData raw, MerkleLeaves merkleTree)
+        : ParsedBody(std::move(parsed))
+        , data(std::move(raw))
+        , merkleLeaves(std::move(merkleTree))
+    {
+    }
 };
 }
 

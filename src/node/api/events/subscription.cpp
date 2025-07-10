@@ -42,170 +42,170 @@ void handleSubscriptioinMessage(const nlohmann::json& j, subscription_ptr p)
 }
 
 namespace events {
-    namespace {
-        json to_json(const AccountState a)
-        {
-            json arr((json::array_t()));
-            Funds_uint64 balance { [&]() {
-                if (a.history) {
-                    for (auto& b : std::ranges::reverse_view(a.history->blocks_reversed)) {
-                        arr.push_back(jsonmsg::to_json(b));
-                    }
-                    return a.history->balance;
-                }
-                return Funds::zero();
-            }() };
-            return json {
-                { "address", a.address.to_string() },
-                { "balance", balance.to_string() },
-                { "balanceE8", balance.E8() },
-                { "history", arr },
-            };
-        }
-        json to_json(const AccountDelta& a)
-        {
-            return json {
-                { "address", a.address.to_string() },
-                { "balance", a.newBalance.to_string() },
-                { "balanceE8", a.newBalance.E8() },
-                { "history", jsonmsg::to_json(a.newTransactions) },
-            };
-        };
-
-        //////////////////////////////
-        /// Connection events
-        json to_json(const Connection& a)
-        {
-            return json {
-                { "id", a.id },
-                { "since", a.since.timestamp() },
-                { "peerAddr", a.peerAddr },
-                { "inbound", a.inbound }
-            };
-        };
-        json to_json(const ConnectionsState& a)
-        {
-            auto arr(json::array());
-            for (auto& c : a.connections) {
-                arr.push_back(to_json(c));
-            }
-            return json {
-                { "connections", arr },
-                { "total", arr.size() },
-            };
-        };
-        json to_json(const ConnectionsRemove& a)
-        {
-            return json {
-                { "id", a.id },
-                { "total", a.total },
-            };
-        };
-        json to_json(const ConnectionsAdd a)
-        {
-            return json {
-                { "connection", to_json(a.connection) },
-                { "total", a.total }
-            };
-        };
-        json to_json(const ChainState& a)
-        {
-            auto arr(json::array());
-            for (auto& b : a.latestBlocks) {
+namespace {
+json to_json(const AccountState a)
+{
+    json arr((json::array_t()));
+    Wart balance { [&]() {
+        if (a.history) {
+            for (auto& b : std::ranges::reverse_view(a.history->blocks_reversed)) {
                 arr.push_back(jsonmsg::to_json(b));
             }
-            return json {
-                { "head", jsonmsg::to_json(a.head) },
-                { "latestBlocks", arr },
-            };
-        };
-        json to_json(const ChainAppend& a)
-        {
-            return json {
-                { "head", jsonmsg::to_json(a.head) },
-                { "newBlocks", jsonmsg::to_json(a.newBlocks) },
-            };
-        };
-        json to_json(const ChainFork& a)
-        {
-            return json {
-                { "head", jsonmsg::to_json(a.head) },
-                { "latestBlocks", jsonmsg::to_json(a.latestBlocks) },
-                { "rollbackLength", a.rollbackLength.value() },
-            };
-        };
-        json to_json(const MinerdistState& a)
-        {
-            return json {
-                { "counts", jsonmsg::to_json(a.counts) },
-            };
-        };
-        json to_json(const MinerdistDelta& a)
-        {
-            return json {
-                { "deltas", jsonmsg::to_json(a.deltas) },
-            };
-        };
+            return a.history->balance;
+        }
+        return Wart::zero();
+    }() };
+    return json {
+        { "address", a.address.to_string() },
+        { "balance", balance.to_string() },
+        { "balanceE8", balance.E8() },
+        { "history", arr },
+    };
+}
+json to_json(const AccountDelta& a)
+{
+    return json {
+        { "address", a.address.to_string() },
+        { "balance", a.newBalance.to_string() },
+        { "balanceE8", a.newBalance.E8() },
+        { "history", jsonmsg::to_json(a.newTransactions) },
+    };
+};
 
-        // log events
-        json to_json(const LogEntry& e)
-        {
-            using namespace std::chrono;
-            auto sv { spdlog::level::to_string_view(e.level) };
-            return json {
-                { "timestampMilliseconds", jsonmsg::to_json(duration_cast<milliseconds>(e.tp.time_since_epoch()).count()) },
-                { "level", std::string_view(sv.data(), sv.size()) },
-                { "message", e.payload },
-                { "datetime", e.datetime }
-            };
-        };
-        json to_json(const LogState& a)
-        {
-            auto arr(json::array());
-            for (auto& e : a.lines) {
-                arr.push_back(to_json(e));
-            }
-            return arr;
-        };
-        json to_json(const LogLine& a)
-        {
-            return to_json(a.line);
-        };
-        // template <typename T>
-        // std::string json_str(T&& t)
-        // {
-        //     auto j(to_json(t));
-        //     j["eventName"] = t.eventName;
-        //     return j.dump();
-        // }
+//////////////////////////////
+/// Connection events
+json to_json(const Connection& a)
+{
+    return json {
+        { "id", a.id },
+        { "since", a.since.timestamp() },
+        { "peerAddr", a.peerAddr },
+        { "inbound", a.inbound }
+    };
+};
+json to_json(const ConnectionsState& a)
+{
+    auto arr(json::array());
+    for (auto& c : a.connections) {
+        arr.push_back(to_json(c));
     }
+    return json {
+        { "connections", arr },
+        { "total", arr.size() },
+    };
+};
+json to_json(const ConnectionsRemove& a)
+{
+    return json {
+        { "id", a.id },
+        { "total", a.total },
+    };
+};
+json to_json(const ConnectionsAdd a)
+{
+    return json {
+        { "connection", to_json(a.connection) },
+        { "total", a.total }
+    };
+};
+json to_json(const ChainState& a)
+{
+    auto arr(json::array());
+    for (auto& b : a.latestBlocks) {
+        arr.push_back(jsonmsg::to_json(b));
+    }
+    return json {
+        { "head", jsonmsg::to_json(a.head) },
+        { "latestBlocks", arr },
+    };
+};
+json to_json(const ChainAppend& a)
+{
+    return json {
+        { "head", jsonmsg::to_json(a.head) },
+        { "newBlocks", jsonmsg::to_json(a.newBlocks) },
+    };
+};
+json to_json(const ChainFork& a)
+{
+    return json {
+        { "head", jsonmsg::to_json(a.head) },
+        { "latestBlocks", jsonmsg::to_json(a.latestBlocks) },
+        { "rollbackLength", a.rollbackLength.value() },
+    };
+};
+json to_json(const MinerdistState& a)
+{
+    return json {
+        { "counts", jsonmsg::to_json(a.counts) },
+    };
+};
+json to_json(const MinerdistDelta& a)
+{
+    return json {
+        { "deltas", jsonmsg::to_json(a.deltas) },
+    };
+};
 
-    std::string Event::json_str() const
-    {
-        return std::visit([](auto&& e) {
-            return json {
-                { "event", to_json(e) },
-                { "type", e.eventName }
-            }.dump();
-        },
-            variant);
+// log events
+json to_json(const LogEntry& e)
+{
+    using namespace std::chrono;
+    auto sv { spdlog::level::to_string_view(e.level) };
+    return json {
+        { "timestampMilliseconds", uint64_t(duration_cast<milliseconds>(e.tp.time_since_epoch()).count()) },
+        { "level", std::string_view(sv.data(), sv.size()) },
+        { "message", e.payload },
+        { "datetime", e.datetime }
+    };
+};
+json to_json(const LogState& a)
+{
+    auto arr(json::array());
+    for (auto& e : a.lines) {
+        arr.push_back(to_json(e));
     }
+    return arr;
+};
+json to_json(const LogLine& a)
+{
+    return to_json(a.line);
+};
+// template <typename T>
+// std::string json_str(T&& t)
+// {
+//     auto j(to_json(t));
+//     j["eventName"] = t.eventName;
+//     return j.dump();
+// }
+}
 
-    void Event::send(subscription_ptr p) &&
-    {
-        std::move(*this).send(std::vector<subscription_ptr> { p });
-    }
+std::string Event::json_str() const
+{
+    return std::visit([](auto&& e) {
+        return json {
+            { "event", to_json(e) },
+            { "type", e.eventName }
+        }.dump();
+    },
+        variant);
+}
+
+void Event::send(subscription_ptr p) &&
+{
+    std::move(*this).send(std::vector<subscription_ptr> { p });
+}
 
 #ifndef DISABLE_LIBUV
-    void Event::send(std::vector<subscription_ptr> subscribers) &&
-    {
-        global().httpEndpoint->send_event(std::move(subscribers), std::move(*this));
-    }
+void Event::send(std::vector<subscription_ptr> subscribers) &&
+{
+    global().httpEndpoint->send_event(std::move(subscribers), std::move(*this));
+}
 #else
-    void Event::send(std::vector<subscription_ptr>) &&
-    {
-        api::emit_stream(json_str());
-    }
+void Event::send(std::vector<subscription_ptr>) &&
+{
+    api::emit_stream(json_str());
+}
 #endif
 
 }

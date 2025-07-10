@@ -168,14 +168,14 @@ struct BlockreqMsg : public MsgCombineRequest<10, DescriptedBlockRange> {
     [[nodiscard]] const DescriptedBlockRange& range() const { return get<0>(); }
 };
 
-struct BlockrepMsg : public MsgCombineReply<11, messages::VectorRest<block::BodyContainer>> {
+struct BlockrepMsg : public MsgCombineReply<11, messages::VectorRest<block::BodyData>> {
     static constexpr size_t maxSize = MAXBLOCKBATCHSIZE * (4 + MAXBLOCKSIZE);
     using Base::Base;
 
     std::string log_str() const;
     bool empty() const { return blocks().empty(); }
-    [[nodiscard]] const messages::VectorRest<block::BodyContainer>& blocks() const { return get<0>(); }
-    messages::VectorRest<block::BodyContainer>& block_bodies() { return get<0>(); }
+    [[nodiscard]] const messages::VectorRest<block::BodyData>& blocks() const { return get<0>(); }
+    messages::VectorRest<block::BodyData>& block_bodies() { return get<0>(); }
 };
 
 struct TxsubscribeMsg : public MsgCombineRequest<12, Height> {

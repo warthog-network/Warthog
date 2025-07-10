@@ -8,6 +8,7 @@
 #include "block/body/rollback.hpp"
 #include "block/body/view.hpp"
 #include "block/chain/history/history.hpp"
+#include "block/header/generator.hpp"
 #include "block/header/header_impl.hpp"
 #include "communication/create_transaction.hpp"
 #include "eventloop/types/chainstate.hpp"
@@ -28,7 +29,7 @@ void MiningCache::update_validity(CacheValidity cv)
         cache.clear();
     cacheValidity = cv;
 }
-const VersionedBodyContainer* MiningCache::lookup(const Address& a, bool disableTxs) const
+auto MiningCache::lookup(const Address& a, bool disableTxs) const -> const value_t*
 {
     auto iter { std::find_if(cache.begin(), cache.end(), [&](const Item& i) {
         return i.address == a && i.disableTxs == disableTxs;
@@ -38,9 +39,9 @@ const VersionedBodyContainer* MiningCache::lookup(const Address& a, bool disable
     return nullptr;
 }
 
-const BodyContainer& MiningCache::insert(const Address& a, bool disableTxs, VersionedBodyContainer b)
+auto MiningCache::insert(const Address& a, bool disableTxs, value_t v) -> const value_t&
 {
-    cache.push_back({ a, disableTxs, std::move(b) });
+    cache.push_back({ a, disableTxs, std::move(v) });
     return cache.back().b;
 }
 
@@ -543,7 +544,7 @@ Result<ChainMiningTask> State::mining_task(const Address& miner, bool disableTxs
         return Error(ENOTSYNCED);
 
     auto make_body {
-        [&]() -> block::Body {
+        [&]() -> Body {
             std::vector<TransactionMessage> transactions;
             if (!disableTxs)
                 transactions = chainstate.mempool().get_transactions(400, height);
@@ -593,48 +594,50 @@ Result<ChainMiningTask> State::mining_task(const Address& miner, bool disableTxs
                     },
                     [&](OrderMessage&& m) {
                         asset(m.asset_hash())
-                            .orders.push_back({ m.from_id(), m.pin_nonce_throw(height), m.compact_fee(), m.buy(), m.amount(), m.limit(), m.signature() });
+                            .orders()
+                            .push_back({ m.from_id(), m.pin_nonce_throw(height), m.compact_fee(), m.buy(), m.amount(), m.limit(), m.signature() });
                     },
                     [&](CancelationMessage&& m) {
                         entries
-                            .cancelations.push_back({ m.from_id(), m.pin_nonce_throw(height), m.compact_fee(), PinNonce(m.block_pin_nonce()), m.signature() });
+                            .cancelations()
+                            .push_back({ m.from_id(), m.pin_nonce_throw(height), m.compact_fee(), PinNonce(m.block_pin_nonce()), m.signature() });
                     },
                     [&](LiquidityAddMessage&& m) {
                         asset(m.asset_hash())
-                            .liquidityAdd.push_back({ m.from_id(), m.pin_nonce_throw(height), m.compact_fee(), m.wart(), m.amount(), m.signature() });
+                            .liquidity_deposits()
+                            .push_back({ m.from_id(), m.pin_nonce_throw(height), m.compact_fee(), m.wart(), m.amount(), m.signature() });
                     },
                     [&](LiquidityRemoveMessage&& m) {
                         asset(m.asset_hash())
-                            .liquidityRemove.push_back({ m.from_id(), m.pin_nonce_throw(height), m.compact_fee(), m.amount(), m.signature() });
+                            .liquidity_withdrawals()
+                            .push_back({ m.from_id(), m.pin_nonce_throw(height), m.compact_fee(), m.amount(), m.signature() });
                     },
                     [&](AssetCreationMessage&& m) {
-                        entries.assetCreations
+                        entries.asset_creations()
                             .push_back({ m.from_id(), m.pin_nonce_throw(height), m.compact_fee(), AssetSupplyEl(m.supply()), m.asset_name(), m.signature() });
                     });
             }
-            return { std::move(newAddresses), { minerAccId, minerReward }, std::move(entries) };
+            return Body::serialize({ std::move(newAddresses), { minerAccId, minerReward }, std::move(entries) });
         }
     };
 
     const auto b {
-        [&]() -> const VersionedBodyContainer& {
+        [&]() -> const auto& {
             _miningCache.update_validity(mining_cache_validity());
             if (auto* p { _miningCache.lookup(miner, disableTxs) }; p != nullptr) {
                 return *p;
             } else {
                 auto body { make_body() };
-                auto& b { _miningCache.insert(miner, disableTxs, std::move(body)) };
-                return b;
+                return _miningCache.insert(miner, disableTxs, std::move(body));
             }
         }()
     };
 
     try {
-        auto structure { block::body::Structure::parse_throw(b, height, b.version) };
-        BodyView bv(b, structure);
-
-        HeaderGenerator hg(md.prevhash, bv, md.target, md.timestamp, height);
-        return ChainMiningTask { ParsedBlock::create_throw(height, hg.make_header(0), std::move(b)) };
+        HeaderGenerator hg(md.prevhash, b, md.target, md.timestamp, height);
+        return ChainMiningTask {
+            .block { height, hg.make_header(0), std::move(b) }
+        };
     } catch (const Error& e) {
         spdlog::warn("Cannot create mining task: {}", e.strerror());
         return Error(EBUG);
@@ -687,7 +690,7 @@ stage_operation::StageSetStatus State::set_stage(Headerchain&& hc)
     return { h };
 }
 
-auto State::add_stage(const std::vector<ParsedBlock>& blocks, const Headerchain& hc) -> StageActionResult
+auto State::add_stage(const std::vector<Block>& blocks, const Headerchain& hc) -> StageActionResult
 {
     if (signedSnapshot && !signedSnapshot->compatible(stage)) {
         return { { { ELEADERMISMATCH, signedSnapshot->height() } }, {}, {} };
@@ -743,7 +746,7 @@ public:
     const ChainDB& db;
     const PinFloor newPinFloor;
     const AccountId oldAccountStart;
-    const TokenId oldTokenStart;
+    const AssetId oldAssetStart;
 
     std::map<AccountToken, Funds_uint64> balanceMap;
     std::vector<WartTransferMessage> toMempool;
@@ -755,7 +758,7 @@ private:
         : db(db)
         , newPinFloor(beginHeight.pin_floor())
         , oldAccountStart(rb.next_account_id())
-        , oldTokenStart(rb.next_token_id())
+        , oldAssetStart(rb.next_token_id())
     {
     }
 
@@ -778,14 +781,13 @@ public:
         try {
             BlockUndoData d { fetch_undo(db, id) };
             auto pinFloor { height.pin_floor() };
-            auto s { d.body.parse_structure_throw(height, d.header.version()) };
-            BodyView bv { d.body, s };
-            for (auto t : bv.wart_transfers()) {
-                PinHeight pinHeight = t.pin_height(pinFloor);
+            auto [parsed, merkle] { d.body.parse(height, d.header.version()) };
+            for (auto t : parsed.wart_transfers()) {
+                PinHeight pinHeight = t.pin_nonce().pin_height_from_floored(pinFloor);
                 if (pinHeight <= newPinFloor) {
                     // extract transaction to mempool
-                    auto toAddress { ac.fetch(t.toAccountId()) };
-                    toMempool.push_back(WartTransferMessage(t, pinHeight, toAddress));
+                    auto toAddress { ac.fetch(t.to_id()) };
+                    toMempool.push_back(WartTransferMessage(t.txid(pinHeight), t.pin_nonce().reserved, t.compact_fee(), toAddress, t.wart(), t.signature()));
                 }
             }
 
@@ -1130,12 +1132,12 @@ auto State::api_get_richlist(size_t N) const -> api::Richlist
     return db.lookup_richlist(N);
 }
 
-auto State::get_body_data(DescriptedBlockRange range) const -> std::vector<BodyContainer>
+auto State::get_body_data(DescriptedBlockRange range) const -> std::vector<BodyData>
 {
     assert(range.first() != 0);
     assert(range.last() >= range.first());
     std::vector<Hash> hashes(range.last() - range.first() + 1);
-    std::vector<BodyContainer> res;
+    std::vector<BodyData> res;
     if (range.descriptor == chainstate.descriptor()) {
         if (chainstate.length() < range.last())
             return {};

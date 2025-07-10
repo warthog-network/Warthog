@@ -5,19 +5,20 @@
 #include <cstdint>
 namespace block {
 
-struct VersionedBodyContainer;
-struct BodyContainer: public std::vector<uint8_t> {
-    BodyContainer(Reader& r);
-    BodyContainer(std::vector<uint8_t> v)
+struct VersionedBodyData;
+struct BodyData : public std::vector<uint8_t> {
+    BodyData(Reader& r);
+    BodyData(std::vector<uint8_t> v)
         : vector(v)
     {
     }
-    VersionedBodyContainer make_versioned(BlockVersion v) &&;
-    block::Body parse(NonzeroHeight, BlockVersion) const;
+    size_t byte_size() const { return size(); }
+    VersionedBodyData make_versioned(BlockVersion v) &&;
+    [[nodiscard]] std::pair<ParsedBody, body::MerkleLeaves> parse(NonzeroHeight, BlockVersion) const;
 };
 
-struct VersionedBodyContainer : public BodyContainer {
-    VersionedBodyContainer(BodyContainer bc, BlockVersion v);
+struct VersionedBodyData : public BodyData {
+    VersionedBodyData(BodyData bc, BlockVersion v);
     BlockVersion version;
 };
 

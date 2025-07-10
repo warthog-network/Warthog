@@ -79,7 +79,7 @@
 //     {
 //         return TokenName::parse_throw(static_cast<std::string>(*this));
 //     }
-//     operator BodyContainer() const
+//     operator BodyData() const
 //     {
 //         return { std::vector<uint8_t>(*this) };
 //     }

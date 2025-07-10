@@ -224,7 +224,7 @@ void Eventloop::api_loadtest_disable(uint64_t conId, ResultCb cb)
     defer(Loadtest { conId, std::nullopt, std::move(cb) });
 }
 
-void Eventloop::async_forward_blockrep(uint64_t conId, std::vector<BodyContainer>&& blocks)
+void Eventloop::async_forward_blockrep(uint64_t conId, std::vector<BodyData>&& blocks)
 {
     defer(OnForwardBlockrep { conId, std::move(blocks) });
 }
@@ -514,7 +514,7 @@ void Eventloop::handle_event(SignedSnapshotCb&& cb)
     if (signed_snapshot()) {
         cb(*signed_snapshot());
     } else {
-        cb(tl::make_unexpected(ENOTFOUND));
+        cb(Error(ENOTFOUND));
     }
 }
 
@@ -587,9 +587,9 @@ void Eventloop::handle_event(mempool::Updates&& log)
     }
     std::sort(entries.begin(), entries.end(),
         [](const mempool::Entry& e1, const mempool::Entry& e2) {
-            if (e1.transaction_height() == e2.transaction_height())
-                return e1.transaction_id() < e2.transaction_id();
-            return e1.transaction_height() < e2.transaction_height();
+            if (e1.txHeight == e2.txHeight)
+                return e1.txid() < e2.txid();
+            return e1.txHeight < e2.txHeight;
         });
 
     // construct subscription bounds per connection
@@ -598,7 +598,7 @@ void Eventloop::handle_event(mempool::Updates&& log)
     auto miter = mempoolSubscriptions.cbegin();
     if (mempoolSubscriptions.size() > 0) {
         while (eiter != entries.end()) {
-            while (!(eiter->transaction_height() < miter->first.transactionHeight)) {
+            while (!(eiter->txHeight < miter->first.transactionHeight)) {
                 bounds.push_back({ eiter, miter->second });
                 ++miter;
                 if (miter == mempoolSubscriptions.cend())
@@ -855,7 +855,7 @@ void Eventloop::handle_event(DisconnectPeer&& dp)
         close(*o, EAPICMD);
         dp.cb({});
     }
-    dp.cb(tl::make_unexpected(Error(ENOTFOUND)));
+    dp.cb(Error(ENOTFOUND));
 }
 
 void Eventloop::handle_event(SampleVerifiedPeers&& p)
@@ -875,7 +875,7 @@ void Eventloop::handle_event(Loadtest&& e)
         do_loadtest_requests();
         e.callback({});
     } else {
-        e.callback(tl::make_unexpected(ENOTFOUND));
+        e.callback(Error(ENOTFOUND));
     }
 }
 
@@ -1851,7 +1851,7 @@ Result<Conref> Eventloop::try_insert_connection(OnHandshakeCompleted&& m)
                 log_rtc("verified RTC ip {} for {}", ip.to_string(), parent.peer().to_string());
             }
             conId = 0;
-            return tl::make_unexpected(ERTCFEELER);
+            return Error(ERTCFEELER);
         }
     }
 
