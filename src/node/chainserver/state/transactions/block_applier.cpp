@@ -6,6 +6,7 @@
 #include "chainserver/db/chain_db.hpp"
 #include "chainserver/db/ids.hpp"
 #include "chainserver/db/types.hpp"
+#include "defi/token/account_token.hpp"
 #include "defi/token/info.hpp"
 #include "defi/uint64/lazy_matching.hpp"
 #include "defi/uint64/pool.hpp"
@@ -14,7 +15,7 @@ using namespace block::body;
 
 namespace {
 
-struct VerifiedOrderWithId : public VerifiedOrder {
+struct VerifiedOrderWithId : public block_apply::Order::Verified {
     HistoryId orderId;
 };
 
@@ -59,9 +60,9 @@ struct SortedOrders : public std::vector<OrderData> {
             push_back(OrderData(
                 o.orderId,
                 o.txid,
-                o.order.amount,
+                o.ref.amount(),
                 Funds_uint64::zero(),
-                o.order.limit));
+                o.ref.limit()));
         }
         std::sort(begin(), end(), &SortedOrders<ASCENDING>::in_order);
     }
@@ -303,7 +304,7 @@ struct NewOrdersInternal : UnsortedOrderbook {
     bool empty() const { return buys.empty() && sells.empty(); }
     void push_back(VerifiedOrderWithId o)
     {
-        if (o.order.buy)
+        if (o.ref.buy())
             buys.push_back(std::move(o));
         else
             sells.push_back(std::move(o));
@@ -317,11 +318,11 @@ private:
 public:
     auto asset_id() const { return id; }
     auto share_id() const { return id.share_id(); }
-    std::vector<block_apply::TokenTransferInternal> assetTransfers;
-    std::vector<block_apply::TokenTransferInternal> sharesTransfers;
-    std::vector<OrderInternal> orders;
-    std::vector<block_apply::LiquidityDepositInternal> liquidityAdds;
-    std::vector<block_apply::LiquidityWithdrawalInternal> liquidityRemoves;
+    std::vector<block_apply::TokenTransfer::Internal> assetTransfers;
+    std::vector<block_apply::TokenTransfer::Internal> sharesTransfers;
+    std::vector<block_apply::Order::Internal> orders;
+    std::vector<block_apply::LiquidityDeposit::Internal> liquidityAdds;
+    std::vector<block_apply::LiquidityWithdrawal::Internal> liquidityRemoves;
     TokenSectionInternal(AssetId id)
         : id(id)
     {
@@ -504,12 +505,12 @@ public:
         cancelations.push_back({ std::move(s), { cancelTxId } });
     }
 
-    block_apply::LiquidityDepositInternal register_liquidity_deposit(const LiquidityDeposit& l, AssetId aid)
+    block_apply::LiquidityDeposit::Internal register_liquidity_deposit(const LiquidityDeposit& l, AssetId aid)
     {
         auto s { process_signer(l) };
         s.account.subtract(aid.token_id(), l.base_amount());
         s.account.subtract(TokenId::WART, l.quote_wart());
-        return { std::move(s), { defi::BaseQuote { l.base_amount(), l.quote_wart() } } };
+        return { std::move(s), { defi::BaseQuote { l.base_amount(), l.quote_wart() }, aid } };
     }
 
     void add_balance(AccountId aid, TokenId tid, Funds_uint64 amount)
@@ -517,13 +518,13 @@ public:
         accounts[aid].add(tid, amount);
     }
 
-    block_apply::LiquidityWithdrawalInternal register_liquidity_withdraw(LiquidityWithdraw l, ShareId shareId)
+    block_apply::LiquidityWithdrawal::Internal register_liquidity_withdraw(LiquidityWithdraw l, ShareId shareId)
     {
         auto s { process_signer(l) };
         s.account.subtract(shareId.token_id(), l.amount());
-        return { std::move(s), l.amount() };
+        return { std::move(s), { l.amount(), shareId.asset_id() } };
     }
-    OrderInternal register_new_order(Order o, AssetId aid)
+    block_apply::Order::Internal register_new_order(Order o, AssetId aid)
     {
         auto s { process_signer(o) };
 
@@ -536,10 +537,7 @@ public:
 
         return {
             std::move(s),
-            o.limit(),
-            amount,
-            aid,
-            buy
+            { o.limit(), amount, buy, aid }
         };
     }
     void register_token_section(const block::body::elements::tokens::TokenSection& t)
@@ -550,12 +548,12 @@ public:
         for (auto& tr : t.asset_transfers()) {
             auto s(process_signer(tr));
             auto valid_to_id { __register_transfer(aid.token_id(), tr.to_id(), tr.amount(), s) };
-            ts.assetTransfers.push_back({ s, { valid_to_id, tr.amount() } });
+            ts.assetTransfers.push_back({ s, { valid_to_id, tr.amount(), aid } });
         }
         for (auto& tr : t.share_transfers()) {
             auto s(process_signer(tr));
             auto valid_to_id { __register_transfer(sid.token_id(), tr.to_id(), tr.amount(), s) };
-            ts.sharesTransfers.push_back({ s, { valid_to_id, tr.amount() } });
+            ts.sharesTransfers.push_back({ s, { valid_to_id, tr.amount(), aid } });
         }
         for (auto& o : t.orders())
             ts.orders.push_back(register_new_order(o, aid));
@@ -622,11 +620,10 @@ private:
     StateIdIncrementer stateId;
     RewardInternal reward;
 
-    std::vector<block_apply::WartTransferInternal> wartTransfers;
-    std::vector<block_apply::CancelationInternal> cancelations;
+    std::vector<block_apply::WartTransfer::Internal> wartTransfers;
+    std::vector<block_apply::Cancelation::Internal> cancelations;
     std::vector<TokenSectionInternal> tokenSections;
-    // std::vector<TransferInternal> transfers;
-    std::vector<TokenCreationInternal> tokenCreations;
+    std::vector<block_apply::AssetCreation::Internal> tokenCreations;
     Wart totalfee { Wart::zero() };
 };
 
@@ -636,22 +633,22 @@ struct InsertHistoryEntry {
         , historyId(historyId)
     {
     }
-    InsertHistoryEntry(const block_apply::TokenTransferVerified& t, TokenId tokenId, HistoryId historyId)
+    InsertHistoryEntry(const block_apply::TokenTransfer::Verified& t, TokenId tokenId, HistoryId historyId)
         : he(t, tokenId)
         , historyId(historyId)
     {
     }
-    InsertHistoryEntry(const VerifiedOrder& t, HistoryId historyId)
+    InsertHistoryEntry(const block_apply::Order::Verified& t, HistoryId historyId)
         : he(t)
         , historyId(historyId)
     {
     }
-    InsertHistoryEntry(const block_apply::CancelationInternal& t, HistoryId historyId)
+    InsertHistoryEntry(const block_apply::Cancelation::Verified& t, HistoryId historyId)
         : he(t)
         , historyId(historyId)
     {
     }
-    InsertHistoryEntry(const VerifiedWartTransfer& t, HistoryId historyId)
+    InsertHistoryEntry(const block_apply::WartTransfer::Verified& t, HistoryId historyId)
         : he(t)
         , historyId(historyId)
     {
@@ -661,13 +658,13 @@ struct InsertHistoryEntry {
         , historyId(historyId)
     {
     }
-    InsertHistoryEntry(const VerifiedLiquidityDeposit& t, Funds_uint64 receivedShares, AssetId assetId, HistoryId historyId)
-        : he(t, receivedShares, assetId)
+    InsertHistoryEntry(const block_apply::LiquidityDeposit::Verified& t, Funds_uint64 receivedShares, HistoryId historyId)
+        : he(t, receivedShares)
         , historyId(historyId)
     {
     }
-    InsertHistoryEntry(const VerifiedLiquidityWithdrawal& t, Funds_uint64 receivedBase, Wart receivedQuote, AssetId assetId, HistoryId historyId)
-        : he(t, receivedBase, receivedQuote, assetId)
+    InsertHistoryEntry(const block_apply::LiquidityWithdrawal::Verified& t, Funds_uint64 receivedBase, Wart receivedQuote, HistoryId historyId)
+        : he(t, receivedBase, receivedQuote)
         , historyId(historyId)
     {
     }
@@ -772,37 +769,37 @@ public:
     {
         return for_account(r.toAccountId).insert_history(r);
     }
-    [[nodiscard]] auto& push_wart_transfer(const VerifiedWartTransfer& r)
+    [[nodiscard]] auto& push_wart_transfer(const block_apply::WartTransfer::Verified& r)
     {
-        return for_accounts(r.ti.origin.id, r.ti.to.id).insert_history(r);
+        return for_accounts(r.ref.origin.id, r.ref.to_id()).insert_history(r);
     }
-    [[nodiscard]] auto& push_order(const VerifiedOrder& r)
+    [[nodiscard]] auto& push_order(const block_apply::Order::Verified& r)
     {
-        return for_account(r.order.origin.id).insert_history(r);
+        return for_account(r.ref.origin.id).insert_history(r);
     }
-    [[nodiscard]] auto& push_cancelation(const VerifiedCancelation& r)
+    [[nodiscard]] auto& push_cancelation(const block_apply::Cancelation::Verified& r)
     {
-        return for_account(r.cancelation.origin.id).insert_history(r);
+        return for_account(r.ref.origin.id).insert_history(r);
     }
-    [[nodiscard]] auto& push_token_transfer(const VerifiedTokenTransfer& r, TokenId tokenId)
+    [[nodiscard]] auto& push_token_transfer(const block_apply::TokenTransfer::Verified& r, TokenId tokenId)
     {
-        return for_accounts(r.ti.origin.id, r.ti.to.id).insert_history(r, tokenId);
+        return for_accounts(r.ref.origin.id, r.ref.to_id()).insert_history(r, tokenId);
     }
-    [[nodiscard]] auto& push_asset_creation(const VerifiedAssetCreation& t, AssetId assetId)
+    [[nodiscard]] auto& push_asset_creation(const block_apply::AssetCreation::Verified& t, AssetId assetId)
     {
-        return for_account(t.tci.origin.id).insert_history(t, assetId);
+        return for_account(t.ref.origin.id).insert_history(t, assetId);
     }
     [[nodiscard]] auto& push_match(const std::vector<AccountId>& accounts, const history::MatchData& t, const BlockHash& blockHash, AssetId assetId)
     {
         return for_accounts(accounts).insert_history(t, hash_args_SHA256(blockHash, assetId));
     }
-    [[nodiscard]] auto& push_liquidity_deposit(const VerifiedLiquidityDeposit& v, Funds_uint64 sharesReceived, AssetId aid)
+    [[nodiscard]] auto& push_liquidity_deposit(const block_apply::LiquidityDeposit::Verified& v, Funds_uint64 sharesReceived)
     {
-        return for_account(v.liquidityAdd.origin.id).insert_history(v, sharesReceived, aid);
+        return for_account(v.ref.origin.id).insert_history(v, sharesReceived);
     }
-    [[nodiscard]] auto& push_liquidity_withdrawal(const VerifiedLiquidityWithdrawal& v, Funds_uint64 baseReceived, Wart quoteReceived, AssetId assetId)
+    [[nodiscard]] auto& push_liquidity_withdrawal(const block_apply::LiquidityWithdrawal::Verified& v, Funds_uint64 baseReceived, Wart quoteReceived)
     {
-        return for_account(v.liquidityAdd.origin.id).insert_history(v, baseReceived, quoteReceived, assetId);
+        return for_account(v.ref.origin.id).insert_history(v, baseReceived, quoteReceived);
     }
 };
 
@@ -894,17 +891,17 @@ private:
                 .id { assetId },
                 .height { height },
                 .ownerAccountId { tc.origin.id },
-                .supply { tc.supply },
+                .supply { tc.supply() },
                 .groupId { assetId.token_id() },
                 .parentId { TokenId { 0 } },
-                .name { tc.name },
+                .name { tc.asset_name() },
                 .hash { verified.hash },
                 .data {} });
             auto& ref { history.push_asset_creation(verified, assetId) };
             api.assetCreations.push_back({
                 .txhash { ref.he.hash },
-                .assetName { tc.name },
-                .supply { tc.supply },
+                .name { tc.asset_name() },
+                .supply { tc.supply() },
                 .assetId { assetId },
                 .fee { tc.compactFee.uncompact() },
             });
@@ -986,9 +983,11 @@ private:
         assert(!r.toAddress.is_null());
         auto& ref { history.push_reward(r) };
         api.reward = api::block::Reward {
-            .txhash { ref.he.hash },
-            .toAddress { r.toAddress },
-            .wart { r.wart },
+            ref.he.hash,
+            {
+                .toAddress { r.toAddress },
+                .wart { r.wart },
+            }
         };
     }
 
@@ -1108,7 +1107,7 @@ private:
             });
         }
     }
-    void match_new_orders(AssetHandle& asset, const std::vector<OrderInternal>& orders)
+    void match_new_orders(AssetHandle& asset, const std::vector<block_apply::Order::Internal>& orders)
     {
         if (orders.size() == 0)
             return;
@@ -1118,14 +1117,15 @@ private:
         for (auto& o : orders) {
             auto verified { verify(o, asset.hash()) };
             auto& ref { history.push_order(verified) };
+            api::block::NewOrder n;
             api.newOrders.push_back(api::block::NewOrder {
-                .txhash { verified.hash },
+                verified.hash, {
                 .assetInfo { asset.info() },
                 .fee { o.fee() },
-                .amount { o.amount },
-                .limit { o.limit },
-                .buy = o.buy,
-                .address { o.origin.address } });
+                .amount { o.amount() },
+                .limit { o.limit() },
+                .buy = o.buy(),
+                .address { o.origin.address } }});
             no.push_back({ verified, ref.historyId });
             insertOrders.push_back(chain_db::OrderData {
                 .id { ref.historyId },

@@ -3,7 +3,6 @@
 #include "api/types/forward_declarations.hpp"
 #include "block/block_fwd.hpp"
 #include "chainserver/db/types_fwd.hpp"
-#include "defi/token/account_token.hpp"
 #include "crypto/hash.hpp"
 
 class Headerchain;

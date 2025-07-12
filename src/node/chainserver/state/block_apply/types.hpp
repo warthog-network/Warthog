@@ -4,94 +4,10 @@
 #include "block/chain/history/index.hpp"
 #include "crypto/address.hpp"
 #include "crypto/hash.hpp"
-#include "defi/token/token.hpp"
 #include "defi/types.hpp"
-#include "defi/uint64/price.hpp"
 #include "signature_verification.hpp"
-struct SwapInternal {
-    HistoryId oId;
-    TransactionId txid;
-    Funds_uint64 base;
-    Wart quote;
-};
-
-struct BuySwapInternal : public SwapInternal {
-};
-struct SellSwapInternal : public SwapInternal {
-};
-
-struct RewardInternal {
-    ValidAccountId toAccountId;
-    Wart wart;
-    NonzeroHeight height;
-    AddressView toAddress;
-    Hash hash() const;
-};
-
-// struct ProcessedMatch : public history::MatchData {
-//     Hash hash;
-//
-// protected:
-//     ProcessedMatch(const Hash& blockHash, TokenId tokenId);
-// };
-
-struct TransferInternalWithoutAmount : public SignerData {
-    IdAddressView to;
-};
-
-// struct OrderInternal;
-// struct VerifiedOrder : public VerifiedTransaction {
-//     VerifiedOrder(const OrderInternal& o, const TransactionVerifier&, HashView tokenHash);
-//     const OrderInternal& order;
-// };
-//
-// struct OrderInternal : public SignerData {
-//     Price_uint64 limit;
-//     Funds_uint64 amount;
-//     AssetId assetId;
-//     bool buy;
-//     [[nodiscard]] VerifiedOrder verify(const TransactionVerifier& tv, HashView tokenHash) const
-//     {
-//         return { *this, tv, tokenHash };
-//     }
-// };
-
-namespace block_apply {
-template <typename Combined, typename VerifyArgPack>
-struct Internal;
-
-template <typename internal_t>
-struct Verified : public VerifiedTransaction {
-    Verified(const internal_t& internal, const TransactionVerifier& verifier)
-        : VerifiedTransaction(verifier.verify(internal, internal))
-        , ref(internal) {
-
-        };
-    const internal_t& ref;
-};
-
-template <typename... T>
-struct ArgTypesPack {
-};
-
-template <typename Combined, typename... VerifyArgs>
-struct Internal<Combined, ArgTypesPack<VerifyArgs...>> : public SignerData, public Combined {
-    Internal(SignerData s, Combined e)
-        : SignerData(std::move(s))
-        , Combined(std::move(e))
-    {
-    }
-    Verified<Combined> verify(const TransactionVerifier& verifier, const VerifyArgs&... args) const
-    {
-        verify_tuple(verifier, std::forward_as_tuple(args...));
-    }
-
-private:
-    Verified<Combined> verify_tuple(const TransactionVerifier& verifier, std::tuple<const VerifyArgs&...>) const
-    {
-        return Verified<Combined> { *this, verifier };
-    }
-};
+// #include "defi/token/token.hpp"
+// #include "defi/uint64/price.hpp"
 
 namespace selectors {
 template <bool replace, size_t I>
@@ -139,15 +55,126 @@ using Test1 = GetSel<false, true, false, true>;
 using Test2 = Selectors<SelectorElement<false, 0>, SelectorElement<true, 0>, SelectorElement<false, 2>, SelectorElement<true, 1>>;
 static_assert(std::is_same_v<Test1, Test2>);
 }
+struct SwapInternal {
+    HistoryId oId;
+    TransactionId txid;
+    Funds_uint64 base;
+    Wart quote;
+};
 
+struct BuySwapInternal : public SwapInternal {
+};
+struct SellSwapInternal : public SwapInternal {
+};
 
-template <typename... Elements>
-struct make_type {
+struct RewardInternal {
+    ValidAccountId toAccountId;
+    Wart wart;
+    NonzeroHeight height;
+    AddressView toAddress;
+    Hash hash() const;
+};
+
+namespace block_apply {
+template <typename Combined, typename Selectors, typename VerifyArgPack>
+struct Internal;
+
+template <typename internal_t>
+struct Verified : public VerifiedTransaction {
 private:
-    using Combined = CombineElements<Elements...>;
+    friend internal_t;
+
+    template <typename... Ts>
+    Verified(const internal_t& internal, const TransactionVerifier& verifier, const Ts&... ts)
+        : VerifiedTransaction(verifier.verify(internal, ts...))
+        , ref(internal) {};
 
 public:
-    using Internal = Internal<Combined, ArgTypesPack<>>;
+    const internal_t& ref;
+};
+
+template <typename... T>
+struct ArgTypesPack {
+    template <typename R>
+    using append = ArgTypesPack<T..., R>;
+};
+template <typename T>
+struct ReplaceArg {
+    static constexpr const bool replace = false;
+    using type = void;
+};
+
+template <>
+struct ReplaceArg<AssetId> {
+    static constexpr const bool replace = true;
+    using type = AssetHash;
+};
+
+template <typename ArgTypesPack, typename... Elements>
+struct ReplacedArgsComputer;
+
+template <typename ArgTypesPack, typename Element, typename... Elements>
+struct ReplacedArgsComputer<ArgTypesPack, Element, Elements...> {
+    template <bool replace>
+    struct Recurse;
+
+    template <>
+    struct Recurse<false> {
+        using next = ReplacedArgsComputer<ArgTypesPack, Elements...>;
+    };
+
+    template <>
+    struct Recurse<true> {
+        using next = ReplacedArgsComputer<typename ArgTypesPack::template append<typename ReplaceArg<typename Element::data_t>::type>, Elements...>;
+    };
+    using pack_t = Recurse<ReplaceArg<typename Element::data_t>::replace>::next::pack_t;
+};
+template <typename ArgTypesPack>
+struct ReplacedArgsComputer<ArgTypesPack> {
+    using pack_t = ArgTypesPack;
+};
+
+template <typename... Elements>
+using GetArgs = ReplacedArgsComputer<ArgTypesPack<>, Elements...>::pack_t;
+
+template <typename Combined, typename Selectors, typename... VerifyArgs>
+struct Internal<Combined, Selectors, ArgTypesPack<VerifyArgs...>> : public SignerData, public Combined {
+    Internal(SignerData s, Combined e)
+        : SignerData(std::move(s))
+        , Combined(std::move(e))
+    {
+    }
+    Verified<Internal> verify(const TransactionVerifier& verifier, const VerifyArgs&... args) const
+    {
+        verify_tuple(verifier, std::forward_as_tuple(args...), Selectors());
+    }
+
+private:
+    template <size_t i>
+    auto& select_arg(selectors::SelectorElement<true, i>, const std::tuple<const VerifyArgs&...>& args) const
+    {
+        // get argument from args
+        return std::get<i>(args);
+    }
+    template <size_t i>
+    auto& select_arg(selectors::SelectorElement<false, i>, const std::tuple<const VerifyArgs&...>&) const
+    {
+        // get argument from own base class
+        return static_cast<const Combined*>(this)->template get<i>();
+    }
+    template <typename... Sels>
+    Verified<Internal> verify_tuple(const TransactionVerifier& verifier, const std::tuple<const VerifyArgs&...>& t, selectors::Selectors<Sels...>) const
+    {
+        return Verified<Internal> { *this, verifier, select_arg(Sels(), t)... };
+    }
+};
+
+template <typename... Elements>
+struct signed_entry {
+    // "Internal" is for temporary representation of block entries while block is applied
+    using Internal = Internal<CombineElements<Elements...>, typename selectors::SelectorPath<ReplaceArg<Elements>::replace...>::Selectors, GetArgs<Elements...>>;
+
+    // "Verified" is a safety type for block entries while block is applied. This type is guaranteed to be signature-verified
     using Verified = Verified<Internal>;
 };
 
@@ -155,134 +182,36 @@ struct CancelTxIdElement : public ElementBase<TransactionId> {
     using ElementBase::ElementBase;
     [[nodiscard]] const auto& cancel_txid() const { return data; }
 };
-
-using Cancelation = make_type<CancelTxIdElement>;
-
-void function_name(Cancelation::Verified& c)
-{
-    c.hash;
-}
-// struct Cancelation : public CombineElements<CancelTxIdElement> {
-//     using CombineElements::CombineElements;
-// };
-// using CancelationInternal = Internal<Cancelation>;
-// using CancelationVerified = Verified<Cancelation>;
-
 struct BaseQuoteEl : public ElementBase<defi::BaseQuote> {
     using ElementBase::ElementBase;
     [[nodiscard]] const auto& base_quote() const { return data; }
     [[nodiscard]] const auto& base() const { return data.base(); }
     [[nodiscard]] const auto& quote() const { return data.quote(); }
 };
-struct LiquidityDeposit : public CombineElements<BaseQuoteEl> {
-    using CombineElements::CombineElements;
-};
-using LiquidityDepositInternal = Internal<LiquidityDeposit>;
-using LiquidityDepositVerified = Verified<LiquidityDeposit>;
 
-struct LiquidityWithdrawal : public CombineElements<AmountEl> {
-    using CombineElements::CombineElements;
-};
-using LiquidityWithdrawalInternal = Internal<LiquidityWithdrawal>;
-using LiquidityWithdrawalVerified = Verified<LiquidityWithdrawal>;
-
-struct WartTransfer : public CombineElements<ToAccIdEl, WartEl> {
-    using CombineElements::CombineElements;
-};
-using WartTransferInternal = Internal<WartTransfer>;
-using WartTransferVerified = Verified<WartTransfer>;
-
-struct TokenTransfer : public CombineElements<ToAccIdEl, AmountEl> {
-    using CombineElements::CombineElements;
-};
-using TokenTransferInternal = Internal<TokenTransfer>;
-using TokenTransferVerified = Verified<TokenTransfer>;
-
-struct Order : public CombineElements<LimitPriceEl, AmountEl, AssetIdEl, BuyEl> {
-    using CombineElements::CombineElements;
-};
-using OrderInternal = Internal<Order>;
-template <>
-struct
-    using OrderVerified
-    = Verified<Order>;
-
-struct OrderInternal;
-struct VerifiedOrder : public VerifiedTransaction {
-    VerifiedOrder(const OrderInternal& o, const TransactionVerifier&, HashView tokenHash);
-    const OrderInternal& order;
-};
-
-struct OrderInternal : public SignerData {
-    Price_uint64 limit;
-    Funds_uint64 amount;
-    AssetId assetId;
-    bool buy;
-    [[nodiscard]] VerifiedOrder verify(const TransactionVerifier& tv, HashView tokenHash) const
-    {
-        return { *this, tv, tokenHash };
-    }
-};
+using Cancelation = signed_entry<CancelTxIdElement>;
+using Order = signed_entry<LimitPriceEl, AmountEl, BuyEl, AssetIdEl>;
+using LiquidityDeposit = signed_entry<BaseQuoteEl, AssetIdEl>;
+using LiquidityWithdrawal = signed_entry<AmountEl, AssetIdEl>;
+using WartTransfer = signed_entry<ToAccIdEl, WartEl>;
+using TokenTransfer = signed_entry<ToAccIdEl, AmountEl, AssetIdEl>;
+using AssetCreation = signed_entry<AssetNameEl, AssetSupplyEl>;
 
 }
 
-// struct WartTransferInternal;
-// class VerifiedWartTransfer : public VerifiedTransaction {
-//     friend struct WartTransferInternal;
-//     VerifiedWartTransfer(const WartTransferInternal&, const TransactionVerifier&); // Wart transfer
-//
-// public:
-//     const WartTransferInternal& ti;
+// struct TokenCreationInternal;
+// struct VerifiedAssetCreation : public VerifiedTransaction {
+//     friend struct TokenCreationInternal;
+//     VerifiedAssetCreation(const TokenCreationInternal&, const TransactionVerifier&);
+//     const TokenCreationInternal& tci;
 // };
 //
-// struct WartTransferInternal : public TransferInternalWithoutAmount {
-//     Wart amount;
-//     WartTransferInternal(TransferInternalWithoutAmount t, Wart amount)
-//         : TransferInternalWithoutAmount(std::move(t))
-//         , amount(amount)
-//     {
-//     }
-//     using TransferInternalWithoutAmount::TransferInternalWithoutAmount;
-//     [[nodiscard]] VerifiedWartTransfer verify(const TransactionVerifier& tv) const
+// struct TokenCreationInternal : public SignerData {
+//     size_t index;
+//     AssetName name;
+//     FundsDecimal supply;
+//     [[nodiscard]] VerifiedAssetCreation verify(const TransactionVerifier& tv) const
 //     {
 //         return { *this, tv };
 //     }
 // };
-
-// struct TokenTransferInternal;
-// class VerifiedTokenTransfer : public VerifiedTransaction {
-//     friend struct TokenTransferInternal;
-//     VerifiedTokenTransfer(const TokenTransferInternal&, const TransactionVerifier&, HashView tokenHash);
-//
-// public:
-//     const TokenTransferInternal& ti;
-// };
-// struct TokenTransferInternal : public TransferInternalWithoutAmount {
-//     Funds_uint64 amount;
-//     TokenTransferInternal(TransferInternalWithoutAmount t, Funds_uint64 amount)
-//         : TransferInternalWithoutAmount(std::move(t))
-//         , amount(amount)
-//     {
-//     }
-//     [[nodiscard]] VerifiedTokenTransfer verify(const TransactionVerifier& tv, HashView tokenHash) const
-//     {
-//         return { *this, tv, tokenHash };
-//     }
-// };
-
-struct TokenCreationInternal;
-struct VerifiedAssetCreation : public VerifiedTransaction {
-    friend struct TokenCreationInternal;
-    VerifiedAssetCreation(const TokenCreationInternal&, const TransactionVerifier&);
-    const TokenCreationInternal& tci;
-};
-
-struct TokenCreationInternal : public SignerData {
-    size_t index;
-    AssetName name;
-    FundsDecimal supply;
-    [[nodiscard]] VerifiedAssetCreation verify(const TransactionVerifier& tv) const
-    {
-        return { *this, tv };
-    }
-};

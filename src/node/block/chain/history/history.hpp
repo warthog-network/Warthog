@@ -178,13 +178,13 @@ using HistoryVariant = IndicatorVariant<CantParseHistoryExceptionGenerator, Wart
 
 struct Entry {
     Entry(const RewardInternal& p);
-    Entry(const block_apply::WartTransferVerified& p);
-    Entry(const block_apply::TokenTransferVerified& p, TokenId);
-    Entry(const block_apply::OrderVerified& p);
-    Entry(const block_apply::CancelationVerified& p);
+    Entry(const block_apply::WartTransfer::Verified& p);
+    Entry(const block_apply::TokenTransfer::Verified& p, TokenId);
+    Entry(const block_apply::Order::Verified& p);
+    Entry(const block_apply::Cancelation::Verified& p);
     Entry(const block_apply::AssetCreationVerified& p, AssetId);
-    Entry(const block_apply::LiquidityDepositVerified& p, Funds_uint64 receivedShares, AssetId assetId);
-    Entry(const block_apply::LiquidityWithdrawalVerified& p, Funds_uint64 receivedBase, Wart receivedQuote, AssetId assetId);
+    Entry(const block_apply::LiquidityDeposit::Verified& p, Funds_uint64 receivedShares);
+    Entry(const block_apply::LiquidityWithdrawal::Verified& p, Funds_uint64 receivedBase, Wart receivedQuote);
     Entry(Hash h, MatchData);
     Entry(Hash h, HistoryVariant data)
         : hash(std::move(h))

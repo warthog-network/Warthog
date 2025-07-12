@@ -11,27 +11,55 @@
 #include "general/compact_uint.hpp"
 #include "general/funds.hpp"
 
-template <typename... Elements>
-struct CombineElements : public Elements... {
-    using combined_t = CombineElements<Elements...>;
-    CombineElements(Reader& r)
-        : Elements(r)...
+namespace enumerated {
+template <size_t i, typename Element>
+struct Annotated : public Element {
+    using Element::Element;
+    Annotated(Element e)
+        : Element(std::move(e))
     {
     }
-    [[nodiscard]] size_t byte_size() const { return (Elements::byte_size() + ...); }
-    CombineElements(Elements::data_t... ts)
-        : Elements(std::move(ts))...
-    {
-    }
-    template <typename Element>
+    template <size_t j>
+    requires(j == i)
     auto& get() const
     {
-        return static_cast<const Element*>(this)->get();
+        return this->get();
     }
-    void serialize(Serializer auto&& s) const
-    {
-        (s << ... << static_cast<const Elements*>(this)->get());
-    }
+};
+template <typename... Elements>
+struct Enumerated {
+    template <typename T>
+    struct CombineElementsEnumerated;
+
+    template <size_t... Is>
+    struct CombineElementsEnumerated<std::index_sequence<Is...>> : public Annotated<Is, Elements>... {
+        using combined_t = CombineElementsEnumerated;
+        CombineElementsEnumerated(Reader& r)
+            : Annotated<Is, Elements>(r)...
+        {
+        }
+        CombineElementsEnumerated(Elements::data_t... ts)
+            : Annotated<Is, Elements>(std::move(ts))...
+        {
+        }
+        [[nodiscard]] size_t byte_size() const { return (Elements::byte_size() + ...); }
+        template <typename Element>
+        auto& get() const
+        {
+            return static_cast<const Element*>(this)->get();
+        }
+        void serialize(Serializer auto&& s) const
+        {
+            (s << ... << static_cast<const Elements*>(this)->get());
+        }
+    };
+};
+
+}
+
+template <typename... Elements>
+struct CombineElements : public enumerated::Enumerated<Elements...>::template CombineElementsEnumerated<std::index_sequence_for<Elements...>> {
+    using enumerated::Enumerated<Elements...>::template CombineElementsEnumerated<std::index_sequence_for<Elements...>>::CombineElementsEnumerated;
 };
 
 template <typename T>

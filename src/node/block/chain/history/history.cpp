@@ -10,7 +10,7 @@ Entry::Entry(const RewardInternal& p)
 {
 }
 
-Entry::Entry(const block_apply::WartTransferVerified& p)
+Entry::Entry(const block_apply::WartTransfer::Verified& p)
     : hash(p.hash)
     , data(WartTransferData {
           p.ref.pinNonce,
@@ -22,7 +22,7 @@ Entry::Entry(const block_apply::WartTransferVerified& p)
 {
 }
 
-Entry::Entry(const block_apply::TokenTransferVerified& p, TokenId tokenId)
+Entry::Entry(const block_apply::TokenTransfer::Verified& p, TokenId tokenId)
     : hash(p.hash)
     , data(TokenTransferData {
           p.ref.pinNonce,
@@ -34,21 +34,21 @@ Entry::Entry(const block_apply::TokenTransferVerified& p, TokenId tokenId)
       })
 {
 }
-Entry::Entry(const block_apply::OrderVerified& p)
+Entry::Entry(const block_apply::Order::Verified& p)
     : hash(p.hash)
     , data(OrderData {
-          p.order.pinNonce,
-          p.order.compactFee,
-          p.order.assetId,
-          p.order.buy,
+          p.ref.pinNonce,
+          p.ref.compactFee,
+          p.ref.asset_id(),
+          p.ref.buy(),
           p.txid.accountId,
-          p.order.limit,
-          p.order.amount,
+          p.ref.limit(),
+          p.ref.amount(),
       })
 {
 }
 
-Entry::Entry(const block_apply::CancelationVerified& p)
+Entry::Entry(const block_apply::Cancelation::Verified& p)
     : hash(p.hash)
     , data(CancelationData {
           p.ref.pinNonce,
@@ -57,7 +57,7 @@ Entry::Entry(const block_apply::CancelationVerified& p)
 {
 }
 
-Entry::Entry(const block_apply::AssetCreationVerified& p, AssetId assetId)
+Entry::Entry(const block_apply::AssetCreation::Verified& p, AssetId assetId)
     : hash(p.hash)
     // = ICombine<3, PinNonceEl, CompactFeeEl, AssetIdEl, OwnerIdEl, TokenSupplyEl, TokenNameEl>;
     , data(AssetCreationData {
@@ -71,7 +71,7 @@ Entry::Entry(const block_apply::AssetCreationVerified& p, AssetId assetId)
 {
 }
 
-Entry::Entry(const block_apply::LiquidityDepositVerified& p, Funds_uint64 receivedShares, AssetId assetId)
+Entry::Entry(const block_apply::LiquidityDeposit::Verified& p, Funds_uint64 receivedShares)
     : hash(p.hash)
     , data(LiquidityDeposit {
           p.ref.pinNonce,
@@ -79,11 +79,11 @@ Entry::Entry(const block_apply::LiquidityDepositVerified& p, Funds_uint64 receiv
           p.ref.base(),
           p.ref.quote(),
           receivedShares,
-          assetId })
+          p.ref.asset_id() })
 {
 }
 
-Entry::Entry(const block_apply::LiquidityWithdrawalVerified& w, Funds_uint64 receivedBase, Wart receivedQuote, AssetId assetId)
+Entry::Entry(const block_apply::LiquidityWithdrawal::Verified& w, Funds_uint64 receivedBase, Wart receivedQuote)
     : hash(w.hash)
     , data(LiquidityWithdraw {
           w.ref.pinNonce,
@@ -91,7 +91,7 @@ Entry::Entry(const block_apply::LiquidityWithdrawalVerified& w, Funds_uint64 rec
           receivedBase,
           receivedQuote,
           w.ref.amount(),
-          assetId })
+          w.ref.asset_id() })
 {
 }
 

@@ -119,7 +119,6 @@ struct WithSignedInfo : public SignedInfoData, T {
 };
 
 struct RewardData {
-    TxHash txhash;
     Address toAddress;
     Wart wart;
 };
@@ -156,7 +155,7 @@ struct Match {
 };
 
 struct AssetCreationData {
-    AssetName assetName;
+    AssetName name;
     FundsDecimal supply;
     std::optional<AssetId> assetId;
 };
