@@ -22,15 +22,32 @@ struct Peerinfo;
 struct PeerinfoConnections;
 struct Raw;
 namespace block {
-struct Reward;
-struct WartTransfer;
-struct TokenTransfer;
-struct AssetCreation;
-struct NewOrder;
+
+struct RewardData;
+struct WartTransferData;
+struct TokenTransferData;
+struct AssetCreationData;
+struct NewOrderData;
+struct LiquidityDepositData;
+struct LiquidityWithdrawalData;
+struct CancelationData;
+
+template <typename T>
+struct WithTxHash;
+template <typename T>
+struct WithSignedInfo;
+
+using Reward = WithTxHash<RewardData>;
+using WartTransfer = WithSignedInfo<WartTransferData>;
+using TokenTransfer = WithSignedInfo<TokenTransferData>;
+using AssetCreation = WithSignedInfo<AssetCreationData>;
+using NewOrder = WithSignedInfo<NewOrderData>;
+using LiquidityDeposit = WithSignedInfo<LiquidityDepositData>;
+using LiquidityWithdrawal = WithSignedInfo<LiquidityWithdrawalData>;
+using Cancelation = WithSignedInfo<CancelationData>;
+
 struct Match;
-struct LiquidityDeposit;
-struct LiquidityWithdrawal;
-struct Cancelation;
+
 };
 template <typename TxType>
 struct Temporal;

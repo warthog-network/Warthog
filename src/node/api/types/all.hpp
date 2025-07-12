@@ -16,6 +16,7 @@
 #include "defi/uint64/price.hpp"
 #include "eventloop/peer_chain.hpp"
 #include "eventloop/types/conndata.hpp"
+#include "forward_declarations.hpp"
 #include "general/funds.hpp"
 #include "general/start_time_points.hpp"
 #include "height_or_hash.hpp"
@@ -88,78 +89,94 @@ struct BlockSummary {
     Wart blockReward;
 };
 namespace block {
-struct Reward {
+struct TxHashBase {
     TxHash txhash;
-    Address toAddress;
-    Wart amount;
 };
-struct WartTransfer {
-    TxHash txhash;
-    Address fromAddress;
+
+template <typename T>
+struct WithTxHash : public TxHashBase, T {
+    WithTxHash(TxHash txhash, T t)
+        : TxHashBase(std::move(txhash))
+        , T(std::move(t))
+    {
+    }
+};
+
+struct SignedInfoData : public TxHashBase {
+    Address originAddress;
     Wart fee;
     NonceId nonceId;
     PinHeight pinHeight;
+};
+
+template <typename T>
+struct WithSignedInfo : public SignedInfoData, T {
+    WithSignedInfo(SignedInfoData i, T t)
+        : SignedInfoData(std::move(i))
+        , T(std::move(t))
+    {
+    }
+};
+
+struct RewardData {
+    TxHash txhash;
+    Address toAddress;
+    Wart wart;
+};
+
+struct WartTransferData {
     Address toAddress;
     Wart amount;
 };
-struct TokenTransfer {
-    TxHash txhash;
-    Address fromAddress;
-    Wart fee;
-    NonceId nonceId;
-    PinHeight pinHeight;
+
+struct TokenTransferData {
     Address toAddress;
     Funds_uint64 amount;
     AssetIdHashNamePrecision assetInfo;
-
     FundsDecimal amount_decimal() const { return { amount, assetInfo.precision }; }
 };
-struct NewOrder {
-    TxHash txhash;
+
+struct NewOrderData {
     AssetIdHashNamePrecision assetInfo;
-    Wart fee;
     Funds_uint64 amount;
     Price_uint64 limit;
     bool buy;
-    Address address;
 
     FundsDecimal amount_decimal() const { return { amount, buy ? assetInfo.precision : Wart::precision }; }
 };
+
 struct Match {
     using Swap = CombineElements<BaseEl, QuoteEl, ReferredHistoryIdEl>;
     TxHash txhash;
     AssetIdHashNamePrecision assetInfo;
-    defi::BaseQuote liquidityBefore;
-    defi::BaseQuote liquidityAfter;
+    defi::BaseQuote poolBefore;
+    defi::BaseQuote poolAfter;
     std::vector<Swap> buySwaps;
     std::vector<Swap> sellSwaps;
 };
-struct AssetCreation {
-    TxHash txhash;
+
+struct AssetCreationData {
     AssetName assetName;
     FundsDecimal supply;
     std::optional<AssetId> assetId;
-    Wart fee;
 };
-struct Cancelation {
+
+struct CancelationData {
     TxHash txhash;
-    Wart fee;
-    Address address;
 };
-struct LiquidityDeposit {
-    TxHash txhash;
-    Wart fee;
+
+struct LiquidityDepositData {
     Funds_uint64 baseDeposited;
     Wart quoteDeposited;
     std::optional<Funds_uint64> sharesReceived;
 };
-struct LiquidityWithdrawal {
-    TxHash txhash;
-    Wart fee;
+
+struct LiquidityWithdrawalData {
     Funds_uint64 sharesRedeemed;
     std::optional<Funds_uint64> baseReceived;
     std::optional<Wart> quoteReceived;
 };
+
 struct Actions {
     std::optional<block::Reward> reward;
     std::vector<block::WartTransfer> wartTransfers;
@@ -204,7 +221,6 @@ struct CompleteBlock : public Block {
     auto& reward() const { return *actions.reward; }
 };
 
-
 struct TemporalInfo {
     uint32_t confirmations;
     Height height { 0 };
@@ -212,7 +228,7 @@ struct TemporalInfo {
 };
 
 template <typename TxType>
-struct Temporal : public TemporalInfo,public TxType {
+struct Temporal : public TemporalInfo, public TxType {
 };
 
 struct AddressCount {

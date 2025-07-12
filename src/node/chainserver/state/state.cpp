@@ -166,8 +166,8 @@ void push_history(api::Block& b, const history::Entry& e, chainserver::DBCache& 
             auto& asset { c.assetsById[d.asset_id()] };
             b.actions.matches.push_back(api::block::Match { .txhash { e.hash },
                 .assetInfo { asset.id_hash_name_precision() },
-                .liquidityBefore { d.pool_before() },
-                .liquidityAfter { d.pool_after() },
+                .poolBefore { d.pool_before() },
+                .poolAfter { d.pool_after() },
                 .buySwaps {},
                 .sellSwaps {} });
         },
@@ -365,7 +365,7 @@ api::Transaction State::api_dispatch_history(const TxHash& txHash, history::Hist
         },
         [&](history::RewardData&& rm) -> api::Transaction {
             return api::RewardTransaction {
-                gen_temporal(), { .txhash { txHash }, .toAddress { fetch_addr(rm.to_id()) }, .amount { rm.wart() } }
+                gen_temporal(), { .txhash { txHash }, .toAddress { fetch_addr(rm.to_id()) }, .wart { rm.wart() } }
             };
         },
         [&](history::AssetCreationData&& rm) -> api::Transaction {
@@ -386,7 +386,7 @@ api::Transaction State::api_dispatch_history(const TxHash& txHash, history::Hist
                                     .txhash { txHash },
                                     .assetInfo { a.id_hash_name_precision() },
                                     .liquidityBefore { rm.pool_before() },
-                                    .liquidityAfter { rm.pool_after() },
+                                    .poolAfter { rm.pool_after() },
                                     .buySwaps { rm.buy_swaps() },
                                     .sellSwaps { rm.sell_swaps() },
                                 }

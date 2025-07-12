@@ -28,9 +28,9 @@ struct CombineElements : public Elements... {
     {
         return static_cast<const Element*>(this)->get();
     }
-    friend Writer& operator<<(Writer& w, const CombineElements& e)
+    void serialize(Serializer auto&& s) const
     {
-        return (w << ... << static_cast<const Elements*>(&e)->get());
+        (s << ... << static_cast<const Elements*>(this)->get());
     }
 };
 

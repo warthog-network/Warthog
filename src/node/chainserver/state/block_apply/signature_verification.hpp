@@ -100,24 +100,25 @@ protected:
     }
 
 public:
-    template <typename... HashArgs>
-    VerifiedTransaction verify(const SignerData& origin, HashArgs&&... hashArgs) const;
+    template <typename... Ts>
+    VerifiedTransaction verify(const SignerData& origin, const CombineElements<Ts...>& hashArgs) const;
 };
 
-template <typename... HashArgs>
-VerifiedTransaction TransactionVerifier::verify(const SignerData& sd, HashArgs&&... hashArgs) const
+template <typename... Ts>
+VerifiedTransaction TransactionVerifier::verify(const SignerData& sd, const CombineElements<Ts...>& hashArgs) const
 {
     const PinFloor pinFloor { h.pin_floor() };
     PinHeight pinHeight(sd.pinNonce.pin_height_from_floored(pinFloor));
     auto pinHash { hc.hash_at(h) };
     return {
-        sd.verify_hash((
-            (HasherSHA256()
-                << pinHash
-                << pinHeight
-                << sd.pinNonce.id
-                << sd.pinNonce.reserved)
-            << ... << std::forward<HashArgs>(hashArgs))),
+        sd.verify_hash(
+            HasherSHA256()
+            << pinHash
+            << pinHeight
+            << sd.pinNonce.id
+            << sd.pinNonce.reserved
+            << sd.fee()
+            << hashArgs),
         { { sd.origin.id, pinHeight, sd.pinNonce.id }, validator }
     };
 }

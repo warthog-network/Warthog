@@ -317,11 +317,11 @@ private:
 public:
     auto asset_id() const { return id; }
     auto share_id() const { return id.share_id(); }
-    std::vector<TokenTransferInternal> assetTransfers;
-    std::vector<TokenTransferInternal> sharesTransfers;
+    std::vector<block_apply::TokenTransferInternal> assetTransfers;
+    std::vector<block_apply::TokenTransferInternal> sharesTransfers;
     std::vector<OrderInternal> orders;
-    std::vector<LiquidityDepositsInternal> liquidityAdds;
-    std::vector<LiquidityWithdrawalInternal> liquidityRemoves;
+    std::vector<block_apply::LiquidityDepositInternal> liquidityAdds;
+    std::vector<block_apply::LiquidityWithdrawalInternal> liquidityRemoves;
     TokenSectionInternal(AssetId id)
         : id(id)
     {
@@ -391,13 +391,13 @@ class BalanceChecker {
             for (size_t i = 0; i < n; ++i)
                 newAccounts.push_back({ b.newAddresses[i], (beginNew + i).validate_throw(end) });
         }
-        [[nodiscard]] AccountData& operator[](AccountId i)
+        [[nodiscard]] AccountData& operator[](AccountId id)
         {
-            auto vid { i.validate_throw(end) };
-            if (i < beginNew) {
+            auto vid { id.validate_throw(end) };
+            if (id < beginNew) {
                 return oldAccounts.try_emplace(vid, vid).first->second;
             } else {
-                assert(i < end);
+                assert(id < end);
                 return newAccounts[vid.value() - beginNew.value()];
             }
         }
@@ -441,7 +441,7 @@ public:
         a.add(TokenId::WART, am);
         return {
             .toAccountId { a.id },
-            .amount { am },
+            .wart { am },
             .height { h },
             .toAddress { a.address }
         };
@@ -477,7 +477,7 @@ public:
             from
         };
     }
-    TransferInternalWithoutAmount __register_transfer(TokenId tokenId, AccountId toId, Funds_uint64 amount, ProcessedSigner s) // OK
+    [[nodiscard]] ValidAccountId __register_transfer(TokenId tokenId, AccountId toId, Funds_uint64 amount, const ProcessedSigner& s) // OK
     {
         auto& to { accounts[toId] };
         if (height.value() > 719118 && amount.is_zero())
@@ -488,40 +488,40 @@ public:
         to.add(tokenId, amount);
         s.account.subtract(tokenId, amount);
 
-        return {
-            std::move(s),
-            { to.id, to.address },
-        };
+        return to.id;
     }
     void register_wart_transfer(WartTransfer tv)
     {
-        wartTransfers.push_back({ __register_transfer(TokenId::WART, tv.to_id(), tv.wart(), process_signer(tv)), tv.wart() });
+        auto s(process_signer(tv));
+        auto valid_to_id { __register_transfer(TokenId::WART, tv.to_id(), tv.wart(), s) };
+        wartTransfers.push_back({ s, { valid_to_id, tv.wart() } });
     }
 
     void register_cancelation(Cancelation c)
     {
-        auto signerData(process_signer(c));
-        cancelations.push_back({ signerData,
-            { signerData.origin.id, c.block_pin_nonce().pin_height_from_floored(pinFloor), c.block_pin_nonce().id } });
+        auto s(process_signer(c));
+        TransactionId cancelTxId { s.origin.id, c.block_pin_nonce().pin_height_from_floored(pinFloor), c.block_pin_nonce().id };
+        cancelations.push_back({ std::move(s), { cancelTxId } });
     }
-    LiquidityDepositsInternal register_liquidity_deposit(const LiquidityDeposit& l, AssetId aid)
-    {
-        auto& a { accounts[l.origin_account_id()] };
-        a.subtract(aid.token_id(), l.base_amount());
-        a.subtract(TokenId::WART, l.quote_wart());
 
-        return { process_signer(l), defi::BaseQuote { l.base_amount(), l.quote_wart() } };
+    block_apply::LiquidityDepositInternal register_liquidity_deposit(const LiquidityDeposit& l, AssetId aid)
+    {
+        auto s { process_signer(l) };
+        s.account.subtract(aid.token_id(), l.base_amount());
+        s.account.subtract(TokenId::WART, l.quote_wart());
+        return { std::move(s), { defi::BaseQuote { l.base_amount(), l.quote_wart() } } };
     }
+
     void add_balance(AccountId aid, TokenId tid, Funds_uint64 amount)
     {
         accounts[aid].add(tid, amount);
     }
 
-    LiquidityWithdrawalInternal register_liquidity_withdraw(LiquidityWithdraw l, ShareId shareId)
+    block_apply::LiquidityWithdrawalInternal register_liquidity_withdraw(LiquidityWithdraw l, ShareId shareId)
     {
-        auto& a { accounts[l.origin_account_id()] };
-        a.subtract(shareId.token_id(), l.amount());
-        return { process_signer(l), l.amount() };
+        auto s { process_signer(l) };
+        s.account.subtract(shareId.token_id(), l.amount());
+        return { std::move(s), l.amount() };
     }
     OrderInternal register_new_order(Order o, AssetId aid)
     {
@@ -547,10 +547,16 @@ public:
         auto aid { t.asset_id() };
         auto sid { t.share_id() };
         TokenSectionInternal ts(t.asset_id());
-        for (auto& tr : t.asset_transfers())
-            ts.assetTransfers.push_back({ __register_transfer(aid.token_id(), tr.to_id(), tr.amount(), process_signer(tr)), tr.amount() });
-        for (auto& tr : t.share_transfers())
-            ts.sharesTransfers.push_back({ __register_transfer(sid.token_id(), tr.to_id(), tr.amount(), process_signer(tr)), tr.amount() });
+        for (auto& tr : t.asset_transfers()) {
+            auto s(process_signer(tr));
+            auto valid_to_id { __register_transfer(aid.token_id(), tr.to_id(), tr.amount(), s) };
+            ts.assetTransfers.push_back({ s, { valid_to_id, tr.amount() } });
+        }
+        for (auto& tr : t.share_transfers()) {
+            auto s(process_signer(tr));
+            auto valid_to_id { __register_transfer(sid.token_id(), tr.to_id(), tr.amount(), s) };
+            ts.sharesTransfers.push_back({ s, { valid_to_id, tr.amount() } });
+        }
         for (auto& o : t.orders())
             ts.orders.push_back(register_new_order(o, aid));
         for (auto& a : t.liquidity_deposits())
@@ -616,8 +622,8 @@ private:
     StateIdIncrementer stateId;
     RewardInternal reward;
 
-    std::vector<WartTransferInternal> wartTransfers;
-    std::vector<CancelationInternal> cancelations;
+    std::vector<block_apply::WartTransferInternal> wartTransfers;
+    std::vector<block_apply::CancelationInternal> cancelations;
     std::vector<TokenSectionInternal> tokenSections;
     // std::vector<TransferInternal> transfers;
     std::vector<TokenCreationInternal> tokenCreations;
@@ -630,7 +636,7 @@ struct InsertHistoryEntry {
         , historyId(historyId)
     {
     }
-    InsertHistoryEntry(const VerifiedTokenTransfer& t, TokenId tokenId, HistoryId historyId)
+    InsertHistoryEntry(const block_apply::TokenTransferVerified& t, TokenId tokenId, HistoryId historyId)
         : he(t, tokenId)
         , historyId(historyId)
     {
@@ -640,7 +646,7 @@ struct InsertHistoryEntry {
         , historyId(historyId)
     {
     }
-    InsertHistoryEntry(const VerifiedCancelation& t, HistoryId historyId)
+    InsertHistoryEntry(const block_apply::CancelationInternal& t, HistoryId historyId)
         : he(t)
         , historyId(historyId)
     {
@@ -975,14 +981,14 @@ private:
         const auto& balanceChecker { this->balanceChecker }; // shadow balanceChecker
 
         auto& r { balanceChecker.get_reward() };
-        if (r.amount > Wart::sum_throw(height.reward(), balanceChecker.getTotalFee()))
+        if (r.wart > Wart::sum_throw(height.reward(), balanceChecker.getTotalFee()))
             throw Error(EBALANCE);
         assert(!r.toAddress.is_null());
         auto& ref { history.push_reward(r) };
         api.reward = api::block::Reward {
             .txhash { ref.he.hash },
             .toAddress { r.toAddress },
-            .amount { r.amount },
+            .wart { r.wart },
         };
     }
 
@@ -1049,18 +1055,20 @@ private:
 
             auto& ref { history.push_wart_transfer(verified) };
             api.wartTransfers.push_back(api::block::WartTransfer {
-                .txhash { ref.he.hash },
-                .fromAddress { tr.origin.address },
+                .originAddress { tr.origin.address },
                 .fee { tr.compactFee.uncompact() },
                 .nonceId { tr.pinNonce.id },
                 .pinHeight { verified.txid.pinHeight },
-                .toAddress { tr.to.address },
-                .amount { tr.amount },
-            });
+                ref.he.hash,
+                {
+                    .toAddress { tr.to.address },
+                    .amount { tr.amount },
+                } });
         }
     }
 
-    void process_cancelations()
+    void
+    process_cancelations()
     {
         const auto& balanceChecker { this->balanceChecker }; // const lock balanceChecker
         for (auto& c : balanceChecker.get_cancelations()) {
@@ -1148,7 +1156,7 @@ private:
         api.matches.push_back({ .txhash { ref.he.hash },
             .assetInfo { asset.info() },
             .liquidityBefore { poolLiquidity },
-            .liquidityAfter { m.pool },
+            .poolAfter { m.pool },
             .buySwaps {},
             .sellSwaps {} });
         auto b { api.matches.back() };

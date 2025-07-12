@@ -6,35 +6,35 @@ Entry::Entry(const RewardInternal& p)
     : hash(p.hash())
     , data(RewardData {
           p.toAccountId,
-          p.amount })
+          p.wart })
 {
 }
 
-Entry::Entry(const VerifiedWartTransfer& p)
+Entry::Entry(const block_apply::WartTransferVerified& p)
     : hash(p.hash)
     , data(WartTransferData {
-          p.ti.pinNonce,
-          p.ti.compactFee,
-          p.ti.origin.id,
-          p.ti.to.id,
-          p.ti.amount,
+          p.ref.pinNonce,
+          p.ref.compactFee,
+          p.ref.origin.id,
+          p.ref.to_id(),
+          p.ref.wart(),
       })
 {
 }
 
-Entry::Entry(const VerifiedTokenTransfer& p, TokenId tokenId)
+Entry::Entry(const block_apply::TokenTransferVerified& p, TokenId tokenId)
     : hash(p.hash)
     , data(TokenTransferData {
-          p.ti.pinNonce,
-          p.ti.compactFee,
+          p.ref.pinNonce,
+          p.ref.compactFee,
           tokenId,
           p.txid.accountId,
-          p.ti.to.id,
-          p.ti.amount,
+          p.ref.to_id(),
+          p.ref.amount(),
       })
 {
 }
-Entry::Entry(const VerifiedOrder& p)
+Entry::Entry(const block_apply::OrderVerified& p)
     : hash(p.hash)
     , data(OrderData {
           p.order.pinNonce,
@@ -48,16 +48,16 @@ Entry::Entry(const VerifiedOrder& p)
 {
 }
 
-Entry::Entry(const VerifiedCancelation& p)
+Entry::Entry(const block_apply::CancelationVerified& p)
     : hash(p.hash)
     , data(CancelationData {
-          p.cancelation.pinNonce,
-          p.cancelation.compactFee,
-          p.cancelation.cancelTxid })
+          p.ref.pinNonce,
+          p.ref.compactFee,
+          p.ref.cancel_txid() })
 {
 }
 
-Entry::Entry(const VerifiedAssetCreation& p, AssetId assetId)
+Entry::Entry(const block_apply::AssetCreationVerified& p, AssetId assetId)
     : hash(p.hash)
     // = ICombine<3, PinNonceEl, CompactFeeEl, AssetIdEl, OwnerIdEl, TokenSupplyEl, TokenNameEl>;
     , data(AssetCreationData {
@@ -71,26 +71,26 @@ Entry::Entry(const VerifiedAssetCreation& p, AssetId assetId)
 {
 }
 
-Entry::Entry(const VerifiedLiquidityDeposit& p, Funds_uint64 receivedShares, AssetId assetId)
+Entry::Entry(const block_apply::LiquidityDepositVerified& p, Funds_uint64 receivedShares, AssetId assetId)
     : hash(p.hash)
     , data(LiquidityDeposit {
-          p.liquidityAdd.pinNonce,
-          p.liquidityAdd.compactFee,
-          p.liquidityAdd.basequote.base(),
-          p.liquidityAdd.basequote.quote(),
+          p.ref.pinNonce,
+          p.ref.compactFee,
+          p.ref.base(),
+          p.ref.quote(),
           receivedShares,
           assetId })
 {
 }
 
-Entry::Entry(const VerifiedLiquidityWithdrawal& w, Funds_uint64 receivedBase, Wart receivedQuote, AssetId assetId)
+Entry::Entry(const block_apply::LiquidityWithdrawalVerified& w, Funds_uint64 receivedBase, Wart receivedQuote, AssetId assetId)
     : hash(w.hash)
     , data(LiquidityWithdraw {
-          w.liquidityAdd.pinNonce,
-          w.liquidityAdd.compactFee,
+          w.ref.pinNonce,
+          w.ref.compactFee,
           receivedBase,
           receivedQuote,
-          w.liquidityAdd.poolShares,
+          w.ref.amount(),
           assetId })
 {
 }
