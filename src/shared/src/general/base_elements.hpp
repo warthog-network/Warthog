@@ -42,7 +42,7 @@ struct CombineElementsEnumerated<i, Element, Elements...> : public Element, publ
     template <size_t j>
     auto& get_at() const
     {
-        return static_cast<const Element*>(this)->get();
+        return static_cast<const parent_t*>(this)->template get_at<j>();
     }
     CombineElementsEnumerated(Reader& r)
         : Element(r)
