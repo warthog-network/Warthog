@@ -61,12 +61,12 @@ Entry::Entry(const block_apply::AssetCreation::Verified& p, AssetId assetId)
     : hash(p.hash)
     // = ICombine<3, PinNonceEl, CompactFeeEl, AssetIdEl, OwnerIdEl, TokenSupplyEl, TokenNameEl>;
     , data(AssetCreationData {
-          p.tci.pinNonce,
-          p.tci.compactFee,
+          p.ref.pinNonce,
+          p.ref.compactFee,
           assetId,
-          p.tci.origin.id,
-          p.tci.supply,
-          p.tci.name,
+          p.ref.origin.id,
+          p.ref.supply(),
+          p.ref.asset_name(),
       })
 {
 }

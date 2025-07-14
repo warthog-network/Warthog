@@ -27,6 +27,10 @@ struct TransactionId {
     TransactionId(Reader& r);
     std::string hex_string() const;
     friend Writer& operator<<(Writer&, const TransactionId&);
+    void serialize(Serializer auto&& s) const
+    {
+        s << accountId << pinHeight << nonceId;
+    }
     auto operator<=>(const TransactionId& rhs) const = default;
     auto operator<=>(AccountId aid) const { return accountId <=> aid; }
 
@@ -45,7 +49,10 @@ struct TxidWithFee {
     {
     }
     static consteval size_t byte_size() { return decltype(txid)::byte_size() + decltype(fee)::byte_size(); }
-    friend Writer& operator<<(Writer&, const TxidWithFee&);
+    void serialize(Serializer auto&& s) const
+    {
+        s << txid << fee;
+    }
 
     TxidWithFee(Reader& r);
 };

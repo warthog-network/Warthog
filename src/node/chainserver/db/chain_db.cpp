@@ -340,7 +340,7 @@ ChainDB::ChainDB(const std::string& path)
           "SELECT `id`, `data` FROM `History` WHERE `hash`=?")
     , stmtHistoryLookupRange(db,
           "SELECT `hash`, `data` FROM `History` WHERE `id`>=? AND`id`<?")
-    , stmtAccountHistoryInsert(db, "INSERT INTO `AccountHistory` "
+    , stmtAccountHistoryInsert(db, "INSERT OR IGNORE INTO `AccountHistory` "
                                    "(`account_id`,`history_id`) VALUES (?,?)")
     , stmtAccountHistoryDeleteFrom(
           db, "DELETE FROM `AccountHistory` WHERE `history_id`>=?")

@@ -14,6 +14,17 @@
 using namespace block::body;
 
 namespace {
+api::block::SignedInfoData make_signed_info(const auto& verified, HistoryId hid)
+{
+    return api::block::SignedInfoData {
+        verified.hash,
+        std::move(hid),
+        verified.ref.origin.address,
+        verified.ref.compactFee.uncompact(),
+        verified.ref.pinNonce.id,
+        verified.txid.pinHeight
+    };
+}
 
 struct VerifiedOrderWithId : public block_apply::Order::Verified {
     HistoryId orderId;
@@ -344,7 +355,7 @@ class BalanceChecker {
     };
 
     using TokenFlow = std::map<TokenId, FundFlow>;
-    struct AccountData {
+    struct AccountData : public block_apply::ValidAccount {
     private:
         TokenFlow flow;
 
@@ -358,11 +369,8 @@ class BalanceChecker {
             flow[id].add_out(v);
         }
         auto& token_flow() const { return flow; }
-        AddressView address;
-        ValidAccountId id;
         AccountData(AddressView address, ValidAccountId accountId)
-            : address(address)
-            , id(accountId)
+            : ValidAccount(address, accountId)
         {
         }
     };
@@ -478,7 +486,7 @@ public:
             from
         };
     }
-    [[nodiscard]] ValidAccountId __register_transfer(TokenId tokenId, AccountId toId, Funds_uint64 amount, const ProcessedSigner& s) // OK
+    [[nodiscard]] auto& __register_transfer(TokenId tokenId, AccountId toId, Funds_uint64 amount, const ProcessedSigner& s) // OK
     {
         auto& to { accounts[toId] };
         if (height.value() > 719118 && amount.is_zero())
@@ -489,13 +497,13 @@ public:
         to.add(tokenId, amount);
         s.account.subtract(tokenId, amount);
 
-        return to.id;
+        return to;
     }
     void register_wart_transfer(WartTransfer tv)
     {
         auto s(process_signer(tv));
-        auto valid_to_id { __register_transfer(TokenId::WART, tv.to_id(), tv.wart(), s) };
-        wartTransfers.push_back({ s, { valid_to_id, tv.wart() } });
+        auto toAcc { __register_transfer(TokenId::WART, tv.to_id(), tv.wart(), s) };
+        wartTransfers.push_back({ std::move(s), { std::move(toAcc), tv.wart() } });
     }
 
     void register_cancelation(Cancelation c)
@@ -564,15 +572,16 @@ public:
         tokenSections.push_back(std::move(ts));
     }
 
-    void register_token_creation(const AssetCreation& tc, size_t index, Height)
+    void register_token_creation(const AssetCreation& tc, Height)
     {
         auto s { process_signer(tc) };
-        tokenCreations.push_back(TokenCreationInternal {
+        tokenCreations.push_back(block_apply::AssetCreation::Internal {
             s,
-            index,
-            tc.asset_name(),
-            tc.supply(),
-        });
+            // index,
+            {
+                tc.asset_name(),
+                tc.supply(),
+            } });
     }
 
     Wart getTotalFee() const
@@ -653,7 +662,7 @@ struct InsertHistoryEntry {
         , historyId(historyId)
     {
     }
-    InsertHistoryEntry(const VerifiedAssetCreation& t, AssetId assetId, HistoryId historyId)
+    InsertHistoryEntry(const block_apply::AssetCreation::Verified& t, AssetId assetId, HistoryId historyId)
         : he(t, assetId)
         , historyId(historyId)
     {
@@ -881,11 +890,13 @@ private:
     void register_token_creations()
     {
         for (size_t i { 0 }; i < body.asset_creations().size(); ++i)
-            balanceChecker.register_token_creation(body.asset_creations()[i], i, height);
+            balanceChecker.register_token_creation(body.asset_creations()[i], height);
 
         const auto beginNewTokenId = db.next_asset_id(); // they start from this index
-        for (auto& tc : balanceChecker.token_creations()) {
-            auto assetId { beginNewTokenId + tc.index };
+        auto& tokenCreations { balanceChecker.token_creations() };
+        for (size_t i { 0 }; i < tokenCreations.size(); ++i) {
+            auto& tc { tokenCreations[i] };
+            auto assetId { beginNewTokenId + i };
             const auto verified { tc.verify(txVerifier) };
             insertAssetCreations.push_back(chain_db::AssetData {
                 .id { assetId },
@@ -897,14 +908,7 @@ private:
                 .name { tc.asset_name() },
                 .hash { verified.hash },
                 .data {} });
-            auto& ref { history.push_asset_creation(verified, assetId) };
-            api.assetCreations.push_back({
-                .txhash { ref.he.hash },
-                .name { tc.asset_name() },
-                .supply { tc.supply() },
-                .assetId { assetId },
-                .fee { tc.compactFee.uncompact() },
-            });
+            api.assetCreations.push_back({ make_signed_info(verified), { .name { tc.asset_name() }, .supply { tc.supply() }, .assetId { assetId } } });
         }
     }
 
@@ -984,6 +988,7 @@ private:
         auto& ref { history.push_reward(r) };
         api.reward = api::block::Reward {
             ref.he.hash,
+            ref.historyId,
             {
                 .toAddress { r.toAddress },
                 .wart { r.wart },
@@ -1040,71 +1045,54 @@ private:
         }
     }
     template <typename... T>
-    [[nodiscard]] auto verify(auto& tx, T&&... t)
-    {
-        return tx.verify(txVerifier, std::forward<T>(t)...);
-    }
+    // [[nodiscard]] auto verify(auto& tx, T&&... t)
+    // {
+    //     return tx.verify(txVerifier, std::forward<T>(t)...);
+    // }
     // generate history for transfers and check signatures
     // and check for unique transaction ids
     void process_wart_transfers()
     {
         const auto& balanceChecker { this->balanceChecker }; // shadow balanceChecker
         for (auto& tr : balanceChecker.get_wart_transfers()) {
-            auto verified { verify(tr) };
+            auto verified { tr.verify(txVerifier) };
 
-            auto& ref { history.push_wart_transfer(verified) };
+            auto& hid { history.push_wart_transfer(verified).historyId };
             api.wartTransfers.push_back(api::block::WartTransfer {
-                .originAddress { tr.origin.address },
-                .fee { tr.compactFee.uncompact() },
-                .nonceId { tr.pinNonce.id },
-                .pinHeight { verified.txid.pinHeight },
-                ref.he.hash,
+                make_signed_info(verified, hid),
                 {
-                    .toAddress { tr.to.address },
-                    .amount { tr.amount },
+                    .toAddress { tr.to_address() },
+                    .amount { tr.wart() },
                 } });
         }
     }
 
-    void
-    process_cancelations()
+    void process_cancelations()
     {
         const auto& balanceChecker { this->balanceChecker }; // const lock balanceChecker
         for (auto& c : balanceChecker.get_cancelations()) {
-            auto verified { verify(c) };
-            auto& ref { history.push_cancelation(verified) };
-            api.cancelations.push_back(
-                // Hash txhash;
-                // Wart fee;
-                // Address address;
-                {
-                    .txhash { ref.he.hash },
-                    .fee { c.compactFee.uncompact() },
-                    .address { c.origin.address },
-                });
-            auto o { db.select_order(verified.cancelation.cancelTxid) };
+            auto verified { c.verify(txVerifier) };
+            auto hid { history.push_cancelation(verified).historyId };
+            api.cancelations.push_back({ make_signed_info(verified, hid), {} });
+            auto o { db.select_order(verified.ref.cancel_txid()) };
             if (o) { // transaction is removed from the database
                 deleteOrders.push_back({ o->id, o->buy });
             }
         }
     }
 
-    void process_token_transfers(AssetHandle& token, const std::vector<TokenTransferInternal>& transfers)
+    void process_token_transfers(AssetHandle& token, const std::vector<block_apply::TokenTransfer::Internal>& transfers)
     {
         for (auto& tr : transfers) {
-            auto verified { verify(tr, token.info().hash) };
-
+            auto verified { tr.verify(txVerifier, token.info().hash) };
             auto& ref { history.push_token_transfer(verified, token.id().token_id()) };
             api.tokenTransfers.push_back(api::block::TokenTransfer {
-                .txhash { ref.he.hash },
-                .fromAddress { tr.origin.address },
-                .fee { tr.compactFee.uncompact() },
-                .nonceId { tr.pinNonce.id },
-                .pinHeight { verified.txid.pinHeight },
-                .toAddress { tr.to.address },
-                .amount { tr.amount },
-                .assetInfo { token.info() },
-            });
+                make_signed_info(verified, ref.historyId),
+                {
+                    .toAddress { tr.to_address() },
+                    .amount { tr.amount() },
+                    .assetInfo { token.info() },
+                } });
         }
     }
     void match_new_orders(AssetHandle& asset, const std::vector<block_apply::Order::Internal>& orders)
@@ -1114,27 +1102,27 @@ private:
         auto& p { asset.get_pool(db) };
         auto poolLiquidity { p.liquidity() };
         NewOrdersInternal no;
+
         for (auto& o : orders) {
-            auto verified { verify(o, asset.hash()) };
+            auto verified { o.verify(txVerifier, asset.hash()) };
             auto& ref { history.push_order(verified) };
-            api::block::NewOrder n;
             api.newOrders.push_back(api::block::NewOrder {
-                verified.hash, {
-                .assetInfo { asset.info() },
-                .fee { o.fee() },
-                .amount { o.amount() },
-                .limit { o.limit() },
-                .buy = o.buy(),
-                .address { o.origin.address } }});
+                make_signed_info(verified, ref.historyId),
+                {
+                    .assetInfo { asset.info() },
+                    .amount { o.amount() },
+                    .limit { o.limit() },
+                    .buy = o.buy(),
+                } });
             no.push_back({ verified, ref.historyId });
             insertOrders.push_back(chain_db::OrderData {
                 .id { ref.historyId },
-                .buy = o.buy,
+                .buy = o.buy(),
                 .txid { verified.txid },
                 .aid { asset.id() },
-                .total { o.amount },
+                .total { o.amount() },
                 .filled { Funds_uint64::zero() },
-                .limit { o.limit } });
+                .limit { o.limit() } });
         }
 
         MatchActions m(db, no, asset.info().id, poolLiquidity);
@@ -1149,58 +1137,56 @@ private:
             d.sell_swaps().push_back({ s.base, s.quote, s.oId });
             accounts.push_back(s.txid.accountId);
         }
-        Check whether repeated entries for same account are OK in the 'accounts' variable
         matchDeltas.push_back(std::move(m));
         auto& ref { history.push_match(accounts, d, blockhash, asset.id()) };
 
-        api.matches.push_back({ .txhash { ref.he.hash },
+        api.matches.push_back(api::block::Match { .txhash { ref.he.hash },
             .assetInfo { asset.info() },
-            .liquidityBefore { poolLiquidity },
+            .poolBefore { poolLiquidity },
             .poolAfter { m.pool },
             .buySwaps {},
             .sellSwaps {} });
         auto b { api.matches.back() };
     }
 
-    void process_liquidity_deposits(const AssetHandle& ah, const std::vector<LiquidityDepositsInternal>& deposits)
+    void process_liquidity_deposits(const AssetHandle& ah, const std::vector<block_apply::LiquidityDeposit::Internal>& deposits)
     {
         auto& pool { ah.get_pool(db) };
         for (auto& d : deposits) {
-            auto v { verify(d) };
-            auto shares { pool.deposit(d.basequote.base(), d.basequote.quote().E8()) };
+            auto verified { d.verify(txVerifier, ah.hash()) };
+            auto shares { pool.deposit(d.base(), d.quote().E8()) };
             balanceChecker.add_balance(d.origin.id, ah.id().token_id(), shares);
-            auto& ref { history.push_liquidity_deposit(v, shares, ah.id()) };
+            auto& ref { history.push_liquidity_deposit(verified, shares) };
             api.liquidityDeposit.push_back(
-                { .txhash { ref.he.hash },
-                    .fee { v.liquidityAdd.fee() },
-                    .baseDeposited { v.liquidityAdd.basequote.base() },
-                    .quoteDeposited { v.liquidityAdd.basequote.quote() },
-                    .sharesReceived { shares } });
+                { make_signed_info(verified, ref.historyId),
+                    api::block::LiquidityDepositData { .baseDeposited { verified.ref.base() },
+                        .quoteDeposited { verified.ref.quote() },
+                        .sharesReceived = shares } });
         }
     }
 
-    void process_liquidity_withdrawals(const AssetHandle& td, const std::vector<LiquidityWithdrawalInternal>& withdrawals)
+    void process_liquidity_withdrawals(const AssetHandle& ah, const std::vector<block_apply::LiquidityWithdrawal::Internal>& withdrawals)
     {
-        auto& pool { td.get_pool(db) };
+        auto& pool { ah.get_pool(db) };
         for (auto& a : withdrawals) {
-            auto v { verify(a) };
-            auto w { pool.withdraw_liquity(a.poolShares) };
+            auto verified { a.verify(txVerifier, ah.hash()) };
+            auto w { pool.withdraw_liquity(a.amount()) };
             if (!w)
                 throw Error(EPOOLREDEEM);
             // credit withdrawn balance
             auto baseReceived { w->base };
             Wart quoteReceived { Wart::from_funds_throw(w->quote) };
-            balanceChecker.add_balance(a.origin.id, td.id().token_id(), baseReceived);
+            balanceChecker.add_balance(a.origin.id, ah.id().token_id(), baseReceived);
             balanceChecker.add_balance(a.origin.id, TokenId::WART, quoteReceived);
 
-            auto& ref { history.push_liquidity_withdrawal(v, baseReceived, quoteReceived, td.id()) };
-            api.liquidityWithdrawal.push_back({
-                .txhash { ref.he.hash },
-                .fee { v.liquidityAdd.fee() },
-                .sharesRedeemed { a.poolShares },
-                .baseReceived { baseReceived },
-                .quoteReceived { quoteReceived },
-            });
+            auto& ref { history.push_liquidity_withdrawal(verified, baseReceived, quoteReceived) };
+            api.liquidityWithdrawal.push_back(
+                { make_signed_info(verified, ref.historyId),
+                    {
+                        .sharesRedeemed { a.amount() },
+                        .baseReceived { baseReceived },
+                        .quoteReceived { quoteReceived },
+                    } });
         }
     }
 

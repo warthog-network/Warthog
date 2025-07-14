@@ -89,20 +89,29 @@ struct BlockSummary {
     Wart blockReward;
 };
 namespace block {
-struct TxHashBase {
+struct HistoryDataBase {
     TxHash txhash;
+    HistoryId hid;
 };
 
 template <typename T>
-struct WithTxHash : public TxHashBase, T {
-    WithTxHash(TxHash txhash, T t)
-        : TxHashBase(std::move(txhash))
+struct WithTxHash : public HistoryDataBase, T {
+    WithTxHash(TxHash txhash, HistoryId, T t)
+        : HistoryDataBase(std::move(txhash), std::move(hid))
         , T(std::move(t))
     {
     }
 };
 
-struct SignedInfoData : public TxHashBase {
+struct SignedInfoData : public HistoryDataBase {
+    SignedInfoData(TxHash txHash, HistoryId hid, Address originAddress, Wart fee, NonceId nonceId, PinHeight pinHeight)
+        : HistoryDataBase(std::move(txHash), std::move(hid))
+        , originAddress(std::move(originAddress))
+        , fee(std::move(fee))
+        , nonceId(std::move(nonceId))
+        , pinHeight(std::move(pinHeight))
+    {
+    }
     Address originAddress;
     Wart fee;
     NonceId nonceId;
@@ -161,7 +170,6 @@ struct AssetCreationData {
 };
 
 struct CancelationData {
-    TxHash txhash;
 };
 
 struct LiquidityDepositData {

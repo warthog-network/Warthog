@@ -11,14 +11,14 @@
 
 struct VerifiedHash {
 protected:
-    Hash hash;
+    TxHash hash;
 
 public:
-    operator const Hash&() const
+    operator const TxHash&() const
     {
         return hash;
     }
-    VerifiedHash(Hash h, const RecoverableSignature& s, AddressView a)
+    VerifiedHash(TxHash h, const RecoverableSignature& s, AddressView a)
         : hash(std::move(h))
     {
         if (s.recover_pubkey(hash).address() != a)
@@ -43,7 +43,7 @@ struct SignerData {
     Wart fee() const { return compactFee.uncompact(); }
 
 private:
-    VerifiedHash verify_hash(Hash h) const
+    VerifiedHash verify_hash(TxHash h) const
     {
         return { h, signature, origin.address };
     }
@@ -108,13 +108,13 @@ public:
         auto pinHash { hc.hash_at(h) };
         return {
             sd.verify_hash(
-                ((HasherSHA256()
+                TxHash(((HasherSHA256()
                      << pinHash
                      << pinHeight
                      << sd.pinNonce.id
                      << sd.pinNonce.reserved
                      << sd.fee())
-                    << ... << hashArgs)),
+                    << ... << hashArgs))),
             { { sd.origin.id, pinHeight, sd.pinNonce.id }, validator }
         };
     }

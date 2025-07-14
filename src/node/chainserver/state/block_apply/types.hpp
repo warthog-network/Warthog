@@ -21,7 +21,7 @@ template <typename Selectors, typename RemainingPath, size_t I, size_t J>
 struct SelectorComputer;
 template <bool... bs>
 struct SelectorPath {
-    using Selectors = SelectorComputer<Selectors<>, SelectorPath<bs...>, 0, 0>::selectors;
+    using ComputedSelectors = SelectorComputer<Selectors<>, SelectorPath<bs...>, 0, 0>::selectors;
 };
 
 // compute path using recursion
@@ -48,7 +48,7 @@ struct SelectorComputer<Selectors, SelectorPath<>, I, J> {
 
 // Now define the templated selector generator
 template <bool... bs>
-using GetSel = SelectorPath<bs...>::Selectors;
+using GetSel = SelectorPath<bs...>::ComputedSelectors;
 
 // Checking for sanity
 using Test1 = GetSel<false, true, false, true>;
@@ -76,6 +76,19 @@ struct RewardInternal {
 };
 
 namespace block_apply {
+
+struct ValidAccount {
+    AddressView address;
+    ValidAccountId id;
+    ValidAccount(AddressView address, ValidAccountId accountId)
+        : address(address)
+        , id(accountId)
+    {
+    }
+};
+
+namespace impl {
+
 template <typename Combined, typename Selectors, typename VerifyArgPack>
 struct Internal;
 
@@ -113,21 +126,20 @@ struct ReplaceArg<AssetId> {
 template <typename ArgTypesPack, typename... Elements>
 struct ReplacedArgsComputer;
 
+template <bool replace, typename ArgTypesPack, typename Element, typename... Elements>
+struct RecurseReplacedArgs;
+template <typename ArgTypesPack, typename Element, typename... Elements>
+struct RecurseReplacedArgs<false, ArgTypesPack, Element, Elements...> {
+    using next = ReplacedArgsComputer<ArgTypesPack, Elements...>;
+};
+template <typename ArgTypesPack, typename Element, typename... Elements>
+struct RecurseReplacedArgs<true, ArgTypesPack, Element, Elements...> {
+    using next = ReplacedArgsComputer<typename ArgTypesPack::template append<typename ReplaceArg<typename Element::data_t>::type>, Elements...>;
+};
+
 template <typename ArgTypesPack, typename Element, typename... Elements>
 struct ReplacedArgsComputer<ArgTypesPack, Element, Elements...> {
-    template <bool replace>
-    struct Recurse;
-
-    template <>
-    struct Recurse<false> {
-        using next = ReplacedArgsComputer<ArgTypesPack, Elements...>;
-    };
-
-    template <>
-    struct Recurse<true> {
-        using next = ReplacedArgsComputer<typename ArgTypesPack::template append<typename ReplaceArg<typename Element::data_t>::type>, Elements...>;
-    };
-    using pack_t = Recurse<ReplaceArg<typename Element::data_t>::replace>::next::pack_t;
+    using pack_t = RecurseReplacedArgs<ReplaceArg<typename Element::data_t>::replace, ArgTypesPack, Element, Elements...>::next::pack_t;
 };
 template <typename ArgTypesPack>
 struct ReplacedArgsComputer<ArgTypesPack> {
@@ -144,9 +156,9 @@ struct Internal<Combined, Selectors, ArgTypesPack<VerifyArgs...>> : public Signe
         , Combined(std::move(e))
     {
     }
-    Verified<Internal> verify(const TransactionVerifier& verifier, const VerifyArgs&... args) const
+    [[nodiscard]] Verified<Internal> verify(const TransactionVerifier& verifier, const VerifyArgs&... args) const
     {
-        verify_tuple(verifier, std::forward_as_tuple(args...), Selectors());
+        return verify_tuple(verifier, std::forward_as_tuple(args...), Selectors());
     }
 
 private:
@@ -160,22 +172,31 @@ private:
     auto& select_arg(selectors::SelectorElement<false, i>, const std::tuple<const VerifyArgs&...>&) const
     {
         // get argument from own base class
-        return static_cast<const Combined*>(this)->template get<i>();
+        return static_cast<const Combined*>(this)->template get_at<i>();
+    }
+    auto& map_arg(auto& arg) const
+    {
+        return arg;
+    }
+    AddressView map_arg(const ValidAccount& va) const
+    {
+        return va.address;
     }
     template <typename... Sels>
     Verified<Internal> verify_tuple(const TransactionVerifier& verifier, const std::tuple<const VerifyArgs&...>& t, selectors::Selectors<Sels...>) const
     {
-        return Verified<Internal> { *this, verifier, select_arg(Sels(), t)... };
+        return Verified<Internal> { *this, verifier, this->map_arg(this->select_arg(Sels(), t))... };
     }
 };
+}
 
 template <typename... Elements>
 struct signed_entry {
     // "Internal" is for temporary representation of block entries while block is applied
-    using Internal = Internal<CombineElements<Elements...>, typename selectors::SelectorPath<ReplaceArg<Elements>::replace...>::Selectors, GetArgs<Elements...>>;
+    using Internal = impl::Internal<CombineElements<Elements...>, typename selectors::SelectorPath<impl::ReplaceArg<Elements>::replace...>::ComputedSelectors, impl::GetArgs<Elements...>>;
 
     // "Verified" is a safety type for block entries while block is applied. This type is guaranteed to be signature-verified
-    using Verified = Verified<Internal>;
+    using Verified = impl::Verified<Internal>;
 };
 
 struct CancelTxIdElement : public ElementBase<TransactionId> {
@@ -188,13 +209,18 @@ struct BaseQuoteEl : public ElementBase<defi::BaseQuote> {
     [[nodiscard]] const auto& base() const { return data.base(); }
     [[nodiscard]] const auto& quote() const { return data.quote(); }
 };
+struct ToValidAccEl : public ElementBase<ValidAccount> {
+    using ElementBase::ElementBase;
+    [[nodiscard]] const auto& to_address() const { return data.address; }
+    [[nodiscard]] const auto& to_id() const { return data.id; }
+};
 
 using Cancelation = signed_entry<CancelTxIdElement>;
 using Order = signed_entry<LimitPriceEl, AmountEl, BuyEl, AssetIdEl>;
 using LiquidityDeposit = signed_entry<BaseQuoteEl, AssetIdEl>;
 using LiquidityWithdrawal = signed_entry<AmountEl, AssetIdEl>;
-using WartTransfer = signed_entry<ToAccIdEl, WartEl>;
-using TokenTransfer = signed_entry<ToAccIdEl, AmountEl, AssetIdEl>;
+using WartTransfer = signed_entry<ToValidAccEl, WartEl>;
+using TokenTransfer = signed_entry<ToValidAccEl, AmountEl, AssetIdEl>;
 using AssetCreation = signed_entry<AssetNameEl, AssetSupplyEl>;
 
 }

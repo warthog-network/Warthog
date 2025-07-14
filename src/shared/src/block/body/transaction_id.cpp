@@ -4,18 +4,10 @@
 #include "general/reader.hpp"
 #include "general/writer.hpp"
 
-Writer& operator<<(Writer& w, const TransactionId& id)
-{
-    return w
-        << id.accountId
-        << id.pinHeight
-        << id.nonceId;
-};
-
 TransactionId::TransactionId(Reader& r)
     : accountId(r.uint64())
     , pinHeight(Height(r.uint32()))
-    , nonceId(r.uint32()) {};
+    , nonceId(r.uint32()) { };
 
 std::string TransactionId::hex_string() const
 {
@@ -29,9 +21,4 @@ TxidWithFee::TxidWithFee(Reader& r)
     : txid(r)
     , fee(CompactUInt::from_value_throw(r))
 {
-}
-
-Writer& operator<<(Writer& w, const TxidWithFee& twf)
-{
-    return w << twf.txid << twf.fee;
 }

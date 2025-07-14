@@ -182,7 +182,7 @@ struct Entry {
     Entry(const block_apply::TokenTransfer::Verified& p, TokenId);
     Entry(const block_apply::Order::Verified& p);
     Entry(const block_apply::Cancelation::Verified& p);
-    Entry(const block_apply::AssetCreationVerified& p, AssetId);
+    Entry(const block_apply::AssetCreation::Verified& p, AssetId);
     Entry(const block_apply::LiquidityDeposit::Verified& p, Funds_uint64 receivedShares);
     Entry(const block_apply::LiquidityWithdrawal::Verified& p, Funds_uint64 receivedBase, Wart receivedQuote);
     Entry(Hash h, MatchData);

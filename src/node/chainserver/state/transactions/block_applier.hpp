@@ -8,6 +8,9 @@
 class Headerchain;
 class BlockId;
 
+namespace block_apply{
+
+}
 namespace chainserver {
 class Preparation;
 struct BlockApplier {

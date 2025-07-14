@@ -21,45 +21,92 @@ struct Annotated : public Element {
     }
     template <size_t j>
     requires(j == i)
-    auto& get() const
+    auto& get_at() const
     {
         return this->get();
     }
 };
-template <typename... Elements>
-struct Enumerated {
-    template <typename T>
-    struct CombineElementsEnumerated;
 
-    template <size_t... Is>
-    struct CombineElementsEnumerated<std::index_sequence<Is...>> : public Annotated<Is, Elements>... {
-        using combined_t = CombineElementsEnumerated;
-        CombineElementsEnumerated(Reader& r)
-            : Annotated<Is, Elements>(r)...
-        {
-        }
-        CombineElementsEnumerated(Elements::data_t... ts)
-            : Annotated<Is, Elements>(std::move(ts))...
-        {
-        }
-        [[nodiscard]] size_t byte_size() const { return (Elements::byte_size() + ...); }
-        template <typename Element>
-        auto& get() const
-        {
-            return static_cast<const Element*>(this)->get();
-        }
-        void serialize(Serializer auto&& s) const
-        {
-            (s << ... << static_cast<const Elements*>(this)->get());
-        }
-    };
+template <size_t i, typename... Elements>
+struct CombineElementsEnumerated;
+
+template <size_t i, typename Element, typename... Elements>
+struct CombineElementsEnumerated<i, Element, Elements...> : public Element, public CombineElementsEnumerated<i + 1, Elements...> {
+    using parent_t = CombineElementsEnumerated<i + 1, Elements...>;
+    template <size_t j>
+    requires(j == i)
+    auto& get_at() const
+    {
+        return static_cast<const Element*>(this)->get();
+    }
+    template <size_t j>
+    auto& get_at() const
+    {
+        return static_cast<const Element*>(this)->get();
+    }
+    CombineElementsEnumerated(Reader& r)
+        : Element(r)
+        , parent_t(r)
+    {
+    }
+    CombineElementsEnumerated(Element::data_t t, Elements::data_t... ts)
+        : Element(std::move(t))
+        , parent_t(std::move(ts)...)
+    {
+    }
+    [[nodiscard]] size_t byte_size() const { return (Elements::byte_size() + ...); }
+    template <typename E>
+    auto& get() const
+    {
+        return static_cast<const E*>(this)->get();
+    }
+    void serialize(Serializer auto&& s) const
+    {
+        ((s << static_cast<const Element*>(this)->get())
+            << ... << static_cast<const Elements*>(this)->get());
+    }
 };
+
+template <size_t i>
+struct CombineElementsEnumerated<i> {
+    CombineElementsEnumerated(Reader&) { }
+    CombineElementsEnumerated() { }
+};
+
+// template <typename... Elements>
+// struct Enumerated {
+//     template <typename T>
+//     struct CombineElementsEnumerated;
+//
+//     template <size_t... Is>
+//     struct CombineElementsEnumerated<std::index_sequence<Is...>> : public Annotated<Is, Elements>... {
+//         using combined_t = CombineElementsEnumerated;
+//         CombineElementsEnumerated(Reader& r)
+//             : Annotated<Is, Elements>(r)...
+//         {
+//         }
+//         CombineElementsEnumerated(Elements::data_t... ts)
+//             : Annotated<Is, Elements>(std::move(ts))...
+//         {
+//         }
+//         [[nodiscard]] size_t byte_size() const { return (Elements::byte_size() + ...); }
+//         template <typename Element>
+//         auto& get() const
+//         {
+//             return static_cast<const Element*>(this)->get();
+//         }
+//         void serialize(Serializer auto&& s) const
+//         {
+//             (s << ... << static_cast<const Elements*>(this)->get());
+//         }
+//     };
+// };
 
 }
 
 template <typename... Elements>
-struct CombineElements : public enumerated::Enumerated<Elements...>::template CombineElementsEnumerated<std::index_sequence_for<Elements...>> {
-    using enumerated::Enumerated<Elements...>::template CombineElementsEnumerated<std::index_sequence_for<Elements...>>::CombineElementsEnumerated;
+struct CombineElements : public enumerated::CombineElementsEnumerated<0, Elements...> {
+    using enumerated::CombineElementsEnumerated<0, Elements...>::CombineElementsEnumerated;
 };
 
 template <typename T>
@@ -129,6 +176,7 @@ struct OwnerIdEl : public ElementBase<AccountId> {
 };
 
 struct AssetSupplyEl : public ElementBase<FundsDecimal> {
+    using ElementBase::ElementBase;
     [[nodiscard]] const auto& supply() const { return data; }
 };
 struct ToAddrEl : public ElementBase<Address> {
@@ -192,6 +240,7 @@ struct AssetNameEl : public ElementBase<AssetName> {
     [[nodiscard]] const AssetName& asset_name() const { return data; }
 };
 struct AssetHashEl : public ElementBase<AssetHash> {
+    using ElementBase::ElementBase;
     [[nodiscard]] const auto& asset_hash() const { return data; }
 };
 struct BoolElBase {
@@ -244,6 +293,7 @@ struct PinHeightEl : public ElementBase<PinHeight> {
 };
 
 struct TransactionIdEl : public ElementBase<TransactionId> {
+    using ElementBase::ElementBase;
     [[nodiscard]] const TransactionId& txid() const { return data; }
     [[nodiscard]] AccountId from_id() const { return txid().accountId; }
     [[nodiscard]] PinHeight pin_height() const { return txid().pinHeight; }
@@ -251,10 +301,12 @@ struct TransactionIdEl : public ElementBase<TransactionId> {
 };
 
 struct NonceIdEl : public ElementBase<NonceId> {
+    using ElementBase::ElementBase;
     [[nodiscard]] const NonceId& nonce_id() const { return data; }
 };
 
 struct NonceReservedEl : public ElementBase<NonceReserved> {
+    using ElementBase::ElementBase;
     [[nodiscard]] const NonceReserved& nonce_reserved() const { return data; }
 };
 

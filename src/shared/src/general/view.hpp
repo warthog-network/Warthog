@@ -1,4 +1,5 @@
 #pragma once
+#include "general/serializer_fwd.hxx"
 #include <array>
 #include <cassert>
 #include <compare>
@@ -11,6 +12,10 @@ struct View {
     static const size_t length;
     static constexpr size_t size() { return N; }
     static constexpr size_t byte_size() { return N; }
+    void serialize(Serializer auto&& s) const
+    {
+        s << span();
+    }
     bool is_null() const { return pos == nullptr; }
     const uint8_t* data() const { return pos; }
     uint8_t operator[](size_t i) const { return *(pos + i); }
