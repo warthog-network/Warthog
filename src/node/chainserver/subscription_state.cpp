@@ -394,7 +394,7 @@ void AddressSubscriptionState::session_block(const api::Block& b)
     for (auto& t : b.actions.wartTransfers) {
         if (auto c { session_address_cursor(b, t.toAddress, b.height) })
             c->b.actions.wartTransfers.push_back(t);
-        if (auto c { session_address_cursor(b, t.fromAddress, b.height) })
+        if (auto c { session_address_cursor(b, t.originAddress, b.height) })
             c->b.actions.wartTransfers.push_back(t);
     }
 }

@@ -31,13 +31,14 @@ struct NewOrderData;
 struct LiquidityDepositData;
 struct LiquidityWithdrawalData;
 struct CancelationData;
+struct MatchData;
 
 template <typename T>
-struct WithTxHash;
+struct WithHistoryBase;
 template <typename T>
 struct WithSignedInfo;
 
-using Reward = WithTxHash<RewardData>;
+using Reward = WithHistoryBase<RewardData>;
 using WartTransfer = WithSignedInfo<WartTransferData>;
 using TokenTransfer = WithSignedInfo<TokenTransferData>;
 using AssetCreation = WithSignedInfo<AssetCreationData>;
@@ -45,8 +46,8 @@ using NewOrder = WithSignedInfo<NewOrderData>;
 using LiquidityDeposit = WithSignedInfo<LiquidityDepositData>;
 using LiquidityWithdrawal = WithSignedInfo<LiquidityWithdrawalData>;
 using Cancelation = WithSignedInfo<CancelationData>;
+using Match = WithHistoryBase<MatchData>;
 
-struct Match;
 
 };
 template <typename TxType>

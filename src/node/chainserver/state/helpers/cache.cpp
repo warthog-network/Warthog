@@ -4,14 +4,14 @@
 
 namespace chainserver {
 
-const AssetInfo& AssetCacheById::operator[](AssetId id)
+const AssetDetail& AssetCacheById::operator[](AssetId id)
 {
     auto iter = map.find(id);
     if (iter != map.end())
         return iter->second;
     return map.emplace(id, db.fetch_asset(id)).first->second;
 }
-const AssetInfo& AssetCacheByHash::operator[](AssetHash h)
+const AssetDetail& AssetCacheByHash::operator[](AssetHash h)
 {
     auto iter = map.find(h);
     if (iter != map.end())

@@ -124,7 +124,7 @@ public:
     size_t api_db_size() const;
 
 private:
-    std::optional<AssetInfo> db_lookup_token(const api::TokenIdOrHash&) const;
+    std::optional<AssetDetail> db_lookup_token(const api::TokenIdOrHash&) const;
     // delegated getters
     auto api_get_block(Height h) const -> std::optional<api::Block>;
     std::optional<NonzeroHeight> consensus_height(const Hash&) const;
@@ -145,7 +145,7 @@ public:
 
 private:
     api::Transaction api_dispatch_mempool(const TxHash&, TransactionMessage&&) const;
-    api::Transaction api_dispatch_history(const TxHash&, history::HistoryVariant&&, NonzeroHeight) const;
+    api::Transaction api_dispatch_history(const TxHash&, HistoryId hid, history::HistoryVariant&&, NonzeroHeight) const;
 
     // transaction helpers
     [[nodiscard]] chainserver::RollbackResult rollback(const Height newlength) const;

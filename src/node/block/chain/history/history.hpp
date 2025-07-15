@@ -20,26 +20,32 @@ struct IdCombine : public CombineElements<Ts...> {
     constexpr static uint8_t indicator = I;
 };
 
+
+using SignData = CombineElements<PinNonceEl, CompactFeeEl, OriginAccIdEl>;
+struct SignDataEl : public ElementBase<SignData> {
+    using base_t::base_t;
+    [[nodiscard]] const auto& sign_data() const { return data; }
+};
 template <uint8_t I, typename... Ts>
 requires(I < 256)
-using IdCombineSigned = IdCombine<I, PinNonceEl, CompactFeeEl, Ts...>;
+using IdCombineSigned = IdCombine<I, SignDataEl, Ts...>;
 
-using WartTransferData = IdCombineSigned<1, OriginAccIdEl, ToAccIdEl, WartEl>;
+using WartTransferData = IdCombineSigned<1, ToAccIdEl, WartEl>;
 using RewardData = IdCombine<2, ToAccIdEl, WartEl>;
-using AssetCreationData = IdCombineSigned<3, AssetIdEl, OwnerIdEl, AssetSupplyEl, AssetNameEl>;
-struct TokenTransferData : public IdCombineSigned<4, TokenIdEl, OriginAccIdEl, ToAccIdEl, AmountEl> {
-    using IdCombineSigned<4, TokenIdEl, OriginAccIdEl, ToAccIdEl, AmountEl>::IdCombineSigned;
+using AssetCreationData = IdCombineSigned<3, AssetIdEl, AssetSupplyEl, AssetNameEl>;
+struct TokenTransferData : public IdCombineSigned<4, TokenIdEl,  ToAccIdEl, AmountEl> {
+    using IdCombineSigned<4, TokenIdEl, ToAccIdEl, AmountEl>::IdCombineSigned;
 };
 using OrderData = IdCombineSigned<5, AssetIdEl, BuyEl, AccountIdEl, LimitPriceEl, AmountEl>;
 using CancelationData = IdCombineSigned<6, CancelTxidEl>;
 
 struct PoolBeforeEl : public ElementBase<defi::BaseQuote> {
-    using base::base;
+    using base_t::base_t;
     [[nodiscard]] const auto& pool_before() const { return data; }
 };
 
 struct PoolAfterEl : public ElementBase<defi::BaseQuote> {
-    using base::base;
+    using base_t::base_t;
     [[nodiscard]] const auto& pool_after() const { return data; }
 };
 
@@ -88,13 +94,13 @@ struct vect_len32<T> : public vect_len32_base<T> {
 };
 
 struct BuySwapsEl : public ElementBase<vect_len32<CombineElements<BaseEl, QuoteEl, ReferredHistoryIdEl>>> {
-    using base::base;
+    using base_t::base_t;
     [[nodiscard]] const auto& buy_swaps() const { return data; }
     [[nodiscard]] auto& buy_swaps() { return data; }
 };
 
 struct SellSwapsEl : public ElementBase<vect_len32<CombineElements<BaseEl, QuoteEl, ReferredHistoryIdEl>>> {
-    using base::base;
+    using base_t::base_t;
     [[nodiscard]] const auto& sell_swaps() const { return data; }
     [[nodiscard]] auto& sell_swaps() { return data; }
 };

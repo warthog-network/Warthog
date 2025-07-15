@@ -132,7 +132,7 @@ struct ElementBase {
         : data(std::move(t))
     {
     }
-    using base = ElementBase;
+    using base_t = ElementBase;
     using data_t = T;
 
 protected:
@@ -169,10 +169,6 @@ struct ToAccIdEl : public ElementBase<AccountId> {
 struct OriginAccIdEl : public ElementBase<AccountId> {
     using ElementBase::ElementBase;
     [[nodiscard]] const AccountId& origin_account_id() const { return data; }
-};
-struct OwnerIdEl : public ElementBase<AccountId> {
-    using ElementBase::ElementBase;
-    [[nodiscard]] const AccountId& owner_account_id() const { return data; }
 };
 
 struct AssetSupplyEl : public ElementBase<FundsDecimal> {

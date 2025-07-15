@@ -69,7 +69,7 @@ private:
     char name[6] = { '\0', '\0', '\0', '\0', '\0', '\0' };
 };
 
-struct AssetIdHashNamePrecision {
+struct AssetBasic {
     AssetId id;
     AssetHash hash;
     AssetName name;

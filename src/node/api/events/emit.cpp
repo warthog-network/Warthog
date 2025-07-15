@@ -68,14 +68,14 @@ namespace event {
         auto& e { p.entry };
         api::emit_mempool_add({
             { "total", total },
-            { "id", e.transaction_id().hex_string() },
-            { "fromAddress", e.from_address().to_string() },
+            { "id", e.txid().hex_string() },
+            // { "fromAddress", e.from_address().to_string() },
             { "pinHeight", e.pin_height().value() },
-            { "txHash", e.tx_hash() },
+            { "txHash", e.txhash },
             { "nonceId", e.nonce_id() },
-            { "fee", jsonmsg::to_json(e.fee().uncompact()) },
-            { "toAddress", e.to_address().to_string() },
-            { "amount", jsonmsg::to_json(e.amount_decimal()) },
+            // { "fee", jsonmsg::to_json(e.fee().uncompact()) }, // TODO
+            // { "toAddress", e.to_address().to_string() },
+            // { "amount", jsonmsg::to_json(e.) },
         });
     }
 

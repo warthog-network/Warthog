@@ -898,6 +898,7 @@ private:
             auto& tc { tokenCreations[i] };
             auto assetId { beginNewTokenId + i };
             const auto verified { tc.verify(txVerifier) };
+            auto& ref { history.push_asset_creation(verified, assetId) };
             insertAssetCreations.push_back(chain_db::AssetData {
                 .id { assetId },
                 .height { height },
@@ -908,7 +909,7 @@ private:
                 .name { tc.asset_name() },
                 .hash { verified.hash },
                 .data {} });
-            api.assetCreations.push_back({ make_signed_info(verified), { .name { tc.asset_name() }, .supply { tc.supply() }, .assetId { assetId } } });
+            api.assetCreations.push_back({ make_signed_info(verified, ref.historyId), { .name { tc.asset_name() }, .supply { tc.supply() }, .assetId { assetId } } });
         }
     }
 
@@ -1007,7 +1008,7 @@ private:
             bool create;
             PoolData pool;
         };
-        AssetHandle(AssetIdHashNamePrecision t)
+        AssetHandle(AssetBasic t)
             : _info(std::move(t))
         {
         }
@@ -1029,14 +1030,14 @@ private:
         }
 
     private:
-        AssetIdHashNamePrecision _info;
+        AssetBasic _info;
         mutable std::optional<LoadedPool> o;
     };
     void process_token_sections()
     {
         auto ts { balanceChecker.get_token_sections() };
         for (auto& ts : balanceChecker.get_token_sections()) {
-            auto ihn { db_asset(ts.asset_id()).id_hash_name_precision() };
+            auto ihn { db_asset(ts.asset_id()).basic() };
             AssetHandle th(ihn);
             process_token_transfers(th, ts.sharesTransfers);
             match_new_orders(th, ts.orders);
@@ -1089,9 +1090,9 @@ private:
             api.tokenTransfers.push_back(api::block::TokenTransfer {
                 make_signed_info(verified, ref.historyId),
                 {
+                    .assetInfo { token.info() },
                     .toAddress { tr.to_address() },
                     .amount { tr.amount() },
-                    .assetInfo { token.info() },
                 } });
         }
     }

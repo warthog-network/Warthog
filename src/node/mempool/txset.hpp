@@ -12,17 +12,17 @@ struct ComparatorTransactionId {
     {
         return m1.txid().accountId < accId2;
     }
-    bool operator()(const Entry& m1, const TransactionId& txid2) const
+    bool operator()(const AccountId& accId1, const Entry& m2) const
     {
-        return m1.txid() < txid2;
-    }
-    bool operator()(const Entry& m1, const Entry& m2) const
-    {
-        return m1.txid() < m2.txid();
+        return accId1 < m2.txid().accountId;
     }
     bool operator()(const TransactionId& txid1, const Entry& m2) const
     {
         return txid1 < m2.txid();
+    }
+    bool operator()(const Entry& m1, const Entry& m2) const
+    {
+        return m1.txid() < m2.txid();
     }
 };
 class Txset {

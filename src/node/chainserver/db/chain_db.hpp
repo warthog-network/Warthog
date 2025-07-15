@@ -26,7 +26,7 @@ struct AccountToken;
 class Batch;
 class AssetName;
 class CancelId;
-class AssetInfo;
+class AssetDetail;
 struct SignedSnapshot;
 class Headerchain;
 
@@ -192,10 +192,10 @@ public:
     [[nodiscard]] std::optional<Balance> get_token_balance(BalanceId id) const;
     [[nodiscard]] std::optional<std::pair<BalanceId, Funds_uint64>> get_balance(AccountId aid, TokenId tid) const;
     [[nodiscard]] Wart get_wart_balance(AccountId aid) const;
-    [[nodiscard]] std::optional<AssetInfo> lookup_asset(AssetId) const;
-    [[nodiscard]] AssetInfo fetch_asset(AssetId id) const;
-    [[nodiscard]] std::optional<AssetInfo> lookup_asset(const AssetHash&) const;
-    [[nodiscard]] AssetInfo fetch_asset(const AssetHash&) const;
+    [[nodiscard]] std::optional<AssetDetail> lookup_asset(AssetId) const;
+    [[nodiscard]] AssetDetail fetch_asset(AssetId id) const;
+    [[nodiscard]] std::optional<AssetDetail> lookup_asset(const AssetHash&) const;
+    [[nodiscard]] AssetDetail fetch_asset(const AssetHash&) const;
     void insert_token_balance(AccountToken, Funds_uint64 balance);
     void set_balance(BalanceId, Funds_uint64 balance);
     std::vector<std::pair<TokenId, Funds_uint64>> get_tokens(AccountId, size_t limit);
@@ -229,7 +229,7 @@ public:
     void delete_history_from(NonzeroHeight);
     std::optional<std::pair<history::HistoryVariant, HistoryId>> lookup_history(const HashView hash) const;
 
-    [[nodiscard]] std::vector<history::Entry> lookup_history_range(HistoryId lower, HistoryId upper) const;
+    [[nodiscard]] std::vector<std::pair<HistoryId,history::Entry>> lookup_history_range(HistoryId lower, HistoryId upper) const;
     [[nodiscard]] std::optional<history::Entry> lookup_history(HistoryId id) const;
     [[nodiscard]] history::Entry fetch_history(HistoryId id) const;
     void insertAccountHistory(AccountId accountId, HistoryId historyId);

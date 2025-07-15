@@ -91,12 +91,12 @@ struct BlockSummary {
 namespace block {
 struct HistoryDataBase {
     TxHash txhash;
-    HistoryId hid;
+    std::optional<HistoryId> hid;
 };
 
 template <typename T>
-struct WithTxHash : public HistoryDataBase, T {
-    WithTxHash(TxHash txhash, HistoryId, T t)
+struct WithHistoryBase : public HistoryDataBase, T {
+    WithHistoryBase(TxHash txhash, HistoryId, T t)
         : HistoryDataBase(std::move(txhash), std::move(hid))
         , T(std::move(t))
     {
@@ -104,7 +104,7 @@ struct WithTxHash : public HistoryDataBase, T {
 };
 
 struct SignedInfoData : public HistoryDataBase {
-    SignedInfoData(TxHash txHash, HistoryId hid, Address originAddress, Wart fee, NonceId nonceId, PinHeight pinHeight)
+    SignedInfoData(TxHash txHash, std::optional<HistoryId> hid, Address originAddress, Wart fee, NonceId nonceId, PinHeight pinHeight)
         : HistoryDataBase(std::move(txHash), std::move(hid))
         , originAddress(std::move(originAddress))
         , fee(std::move(fee))
@@ -138,14 +138,14 @@ struct WartTransferData {
 };
 
 struct TokenTransferData {
+    AssetBasic assetInfo;
     Address toAddress;
     Funds_uint64 amount;
-    AssetIdHashNamePrecision assetInfo;
     FundsDecimal amount_decimal() const { return { amount, assetInfo.precision }; }
 };
 
 struct NewOrderData {
-    AssetIdHashNamePrecision assetInfo;
+    AssetBasic assetInfo;
     Funds_uint64 amount;
     Price_uint64 limit;
     bool buy;
@@ -153,10 +153,9 @@ struct NewOrderData {
     FundsDecimal amount_decimal() const { return { amount, buy ? assetInfo.precision : Wart::precision }; }
 };
 
-struct Match {
+struct MatchData {
     using Swap = CombineElements<BaseEl, QuoteEl, ReferredHistoryIdEl>;
-    TxHash txhash;
-    AssetIdHashNamePrecision assetInfo;
+    AssetBasic assetInfo;
     defi::BaseQuote poolBefore;
     defi::BaseQuote poolAfter;
     std::vector<Swap> buySwaps;

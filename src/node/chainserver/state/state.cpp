@@ -104,89 +104,81 @@ std::optional<api::Block> State::api_get_block(const api::HeightOrHash& hh) cons
 }
 namespace {
 
-void push_history(api::Block& b, const history::Entry& e, chainserver::DBCache& c,
+void push_history(api::Block& b, const std::pair<HistoryId, history::Entry>& p, chainserver::DBCache& c,
     PinFloor pinFloor)
 {
+    auto& [hid, e] { p };
+    auto signed_info_data { [&](const history::SignData& sd) {
+        return api::block::SignedInfoData(e.hash, hid, c.addresses.fetch(sd.origin_account_id()), sd.fee(), sd.pin_nonce().id, sd.pin_nonce().pin_height_from_floored(pinFloor));
+    } };
     e.data.visit_overload(
         [&](const history::WartTransferData& d) {
-            b.actions.wartTransfers.push_back(
-                api::block::WartTransfer {
-                    .txhash = e.hash,
-                    .fromAddress = c.addresses.fetch(d.origin_account_id()),
-                    .fee = d.fee(),
-                    .nonceId = d.pin_nonce().id,
-                    .pinHeight = d.pin_nonce().pin_height_from_floored(pinFloor),
+            b.actions.wartTransfers.push_back({ signed_info_data(d.sign_data()),
+                api::block::WartTransferData {
                     .toAddress = c.addresses.fetch(d.to_id()),
-                    .amount = d.wart() });
+                    .amount = d.wart() } });
         },
         [&](const history::RewardData& d) {
             auto toAddress = c.addresses.fetch(d.to_id());
-            b.set_reward({ e.hash, toAddress, d.wart() });
+            b.set_reward({ e.hash, hid, { toAddress, d.wart() } });
         },
         [&](const history::AssetCreationData& d) {
             b.actions.assetCreations.push_back(
-                { .txhash { e.hash },
-                    .assetName { d.asset_name() },
-                    .supply { d.supply() },
-                    .assetId { d.asset_id() },
-                    .fee { d.fee() } });
+                { signed_info_data(d.sign_data()),
+                    {
+                        .name { d.asset_name() },
+                        .supply { d.supply() },
+                        .assetId { d.asset_id() },
+                    } });
         },
         [&](const history::TokenTransferData& d) {
             auto& assetData { c.assetsById[d.token_id().corresponding_asset_id()] };
 
             b.actions.tokenTransfers.push_back(
-                api::block::TokenTransfer {
-                    .txhash = e.hash,
-                    .fromAddress = c.addresses.fetch(d.origin_account_id()),
-                    .fee = d.fee(),
-                    .nonceId = d.pin_nonce().id,
-                    .pinHeight = d.pin_nonce().pin_height_from_floored(pinFloor),
-                    .toAddress = c.addresses.fetch(d.to_id()),
-                    .amount = { d.amount() },
-                    .assetInfo = assetData });
+                { signed_info_data(d.sign_data()),
+                    { .assetInfo = assetData,
+                        .toAddress = c.addresses.fetch(d.to_id()),
+                        .amount = { d.amount() } } });
         },
         [&](const history::OrderData& d) {
             auto& assetData { c.assetsById[d.asset_id()] };
-            b.actions.newOrders.push_back(api::block::NewOrder { .txhash { e.hash },
-                .assetInfo { assetData.id_hash_name_precision() },
-                .fee { d.fee() },
-                .amount { d.amount() },
-                .limit { d.limit() },
-                .buy = d.buy(),
-                .address { c.addresses.fetch(d.account_id()) } });
+            b.actions.newOrders.push_back(
+                { signed_info_data(d.sign_data()),
+                    {
+                        .assetInfo { assetData.basic() },
+                        .amount { d.amount() },
+                        .limit { d.limit() },
+                        .buy = d.buy(),
+                    } });
         },
         [&](const history::CancelationData& d) {
-            b.actions.cancelations.push_back({
-                .txhash { e.hash },
-                .fee { d.fee() },
-                .address { c.addresses.fetch(d.cancel_account_id()) },
-            });
+            b.actions.cancelations.push_back({ signed_info_data(d.sign_data()),
+                {} });
         },
         [&](const history::MatchData& d) {
             auto& asset { c.assetsById[d.asset_id()] };
-            b.actions.matches.push_back(api::block::Match { .txhash { e.hash },
-                .assetInfo { asset.id_hash_name_precision() },
-                .poolBefore { d.pool_before() },
-                .poolAfter { d.pool_after() },
-                .buySwaps {},
-                .sellSwaps {} });
+            b.actions.matches.push_back({ e.hash, hid,
+                { .assetInfo { asset.basic() },
+                    .poolBefore { d.pool_before() },
+                    .poolAfter { d.pool_after() },
+                    .buySwaps {},
+                    .sellSwaps {} } });
         },
         [&](const history::LiquidityDeposit& ld) {
             b.actions.liquidityDeposit.push_back(
-                { .txhash { e.hash },
-                    .fee { ld.fee() },
-                    .baseDeposited { ld.base() },
-                    .quoteDeposited { ld.quote() },
-                    .sharesReceived { ld.shares() } });
+                { signed_info_data(ld.sign_data()),
+                    { .baseDeposited { ld.base() },
+                        .quoteDeposited { ld.quote() },
+                        .sharesReceived { ld.shares() } } });
         },
         [&](const history::LiquidityWithdraw& lw) {
-            b.actions.liquidityWithdrawal.push_back({
-                .txhash { e.hash },
-                .fee { lw.fee() },
-                .sharesRedeemed { lw.shares() },
-                .baseReceived { lw.base() },
-                .quoteReceived { lw.quote() },
-            });
+            b.actions.liquidityWithdrawal.push_back(
+                { signed_info_data(lw.sign_data()),
+                    {
+                        .sharesRedeemed { lw.shares() },
+                        .baseReceived { lw.base() },
+                        .quoteReceived { lw.quote() },
+                    } });
         });
 }
 }
@@ -217,179 +209,187 @@ auto State::api_tx_cache() const -> const TransactionIds
 api::Transaction State::api_dispatch_mempool(const TxHash& txHash, TransactionMessage&& tx) const
 {
     auto gen_temporal = []() { return api::TemporalInfo { 0, Height(0), 0 }; };
+    auto make_signed_info {
+        [&txHash](auto& tx) {
+            return api::block::SignedInfoData(txHash, std::nullopt, tx.from_address(txHash), tx.fee(), tx.nonce_id(), tx.pin_height());
+        }
+    };
+
     return std::move(tx).visit_overload(
         [&](WartTransferMessage&& wtm) -> api::Transaction {
             return api::WartTransferTransaction {
-                gen_temporal(), {
-                                    .txhash = txHash,
-                                    .fromAddress = wtm.from_address(txHash),
-                                    .fee = wtm.fee(),
-                                    .nonceId = wtm.nonce_id(),
-                                    .pinHeight = wtm.pin_height(),
-                                    .toAddress = wtm.to_addr(),
-                                    .amount = wtm.wart(),
-                                }
+                gen_temporal(),
+                { make_signed_info(wtm),
+                    {
+                        .toAddress = wtm.to_addr(),
+                        .amount = wtm.wart(),
+                    } }
             };
         },
         [&](TokenTransferMessage&& ttm) -> api::Transaction {
             // ttm.byte_size
             auto& a { dbcache.assetsByHash[ttm.asset_hash()] };
             return api::TokenTransferTransaction {
-                gen_temporal(), { // AssetIdHashNamePrecision assetInfo;
-                                    .txhash = txHash,
-                                    .fromAddress = ttm.from_address(txHash),
-                                    .fee = ttm.fee(),
-                                    .nonceId = ttm.nonce_id(),
-                                    .pinHeight = ttm.pin_height(),
-                                    .toAddress = ttm.to_addr(),
-                                    .amount = ttm.amount(),
-                                    .assetInfo { a.id_hash_name_precision() } }
+                gen_temporal(),
+                { make_signed_info(ttm),
+                    {
+                        .assetInfo { a.basic() },
+                        .toAddress = ttm.to_addr(),
+                        .amount = ttm.amount(),
+                    } }
             };
         },
         [&](OrderMessage&& o) -> api::Transaction {
             auto& a { dbcache.assetsByHash[o.asset_hash()] };
             return api::NewOrderTransaction {
-                gen_temporal(), {
-
-                                    .txhash = txHash,
-                                    .assetInfo { a.id_hash_name_precision() },
-                                    .fee { o.fee() },
-                                    .amount { o.amount() },
-                                    .limit { o.limit() },
-                                    .buy = o.buy(),
-                                    .address { o.from_address(txHash) },
-                                }
+                gen_temporal(),
+                { make_signed_info(o),
+                    {
+                        .assetInfo { a.basic() },
+                        .amount { o.amount() },
+                        .limit { o.limit() },
+                        .buy = o.buy(),
+                    } }
             };
         },
         [&](CancelationMessage&& a) -> api::Transaction {
             return api::CancelationTransaction {
                 gen_temporal(),
-                {
-                    .txhash { txHash },
-                    .fee { a.fee() },
-                    .address { a.from_address(txHash) },
-                }
+                { make_signed_info(a), {} }
             };
         },
         [&](LiquidityAddMessage&& rd) -> api::Transaction {
             return api::LiquidityDepositTransaction {
-                gen_temporal(), { .txhash { txHash }, .fee { rd.fee() }, .baseDeposited { rd.amount() }, .quoteDeposited { rd.wart() }, .sharesReceived { std::nullopt } }
+                gen_temporal(),
+                { make_signed_info(rd),
+                    {
+                        .baseDeposited { rd.amount() },
+                        .quoteDeposited { rd.wart() },
+                        .sharesReceived { std::nullopt },
+                    } }
             };
         },
         [&](LiquidityRemoveMessage&& rm) -> api::Transaction {
             return api::LiquidityWithdrawalTransaction {
-                gen_temporal(), { .txhash { txHash }, .fee { rm.fee() }, .sharesRedeemed { rm.amount() }, .baseReceived { std::nullopt }, .quoteReceived { std::nullopt } }
+                gen_temporal(),
+                { make_signed_info(rm),
+                    {
+                        .sharesRedeemed { rm.amount() },
+                        .baseReceived { std::nullopt },
+                        .quoteReceived { std::nullopt },
+                    } }
             };
         },
         [&](AssetCreationMessage&& rm) -> api::Transaction {
             return api::AssetCreationTransaction {
-                gen_temporal(), {
-                                    .txhash { txHash },
-                                    .assetName { rm.asset_name() },
-                                    .supply { rm.supply() },
-                                    .assetId { std::nullopt },
-                                    .fee { rm.fee() },
-                                }
+                gen_temporal(),
+                { make_signed_info(rm),
+                    {
+                        .name { rm.asset_name() },
+                        .supply { rm.supply() },
+                        .assetId { std::nullopt },
+                    } }
             };
         });
 }
 
-api::Transaction State::api_dispatch_history(const TxHash& txHash, history::HistoryVariant&& tx, NonzeroHeight h) const
+api::Transaction State::api_dispatch_history(const TxHash& txHash, HistoryId hid, history::HistoryVariant&& tx, NonzeroHeight h) const
 {
     auto gen_temporal = [&]() { return api::TemporalInfo { (chainlength() + 1) - h, h, get_headers()[h].timestamp() }; };
     auto fetch_addr { [&](AccountId aid) {
         return dbcache.addresses.fetch(aid);
     } };
+    auto make_signed_info {
+        [&](auto& tx) {
+            return api::block::SignedInfoData(txHash, hid, fetch_addr(tx.sign_data().origin_account_id()), tx.sign_data().fee(), tx.sign_data().pin_nonce().id, tx.sign_data().pin_nonce().pin_height_from_floored(h.pin_floor()));
+        }
+    };
     return std::move(tx).visit_overload(
         [&](history::WartTransferData&& wtm) -> api::Transaction {
+            // wtm.
             return api::WartTransferTransaction {
-                gen_temporal(), {
-                                    .txhash = txHash,
-                                    .fromAddress = fetch_addr(wtm.origin_account_id()),
-                                    .fee = wtm.fee(),
-                                    .nonceId = wtm.pin_nonce().id,
-                                    .pinHeight = wtm.pin_nonce().pin_height_from_floored(h.pin_floor()),
-                                    .toAddress = fetch_addr(wtm.to_id()),
-                                    .amount = wtm.wart(),
-                                }
+                gen_temporal(),
+                { make_signed_info(wtm),
+                    {
+                        .toAddress = fetch_addr(wtm.to_id()),
+                        .amount = wtm.wart(),
+                    } }
             };
         },
         [&](history::TokenTransferData&& ttm) -> api::Transaction {
             auto& a { dbcache.assetsById[ttm.token_id().corresponding_asset_id()] };
             return api::TokenTransferTransaction {
-                gen_temporal(), { // AssetIdHashNamePrecision assetInfo;
-                                    .txhash = txHash,
-                                    .fromAddress = fetch_addr(ttm.origin_account_id()),
-                                    .fee = ttm.fee(),
-                                    .nonceId = ttm.pin_nonce().id,
-                                    .pinHeight = ttm.pin_nonce().pin_height_from_floored(h.pin_floor()),
-                                    .toAddress = fetch_addr(ttm.to_id()),
-                                    .amount = ttm.amount(),
-                                    .assetInfo { a.id_hash_name_precision() } }
+                gen_temporal(),
+                { make_signed_info(ttm),
+                    {
+                        .assetInfo { a.basic() },
+                        .toAddress = fetch_addr(ttm.to_id()),
+                        .amount = ttm.amount(),
+                    } }
             };
         },
         [&](history::OrderData&& o) -> api::Transaction {
             auto& a { dbcache.assetsById[o.asset_id()] };
             return api::NewOrderTransaction {
-                gen_temporal(), {
-
-                                    .txhash = txHash,
-                                    .assetInfo { a.id_hash_name_precision() },
-                                    .fee { o.fee() },
-                                    .amount { o.amount() },
-                                    .limit { o.limit() },
-                                    .buy = o.buy(),
-                                    .address { fetch_addr(o.account_id()) },
-                                }
+                gen_temporal(),
+                { make_signed_info(o),
+                    {
+                        .assetInfo { a.basic() },
+                        .amount { o.amount() },
+                        .limit { o.limit() },
+                        .buy = o.buy(),
+                    } }
             };
         },
-        [&](history::CancelationData&& a) -> api::Transaction {
+        [&](history::CancelationData&& c) -> api::Transaction {
             return api::CancelationTransaction {
                 gen_temporal(),
-                {
-                    .txhash { txHash },
-                    .fee { a.fee() },
-                    .address { fetch_addr(a.cancel_account_id()) },
-                }
+                { make_signed_info(c),
+                    {} }
             };
         },
         [&](history::LiquidityDeposit&& rd) -> api::Transaction {
             return api::LiquidityDepositTransaction {
-                gen_temporal(), { .txhash { txHash }, .fee { rd.fee() }, .baseDeposited { rd.base() }, .quoteDeposited { rd.quote() }, .sharesReceived { rd.shares() } }
+                gen_temporal(),
+                { make_signed_info(rd),
+                    { .baseDeposited { rd.base() }, .quoteDeposited { rd.quote() }, .sharesReceived { rd.shares() } } }
             };
         },
         [&](history::LiquidityWithdraw&& rm) -> api::Transaction {
             return api::LiquidityWithdrawalTransaction {
-                gen_temporal(), { .txhash { txHash }, .fee { rm.fee() }, .sharesRedeemed { rm.shares() }, .baseReceived { rm.base() }, .quoteReceived { rm.quote() } }
+                gen_temporal(),
+                { make_signed_info(rm),
+                    { .sharesRedeemed { rm.shares() }, .baseReceived { rm.base() }, .quoteReceived { rm.quote() } } }
             };
         },
         [&](history::RewardData&& rm) -> api::Transaction {
             return api::RewardTransaction {
-                gen_temporal(), { .txhash { txHash }, .toAddress { fetch_addr(rm.to_id()) }, .wart { rm.wart() } }
+                gen_temporal(), { txHash, hid, { .toAddress { fetch_addr(rm.to_id()) }, .wart { rm.wart() } } }
             };
         },
         [&](history::AssetCreationData&& rm) -> api::Transaction {
             return api::AssetCreationTransaction {
-                gen_temporal(), {
-                                    .txhash { txHash },
-                                    .assetName { rm.asset_name() },
-                                    .supply { rm.supply() },
-                                    .assetId { rm.asset_id() },
-                                    .fee { rm.fee() },
-                                }
+                gen_temporal(),
+                { make_signed_info(rm),
+                    {
+                        .name { rm.asset_name() },
+                        .supply { rm.supply() },
+                        .assetId { rm.asset_id() },
+                    } }
             };
         },
         [&](history::MatchData&& rm) -> api::Transaction {
             auto& a { dbcache.assetsById[rm.asset_id()] };
             return api::MatchTransaction {
-                gen_temporal(), {
-                                    .txhash { txHash },
-                                    .assetInfo { a.id_hash_name_precision() },
-                                    .liquidityBefore { rm.pool_before() },
-                                    .poolAfter { rm.pool_after() },
-                                    .buySwaps { rm.buy_swaps() },
-                                    .sellSwaps { rm.sell_swaps() },
-                                }
+                gen_temporal(),
+                { txHash, hid,
+                    {
+                        .assetInfo { a.basic() },
+                        .poolBefore { rm.pool_before() },
+                        .poolAfter { rm.pool_after() },
+                        .buySwaps { rm.buy_swaps() },
+                        .sellSwaps { rm.sell_swaps() },
+                    } }
             };
             // AssetIdEl, PoolBeforeEl, PoolAfterEl, BuySwapsEl, SellSwapsEl
         }
@@ -402,9 +402,9 @@ std::optional<api::Transaction> State::api_get_tx(const TxHash& txHash) const
     if (auto p { chainstate.mempool()[txHash] }; p)
         return api_dispatch_mempool(txHash, std::move(*p));
     if (auto p { db.lookup_history(txHash) }; p) {
-        auto& [parsed, historyIndex] = *p;
-        NonzeroHeight h { chainstate.history_height(historyIndex) };
-        return api_dispatch_history(txHash, std::move(parsed), h);
+        auto& [parsed, historyId] = *p;
+        NonzeroHeight h { chainstate.history_height(historyId) };
+        return api_dispatch_history(txHash, historyId, std::move(parsed), h);
     }
     return {};
 }
@@ -999,7 +999,7 @@ api::WartBalance State::api_get_address(AddressView address) const
         return api::WartBalance {
             api::AddressWithId {
                 address,
-                p->accointId,
+                p.value(),
             },
             p->funds
         };
@@ -1016,7 +1016,7 @@ api::WartBalance State::api_get_address(AccountId accountId) const
     if (auto p = db.lookup_address(accountId); p) {
         return api::WartBalance {
             api::AddressWithId {
-                p->address,
+                *p,
                 accountId },
             p->funds
         };
@@ -1025,7 +1025,7 @@ api::WartBalance State::api_get_address(AccountId accountId) const
     }
 }
 
-std::optional<AssetInfo> State::db_lookup_token(const api::TokenIdOrHash& token) const
+std::optional<AssetDetail> State::db_lookup_token(const api::TokenIdOrHash& token) const
 {
     return token.visit([&](const auto& token) { return db.lookup_asset(token); });
 }

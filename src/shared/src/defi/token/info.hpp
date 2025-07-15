@@ -2,7 +2,7 @@
 #include "block/body/account_id.hpp"
 #include "block/chain/height.hpp"
 #include "defi/token/token.hpp"
-struct AssetInfo {
+struct AssetDetail {
     AssetId id;
     NonzeroHeight height;
     AccountId ownerAccountId;
@@ -12,8 +12,8 @@ struct AssetInfo {
     AssetName name;
     AssetHash hash;
     AssetPrecision precision;
-    operator AssetIdHashNamePrecision() const { return { id, hash, name, precision }; }
-    AssetIdHashNamePrecision id_hash_name_precision() const
+    operator AssetBasic() const { return { id, hash, name, precision }; }
+    AssetBasic basic() const
     {
         return {
             .id { id },

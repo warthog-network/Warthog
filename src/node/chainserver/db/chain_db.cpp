@@ -339,7 +339,7 @@ ChainDB::ChainDB(const std::string& path)
     , stmtHistoryLookup(db,
           "SELECT `id`, `data` FROM `History` WHERE `hash`=?")
     , stmtHistoryLookupRange(db,
-          "SELECT `hash`, `data` FROM `History` WHERE `id`>=? AND`id`<?")
+          "SELECT `id`, `hash`, `data` FROM `History` WHERE `id`>=? AND`id`<?")
     , stmtAccountHistoryInsert(db, "INSERT OR IGNORE INTO `AccountHistory` "
                                    "(`account_id`,`history_id`) VALUES (?,?)")
     , stmtAccountHistoryDeleteFrom(
@@ -899,13 +899,13 @@ size_t ChainDB::byte_size() const
     return stmtGetDBSize.one().get<int64_t>(0);
 }
 
-std::vector<history::Entry> ChainDB::lookup_history_range(HistoryId lower, HistoryId upper) const
+std::vector<std::pair<HistoryId, history::Entry>> ChainDB::lookup_history_range(HistoryId lower, HistoryId upper) const
 {
     int64_t l = lower.value();
     int64_t u = (upper == HistoryId { 0 } ? std::numeric_limits<int64_t>::max() : upper.value());
     try {
         return stmtHistoryLookupRange.all([&](const sqlite::Row& r) {
-            return history::Entry { r[0], std::vector<uint8_t> { r[1] } };
+            return std::pair<HistoryId, history::Entry> { r[0], { r[1], std::vector<uint8_t> { r[2] } } };
         },
             l, u);
     } catch (...) {
@@ -919,7 +919,7 @@ std::optional<history::Entry> ChainDB::lookup_history(HistoryId id) const
     auto v { lookup_history_range(id, id + 1) };
     if (v.size() == 0)
         return std::nullopt;
-    return std::move(v.front());
+    return std::move(v.front().second);
 }
 
 history::Entry ChainDB::fetch_history(HistoryId id) const
@@ -979,10 +979,10 @@ Address ChainDB::fetch_address(AccountId id) const
 //     });
 // }
 
-std::optional<AssetInfo> ChainDB::lookup_asset(AssetId id) const
+std::optional<AssetDetail> ChainDB::lookup_asset(AssetId id) const
 {
     // , stmtAssetLookup(db, "SELECT (id, height, owner_account_id, total_supply, group_id, parent_id, name, hash, precision, data) FROM Assets WHERE `id`=?")
-    return stmtAssetLookup.one(id).process([](auto& o) -> AssetInfo {
+    return stmtAssetLookup.one(id).process([](auto& o) -> AssetDetail {
         return {
             .id = o[0],
             .height = o[1],
@@ -998,7 +998,7 @@ std::optional<AssetInfo> ChainDB::lookup_asset(AssetId id) const
     });
 }
 
-AssetInfo ChainDB::fetch_asset(AssetId id) const
+AssetDetail ChainDB::fetch_asset(AssetId id) const
 {
     auto p { lookup_asset(id) };
     if (!p) {
@@ -1006,9 +1006,9 @@ AssetInfo ChainDB::fetch_asset(AssetId id) const
     }
     return *p;
 }
-std::optional<AssetInfo> ChainDB::lookup_asset(const AssetHash& hash) const
+std::optional<AssetDetail> ChainDB::lookup_asset(const AssetHash& hash) const
 {
-    return stmtTokenLookupByHash.one(hash).process([](auto& o) -> AssetInfo {
+    return stmtTokenLookupByHash.one(hash).process([](auto& o) -> AssetDetail {
         return {
             .id = o[0],
             .height = o[1],
@@ -1023,7 +1023,7 @@ std::optional<AssetInfo> ChainDB::lookup_asset(const AssetHash& hash) const
     });
 }
 
-AssetInfo ChainDB::fetch_asset(const AssetHash& hash) const
+AssetDetail ChainDB::fetch_asset(const AssetHash& hash) const
 {
     auto p { lookup_asset(hash) };
     if (!p) {
@@ -1071,7 +1071,7 @@ std::pair<std::optional<BalanceId>, Funds_uint64> ChainDB::get_token_balance_rec
         auto o { lookup_asset(*assetId) };
         if (!o)
             throw std::runtime_error("Database error: Cannot find token info for id " + std::to_string(tid.value()) + ".");
-        const AssetInfo& assetInfo { *o };
+        const AssetDetail& assetInfo { *o };
         auto h { assetInfo.height };
         auto& p { assetInfo.parent_id };
         if (!p) { // has no parent, i.e. was not forked, no entry found

@@ -37,16 +37,16 @@ public:
     [[nodiscard]] Wart operator[](AccountId aid);
 };
 
-class AssetCacheById : public DBCacheBase<AssetId, AssetInfo> {
+class AssetCacheById : public DBCacheBase<AssetId, AssetDetail> {
 public:
     using DBCacheBase::DBCacheBase;
-    [[nodiscard]] const AssetInfo& operator[](AssetId id);
+    [[nodiscard]] const AssetDetail& operator[](AssetId id);
 };
 
-class AssetCacheByHash : public DBCacheBase<AssetHash, AssetInfo> {
+class AssetCacheByHash : public DBCacheBase<AssetHash, AssetDetail> {
 public:
     using DBCacheBase::DBCacheBase;
-    [[nodiscard]] const AssetInfo& operator[](AssetHash);
+    [[nodiscard]] const AssetDetail& operator[](AssetHash);
 };
 
 class HistoryCache : public DBCacheBase<HistoryId, history::Entry> {
