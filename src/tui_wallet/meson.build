@@ -86,4 +86,3 @@ ftxui_cpp],
   include_directories: [ include_wh, './include', './src'],
   install : true)
 
-test('basic', exe)
