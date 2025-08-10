@@ -7,7 +7,7 @@
 #include <string>  // for string
 #include <vector>  // for vector
 
-#include "ftxui/dom/elements.hpp"  // for Element, BorderStyle, LIGHT, Decorator
+#include "elements.hpp"  // for Element, BorderStyle, LIGHT, Decorator
 
 namespace ftxui {
 

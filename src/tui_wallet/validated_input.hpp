@@ -1,6 +1,6 @@
 #pragma once
-#include "ftxui/component/event.hpp"
-#include <ftxui/component/component.hpp>
+#include "include/ftxui/component/event.hpp"
+#include "include/ftxui/component/component.hpp"
 namespace ui {
 using namespace ftxui;
 using StringValidator = std::function<bool(std::string)>;

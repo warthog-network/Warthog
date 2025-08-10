@@ -1,14 +1,14 @@
 #pragma once
-#include "ftxui/dom/table.hpp"
+#include "include/ftxui/dom/table.hpp"
 #include "gui.hpp"
 #include "popups.hpp"
 #include "spinner.hpp"
 #include "transaction.hpp"
 #include "validated_input.hpp"
 #include <cmath>
-#include <ftxui/component/component.hpp> // for Dropdown, Renderer, Container
-#include <ftxui/component/screen_interactive.hpp> // for ScreenInteractive
-#include <ftxui/dom/elements.hpp>                 // for text, vbox, hbox
+#include "include/ftxui/component/component.hpp" // for Dropdown, Renderer, Container
+#include "include/ftxui/component/screen_interactive.hpp" // for ScreenInteractive
+#include "include/ftxui/dom/elements.hpp"                 // for text, vbox, hbox
 #include <string>
 #include <vector>
 
