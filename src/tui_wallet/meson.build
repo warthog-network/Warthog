@@ -84,5 +84,6 @@ exe = executable('wart-tui', [
 './popups.cpp',
 ftxui_cpp],
   include_directories: [ include_wh, './include', './src'],
+  cpp_args: ['-DUNICODE', '-D_UNICODE'],# add unicode
   install : true)
 
