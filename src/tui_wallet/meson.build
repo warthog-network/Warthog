@@ -77,7 +77,6 @@
 
 
 
-xcb_dep = dependency('xcb')
 exe = executable('wart-tui', [
 'main.cpp', 
 './tabs.cpp',
@@ -85,7 +84,6 @@ exe = executable('wart-tui', [
 './popups.cpp',
 ftxui_cpp],
   include_directories: [ include_wh, './include', './src'],
-  dependencies: [xcb_dep],
   install : true)
 
 test('basic', exe)
