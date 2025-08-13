@@ -3,7 +3,6 @@
 #include "api/interface.hpp"
 #include "general/errors.hpp"
 #include "nlohmann/json.hpp"
-#include "spdlog/fmt/bundled/format.h"
 struct Head;
 class Hash;
 class TxHash;

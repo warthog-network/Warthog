@@ -3,6 +3,7 @@
 #include "api/events/subscription.hpp"
 #include "api/events/subscription_fwd.hpp"
 #include "log_entry.hpp"
+#include "spdlog/pattern_formatter.h"
 #include "spdlog/spdlog.h"
 
 namespace logging {
