@@ -210,6 +210,10 @@ inline FundsDecimal Funds_uint64::to_decimal(AssetPrecision d) const
     return { value(), d };
 }
 
+struct Supply : public FundsDecimal{
+    nlohmann::json to_json() const;
+};
+
 class Wart : public FundsBase<Wart> {
 public:
     static constexpr AssetPrecision precision { AssetPrecision::digits8() };

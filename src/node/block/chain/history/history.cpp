@@ -1,6 +1,19 @@
 #include "history.hpp"
 
 namespace history {
+namespace {
+
+// template<tynema
+SignData sign_data(const SignerData& sd)
+{
+    return {
+        sd.pinNonce,
+        sd.compactFee,
+        sd.origin.id,
+    };
+};
+//
+}
 
 Entry::Entry(const RewardInternal& p)
     : hash(p.hash())
@@ -13,9 +26,7 @@ Entry::Entry(const RewardInternal& p)
 Entry::Entry(const block_apply::WartTransfer::Verified& p)
     : hash(p.hash)
     , data(WartTransferData {
-          p.ref.pinNonce,
-          p.ref.compactFee,
-          p.ref.origin.id,
+          sign_data(p.ref),
           p.ref.to_id(),
           p.ref.wart(),
       })
@@ -25,10 +36,8 @@ Entry::Entry(const block_apply::WartTransfer::Verified& p)
 Entry::Entry(const block_apply::TokenTransfer::Verified& p, TokenId tokenId)
     : hash(p.hash)
     , data(TokenTransferData {
-          p.ref.pinNonce,
-          p.ref.compactFee,
+          sign_data(p.ref),
           tokenId,
-          p.txid.accountId,
           p.ref.to_id(),
           p.ref.amount(),
       })
@@ -37,11 +46,9 @@ Entry::Entry(const block_apply::TokenTransfer::Verified& p, TokenId tokenId)
 Entry::Entry(const block_apply::Order::Verified& p)
     : hash(p.hash)
     , data(OrderData {
-          p.ref.pinNonce,
-          p.ref.compactFee,
+          sign_data(p.ref),
           p.ref.asset_id(),
           p.ref.buy(),
-          p.txid.accountId,
           p.ref.limit(),
           p.ref.amount(),
       })
@@ -51,8 +58,7 @@ Entry::Entry(const block_apply::Order::Verified& p)
 Entry::Entry(const block_apply::Cancelation::Verified& p)
     : hash(p.hash)
     , data(CancelationData {
-          p.ref.pinNonce,
-          p.ref.compactFee,
+          sign_data(p.ref),
           p.ref.cancel_txid() })
 {
 }
@@ -61,10 +67,8 @@ Entry::Entry(const block_apply::AssetCreation::Verified& p, AssetId assetId)
     : hash(p.hash)
     // = ICombine<3, PinNonceEl, CompactFeeEl, AssetIdEl, OwnerIdEl, TokenSupplyEl, TokenNameEl>;
     , data(AssetCreationData {
-          p.ref.pinNonce,
-          p.ref.compactFee,
+          sign_data(p.ref),
           assetId,
-          p.ref.origin.id,
           p.ref.supply(),
           p.ref.asset_name(),
       })
@@ -74,24 +78,24 @@ Entry::Entry(const block_apply::AssetCreation::Verified& p, AssetId assetId)
 Entry::Entry(const block_apply::LiquidityDeposit::Verified& p, Funds_uint64 receivedShares)
     : hash(p.hash)
     , data(LiquidityDeposit {
-          p.ref.pinNonce,
-          p.ref.compactFee,
+          sign_data(p.ref),
+          p.ref.asset_id(),
           p.ref.base(),
           p.ref.quote(),
           receivedShares,
-          p.ref.asset_id() })
+      })
 {
 }
 
-Entry::Entry(const block_apply::LiquidityWithdrawal::Verified& w, Funds_uint64 receivedBase, Wart receivedQuote)
-    : hash(w.hash)
+Entry::Entry(const block_apply::LiquidityWithdrawal::Verified& p, Funds_uint64 receivedBase, Wart receivedQuote)
+    : hash(p.hash)
     , data(LiquidityWithdraw {
-          w.ref.pinNonce,
-          w.ref.compactFee,
+          sign_data(p.ref),
+          p.ref.asset_id(),
           receivedBase,
           receivedQuote,
-          w.ref.amount(),
-          w.ref.asset_id() })
+          p.ref.amount(),
+      })
 {
 }
 

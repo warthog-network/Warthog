@@ -205,7 +205,7 @@ json header_json(const Header& header, NonzeroHeight height)
         for (auto& t : actions.tokenTransfers) {
             json elem;
             elem["token"] = to_json(t.assetInfo);
-            elem["fromAddress"] = t.fromAddress.to_string();
+            elem["fromAddress"] = t.originAddress.to_string();
             elem["fee"] = to_json(t.fee);
             elem["nonceId"] = t.nonceId;
             elem["pinHeight"] = t.pinHeight;
@@ -226,7 +226,7 @@ json header_json(const Header& header, NonzeroHeight height)
             elem["limit"] = o.limit.to_double();
             elem["buy"] = o.buy;
             elem["txhash"] = serialize_hex(o.txhash);
-            elem["address"] = o.address.to_string();
+            elem["address"] = o.originAddress.to_string();
             a.push_back(elem);
         }
         out["newOrders"] = a;
@@ -326,7 +326,7 @@ auto to_json_visit(const api::TokenTransferTransaction& tx)
     json j;
     json jtx(to_json_temporal(tx));
     jtx["txHash"] = serialize_hex(tx.txhash);
-    jtx["fromAddresss"] = tx.fromAddress.to_string();
+    jtx["fromAddresss"] = tx.originAddress.to_string();
     jtx["fee"] = to_json(tx.fee);
     jtx["nonceId"] = tx.nonceId;
     jtx["pinHeight"] = tx.pinHeight.value(),
@@ -347,10 +347,11 @@ auto to_json_visit(const api::AssetCreationTransaction& tx)
     json jtx(to_json_temporal(tx));
     json j;
     jtx["txHash"] = serialize_hex(tx.txhash);
-    jtx["toAddress"] = tx.t.to_string();
+    jtx["toAddress"] = tx.originAddress.to_string();
     jtx["confirmations"] = tx.confirmations;
     jtx["blockHeight"] = tx.height;
-    jtx["amount"] = to_json(tx.amount);
+    jtx["
+    jtx["supply"] = to_json(tx.supply.to_string());
     jtx["timestamp"] = tx.timestamp;
     jtx["utc"] = format_utc(tx.timestamp);
     jtx["type"] = "Reward";
@@ -362,7 +363,7 @@ auto to_json_visit(const api::NewOrderTransaction& tx)
     json j;
     json jtx(to_json_temporal(tx));
     jtx["txHash"] = serialize_hex(tx.txhash);
-    jtx["toAddress"] = tx.toAddress.to_string();
+    jtx["originAddress"] = tx.originAddress.to_string();
     jtx["confirmations"] = tx.confirmations;
     jtx["blockHeight"] = tx.height;
     jtx["amount"] = to_json(tx.amount);
@@ -377,7 +378,7 @@ auto to_json_visit(const api::MatchTransaction& tx)
     json j;
     json jtx(to_json_temporal(tx));
     jtx["txHash"] = serialize_hex(tx.txhash);
-    jtx["toAddress"] = tx.toAddress.to_string();
+    jtx["address"] = tx.to_string();
     jtx["confirmations"] = tx.confirmations;
     jtx["blockHeight"] = tx.height;
     jtx["amount"] = to_json(tx.amount);

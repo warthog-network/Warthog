@@ -13,18 +13,18 @@ class Headerchain;
 class TxIdVerifier;
 
 namespace history {
-template <uint8_t I, typename... Ts>
-requires(I < 256)
-struct IdCombine : public CombineElements<Ts...> {
-    using CombineElements<Ts...>::CombineElements;
-    constexpr static uint8_t indicator = I;
-};
-
 
 using SignData = CombineElements<PinNonceEl, CompactFeeEl, OriginAccIdEl>;
 struct SignDataEl : public ElementBase<SignData> {
     using base_t::base_t;
     [[nodiscard]] const auto& sign_data() const { return data; }
+};
+
+template <uint8_t I, typename... Ts>
+requires(I < 256)
+struct IdCombine : public CombineElements<Ts...> {
+    using CombineElements<Ts...>::CombineElements;
+    constexpr static uint8_t indicator = I;
 };
 template <uint8_t I, typename... Ts>
 requires(I < 256)
@@ -33,10 +33,8 @@ using IdCombineSigned = IdCombine<I, SignDataEl, Ts...>;
 using WartTransferData = IdCombineSigned<1, ToAccIdEl, WartEl>;
 using RewardData = IdCombine<2, ToAccIdEl, WartEl>;
 using AssetCreationData = IdCombineSigned<3, AssetIdEl, AssetSupplyEl, AssetNameEl>;
-struct TokenTransferData : public IdCombineSigned<4, TokenIdEl,  ToAccIdEl, AmountEl> {
-    using IdCombineSigned<4, TokenIdEl, ToAccIdEl, AmountEl>::IdCombineSigned;
-};
-using OrderData = IdCombineSigned<5, AssetIdEl, BuyEl, AccountIdEl, LimitPriceEl, AmountEl>;
+using TokenTransferData = IdCombineSigned<4, TokenIdEl, ToAccIdEl, AmountEl>;
+using OrderData = IdCombineSigned<5, AssetIdEl, BuyEl, LimitPriceEl, AmountEl>;
 using CancelationData = IdCombineSigned<6, CancelTxidEl>;
 
 struct PoolBeforeEl : public ElementBase<defi::BaseQuote> {
@@ -49,7 +47,6 @@ struct PoolAfterEl : public ElementBase<defi::BaseQuote> {
     [[nodiscard]] const auto& pool_after() const { return data; }
 };
 
-using Swap = CombineElements<OrderIdEl, defi::BaseQuote>;
 
 template <typename T>
 struct vect_len32_base : public std::vector<T> {
@@ -113,8 +110,8 @@ struct MatchData : public IdCombine<7, AssetIdEl, PoolBeforeEl, PoolAfterEl, Buy
     using IdCombine::IdCombine;
 };
 
-using LiquidityDeposit = IdCombineSigned<8, BaseEl, QuoteEl, SharesEl, AssetIdEl>;
-using LiquidityWithdraw = IdCombineSigned<9, BaseEl, QuoteEl, SharesEl, AssetIdEl>;
+using LiquidityDeposit = IdCombineSigned<8, AssetIdEl, BaseEl, QuoteEl, SharesEl>;
+using LiquidityWithdraw = IdCombineSigned<9, AssetIdEl, BaseEl, QuoteEl, SharesEl>;
 
 template <typename gen_parse_exception, typename... Ts>
 struct IndicatorVariant : public wrt::variant<Ts...> {
@@ -180,7 +177,17 @@ struct CantParseHistoryExceptionGenerator {
         return std::runtime_error("Cannot parse history entry");
     }
 };
-using HistoryVariant = IndicatorVariant<CantParseHistoryExceptionGenerator, WartTransferData, RewardData, AssetCreationData, TokenTransferData, OrderData, CancelationData, MatchData, LiquidityDeposit, LiquidityWithdraw>;
+using HistoryVariant = IndicatorVariant<
+    CantParseHistoryExceptionGenerator,
+    WartTransferData,
+    RewardData,
+    AssetCreationData,
+    TokenTransferData,
+    OrderData,
+    CancelationData,
+    MatchData,
+    LiquidityDeposit,
+    LiquidityWithdraw>;
 
 struct Entry {
     Entry(const RewardInternal& p);

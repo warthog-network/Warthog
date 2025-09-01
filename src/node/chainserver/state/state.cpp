@@ -1,3 +1,4 @@
+#include "defi/token/account_token.hpp"
 #include "helpers/cache.hpp"
 #ifndef DISABLE_LIBUV
 #include "api/http/endpoint.hpp"
@@ -6,10 +7,8 @@
 #include "../db/chain_db.hpp"
 #include "api/types/all.hpp"
 #include "block/body/rollback.hpp"
-#include "block/body/view.hpp"
 #include "block/chain/history/history.hpp"
 #include "block/header/generator.hpp"
-#include "block/header/header_impl.hpp"
 #include "communication/create_transaction.hpp"
 #include "eventloop/types/chainstate.hpp"
 #include "general/hex.hpp"
@@ -794,9 +793,9 @@ public:
             // roll back state modifications
             rollback::Data rbv(d.rawUndo);
             rbv.foreach_balance_update(
-                [&](const AccountTokenBalance& entry) {
-                    const Funds_uint64& bal { entry.balance };
-                    const BalanceId& id { entry.id };
+                [&](const BalanceIdFunds& entry) {
+                    const Funds_uint64& bal { entry.funds };
+                    const BalanceId& id { entry.balanceId };
                     auto b { db.get_token_balance(id) };
                     if (!b.has_value())
                         throw std::runtime_error("Database corrupted, cannot roll back");
@@ -829,7 +828,7 @@ State::rollback(const Height newlength) const
 
     for (size_t i = 0; i < ids.size(); ++i) {
         NonzeroHeight height = beginHeight + i;
-        rs.rollback_block(ids[i], height);
+        rs.rollback_block(ids[i], height, dbcache.addresses);
     }
 
     db.delete_history_from(newlength.add1());

@@ -2,6 +2,7 @@
 #include "general/errors.hpp"
 #include "general/params.hpp"
 #include "general/reader.hpp"
+#include "nlohmann/json.hpp"
 #include <cassert>
 #include <charconv>
 #include <cstring>
@@ -111,6 +112,13 @@ std::optional<Funds_uint64> Funds_uint64::parse(ParsedFunds fd, AssetPrecision d
         v *= 10;
     }
     return Funds_uint64::from_value(v);
+}
+
+nlohmann::json Supply::to_json() const{
+    return {
+        {"str", to_string()},
+        {"u64", this->funds.value()}
+    };
 }
 
 std::optional<Wart> Wart::parse(std::string_view s)

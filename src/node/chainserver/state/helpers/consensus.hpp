@@ -1,6 +1,7 @@
 #pragma once
 #include "../../transaction_ids.hpp"
 #include "../update/update.hpp"
+#include "chainserver/db/ids.hpp"
 #include "block/body/account_id.hpp"
 #include "block/chain/consensus_headers.hpp"
 #include "block/chain/history/index.hpp"
@@ -8,7 +9,6 @@
 #include "cache_fwd.hpp"
 #include "chainserver/db/deletion_key.hpp"
 #include "chainserver/db/types_fwd.hpp"
-#include "defi/token/account_token.hpp"
 #include "mempool/mempool.hpp"
 #include <cstdint>
 
@@ -47,7 +47,7 @@ struct Chainstate {
         TransactionIds&& newTxIds;
         HistoryId newHistoryOffset;
         AccountId newAccountOffset;
-        uint64_t nextStateId;
+        StateId nextStateId;
     };
     Chainstate(const ChainDB& db, BatchRegistry& br);
 

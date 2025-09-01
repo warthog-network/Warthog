@@ -7,10 +7,12 @@ using namespace std;
 
 namespace defi {
 
-[[nodiscard]] inline MatchResult_uint64 match_lazy(auto& loaderSellAsc, auto& loaderBuyDesc, const PoolLiquidity_uint64& pool)
+[[nodiscard]] inline MatchResult_uint64 match_lazy(auto& loaderSellAsc, auto& loaderBuyDesc, const PoolLiquidity_uint64& poolBeforeMatch)
 {
-    assert(pool.price()); // TODO: ensure the pool is non-degenerate
-    const auto price { *pool.price() };
+
+    auto pr { poolBeforeMatch.price() };
+    assert(pr); // TODO: ensure the pool is non-degenerate
+    const auto price { *pr };
 
     Orderbook_uint64 ob;
     std::optional<Price_uint64> lower, upper;
@@ -64,7 +66,7 @@ namespace defi {
 
     auto more_quote_less_base = [&](Price_uint64 p) {
         Delta_uint64 toPool { filled.excess(p) };
-        return !pool.modified_pool_price_exceeds(toPool, p);
+        return !poolBeforeMatch.modified_pool_price_exceeds(toPool, p);
     };
 
     auto upper_buy_bound { [&]() -> const Order_uint64* {
@@ -121,7 +123,6 @@ namespace defi {
                     break;
             }
 
-
             if (!more_quote_less_base(*np))
                 break;
             Order_uint64 o { loaderBuyDesc.load_next_order() };
@@ -133,6 +134,6 @@ namespace defi {
     }
 
     using namespace std;
-    return ob.match(pool);
+    return ob.match(poolBeforeMatch);
 }
 }

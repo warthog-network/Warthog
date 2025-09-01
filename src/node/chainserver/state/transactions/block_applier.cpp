@@ -204,13 +204,13 @@ struct AggregatorMatch {
 
 struct MatchStateDelta {
     AssetId assetId;
-    defi::PoolLiquidity_uint64 pool; // pool liquidity after match
+    defi::PoolLiquidity_uint64 poolAfterMatch; // pool liquidity after match
     std::vector<chain_db::OrderDelete> orderDeletes;
     std::optional<chain_db::OrderFillstate> orderBuyPartial;
     std::optional<chain_db::OrderFillstate> orderSellPartial;
     MatchStateDelta(AssetId assetId, defi::PoolLiquidity_uint64 pool)
         : assetId(assetId)
-        , pool(std::move(pool))
+        , poolAfterMatch(std::move(pool))
     {
     }
 };
@@ -220,8 +220,8 @@ private:
     MatchActions(const AggregatorMatch& m, AssetId assetId, const defi::PoolLiquidity_uint64& p);
 
 public:
-    MatchActions(const ChainDB& db, const UnsortedOrderbook& unsortedOrderbook, AssetId aid, const defi::PoolLiquidity_uint64& p)
-        : MatchActions(AggregatorMatch { db, unsortedOrderbook, aid, p }, aid, p)
+    MatchActions(const ChainDB& db, const UnsortedOrderbook& unsortedOrderbook, AssetId aid, const defi::PoolLiquidity_uint64& poolBeforeMatch)
+        : MatchActions(AggregatorMatch { db, unsortedOrderbook, aid, poolBeforeMatch }, aid, poolBeforeMatch)
     {
     }
 
@@ -241,11 +241,11 @@ MatchActions::MatchActions(const AggregatorMatch& am, AssetId assetId, const def
         auto pa { m.toPool->amount() };
         if (m.toPool->is_quote()) {
             returned.quote.subtract_assert(pa);
-            fromPool = pool.buy(pa, 50);
+            fromPool = poolAfterMatch.buy(pa, 50);
             returned.base.add_assert(fromPool);
         } else {
             returned.base.subtract_assert(pa);
-            fromPool = pool.sell(pa, 50);
+            fromPool = poolAfterMatch.sell(pa, 50);
             returned.quote.add_assert(fromPool);
         }
     }
@@ -1096,12 +1096,12 @@ private:
                 } });
         }
     }
-    void match_new_orders(AssetHandle& asset, const std::vector<block_apply::Order::Internal>& orders)
+    void match_new_orders(const AssetHandle& asset, const std::vector<block_apply::Order::Internal>& orders)
     {
         if (orders.size() == 0)
             return;
-        auto& p { asset.get_pool(db) };
-        auto poolLiquidity { p.liquidity() };
+        const auto& p { asset.get_pool(db) };
+        const auto poolBeforeMatch { p.liquidity() };
         NewOrdersInternal no;
 
         for (auto& o : orders) {
@@ -1126,27 +1126,33 @@ private:
                 .limit { o.limit() } });
         }
 
-        MatchActions m(db, no, asset.info().id, poolLiquidity);
+        MatchActions m(db, no, asset.info().id, poolBeforeMatch);
 
-        history::MatchData d(asset.id(), poolLiquidity, m.pool);
+        history::MatchData h(asset.id(), poolBeforeMatch, m.poolAfterMatch);
         std::vector<AccountId> accounts;
         for (auto& s : m.buySwaps) {
-            d.buy_swaps().push_back({ s.base, s.quote, s.oId });
+            h.buy_swaps().push_back({ s.base, s.quote, s.oId });
             accounts.push_back(s.txid.accountId);
         }
         for (auto& s : m.sellSwaps) {
-            d.sell_swaps().push_back({ s.base, s.quote, s.oId });
+            h.sell_swaps().push_back({ s.base, s.quote, s.oId });
             accounts.push_back(s.txid.accountId);
         }
         matchDeltas.push_back(std::move(m));
-        auto& ref { history.push_match(accounts, d, blockhash, asset.id()) };
+        auto& ref { history.push_match(accounts, h, blockhash, asset.id()) };
 
-        api.matches.push_back(api::block::Match { .txhash { ref.he.hash },
-            .assetInfo { asset.info() },
-            .poolBefore { poolLiquidity },
-            .poolAfter { m.pool },
-            .buySwaps {},
-            .sellSwaps {} });
+        api.matches.push_back(
+            api::block::Match {
+                ref.he.hash,
+                ref.historyId,
+                api::block::MatchData {
+                    asset.info(),
+                    h.pool_before(),
+                    h.pool_after(),
+                    h.buy_swaps(),
+                    h.sell_swaps(),
+                },
+            });
         auto b { api.matches.back() };
     }
 
@@ -1277,7 +1283,7 @@ api::CompleteBlock BlockApplier::apply_block(const Block& block, const BlockHash
                 db.change_fillstate(*o, false);
             for (auto& o : d.orderDeletes)
                 db.delete_order(o);
-            db.set_pool_liquidity(d.assetId, d.pool);
+            db.set_pool_liquidity(d.assetId, d.poolAfterMatch);
         }
 
         // insert token creations
