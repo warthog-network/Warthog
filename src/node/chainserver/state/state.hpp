@@ -101,7 +101,7 @@ public:
     auto get_headers() const { return chainstate.headers(); }
     auto get_hash(Height h) const -> std::optional<Hash>;
     auto get_body_data(DescriptedBlockRange) const -> std::vector<BodyData>;
-    auto get_mempool_tx(TransactionId) const -> std::optional<WartTransferMessage>;
+    auto get_mempool_tx(TransactionId) const -> std::optional<TransactionMessage>;
 
     // api getters
     auto api_get_address(AddressView) const -> api::WartBalance;
@@ -109,7 +109,7 @@ public:
     auto api_get_token_balance(const api::AccountIdOrAddress&, const api::TokenIdOrHash&) const -> api::WartBalance;
     auto api_get_head() const -> api::ChainHead;
     auto api_get_history(Address a, int64_t beforeId = 0x7fffffffffffffff) const -> std::optional<api::AccountHistory>;
-    auto api_get_richlist(size_t N) const -> api::Richlist;
+    auto api_get_richlist(TokenId token, size_t limit) const -> api::Richlist;
     auto api_get_mempool(size_t) const -> api::MempoolEntries;
     auto api_get_tx(const TxHash& hash) const -> std::optional<api::Transaction>;
     auto api_get_latest_txs(size_t N = 100) const -> api::TransactionsByBlocks;

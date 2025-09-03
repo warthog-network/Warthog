@@ -32,7 +32,7 @@ struct IdentityIps {
     IdentityIps() { };
     void serialize(Serializer auto& s) const
     {
-        return s << ipv4 << ipv6;
+        s << ipv4 << ipv6;
     };
     bool assign_if_routable(IP);
     [[nodiscard]] static IdentityIps from_sdp(const std::string& sdp);

@@ -127,11 +127,11 @@ class CancelationMessage : public TransactionMsg<CancelPinNonceEl> {
 public:
     using TransactionMsg::TransactionMsg;
 };
-class LiquidityAddMessage : public TransactionMsg<AssetHashEl, WartEl, AmountEl> {
+class LiquidityDepositMessage : public TransactionMsg<AssetHashEl, WartEl, AmountEl> {
 public:
     using TransactionMsg::TransactionMsg;
 };
-class LiquidityRemoveMessage : public TransactionMsg<AssetHashEl, AmountEl> {
+class LiquidityWithdrawMessage : public TransactionMsg<AssetHashEl, AmountEl> {
 public:
     using TransactionMsg::TransactionMsg;
 };
@@ -141,7 +141,7 @@ public:
     using TransactionMsg::TransactionMsg;
 };
 
-using TransactionVariant = wrt::variant<WartTransferMessage, TokenTransferMessage, OrderMessage, CancelationMessage, LiquidityAddMessage, LiquidityRemoveMessage, AssetCreationMessage>;
+using TransactionVariant = wrt::variant<WartTransferMessage, TokenTransferMessage, OrderMessage, CancelationMessage, LiquidityDepositMessage, LiquidityWithdrawMessage, AssetCreationMessage>;
 
 struct TransactionMessage : public TransactionVariant {
     const MsgBase& base() const

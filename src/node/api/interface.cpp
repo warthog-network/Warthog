@@ -20,7 +20,7 @@ void get_mempool(MempoolCb cb)
     global().chainServer->api_get_mempool(std::move(cb));
 }
 
-void lookup_tx(const Hash hash, TxCb f)
+void lookup_tx(const TxHash& hash, TxCb f)
 {
     global().chainServer->api_lookup_tx(hash, std::move(f));
 }
@@ -150,7 +150,7 @@ struct APIHeadRequest {
         } else {
             std::lock_guard l(m);
             if (sent == false) {
-                cb(tl::make_unexpected(e.error()));
+                cb(e.error());
                 sent = true;
             }
         }

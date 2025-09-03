@@ -9,7 +9,7 @@ struct Sockaddr4 {
     Sockaddr4(Reader& r);
     void serialize(Serializer auto& s) const
     {
-        return s << ip << port;
+        s << ip << port;
     }
     static constexpr size_t byte_size() { return IPv4::byte_size() + sizeof(port); }
     constexpr Sockaddr4(IPv4 ipv4, uint16_t port)

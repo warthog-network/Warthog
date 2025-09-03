@@ -84,10 +84,10 @@ void ChainServer::api_get_mempool(MempoolCb callback)
     defer_maybe_busy(GetMempool { std::move(callback) });
 }
 
-void ChainServer::api_lookup_tx(Hash hash,
+void ChainServer::api_lookup_tx(const TxHash& hash,
     TxCb callback)
 {
-    defer_maybe_busy(LookupTxHash { std::move(hash), std::move(callback) });
+    defer_maybe_busy(LookupTxHash { hash, std::move(callback) });
 }
 void ChainServer::api_lookup_latest_txs(LatestTxsCb callback)
 {

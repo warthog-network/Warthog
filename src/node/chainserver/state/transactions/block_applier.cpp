@@ -1166,7 +1166,9 @@ private:
             auto& ref { history.push_liquidity_deposit(verified, shares) };
             api.liquidityDeposit.push_back(
                 { make_signed_info(verified, ref.historyId),
-                    api::block::LiquidityDepositData { .baseDeposited { verified.ref.base() },
+                    api::block::LiquidityDepositData {
+                        .assetInfo { ah.info() },
+                        .baseDeposited { verified.ref.base() },
                         .quoteDeposited { verified.ref.quote() },
                         .sharesReceived = shares } });
         }
@@ -1190,6 +1192,7 @@ private:
             api.liquidityWithdrawal.push_back(
                 { make_signed_info(verified, ref.historyId),
                     {
+                        .assetInfo { ah.info() },
                         .sharesRedeemed { a.amount() },
                         .baseReceived { baseReceived },
                         .quoteReceived { quoteReceived },

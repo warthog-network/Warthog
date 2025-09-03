@@ -1,5 +1,4 @@
 #pragma once
-#include "general/serializer_fwd.hxx"
 #include "prod.hpp"
 #include <bit>
 #include <cassert>

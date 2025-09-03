@@ -10,7 +10,7 @@
 // mempool cbunctions
 void put_mempool(WartTransferCreate&&, MempoolInsertCb);
 void get_mempool(MempoolCb cb);
-void lookup_tx(const Hash hash, TxCb f);
+void lookup_tx(const TxHash& hash, TxCb f);
 
 void get_latest_transactions(LatestTxsCb f);
 

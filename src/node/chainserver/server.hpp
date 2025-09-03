@@ -213,7 +213,7 @@ public:
     void api_get_token_balance(const api::AccountIdOrAddress& a, const api::TokenIdOrHash&, BalanceCb callback);
     void api_get_grid(GridCb);
     void api_get_mempool(MempoolCb callback);
-    void api_lookup_tx(Hash hash, TxCb callback);
+    void api_lookup_tx(const TxHash& hash, TxCb callback);
     void api_lookup_latest_txs(LatestTxsCb callback);
     void api_get_history(const Address& address, uint64_t beforeId, HistoryCb callback);
     void api_get_richlist(RichlistCb callback);
