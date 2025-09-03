@@ -8,8 +8,6 @@
 #include "crypto/crypto.hpp"
 #include "eventloop/eventloop.hpp"
 #include "eventloop/sync/header_download/header_download.hpp"
-#include "eventloop/sync/sync.hpp"
-#include "general/errors.hpp"
 #include "general/hex.hpp"
 #include "general/is_testnet.hpp"
 #include "transport/helpers/tcp_sockaddr.hpp"
@@ -183,105 +181,30 @@ json header_json(const Header& header, NonzeroHeight height)
 
 [[nodiscard]] json body_json(const api::Block& b)
 {
-    json out;
+    json j;
     auto& actions { b.actions };
     { // rewards
         json a = json::array();
         if (b.actions.reward) {
-            auto& r { *b.actions.reward };
-            json elem;
-            elem["txHash"] = serialize_hex(r.txhash);
-            elem["toAddress"] = r.toAddress.to_string();
-            elem["amount"] = to_json(r.wart);
-            a.push_back(elem);
+            a.push_back(tx_to_json(*b.actions.reward));
         }
-        out["rewards"] = a;
+        j["rewards"] = a;
     }
 
-    { // WART transfers
-        json a = json::array();
-        for (auto& t : actions.wartTransfers) {
-            json elem;
-            elem["fromAddress"] = t.originAddress.to_string();
-            elem["fee"] = to_json(t.fee);
-            elem["nonceId"] = t.nonceId;
-            elem["pinHeight"] = t.pinHeight;
-            elem["txHash"] = serialize_hex(t.txhash);
-            elem["toAddress"] = t.toAddress.to_string();
-            elem["amount"] = to_json(t.amount);
-            a.push_back(elem);
-        }
-        out["wartTransfers"] = a;
-    }
-    { // Token transfers
-        json a = json::array();
-        for (auto& t : actions.tokenTransfers) {
-            json elem;
-            elem["token"] = to_json(t.assetInfo);
-            elem["fromAddress"] = t.originAddress.to_string();
-            elem["fee"] = to_json(t.fee);
-            elem["nonceId"] = t.nonceId;
-            elem["pinHeight"] = t.pinHeight;
-            elem["txHash"] = serialize_hex(t.txhash);
-            elem["toAddress"] = t.toAddress.to_string();
-            elem["amount"] = to_json(t.amount);
-            a.push_back(elem);
-        }
-        out["tokenTransfers"] = a;
-    }
-    { // New Orders
-        json a = json::array();
-        for (auto& o : actions.newOrders) {
-            json elem;
-            elem["token"] = to_json(o.assetInfo);
-            elem["fee"] = o.fee;
-            elem["amount"] = to_json(o.amount);
-            elem["limit"] = o.limit.to_double_raw();
-            elem["buy"] = o.buy;
-            elem["txhash"] = serialize_hex(o.txhash);
-            elem["address"] = o.originAddress.to_string();
-            a.push_back(elem);
-        }
-        out["newOrders"] = a;
-    }
-    { // Matches
-        json a = json::array();
-        for (auto& s : actions.matches) {
-            // TxHash txhash;
-            // std::vector<Swap> buySwaps;
-            // std::vector<Swap> sellSwaps;
-            auto bq_json {
-                [&](const auto& bq) -> json {
-                    return {
-                        { "base", to_json(bq.base().to_decimal(s.assetInfo.precision)) },
-                        { "quote", to_json(bq.quote()) }
-                    };
-                }
-            };
-            json elem;
-            elem["asset"] = jsonmsg::to_json(s.assetInfo);
-            elem["txhash"] = serialize_hex(s.txhash);
-            elem["poolBefore"] = bq_json(s.poolBefore);
-            elem["poolAfter"] = bq_json(s.poolAfter);
-            auto match_json {
-                [&]<typename T>(const std::vector<T>& v) {
-                    json res = json::array();
-                    for (auto& s : v) {
-                        auto e { bq_json(s) };
-                        e["historyId"] = s.referred_history_id().value();
-                        res.push_back(std::move(e));
-                    }
-                    return res;
-                }
-            };
-            elem["buySwapsj"] = match_json(s.buySwaps);
-            elem["sellSwaps"] = match_json(s.sellSwaps);
-            elem["txhash"] = serialize_hex(s.txhash);
-            a.push_back(elem);
-        }
-        out["swaps"] = a;
-    }
-    return out;
+    auto gen_arr { [&](auto& arr) {
+        json a(json::array());
+        for (auto& e : arr)
+            a.push_back(tx_to_json(e));
+        return a;
+    } };
+    j["wartTransfers"] = gen_arr(actions.wartTransfers); // WART transfers
+    j["tokenTransfers"] = gen_arr(actions.tokenTransfers);
+    j["newOrders"] = gen_arr(actions.newOrders);
+    j["matches"] = gen_arr(actions.matches);
+    j["liquidityDeposits"] = gen_arr(actions.liquidityDeposit);
+    j["LiquidityWithdrawals"] = gen_arr(actions.liquidityWithdrawal);
+    j["cancelations"] = gen_arr(actions.cancelations);
+    return j;
 }
 
 json amount_json(Funds_uint64 amt, AssetPrecision prec)
@@ -325,14 +248,14 @@ json transaction_type(const char* label, json& j)
 
 }
 
-json tx_to_json(const api::WartTransferTransaction& tx)
+json tx_to_json(const api::block::WartTransfer& tx)
 {
     json j(to_json_signed_info(tx, "fromAddress"));
     j["toAddress"] = tx.toAddress.to_string();
     j["amount"] = to_json(tx.amount);
     return j;
 }
-json tx_to_json(const api::RewardTransaction& tx)
+json tx_to_json(const api::block::Reward& tx)
 {
     auto j(to_json_history_base(tx));
     j["toAddress"] = tx.toAddress.to_string();
@@ -340,7 +263,7 @@ json tx_to_json(const api::RewardTransaction& tx)
     return j;
 }
 
-json tx_to_json(const api::TokenTransferTransaction& tx)
+json tx_to_json(const api::block::TokenTransfer& tx)
 {
     json j(to_json_signed_info(tx, "fromAddress"));
     j["toAddress"] = tx.toAddress.to_string();
@@ -349,7 +272,7 @@ json tx_to_json(const api::TokenTransferTransaction& tx)
     return j;
 }
 
-json tx_to_json(const api::AssetCreationTransaction& tx)
+json tx_to_json(const api::block::AssetCreation& tx)
 {
     json j(to_json_signed_info(tx, "creatorAddress"));
     j["supply"] = to_json(tx.supply.to_string());
@@ -358,17 +281,17 @@ json tx_to_json(const api::AssetCreationTransaction& tx)
     return j;
 }
 
-json tx_to_json(const api::NewOrderTransaction& tx)
+json tx_to_json(const api::block::NewOrder& tx)
 {
     json j(to_json_signed_info(tx, "address"));
-    j["asset"] = jsonmsg::to_json(tx.assetInfo); // TODO: check that asset exists when NewOrderTransaction goes to mempool
+    j["asset"] = jsonmsg::to_json(tx.assetInfo); // TODO: check that asset exists when NewOrder goes to mempool
     j["amount"] = amount_json(tx.amount, tx.assetInfo.precision);
     j["limit"] = limit_json(tx.limit, tx.assetInfo.precision);
     j["buy"] = tx.buy;
     return j;
 }
 
-json tx_to_json(const api::MatchTransaction& tx)
+json tx_to_json(const api::block::Match& tx)
 {
     auto j(to_json_history_base(tx));
     j["asset"] = to_json(tx.assetInfo);
@@ -399,7 +322,7 @@ json tx_to_json(const api::MatchTransaction& tx)
     return j;
 }
 
-json tx_to_json(const api::LiquidityDepositTransaction& tx)
+json tx_to_json(const api::block::LiquidityDeposit& tx)
 {
     json j(to_json_signed_info(tx, "address"));
     j["asset"] = jsonmsg::to_json(tx.assetInfo);
@@ -409,7 +332,7 @@ json tx_to_json(const api::LiquidityDepositTransaction& tx)
     return {};
 }
 
-json tx_to_json(const api::LiquidityWithdrawalTransaction& tx)
+json tx_to_json(const api::block::LiquidityWithdrawal& tx)
 {
     json j(to_json_signed_info(tx, "address"));
     j["asset"] = jsonmsg::to_json(tx.assetInfo);
@@ -419,7 +342,7 @@ json tx_to_json(const api::LiquidityWithdrawalTransaction& tx)
     return {};
 }
 
-json tx_to_json(const api::CancelationTransaction& tx)
+json tx_to_json(const api::block::Cancelation& tx)
 {
     json j(to_json_signed_info(tx, "address"));
     return j;

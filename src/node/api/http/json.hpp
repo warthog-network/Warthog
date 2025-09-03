@@ -51,15 +51,15 @@ json to_json(const api::Rollback&);
 json to_json(const api::IPCounter& ipc);
 json to_json(const api::NodeInfo& info);
 
-json tx_to_json(const api::RewardTransaction&);
-json tx_to_json(const api::WartTransferTransaction&);
-json tx_to_json(const api::TokenTransferTransaction&);
-json tx_to_json(const api::AssetCreationTransaction&);
-json tx_to_json(const api::NewOrderTransaction&);
-json tx_to_json(const api::MatchTransaction&);
-json tx_to_json(const api::LiquidityDepositTransaction&);
-json tx_to_json(const api::LiquidityWithdrawalTransaction&);
-json tx_to_json(const api::CancelationTransaction&);
+json tx_to_json(const api::block::Reward&);
+json tx_to_json(const api::block::WartTransfer&);
+json tx_to_json(const api::block::TokenTransfer&);
+json tx_to_json(const api::block::AssetCreation&);
+json tx_to_json(const api::block::NewOrder&);
+json tx_to_json(const api::block::Match&);
+json tx_to_json(const api::block::LiquidityDeposit&);
+json tx_to_json(const api::block::LiquidityWithdrawal&);
+json tx_to_json(const api::block::Cancelation&);
 
 inline json to_json(const json& j) { return j; }
 
