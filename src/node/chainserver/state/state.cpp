@@ -164,16 +164,21 @@ void push_history(api::Block& b, const std::pair<HistoryId, history::Entry>& p, 
                     .sellSwaps {} } });
         },
         [&](const history::LiquidityDeposit& ld) {
+            auto& asset { c.assetsById[ld.asset_id()] };
             b.actions.liquidityDeposit.push_back(
                 { signed_info_data(ld.sign_data()),
-                    { .baseDeposited { ld.base() },
+                    {
+                        .assetInfo { asset.basic() },
+                        .baseDeposited { ld.base() },
                         .quoteDeposited { ld.quote() },
                         .sharesReceived { ld.shares() } } });
         },
         [&](const history::LiquidityWithdraw& lw) {
+            auto& asset { c.assetsById[lw.asset_id()] };
             b.actions.liquidityWithdrawal.push_back(
                 { signed_info_data(lw.sign_data()),
                     {
+                        .assetInfo { asset.basic() },
                         .sharesRedeemed { lw.shares() },
                         .baseReceived { lw.base() },
                         .quoteReceived { lw.quote() },
@@ -780,8 +785,8 @@ public:
         try {
             BlockUndoData d { fetch_undo(db, id) };
             auto pinFloor { height.pin_floor() };
-            auto [parsed, merkle] { d.body.parse(height, d.header.version()) };
-            for (auto t : parsed.wart_transfers()) {
+            auto body { std::move(d.body).parse_throw(height, d.header.version()) };
+            for (auto t : body.wart_transfers()) {
                 PinHeight pinHeight = t.pin_nonce().pin_height_from_floored(pinFloor);
                 if (pinHeight <= newPinFloor) {
                     // extract transaction to mempool

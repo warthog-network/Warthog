@@ -10,8 +10,8 @@ class AssetPrecision { // number of decimal places
 private:
     uint8_t val;
 
-    struct Token { };
-    constexpr AssetPrecision(uint8_t v, Token)
+    struct Creator { }; // used to prevent construction from outside
+    constexpr AssetPrecision(uint8_t v, Creator)
         : val(v)
     {
     }
@@ -22,7 +22,7 @@ public:
     static constexpr size_t byte_size() { return 1; }
     auto value() const { return val; }
     consteval AssetPrecision(size_t v)
-        : AssetPrecision(uint8_t(v), Token())
+        : AssetPrecision(uint8_t(v), Creator())
     {
         if (v > max)
             throw std::runtime_error("Value " + std::to_string(v) + " exceeds maximum " + std::to_string(max) + ".");
@@ -49,7 +49,7 @@ public:
     {
         if (v > max)
             return {};
-        return AssetPrecision { v, Token() };
+        return AssetPrecision { v, Creator() };
     }
 };
 constexpr const AssetPrecision AssetPrecision::zero { 0 };

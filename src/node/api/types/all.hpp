@@ -128,16 +128,19 @@ struct WithSignedInfo : public SignedInfoData, T {
 };
 
 struct RewardData {
+    static constexpr const char label[] = "Reward";
     Address toAddress;
     Wart wart;
 };
 
 struct WartTransferData {
+    static constexpr const char label[] = "WartTransfer";
     Address toAddress;
     Wart amount;
 };
 
 struct TokenTransferData {
+    static constexpr const char label[] = "TokenTransfer";
     AssetBasic assetInfo;
     Address toAddress;
     Funds_uint64 amount;
@@ -145,6 +148,7 @@ struct TokenTransferData {
 };
 
 struct NewOrderData {
+    static constexpr const char label[] = "Order";
     AssetBasic assetInfo;
     Funds_uint64 amount;
     Price_uint64 limit;
@@ -154,6 +158,7 @@ struct NewOrderData {
 };
 
 struct MatchData {
+    static constexpr const char label[] = "Match";
     using Swap = CombineElements<BaseEl, QuoteEl, ReferredHistoryIdEl>;
     AssetBasic assetInfo;
     defi::BaseQuote poolBefore;
@@ -163,21 +168,27 @@ struct MatchData {
 };
 
 struct AssetCreationData {
+    static constexpr const char label[] = "Creation";
     AssetName name;
     FundsDecimal supply;
     std::optional<AssetId> assetId;
 };
 
 struct CancelationData {
+    static constexpr const char label[] = "Cancelation";
 };
 
 struct LiquidityDepositData {
+    static constexpr const char label[] = "LiquidityDeposit";
+    AssetBasic assetInfo;
     Funds_uint64 baseDeposited;
     Wart quoteDeposited;
     std::optional<Funds_uint64> sharesReceived;
 };
 
 struct LiquidityWithdrawalData {
+    static constexpr const char label[] = "LiquidityWithdrawal";
+    AssetBasic assetInfo;
     Funds_uint64 sharesRedeemed;
     std::optional<Funds_uint64> baseReceived;
     std::optional<Wart> quoteReceived;

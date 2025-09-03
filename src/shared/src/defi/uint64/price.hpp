@@ -52,14 +52,38 @@ public:
     [[nodiscard]] static bool is_exponent(auto e) { return e >= 0 && e < 128; }
     static constexpr auto mantissaPrecision { 16 };
     static constexpr auto mantissaMask { (uint32_t(1) << mantissaPrecision) - 1 };
-    uint16_t mantissa() const { return _m; }
-    auto exponent() const { return _e - 63; }
-    auto mantissa_exponent() const { return exponent() - 16; }
-    double to_double() const
+    uint16_t mantissa_16bit() const { return _m; }
+
+private:
+    // base 2 exponent if mantissa would denote a number between 0 and 1
+    auto exponent_base2() const { return _e - 63; }
+
+public:
+    // real exponent for mantissa as integer
+    auto mantissa_exponent2() const { return exponent_base2() - 16; }
+
+    // compute double price based on uint64 quotient
+    double to_double_raw() const
     {
-        auto a { mantissa() };
-        auto b(mantissa_exponent());
-        return std::ldexp(a, b);
+        auto m { mantissa_16bit() };
+        auto e2 { mantissa_exponent2() };
+        return std::ldexp(m, e2);
+    }
+
+    int base10_exponent(AssetPrecision prec) const
+    {
+        // - real limit price is quote/base
+        // - limit price variable is quoteU64/baseU64
+        //   and does not respect precision
+        // => We must take precision difference into account for real limit price
+        return int(AssetPrecision::digits8().value()) - int(prec.value());
+    }
+
+    // compute double price respecting the asset precision
+    double to_double_adjusted(AssetPrecision prec) const
+    {
+        auto b10e { base10_exponent(prec) };
+        return to_double_raw() * std::pow(10.0, b10e);
     }
     [[nodiscard]] static std::optional<Price_uint64>
     from_mantissa_exponent(uint32_t mantissa, int exponent)
@@ -214,15 +238,15 @@ inline std::optional<uint64_t> divide(uint64_t a, Price_uint64 p, bool ceil)
         return 0ull;
     auto z1 { std::countl_zero(a) };
     a <<= z1;
-    uint64_t d { a / p.mantissa() };
+    uint64_t d { a / p.mantissa_16bit() };
     assert(d != 0);
-    uint64_t prod { (d * p.mantissa()) };
+    uint64_t prod { (d * p.mantissa_16bit()) };
     const auto z2 { std::countl_zero(d) };
     uint64_t rest { (a - prod) << z2 };
-    auto d2 { rest / p.mantissa() };
-    bool inexact = d2 * p.mantissa() != rest;
+    auto d2 { rest / p.mantissa_16bit() };
+    bool inexact = d2 * p.mantissa_16bit() != rest;
     d = (d << z2) + d2;
-    auto shift { -(p.mantissa_exponent() + z1 + z2) };
+    auto shift { -(p.mantissa_exponent2() + z1 + z2) };
     if (shift > 0) // overflow
         return {};
     shift = -shift;
@@ -250,19 +274,19 @@ inline std::optional<uint64_t> divide(uint64_t a, Price_uint64 p, bool ceil)
 }
 inline std::optional<uint64_t> multiply_floor(uint64_t a, Price_uint64 p)
 {
-    return Prod128(p.mantissa(), a).pow2_64(p.mantissa_exponent(), false);
+    return Prod128(p.mantissa_16bit(), a).pow2_64(p.mantissa_exponent2(), false);
 }
 
 inline std::optional<uint64_t> multiply_ceil(uint64_t a, Price_uint64 p)
 {
-    return Prod128(p.mantissa(), a).pow2_64(p.mantissa_exponent(), true);
+    return Prod128(p.mantissa_16bit(), a).pow2_64(p.mantissa_exponent2(), true);
 }
 inline std::strong_ordering compare_fraction(Ratio128 ratio, Price_uint64 p)
 { // compares ratio with p
     auto a { ratio.numerator };
     auto b { ratio.denominator };
-    auto z { -p.mantissa_exponent() };
-    auto pb { b * p.mantissa() };
+    auto z { -p.mantissa_exponent2() };
+    auto pb { b * p.mantissa_16bit() };
     auto za { a.countl_zero() };
     auto zb { pb.countl_zero() };
     z -= za;

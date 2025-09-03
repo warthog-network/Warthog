@@ -1,6 +1,6 @@
 #include "block_download.hpp"
 #include "attorney.hpp"
-#include "block/body/view.hpp"
+// #include "block/body/view.hpp"
 #include "eventloop/address_manager/address_manager_impl.hpp"
 #include "eventloop/chain_cache.hpp"
 #include "eventloop/eventloop.hpp"

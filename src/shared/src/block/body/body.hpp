@@ -28,6 +28,7 @@ public:
         return reader;
     }
 
+    MerkleReadHook(const MerkleReadHook& mi) = delete;
     MerkleReadHook(MerkleReadHook&& mi)
         : MerkleReadHook(mi.reader, mi.creator)
     {
@@ -44,7 +45,6 @@ private:
         , begin(r.cursor())
     {
     }
-    MerkleReadHook(const MerkleReadHook& mi) = delete;
 
 private:
     Reader& reader;
@@ -55,37 +55,32 @@ private:
 struct MerkleReadHooker {
     friend MerkleReadHook;
 
-    MerkleReadHooker(Reader& r, MerkleLeaves* tree)
+    MerkleReadHooker(Reader& r)
         : reader(r)
-        , tree(tree)
     {
     }
-
-    MerkleReadHook hook()
-    {
-        return MerkleReadHook(reader, *this);
-    }
+    MerkleReadHook hook() { return { reader, *this }; }
+    MerkleLeaves move_leaves() && { return std::move(leaves); }
 
 private: // methods
     MerkleReadHooker(const MerkleReadHooker&) = delete;
 
     void add_hash_of(const std::span<const uint8_t>& s)
     {
-        if (tree)
-            tree->add_hash(hashSHA256(s));
+        leaves.add_hash(hashSHA256(s));
     }
 
 public:
     Reader& reader;
 
 private:
-    MerkleLeaves* tree;
+    MerkleLeaves leaves;
 };
 
 inline MerkleReadHook::~MerkleReadHook()
 {
     if (begin)
-        std::span<const uint8_t>(begin, reader.cursor());
+        creator.add_hash_of({ begin, reader.cursor() });
 }
 
 struct MerkleWriteHooker;
@@ -117,25 +112,25 @@ private:
     const uint8_t* begin;
 };
 struct MerkleWriteHooker {
-    MerkleWriteHooker(Writer& w, MerkleLeaves* tree)
+    friend MerkleWriteHook;
+    MerkleWriteHooker(Writer& w)
         : writer(w)
-        , tree(tree)
     {
     }
     [[nodiscard]] MerkleWriteHook hook();
+    MerkleLeaves move_leaves() && { return std::move(leaves); }
 
 private:
     void add_hash_of(const std::span<const uint8_t>& s)
     {
-        if (tree)
-            tree->add_hash(hashSHA256(s));
+        leaves.add_hash(hashSHA256(s));
     }
 
 public:
     Writer& writer;
 
 private:
-    MerkleLeaves* tree;
+    MerkleLeaves leaves;
 };
 template <typename T>
 struct body_vector : public std::vector<T> {
@@ -368,7 +363,7 @@ public:
             auto h { m.hook() };
             h.writer << arg;
         } };
-        (hook_arg(*static_cast<const Ts*>(this)), ...);
+        (write_hooked(*static_cast<const Ts*>(this)), ...);
     }
 
     TokenEntries() { }
@@ -488,10 +483,11 @@ struct Entries : public CombineElements<WartTransfers, Cancelations, TokenSectio
     }
 };
 }
+
 struct SerializedBody {
     VersionedBodyData container;
-    MerkleLeaves merkleTree;
-    Hash merkle_root(NonzeroHeight h) const { return merkleTree.merkle_root(container, h); }
+    MerkleLeaves merkleLeaves;
+    Hash merkle_root(NonzeroHeight h) const { return merkleLeaves.merkle_root(container, h); }
 };
 
 struct AddressReward {
@@ -518,10 +514,9 @@ public:
     {
     }
     std::vector<TransactionId> tx_ids(NonzeroHeight) const;
-    [[nodiscard]] static ParsedBody parse_throw(std::span<const uint8_t> rd, NonzeroHeight h, BlockVersion version, MerkleLeaves* ptree);
+    [[nodiscard]] static std::pair<ParsedBody, MerkleLeaves> parse_throw(std::span<const uint8_t> rd, NonzeroHeight h, BlockVersion version);
     size_t byte_size() const;
     [[nodiscard]] SerializedBody serialize() const;
-    ParsedBody(std::span<const uint8_t> data, BlockVersion v, NonzeroHeight h, MerkleLeaves*);
 };
 
 struct Body : public ParsedBody {

@@ -14,7 +14,7 @@ struct BodyData : public std::vector<uint8_t> {
     }
     size_t byte_size() const { return size(); }
     VersionedBodyData make_versioned(BlockVersion v) &&;
-    [[nodiscard]] std::pair<ParsedBody, body::MerkleLeaves> parse(NonzeroHeight, BlockVersion) const;
+    [[nodiscard]] Body parse_throw(NonzeroHeight, BlockVersion) &&;
 };
 
 struct VersionedBodyData : public BodyData {

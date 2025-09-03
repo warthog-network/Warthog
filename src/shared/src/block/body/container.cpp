@@ -1,6 +1,7 @@
 #include "container.hpp"
 #include "block/body/body.hpp"
 #include "block/chain/height.hpp"
+#include "general/reader.hpp"
 #include "tools/span.hpp"
 
 namespace block {
@@ -16,11 +17,9 @@ VersionedBodyData::VersionedBodyData(BodyData bc, BlockVersion v)
 {
 }
 
-std::pair<ParsedBody, body::MerkleLeaves> BodyData::parse(NonzeroHeight h, BlockVersion version) const
+Body BodyData::parse_throw(NonzeroHeight h, BlockVersion version) &&
 {
-    body::MerkleLeaves l;
-    auto body { Body::parse_throw(*this, h, version, &l) };
-    return { std::move(body), std::move(l) };
+    return Body::parse_throw({ std::move(*this), version }, h);
 }
 
 VersionedBodyData BodyData::make_versioned(BlockVersion v) &&

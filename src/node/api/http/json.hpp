@@ -50,6 +50,17 @@ json to_json(const api::Round16Bit&);
 json to_json(const api::Rollback&);
 json to_json(const api::IPCounter& ipc);
 json to_json(const api::NodeInfo& info);
+
+json tx_to_json(const api::RewardTransaction&);
+json tx_to_json(const api::WartTransferTransaction&);
+json tx_to_json(const api::TokenTransferTransaction&);
+json tx_to_json(const api::AssetCreationTransaction&);
+json tx_to_json(const api::NewOrderTransaction&);
+json tx_to_json(const api::MatchTransaction&);
+json tx_to_json(const api::LiquidityDepositTransaction&);
+json tx_to_json(const api::LiquidityWithdrawalTransaction&);
+json tx_to_json(const api::CancelationTransaction&);
+
 inline json to_json(const json& j) { return j; }
 
 template <typename T>

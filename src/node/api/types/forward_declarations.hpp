@@ -61,6 +61,7 @@ using MatchTransaction = Temporal<block::Match>;
 using LiquidityDepositTransaction = Temporal<block::LiquidityDeposit>;
 using LiquidityWithdrawalTransaction = Temporal<block::LiquidityWithdrawal>;
 using CancelationTransaction = Temporal<block::Cancelation>;
+
 using Transaction = wrt::variant<
     RewardTransaction,
     WartTransferTransaction,

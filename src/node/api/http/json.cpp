@@ -18,28 +18,6 @@
 
 using namespace std::chrono;
 using namespace nlohmann;
-namespace {
-std::string format_utc(uint32_t timestamp)
-{
-    std::chrono::system_clock::time_point tp { std::chrono::seconds(timestamp) };
-    auto tt { std::chrono::system_clock::to_time_t(tp) };
-    auto utc_f = *std::gmtime(&tt);
-    std::string out;
-    out.resize(30);
-    auto len { std::strftime(&out[0], out.size(), "%F %T UTC", &utc_f) };
-    out.resize(len);
-    return out;
-}
-json to_json_temporal(const api::TemporalInfo& tx)
-{
-    return {
-        { "confirmations", tx.confirmations },
-        { "blockHeight", tx.height },
-        { "utc", format_utc(tx.timestamp) },
-        { "timestamp", tx.timestamp },
-    };
-}
-}
 struct Inspector {
     static auto header_download(const Eventloop& e)
     {
@@ -101,6 +79,41 @@ struct Inspector {
 
 namespace jsonmsg {
 namespace {
+std::string format_utc(uint32_t timestamp)
+{
+    std::chrono::system_clock::time_point tp { std::chrono::seconds(timestamp) };
+    auto tt { std::chrono::system_clock::to_time_t(tp) };
+    auto utc_f = *std::gmtime(&tt);
+    std::string out;
+    out.resize(30);
+    auto len { std::strftime(&out[0], out.size(), "%F %T UTC", &utc_f) };
+    out.resize(len);
+    return out;
+}
+void json_add_temporal(json& j, const api::TemporalInfo& tx)
+{
+    j["confirmations"] = tx.confirmations;
+    j["blockHeight"] = tx.height.value();
+    j["utc"] = format_utc(tx.timestamp);
+    j["timestamp"] = tx.timestamp;
+}
+
+json to_json_history_base(const api::block::HistoryDataBase& hb)
+{
+    return {
+        { "txHash", serialize_hex(hb.txhash) },
+        { "historyId", (hb.hid ? json(hb.hid->value()) : json(nullptr)) },
+    };
+}
+[[nodiscard]] json to_json_signed_info(const api::block::SignedInfoData& d, const char* originLabel)
+{
+    auto j(to_json_history_base(d));
+    j[originLabel] = d.originAddress.to_string();
+    j["fee"] = to_json(d.fee);
+    j["nonceId"] = d.nonceId.value();
+    j["pinHeight"] = d.pinHeight.value();
+    return j;
+}
 template <typename T>
 json verified_json(const std::map<TCPPeeraddr, T>& map)
 {
@@ -216,14 +229,14 @@ json header_json(const Header& header, NonzeroHeight height)
         }
         out["tokenTransfers"] = a;
     }
-    { // Token transfers
+    { // New Orders
         json a = json::array();
         for (auto& o : actions.newOrders) {
             json elem;
             elem["token"] = to_json(o.assetInfo);
             elem["fee"] = o.fee;
             elem["amount"] = to_json(o.amount);
-            elem["limit"] = o.limit.to_double();
+            elem["limit"] = o.limit.to_double_raw();
             elem["buy"] = o.buy;
             elem["txhash"] = serialize_hex(o.txhash);
             elem["address"] = o.originAddress.to_string();
@@ -271,6 +284,20 @@ json header_json(const Header& header, NonzeroHeight height)
     return out;
 }
 
+json amount_json(Funds_uint64 amt, AssetPrecision prec)
+{
+    return to_json(FundsDecimal(amt, prec));
+}
+
+json limit_json(Price_uint64 limit, AssetPrecision prec)
+{
+    return {
+        { "exponent10", limit.base10_exponent(prec) },
+        { "exponent2", limit.mantissa_exponent2() },
+        { "mantissa", limit.mantissa_16bit() },
+        { "double", limit.to_double_adjusted(prec) },
+    };
+}
 } // namespace
 
 using namespace nlohmann;
@@ -285,157 +312,120 @@ json to_json(Wart w)
 json to_json(const FundsDecimal& fd)
 {
     return {
-        { "uint64", fd.funds.value() },
         { "str", fd.to_string() },
+        { "u64", fd.funds.value() },
         { "precision", fd.precision.value() }
     };
 }
-auto to_json_visit(const api::WartTransferTransaction& tx)
+namespace {
+json transaction_type(const char* label, json& j)
 {
-    json j;
-    json jtx(to_json_temporal(tx));
-    jtx["txHash"] = serialize_hex(tx.txhash);
-    jtx["toAddress"] = tx.toAddress.to_string();
-    jtx["amount"] = to_json(tx.amount);
-    jtx["pinHeight"] = tx.pinHeight;
-    jtx["fee"] = to_json(tx.fee);
-    jtx["fromAddress"] = tx.originAddress.to_string();
-    jtx["nonceId"] = tx.nonceId;
-    j["transaction"] = jtx;
-    j["type"] = "Transfer";
-    return j;
+    return { { "transaction", j }, { "type", label } };
 }
-auto to_json_visit(const api::RewardTransaction& tx)
-{
-    json j;
-    json jtx(to_json_temporal(tx));
-    jtx["txHash"] = serialize_hex(tx.txhash);
-    jtx["toAddress"] = tx.toAddress.to_string();
-    jtx["amount"] = to_json(tx.wart);
-    j["type"] = "Reward";
-    j["transaction"] = jtx;
-    return j;
-}
-auto to_json_visit(const api::TokenTransferTransaction& tx)
-{
-    // NonceId nonceId;
-    // PinHeight pinHeight;
-    // Address toAddress;
-    // Funds_uint64 amount;
-    // AssetIdHashNamePrecision assetInfo;
-    json j;
-    json jtx(to_json_temporal(tx));
-    jtx["txHash"] = serialize_hex(tx.txhash);
-    jtx["fromAddresss"] = tx.originAddress.to_string();
-    jtx["fee"] = to_json(tx.fee);
-    jtx["nonceId"] = tx.nonceId;
-    jtx["pinHeight"] = tx.pinHeight.value(),
-    jtx["toAddress"] = tx.toAddress.to_string();
-    jtx["amount"] = to_json(tx.amount);
-    jtx["token"] = to_json(tx.assetInfo);
-    j["type"] = "TokenTransfer";
-    j["transaction"] = jtx;
-    return j;
-}
-auto to_json_visit(const api::AssetCreationTransaction& tx)
-{
-    // TxHash txhash;
-    // AssetName assetName;
-    // FundsDecimal supply;
-    // std::optional<AssetId> assetId;
 
-    json jtx(to_json_temporal(tx));
-    json j;
-    jtx["txHash"] = serialize_hex(tx.txhash);
-    jtx["toAddress"] = tx.originAddress.to_string();
-    jtx["confirmations"] = tx.confirmations;
-    jtx["blockHeight"] = tx.height;
-    jtx["
-    jtx["supply"] = to_json(tx.supply.to_string());
-    jtx["timestamp"] = tx.timestamp;
-    jtx["utc"] = format_utc(tx.timestamp);
-    jtx["type"] = "Reward";
-    j["transaction"] = jtx;
-    return j;
 }
-auto to_json_visit(const api::NewOrderTransaction& tx)
-{
-    json j;
-    json jtx(to_json_temporal(tx));
-    jtx["txHash"] = serialize_hex(tx.txhash);
-    jtx["originAddress"] = tx.originAddress.to_string();
-    jtx["confirmations"] = tx.confirmations;
-    jtx["blockHeight"] = tx.height;
-    jtx["amount"] = to_json(tx.amount);
-    jtx["timestamp"] = tx.timestamp;
-    jtx["utc"] = format_utc(tx.timestamp);
-    jtx["type"] = "Reward";
-    j["transaction"] = jtx;
-    return j;
-}
-auto to_json_visit(const api::MatchTransaction& tx)
-{
-    json j;
-    json jtx(to_json_temporal(tx));
-    jtx["txHash"] = serialize_hex(tx.txhash);
-    jtx["address"] = tx.to_string();
-    jtx["confirmations"] = tx.confirmations;
-    jtx["blockHeight"] = tx.height;
-    jtx["amount"] = to_json(tx.amount);
-    jtx["timestamp"] = tx.timestamp;
-    jtx["utc"] = format_utc(tx.timestamp);
-    jtx["type"] = "Reward";
-    j["transaction"] = jtx;
-    return j;
-}
-auto to_json_visit(const api::LiquidityDepositTransaction& tx)
-{
-    json j;
-    json jtx(to_json_temporal(tx));
-    jtx["txHash"] = serialize_hex(tx.txhash);
-    jtx["toAddress"] = tx.toAddress.to_string();
-    jtx["confirmations"] = tx.confirmations;
-    jtx["blockHeight"] = tx.height;
-    jtx["amount"] = to_json(tx.amount);
-    jtx["timestamp"] = tx.timestamp;
-    jtx["utc"] = format_utc(tx.timestamp);
-    jtx["type"] = "Reward";
-    j["transaction"] = jtx;
-    return j;
-}
-auto to_json_visit(const api::LiquidityWithdrawalTransaction& tx)
-{
-    json j;
-    json jtx;
-    jtx["txHash"] = serialize_hex(tx.txhash);
-    jtx["toAddress"] = tx.toAddress.to_string();
-    jtx["confirmations"] = tx.confirmations;
-    jtx["blockHeight"] = tx.height;
-    jtx["amount"] = to_json(tx.amount);
-    jtx["timestamp"] = tx.timestamp;
-    jtx["utc"] = format_utc(tx.timestamp);
-    jtx["type"] = "Reward";
-    j["transaction"] = jtx;
-    return j;
-}
-auto to_json_visit(const api::CancelationTransaction& tx)
-{
-    json j;
-    json jtx;
-    jtx["txHash"] = serialize_hex(tx.txhash);
-    jtx["toAddress"] = tx.toAddress.to_string();
-    jtx["confirmations"] = tx.confirmations;
-    jtx["blockHeight"] = tx.height;
-    jtx["amount"] = to_json(tx.amount);
-    jtx["timestamp"] = tx.timestamp;
-    jtx["utc"] = format_utc(tx.timestamp);
-    jtx["type"] = "Reward";
-    j["transaction"] = jtx;
-    return j;
-}
-,
 
-    json to_json(const PeerDB::BanEntry& item)
+json tx_to_json(const api::WartTransferTransaction& tx)
+{
+    json j(to_json_signed_info(tx, "fromAddress"));
+    j["toAddress"] = tx.toAddress.to_string();
+    j["amount"] = to_json(tx.amount);
+    return j;
+}
+json tx_to_json(const api::RewardTransaction& tx)
+{
+    auto j(to_json_history_base(tx));
+    j["toAddress"] = tx.toAddress.to_string();
+    j["amount"] = to_json(tx.wart);
+    return j;
+}
+
+json tx_to_json(const api::TokenTransferTransaction& tx)
+{
+    json j(to_json_signed_info(tx, "fromAddress"));
+    j["toAddress"] = tx.toAddress.to_string();
+    j["amount"] = to_json(tx.amount);
+    j["token"] = to_json(tx.assetInfo);
+    return j;
+}
+
+json tx_to_json(const api::AssetCreationTransaction& tx)
+{
+    json j(to_json_signed_info(tx, "creatorAddress"));
+    j["supply"] = to_json(tx.supply.to_string());
+    j["name"] = tx.name.to_string();
+    j["assetId"] = (tx.assetId ? json(tx.assetId->value()) : json(nullptr));
+    return j;
+}
+
+json tx_to_json(const api::NewOrderTransaction& tx)
+{
+    json j(to_json_signed_info(tx, "address"));
+    j["asset"] = jsonmsg::to_json(tx.assetInfo); // TODO: check that asset exists when NewOrderTransaction goes to mempool
+    j["amount"] = amount_json(tx.amount, tx.assetInfo.precision);
+    j["limit"] = limit_json(tx.limit, tx.assetInfo.precision);
+    j["buy"] = tx.buy;
+    return j;
+}
+
+json tx_to_json(const api::MatchTransaction& tx)
+{
+    auto j(to_json_history_base(tx));
+    j["asset"] = to_json(tx.assetInfo);
+
+    auto bq_json {
+        [&](const auto& bq) -> json {
+            return {
+                { "base", to_json(bq.base().to_decimal(tx.assetInfo.precision)) },
+                { "quote", to_json(bq.quote()) }
+            };
+        }
+    };
+    j["poolBefore"] = bq_json(tx.poolBefore);
+    j["poolAfter"] = bq_json(tx.poolAfter);
+    auto match_json {
+        [&]<typename T>(const std::vector<T>& v) {
+            json res = json::array();
+            for (auto& s : v) {
+                auto e { bq_json(s) };
+                e["historyId"] = s.referred_history_id().value();
+                res.push_back(std::move(e));
+            }
+            return res;
+        }
+    };
+    j["buySwaps"] = match_json(tx.buySwaps);
+    j["sellSwaps"] = match_json(tx.sellSwaps);
+    return j;
+}
+
+json tx_to_json(const api::LiquidityDepositTransaction& tx)
+{
+    json j(to_json_signed_info(tx, "address"));
+    j["asset"] = jsonmsg::to_json(tx.assetInfo);
+    j["baseDeposited"] = to_json(tx.baseDeposited.to_decimal(tx.assetInfo.precision));
+    j["quoteDeposited"] = to_json(tx.quoteDeposited);
+    j["sharesReceived"] = (tx.sharesReceived ? to_json(tx.sharesReceived->to_decimal(AssetPrecision::digits8())) : json(nullptr));
+    return {};
+}
+
+json tx_to_json(const api::LiquidityWithdrawalTransaction& tx)
+{
+    json j(to_json_signed_info(tx, "address"));
+    j["asset"] = jsonmsg::to_json(tx.assetInfo);
+    j["sharesRedeemed"] = to_json(tx.sharesRedeemed.to_decimal(AssetPrecision::digits8()));
+    j["baseReceived"] = (tx.baseReceived ? to_json(tx.baseReceived->to_decimal(tx.assetInfo.precision)) : json(nullptr));
+    j["quoteReceived"] = (tx.quoteReceived ? to_json(*tx.quoteReceived) : json(nullptr));
+    return {};
+}
+
+json tx_to_json(const api::CancelationTransaction& tx)
+{
+    json j(to_json_signed_info(tx, "address"));
+    return j;
+}
+
+json to_json(const PeerDB::BanEntry& item)
 {
     return {
         { "ip", item.ip.to_string().c_str() },
@@ -565,7 +555,9 @@ json to_json(const api::MempoolEntries& entries)
 json to_json(const api::Transaction& tx)
 {
     return std::visit([&](const auto& e) {
-        return to_json_visit(e);
+        json j(tx_to_json(e));
+        json_add_temporal(j, e);
+        return transaction_type(e.label, j);
     },
         tx);
 }
@@ -823,7 +815,8 @@ json to_json(const AssetBasic& t)
     return {
         { "hash", serialize_hex(t.hash) },
         { "id", t.id.value() },
-        { "name", t.name.to_string() }
+        { "name", t.name.to_string() },
+        { "precision", t.precision.value() }
     };
 }
 
