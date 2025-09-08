@@ -49,7 +49,7 @@ inline uint32_t HeaderView::nonce() const
 inline BlockHash HeaderView::hash() const
 {
     auto h = hashSHA256(data(), bytesize);
-    return hashSHA256(h.data(), 32);
+    return BlockHash(hashSHA256(h.data(), 32));
 }
 inline bool HeaderView::operator==(const HeaderView rhs) const
 {

@@ -222,7 +222,7 @@ public:
     {
     }
     Wart(Reader& r);
-    static Wart from_funds_throw(Funds_uint64 f)
+    [[nodiscard]] static Wart from_funds_throw(Funds_uint64 f)
     {
         return from_value_throw(f.value());
     }

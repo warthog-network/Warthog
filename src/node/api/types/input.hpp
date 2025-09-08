@@ -8,7 +8,45 @@
 class Reader;
 
 namespace api {
-struct TokenIdOrHash : public wrt::alternative<TokenId, AssetHash> {
+struct AssetIdOrHash : public wrt::alternative<AssetId, AssetHash> {
+    using alternative::alternative;
+};
+struct TokenSpec {
+    AssetHash assetHash;
+    bool liquidity;
+    TokenSpec(AssetHash ah, bool liquidity)
+    :assetHash(std::move(ah)), liquidity(liquidity)
+    {
+    }
+
+    static TokenSpec parse_throw(std::string_view s){
+        if (auto o{parse(s)})
+            return *o;
+        throw Error(EINV_TOKEN);
+    }
+
+    static std::optional<TokenSpec> parse(std::string_view s)
+    {
+        auto pos { s.find(":") };
+        if (pos == s.npos)
+            return {};
+        auto indicatorStr { s.substr(0, pos) };
+        bool liquidity;
+        if (indicatorStr == "liquidity") {
+            liquidity = true;
+        } else if (indicatorStr == "asset") {
+            liquidity = false;
+        } else {
+            return {};
+        }
+        auto hashStr { s.substr(pos + 1) };
+        auto ah { AssetHash::parse_string(hashStr) };
+        if (!ah)
+            return {};
+        return TokenSpec { *ah, liquidity };
+    }
+};
+struct TokenIdOrSpec : public wrt::alternative<TokenId, TokenSpec> {
     using alternative::alternative;
 };
 struct AccountIdOrAddress : public wrt::alternative<AccountId, Address> {

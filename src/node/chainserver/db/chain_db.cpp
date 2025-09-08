@@ -150,14 +150,14 @@ ChainDB::Database::Database(const std::string& path)
     // Assets
     exec("CREATE TABLE IF NOT EXISTS \"Assets\" ( "
          "`id` INTEGER DEFAULT NULL, "
+         "`hash` TEXT NOT NULL UNIQUE, "
+         "`name` TEXT NOT NULL UNIQUE, "
+         "`precision` INTEGER NOT NULL UNIQUE, "
          "`height` INTEGER NOT NULL, "
          "`owner_account_id` INTEGER NOT NULL, "
          "`total_supply` INTEGER NOT NULL, "
          "`group_id` INTEGER NOT NULL, " // group
          "`parent_id` INTEGER, " // used for forks
-         "`name` TEXT NOT NULL UNIQUE, "
-         "`hash` TEXT NOT NULL UNIQUE, "
-         "`precision` INTEGER NOT NULL UNIQUE, "
          "`data` BLOB,"
          "PRIMARY KEY(id))");
     exec("CREATE INDEX IF NOT EXISTS `AssetsIndex` ON "
@@ -280,11 +280,11 @@ ChainDB::ChainDB(const std::string& path)
 
     , stmtTokenForkBalancePrune(db, "DELETE FROM TokenForkBalances WHERE id>=?")
 
-    , stmtTokenInsert(db, "INSERT INTO `Assets` ( `id`, `height`, `owner_account_id`, total_supply, group_id, parent_id, name, hash, precision, data) VALUES (?,?,?,?,?,?,?,?,?,?)")
+    , stmtAssetInsert(db, "INSERT INTO `Assets` ( `id`, `hash, `name`, `precision`, `height`, `owner_account_id`, total_supply, group_id, parent_id, data) VALUES (?,?,?,?,?,?,?,?,?,?)")
     , stmtTokenPrune(db, "DELETE FROM Assets WHERE id>=?")
     , stmtTokenSelectForkHeight(db, "SELECT height FROM Assets WHERE parent_id=? AND height>=? ORDER BY height DESC LIMIT 1")
-    , stmtAssetLookup(db, "SELECT (id, height, owner_account_id, total_supply, group_id, parent_id, name, hash, precision, data) FROM Assets WHERE `id`=?")
-    , stmtTokenLookupByHash(db, "SELECT (id, height, owner_account_id, total_supply, group_id, parent_id, name, hash, precision, data) FROM Assets WHERE `hash`=?")
+    , stmtAssetLookup(db, "SELECT (id, hash, name, precision, height, owner_account_id, total_supply, group_id, parent_id) FROM Assets WHERE `id`=?")
+    , stmtTokenLookupByHash(db, "SELECT (id, hash, name, precision, height, owner_account_id, total_supply, group_id, parent_id) FROM Assets WHERE `hash`=?")
     , stmtSelectBalanceId(db, "SELECT `account_id`, `token_id`, `balance` FROM `Balances` WHERE `id`=?")
     , stmtTokenInsertBalance(db, "INSERT INTO `Balances` ( id, `token_id`, `account_id`, `balance`) VALUES (?,?,?,?)")
     , stmtBalancePrune(db, "DELETE FROM Balances WHERE id>=?")
@@ -765,7 +765,8 @@ void ChainDB::insert_new_token(const AssetData& d)
     auto id { cache.nextAssetId++ };
     if (id != d.id)
         throw std::runtime_error("Internal error, token id inconsistent.");
-    stmtTokenInsert.run(d.id, d.height, d.ownerAccountId, d.supply.funds.value(), d.groupId, d.parentId, d.name, d.hash, d.supply.precision.value(), d.data);
+    // , stmtAssetInsert(db, "INSERT INTO `Assets` ( `id`, `hash, `name`, `precision`, `height`, `owner_account_id`, total_supply, group_id, parent_id, data) VALUES (?,?,?,?,?,?,?,?,?,?)")
+    stmtAssetInsert.run(d.id, d.hash, d.name, d.supply.precision.value(), d.height, d.ownerAccountId, d.supply.funds.value(), d.groupId, d.parentId, d.data);
 }
 
 std::optional<NonzeroHeight> ChainDB::get_latest_fork_height(TokenId tid, Height h)
@@ -788,15 +789,6 @@ std::optional<std::pair<BalanceId, Funds_uint64>> ChainDB::get_balance(AccountId
     if (!res.has_value())
         return {};
     return std::pair { res.get<BalanceId>(0), res.get<Funds_uint64>(1) };
-}
-
-Wart ChainDB::get_wart_balance(AccountId aid) const
-{
-    auto b { get_balance(aid, TokenId::WART) };
-    if (b) {
-        return Wart::from_funds_throw(b->second);
-    }
-    return Wart::zero();
 }
 
 std::vector<std::pair<TokenId, Funds_uint64>> ChainDB::get_tokens(AccountId accountId, size_t limit)
@@ -967,33 +959,37 @@ Address ChainDB::fetch_address(AccountId id) const
     return *p;
 }
 
-// auto ChainDB::get_token_balance(BalanceId id) const -> std::optional<Balance>
-// {
-//     return stmtSelectBalanceId.one(id).process([&](auto& o) {
-//         return Balance {
-//             .balanceId { id },
-//             .accountId { o[0] },
-//             .tokenId { o[1] },
-//             .balance { o[2] }
-//         };
-//     });
-// }
+auto ChainDB::get_token_balance(BalanceId id) const -> std::optional<Balance>
+{
+
+    return stmtSelectBalanceId.one(id).process([&](const sqlite::Row& o) {
+        return Balance {
+            .balanceId = id,
+            .accountId = o[0],
+            .tokenId = o[1],
+            .balance = o[2]
+        };
+    });
+}
 
 std::optional<AssetDetail> ChainDB::lookup_asset(AssetId id) const
 {
-    // , stmtAssetLookup(db, "SELECT (id, height, owner_account_id, total_supply, group_id, parent_id, name, hash, precision, data) FROM Assets WHERE `id`=?")
+    // , stmtAssetLookup(db, "SELECT (id, hash, name, precision, height, owner_account_id, total_supply, group_id, parent_id) FROM Assets WHERE `id`=?")
     return stmtAssetLookup.one(id).process([](auto& o) -> AssetDetail {
         return {
-            .id = o[0],
-            .height = o[1],
-            .ownerAccountId = o[2],
-            .totalSupply = o[3],
-            .group_id = o[4],
-            .parent_id = o[5],
-            .name = o[6],
-            .hash = o[7],
-            .precision = o[8]
-            // TODO: data element at o[9]
+            AssetBasic {
+                .id = o[0],
+                .hash = o[1],
+                .name = o[2],
+                .precision = o[3],
+            },
+            {
+                .height = o[4],
+                .ownerAccountId = o[5],
+                .totalSupply = o[6],
+                .group_id = o[7],
+                .parent_id = o[8],
+            }
         };
     });
 }
@@ -1010,15 +1006,19 @@ std::optional<AssetDetail> ChainDB::lookup_asset(const AssetHash& hash) const
 {
     return stmtTokenLookupByHash.one(hash).process([](auto& o) -> AssetDetail {
         return {
-            .id = o[0],
-            .height = o[1],
-            .ownerAccountId = o[2],
-            .totalSupply = o[3],
-            .group_id = o[4],
-            .parent_id = o[5],
-            .name = o[6],
-            .hash = o[7],
-            .precision = o[8]
+            AssetBasic {
+                .id = o[0],
+                .hash = o[1],
+                .name = o[2],
+                .precision = o[3],
+            },
+            {
+                .height = o[4],
+                .ownerAccountId = o[5],
+                .totalSupply = o[6],
+                .group_id = o[7],
+                .parent_id = o[8],
+            }
         };
     });
 }
@@ -1057,38 +1057,40 @@ void ChainDB::delete_bad_block(HashView blockhash)
     stmtScheduleDelete2.run(id);
 }
 
-std::pair<std::optional<BalanceId>, Funds_uint64> ChainDB::get_token_balance_recursive(AccountId aid, TokenId tid, AssetLookupTrace* trace) const
+std::pair<std::optional<BalanceId>, Funds_uint64> ChainDB::get_token_balance_recursive(AccountId aid, TokenId tid, api::AssetLookupTrace* trace) const
 {
     while (true) {
         // direct lookup
         if (auto b { get_balance(aid, tid) })
             return *b;
 
-        auto assetId { tid.as_asset() };
-        if (tid == TokenId::WART || !assetId)
-            goto notfound; // tokenId is of ShareId type (pool share) and cannot have any parent
+        if (tid == TokenId::WART || tid.is_share())
+            goto notfound; // WART and pool share token types cannot have any parent
         // get token fork height
-        auto o { lookup_asset(*assetId) };
-        if (!o)
+        auto a { lookup_asset(tid.corresponding_asset_id()) };
+        if (!a)
             throw std::runtime_error("Database error: Cannot find token info for id " + std::to_string(tid.value()) + ".");
-        const AssetDetail& assetInfo { *o };
-        auto h { assetInfo.height };
-        auto& p { assetInfo.parent_id };
-        if (!p) { // has no parent, i.e. was not forked, no entry found
+        auto h { a->height };
+        auto& pid { a->parent_id };
+        if (!pid) // has no parent, i.e. was not forked, no entry found
             goto notfound;
-        }
         if (trace)
-            trace->steps.push_back({ *p, h });
-        if (auto o { get_balance_snapshot_after(*p, h) }) {
+            trace->fails.push_back(*a);
+        if (auto o { get_balance_snapshot_after(*pid, h) }) {
             auto& [height, funds] { *o };
             if (trace)
-                trace->steps.back().snapshotHeight = height;
+                trace->snapshotHeight = height;
             return { std::nullopt, funds };
         };
-        tid = *p;
+        tid = *pid;
     }
 notfound:
     return { std::nullopt, Funds_uint64::zero() };
+}
+std::pair<std::optional<BalanceId>, Wart> ChainDB::get_wart_balance(AccountId aid) const
+{
+    auto [id, bal] { get_token_balance_recursive(aid, TokenId::WART, nullptr) };
+    return { id, Wart::from_funds_throw(bal) };
 }
 
 chainserver::TransactionIds ChainDB::fetch_tx_ids(Height height) const

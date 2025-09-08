@@ -144,7 +144,7 @@ void push_history(api::Block& b, const std::pair<HistoryId, history::Entry>& p, 
             b.actions.newOrders.push_back(
                 { signed_info_data(d.sign_data()),
                     {
-                        .assetInfo { assetData.basic() },
+                        .assetInfo { assetData },
                         .amount { d.amount() },
                         .limit { d.limit() },
                         .buy = d.buy(),
@@ -157,7 +157,7 @@ void push_history(api::Block& b, const std::pair<HistoryId, history::Entry>& p, 
         [&](const history::MatchData& d) {
             auto& asset { c.assetsById[d.asset_id()] };
             b.actions.matches.push_back({ e.hash, hid,
-                { .assetInfo { asset.basic() },
+                { .assetInfo { asset },
                     .poolBefore { d.pool_before() },
                     .poolAfter { d.pool_after() },
                     .buySwaps {},
@@ -167,7 +167,7 @@ void push_history(api::Block& b, const std::pair<HistoryId, history::Entry>& p, 
             auto& asset { c.assetsById[ld.asset_id()] };
             b.actions.liquidityDeposit.push_back(
                 { signed_info_data(ld.sign_data()),
-                    { .assetInfo { asset.basic() },
+                    { .assetInfo { asset },
                         .baseDeposited { ld.base() },
                         .quoteDeposited { ld.quote() },
                         .sharesReceived { ld.shares() } } });
@@ -177,7 +177,7 @@ void push_history(api::Block& b, const std::pair<HistoryId, history::Entry>& p, 
             b.actions.liquidityWithdrawal.push_back(
                 { signed_info_data(lw.sign_data()),
                     {
-                        .assetInfo { asset.basic() },
+                        .assetInfo { asset },
                         .sharesRedeemed { lw.shares() },
                         .baseReceived { lw.base() },
                         .quoteReceived { lw.quote() },
@@ -236,7 +236,7 @@ api::Transaction State::api_dispatch_mempool(const TxHash& txHash, TransactionMe
                 gen_temporal(),
                 { make_signed_info(ttm),
                     {
-                        .assetInfo { a.basic() },
+                        .assetInfo { a },
                         .toAddress = ttm.to_addr(),
                         .amount = ttm.amount(),
                     } }
@@ -248,7 +248,7 @@ api::Transaction State::api_dispatch_mempool(const TxHash& txHash, TransactionMe
                 gen_temporal(),
                 { make_signed_info(o),
                     {
-                        .assetInfo { a.basic() },
+                        .assetInfo { a },
                         .amount { o.amount() },
                         .limit { o.limit() },
                         .buy = o.buy(),
@@ -267,7 +267,7 @@ api::Transaction State::api_dispatch_mempool(const TxHash& txHash, TransactionMe
                 gen_temporal(),
                 { make_signed_info(rd),
                     {
-                        .assetInfo { a.basic() },
+                        .assetInfo { a },
                         .baseDeposited { rd.amount() },
                         .quoteDeposited { rd.wart() },
                         .sharesReceived { std::nullopt },
@@ -280,7 +280,7 @@ api::Transaction State::api_dispatch_mempool(const TxHash& txHash, TransactionMe
                 gen_temporal(),
                 { make_signed_info(rm),
                     {
-                        .assetInfo { a.basic() },
+                        .assetInfo { a },
                         .sharesRedeemed { rm.amount() },
                         .baseReceived { std::nullopt },
                         .quoteReceived { std::nullopt },
@@ -329,7 +329,7 @@ api::Transaction State::api_dispatch_history(const TxHash& txHash, HistoryId hid
                 gen_temporal(),
                 { make_signed_info(ttm),
                     {
-                        .assetInfo { a.basic() },
+                        .assetInfo { a },
                         .toAddress = fetch_addr(ttm.to_id()),
                         .amount = ttm.amount(),
                     } }
@@ -341,7 +341,7 @@ api::Transaction State::api_dispatch_history(const TxHash& txHash, HistoryId hid
                 gen_temporal(),
                 { make_signed_info(o),
                     {
-                        .assetInfo { a.basic() },
+                        .assetInfo { a },
                         .amount { o.amount() },
                         .limit { o.limit() },
                         .buy = o.buy(),
@@ -360,7 +360,7 @@ api::Transaction State::api_dispatch_history(const TxHash& txHash, HistoryId hid
             return api::LiquidityDepositTransaction {
                 gen_temporal(),
                 { make_signed_info(ld),
-                    { .assetInfo { a.basic() }, .baseDeposited { ld.base() }, .quoteDeposited { ld.quote() }, .sharesReceived { ld.shares() } } }
+                    { .assetInfo { a }, .baseDeposited { ld.base() }, .quoteDeposited { ld.quote() }, .sharesReceived { ld.shares() } } }
             };
         },
         [&](history::LiquidityWithdraw&& lw) -> api::Transaction {
@@ -368,7 +368,7 @@ api::Transaction State::api_dispatch_history(const TxHash& txHash, HistoryId hid
             return api::LiquidityWithdrawalTransaction {
                 gen_temporal(),
                 { make_signed_info(lw),
-                    { .assetInfo { a.basic() }, .sharesRedeemed { lw.shares() }, .baseReceived { lw.base() }, .quoteReceived { lw.quote() } } }
+                    { .assetInfo { a }, .sharesRedeemed { lw.shares() }, .baseReceived { lw.base() }, .quoteReceived { lw.quote() } } }
             };
         },
         [&](history::RewardData&& rm) -> api::Transaction {
@@ -393,7 +393,7 @@ api::Transaction State::api_dispatch_history(const TxHash& txHash, HistoryId hid
                 gen_temporal(),
                 { txHash, hid,
                     {
-                        .assetInfo { a.basic() },
+                        .assetInfo { a },
                         .poolBefore { rm.pool_before() },
                         .poolAfter { rm.pool_after() },
                         .buySwaps { rm.buy_swaps() },
@@ -1002,49 +1002,53 @@ std::pair<mempool::Updates, TxHash> State::append_gentx(const WartTransferCreate
     }
 }
 
-api::WartBalance State::api_get_address(AddressView address) const
+api::TokenBalance State::api_get_token_balance_recursive(api::AccountIdOrAddress a, api::TokenIdOrSpec token) const
 {
-    if (auto p = db.lookup_account(address); p) {
-        return api::WartBalance {
-            api::AddressWithId {
-                address,
-                p.value(),
-            },
-            p->funds
-        };
-    } else {
-        return api::WartBalance {
-            {},
-            Wart::zero()
-        };
-    }
-}
-
-api::WartBalance State::api_get_address(AccountId accountId) const
-{
-    if (auto p = db.lookup_address(accountId); p) {
-        return api::WartBalance {
-            api::AddressWithId {
-                *p,
-                accountId },
-            p->funds
-        };
-    } else {
+    auto accountId { a.map_alternative([&](const Address& a) { return db.lookup_account(a); }) };
+    auto assetId { asset.map_alternative([&](const AssetHash& h) -> std::optional<AssetId> {
+        auto o { db.lookup_asset(h) };
+        if (o)
+            return o->id;
         return {};
+    }) };
+    if (!accountId || !assetId)
+        return api::TokenBalance::notfound();
+    if (shares) {
+        if (auto sid { assetId->share_id() }; sid)
+            return api_get_token_balance_recursive(*accountId, sid->token_id());
+        else // cannot build share id from assetId (i.e. is WART asset)
+            return api::TokenBalance::notfound();
+    } else {
+        return api_get_token_balance_recursive(*accountId, assetId->token_id());
     }
 }
 
-std::optional<AssetDetail> State::db_lookup_token(const api::TokenIdOrHash& token) const
+api::TokenBalance State::api_get_token_balance_recursive(AccountId aid, TokenId tid) const
+{
+    if (auto addr { db.lookup_address(aid) }) {
+        api::AssetLookupTrace trace;
+        auto [balanceId, funds] { db.get_token_balance_recursive(aid, tid, &trace) };
+
+        std::optional<AssetPrecision> prec;
+        if (trace.fails.empty()) {
+            if (tid == TokenId::WART)
+                prec = Wart::precision;
+            else {
+                prec = db.lookup_asset(tid.corresponding_asset_id())->precision;
+            }
+        } else {
+            prec = trace.fails.front().precision;
+        }
+        if (!prec)
+            return api::TokenBalance::notfound();
+        return api::TokenBalance::found(*addr, aid, std::move(trace), FundsDecimal(funds, *prec));
+    }
+    return api::TokenBalance::notfound();
+}
+
+std::optional<AssetDetail> State::db_lookup_token(const api::AssetIdOrHash& token) const
 {
     return token.visit([&](const auto& token) { return db.lookup_asset(token); });
-}
-
-auto State::api_get_token_balance(const api::AccountIdOrAddress& account, const api::TokenIdOrHash& token) const -> api::WartBalance
-{
-    auto aid { account.map_alternative([&](const Address& a) { return db.lookup_account_id(a); }) };
-    auto tokenInfo { token.visit([&](const auto& token) { return db.lookup_asset(token); }) };
-    if (!aid || !tokenInfo)
-        return {};
 }
 
 auto State::insert_txs(const TxVec& txs) -> std::pair<std::vector<Error>, mempool::Updates>
@@ -1099,7 +1103,7 @@ auto State::api_get_history(Address a, int64_t beforeId) const -> std::optional<
     if (!p)
         return {};
     auto& accountId(*p);
-    Wart wart(db.get_token_balance_recursive(accountId,TokenId::WART).second.value());
+    Wart wart(db.get_token_balance_recursive(accountId, TokenId::WART).second.value());
 
     std::vector entries_desc = db.lookup_history_100_desc(accountId, beforeId);
     std::vector<api::Block> blocks_reversed;

@@ -359,7 +359,7 @@ void AddressSubscriptionState::session_end(const chainserver::State& s)
             assert(data.blocks.size() > 0);
             subscription::events::AccountDelta ad {
                 .address { address },
-                .newBalance { s.api_get_address(address).balance },
+                .newBalance { s.api_get_token_balance(address, TokenId::WART).balance },
                 .newTransactions { std::move(data.blocks) },
             };
             subscription::events::Event {

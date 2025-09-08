@@ -320,11 +320,7 @@ void get_signed_snapshot(Eventloop::SignedSnapshotCb&& cb)
 }
 
 // account functions
-void get_account_wart_balance(const api::AccountIdOrAddress& address, BalanceCb f)
-{
-    global().chainServer->api_get_wart_balance(address, f);
-}
-void get_account_token_balance(const api::AccountIdOrAddress& address, const api::TokenIdOrHash& t, BalanceCb cb)
+void get_account_token_balance(const api::AccountIdOrAddress& address, const api::AssetIdOrHash& t, TokenBalanceCb cb)
 {
     global().chainServer->api_get_token_balance(address, t, cb);
 }

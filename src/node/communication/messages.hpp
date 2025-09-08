@@ -211,7 +211,7 @@ struct TxrepMsg : public MsgCombineReply<15, messages::VectorRest<messages::Opti
     static constexpr size_t maxSize = 2 + 4 + TxreqMsg::MAXENTRIES * (1 + WartTransferMessage::byte_size());
     using Base::Base;
 
-    using vector_t = messages::VectorRest<messages::Optional<WartTransferMessage>>;
+    using vector_t = messages::VectorRest<messages::Optional<TransactionMessage>>;
     TxrepMsg(Reader& r);
     [[nodiscard]] auto& txs() const { return get<0>(); }
     std::string log_str() const;

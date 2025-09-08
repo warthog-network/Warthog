@@ -6,10 +6,10 @@ struct AccountHistory;
 struct AccountIdOrAddress;
 struct AddressCount;
 struct AddressWithId;
-struct WartBalance;
+struct AssetLookupTrace;
 struct Block;
-struct CompleteBlock;
 struct ChainHead;
+struct CompleteBlock;
 struct HashrateBlockChart;
 struct HashrateChartRequest;
 struct HashrateInfo;
@@ -21,6 +21,8 @@ struct MiningState;
 struct Peerinfo;
 struct PeerinfoConnections;
 struct Raw;
+struct WartBalance;
+struct TokenBalance;
 namespace block {
 
 struct RewardData;

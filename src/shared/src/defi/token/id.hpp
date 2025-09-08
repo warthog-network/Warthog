@@ -7,6 +7,10 @@ struct AssetId;
 struct TokenId : public UInt32WithOperators<TokenId> {
     using UInt32WithOperators::UInt32WithOperators;
     static const TokenId WART;
+    bool is_share() const
+    {
+        return (value() & 1) != 0; // shares have odd ids
+    }
     [[nodiscard]] std::optional<AssetId> as_asset() const;
     [[nodiscard]] AssetId corresponding_asset_id() const;
 };
@@ -22,9 +26,10 @@ struct AssetId : public UInt32WithOperators<AssetId> { // assets are tokens that
         : UInt32WithOperators<AssetId>(r)
     {
     }
+    bool is_wart() const { return value() == 0; }
 
     constexpr TokenId token_id() const { return TokenId { 2 * value() }; }
-    ShareId share_id() const;
+    std::optional<ShareId> share_id() const;
 };
 inline constexpr AssetId AssetId::WART { 0 };
 inline constexpr TokenId TokenId::WART { AssetId::WART.token_id() };
@@ -38,19 +43,15 @@ struct ShareId : public UInt32WithIncrement<ShareId> { // shares are tokens that
     AssetId asset_id() const { return AssetId { value() }; }
 };
 
-inline std::optional<AssetId> TokenId::as_asset() const
+inline AssetId TokenId::corresponding_asset_id() const
 {
-    if ((value() & 1) != 0) // if odd
-        return {};
     return AssetId(value() >> 1);
 }
 
-inline AssetId TokenId::corresponding_asset_id() const{
-    return AssetId(value() >> 1);
-}
-
-inline ShareId AssetId::share_id() const
+inline std::optional<ShareId> AssetId::share_id() const
 {
+    if (is_wart())
+        return {}; // cannot have shares of nonexistent Wart-Wart pool.
     return ShareId(value());
 }
 

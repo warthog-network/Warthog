@@ -64,12 +64,7 @@ void ChainServer::api_put_mempool(WartTransferCreate m,
     defer_maybe_busy(PutMempool { std::move(m), std::move(callback) });
 }
 
-void ChainServer::api_get_wart_balance(const api::AccountIdOrAddress& a, BalanceCb callback)
-{
-    defer_maybe_busy(GetWartBalance { a, std::move(callback) });
-}
-
-void ChainServer::api_get_token_balance(const api::AccountIdOrAddress& a, const api::TokenIdOrHash& t, BalanceCb callback)
+void ChainServer::api_get_token_balance(const api::AccountIdOrAddress& a, const api::TokenIdOrSpec& t, TokenBalanceCb callback)
 {
     defer_maybe_busy(GetTokenBalance { a, t, std::move(callback) });
 }
@@ -105,9 +100,9 @@ void ChainServer::api_get_history(const Address& address, uint64_t beforeId,
     defer_maybe_busy(GetHistory { address, beforeId, std::move(callback) });
 }
 
-void ChainServer::api_get_richlist(RichlistCb callback)
+void ChainServer::api_get_richlist(api::TokenIdOrSpec tokenId, RichlistCb callback)
 {
-    defer_maybe_busy(GetRichlist { std::move(callback) });
+    defer_maybe_busy(GetRichlist { tokenId, std::move(callback) });
 }
 void ChainServer::api_get_mining(const Address& address, ChainMiningCb callback)
 {
@@ -296,16 +291,10 @@ void ChainServer::handle_event(GetGrid&& e)
     e.callback(state.get_headers().grid());
 }
 
-void ChainServer::handle_event(GetWartBalance&& e)
-{
-    auto t { timing->time("GetBalance") };
-    e.callback(state.api_get_token_balance(e.account, TokenId::WART));
-}
-
 void ChainServer::handle_event(GetTokenBalance&& e)
 {
     auto t { timing->time("GetBalance") };
-    e.callback(state.api_get_token_balance(e.account, e.token));
+    e.callback(state.api_get_token_balance_recursive(e.account, e.token));
 }
 
 void ChainServer::handle_event(GetMempool&& e)
@@ -317,7 +306,7 @@ void ChainServer::handle_event(GetMempool&& e)
 void ChainServer::handle_event(LookupTxids&& e)
 {
     auto t { timing->time("LookupTxIds") };
-    std::vector<std::optional<WartTransferMessage>> out;
+    std::vector<std::optional<TransactionMessage>> out;
     std::transform(e.txids.begin(), e.txids.end(), std::back_inserter(out),
         [&](auto txid) { return state.get_mempool_tx(txid); });
     e.callback(out);
@@ -366,7 +355,7 @@ void ChainServer::handle_event(GetHistory&& e)
 void ChainServer::handle_event(GetRichlist&& e)
 {
     auto t { timing->time("GetRichlist") };
-    auto richlist { state.api_get_richlist(100) };
+    auto richlist { state.api_get_richlist(e.token, 100) };
     e.callback(std::move(richlist));
 }
 

@@ -104,9 +104,8 @@ public:
     auto get_mempool_tx(TransactionId) const -> std::optional<TransactionMessage>;
 
     // api getters
-    auto api_get_address(AddressView) const -> api::WartBalance;
-    auto api_get_address(AccountId) const -> api::WartBalance;
-    auto api_get_token_balance(const api::AccountIdOrAddress&, const api::TokenIdOrHash&) const -> api::WartBalance;
+    api::TokenBalance api_get_token_balance_recursive(api::AccountIdOrAddress a, api::TokenIdOrSpec t) const;
+    api::TokenBalance api_get_token_balance_recursive(AccountId, TokenId) const;
     auto api_get_head() const -> api::ChainHead;
     auto api_get_history(Address a, int64_t beforeId = 0x7fffffffffffffff) const -> std::optional<api::AccountHistory>;
     auto api_get_richlist(TokenId token, size_t limit) const -> api::Richlist;
@@ -124,7 +123,7 @@ public:
     size_t api_db_size() const;
 
 private:
-    std::optional<AssetDetail> db_lookup_token(const api::TokenIdOrHash&) const;
+    std::optional<AssetDetail> db_lookup_token(const api::AssetIdOrHash&) const;
     // delegated getters
     auto api_get_block(Height h) const -> std::optional<api::Block>;
     std::optional<NonzeroHeight> consensus_height(const Hash&) const;

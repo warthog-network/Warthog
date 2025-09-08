@@ -47,17 +47,6 @@ inline HashView::HashView(const Hash& h)
 {
 }
 
-class BlockHash : public Hash {
-public:
-    explicit BlockHash(Hash h):Hash(std::move(h)){}
-    using Hash::Hash;
-    static BlockHash genesis();
-};
-
-class AssetHash : public Hash {
-    using Hash::Hash;
-};
-
 inline bool operator==(const Hash& h, const HashView& hv)
 {
     return (HashView(h) == hv);
@@ -67,18 +56,51 @@ inline bool operator==(const HashView& hv, const Hash& h)
     return (HashView(h) == hv);
 };
 
-class TxHash : public Hash {
+template <typename T>
+class GenericHash : public Hash {
 public:
-    explicit TxHash(Hash h)
+    explicit GenericHash(Hash h)
+        : Hash(std::move(h))
+    {
+    }
+    explicit GenericHash(HashView h)
         : Hash(h)
     {
+    }
+    explicit GenericHash(std::array<uint8_t, 32> other)
+        : Hash(std::move(other))
+    {
+    }
+    [[nodiscard]] static std::optional<T> parse_string(std::string_view s)
+    {
+        auto p { Hash::parse_string(s) };
+        if (p)
+            return T { *p };
+        return {};
+    }
+    static T uninitialized()
+    {
+        return T { Hash::uninitialized() };
     }
 };
 
-class PinHash : public Hash {
+class BlockHash : public GenericHash<BlockHash> {
 public:
-    explicit PinHash(Hash h)
-        : Hash(h)
-    {
-    }
+    using GenericHash::GenericHash;
+    static BlockHash genesis();
+};
+
+class AssetHash : public GenericHash<AssetHash> {
+public:
+    using GenericHash::GenericHash;
+};
+
+class TxHash : public GenericHash<TxHash> {
+public:
+    using GenericHash::GenericHash;
+};
+
+class PinHash : public GenericHash<PinHash> {
+public:
+    using GenericHash::GenericHash;
 };

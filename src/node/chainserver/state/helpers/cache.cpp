@@ -45,7 +45,7 @@ Wart WartCache::operator[](AccountId aid)
 {
     auto iter { map.find(aid) };
     if (iter == map.end())
-        iter = map.emplace(aid, db.get_wart_balance(aid)).first;
+        iter = map.emplace(aid, db.get_wart_balance(aid).second).first;
     return iter->second;
 }
 

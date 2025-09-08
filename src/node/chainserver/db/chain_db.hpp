@@ -2,6 +2,7 @@
 
 #include "SQLiteCpp/Database.h"
 #include "SQLiteCpp/Transaction.h"
+#include "api/types/asset_lookup_trace.hpp"
 #include "api/types/forward_declarations.hpp"
 #include "block/block.hpp"
 #include "block/block_fwd.hpp"
@@ -13,6 +14,7 @@
 #include "chainserver/db/ids.hpp"
 #include "chainserver/transaction_ids.hpp"
 #include "db/sqlite_fwd.hpp"
+#include "defi/token/info.hpp"
 #include "defi/uint64/pool.hpp"
 #include "deletion_key.hpp"
 #include "general/address_funds.hpp"
@@ -26,7 +28,6 @@ struct AccountToken;
 class Batch;
 class AssetName;
 class CancelId;
-class AssetDetail;
 struct SignedSnapshot;
 class Headerchain;
 
@@ -190,8 +191,11 @@ public:
     [[nodiscard]] std::optional<NonzeroHeight> get_latest_fork_height(TokenId, Height);
 
     [[nodiscard]] std::optional<Balance> get_token_balance(BalanceId id) const;
+
+private:
     [[nodiscard]] std::optional<std::pair<BalanceId, Funds_uint64>> get_balance(AccountId aid, TokenId tid) const;
-    [[nodiscard]] Wart get_wart_balance(AccountId aid) const;
+
+public:
     [[nodiscard]] std::optional<AssetDetail> lookup_asset(AssetId) const;
     [[nodiscard]] AssetDetail fetch_asset(AssetId id) const;
     [[nodiscard]] std::optional<AssetDetail> lookup_asset(const AssetHash&) const;
@@ -229,7 +233,7 @@ public:
     void delete_history_from(NonzeroHeight);
     std::optional<std::pair<history::HistoryVariant, HistoryId>> lookup_history(const HashView hash) const;
 
-    [[nodiscard]] std::vector<std::pair<HistoryId,history::Entry>> lookup_history_range(HistoryId lower, HistoryId upper) const;
+    [[nodiscard]] std::vector<std::pair<HistoryId, history::Entry>> lookup_history_range(HistoryId lower, HistoryId upper) const;
     [[nodiscard]] std::optional<history::Entry> lookup_history(HistoryId id) const;
     [[nodiscard]] history::Entry fetch_history(HistoryId id) const;
     void insertAccountHistory(AccountId accountId, HistoryId historyId);
@@ -241,20 +245,8 @@ public:
     auto next_asset_id() const { return cache.nextAssetId; }
     StateId next_state_id() const { return cache.nextStateId; }
 
-    struct AssetLookupTrace { // for debugging
-        struct Step {
-            TokenId parent;
-            Height startHeight;
-            std::optional<Height> snapshotHeight;
-            Step(TokenId parent, Height startHeight)
-                : parent(parent)
-                , startHeight(startHeight)
-            {
-            }
-        };
-        std::vector<Step> steps;
-    };
-    [[nodiscard]] std::pair<std::optional<BalanceId>, Funds_uint64> get_token_balance_recursive(AccountId aid, TokenId tid, AssetLookupTrace* trace = nullptr) const;
+    [[nodiscard]] std::pair<std::optional<BalanceId>, Funds_uint64> get_token_balance_recursive(AccountId aid, TokenId tid, api::AssetLookupTrace* trace = nullptr) const;
+    [[nodiscard]] std::pair<std::optional<BalanceId>, Wart> get_wart_balance(AccountId aid) const;
 
     //////////////////////////////
     // BELOW METHODS REQUIRED FOR INDEXING NODES
@@ -324,7 +316,7 @@ private:
     Statement stmtTokenForkBalancePrune;
 
     // Token statements
-    Statement stmtTokenInsert;
+    Statement stmtAssetInsert;
     Statement stmtTokenPrune;
     mutable Statement stmtTokenSelectForkHeight;
     mutable Statement stmtAssetLookup;

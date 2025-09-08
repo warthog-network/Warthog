@@ -37,14 +37,10 @@ public:
     struct GetGrid {
         GridCb callback;
     };
-    struct GetWartBalance {
-        api::AccountIdOrAddress account;
-        BalanceCb callback;
-    };
     struct GetTokenBalance {
         api::AccountIdOrAddress account;
-        api::TokenIdOrHash token;
-        BalanceCb callback;
+        api::TokenIdOrSpec token;
+        TokenBalanceCb callback;
     };
     struct GetMempool {
         MempoolCb callback;
@@ -70,6 +66,7 @@ public:
         HistoryCb callback;
     };
     struct GetRichlist {
+        api::TokenIdOrSpec token;
         RichlistCb callback;
     };
     struct GetHead {
@@ -132,7 +129,6 @@ public:
         MiningAppend,
         PutMempool,
         GetGrid,
-        GetWartBalance,
         GetTokenBalance,
         GetMempool,
         LookupTxids,
@@ -209,14 +205,13 @@ public:
     void api_mining_append(BlockWorker&&, ResultCb);
     // void api_put_mempool(PaymentCreateMessage, ResultCb cb);
     void api_put_mempool(WartTransferCreate, MempoolInsertCb cb);
-    void api_get_wart_balance(const api::AccountIdOrAddress& a, BalanceCb callback);
-    void api_get_token_balance(const api::AccountIdOrAddress& a, const api::TokenIdOrHash&, BalanceCb callback);
+    void api_get_token_balance(const api::AccountIdOrAddress& a, const api::TokenIdOrSpec&, TokenBalanceCb callback);
     void api_get_grid(GridCb);
     void api_get_mempool(MempoolCb callback);
     void api_lookup_tx(const TxHash& hash, TxCb callback);
     void api_lookup_latest_txs(LatestTxsCb callback);
     void api_get_history(const Address& address, uint64_t beforeId, HistoryCb callback);
-    void api_get_richlist(RichlistCb callback);
+    void api_get_richlist(api::TokenIdOrSpec tokenId, RichlistCb callback);
     void api_get_header(api::HeightOrHash, HeaderCb callback);
     void api_get_hash(Height height, HashCb callback);
     void api_get_block(api::HeightOrHash, BlockCb callback);
@@ -247,7 +242,6 @@ private:
     void handle_event(MiningAppend&&);
     void handle_event(PutMempool&&);
     void handle_event(GetGrid&&);
-    void handle_event(GetWartBalance&&);
     void handle_event(GetTokenBalance&&);
     void handle_event(GetMempool&&);
     void handle_event(LookupTxids&&);

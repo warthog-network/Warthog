@@ -2,6 +2,7 @@
 
 #include "accountid_or_address.hpp"
 #include "api/types/input.hpp"
+#include "asset_lookup_trace.hpp"
 #include "block/body/primitives.hpp"
 #include "block/chain/history/index.hpp"
 #include "block/chain/signed_snapshot.hpp"
@@ -65,11 +66,28 @@ struct WartBalance {
 };
 
 struct TokenBalance {
-    std::optional<AddressWithId> address;
-    FundsDecimal balance;
-    TokenBalance()
-        : balance(FundsDecimal::zero())
+    struct Lookup {
+        AddressWithId address;
+        AssetLookupTrace lookupFails;
+    };
+private:
+    TokenBalance(std::optional<Lookup> lookup, FundsDecimal balance)
+        : lookup(std::move(lookup))
+        , balance(std::move(balance))
     {
+    }
+public:
+    // data
+    std::optional<Lookup> lookup;
+    FundsDecimal balance;
+
+    static TokenBalance notfound()
+    {
+        return { {}, FundsDecimal::zero() };
+    }
+    static TokenBalance found(const Address& addr, const AccountId& aid, AssetLookupTrace lookupTrace, FundsDecimal b)
+    {
+        return { Lookup{AddressWithId{addr,aid}, std::move(lookupTrace)}, std::move(b) };
     }
 };
 

@@ -50,7 +50,7 @@ public:
         return i;
     }
 
-    uint64_t getUInt32() const
+    uint32_t getUInt32() const
     {
         auto i { getUInt64() };
         if (i > std::numeric_limits<uint32_t>::max())
@@ -94,7 +94,7 @@ public:
         return *v;
     }
     operator uint64_t() const { return getUInt64(); }
-    operator AssetHash() const { return Hash(*this); }
+    operator AssetHash() const { return AssetHash(Hash(*this)); }
     operator AssetName() const
     {
         return AssetName::parse_throw(static_cast<std::string>(c));

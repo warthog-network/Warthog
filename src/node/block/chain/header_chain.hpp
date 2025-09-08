@@ -140,7 +140,7 @@ public:
             return BlockHash::genesis();
         if (h == length())
             return static_cast<HeaderView>(operator[](h.nonzero_assert())).hash();
-        return Hash(operator[]((h + 1).nonzero_assert()).prevhash());
+        return BlockHash(operator[]((h + 1).nonzero_assert()).prevhash());
     };
     [[nodiscard]] std::optional<PinHash> get_hash(PinHeight ph) const
     {

@@ -920,9 +920,8 @@ private:
         Funds_uint64 balance { tokenFlow.in() };
         insertBalances.push_back({ at, balance });
     }
-    auto validate_existing_balance(const AccountToken& at, const auto& tokenFlow, const std::pair<BalanceId, Funds_uint64>& b)
+    auto validate_existing_balance(const AccountToken& at, const auto& tokenFlow, BalanceId balanceId, Funds_uint64 balance)
     {
-        const auto& [balanceId, balance] { b };
         rg.register_balance(balanceId, balance);
         // check that balances are correct
         auto totalIn { Funds_uint64::sum_throw(tokenFlow.in(), balance) };
@@ -949,8 +948,8 @@ private:
             accountData.address = db_addr(accountId);
             for (auto& [tokenId, tokenFlow] : accountData.token_flow()) {
                 AccountToken at { accountId, tokenId };
-                if (auto p { db.get_balance(accountId, tokenId) })
-                    validate_existing_balance(at, tokenFlow, *p);
+                if (auto [balanceId, balance] { db.get_token_balance_recursive(accountId, tokenId) }; balanceId)
+                    validate_existing_balance(at, tokenFlow, *balanceId, balance);
                 else
                     validate_new_balance(at, tokenFlow);
             }
@@ -1037,7 +1036,7 @@ private:
     {
         auto ts { balanceChecker.get_token_sections() };
         for (auto& ts : balanceChecker.get_token_sections()) {
-            auto ihn { db_asset(ts.asset_id()).basic() };
+            auto ihn { db_asset(ts.asset_id()) };
             AssetHandle th(ihn);
             process_token_transfers(th, ts.sharesTransfers);
             match_new_orders(th, ts.orders);

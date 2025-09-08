@@ -44,10 +44,16 @@ struct ParameterParser {
     {
         return PrivKey(sv);
     }
-    operator api::TokenIdOrHash()
+    operator api::AssetIdOrHash()
     {
         if (sv.length() == 64)
             return { AssetHash(*this) };
+        return { AssetId(*this) };
+    }
+    operator api::TokenIdOrSpec()
+    {
+        if (sv.length() >= 64)
+            return { api::TokenSpec::parse_throw(*this) };
         return { TokenId(*this) };
     }
     operator ParsedFunds()
@@ -234,8 +240,7 @@ public:
         hook_post(t, "/chain/append", parse_block_worker, put_chain_append, true);
 
         t.indexGenerator.section("Account Endpoints");
-        hook_get_1(t, "/account/:account/balance", get_account_wart_balance);
-        hook_get_1(t, "/account/:account/balance/:tokenhash", get_token_balance);
+        hook_get_1(t, "/account/:account/balance/:token", get_account_token_balance);
         hook_get_2(t, "/account/:account/history/:beforeTxIndex", get_account_history);
         hook_get(t, "/account/richlist", get_account_richlist);
 
