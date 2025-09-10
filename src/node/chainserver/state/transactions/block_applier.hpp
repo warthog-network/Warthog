@@ -32,7 +32,7 @@ private: // private methods
         const Headerchain& hc;
         const std::set<TransactionId, ByPinHeight>& baseTxIds;
         TransactionIds newTxIds;
-        Preparation prepare(const Block&, const Hash& h) const;
+        Preparation prepare(const Block&, const BlockHash& h) const;
     };
 
 private: // private data

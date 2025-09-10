@@ -17,6 +17,6 @@ std::optional<Hash> Hash::parse_string(std::string_view hex){
 
 BlockHash BlockHash::genesis()
 {
-    return hashSHA256(reinterpret_cast<const uint8_t*>(GENESISSEED),
-        strlen(GENESISSEED));
+    return BlockHash(hashSHA256(reinterpret_cast<const uint8_t*>(GENESISSEED),
+        strlen(GENESISSEED)));
 };

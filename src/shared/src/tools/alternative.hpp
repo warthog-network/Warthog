@@ -26,17 +26,17 @@ public:
     template <typename... U>
     auto visit_overload(U&&... u) &
     {
-        return v.visit(std::forward<U>(u)...);
+        return v.visit_overload(std::forward<U>(u)...);
     }
     template <typename... U>
     auto visit_overload(U&&... u) const&
     {
-        return visit(std::forward<U>(u)...);
+        return v.visit_overload(std::forward<U>(u)...);
     }
     template <typename... U>
     auto visit_overload(U&&... u) &&
     {
-        return std::move(v).visit(std::forward<U>(u)...);
+        return std::move(v).visit_overload(std::forward<U>(u)...);
     }
     std::optional<Id> map_alternative(auto lambda) const
     {

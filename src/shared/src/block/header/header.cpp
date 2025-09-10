@@ -7,8 +7,7 @@ Header::Header(const char* v)
     : Header(hex_to_arr<80>(v))
 {
 }
-
-Header::Header(const std::span<uint8_t, 80>& s)
+Header::Header(std::span<const uint8_t, 80>& s)
     : Header([&]() -> std::array<uint8_t, 80> {
         std::array<uint8_t, 80> a;
         std::copy(s.begin(), s.end(), a.begin());

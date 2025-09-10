@@ -284,7 +284,7 @@ struct TransactionsByBlocks {
 struct Richlist {
     std::vector<std::pair<Address, Wart>> entries;
 };
-struct MempoolEntry : public WartTransferMessage {
+struct MempoolEntry : public TransactionMessage {
     TxHash txHash;
 };
 struct MempoolEntries {

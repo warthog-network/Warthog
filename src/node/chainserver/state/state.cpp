@@ -1,4 +1,5 @@
 #include "defi/token/account_token.hpp"
+#include "general/now.hpp"
 #include "helpers/cache.hpp"
 #ifndef DISABLE_LIBUV
 #include "api/http/endpoint.hpp"
@@ -1005,22 +1006,15 @@ std::pair<mempool::Updates, TxHash> State::append_gentx(const WartTransferCreate
 api::TokenBalance State::api_get_token_balance_recursive(api::AccountIdOrAddress a, api::TokenIdOrSpec token) const
 {
     auto accountId { a.map_alternative([&](const Address& a) { return db.lookup_account(a); }) };
-    auto assetId { asset.map_alternative([&](const AssetHash& h) -> std::optional<AssetId> {
-        auto o { db.lookup_asset(h) };
+    auto tokenId { token.map_alternative([&](const api::TokenSpec& h) -> std::optional<TokenId> {
+        auto o { db.lookup_asset(h.assetHash) };
         if (o)
-            return o->id;
+            return o->id.token_id(h.liquidityDerivative);
         return {};
     }) };
-    if (!accountId || !assetId)
+    if (!accountId || !tokenId)
         return api::TokenBalance::notfound();
-    if (shares) {
-        if (auto sid { assetId->share_id() }; sid)
-            return api_get_token_balance_recursive(*accountId, sid->token_id());
-        else // cannot build share id from assetId (i.e. is WART asset)
-            return api::TokenBalance::notfound();
-    } else {
-        return api_get_token_balance_recursive(*accountId, assetId->token_id());
-    }
+    return api_get_token_balance_recursive(*accountId, *tokenId);
 }
 
 api::TokenBalance State::api_get_token_balance_recursive(AccountId aid, TokenId tid) const
@@ -1057,7 +1051,7 @@ auto State::insert_txs(const TxVec& txs) -> std::pair<std::vector<Error>, mempoo
     res.reserve(txs.size());
     for (auto& tx : txs) {
         try {
-            chainstate.insert_txs(tx);
+            chainstate.insert_tx(tx);
             res.push_back(0);
         } catch (const Error& e) {
             res.push_back(e.code);
@@ -1085,7 +1079,7 @@ api::ChainHead State::api_get_head() const
 
 auto State::api_get_mempool(size_t n) const -> api::MempoolEntries
 {
-    std::vector<Hash> hashes;
+    std::vector<TxHash> hashes;
     auto nextHeight { next_height() };
     auto entries = chainstate.mempool().get_transactions(n, nextHeight, &hashes);
     assert(hashes.size() == entries.size());
@@ -1211,13 +1205,13 @@ auto State::commit_fork(RollbackResult&& rr, AppendBlocksResult&& abr) -> StateU
 auto State::commit_append(AppendBlocksResult&& abr) -> StateUpdate
 {
     assert(!signedSnapshot || signedSnapshot->compatible(stage));
-    {
+    auto headerchainAppend { [&]() {
         std::unique_lock<std::mutex> lcons(chainstateMutex);
-        auto headerchainAppend { chainstate.append(Chainstate::AppendMulti {
+        return chainstate.append(Chainstate::AppendMulti {
             .patchedChain = stage,
             .appendResult { std::move(abr) },
-        }) };
-    }
+        });
+    }() };
 
     return {
         .chainstateUpdate {

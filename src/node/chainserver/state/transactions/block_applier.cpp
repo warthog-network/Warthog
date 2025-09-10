@@ -907,7 +907,7 @@ private:
                 .groupId { assetId.token_id() },
                 .parentId { TokenId { 0 } },
                 .name { tc.asset_name() },
-                .hash { verified.hash },
+                .hash { AssetHash(verified.hash) },
                 .data {} });
             api.assetCreations.push_back({ make_signed_info(verified, ref.historyId), { .name { tc.asset_name() }, .supply { tc.supply() }, .assetId { assetId } } });
         }
@@ -1238,7 +1238,7 @@ public:
     }
 };
 
-Preparation BlockApplier::Preparer::prepare(const Block& b, const Hash& h) const
+Preparation BlockApplier::Preparer::prepare(const Block& b, const BlockHash& h) const
 {
     return PreparationGenerator(*this, b, h);
 }

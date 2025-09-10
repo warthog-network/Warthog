@@ -54,7 +54,7 @@ class State {
     using StateUpdate = state_update::StateUpdate;
     using StateUpdateWithAPIBlocks = state_update::StateUpdateWithAPIBlocks;
     using StageUpdate = state_update::StageUpdate;
-    using TxVec = std::vector<WartTransferMessage>;
+    using TxVec = std::vector<TransactionMessage>;
 
 public:
     // constructor/destructor

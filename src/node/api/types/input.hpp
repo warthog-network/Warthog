@@ -13,9 +13,9 @@ struct AssetIdOrHash : public wrt::alternative<AssetId, AssetHash> {
 };
 struct TokenSpec {
     AssetHash assetHash;
-    bool liquidity;
+    bool liquidityDerivative;
     TokenSpec(AssetHash ah, bool liquidity)
-    :assetHash(std::move(ah)), liquidity(liquidity)
+    :assetHash(std::move(ah)), liquidityDerivative(liquidity)
     {
     }
 

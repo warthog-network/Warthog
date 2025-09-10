@@ -320,7 +320,7 @@ void get_signed_snapshot(Eventloop::SignedSnapshotCb&& cb)
 }
 
 // account functions
-void get_account_token_balance(const api::AccountIdOrAddress& address, const api::AssetIdOrHash& t, TokenBalanceCb cb)
+void get_account_token_balance(const api::AccountIdOrAddress& address, const api::TokenIdOrSpec& t, TokenBalanceCb cb)
 {
     global().chainServer->api_get_token_balance(address, t, cb);
 }
@@ -331,9 +331,9 @@ void get_account_history(const Address& address, uint64_t beforeId,
     global().chainServer->api_get_history(address, beforeId, f);
 }
 
-void get_account_richlist(RichlistCb f)
+void get_account_richlist(const api::TokenIdOrSpec& token, RichlistCb f)
 {
-    global().chainServer->api_get_richlist(f);
+    global().chainServer->api_get_richlist(token, f);
 }
 void get_transmission_minutes(TransmissionCb cb)
 {

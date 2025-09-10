@@ -131,6 +131,7 @@
     XX(131, ETOKIDNOTFOUND, "token id not found")                                  \
     XX(132, ENOPOOL, "no pool liquidity")                                          \
     XX(133, ERTCDISABLED, "WebRTC disabled, cannot receive message")               \
+    XX(191, EWARTTOKID, "Illegal use of WART in non-WART token id")                \
     XX(192, EBLOCKV4, "Cannot use BlockV4 features")                               \
     XX(193, EZEROWART, "transactions cannot send 0 WART")                          \
     XX(194, EPOOLREDEEM, "Cannot redeem more shares than pool issued")             \
