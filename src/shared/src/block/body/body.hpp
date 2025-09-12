@@ -379,7 +379,6 @@ public:
     {
     }
     auto asset_id() const { return assetId; }
-    auto share_id() const { return assetId.share_id(); }
 };
 
 struct TokenSection : public AssetIdElement, public TokenEntries<AssetTransfers, ShareTransfers, Orders, LiquidityDeposits, LiquidityWithdrawals> {

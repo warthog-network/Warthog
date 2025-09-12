@@ -132,7 +132,7 @@ void push_history(api::Block& b, const std::pair<HistoryId, history::Entry>& p, 
                     } });
         },
         [&](const history::TokenTransferData& d) {
-            auto& assetData { c.assetsById[d.token_id().corresponding_asset_id()] };
+            auto& assetData { c.assetsById[d.token_id().asset_id()] };
 
             b.actions.tokenTransfers.push_back(
                 { signed_info_data(d.sign_data()),
@@ -325,7 +325,7 @@ api::Transaction State::api_dispatch_history(const TxHash& txHash, HistoryId hid
             };
         },
         [&](history::TokenTransferData&& ttm) -> api::Transaction {
-            auto& a { dbcache.assetsById[ttm.token_id().corresponding_asset_id()] };
+            auto& a { dbcache.assetsById[ttm.token_id().asset_id()] };
             return api::TokenTransferTransaction {
                 gen_temporal(),
                 { make_signed_info(ttm),
@@ -1003,15 +1003,40 @@ std::pair<mempool::Updates, TxHash> State::append_gentx(const WartTransferCreate
     }
 }
 
-api::TokenBalance State::api_get_token_balance_recursive(api::AccountIdOrAddress a, api::TokenIdOrSpec token) const
+api::WartBalance State::api_get_wart_balance(api::AccountIdOrAddress a) const
 {
-    auto accountId { a.map_alternative([&](const Address& a) { return db.lookup_account(a); }) };
-    auto tokenId { token.map_alternative([&](const api::TokenSpec& h) -> std::optional<TokenId> {
+    api::WartBalance res;
+    auto b { api_get_token_balance_recursive(a, TokenId::WART) };
+    if (b.lookup) {
+        res.balance = Wart(b.balance.funds.value());
+        res.address = b.lookup->address;
+    }
+    return res;
+}
+
+std::optional<TokenId> State::normalize(api::TokenIdOrSpec token) const
+{
+    return token.map_alternative([&](const api::TokenSpec& h) -> std::optional<TokenId> {
         auto o { db.lookup_asset(h.assetHash) };
-        if (o)
-            return o->id.token_id(h.liquidityDerivative);
+        if (o) {
+            auto tid { o->id.token_id(h.poolLiquidity) };
+            if (db.next_asset_id().token_id() > tid) {
+                // tokenId does exist in database
+                return tid;
+            }
+        }
         return {};
-    }) };
+    });
+}
+std::optional<AccountId> State::normalize(api::AccountIdOrAddress a) const
+{
+    return a.map_alternative([&](const Address& a) { return db.lookup_account(a); });
+}
+
+api::TokenBalance State::api_get_token_balance_recursive(api::AccountIdOrAddress account, api::TokenIdOrSpec token) const
+{
+    auto accountId { normalize(account) };
+    auto tokenId { normalize(token) };
     if (!accountId || !tokenId)
         return api::TokenBalance::notfound();
     return api_get_token_balance_recursive(*accountId, *tokenId);
@@ -1025,10 +1050,10 @@ api::TokenBalance State::api_get_token_balance_recursive(AccountId aid, TokenId 
 
         std::optional<AssetPrecision> prec;
         if (trace.fails.empty()) {
-            if (tid == TokenId::WART)
+            if (auto assetId { tid.asset_id() }) {
+                prec = db.lookup_asset(*assetId)->precision;
+            } else { // means that token Id is that of WART
                 prec = Wart::precision;
-            else {
-                prec = db.lookup_asset(tid.corresponding_asset_id())->precision;
             }
         } else {
             prec = trace.fails.front().precision;
@@ -1040,10 +1065,10 @@ api::TokenBalance State::api_get_token_balance_recursive(AccountId aid, TokenId 
     return api::TokenBalance::notfound();
 }
 
-std::optional<AssetDetail> State::db_lookup_token(const api::AssetIdOrHash& token) const
-{
-    return token.visit([&](const auto& token) { return db.lookup_asset(token); });
-}
+// std::optional<AssetDetail> State::db_lookup_token(const api::AssetIdOrHash& token) const
+// {
+//     return token.visit([&](const auto& token) { return db.lookup_asset(token); });
+// }
 
 auto State::insert_txs(const TxVec& txs) -> std::pair<std::vector<Error>, mempool::Updates>
 {
@@ -1137,9 +1162,11 @@ auto State::api_get_history(Address a, int64_t beforeId) const -> std::optional<
     };
 }
 
-auto State::api_get_richlist(TokenId tid, size_t limit) const -> api::Richlist
+auto State::api_get_richlist(api::TokenIdOrSpec token, size_t limit) const -> Result<api::Richlist>
 {
-    return db.lookup_richlist(tid, limit);
+    if (auto tokenId { normalize(token) }; tokenId)
+        return db.lookup_richlist(*tokenId, limit);
+    return Error(ETOKIDNOTFOUND);
 }
 
 auto State::get_body_data(DescriptedBlockRange range) const -> std::vector<BodyData>

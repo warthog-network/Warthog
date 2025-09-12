@@ -13,16 +13,23 @@ struct AssetIdOrHash : public wrt::alternative<AssetId, AssetHash> {
 };
 struct TokenSpec {
     AssetHash assetHash;
-    bool liquidityDerivative;
+    bool poolLiquidity;
     TokenSpec(AssetHash ah, bool liquidity)
-    :assetHash(std::move(ah)), liquidityDerivative(liquidity)
+        : assetHash(std::move(ah))
+        , poolLiquidity(liquidity)
     {
     }
 
-    static TokenSpec parse_throw(std::string_view s){
-        if (auto o{parse(s)})
+    static TokenSpec parse_throw(std::string_view s)
+    {
+        if (auto o { parse(s) })
             return *o;
         throw Error(EINV_TOKEN);
+    }
+
+    std::string to_string() const
+    {
+        return (poolLiquidity ? "liquidity" : "asset") + std::string(":") + assetHash.hex_string();
     }
 
     static std::optional<TokenSpec> parse(std::string_view s)

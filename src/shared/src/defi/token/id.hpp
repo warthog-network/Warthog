@@ -13,18 +13,21 @@ struct TokenId : public UInt32WithOperators<TokenId> {
     {
         return (value() & 1) != 0; // shares have odd ids
     }
-    [[nodiscard]] std::optional<AssetId> as_asset() const;
-    [[nodiscard]] AssetId corresponding_asset_id() const;
+    [[nodiscard]] std::optional<AssetId> asset_id() const;
 };
 
 class NonWartTokenId : public TokenId {
     friend struct AssetId;
+
+public:
+    [[nodiscard]] AssetId asset_id() const;
 
 private:
     constexpr NonWartTokenId(TokenId tid)
         : TokenId(std::move(tid))
     {
     }
+public:
     NonWartTokenId(Reader& r)
         : TokenId(r)
     {
@@ -33,7 +36,6 @@ private:
     }
 };
 
-struct ShareId;
 struct AssetId : public UInt32WithOperators<AssetId> { // assets are tokens that are not pool shares
     static const AssetId WART;
     constexpr explicit AssetId(uint32_t id)
@@ -45,24 +47,14 @@ struct AssetId : public UInt32WithOperators<AssetId> { // assets are tokens that
     {
     }
 
-    ShareId share_id() const;
-    constexpr NonWartTokenId token_id(bool liquidityDerivative = false) const { return TokenId { 1 + 2 * value() + liquidityDerivative }; }
+    constexpr NonWartTokenId token_id(bool poolLiquidity = false) const { return TokenId { 1 + 2 * value() + poolLiquidity }; }
 };
 
 inline constexpr TokenId TokenId::WART { 0 };
 
-struct ShareId : public UInt32WithIncrement<ShareId> { // shares are tokens that specify pool participation for an asset
-    explicit ShareId(uint64_t id)
-        : UInt32WithIncrement(id)
-    {
-    }
-    AssetId asset_id() const { return AssetId { value() }; }
-    TokenId token_id() const { return asset_id().token_id(true); }
-};
-
-inline AssetId TokenId::corresponding_asset_id() const
+inline AssetId NonWartTokenId::asset_id() const
 {
-    return AssetId(value() >> 1);
+    return AssetId((value() - 1) >> 1);
 }
 
 struct TokenForkId : public IsUint64 {

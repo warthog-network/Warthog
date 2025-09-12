@@ -53,7 +53,7 @@ void ChainServer::async_set_synced(bool synced)
     defer(SetSynced { synced });
 }
 
-void ChainServer::async_put_mempool(std::vector<WartTransferMessage> txs)
+void ChainServer::async_put_mempool(std::vector<TransactionMessage> txs)
 {
     defer(PutMempoolBatch { std::move(txs) });
 }
@@ -355,8 +355,7 @@ void ChainServer::handle_event(GetHistory&& e)
 void ChainServer::handle_event(GetRichlist&& e)
 {
     auto t { timing->time("GetRichlist") };
-    auto richlist { state.api_get_richlist(e.token, 100) };
-    e.callback(std::move(richlist));
+    e.callback(state.api_get_richlist(e.token, 100));
 }
 
 void ChainServer::handle_event(GetHead&& e)

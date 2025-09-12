@@ -33,7 +33,7 @@ Entry::Entry(const block_apply::WartTransfer::Verified& p)
 {
 }
 
-Entry::Entry(const block_apply::TokenTransfer::Verified& p, TokenId tokenId)
+Entry::Entry(const block_apply::TokenTransfer::Verified& p, NonWartTokenId tokenId)
     : hash(p.hash)
     , data(TokenTransferData {
           sign_data(p.ref),
@@ -99,7 +99,7 @@ Entry::Entry(const block_apply::LiquidityWithdrawal::Verified& p, Funds_uint64 r
 {
 }
 
-Entry::Entry(Hash hash, MatchData m)
+Entry::Entry(TxHash hash, MatchData m)
     : hash(std::move(hash))
     , data(std::move(m))
 {

@@ -201,10 +201,15 @@ struct BaseAmountEl : public ElementBase<Funds_uint64> {
     using ElementBase::ElementBase;
     [[nodiscard]] const Funds_uint64& base_amount() const { return data; }
 };
-struct CancelPinNonceEl : public ElementBase<PinNonce> {
+struct CancelNonceEl : public ElementBase<NonceId> {
     using ElementBase::ElementBase;
-    [[nodiscard]] const PinNonce& block_pin_nonce() const { return data; }
+    [[nodiscard]] const auto& cancel_nonceid() const { return data; }
 };
+struct CancelHeightEl : public ElementBase<PinHeight> {
+    using ElementBase::ElementBase;
+    [[nodiscard]] const auto& cancel_height() const { return data; }
+};
+
 struct CancelTxidEl : public ElementBase<TransactionId> {
     using ElementBase::ElementBase;
     [[nodiscard]] const auto& cancel_pin_nonce() const { return data; }
@@ -262,7 +267,7 @@ struct PoolFlagEl : public BoolElBase { // specifies whether a token transfer is
     }
 };
 
-struct TokenIdEl : public ElementBase<TokenId> {
+struct NonWartTokenIdEl : public ElementBase<NonWartTokenId> {
     using ElementBase::ElementBase;
     [[nodiscard]] const auto& token_id() const { return data; }
 };

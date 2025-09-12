@@ -66,7 +66,6 @@ struct PoolData : public defi::Pool_uint64 {
     }
 
     auto asset_id() const { return assetId; }
-    auto share_id() const { return assetId.share_id(); }
 
     defi::PoolLiquidity_uint64 liquidity() const { return { base, quote }; }
 
@@ -346,7 +345,7 @@ private:
     Statement stmtScheduleInsert;
     Statement stmtScheduleBlock;
     Statement stmtScheduleProtected;
-    Statement stmtScheduleDelete2;
+    Statement stmtScheduleDelete;
     Statement stmtScheduleConsensus;
     Statement stmtDeleteGCBlocks;
     Statement stmtDeleteGCRefs;

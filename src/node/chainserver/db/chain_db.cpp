@@ -315,7 +315,7 @@ ChainDB::ChainDB(const std::string& path)
     , stmtScheduleInsert(db, "INSERT INTO `Deleteschedule` (`block_id`,`deletion_key`) VALUES (?,?)")
     , stmtScheduleBlock(db, "UPDATE `Deleteschedule` SET `deletion_key`=? WHERE `block_id` = ?")
     , stmtScheduleProtected(db, "UPDATE `Deleteschedule` SET `deletion_key`=? WHERE `deletion_key` = 0")
-    , stmtScheduleDelete2(db, "DELETE FROM `Deleteschedule` WHERE `block_id` = ?")
+    , stmtScheduleDelete(db, "DELETE FROM `Deleteschedule` WHERE `block_id` = ?")
     , stmtScheduleConsensus(db, "REPLACE INTO `Deleteschedule` (block_id,deletion_key) SELECT block_id, ? FROM Consensus WHERE height >= ?")
 
     , stmtDeleteGCBlocks(
@@ -389,7 +389,7 @@ void ChainDB::delete_state_from(StateId fromStateId)
 void ChainDB::insert_consensus(NonzeroHeight height, BlockId blockId, HistoryId historyCursor, uint64_t stateId)
 {
     stmtConsensusInsert.run(height, blockId, historyCursor, stateId);
-    stmtScheduleDelete2.run(blockId);
+    stmtScheduleDelete.run(blockId);
 }
 
 Worksum ChainDB::get_consensus_work() const
@@ -1054,7 +1054,7 @@ void ChainDB::delete_bad_block(HashView blockhash)
     }
     BlockId id { o[0] };
     stmtBlockDelete.run(id);
-    stmtScheduleDelete2.run(id);
+    stmtScheduleDelete.run(id);
 }
 
 std::pair<std::optional<BalanceId>, Funds_uint64> ChainDB::get_token_balance_recursive(AccountId aid, TokenId tid, api::AssetLookupTrace* trace) const
@@ -1064,10 +1064,12 @@ std::pair<std::optional<BalanceId>, Funds_uint64> ChainDB::get_token_balance_rec
         if (auto b { get_balance(aid, tid) })
             return *b;
 
-        if (tid == TokenId::WART || tid.is_share())
+        auto assetId { tid.asset_id() };
+        if (!assetId /*i.e. tid == TokenId::WART*/ || tid.is_share())
             goto notfound; // WART and pool share token types cannot have any parent
+
         // get token fork height
-        auto a { lookup_asset(tid.corresponding_asset_id()) };
+        auto a { lookup_asset(*assetId) };
         if (!a)
             throw std::runtime_error("Database error: Cannot find token info for id " + std::to_string(tid.value()) + ".");
         auto h { a->height };
@@ -1087,6 +1089,7 @@ std::pair<std::optional<BalanceId>, Funds_uint64> ChainDB::get_token_balance_rec
 notfound:
     return { std::nullopt, Funds_uint64::zero() };
 }
+
 std::pair<std::optional<BalanceId>, Wart> ChainDB::get_wart_balance(AccountId aid) const
 {
     auto [id, bal] { get_token_balance_recursive(aid, TokenId::WART, nullptr) };

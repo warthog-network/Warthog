@@ -14,6 +14,10 @@ public:
     {
         return value() <=> (v);
     }
+    auto operator==(uint32_t v)
+    {
+        return value() == v;
+    }
 };
 inline constexpr const BlockVersion BlockVersion::v3 { 3 };
 inline constexpr const BlockVersion BlockVersion::v4 { 4 };

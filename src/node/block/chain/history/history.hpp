@@ -33,7 +33,7 @@ using IdCombineSigned = IdCombine<I, SignDataEl, Ts...>;
 using WartTransferData = IdCombineSigned<1, ToAccIdEl, WartEl>;
 using RewardData = IdCombine<2, ToAccIdEl, WartEl>;
 using AssetCreationData = IdCombineSigned<3, AssetIdEl, AssetSupplyEl, AssetNameEl>;
-using TokenTransferData = IdCombineSigned<4, TokenIdEl, ToAccIdEl, AmountEl>;
+using TokenTransferData = IdCombineSigned<4, NonWartTokenIdEl, ToAccIdEl, AmountEl>;
 using OrderData = IdCombineSigned<5, AssetIdEl, BuyEl, LimitPriceEl, AmountEl>;
 using CancelationData = IdCombineSigned<6, CancelTxidEl>;
 
@@ -192,14 +192,14 @@ using HistoryVariant = IndicatorVariant<
 struct Entry {
     Entry(const RewardInternal& p);
     Entry(const block_apply::WartTransfer::Verified& p);
-    Entry(const block_apply::TokenTransfer::Verified& p, TokenId);
+    Entry(const block_apply::TokenTransfer::Verified& p, NonWartTokenId);
     Entry(const block_apply::Order::Verified& p);
     Entry(const block_apply::Cancelation::Verified& p);
     Entry(const block_apply::AssetCreation::Verified& p, AssetId);
     Entry(const block_apply::LiquidityDeposit::Verified& p, Funds_uint64 receivedShares);
     Entry(const block_apply::LiquidityWithdrawal::Verified& p, Funds_uint64 receivedBase, Wart receivedQuote);
-    Entry(Hash h, MatchData);
-    Entry(Hash h, HistoryVariant data)
+    Entry(TxHash h, MatchData);
+    Entry(TxHash h, HistoryVariant data)
         : hash(std::move(h))
         , data(std::move(data))
     {

@@ -20,6 +20,10 @@ struct ComparatorTransactionId {
     {
         return txid1 < m2.txid();
     }
+    bool operator()(const Entry& m1, const TransactionId& txid2) const
+    {
+        return m1.txid() < txid2;
+    }
     bool operator()(const Entry& m1, const Entry& m2) const
     {
         return m1.txid() < m2.txid();

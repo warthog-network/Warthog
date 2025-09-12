@@ -123,7 +123,7 @@ public:
     using TransactionMsg::TransactionMsg;
 };
 
-class CancelationMessage : public TransactionMsg<CancelPinNonceEl> {
+class CancelationMessage : public TransactionMsg<CancelHeightEl, CancelNonceEl> {
 public:
     using TransactionMsg::TransactionMsg;
 };
