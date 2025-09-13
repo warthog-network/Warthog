@@ -704,7 +704,7 @@ struct HistoryEntries {
     {
         // insert history for payouts and payments
         for (auto& p : insertHistory) {
-            auto inserted { db.insertHistory(p.he.hash, p.he.data.serialize()) };
+            auto inserted { db.insertHistory(p.he.hash, p.he.data.to_bytes()) };
             if (p.parent)
                 db.insert_history_link(*p.parent, p.historyId);
             assert(p.historyId == inserted);

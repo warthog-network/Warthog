@@ -207,8 +207,8 @@ struct TxreqMsg : public MsgCombineRequest<14, messages::VectorRest<TransactionI
     std::string log_str() const;
 };
 
-struct TxrepMsg : public MsgCombineReply<15, messages::VectorRest<messages::Optional<WartTransferMessage>>> {
-    static constexpr size_t maxSize = 2 + 4 + TxreqMsg::MAXENTRIES * (1 + WartTransferMessage::byte_size());
+struct TxrepMsg : public MsgCombineReply<15, messages::VectorRest<messages::Optional<TransactionMessage>>> {
+    static constexpr size_t maxSize = 2 + 4 + TxreqMsg::MAXENTRIES * (1 + TransactionMessage::max_byte_size);
     using Base::Base;
 
     using vector_t = messages::VectorRest<messages::Optional<TransactionMessage>>;

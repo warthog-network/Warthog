@@ -268,7 +268,7 @@ TxHash Chainstate::create_tx(const WartTransferCreate& m)
     WartTransferMessage pm(txid, m.nonce_reserved(), m.compact_fee(), m.to_addr(), m.wart(), m.signature());
 
     WartCache wc(db);
-    return insert_tx_internal({ std::move(pm) }, th, txHash, wc, fromAddr);
+    return insert_tx_internal(std::move(pm), th, txHash, wc, fromAddr);
 }
 
 TxHash Chainstate::insert_tx_internal(const TransactionMessage& m, TxHeight th, TxHash txHash, WartCache wc, const Address fromAddr)
@@ -283,10 +283,7 @@ TxHash Chainstate::insert_tx_internal(const TransactionMessage& m, TxHeight th, 
             if (fromAddr == m.to_addr())
                 throw Error(ESELFSEND);
         },
-        [&](const auto& m) {
-            // if (*fromAddr == m.to_addr())
-            //     throw Error(ESELFSEND);
-        });
+        [&](const auto&) {});
     _mempool.insert_tx_throw(TransactionMessage { std::move(m) }, th, txHash, wc);
     return txHash;
 }

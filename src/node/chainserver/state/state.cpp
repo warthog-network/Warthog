@@ -610,7 +610,7 @@ Result<ChainMiningTask> State::mining_task(const Address& miner, bool disableTxs
                     [&](CancelationMessage&& m) {
                         entries
                             .cancelations()
-                            .push_back({ m.from_id(), m.pin_nonce_throw(height), m.compact_fee(), PinNonce(m.block_pin_nonce()), m.signature() });
+                            .push_back({ m.from_id(), m.pin_nonce_throw(height), m.compact_fee(), m.cancel_height(), m.cancel_nonceid(), m.signature() });
                     },
                     [&](LiquidityDepositMessage&& m) {
                         asset(m.asset_hash())

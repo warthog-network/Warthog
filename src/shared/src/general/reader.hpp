@@ -194,6 +194,24 @@ private:
     const uint8_t* end;
 };
 
+template <typename T>
+struct ReadExhaustive {
+    T t;
+    ReadExhaustive(T t)
+        : t(std::move(t))
+    {
+    }
+    template <typename out_t>
+    operator out_t() &&
+    {
+        Reader r(t);
+        out_t o(r);
+        if (!r.eof())
+            throw Error(EEXCESSBYTES);
+        return o;
+    }
+};
+
 template <size_t N>
 class ReaderCheck {
 public:

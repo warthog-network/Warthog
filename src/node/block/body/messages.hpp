@@ -4,7 +4,7 @@
 #include "block/body/transaction_id.hpp"
 #include "crypto/hasher_sha256.hpp"
 #include "general/reader.hpp"
-#include "general/writer.hpp"
+#include "tools/indicator_variant.hpp"
 #include "tools/variant.hpp"
 
 struct MsgBase : public CombineElements<TransactionIdEl, NonceReservedEl, CompactFeeEl> {
@@ -18,36 +18,33 @@ struct MsgBase : public CombineElements<TransactionIdEl, NonceReservedEl, Compac
     }
 };
 
-template <typename... Ts>
-class CreatedTransactionMsg;
-
-template <typename... Ts>
-class TransactionMsg : public MsgBase, public CombineElements<Ts..., SignatureEl> {
+template <uint8_t indicator, typename... Ts>
+class ComposeTransactionMessage : public MsgBase, public CombineElements<Ts..., SignatureEl> {
 
 protected:
-    using parent = TransactionMsg;
+    using parent_t = ComposeTransactionMessage;
 
 public:
-    TransactionMsg(const TransactionId& txid, NonceReserved reserved, CompactUInt compactFee, Ts::data_t... ts, RecoverableSignature signature)
+    static constexpr uint8_t INDICATOR { indicator }; // used for serialization of transaction message vectors
+    ComposeTransactionMessage(const TransactionId& txid, NonceReserved reserved, CompactUInt compactFee, Ts::data_t... ts, RecoverableSignature signature)
         : MsgBase { txid, std::move(reserved), std::move(compactFee) }
         , CombineElements<Ts..., SignatureEl>(std::move(ts)..., std::move(signature))
     {
     }
-    TransactionMsg(CreatedTransactionMsg<Ts...>);
-    TransactionMsg(Reader& r)
+    ComposeTransactionMessage(Reader& r)
         : MsgBase { r }
         , CombineElements<Ts..., SignatureEl>(r)
     {
     }
     static constexpr size_t byte_size() { return 16 + 3 + 2 + (Ts::byte_size() + ...) + 65; }
 
-    friend Writer& operator<<(Writer& w, const TransactionMsg<Ts...>& m)
+    void serialize(Serializer auto& s) const
     {
-        return ((w << m.txid()
-                   << m.reserved()
-                   << m.compact_fee())
-                   << ... << static_cast<const Ts*>(m)->get())
-            << m.signature;
+        ((s << txid()
+            << nonce_reserved()
+            << compact_fee())
+            << ... << static_cast<const Ts*>(this)->get())
+            << SignatureEl::signature();
     }
 
     [[nodiscard]] TxHash txhash(const PinHash& pinHash) const
@@ -60,33 +57,24 @@ public:
                            << this->nonce_reserved()
                            << this->compact_fee().uncompact())
             << ... << CombineElements<Ts..., SignatureEl>::template get<Ts>()));
-    };
-    [[nodiscard]] Wart spend_wart_throw() const { return this->fee(); } // default only spend fee, but is overridden in WartTransferMessage
+    }
+    [[nodiscard]] Wart spend_wart_throw() const { return this->fee(); } // default only spend fee, but is overridden in WartTransferMessage and LiquidityDepositMessage
     [[nodiscard]] Address from_address(const TxHash& txHash) const
     {
         return this->signature().recover_pubkey(txHash.data()).address();
     }
 };
 
-template <typename... Ts>
-class CreatedTransactionMsg : public TransactionMsg<Ts...> {
-};
-template <typename... Ts>
-TransactionMsg<Ts...>::TransactionMsg(CreatedTransactionMsg<Ts...> m)
-    : TransactionMsg<Ts...>(std::move(*(TransactionMsg<Ts...>*)(&m)))
-{
-}
-
-class WartTransferMessage : public TransactionMsg<ToAddrEl, WartEl> {
+class WartTransferMessage : public ComposeTransactionMessage<1, ToAddrEl, WartEl> {
 public:
     using WartTransfer = block::body::WartTransfer;
     WartTransferMessage(TransactionId txid, NonceReserved nr, CompactUInt fee, Address addr, Wart wart, RecoverableSignature sgn)
-        : TransactionMsg(std::move(txid), std::move(nr), std::move(fee), std::move(addr), std::move(wart), std::move(sgn))
+        : ComposeTransactionMessage(std::move(txid), std::move(nr), std::move(fee), std::move(addr), std::move(wart), std::move(sgn))
     {
         check_throw();
     };
     WartTransferMessage(Reader& r)
-        : TransactionMsg(r)
+        : ComposeTransactionMessage(r)
     {
         check_throw();
     }
@@ -99,15 +87,15 @@ public:
     [[nodiscard]] Wart spend_wart_throw() const { return Wart::sum_throw(fee(), wart()); }
 };
 
-class TokenTransferMessage : public TransactionMsg<AssetHashEl, PoolFlagEl, ToAddrEl, AmountEl> { // for defi we include the asset hash
+class TokenTransferMessage : public ComposeTransactionMessage<2, AssetHashEl, PoolFlagEl, ToAddrEl, AmountEl> { // for defi we include the asset hash
 public:
     TokenTransferMessage(TransactionId txid, NonceReserved nr, CompactUInt fee, AssetHash ah, bool poolFlag, Address addr, Funds_uint64 amount, RecoverableSignature sgn)
-        : TransactionMsg(std::move(txid), std::move(nr), std::move(fee), std::move(ah), poolFlag, std::move(addr), std::move(amount), std::move(sgn))
+        : ComposeTransactionMessage(std::move(txid), std::move(nr), std::move(fee), std::move(ah), poolFlag, std::move(addr), std::move(amount), std::move(sgn))
     {
         check_throw();
     };
     TokenTransferMessage(Reader& r)
-        : TransactionMsg(r)
+        : ComposeTransactionMessage(r)
     {
         check_throw();
     }
@@ -118,32 +106,43 @@ public:
     }
 };
 
-class OrderMessage : public TransactionMsg<AssetHashEl, BuyEl, AmountEl, LimitPriceEl> { // for defi we include the token hash
+class AssetCreationMessage : public ComposeTransactionMessage<3, AssetSupplyEl, AssetNameEl> {
 public:
-    using TransactionMsg::TransactionMsg;
+    using ComposeTransactionMessage::ComposeTransactionMessage;
 };
 
-class CancelationMessage : public TransactionMsg<CancelHeightEl, CancelNonceEl> {
+class OrderMessage : public ComposeTransactionMessage<4, AssetHashEl, BuyEl, AmountEl, LimitPriceEl> { // for defi we include the token hash
 public:
-    using TransactionMsg::TransactionMsg;
+    using parent_t::parent_t;
 };
-class LiquidityDepositMessage : public TransactionMsg<AssetHashEl, WartEl, AmountEl> {
+class LiquidityDepositMessage : public ComposeTransactionMessage<5, AssetHashEl, WartEl, AmountEl> {
 public:
-    using TransactionMsg::TransactionMsg;
-};
-class LiquidityWithdrawMessage : public TransactionMsg<AssetHashEl, AmountEl> {
-public:
-    using TransactionMsg::TransactionMsg;
+    [[nodiscard]] Wart spend_wart_throw() const { return Wart::sum_throw(fee(), wart()); }
+    using parent_t::parent_t;
 };
 
-class AssetCreationMessage : public TransactionMsg<AssetSupplyEl, AssetNameEl> {
+class LiquidityWithdrawMessage : public ComposeTransactionMessage<6, AssetHashEl, AmountEl> {
 public:
-    using TransactionMsg::TransactionMsg;
+    using parent_t::parent_t;
 };
 
-using TransactionVariant = wrt::variant<WartTransferMessage, TokenTransferMessage, OrderMessage, CancelationMessage, LiquidityDepositMessage, LiquidityWithdrawMessage, AssetCreationMessage>;
+class CancelationMessage : public ComposeTransactionMessage<7, CancelHeightEl, CancelNonceEl> {
+public:
+    using parent_t::parent_t;
+};
+
+struct InvTxTypeExceptionGenerator {
+    auto operator()() const
+    {
+        return Error(ETXTYPE);
+    }
+};
+
+using TransactionVariant = wrt::indicator_variant<InvTxTypeExceptionGenerator, WartTransferMessage, TokenTransferMessage, AssetCreationMessage, OrderMessage, LiquidityDepositMessage, LiquidityWithdrawMessage, CancelationMessage>;
 
 struct TransactionMessage : public TransactionVariant {
+public:
+    using TransactionVariant::TransactionVariant;
     const MsgBase& base() const
     {
         return *visit([](const auto& m) -> const MsgBase* { return &m; });

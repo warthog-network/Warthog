@@ -1493,7 +1493,7 @@ void Eventloop::handle_msg(Conref cr, TxreqMsg&& m)
 void Eventloop::handle_msg(Conref cr, TxrepMsg&& m)
 {
     log_communication("{} handle TxrepMsg", cr.str());
-    std::vector<WartTransferMessage> txs;
+    std::vector<TransactionMessage> txs;
     for (auto& o : m.txs()) {
         if (o)
             txs.push_back(*o);

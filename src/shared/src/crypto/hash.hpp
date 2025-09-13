@@ -21,6 +21,7 @@ class Hash : public std::array<uint8_t, 32> {
     Hash() = default;
 
 public:
+    static constexpr size_t byte_size() { return 32; }
     static std::optional<Hash> parse_string(std::string_view);
     static Hash uninitialized()
     {

@@ -1,5 +1,6 @@
 #pragma once
 #include <variant>
+#include <optional>
 namespace wrt { // wart tools namesapce
 template <typename... Ts>
 struct variant : public std::variant<Ts...> {
@@ -46,4 +47,5 @@ struct variant : public std::variant<Ts...> {
     template <typename T>
     auto& get() { return std::get<T>(*this); }
 };
+
 }

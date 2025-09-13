@@ -6,6 +6,7 @@
 #include "defi/token/token.hpp"
 #include "defi/uint64/pool.hpp"
 #include "defi/uint64/types.hpp"
+#include "general/serializer_fwd.hxx"
 #include <strings.h>
 #include <unistd.h>
 class Headerchain;
@@ -20,14 +21,17 @@ struct SignDataEl : public ElementBase<SignData> {
     [[nodiscard]] const auto& sign_data() const { return data; }
 };
 
-template <uint8_t I, typename... Ts>
+template <uint8_t I, typename T>
 requires(I < 256)
-struct IdCombine : public CombineElements<Ts...> {
-    using CombineElements<Ts...>::CombineElements;
-    constexpr static uint8_t indicator = I;
+struct WithIndicator : public T {
+    constexpr static uint8_t INDICATOR = I;
+    using T::T;
 };
+
 template <uint8_t I, typename... Ts>
-requires(I < 256)
+using IdCombine = WithIndicator<I, CombineElements<Ts...>>;
+
+template <uint8_t I, typename... Ts>
 using IdCombineSigned = IdCombine<I, SignDataEl, Ts...>;
 
 using WartTransferData = IdCombineSigned<1, ToAccIdEl, WartEl>;
@@ -47,7 +51,6 @@ struct PoolAfterEl : public ElementBase<defi::BaseQuote> {
     [[nodiscard]] const auto& pool_after() const { return data; }
 };
 
-
 template <typename T>
 struct vect_len32_base : public std::vector<T> {
 public:
@@ -60,12 +63,11 @@ public:
             this->push_back(T { r });
         }
     }
-    friend Writer& operator<<(Writer& w, const vect_len32_base<T>& v)
+    void serialize(Serializer auto& s) const
     {
-        w << uint32_t(v.size());
-        for (auto& e : v)
-            w << e;
-        return w;
+        s << uint32_t(this->size());
+        for (auto& e : *this)
+            s << e;
     }
 };
 
@@ -102,74 +104,18 @@ struct SellSwapsEl : public ElementBase<vect_len32<CombineElements<BaseEl, Quote
     [[nodiscard]] auto& sell_swaps() { return data; }
 };
 
-struct MatchData : public IdCombine<7, AssetIdEl, PoolBeforeEl, PoolAfterEl, BuySwapsEl, SellSwapsEl> {
+using MatchDataBase = IdCombine<7, AssetIdEl, PoolBeforeEl, PoolAfterEl, BuySwapsEl, SellSwapsEl>;
+struct MatchData : public MatchDataBase {
     MatchData(AssetId assetId, defi::PoolLiquidity_uint64 poolBefore, defi::PoolLiquidity_uint64 poolAfter)
         : MatchData(assetId, defi::BaseQuote_uint64(std::move(poolBefore)), std::move(poolAfter), {}, {})
     {
     }
-    using IdCombine::IdCombine;
+    using MatchDataBase::MatchDataBase;
 };
 
 using LiquidityDeposit = IdCombineSigned<8, AssetIdEl, BaseEl, QuoteEl, SharesEl>;
 using LiquidityWithdraw = IdCombineSigned<9, AssetIdEl, BaseEl, QuoteEl, SharesEl>;
 
-template <typename gen_parse_exception, typename... Ts>
-struct IndicatorVariant : public wrt::variant<Ts...> {
-private:
-    [[nodiscard]] static IndicatorVariant parse(Reader& r)
-    {
-        std::optional<IndicatorVariant> o;
-        auto i { r.uint8() };
-        if (([&] {
-                if (i == Ts::indicator) {
-                    o.template emplace<Ts>(r);
-                    return true;
-                }
-                return false;
-            }() || ...))
-            return std::move(*o);
-        throw gen_parse_exception();
-    }
-    [[nodiscard]] static IndicatorVariant parse(std::vector<uint8_t> v)
-    {
-        Reader r(v);
-        auto p { parse(r) };
-        if (!r.eof())
-            throw Error(EMSGINTEGRITY);
-        return p;
-    }
-
-public:
-    using wrt::variant<Ts...>::variant;
-    IndicatorVariant(wrt::variant<Ts...> v)
-        : wrt::variant<Ts...>(std::move(v))
-    {
-    }
-    IndicatorVariant(const std::vector<uint8_t>& v)
-        : IndicatorVariant(parse(v))
-    {
-    }
-    size_t byte_size() const
-    {
-        return 1 + this->visit([](auto& t) { return t.byte_size(); });
-    }
-    friend Writer& operator<<(Writer& w, const IndicatorVariant& f)
-    {
-        f.visit([&](auto& v) {
-            w << v.indicator << v;
-        });
-        return w;
-    }
-    std::vector<uint8_t> serialize() const
-    {
-        std::vector<uint8_t> out;
-        out.resize(byte_size());
-        Writer w(out);
-        w << *this;
-        assert(w.remaining() == 0);
-        return out;
-    }
-};
 
 struct CantParseHistoryExceptionGenerator {
     std::exception operator()() const
@@ -177,7 +123,8 @@ struct CantParseHistoryExceptionGenerator {
         return std::runtime_error("Cannot parse history entry");
     }
 };
-using HistoryVariant = IndicatorVariant<
+
+using HistoryVariant = wrt::indicator_variant<
     CantParseHistoryExceptionGenerator,
     WartTransferData,
     RewardData,

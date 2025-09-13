@@ -74,7 +74,7 @@ std::optional<TransactionMessage> Mempool::operator[](const TransactionId& id) c
     auto iter = txs().find(id);
     if (iter == txs().end())
         return {};
-    return TransactionMessage { *iter };
+    return *static_cast<const TransactionMessage*>(&*iter);
 }
 
 std::optional<TransactionMessage> Mempool::operator[](const HashView txHash) const
@@ -83,7 +83,7 @@ std::optional<TransactionMessage> Mempool::operator[](const HashView txHash) con
     if (iter == byHash.end())
         return {};
     assert((*iter)->txhash == txHash);
-    return TransactionMessage { **iter };
+    return *static_cast<const TransactionMessage*>(&**iter);
 }
 
 bool Mempool::erase_internal(Txset::const_iterator iter, BalanceEntries::iterator b_iter, bool gc)

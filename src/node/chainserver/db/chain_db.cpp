@@ -881,7 +881,7 @@ std::optional<std::pair<history::HistoryVariant, HistoryId>> ChainDB::lookup_his
 {
     return stmtHistoryLookup.one(hash).process([](auto& o) {
         return std::pair<history::HistoryVariant, HistoryId> {
-            std::vector<uint8_t> { o[1] }, o[0]
+            ReadExhaustive(std::vector<uint8_t> { o[1] }), o[0]
         };
     });
 }
@@ -897,7 +897,7 @@ std::vector<std::pair<HistoryId, history::Entry>> ChainDB::lookup_history_range(
     int64_t u = (upper == HistoryId { 0 } ? std::numeric_limits<int64_t>::max() : upper.value());
     try {
         return stmtHistoryLookupRange.all([&](const sqlite::Row& r) {
-            return std::pair<HistoryId, history::Entry> { r[0], { r[1], std::vector<uint8_t> { r[2] } } };
+            return std::pair<HistoryId, history::Entry> { r[0], { r[1], history::HistoryVariant(ReadExhaustive(std::vector<uint8_t> { r[2] })) } };
         },
             l, u);
     } catch (...) {
@@ -938,7 +938,7 @@ std::vector<std::tuple<HistoryId, history::Entry>> ChainDB::lookup_history_100_d
     return stmtHistoryById.all(
         [&](const sqlite::Row& row) {
             return std::tuple<HistoryId, history::Entry>(
-                { row[0], { row[1], std::vector<uint8_t>(row[2]) } });
+                { row[0], { row[1], history::HistoryVariant(ReadExhaustive(std::vector<uint8_t>(row[2]))) } });
         },
         accountId, beforeId);
 }
