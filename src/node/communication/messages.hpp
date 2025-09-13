@@ -1,8 +1,8 @@
 #pragma once
+#include "block/body/container.hpp"
 #include "block/body/messages.hpp"
 #include "block/body/transaction_id.hpp"
 #include "block/chain/range.hpp"
-#include "block/body/container.hpp"
 #include "block/chain/signed_snapshot.hpp"
 #include "block/header/header.hpp"
 #include "block/header/shared_batch.hpp"
@@ -254,7 +254,8 @@ struct RTCRequestForwardOffer : public MsgCombine<21, uint64_t, String16> {
     using Base::Base;
 
     [[nodiscard]] const auto& signaling_list_key() const { return get<0>(); }
-    [[nodiscard]] const std::string& offer() const { return get<1>().data; }
+    [[nodiscard]] const std::string& offer() const & { return get<1>().data; }
+    [[nodiscard]] std::string& offer() && { return get<1>().data; }
     std::string log_str() const;
 };
 

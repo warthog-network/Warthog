@@ -29,14 +29,6 @@ IsUint64::operator nlohmann::json() const
     return nlohmann::json(val);
 };
 
-Writer& operator<<(Writer& w, const IsUint32& v)
-{
-    return w << v.val;
-}
-Writer& operator<<(Writer& w, const IsUint64& v)
-{
-    return w << v.val;
-}
 IsUint64::IsUint64(int64_t w)
     : val(w)
 {

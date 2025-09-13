@@ -46,8 +46,10 @@ private:
     {
     }
 
-private:
+public:
     Reader& reader;
+
+private:
     MerkleReadHooker& creator;
     const uint8_t* begin;
 };
@@ -139,7 +141,7 @@ struct body_vector : public std::vector<T> {
         : std::vector<T>(std::move(v))
     {
     }
-    void serialize(Serializer auto&& s)
+    void serialize(Serializer auto&& s) const
     {
         for (auto& e : *this)
             s << e;
@@ -148,7 +150,7 @@ struct body_vector : public std::vector<T> {
     template <typename uint_t>
     void write(MerkleWriteHooker& m) const
     {
-        m.writer << T(this->size());
+        m.writer << uint_t(this->size());
         for (auto& e : *this) {
             auto h { m.hook() };
             h.writer << e;
@@ -172,8 +174,10 @@ struct body_vector : public std::vector<T> {
     }
     body_vector(size_t n, MerkleReadHooker& m)
     {
-        for (size_t i { 0 }; i < n; ++i)
-            this->push_back({ m.hook() });
+        for (size_t i { 0 }; i < n; ++i) {
+            auto h { m.hook() };
+            this->push_back(T(h.reader));
+        }
     }
 
     body_vector(size_t n, Reader& r)
@@ -268,8 +272,10 @@ struct LiquidityWithdrawals : public VectorElement<body::LiquidityWithdraw> {
 
 template <size_t N>
 struct TenBitsBlocks {
-private:
     using arr_t = std::array<size_t, N>;
+    using aaaa = std::array<size_t, N>;
+
+private:
     static constexpr size_t byte_size() { return (10 * N + 7) / 8; }
     template <size_t... Is>
     static auto read_data(std::index_sequence<Is...>, Reader& rd)
@@ -294,13 +300,11 @@ public:
         : data(read_data(std::make_index_sequence<N>(), rd))
     {
     }
-    template <typename... Ts>
-    requires(sizeof...(Ts) == N)
     TenBitsBlocks(arr_t arr)
         : data { std::move(arr) }
     {
     }
-    void serialize(Serializer auto&& s)
+    void serialize(Serializer auto&& s) const
     {
         uint32_t bits { 0 };
         size_t nbits { 0 };
@@ -315,7 +319,6 @@ public:
         }
         if (nbits > 0)
             s << uint8_t(bits >> 24);
-        return s;
     }
     template <size_t i>
     requires(i < N)
@@ -350,8 +353,9 @@ public:
     }
     void serialize(Serializer auto&& s) const
     {
-        s << bits_t { static_cast<const Ts*>(this)->get().size()... };
-        (s << ... << static_cast<const Ts*>(this));
+        typename TenBitsBlocks<sizeof...(Ts)>::arr_t arr { static_cast<const Ts*>(this)->get().size()... };
+        s << bits_t(arr);
+        (s << ... << *static_cast<const Ts*>(this));
     }
     void append_txids(std::vector<TransactionId>& v, PinFloor pf) const
     {

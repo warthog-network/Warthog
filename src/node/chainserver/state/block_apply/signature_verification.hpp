@@ -8,6 +8,7 @@
 #include "crypto/hash.hpp"
 #include "general/compact_uint.hpp"
 #include "general/errors.hpp"
+#include <functional>
 
 struct VerifiedHash {
 protected:

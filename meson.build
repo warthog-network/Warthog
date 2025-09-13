@@ -58,5 +58,5 @@ sqlite3_dep = subproject('sqlite3',default_options : ['warning_level=0', 'werror
 subdir('./thirdparty')
 subdir('./src/shared')
 subdir('./src/node')
-subdir('./src/wallet')
+# subdir('./src/wallet')
 subdir('./src/test')

@@ -10,7 +10,6 @@
 #include <future>
 #include <nlohmann/json.hpp>
 #include <random>
-#include <type_traits>
 
 using namespace std::chrono;
 using namespace std::chrono_literals;
@@ -366,7 +365,7 @@ void TCPConnectionSchedule::initialize()
     const int64_t nowts { now_timestamp() };
     constexpr connection_schedule::Source startup_source { 0 };
     for (const auto& [a, timestamp] : db_peers) {
-        auto lastVerified = sc::now() - seconds((nowts - int64_t(timestamp.val())));
+        auto lastVerified = sc::now() - seconds((nowts - int64_t(timestamp.value())));
         auto [_, wasInserted] = disconnectedVerified.insert({ a, startup_source }, lastVerified);
         assert(wasInserted);
     }

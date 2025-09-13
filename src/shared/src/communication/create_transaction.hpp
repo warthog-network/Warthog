@@ -35,7 +35,7 @@ public:
     }
     [[nodiscard]] bool valid_signature(const PinHash& pinHash, AddressView fromAddress) const
     {
-        return from_address(tx_hash(pinHash)).address() == fromAddress;
+        return from_address(tx_hash(pinHash)) == fromAddress;
     }
     TransactionCreate(PinHeight pinHeight, NonceId nonceId, CompactUInt compactFee, Ts... ts, const Hash& pinHash, const PrivKey& pk, NonceReserved reserved = NonceReserved::zero())
         : TransactionCreate(std::move(pinHeight), std::move(nonceId), std::move(reserved), std::move(compactFee), std::move(ts)..., pk.sign(tx_hash(pinHash)))
@@ -45,13 +45,11 @@ public:
 
 class WartTransferCreate : public TransactionCreate<WartTransferCreate, ToAddrEl, WartEl> {
 public:
-    using message_t = WartTransferMessage;
     using TransactionCreate::TransactionCreate;
     operator std::string();
 };
 
 class TokenTransferCreate : public TransactionCreate<TokenTransferCreate, ToAddrEl, AmountEl, AssetHashEl> {
 public:
-    using message_t = TokenTransferMessage;
     using TransactionCreate::TransactionCreate;
 };

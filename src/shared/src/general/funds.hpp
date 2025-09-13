@@ -1,5 +1,4 @@
 #pragma once
-#include "defi/token/id.hpp"
 #include "general/errors.hpp"
 #include "general/serializer_fwd.hxx"
 #include "general/with_uint64.hpp"

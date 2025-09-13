@@ -703,9 +703,9 @@ void Eventloop::handle_event(GeneratedVerificationSdpAnswer&& m)
         return;
     }
     auto& sdp = *filtered;
-
     log_rtc("send RTCVerificationAnswer, ip: {}", m.ownIp.to_string());
-    originCon.send(RTCVerificationAnswer { sdp });
+    assert(sdp.length() < std::numeric_limits<uint16_t>::max());
+    originCon.send(RTCVerificationAnswer { String16(sdp) });
 }
 
 void Eventloop::handle_event(GeneratedSdpAnswer&& m)
@@ -731,8 +731,9 @@ void Eventloop::handle_event(GeneratedSdpAnswer&& m)
         return;
     }
     auto& sdp = *filtered;
+    assert(sdp.length() < std::numeric_limits<uint16_t>::max());
 
-    signalingServer.send(RTCRequestForwardAnswer { sdp, m.key });
+    signalingServer.send(RTCRequestForwardAnswer { String16(std::move(sdp)), m.key });
 }
 
 void Eventloop::emit_disconnect(size_t n, uint64_t id)
@@ -822,7 +823,8 @@ void Eventloop::handle_event(GeneratedVerificationSdpOffer&& m)
     log_rtc("GeneratedVerificationSdpOffer: with IP {}", selected->to_string());
     auto filtered { sdp_filter::only_udp_ip(*selected, m.sdp) };
     assert(filtered.has_value());
-    c.send(RTCVerificationOffer { verifyIp, filtered.value() });
+    assert(filtered->length() < std::numeric_limits<uint16_t>::max());
+    c.send(RTCVerificationOffer { verifyIp, String16(filtered.value()) });
 }
 
 void Eventloop::handle_event(GeneratedSdpOffer&& m)
@@ -845,7 +847,8 @@ void Eventloop::handle_event(GeneratedSdpOffer&& m)
     // the key is taken from (no new RTCSignalingList message received since then)
     if (signalingServer.rtc().their.signalingList.covers(key)) {
         signalingServer.rtc().our.pendingOutgoing.insert(std::move(m.con));
-        signalingServer.send(RTCRequestForwardOffer { key, std::move(m.sdp) });
+        assert(m.sdp.length() < std::numeric_limits<uint16_t>::max());
+        signalingServer.send(RTCRequestForwardOffer { key, String16(std::move(m.sdp)) });
     }
 }
 
@@ -1653,7 +1656,9 @@ void Eventloop::handle_msg(Conref cr, RTCRequestForwardOffer&& r)
     auto& dstCon { *dst_opt };
     dstCon.rtc().our.pendingForwards.add(*ip, key, cr.id());
     assert(dstCon.rtc().their.quota.take_one());
-    dstCon.send(RTCForwardedOffer { r.offer() });
+
+    assert(r.offer().length() < std::numeric_limits<uint16_t>::max());
+    dstCon.send(RTCForwardedOffer { String16(r.offer()) });
 }
 
 void Eventloop::handle_msg(Conref cr, RTCForwardedOffer&& m)
