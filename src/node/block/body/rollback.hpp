@@ -16,7 +16,10 @@ struct BalanceIdFunds {
     {
     }
     static size_t byte_size() { return BalanceId::byte_size() + Funds_uint64::byte_size(); }
-    friend Writer& operator<<(Writer& w, const BalanceIdFunds& bif);
+    void serialize(Serializer auto& s)
+    {
+        s << balanceId << funds;
+    }
     BalanceIdFunds(Reader&);
 };
 
@@ -141,7 +144,7 @@ public:
     }
 };
 
-using BaseData = Serializable<AccountId, AssetId, uint64_t, std::vector<BalanceIdFunds>>;
+using BaseData = Serializable<StateId32, StateId64, std::vector<BalanceIdFunds>>;
 class Data : protected BaseData {
 private:
     Data(Reader v)
@@ -157,17 +160,16 @@ public:
     {
     }
     Data(const ChainDB& db)
-        : BaseData(db.next_account_id(), db.next_asset_id(), db.next_state_id().value(), {})
+        : BaseData(db.next_id32(), db.next_id64(), {})
     {
     }
-    auto& next_account_id() const { return get<0>(); }
-    auto& next_token_id() const { return get<1>(); }
-    auto& next_state_id() const { return get<2>(); }
-    auto& original_balances() { return get<3>(); }
-    auto& original_balances() const { return get<3>(); }
+    auto& next_state_id32() const { return get<0>(); }
+    auto& next_state_id64() const { return get<1>(); }
+    auto& original_balances() { return get<2>(); }
+    auto& original_balances() const { return get<2>(); }
     void register_balance(BalanceId balanceId, Funds_uint64 originalBalance)
     {
-        if (balanceId.value() >= next_state_id())
+        if (balanceId >= next_state_id64())
             return;
 
         auto& ob { original_balances() };

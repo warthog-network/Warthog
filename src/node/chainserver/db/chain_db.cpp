@@ -145,7 +145,7 @@ ChainDB::Database::Database(const std::string& path)
          "`balance` INTEGER NOT NULL, "
          "PRIMARY KEY(`id`))");
     exec("CREATE UNIQUE INDEX IF NOT EXISTS `TokenForkBalancesIndex` "
-         "ON `TokenForks` (account_id, asset_id, height)");
+         "ON `TokenForkBalances` (account_id, asset_id, height)");
 
     // Assets
     exec("CREATE TABLE IF NOT EXISTS \"Assets\" ( "
@@ -220,7 +220,7 @@ ChainDB::Cache ChainDB::Cache::init(SQLite::Database& db)
     return {
         .nextAccountId { nextAccountId },
         .nextAssetId { nextAssetId },
-        .nextStateId { nextStateId },
+        .stateId32 { nextStateId },
         .nextHistoryId = HistoryId { uint64_t(hid) },
         .deletionKey { 2 }
 
@@ -278,16 +278,16 @@ ChainDB::ChainDB(const std::string& path)
                                           "AND height=?")
     , stmtTokenForkBalanceSelect(db, "SELECT height, balance FROM `TokenForkBalances` WHERE token_id=? height>=? ORDER BY height ASC LIMIT 1")
 
-    , stmtTokenForkBalancePrune(db, "DELETE FROM TokenForkBalances WHERE id>=?")
+    , stmtTokenForkBalanceDeleteFrom(db, "DELETE FROM TokenForkBalances WHERE id>=?")
 
     , stmtAssetInsert(db, "INSERT INTO `Assets` ( `id`, `hash, `name`, `precision`, `height`, `owner_account_id`, total_supply, group_id, parent_id, data) VALUES (?,?,?,?,?,?,?,?,?,?)")
-    , stmtTokenPrune(db, "DELETE FROM Assets WHERE id>=?")
-    , stmtTokenSelectForkHeight(db, "SELECT height FROM Assets WHERE parent_id=? AND height>=? ORDER BY height DESC LIMIT 1")
+    , stmtAssetDeleteFrom(db, "DELETE FROM Assets WHERE id>=?")
+    , stmtAssetSelectForkHeight(db, "SELECT height FROM Assets WHERE parent_id=? AND height>=? ORDER BY height DESC LIMIT 1")
     , stmtAssetLookup(db, "SELECT (id, hash, name, precision, height, owner_account_id, total_supply, group_id, parent_id) FROM Assets WHERE `id`=?")
-    , stmtTokenLookupByHash(db, "SELECT (id, hash, name, precision, height, owner_account_id, total_supply, group_id, parent_id) FROM Assets WHERE `hash`=?")
+    , stmtAssetLookupByHash(db, "SELECT (id, hash, name, precision, height, owner_account_id, total_supply, group_id, parent_id) FROM Assets WHERE `hash`=?")
     , stmtSelectBalanceId(db, "SELECT `account_id`, `token_id`, `balance` FROM `Balances` WHERE `id`=?")
     , stmtTokenInsertBalance(db, "INSERT INTO `Balances` ( id, `token_id`, `account_id`, `balance`) VALUES (?,?,?,?)")
-    , stmtBalancePrune(db, "DELETE FROM Balances WHERE id>=?")
+    , stmtBalanceDeleteFrom(db, "DELETE FROM Balances WHERE id>=?")
     , stmtTokenSelectBalance(db, "SELECT `id`, `balance` FROM `Balances` WHERE `token_id`=? AND `account_id`=?")
     , stmtAccountSelectAssets(db, "SELECT `token_id`, `balance` FROM `Balances` WHERE `account_id`=? LIMIT ?")
     , stmtTokenUpdateBalance(db, "UPDATE `Balances` SET `balance`=? WHERE `id`=?")
@@ -364,25 +364,34 @@ ChainDB::ChainDB(const std::string& path)
     db.exec("UPDATE `Deleteschedule` SET `deletion_key`=1");
 }
 
-void ChainDB::insert_account(const AddressView address, AccountId verifyNextAccountId)
+void ChainDB::insert_account(const AddressView address, AccountId verifyNextId)
 {
-    if (cache.nextAccountId != verifyNextAccountId)
+    if (cache.stateId32 != verifyNextId)
         throw std::runtime_error("Internal error, state id inconsistent.");
-    stmtAccountsInsert.run(cache.nextStateId, address);
-    cache.nextStateId++;
+    stmtAccountsInsert.run(cache.stateId32, address);
+    cache.stateId32++;
 }
 
-void ChainDB::delete_state_from(StateId fromStateId)
+void ChainDB::delete_state32_from(StateId32 fromId)
 {
-    assert(fromStateId.value() > 0);
-    if (cache.nextStateId <= fromStateId) {
-        spdlog::error("BUG: Deleting nothing, fromAccountId = {} >= {} = cache.maxAccountId", fromStateId.value(), cache.nextStateId.value());
+    assert(fromId.value() > 0);
+    if (cache.stateId32 <= fromId) {
+        spdlog::error("BUG: Deleting nothing, fromId = {} >= {} = cache.stateId32", fromId.value(), cache.stateId32.value());
     } else {
-        cache.nextStateId = fromStateId;
-        stmtAccountsDeleteFrom.run(fromStateId);
-        stmtTokenForkBalancePrune.run(fromStateId);
-        stmtTokenPrune.run(fromStateId);
-        stmtBalancePrune.run(fromStateId);
+        cache.stateId32 = fromId;
+        stmtAccountsDeleteFrom.run(fromId);
+        stmtAssetDeleteFrom.run(fromId);
+    }
+}
+void ChainDB::delete_state64_from(StateId64 fromId)
+{
+    assert(fromId.value() > 0);
+    if (cache.stateId64 <= fromId) {
+        spdlog::error("BUG: Deleting nothing, fromId = {} >= {} = cache.stateId64", fromId.value(), cache.stateId64.value());
+    } else {
+        cache.stateId64 = fromId;
+        stmtTokenForkBalanceDeleteFrom.run(fromId);
+        stmtBalanceDeleteFrom.run(fromId);
     }
 }
 
@@ -760,18 +769,17 @@ std::optional<std::pair<NonzeroHeight, Funds_uint64>> ChainDB::get_balance_snaps
     return std::pair<NonzeroHeight, Funds_uint64> { res[0], res[1] };
 }
 
-void ChainDB::insert_new_token(const AssetData& d)
+void ChainDB::insert_new_asset(const AssetData& d)
 {
-    auto id { cache.nextAssetId++ };
-    if (id != d.id)
+    if (d.id.value() != cache.stateId32.value())
         throw std::runtime_error("Internal error, token id inconsistent.");
-    // , stmtAssetInsert(db, "INSERT INTO `Assets` ( `id`, `hash, `name`, `precision`, `height`, `owner_account_id`, total_supply, group_id, parent_id, data) VALUES (?,?,?,?,?,?,?,?,?,?)")
     stmtAssetInsert.run(d.id, d.hash, d.name, d.supply.precision.value(), d.height, d.ownerAccountId, d.supply.funds.value(), d.groupId, d.parentId, d.data);
+    ++cache.stateId32;
 }
 
 std::optional<NonzeroHeight> ChainDB::get_latest_fork_height(TokenId tid, Height h)
 {
-    auto res { stmtTokenSelectForkHeight.one(tid, h) };
+    auto res { stmtAssetSelectForkHeight.one(tid, h) };
     if (!res.has_value())
         return {};
     return NonzeroHeight { res[0] };
@@ -779,8 +787,8 @@ std::optional<NonzeroHeight> ChainDB::get_latest_fork_height(TokenId tid, Height
 
 void ChainDB::insert_token_balance(AccountToken at, Funds_uint64 balance)
 {
-    stmtTokenInsertBalance.run(cache.nextStateId, at.token_id(), at.account_id(), balance);
-    cache.nextStateId++;
+    stmtTokenInsertBalance.run(cache.stateId32, at.token_id(), at.account_id(), balance);
+    cache.stateId32++;
 }
 
 std::optional<std::pair<BalanceId, Funds_uint64>> ChainDB::get_balance(AccountId aid, TokenId tid) const
@@ -1004,7 +1012,7 @@ AssetDetail ChainDB::fetch_asset(AssetId id) const
 }
 std::optional<AssetDetail> ChainDB::lookup_asset(const AssetHash& hash) const
 {
-    return stmtTokenLookupByHash.one(hash).process([](auto& o) -> AssetDetail {
+    return stmtAssetLookupByHash.one(hash).process([](auto& o) -> AssetDetail {
         return {
             AssetBasic {
                 .id = o[0],

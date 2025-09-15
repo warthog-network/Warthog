@@ -565,7 +565,7 @@ Result<ChainMiningTask> State::mining_task(const Address& miner, bool disableTxs
 
             std::vector<Address> newAddresses;
             auto addr_id {
-                [&, map = std::map<Address, AccountId> {}, nextAccountId = db.next_account_id()](const Address& address) mutable -> AccountId {
+                [&, map = std::map<Address, AccountId> {}, nextAccountId = db.next_id32()](const Address& address) mutable -> AccountId {
                     auto a { db.lookup_account(address) };
                     if (a)
                         return a.value();
@@ -755,8 +755,8 @@ class RollbackSession {
 public:
     const ChainDB& db;
     const PinFloor newPinFloor;
-    const AccountId oldAccountStart;
-    const AssetId oldAssetStart;
+    const StateId32 oldStateId32Start;
+    const StateId64 oldStateId64Start;
 
     std::map<AccountToken, Funds_uint64> balanceMap;
     std::vector<WartTransferMessage> toMempool;
@@ -767,8 +767,8 @@ private:
         const rollback::Data& rb)
         : db(db)
         , newPinFloor(beginHeight.pin_floor())
-        , oldAccountStart(rb.next_account_id())
-        , oldAssetStart(rb.next_token_id())
+        , oldStateId32Start(rb.next_state_id32())
+        , oldStateId64Start(rb.next_state_id64())
     {
     }
 
@@ -843,7 +843,8 @@ State::rollback(const Height newlength) const
     }
 
     db.delete_history_from(newlength.add1());
-    db.delete_state_from(rs.oldAccountStart);
+    db.delete_state32_from(rs.oldStateId32Start);
+    db.delete_state64_from(rs.oldStateId64Start);
     auto dk { db.delete_consensus_from((newlength + 1).nonzero_assert()) };
 
     // write balances to db
@@ -950,7 +951,7 @@ auto State::append_mined_block(const Block& b) -> StateUpdateWithAPIBlocks
     if (chainlength() + 1 != b.height)
         throw Error(EBADHEIGHT);
 
-    const auto nextStateId { db.next_state_id() };
+    const auto nextAccountAndAssetId { db.next_id32() };
     const auto nextHistoryId { db.next_history_id() };
     const auto nextAccountId { db.next_account_id() };
 
@@ -977,7 +978,7 @@ auto State::append_mined_block(const Block& b) -> StateUpdateWithAPIBlocks
         .newTxIds { e.move_new_txids() },
         .newHistoryOffset { nextHistoryId },
         .newAccountOffset { nextAccountId },
-        .nextStateId = nextStateId });
+        .nextStateId = nextAccountAndAssetId });
     ul.unlock();
 
     dbCacheValidity += 1;

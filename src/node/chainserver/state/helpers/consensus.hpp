@@ -47,7 +47,7 @@ struct Chainstate {
         TransactionIds&& newTxIds;
         HistoryId newHistoryOffset;
         AccountId newAccountOffset;
-        StateId nextStateId;
+        StateId32 nextStateId;
     };
     Chainstate(const ChainDB& db, BatchRegistry& br);
 

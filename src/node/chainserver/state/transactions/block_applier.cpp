@@ -339,6 +339,18 @@ public:
     }
 };
 
+class AccountAndAssetIncrementer {
+    StateId32 next;
+
+public:
+    AccountAndAssetIncrementer(StateId32 next)
+        : next(next)
+    {
+    }
+    AssetId next_asset_id_inc() { return AssetId((next++).value()); }
+    AccountId next_account_id_inc() { return AccountId((next++).value()); }
+    AccountId next_account_id_state() const { return AccountId(next.value()); }
+};
 class BalanceChecker {
 
     class FundFlow {
@@ -390,43 +402,33 @@ class BalanceChecker {
     };
 
     struct Accounts {
-        Accounts(AccountId nextAccountId, const Body& b)
-            : beginNew(nextAccountId)
-            , end(beginNew + b.newAddresses.size())
+        Accounts(AccountAndAssetIncrementer& inc, const Body& b)
+            : beginNew(inc.next_account_id_state())
+            , beginInvalid(beginNew + b.newAddresses.size())
         {
-            size_t n { end.value() - beginNew.value() };
+            size_t n { b.newAddresses.size() };
             newAccounts.reserve(n);
             for (size_t i = 0; i < n; ++i)
-                newAccounts.push_back({ b.newAddresses[i], (beginNew + i).validate_throw(end) });
+                newAccounts.push_back({ b.newAddresses[i], (inc.next_account_id_inc()).validate_throw(beginInvalid) });
         }
         [[nodiscard]] AccountData& operator[](AccountId id)
         {
-            auto vid { id.validate_throw(end) };
+            auto vid { id.validate_throw(beginInvalid) };
             if (id < beginNew) {
                 return oldAccounts.try_emplace(vid, vid).first->second;
             } else {
-                assert(id < end);
+                assert(id < beginInvalid);
                 return newAccounts[vid.value() - beginNew.value()];
             }
         }
         auto& new_accounts() const { return newAccounts; }
         auto& old_accounts() { return oldAccounts; }
-        const AccountId beginNew;
-        const AccountId end;
 
     private:
+        AccountId beginNew;
+        AccountId beginInvalid;
         std::vector<AccountData> newAccounts;
         std::map<ValidAccountId, OldAccountData> oldAccounts;
-    };
-    class StateIdIncrementer {
-        StateId next;
-
-    public:
-        StateIdIncrementer(StateId next)
-            : next(next)
-        {
-        }
-        auto get_next() { return next++; }
     };
 
 protected:
@@ -454,12 +456,11 @@ public:
             .toAddress { a.address }
         };
     }
-    BalanceChecker(AccountId nextAccountId, StateId nextStateId, const Body& b, NonzeroHeight height)
+    BalanceChecker(AccountAndAssetIncrementer& inc, const Body& b, NonzeroHeight height)
         : height(height)
         , pinFloor(height.pin_floor())
         , b(b)
-        , accounts(nextAccountId, b)
-        , stateId(nextStateId)
+        , accounts(inc, b)
         , reward(register_reward(b, accounts, height))
     {
     }
@@ -570,10 +571,10 @@ public:
         tokenSections.push_back(std::move(ts));
     }
 
-    void register_token_creation(const AssetCreation& tc, Height)
+    void register_asset_creation(const AssetCreation& tc, Height)
     {
         auto s { process_signer(tc) };
-        tokenCreations.push_back(block_apply::AssetCreation::Internal {
+        assetCreations.push_back(block_apply::AssetCreation::Internal {
             s,
             // index,
             {
@@ -606,9 +607,9 @@ public:
     {
         return b.newAddresses[i];
     } // OK
-    auto& token_creations() const
+    auto& asset_creations() const
     {
-        return tokenCreations;
+        return assetCreations;
     }
     const auto& get_token_sections() const
     {
@@ -624,13 +625,12 @@ private:
     const PinFloor pinFloor;
     const Body& b;
     Accounts accounts;
-    StateIdIncrementer stateId;
     RewardInternal reward;
 
     std::vector<block_apply::WartTransfer::Internal> wartTransfers;
     std::vector<block_apply::Cancelation::Internal> cancelations;
     std::vector<TokenSectionInternal> tokenSections;
-    std::vector<block_apply::AssetCreation::Internal> tokenCreations;
+    std::vector<block_apply::AssetCreation::Internal> assetCreations;
     Wart totalfee { Wart::zero() };
 };
 
@@ -843,6 +843,7 @@ private:
     // constants
     const ChainDB& db;
     const Headerchain& hc;
+    AccountAndAssetIncrementer idIncrementer;
     decltype(BlockApplier::Preparer::baseTxIds)& baseTxIds;
     const decltype(BlockApplier::Preparer::newTxIds)& newTxIds;
     const BlockHash& blockhash;
@@ -885,40 +886,39 @@ private:
             balanceChecker.register_token_section(t);
     }
 
-    void register_token_creations()
+    void register_asset_creations()
     {
         for (size_t i { 0 }; i < body.asset_creations().size(); ++i)
-            balanceChecker.register_token_creation(body.asset_creations()[i], height);
+            balanceChecker.register_asset_creation(body.asset_creations()[i], height);
 
-        const auto beginNewTokenId = db.next_asset_id(); // they start from this index
-        auto& tokenCreations { balanceChecker.token_creations() };
-        for (size_t i { 0 }; i < tokenCreations.size(); ++i) {
-            auto& tc { tokenCreations[i] };
-            auto assetId { beginNewTokenId + i };
-            const auto verified { tc.verify(txVerifier) };
+        auto& assetCreations { balanceChecker.asset_creations() };
+        for (size_t i { 0 }; i < assetCreations.size(); ++i) {
+            auto& ac { assetCreations[i] };
+            auto assetId { idIncrementer.next_asset_id_inc() };
+            const auto verified { ac.verify(txVerifier) };
             auto& ref { history.push_asset_creation(verified, assetId) };
             insertAssetCreations.push_back(chain_db::AssetData {
                 .id { assetId },
                 .height { height },
-                .ownerAccountId { tc.origin.id },
-                .supply { tc.supply() },
+                .ownerAccountId { ac.origin.id },
+                .supply { ac.supply() },
                 .groupId { assetId.token_id() },
                 .parentId { TokenId { 0 } },
-                .name { tc.asset_name() },
+                .name { ac.asset_name() },
                 .hash { AssetHash(TxHash(verified.hash)) },
                 .data {} });
-            api.assetCreations.push_back({ make_signed_info(verified, ref.historyId), { .name { tc.asset_name() }, .supply { tc.supply() }, .assetId { assetId } } });
+            api.assetCreations.push_back({ make_signed_info(verified, ref.historyId), { .name { ac.asset_name() }, .supply { ac.supply() }, .assetId { assetId } } });
         }
     }
 
-    auto validate_new_balance(const AccountToken& at, const auto& tokenFlow)
+    auto adjust_new_balance(const AccountToken& at, const auto& tokenFlow)
     {
         if (tokenFlow.out() > Funds_uint64::zero()) // We do not allow resend of newly inserted balance
             throw Error(EBALANCE); // insufficient balance
         Funds_uint64 balance { tokenFlow.in() };
         insertBalances.push_back({ at, balance });
     }
-    auto validate_existing_balance(const AccountToken& at, const auto& tokenFlow, BalanceId balanceId, Funds_uint64 balance)
+    auto adjust_existing_balance(const AccountToken& at, const auto& tokenFlow, BalanceId balanceId, Funds_uint64 balance)
     {
         rg.register_balance(balanceId, balance);
         // check that balances are correct
@@ -947,9 +947,9 @@ private:
             for (auto& [tokenId, tokenFlow] : accountData.token_flow()) {
                 AccountToken at { accountId, tokenId };
                 if (auto [balanceId, balance] { db.get_token_balance_recursive(accountId, tokenId) }; balanceId)
-                    validate_existing_balance(at, tokenFlow, *balanceId, balance);
+                    adjust_existing_balance(at, tokenFlow, *balanceId, balance);
                 else
-                    validate_new_balance(at, tokenFlow);
+                    adjust_new_balance(at, tokenFlow);
             }
         }
 
@@ -959,7 +959,7 @@ private:
             for (auto& [tokenId, tokenFlow] : a.token_flow()) {
                 if (!tokenFlow.in().is_zero())
                     referred = true;
-                validate_new_balance({ a.id, tokenId }, tokenFlow);
+                adjust_new_balance({ a.id, tokenId }, tokenFlow);
             }
             if (!referred)
                 throw Error(EIDPOLICY); // id was not referred
@@ -1207,13 +1207,14 @@ public:
         : Preparation(preparer.db)
         , db(preparer.db)
         , hc(preparer.hc)
+        , idIncrementer(db.next_id32())
         , baseTxIds(preparer.baseTxIds)
         , newTxIds(preparer.newTxIds)
         , blockhash(hash)
         , body { b.body }
         , height(b.height)
         , reward(b.body.reward)
-        , balanceChecker(AccountId(db.next_account_id()), StateId(db.next_state_id()), b.body, height)
+        , balanceChecker(idIncrementer, b.body, height)
         , history(historyEntries, db.next_history_id())
         , txVerifier(TransactionVerifier { hc, height,
               std::function<bool(TransactionId)>(
@@ -1227,7 +1228,7 @@ public:
         register_wart_transfers(); // WART transfer section
         register_cancelations();
         register_token_sections();
-        register_token_creations(); // token creation section
+        register_asset_creations(); // token creation section
 
         /// Process block sections
         process_actions();
@@ -1285,9 +1286,9 @@ api::CompleteBlock BlockApplier::apply_block(const Block& block, const BlockHash
             db.set_pool_liquidity(d.assetId, d.poolAfterMatch);
         }
 
-        // insert token creations
+        // insert asset creations
         for (auto& tc : prepared.insertAssetCreations)
-            db.insert_new_token(tc);
+            db.insert_new_asset(tc);
 
         // insert new balances
         for (auto& [at, bal] : prepared.insertBalances) {

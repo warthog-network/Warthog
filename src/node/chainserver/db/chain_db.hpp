@@ -101,9 +101,10 @@ public:
     };
     ChainDB(const std::string& path);
     [[nodiscard]] ChainDBTransaction transaction();
-    void insert_account(const AddressView address, AccountId verifyNextStateId);
+    void insert_account(const AddressView address, AccountId verifyNextId);
 
-    void delete_state_from(StateId fromStateId);
+    void delete_state32_from(StateId32 fromStateId);
+    void delete_state64_from(StateId64 fromStateId);
     // void setStateBalance(AccountId accountId, Funds balance);
     void insert_consensus(NonzeroHeight height, BlockId blockId, HistoryId historyCursor, uint64_t stateId);
 
@@ -186,7 +187,7 @@ public:
 
     /////////////////////
     // Token functions
-    void insert_new_token(const chain_db::AssetData&);
+    void insert_new_asset(const chain_db::AssetData&);
     [[nodiscard]] std::optional<NonzeroHeight> get_latest_fork_height(TokenId, Height);
 
     [[nodiscard]] std::optional<Balance> get_token_balance(BalanceId id) const;
@@ -240,9 +241,8 @@ public:
     {
         return cache.nextHistoryId;
     }
-    auto next_account_id() const { return cache.nextAccountId; }
-    auto next_asset_id() const { return cache.nextAssetId; }
-    StateId next_state_id() const { return cache.nextStateId; }
+    auto next_id32() const { return cache.stateId32; }
+    auto next_id64() const { return cache.stateId64; }
 
     [[nodiscard]] std::pair<std::optional<BalanceId>, Funds_uint64> get_token_balance_recursive(AccountId aid, TokenId tid, api::AssetLookupTrace* trace = nullptr) const;
     [[nodiscard]] std::pair<std::optional<BalanceId>, Wart> get_wart_balance(AccountId aid) const;
@@ -263,9 +263,8 @@ private:
         Database(const std::string& path);
     } db;
     struct Cache {
-        AccountId nextAccountId;
-        AssetId nextAssetId;
-        StateId nextStateId; // incremental id for tables other than Accounts and Assets
+        StateId32 stateId32; // incremental id for tables other than Accounts and Assets
+        StateId64 stateId64; // incremental id for tables other than Accounts and Assets
         HistoryId nextHistoryId;
         DeletionKey deletionKey;
         static Cache init(SQLite::Database& db);
@@ -312,19 +311,19 @@ private:
     Statement stmtTokenForkBalanceInsert;
     mutable Statement stmtTokenForkBalanceEntryExists;
     mutable Statement stmtTokenForkBalanceSelect;
-    Statement stmtTokenForkBalancePrune;
+    Statement stmtTokenForkBalanceDeleteFrom;
 
     // Token statements
     Statement stmtAssetInsert;
-    Statement stmtTokenPrune;
-    mutable Statement stmtTokenSelectForkHeight;
+    Statement stmtAssetDeleteFrom;
+    mutable Statement stmtAssetSelectForkHeight;
     mutable Statement stmtAssetLookup;
-    mutable Statement stmtTokenLookupByHash;
+    mutable Statement stmtAssetLookupByHash;
     mutable Statement stmtSelectBalanceId;
 
     // Balance statements
     Statement stmtTokenInsertBalance;
-    Statement stmtBalancePrune;
+    Statement stmtBalanceDeleteFrom;
     mutable Statement stmtTokenSelectBalance;
     mutable Statement stmtAccountSelectAssets;
     Statement stmtTokenUpdateBalance;
