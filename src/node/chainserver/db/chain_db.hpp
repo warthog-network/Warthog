@@ -80,12 +80,25 @@ struct BlockUndoData {
 };
 
 namespace chain_db {
-}
 
-namespace chain_db {
+using Statement = sqlite::Statement;
+template<typename T>
+class StateIdStatements;
+
+template<typename T, typename ...R>
+class StateIdStatements<StateIdBase<T,R...>>
+{
+    template<typename S>
+    using statement_wrapper = Statement;
+    StateIdStatements(SQLite::Database& db){
+
+    }; 
+    std::tuple<statement_wrapper<R>...> deleteStatements;
+};
+
+
 class ChainDB {
 private:
-    using Statement = sqlite::Statement;
     friend class ChainDBTransaction;
     // ids to save additional information in tables
     static constexpr int64_t WORKSUMID = -1;
@@ -108,7 +121,7 @@ public:
     // void setStateBalance(AccountId accountId, Funds balance);
     void insert_consensus(NonzeroHeight height, BlockId blockId, HistoryId historyCursor, uint64_t stateId);
 
-    std::tuple<std::vector<Batch>, HistoryHeights, AccountHeights>
+    std::tuple<std::vector<Batch>, HistoryHeights, State32Heights>
     getConsensusHeaders() const;
 
     // Consensus Functions

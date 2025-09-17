@@ -12,13 +12,13 @@ Chainstate::Chainstate(const ChainDB& db, BatchRegistry& br)
 }
 
 Chainstate::Chainstate(
-    std::tuple<std::vector<Batch>, HistoryHeights, AccountHeights> init,
+    std::tuple<std::vector<Batch>, HistoryHeights, State32Heights> init,
     const ChainDB& db,
     BatchRegistry& br)
     : db(db)
     , headerchain(std::move(std::get<0>(init)), br)
     , historyOffsets(std::move(std::get<1>(init)))
-    , accountOffsets(std::move(std::get<2>(init)))
+    , state32Offsets(std::move(std::get<2>(init)))
     , chainTxIds(db.fetch_tx_ids(length()))
 {
     assert(this->historyOffsets.size() == headerchain.length());
@@ -28,7 +28,7 @@ Chainstate::Chainstate(
 void Chainstate::assert_equal_length()
 {
     assert(historyOffsets.size() == headerchain.length());
-    assert(accountOffsets.size() == headerchain.length());
+    assert(state32Offsets.size() == headerchain.length());
 }
 
 void Chainstate::fork(Chainstate::ForkData&& fd)
@@ -43,8 +43,8 @@ void Chainstate::fork(Chainstate::ForkData&& fd)
     headerchain = std::move(fd.stage);
     historyOffsets.shrink(fd.rollbackResult.shrink.length);
     historyOffsets.append_vector(fd.appendResult.newHistoryOffsets);
-    accountOffsets.shrink(fd.rollbackResult.shrink.length);
-    accountOffsets.append_vector(fd.appendResult.newAccountOffsets);
+    state32Offsets.shrink(fd.rollbackResult.shrink.length);
+    state32Offsets.append_vector(fd.appendResult.state32Offsets);
     assert_equal_length();
 
     //////////////////////////////
@@ -101,7 +101,7 @@ auto Chainstate::rollback(const RollbackResult& rb) -> HeaderchainRollback
     // adapt header chain and offsets
     headerchain.shrink(rb.shrink.length);
     historyOffsets.shrink(rb.shrink.length);
-    accountOffsets.shrink(rb.shrink.length);
+    state32Offsets.shrink(rb.shrink.length);
     assert_equal_length();
 
     // set transaction ids
@@ -158,7 +158,7 @@ auto Chainstate::append(AppendMulti ad) -> HeaderchainAppend
     // adapt header chain and offsets
     headerchain = std::move(ad.patchedChain);
     historyOffsets.append_vector(ad.appendResult.newHistoryOffsets);
-    accountOffsets.append_vector(ad.appendResult.newAccountOffsets);
+    state32Offsets.append_vector(ad.appendResult.state32Offsets);
     assert_equal_length();
 
     //////////////////////////////
@@ -192,7 +192,7 @@ auto Chainstate::append(AppendSingle d) -> HeaderchainAppend
     // adapt header chain and offsets
     headerchain.append(d.prepared, *global().batchRegistry);
     historyOffsets.append(d.newHistoryOffset);
-    accountOffsets.append(d.newAccountOffset);
+    state32Offsets.append(d.newAccountOffset);
     assert_equal_length();
 
     //////////////////////////////

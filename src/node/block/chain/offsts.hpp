@@ -2,6 +2,7 @@
 #include "block/body/account_id.hpp"
 #include "block/chain/height.hpp"
 #include "block/chain/history/index.hpp"
+#include "chainserver/db/ids.hpp"
 #include <algorithm>
 
 template <typename HeightType, typename T>
@@ -42,4 +43,4 @@ protected:
     std::vector<T> data;
 };
 using HistoryHeights = Heights<NonzeroHeight, HistoryId>;
-using AccountHeights = Heights<AccountHeight, AccountId>;
+using State32Heights = Heights<State32Height, StateId32>;

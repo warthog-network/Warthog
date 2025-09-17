@@ -22,7 +22,7 @@ ApplyStageTransaction::ApplyStageTransaction(const State& s, ChainDBTransaction&
     chainserver::BlockApplier ba { ccs.db, ccs.stage, baseTxIds, true };
     for (NonzeroHeight h = (chainlength + 1).nonzero_assert(); h <= ccs.stage.length(); ++h) {
         auto historyId { ccs.db.next_history_id() };
-        AccountId accountId { ccs.db.next_account_id() };
+        auto state32Id { ccs.db.next_id32() };
         auto hash { ccs.stage.hash_at(h) };
         auto p = ccs.db.get_block(hash);
         if (!p) {
@@ -48,7 +48,7 @@ ApplyStageTransaction::ApplyStageTransaction(const State& s, ChainDBTransaction&
             return { e, h };
         }
         res.newHistoryOffsets.push_back(historyId);
-        res.newAccountOffsets.push_back(accountId);
+        res.state32Offsets.push_back(state32Id);
         chainlength = h;
     }
     res.newTxIds = ba.move_new_txids();

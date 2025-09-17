@@ -23,7 +23,7 @@ struct RollbackResult {
 struct AppendBlocksResult {
     std::map<AccountId, Wart> wartUpdates;
     std::vector<HistoryId> newHistoryOffsets;
-    std::vector<AccountId> newAccountOffsets;
+    std::vector<StateId32> state32Offsets;
     TransactionIds newTxIds;
 };
 
@@ -85,15 +85,15 @@ struct Chainstate {
     {
         return historyOffsets.height(historyIndex);
     }
-    AccountHeight account_height(AccountId id) const
+    State32Height account_height(AccountId id) const
     {
-        return accountOffsets.height(id);
+        return state32Offsets.height(id);
     }
 
 protected:
     TxHash insert_tx_internal(const TransactionMessage&, TxHeight, TxHash, WartCache, const Address fromAddr);
     void prune_txids();
-    Chainstate(std::tuple<std::vector<Batch>, HistoryHeights, AccountHeights> init,
+    Chainstate(std::tuple<std::vector<Batch>, HistoryHeights, State32Heights> init,
         const ChainDB& db, BatchRegistry& br);
 
 private:
@@ -102,7 +102,7 @@ private:
     void assert_equal_length();
     ExtendableHeaderchain headerchain;
     HistoryHeights historyOffsets;
-    AccountHeights accountOffsets;
+    State32Heights state32Offsets;
     TransactionIds chainTxIds; // replay protection
     mempool::Mempool _mempool;
 };
