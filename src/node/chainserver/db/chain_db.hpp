@@ -82,20 +82,31 @@ struct BlockUndoData {
 namespace chain_db {
 
 using Statement = sqlite::Statement;
-template<typename T>
-class StateIdStatements;
+template <typename T>
+class StateIdStatementsWrapper;
 
-template<typename T, typename ...R>
-class StateIdStatements<StateIdBase<T,R...>>
-{
-    template<typename S>
+template <typename T, typename... R>
+class StateIdStatementsWrapper<StateIdBase<T, R...>> {
+    template <typename S>
+    static Statement delete_from_stmt(SQLite::Database& db);
+
+    template <typename S>
     using statement_wrapper = Statement;
-    StateIdStatements(SQLite::Database& db){
-
-    }; 
     std::tuple<statement_wrapper<R>...> deleteStatements;
+
+public:
+    StateIdStatementsWrapper(SQLite::Database& db)
+        : deleteStatements(delete_from_stmt<R>(db)...)
+    {
+    }
+    void delete_from(const T& t)
+    {
+        std::apply([&](auto&... s) { (s.run(t), ...); }, deleteStatements);
+    }
 };
 
+template <typename T>
+using StateIdStatements = StateIdStatementsWrapper<typename T::parent_t>;
 
 class ChainDB {
 private:
@@ -119,7 +130,7 @@ public:
     void delete_state32_from(StateId32 fromStateId);
     void delete_state64_from(StateId64 fromStateId);
     // void setStateBalance(AccountId accountId, Funds balance);
-    void insert_consensus(NonzeroHeight height, BlockId blockId, HistoryId historyCursor, uint64_t stateId);
+    void insert_consensus(NonzeroHeight height, BlockId blockId, HistoryId historyCursor, StateId32 stateId);
 
     std::tuple<std::vector<Batch>, HistoryHeights, State32Heights>
     getConsensusHeaders() const;
@@ -282,6 +293,8 @@ private:
         DeletionKey deletionKey;
         static Cache init(SQLite::Database& db);
     } cache;
+    StateIdStatements<StateId32> state32Statements;
+    StateIdStatements<StateId64> state64Statements;
     Statement stmtBlockInsert;
     Statement stmtUndoSet;
     mutable Statement stmtBlockGetUndo;
@@ -324,11 +337,9 @@ private:
     Statement stmtTokenForkBalanceInsert;
     mutable Statement stmtTokenForkBalanceEntryExists;
     mutable Statement stmtTokenForkBalanceSelect;
-    Statement stmtTokenForkBalanceDeleteFrom;
 
-    // Token statements
+    // Asset statements
     Statement stmtAssetInsert;
-    Statement stmtAssetDeleteFrom;
     mutable Statement stmtAssetSelectForkHeight;
     mutable Statement stmtAssetLookup;
     mutable Statement stmtAssetLookupByHash;
@@ -336,10 +347,10 @@ private:
 
     // Balance statements
     Statement stmtTokenInsertBalance;
-    Statement stmtBalanceDeleteFrom;
     mutable Statement stmtTokenSelectBalance;
     mutable Statement stmtAccountSelectAssets;
-    Statement stmtTokenUpdateBalance;
+    Statement stmtTokenUpdateBalanceById;
+    Statement stmtTokenUpdateBalanceByAccountToken;
     mutable Statement stmtTokenSelectRichlist;
 
     // Consensus table functions
@@ -363,7 +374,6 @@ private:
     Statement stmtDeleteGCRefs;
 
     Statement stmtAccountsInsert;
-    Statement stmtAccountsDeleteFrom;
     Statement stmtBadblockInsert;
     mutable Statement stmtBadblockGet;
     mutable Statement stmtAccountsLookup;

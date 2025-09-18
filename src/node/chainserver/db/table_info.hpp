@@ -4,22 +4,27 @@
 #include "block/chain/history/index.hpp"
 #include "defi/token/id.hpp"
 
-#define BALANCES_TABLE "Balances"
 #define BLOCKS_TABLE "Blocks"
-#define ACCOUNTHISTORY_TABLE "AccountHistory"
-#define SELLORDERS_TABLE "SellOrders"
-#define BUYORDERS_TABLE "BuyOrders"
-#define CANCELED_TABLE "Canceled"
-#define POOLS_TABLE "Pools"
-#define PEG_TABLE "Pegs"
-#define TOKENFORKBALANCES_TABLE "TokenForkBalances"
-#define ASSETS_TABLE "Assets"
-#define BALANCES_TABLE "Balances"
 #define CONSENSUS_TABLE "Consensus"
-#define ACCOUNTS_TABLE "Accounts"
 #define BADBLOCKS_TABLE "Badblocks"
 #define DELETESCHEDULE_TABLE "Deleteschedule"
 #define FILLLINK_TABLE "FillLink"
+
+// tables that are pruned with state32, using it as as globally unique id
+#define ASSETS_TABLE "Assets"
+#define ACCOUNTS_TABLE "Accounts"
+
+// tables that are pruned with state64, using it as as globally unique id
+#define BALANCES_TABLE "Balances"
+#define TOKENFORKBALANCES_TABLE "TokenForkBalances"
+#define SELLORDERS_TABLE "SellOrders"
+#define BUYORDERS_TABLE "BuyOrders"
+#define POOLS_TABLE "Pools"
+#define CANCELED_TABLE "Canceled"
+#define PEG_TABLE "Pegs"
+
+// tables that are pruned with historyId as globally unique id
+#define ACCOUNTHISTORY_TABLE "AccountHistory"
 #define HISTORY_TABLE "History"
 
 namespace table_info {
@@ -46,6 +51,11 @@ template <>
 struct TableName<HistoryId> {
     static constexpr const char name[] = HISTORY_TABLE;
 };
+template <>
+struct TableName<TokenForkBalanceId> {
+    static constexpr const char name[] = TOKENFORKBALANCES_TABLE;
+};
+
 template <typename T>
 [[nodiscard]] constexpr auto table_name()
 {

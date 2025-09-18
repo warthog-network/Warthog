@@ -16,7 +16,7 @@ struct BalanceIdFunds {
     {
     }
     static size_t byte_size() { return BalanceId::byte_size() + Funds_uint64::byte_size(); }
-    void serialize(Serializer auto& s)
+    void serialize(Serializer auto&& s) const
     {
         s << balanceId << funds;
     }

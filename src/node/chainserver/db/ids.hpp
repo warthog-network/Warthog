@@ -15,15 +15,21 @@ struct StateIdBase : public UInt64WithOperators<self_t> {
         : UInt64WithOperators<self_t>(t.value())
     {
     }
+    template <typename T>
+    requires(std::is_same_v<T, Ids> || ...)
+    operator T() const
+    {
+        return T(this->value());
+    }
     [[nodiscard]] static self_t max_component(auto& generator)
     {
-        StateIdBase v(0);
-        ([&](auto& id, auto&) {
-            if (v.value() < id.value())
-                v = StateIdBase(id);
-        }(Ids(generator)),
+        self_t v(0);
+        ([&](auto&& id) {
+            if (uint64_t(v.value()) < uint64_t(id.value()))
+                v = self_t(uint64_t(id.value()));
+        }(static_cast<Ids>(generator)),
             ...);
-        return self_t(v);
+        return v;
     }
 };
 
@@ -37,7 +43,7 @@ class StateId32 : public StateIdBase<StateId32, AccountId, AssetId> {
 };
 
 // This state id can grow over 2^32 in the long run.
-class StateId64 : public StateIdBase<StateId64, BalanceId> {
+class StateId64 : public StateIdBase<StateId64, BalanceId, TokenForkBalanceId> {
 public:
     using parent_t::parent_t;
 };

@@ -1300,7 +1300,7 @@ api::CompleteBlock BlockApplier::apply_block(const Block& block, const BlockHash
         db.set_block_undo(blockId, prepared.rg.serialize());
 
         // write consensus data
-        db.insert_consensus(block.height, blockId, db.next_history_id(), prepared.rg.next_state_id());
+        db.insert_consensus(block.height, blockId, db.next_history_id(), prepared.rg.next_state_id32());
 
         prepared.historyEntries.write(db);
         return api::CompleteBlock(api::Block(block.header, block.height, 0, std::move(prepared.api)));

@@ -758,8 +758,8 @@ public:
     const StateId32 oldStateId32Start;
     const StateId64 oldStateId64Start;
 
-    std::map<AccountToken, Funds_uint64> balanceMap;
-    std::vector<WartTransferMessage> toMempool;
+    std::map<BalanceId, Funds_uint64> balanceUpdates;
+    std::vector<TransactionMessage> toMempool;
     std::optional<BalanceId> oldBalanceStart;
 
 private:
@@ -811,7 +811,7 @@ public:
                     if (!b.has_value())
                         throw std::runtime_error("Database corrupted, cannot roll back");
                     AccountToken at { b->accountId, b->tokenId };
-                    balanceMap.try_emplace(at, bal);
+                    balanceUpdates.try_emplace(id, bal);
                 });
         } catch (const Error& e) {
             throw std::runtime_error(
@@ -848,13 +848,12 @@ State::rollback(const Height newlength) const
     auto dk { db.delete_consensus_from((newlength + 1).nonzero_assert()) };
 
     // write balances to db
-    for (auto& p : rs.balanceMap) {
+    for (auto& p : rs.balanceUpdates)
         db.set_balance(p.first, p.second);
-    }
     return chainserver::RollbackResult {
         .shrink { newlength, oldlength - newlength },
         .toMempool { std::move(rs.toMempool) },
-        .wartUpdates { std::move(rs.balanceMap) },
+        .wartUpdates { std::move(rs.balanceUpdates) },
         .chainTxIds { db.fetch_tx_ids(newlength) },
         .deletionKey { dk }
     };
@@ -953,7 +952,7 @@ auto State::append_mined_block(const Block& b) -> StateUpdateWithAPIBlocks
 
     const auto nextAccountAndAssetId { db.next_id32() };
     const auto nextHistoryId { db.next_history_id() };
-    const auto nextAccountId { db.next_account_id() };
+    const auto nextId32 { db.next_id32() };
 
     // do db transaction for new block
     auto transaction = db.transaction();
@@ -977,7 +976,7 @@ auto State::append_mined_block(const Block& b) -> StateUpdateWithAPIBlocks
         .prepared { prepared.value() },
         .newTxIds { e.move_new_txids() },
         .newHistoryOffset { nextHistoryId },
-        .newAccountOffset { nextAccountId },
+        .newAccountOffset { nextId32 },
         .nextStateId = nextAccountAndAssetId });
     ul.unlock();
 
@@ -1021,7 +1020,7 @@ std::optional<TokenId> State::normalize(api::TokenIdOrSpec token) const
         auto o { db.lookup_asset(h.assetHash) };
         if (o) {
             auto tid { o->id.token_id(h.poolLiquidity) };
-            if (db.next_asset_id().token_id() > tid) {
+            if (static_cast<AssetId>(db.next_id32()).token_id() > tid) {
                 // tokenId does exist in database
                 return tid;
             }

@@ -63,7 +63,7 @@ void Chainstate::fork(Chainstate::ForkData&& fd)
     WartCache wartCache(db);
     for (auto& tx : fd.rollbackResult.toMempool) {
         AccountId fromId { tx.from_id() };
-        if (fromId >= db.next_account_id())
+        if (fromId >= db.next_id32())
             continue;
 
         PinHeight ph { tx.pin_height() };

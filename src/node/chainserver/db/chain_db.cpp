@@ -21,6 +21,14 @@
 using namespace std::string_literals;
 
 namespace chain_db {
+
+template <typename T, typename... R>
+template <typename S>
+Statement StateIdStatementsWrapper<StateIdBase<T, R...>>::delete_from_stmt(SQLite::Database& db)
+{
+    return { db, "DELETE FROM " + std::string(table_info::table_name<S>()) + " WHERE id >= ?" };
+}
+
 ChainDB::Database::Database(const std::string& path)
     : SQLite::Database([&]() -> auto& {
     spdlog::debug("Opening chain database \"{}\"", path);
@@ -227,9 +235,8 @@ ChainDB::Cache ChainDB::Cache::init(SQLite::Database& db)
     return {
         .stateId32 { StateId32::max_component(nextId) },
         .stateId64 { StateId64::max_component(nextId) },
-        .nextHistoryId { nextId },
+        .nextHistoryId { static_cast<HistoryId>(nextId) },
         .deletionKey { 2 }
-
     };
 }
 
@@ -241,6 +248,8 @@ ChainDB::ChainDB(const std::string& path)
     : fl(path)
     , db(path)
     , cache(Cache::init(db))
+    , state32Statements(db)
+    , state64Statements(db)
     , stmtBlockInsert(db, "INSERT INTO `" BLOCKS_TABLE "` ( `height`, `header`, `body` "
                           ", `hash`) VALUES (?,?,?,?)")
     , stmtUndoSet(db, "UPDATE `" BLOCKS_TABLE " SET `undo`=? WHERE `ROWID`=?")
@@ -284,19 +293,16 @@ ChainDB::ChainDB(const std::string& path)
                                           "AND height=?")
     , stmtTokenForkBalanceSelect(db, "SELECT height, balance FROM `" TOKENFORKBALANCES_TABLE "` WHERE token_id=? height>=? ORDER BY height ASC LIMIT 1")
 
-    , stmtTokenForkBalanceDeleteFrom(db, "DELETE FROM `" TOKENFORKBALANCES_TABLE "` WHERE id>=?")
-
     , stmtAssetInsert(db, "INSERT INTO `" ASSETS_TABLE "` ( `id`, `hash, `name`, `precision`, `height`, `owner_account_id`, total_supply, group_id, parent_id, data) VALUES (?,?,?,?,?,?,?,?,?,?)")
-    , stmtAssetDeleteFrom(db, "DELETE FROM `ASSETS_TABLE"` WHERE id>=?")
     , stmtAssetSelectForkHeight(db, "SELECT height FROM `" ASSETS_TABLE "` WHERE parent_id=? AND height>=? ORDER BY height DESC LIMIT 1")
     , stmtAssetLookup(db, "SELECT (id, hash, name, precision, height, owner_account_id, total_supply, group_id, parent_id) FROM `" ASSETS_TABLE "` WHERE `id`=?")
     , stmtAssetLookupByHash(db, "SELECT (id, hash, name, precision, height, owner_account_id, total_supply, group_id, parent_id) FROM `" ASSETS_TABLE "` WHERE `hash`=?")
     , stmtSelectBalanceId(db, "SELECT `account_id`, `token_id`, `balance` FROM `" BALANCES_TABLE "` WHERE `id`=?")
     , stmtTokenInsertBalance(db, "INSERT INTO `" BALANCES_TABLE "` ( id, `token_id`, `account_id`, `balance`) VALUES (?,?,?,?)")
-    , stmtBalanceDeleteFrom(db, "DELETE FROM `" BALANCES_TABLE "` WHERE id>=?")
     , stmtTokenSelectBalance(db, "SELECT `id`, `balance` FROM `" BALANCES_TABLE "` WHERE `token_id`=? AND `account_id`=?")
     , stmtAccountSelectAssets(db, "SELECT `token_id`, `balance` FROM `" BALANCES_TABLE "` WHERE `account_id`=? LIMIT ?")
-    , stmtTokenUpdateBalance(db, "UPDATE `" BALANCES_TABLE "` SET `balance`=? WHERE `id`=?")
+    , stmtTokenUpdateBalanceById(db, "UPDATE `" BALANCES_TABLE "` SET `balance`=? WHERE `id`=?")
+    , stmtTokenUpdateBalanceByAccountToken(db, "UPDATE `" BALANCES_TABLE "` SET `balance`=? WHERE `id`=?")
     , stmtTokenSelectRichlist(db, "SELECT `address`, `balance` FROM `" BALANCES_TABLE "` b JOIN `" ACCOUNTS_TABLE "` a on a.id = b.account_id WHERE `token_id`=? ORDER BY `balance` DESC LIMIT ?")
     , stmtConsensusHeaders(db, "SELECT c.height, c.history_cursor, c.account_cursor, b.header "
                                "FROM `" BLOCKS_TABLE "` b JOIN `" CONSENSUS_TABLE "` c ON "
@@ -321,7 +327,7 @@ ChainDB::ChainDB(const std::string& path)
     , stmtScheduleInsert(db, "INSERT INTO `" DELETESCHEDULE_TABLE "` (`block_id`,`deletion_key`) VALUES (?,?)")
     , stmtScheduleBlock(db, "UPDATE `" DELETESCHEDULE_TABLE "` SET `deletion_key`=? WHERE `block_id` = ?")
     , stmtScheduleProtected(db, "UPDATE `" DELETESCHEDULE_TABLE "` SET `deletion_key`=? WHERE `deletion_key` = 0")
-    , stmtScheduleDelete(db, "DELETE FROM `"  DELETESCHEDULE_TABLE "` WHERE `block_id` = ?")
+    , stmtScheduleDelete(db, "DELETE FROM `" DELETESCHEDULE_TABLE "` WHERE `block_id` = ?")
     , stmtScheduleConsensus(db, "REPLACE INTO `" DELETESCHEDULE_TABLE "` (block_id,deletion_key) SELECT block_id, ? FROM `" CONSENSUS_TABLE "` WHERE height >= ?")
 
     , stmtDeleteGCBlocks(
@@ -331,7 +337,6 @@ ChainDB::ChainDB(const std::string& path)
 
     , stmtAccountsInsert(db, "INSERT INTO `" ACCOUNTS_TABLE "` ( `id`, `address`"
                              ") VALUES (?,?)")
-    , stmtAccountsDeleteFrom(db, "DELETE FROM `" ACCOUNTS_TABLE "` WHERE `id`>=?")
 
     , stmtBadblockInsert(
           db, "INSERT INTO `" BADBLOCKS_TABLE "` (`height`, `header`) VALUES (?,?)")
@@ -364,7 +369,6 @@ ChainDB::ChainDB(const std::string& path)
                           "ah.`account_id`=? AND h.id<? ORDER BY h.id DESC LIMIT 100")
     , stmtGetDBSize(db, "SELECT page_count * page_size FROM pragma_page_count(), pragma_page_size();")
 {
-
     //
     // Do DELETESCHEDULE cleanup
     db.exec("UPDATE `" DELETESCHEDULE_TABLE "` SET `deletion_key`=1");
@@ -385,8 +389,7 @@ void ChainDB::delete_state32_from(StateId32 fromId)
         spdlog::error("BUG: Deleting nothing, fromId = {} >= {} = cache.stateId32", fromId.value(), cache.stateId32.value());
     } else {
         cache.stateId32 = fromId;
-        stmtAccountsDeleteFrom.run(fromId);
-        stmtAssetDeleteFrom.run(fromId);
+        state32Statements.delete_from(fromId);
     }
 }
 void ChainDB::delete_state64_from(StateId64 fromId)
@@ -396,12 +399,11 @@ void ChainDB::delete_state64_from(StateId64 fromId)
         spdlog::error("BUG: Deleting nothing, fromId = {} >= {} = cache.stateId64", fromId.value(), cache.stateId64.value());
     } else {
         cache.stateId64 = fromId;
-        stmtTokenForkBalanceDeleteFrom.run(fromId);
-        stmtBalanceDeleteFrom.run(fromId);
+        state64Statements.delete_from(fromId);
     }
 }
 
-void ChainDB::insert_consensus(NonzeroHeight height, BlockId blockId, HistoryId historyCursor, uint64_t stateId)
+void ChainDB::insert_consensus(NonzeroHeight height, BlockId blockId, HistoryId historyCursor, StateId32 stateId)
 {
     stmtConsensusInsert.run(height, blockId, historyCursor, stateId);
     stmtScheduleDelete.run(blockId);
@@ -815,7 +817,7 @@ std::vector<std::pair<TokenId, Funds_uint64>> ChainDB::get_tokens(AccountId acco
 
 void ChainDB::set_balance(BalanceId id, Funds_uint64 balance)
 {
-    stmtTokenUpdateBalance.run(balance, id);
+    stmtTokenUpdateBalanceById.run(balance, id);
 }
 
 api::Richlist ChainDB::lookup_richlist(TokenId tokenId, size_t limit) const
@@ -975,7 +977,6 @@ Address ChainDB::fetch_address(AccountId id) const
 
 auto ChainDB::get_token_balance(BalanceId id) const -> std::optional<Balance>
 {
-
     return stmtSelectBalanceId.one(id).process([&](const sqlite::Row& o) {
         return Balance {
             .balanceId = id,
