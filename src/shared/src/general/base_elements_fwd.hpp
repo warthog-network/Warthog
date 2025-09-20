@@ -3,6 +3,7 @@ struct ToAccIdEl;
 struct WartEl;
 struct QuoteWartEl;
 struct AmountEl;
+struct SharesEl;
 struct BaseAmountEl;
 struct OriginAccIdEl;
 struct CancelNonceEl;

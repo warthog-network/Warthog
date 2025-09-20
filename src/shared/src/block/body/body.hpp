@@ -216,6 +216,7 @@ namespace elements {
 
 template <typename Elem>
 struct VectorElement {
+    using elem_t = Elem;
     auto& get() const { return elements; }
     auto& get() { return elements; }
 
@@ -249,7 +250,7 @@ struct AssetTransfers : public VectorElement<body::TokenTransfer> {
     auto& asset_transfers() const { return get(); }
     auto& asset_transfers() { return get(); }
 };
-struct ShareTransfers : public VectorElement<body::TokenTransfer> {
+struct ShareTransfers : public VectorElement<body::ShareTransfer> {
     using VectorElement::VectorElement;
     auto& share_transfers() const { return get(); }
     auto& share_transfers() { return get(); }
@@ -341,7 +342,28 @@ private:
     {
     }
 
+    template <typename... Rs>
+    struct Overload : public Rs... {
+        using Rs::operator()...;
+    };
+
 public:
+    template <typename Lambda>
+    requires(std::is_invocable_v<Lambda, const typename Ts::elem_t&> && ...)
+    void visit_components(Lambda&& lambda) const
+    {
+        ([&](auto& entries) {
+            for (auto& e : entries)
+                lambda(e);
+        }(static_cast<const Ts*>(this)->get()),
+            ...);
+    }
+    template <typename... Ls>
+    requires(std::is_invocable_v<Ls, const typename Ts::elem_t&> && ...)
+    void visit_components_overload(Ls&&... lambdas) const
+    {
+        visit_components(Overload { std::forward<Ls>(lambdas)... });
+    }
     TokenEntries(Reader& r)
         : TokenEntries(std::index_sequence_for<Ts...>(), bits_t(r), r)
     {
@@ -388,12 +410,6 @@ public:
 struct TokenSection : public AssetIdElement, public TokenEntries<AssetTransfers, ShareTransfers, Orders, LiquidityDeposits, LiquidityWithdrawals> {
 
 public:
-    // body_vector<body::TokenTransfer> assetTransfers;
-    // body_vector<body::TokenTransfer> shareTransfers;
-    // body_vector<body::Order> orders;
-    // body_vector<body::LiquidityDeposit> liquidityAdd;
-    // body_vector<body::LiquidityWithdraw> liquidityRemove;
-
     static constexpr const size_t n_vectors = 5;
     void append_tx_ids(PinFloor, std::vector<TransactionId>& appendTo) const;
 
@@ -426,19 +442,39 @@ struct SizeVector : public VectorElement<Elem> {
     }
 };
 
+template <typename T>
+void apply_to_entries(T&& t, auto&& lambda)
+{
+    lambda(t);
+}
+
+template <typename UInt, typename Elem>
+void apply_to_entries(SizeVector<UInt, Elem>& v, auto&& lambda)
+{
+    for (auto& e : v)
+        apply_to_entries(e, lambda);
+}
+
+// using Reward = Combined<ToAccIdEl, WartEl>;
+// using TokenTransfer = SignedCombined<ToAccIdEl, AmountEl>;
+// using ShareTransfer = SignedCombined<ToAccIdEl, AmountEl>;
+// using AssetCreation = SignedCombined<AssetSupplyEl, AssetNameEl>;
+// using Order = SignedCombined<BuyEl, AmountEl, LimitPriceEl>;
+// using LiquidityDeposit = SignedCombined<QuoteWartEl, BaseAmountEl>;
+// using LiquidityWithdraw = SignedCombined<AmountEl>;
 struct WartTransfers : public SizeVector<uint32_t, body::WartTransfer> {
     auto& wart_transfers() const { return get(); }
     auto& wart_transfers() { return get(); }
 };
 
-struct Cancelations : public SizeVector<uint16_t, body::Cancelation> {
-    auto& cancelations() const { return get(); }
-    auto& cancelations() { return get(); }
-};
-
 struct TokenSections : public SizeVector<uint16_t, tokens::TokenSection> {
     auto& tokens() const { return get(); }
     auto& tokens() { return get(); }
+};
+
+struct Cancelations : public SizeVector<uint16_t, body::Cancelation> {
+    auto& cancelations() const { return get(); }
+    auto& cancelations() { return get(); }
 };
 
 struct AssetCreations : public SizeVector<uint16_t, body::AssetCreation> {
@@ -448,20 +484,46 @@ struct AssetCreations : public SizeVector<uint16_t, body::AssetCreation> {
 
 template <typename... Ts>
 struct CombineElements : public Ts... {
+private:
+    template <typename... Rs>
+    struct Overload : public Rs... {
+        using Rs::operator()...;
+    };
+
+public:
     CombineElements(MerkleReadHooker& r)
         : Ts(r)...
     {
     }
     CombineElements() { }
 
+    template <typename Lambda>
+    requires(std::is_invocable_v<Lambda, const typename Ts::elem_t&> && ...)
+    void visit_components(Lambda&& lambda) const
+    {
+        ([&](auto& entries) {
+            for (auto& e : entries)
+                lambda(e);
+        }(static_cast<const Ts*>(this)->get()),
+            ...);
+    }
+    template <typename... Ls>
+    requires(std::is_invocable_v<Ls, const typename Ts::elem_t&> && ...)
+    void visit_components_overload(Ls&&... lambdas) const
+    {
+        visit_components(Overload { std::forward<Ls>(lambdas)... });
+    }
+
+    template <typename Lambda>
+    void visit_signed_entries(Lambda&& lambda) const
+    {
+        visit_components([&](auto& entry) { apply_to_entries(entry, lambda); });
+    }
+
     [[nodiscard]] size_t byte_size() const
     {
         return (static_cast<const Ts*>(this)->byte_size() + ...);
     }
-    // void serialize(Serializer auto&& s) const
-    // {
-    //     (s << ... << static_cast<const Ts*>(this));
-    // }
     void write(MerkleWriteHooker& m) const
     {
         (static_cast<const Ts*>(this)->write(m), ...);

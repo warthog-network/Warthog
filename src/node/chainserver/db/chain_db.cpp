@@ -376,7 +376,7 @@ ChainDB::ChainDB(const std::string& path)
 
 void ChainDB::insert_account(const AddressView address, AccountId verifyNextId)
 {
-    if (cache.stateId32 != verifyNextId)
+    if (cache.stateId32 != StateId32(verifyNextId))
         throw std::runtime_error("Internal error, state id inconsistent.");
     stmtAccountsInsert.run(cache.stateId32, address);
     cache.stateId32++;
@@ -1017,6 +1017,7 @@ AssetDetail ChainDB::fetch_asset(AssetId id) const
     }
     return *p;
 }
+
 std::optional<AssetDetail> ChainDB::lookup_asset(const AssetHash& hash) const
 {
     return stmtAssetLookupByHash.one(hash).process([](auto& o) -> AssetDetail {

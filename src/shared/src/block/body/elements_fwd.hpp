@@ -9,10 +9,10 @@ template <typename... Ts>
 struct SignedCombined;
 
 using Reward = Combined<ToAccIdEl, WartEl>;
-using AssetCreation = SignedCombined<AssetSupplyEl, AssetNameEl>;
 using WartTransfer = SignedCombined<ToAccIdEl, WartEl>;
 using TokenTransfer = SignedCombined<ToAccIdEl, AmountEl>;
-using ShareTransfer = SignedCombined<ToAccIdEl, AmountEl>;
+using ShareTransfer = SignedCombined<ToAccIdEl, SharesEl>;
+using AssetCreation = SignedCombined<AssetSupplyEl, AssetNameEl>;
 using Order = SignedCombined<BuyEl, AmountEl, LimitPriceEl>;
 using Cancelation = SignedCombined<CancelHeightEl, CancelNonceEl>;
 using LiquidityDeposit = SignedCombined<QuoteWartEl, BaseAmountEl>;

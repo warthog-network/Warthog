@@ -27,13 +27,6 @@ const std::optional<Address>& AddressCache::get(AccountId id)
     return iter->second;
 }
 
-const Address& AddressCache::get_throw(AccountId id)
-{
-    if (auto& o { get(id) })
-        return o.value();
-    throw Error(EACCIDNOTFOUND);
-}
-
 const Address& AddressCache::fetch(AccountId id)
 {
     if (auto& o { get(id) })

@@ -19,7 +19,7 @@ public:
 
 protected:
     const ChainDB& db;
-    std::map<Key, Value> map;
+    mutable std::map<Key, Value> map;
 };
 
 class AddressCache : public DBCacheBase<AccountId, std::optional<Address>> {
@@ -27,7 +27,6 @@ public:
     using DBCacheBase::DBCacheBase;
 
     const std::optional<Address>& get(AccountId);
-    const Address& get_throw(AccountId);
     const Address& fetch(AccountId);
 };
 

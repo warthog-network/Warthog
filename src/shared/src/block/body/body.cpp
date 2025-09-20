@@ -135,8 +135,8 @@ std::vector<TransactionId> ParsedBody::tx_ids(NonzeroHeight height) const
 {
     auto pf { height.pin_floor() };
     std::vector<TransactionId> res;
-    wart_transfers().append_txids(res, pf);
-    entries().append_txids(res, pf);
+    // read transaction ids of all entries in the block
+    visit_signed_entries([&](auto&& entry) { entry.append_txids(res, pf); });
     return res;
 }
 

@@ -1,4 +1,5 @@
 #include "defi/token/account_token.hpp"
+#include "general/function_traits.hpp"
 #include "general/now.hpp"
 #include "helpers/cache.hpp"
 #ifndef DISABLE_LIBUV
@@ -6,6 +7,7 @@
 #endif
 
 #include "../db/chain_db.hpp"
+#include "block/header/header_impl.hpp"
 #include "api/types/all.hpp"
 #include "block/body/rollback.hpp"
 #include "block/chain/history/history.hpp"
@@ -759,6 +761,7 @@ public:
     const StateId64 oldStateId64Start;
 
     std::map<BalanceId, Funds_uint64> balanceUpdates;
+    std::map<AccountId, Wart> wartUpdates;
     std::vector<TransactionMessage> toMempool;
     std::optional<BalanceId> oldBalanceStart;
 
@@ -786,20 +789,78 @@ public:
     {
     }
 
-    void rollback_block(BlockId id, NonzeroHeight height, AddressCache& ac)
+private:
+    void put_txs_into_mempool(const block::ParsedBody& body, NonzeroHeight height, DBCache& c)
+    {
+        auto pinFloor { height.pin_floor() };
+        auto apply_to_array {
+            [&](auto&& arr, auto&&... lambdas) {
+                auto bindPinheight {
+                    [&](auto&& lambda2) {
+                        // if we have a lambda with two arguments (pinHeight, tx), then create a lambda that only accepts tx and only calls
+                        // it if the pinHeight is not too new (if it is too new, after rollback the tx cannot exist)
+                        if constexpr (std::is_same_v<typename function_traits<decltype(lambda2)>::template arg<0>::type, PinHeight>) {
+                            using ret_t = typename function_traits<decltype(lambda2)>::template arg<1>::type;
+                            return [&](const std::remove_cvref_t<ret_t>& tx) {
+                                PinHeight pinHeight = tx.pin_nonce().pin_height_from_floored(pinFloor);
+                                if (pinHeight <= newPinFloor)
+                                    lambda2(pinHeight, tx);
+                            };
+                        } else {
+                            return lambda2;
+                        }
+                    }
+                };
+                arr.visit_components_overload(
+                    bindPinheight(std::forward<decltype(lambdas)>(lambdas))...);
+            }
+        };
+
+        using namespace block::body;
+        apply_to_array(body,
+            // Wart transfer lambda
+            [&](PinHeight pinHeight, const WartTransfer& t) {
+                        auto toAddress { c.addresses.fetch(t.to_id()) };
+                        toMempool.push_back(WartTransferMessage(t.txid(pinHeight), t.pin_nonce().reserved, t.compact_fee(), toAddress, t.wart(), t.signature())); },
+
+            // Cancelation lambda
+            [&](PinHeight pinHeight, const Cancelation& t) { toMempool.push_back(CancelationMessage(t.txid(pinHeight), t.pin_nonce().reserved, t.compact_fee(), t.cancel_height(), t.cancel_nonceid(), t.signature())); },
+
+            // Token section lambda only has one argument
+            [&](const TokenSection& s) {
+                    auto asset { c.assetsById[s.asset_id()] };
+                    apply_to_array(s,
+                        [&](PinHeight pinHeight, const TokenTransfer& t) {
+                                auto toAddress { c.addresses.fetch(t.to_id()) };
+                                toMempool.push_back(TokenTransferMessage(t.txid(pinHeight), t.pin_nonce().reserved, t.compact_fee(), asset.hash, false, toAddress, t.amount(), t.signature()));
+                        },
+                        [&](PinHeight pinHeight, const ShareTransfer& t) {
+                                auto toAddress { c.addresses.fetch(t.to_id()) };
+                                toMempool.push_back(TokenTransferMessage(t.txid(pinHeight), t.pin_nonce().reserved, t.compact_fee(), asset.hash, true, toAddress, t.shares(), t.signature()));
+                        },
+                        [&](PinHeight pinHeight, const Order& t) {
+                                toMempool.push_back(OrderMessage(t.txid(pinHeight), t.pin_nonce().reserved, t.compact_fee(), asset.hash, t.buy(), t.amount(), t.limit(), t.signature()));
+                        },
+                        [&](PinHeight pinHeight, const LiquidityDeposit& t) {
+                                toMempool.push_back(LiquidityDepositMessage(t.txid(pinHeight), t.pin_nonce().reserved, t.compact_fee(), asset.hash, t.quote_wart(), t.base_amount(), t.signature()));
+                        },
+                        [&](PinHeight pinHeight, const LiquidityWithdraw& t) {
+                                toMempool.push_back(LiquidityWithdrawMessage(t.txid(pinHeight), t.pin_nonce().reserved, t.compact_fee(), asset.hash, t.amount(), t.signature()));
+                        }); },
+            // asset creation lambda
+            [&](PinHeight pinHeight, const AssetCreation& t) { toMempool.push_back(AssetCreationMessage(t.txid(pinHeight), t.pin_nonce().reserved, t.compact_fee(), t.supply(), t.asset_name(), t.signature())); });
+    }
+
+public:
+    void rollback_block(BlockId id, NonzeroHeight height, DBCache& c)
     {
         try {
             BlockUndoData d { fetch_undo(db, id) };
-            auto pinFloor { height.pin_floor() };
+
+            // use block data to fill the mempool again
             auto body { std::move(d.body).parse_throw(height, d.header.version()) };
-            for (auto t : body.wart_transfers()) {
-                PinHeight pinHeight = t.pin_nonce().pin_height_from_floored(pinFloor);
-                if (pinHeight <= newPinFloor) {
-                    // extract transaction to mempool
-                    auto toAddress { ac.fetch(t.to_id()) };
-                    toMempool.push_back(WartTransferMessage(t.txid(pinHeight), t.pin_nonce().reserved, t.compact_fee(), toAddress, t.wart(), t.signature()));
-                }
-            }
+            put_txs_into_mempool(body, height, c);
+
 
             // roll back state modifications
             rollback::Data rbv(d.rawUndo);
@@ -810,7 +871,9 @@ public:
                     auto b { db.get_token_balance(id) };
                     if (!b.has_value())
                         throw std::runtime_error("Database corrupted, cannot roll back");
-                    AccountToken at { b->accountId, b->tokenId };
+
+                    if (b->tokenId.is_wart())
+                        wartUpdates.try_emplace(b->accountId, Wart(bal.value()));
                     balanceUpdates.try_emplace(id, bal);
                 });
         } catch (const Error& e) {
@@ -839,7 +902,7 @@ State::rollback(const Height newlength) const
 
     for (size_t i = 0; i < ids.size(); ++i) {
         NonzeroHeight height = beginHeight + i;
-        rs.rollback_block(ids[i], height, dbcache.addresses);
+        rs.rollback_block(ids[i], height, dbcache);
     }
 
     db.delete_history_from(newlength.add1());
@@ -853,7 +916,7 @@ State::rollback(const Height newlength) const
     return chainserver::RollbackResult {
         .shrink { newlength, oldlength - newlength },
         .toMempool { std::move(rs.toMempool) },
-        .wartUpdates { std::move(rs.balanceUpdates) },
+        .wartUpdates { std::move(rs.wartUpdates) },
         .chainTxIds { db.fetch_tx_ids(newlength) },
         .deletionKey { dk }
     };
