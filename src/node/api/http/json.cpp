@@ -469,48 +469,48 @@ json to_json(const api::MempoolEntries& entries)
         elem["signature"] = e.signature().to_string();
         elem["fee"] = to_json(e.fee());
         e.visit_overload(
-             [&](const WartTransferMessage& m) {
-                 elem["type"] = api::block::WartTransferData::label;
-                 elem["toAddress"] = m.to_addr().to_string();
-                 elem["amount"] = to_json(m.wart());
-             },
-             [&](const TokenTransferMessage& m) {
-                 elem["type"] = api::block::TokenTransferData::label;
-                 elem["toAddress"] = m.to_addr().to_string();
-                 elem["amountU64"] = m.amount().value();
-                 elem["assetHash"] = m.asset_hash();
-                 elem["isLiquidity"] = m.pool_flag();
-                 elem["tokenSpec"] = api::TokenSpec(m.asset_hash(), m.pool_flag()).to_string();
-             },
-             [&](const OrderMessage& m) {
-                 elem["type"] = api::block::NewOrderData::label;
-                 elem["assetHash"] = m.asset_hash();
-                 elem["buy"] = m.buy();
-                 elem["amountRaw"] = m.amount().value();
-                 elem["limitRaw"] = m.limit().to_double_raw();
-             },
-             [&](const CancelationMessage& m) {
-                 elem["type"] = api::block::CancelationData::label;
-                 elem["cancelHeight"] = m.cancel_height().value();
-                 elem["cancelNonce"] = m.cancel_nonceid();
-             },
-             [&](const LiquidityDepositMessage& m) {
-                 elem["type"] = api::block::LiquidityDepositData::label;
-                 elem["assetHash"] = m.asset_hash().hex_string();
-                 elem["quoteWart"] = m.wart();
-                 elem["baseU64"] = m.amount().value();
-             },
-             [&](const LiquidityWithdrawMessage& m) {
-                 elem["type"] = api::block::LiquidityWithdrawal::label;
-                 elem["assetHash"] = m.asset_hash().hex_string();
-                 elem["liquidityU64"] = m.amount().value();
-             },
-             [&](const AssetCreationMessage& m) {
-                 elem["type"] = api::block::AssetCreationData::label;
-                 elem["supply"] = m.supply().to_string();
-                 elem["assetName"] = m.asset_name().to_string();
-             } );
-            a.push_back(elem);
+            [&](const WartTransferMessage& m) {
+                elem["type"] = api::block::WartTransferData::label;
+                elem["toAddress"] = m.to_addr().to_string();
+                elem["amount"] = to_json(m.wart());
+            },
+            [&](const TokenTransferMessage& m) {
+                elem["type"] = api::block::TokenTransferData::label;
+                elem["toAddress"] = m.to_addr().to_string();
+                elem["amountU64"] = m.amount().value();
+                elem["assetHash"] = m.asset_hash();
+                elem["isLiquidity"] = m.pool_flag();
+                elem["tokenSpec"] = api::TokenSpec(m.asset_hash(), m.pool_flag()).to_string();
+            },
+            [&](const OrderMessage& m) {
+                elem["type"] = api::block::NewOrderData::label;
+                elem["assetHash"] = m.asset_hash();
+                elem["buy"] = m.buy();
+                elem["amountRaw"] = m.amount().value();
+                elem["limitRaw"] = m.limit().to_double_raw();
+            },
+            [&](const CancelationMessage& m) {
+                elem["type"] = api::block::CancelationData::label;
+                elem["cancelHeight"] = m.cancel_height().value();
+                elem["cancelNonce"] = m.cancel_nonceid();
+            },
+            [&](const LiquidityDepositMessage& m) {
+                elem["type"] = api::block::LiquidityDepositData::label;
+                elem["assetHash"] = m.asset_hash().hex_string();
+                elem["quoteWart"] = m.wart();
+                elem["baseU64"] = m.amount().value();
+            },
+            [&](const LiquidityWithdrawMessage& m) {
+                elem["type"] = api::block::LiquidityWithdrawal::label;
+                elem["assetHash"] = m.asset_hash().hex_string();
+                elem["liquidityU64"] = m.amount().value();
+            },
+            [&](const AssetCreationMessage& m) {
+                elem["type"] = api::block::AssetCreationData::label;
+                elem["supply"] = m.supply().to_string();
+                elem["assetName"] = m.asset_name().to_string();
+            });
+        a.push_back(elem);
     }
     j["data"] = a;
     return j;
@@ -524,6 +524,32 @@ json to_json(const api::Transaction& tx)
         return transaction_type(e.label, j);
     },
         tx);
+}
+
+json to_json(const api::TokenBalance& tb)
+{
+
+    json j {
+        { "balance", to_json(tb.balance) },
+    };
+    json lookup;
+
+    if (tb.lookup) {
+        lookup["address"] = tb.lookup->address.address.to_string();
+        lookup["accountId"] = tb.lookup->address.accountId.value();
+
+        json fails;
+        auto& lf { tb.lookup->lookupFails };
+        fails["snapshotHeight"] = (lf.snapshotHeight ? json(lf.snapshotHeight.value()) : json(nullptr));
+        lookup["fails"] = fails;
+    } else {
+        j["address"] = nullptr;
+        j["accountId"] = nullptr;
+        j["fails"] = json::array();
+        lookup = nullptr;
+    }
+    j["lookup"] = lookup;
+    return j;
 }
 
 json to_json(const Peeraddr& ea)

@@ -559,8 +559,8 @@ public:
         }
         for (auto& tr : t.share_transfers()) {
             auto s(process_signer(tr));
-            auto valid_to_id { __register_transfer(aid.token_id(true), tr.to_id(), tr.amount(), s) };
-            ts.sharesTransfers.push_back({ s, { valid_to_id, tr.amount(), aid } });
+            auto valid_to_id { __register_transfer(aid.token_id(true), tr.to_id(), tr.shares(), s) };
+            ts.sharesTransfers.push_back({ s, { valid_to_id, tr.shares(), aid } });
         }
         for (auto& o : t.orders())
             ts.orders.push_back(register_new_order(o, aid));

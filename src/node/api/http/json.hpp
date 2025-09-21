@@ -30,6 +30,7 @@ json to_json(const api::TransmissionTimeseries&);
 json to_json(const api::MiningState&);
 json to_json(const api::MempoolEntries&);
 json to_json(const api::Transaction&);
+json to_json(const api::TokenBalance&);
 json to_json(const api::PeerinfoConnections&);
 json to_json(const api::TransactionsByBlocks&);
 json to_json(const api::Block&);

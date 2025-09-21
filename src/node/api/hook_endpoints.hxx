@@ -72,6 +72,10 @@ struct ParameterParser {
     {
         return hex_to_arr<32>(sv);
     }
+    operator TxHash()
+    {
+        return TxHash(static_cast<Hash>(*this));
+    }
     operator NonzeroHeight()
     {
         return Height(static_cast<uint32_t>(*this)).nonzero_throw(EBADHEIGHT);
@@ -240,9 +244,9 @@ public:
         hook_post(t, "/chain/append", parse_block_worker, put_chain_append, true);
 
         t.indexGenerator.section("Account Endpoints");
-        hook_get_1(t, "/account/:account/balance/:token", get_account_token_balance);
+        hook_get_2(t, "/account/:account/balance/:token", get_account_token_balance);
         hook_get_2(t, "/account/:account/history/:beforeTxIndex", get_account_history);
-        hook_get(t, "/account/richlist", get_account_richlist);
+        hook_get_1(t, "/account/richlist/:token", get_account_richlist);
 
         t.indexGenerator.section("Peers Endpoints");
         hook_get(t, "/peers/ip_count", get_ip_count);

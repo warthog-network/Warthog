@@ -94,7 +94,7 @@ void HTTPEndpoint::work()
 
     hook_endpoints(*this);
     app.ws<int>("/ws/chain_delta", { .open { [](auto* ws) {
-            ws->subscribe(api::block::eventName);
+            ws->subscribe(api::Block::eventName);
             ws->subscribe(api::Rollback::eventName); } } });
     using ws_t = uWS::WebSocket<false, true, WSData>;
     app.ws<WSData>("/stream", { .open { [](ws_t* ws) {
