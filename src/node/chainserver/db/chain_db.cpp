@@ -1080,12 +1080,13 @@ std::pair<std::optional<BalanceId>, Funds_uint64> ChainDB::get_token_balance_rec
         if (auto b { get_balance(aid, tid) })
             return *b;
 
-        auto assetId { tid.asset_id() };
-        if (!assetId /*i.e. tid == TokenId::WART*/ || tid.is_share())
+        auto nw { tid.non_wart() };
+        if (!nw || nw->is_share())
             goto notfound; // WART and pool share token types cannot have any parent
+        // auto assetId { tid.asset_id() };
 
         // get token fork height
-        auto a { lookup_asset(*assetId) };
+        auto a { lookup_asset(nw->asset_id()) };
         if (!a)
             throw std::runtime_error("Database error: Cannot find token info for id " + std::to_string(tid.value()) + ".");
         auto h { a->height };

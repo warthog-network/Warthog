@@ -5,15 +5,16 @@
 #include <optional>
 
 struct AssetId;
+class NonWartTokenId;
 struct TokenId : public UInt32WithOperators<TokenId> {
     using UInt32WithOperators::UInt32WithOperators;
     static const TokenId WART;
-    bool is_wart() const { return value() == 0; }
-    bool is_share() const
+    [[nodiscard]] bool is_wart() const { return value() == 0; }
+    [[nodiscard]] bool is_share() const
     {
         return (value() & 1) != 0; // shares have odd ids
     }
-    [[nodiscard]] std::optional<AssetId> asset_id() const;
+    [[nodiscard]] std::optional<NonWartTokenId> non_wart() const;
 };
 
 class NonWartTokenId : public TokenId {
@@ -22,11 +23,19 @@ class NonWartTokenId : public TokenId {
 public:
     [[nodiscard]] AssetId asset_id() const;
 
+    static std::optional<NonWartTokenId> non_wart(TokenId id)
+    {
+        if (id.is_wart())
+            return {};
+        return NonWartTokenId(id);
+    }
+
 private:
     constexpr NonWartTokenId(TokenId tid)
         : TokenId(std::move(tid))
     {
     }
+
 public:
     NonWartTokenId(Reader& r)
         : TokenId(r)
@@ -35,6 +44,11 @@ public:
             throw Error(EWARTTOKID);
     }
 };
+
+inline std::optional<NonWartTokenId> TokenId::non_wart() const
+{
+    return NonWartTokenId::non_wart(*this);
+}
 
 struct AssetId : public UInt32WithOperators<AssetId> { // assets are tokens that are not pool shares
     static const AssetId WART;

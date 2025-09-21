@@ -23,7 +23,11 @@ struct MerkleLeaves {
 struct MerkleReadHooker;
 struct MerkleReadHook {
 public:
-    operator Reader&()
+    operator Reader&() &&
+    {
+        return reader;
+    }
+    operator Reader&() &
     {
         return reader;
     }
@@ -337,8 +341,8 @@ struct TokenEntries : public Ts... {
 private:
     using bits_t = TenBitsBlocks<sizeof...(Ts)>;
     template <size_t... Is>
-    TokenEntries(std::integer_sequence<size_t, Is...>, const bits_t& lengths, Reader& r)
-        : Ts(lengths.at(Is), r)...
+    TokenEntries(std::index_sequence<Is...>, const bits_t& lengths, MerkleReadHooker& m)
+        : Ts(lengths.template at<Is>(), m)...
     {
     }
 
@@ -364,8 +368,8 @@ public:
     {
         visit_components(Overload { std::forward<Ls>(lambdas)... });
     }
-    TokenEntries(Reader& r)
-        : TokenEntries(std::index_sequence_for<Ts...>(), bits_t(r), r)
+    TokenEntries(MerkleReadHooker& h)
+        : TokenEntries{std::index_sequence_for<Ts...>(), bits_t(h.hook()), h}
     {
     }
     auto& token_entries() const { return *this; }
@@ -414,7 +418,7 @@ public:
     void append_tx_ids(PinFloor, std::vector<TransactionId>& appendTo) const;
 
     void write(MerkleWriteHooker& w);
-    TokenSection(Reader&);
+    TokenSection(MerkleReadHooker&);
     TokenSection(AssetId tid)
         : AssetIdElement(tid) { };
     void append_txids(std::vector<TransactionId>& out, PinFloor pf) const

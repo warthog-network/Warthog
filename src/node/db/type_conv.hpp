@@ -2,6 +2,7 @@
 
 #include "block/body/account_id.hpp"
 #include "block/body/container.hpp"
+#include "block/body/nonce.hpp"
 #include "block/chain/height.hpp"
 #include "block/chain/history/index.hpp"
 #include "block/chain/worksum.hpp"
@@ -71,8 +72,10 @@ public:
 
     operator Hash() const { return { get_array<32>() }; }
     operator Height() const { return Height(getUInt32()); }
+    operator PinHeight() const { return PinHeight(static_cast<Height>(*this)); }
     operator HistoryId() const { return HistoryId { getUInt64() }; }
-    operator auto() const { return BalanceId { getUInt64() }; }
+    operator NonceId() const { return NonceId { getUInt32() }; }
+    operator BalanceId() const { return BalanceId { getUInt64() }; }
     operator std::vector<uint8_t>() const { return get_vector(); }
     operator Address() const { return get_array<20>(); }
     operator BodyData() const { return get_vector(); }

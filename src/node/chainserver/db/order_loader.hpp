@@ -3,50 +3,25 @@
 #include "db/sqlite_fwd.hpp"
 #include "defi/order.hpp"
 
-namespace sqlite {
-class Statement;
-}
 
-template <bool ASCENDING>
-class OrderLoader {
+class OrderLoaderBase {
     friend chain_db::ChainDB;
-    OrderLoader(sqlite::Statement& stmt)
-        : stmt(&stmt)
-    {
-    }
+    OrderLoaderBase(sqlite::Statement& stmt);
 
 public:
-    [[nodiscard]] std::optional<OrderData> operator()() const
-    {
-        std::optional<OrderData> res;
-        auto r { stmt->next_row() };
-        if (r.has_value()) {
-            TransactionId txid {
-                TransactionId::Generator {
-                    .accountId = r[1],
-                    .pinHeight = r[2],
-                    .nonceId = r[3] }
-            };
-            res = OrderData { r[0], txid, r[4], r[5], r[6] };
-        }
-        return res;
-    }
-
-    OrderLoader(const OrderLoader&) = delete;
-    OrderLoader(OrderLoader&& other)
-    {
-        stmt = other.stmt;
-        other.stmt = nullptr;
-    }
-    ~OrderLoader()
-    {
-        if (stmt)
-            stmt->reset();
-    }
+    [[nodiscard]] std::optional<OrderData> operator()() const;
+    OrderLoaderBase(const OrderLoaderBase&) = delete;
+    OrderLoaderBase(OrderLoaderBase&& other);
+    ~OrderLoaderBase();
 
 private:
     sqlite::Statement* stmt;
     std::optional<OrderData> loaded;
+};
+
+template <bool ASCENDING>
+class OrderLoader : public OrderLoaderBase {
+    using OrderLoaderBase::OrderLoaderBase;
 };
 
 using OrderLoaderAscending = OrderLoader<true>;

@@ -219,6 +219,22 @@ auto Chainstate::append(AppendSingle d) -> HeaderchainAppend
     return headers().get_append(l);
 }
 
+auto Chainstate::insert_txs(const std::vector<TransactionMessage>& txs) -> std::vector<Error>
+{
+    WartCache wc(db);
+    std::vector<Error> res;
+    res.reserve(txs.size());
+    for (auto& tx : txs) {
+        try {
+            insert_tx(tx, wc);
+            res.push_back(0);
+        } catch (const Error& e) {
+            res.push_back(e.code);
+        }
+    }
+    return res;
+}
+
 TxHash Chainstate::insert_tx(const TransactionMessage& tm, WartCache& wc)
 {
     if (tm.pin_height() < (length() + 1).pin_begin())

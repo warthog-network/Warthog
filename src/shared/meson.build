@@ -12,6 +12,7 @@ src_wh=[
   files(
   [
     './platformassert.cpp',
+    './src/block/block.cpp',
     './src/block/body/body.cpp',
     './src/block/body/container.cpp',
     './src/block/body/nonce.cpp',
@@ -29,6 +30,7 @@ src_wh=[
     './src/crypto/hash.cpp',
     './src/crypto/verushash/verus_clhash_port.cpp',
     './src/crypto/verushash/verushash.cpp',
+    './src/defi/token/token.cpp',
     './src/defi/uint64/orderbook.cpp',
     './src/defi/uint64/price.cpp',
     './src/general/compact_uint.cpp',

@@ -1,13 +1,13 @@
 #pragma once
 #include "../../transaction_ids.hpp"
 #include "../update/update.hpp"
-#include "chainserver/db/ids.hpp"
 #include "block/body/account_id.hpp"
 #include "block/chain/consensus_headers.hpp"
 #include "block/chain/history/index.hpp"
 #include "block/chain/offsts.hpp"
 #include "cache_fwd.hpp"
 #include "chainserver/db/deletion_key.hpp"
+#include "chainserver/db/ids.hpp"
 #include "chainserver/db/types_fwd.hpp"
 #include "mempool/mempool.hpp"
 #include <cstdint>
@@ -61,7 +61,8 @@ struct Chainstate {
     [[nodiscard]] auto append(AppendMulti) -> HeaderchainAppend;
     [[nodiscard]] auto append(AppendSingle) -> HeaderchainAppend;
 
-    TxHash insert_tx(const TransactionMessage& m);
+    auto insert_txs(const std::vector<TransactionMessage>& txs) -> std::vector<Error>;
+
     TxHash insert_tx(const TransactionMessage& m, WartCache& ac);
     [[nodiscard]] TxHash create_tx(const WartTransferCreate& m);
 

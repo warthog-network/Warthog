@@ -11,6 +11,11 @@ void TokenSection::write(MerkleWriteHooker& w)
     w.writer << assetId;
     token_entries().write(w);
 }
+TokenSection::TokenSection(MerkleReadHooker& r)
+    : AssetIdElement(static_cast<Reader&>(r.hook()))
+    , TokenEntries(r)
+{
+}
 }
 
 MerkleWriteHook::MerkleWriteHook(Writer& w, MerkleWriteHooker& c)

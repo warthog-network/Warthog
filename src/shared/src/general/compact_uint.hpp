@@ -2,10 +2,8 @@
 #include "general/funds.hpp"
 #include <cassert>
 #include <cstdint>
-class Writer;
 class Reader;
 class CompactUInt;
-Writer& operator<<(Writer&, CompactUInt);
 class CompactUInt {
     static std::optional<Wart> uncompact_value(uint16_t val)
     { // OK

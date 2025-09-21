@@ -26,7 +26,6 @@ struct TransactionId {
 
     TransactionId(Reader& r);
     std::string hex_string() const;
-    friend Writer& operator<<(Writer&, const TransactionId&);
     void serialize(Serializer auto&& s) const
     {
         s << accountId << pinHeight << nonceId;

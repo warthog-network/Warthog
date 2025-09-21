@@ -7,11 +7,11 @@
 #endif
 
 #include "../db/chain_db.hpp"
-#include "block/header/header_impl.hpp"
 #include "api/types/all.hpp"
 #include "block/body/rollback.hpp"
 #include "block/chain/history/history.hpp"
 #include "block/header/generator.hpp"
+#include "block/header/header_impl.hpp"
 #include "communication/create_transaction.hpp"
 #include "eventloop/types/chainstate.hpp"
 #include "general/hex.hpp"
@@ -861,7 +861,6 @@ public:
             auto body { std::move(d.body).parse_throw(height, d.header.version()) };
             put_txs_into_mempool(body, height, c);
 
-
             // roll back state modifications
             rollback::Data rbv(d.rawUndo);
             rbv.foreach_balance_update(
@@ -1112,14 +1111,14 @@ api::TokenBalance State::api_get_token_balance_recursive(AccountId aid, TokenId 
         auto [balanceId, funds] { db.get_token_balance_recursive(aid, tid, &trace) };
 
         std::optional<AssetPrecision> prec;
-        if (trace.fails.empty()) {
-            if (auto assetId { tid.asset_id() }) {
-                prec = db.lookup_asset(*assetId)->precision;
+        if (tid.is_share() || !trace.fails.empty()) {
+            prec = trace.fails.front().precision; // pool shares have WART precision by definition
+        } else {
+            if (auto nw { tid.non_wart() }) {
+                prec = db.lookup_asset(nw->asset_id())->precision;
             } else { // means that token Id is that of WART
                 prec = Wart::precision;
             }
-        } else {
-            prec = trace.fails.front().precision;
         }
         if (!prec)
             return api::TokenBalance::notfound();
@@ -1135,17 +1134,7 @@ api::TokenBalance State::api_get_token_balance_recursive(AccountId aid, TokenId 
 
 auto State::insert_txs(const TxVec& txs) -> std::pair<std::vector<Error>, mempool::Updates>
 {
-    std::vector<Error> res;
-    res.reserve(txs.size());
-    for (auto& tx : txs) {
-        try {
-            chainstate.insert_tx(tx);
-            res.push_back(0);
-        } catch (const Error& e) {
-            res.push_back(e.code);
-        }
-    }
-    return { res, chainstate.pop_mempool_updates() };
+    return { chainstate.insert_txs(txs), chainstate.pop_mempool_updates() };
 }
 
 api::ChainHead State::api_get_head() const
