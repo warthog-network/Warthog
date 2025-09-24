@@ -1,26 +1,26 @@
 #pragma once
 #include "block/body/account_id.hpp"
 #include "chainserver/db/chain_db.hpp"
+#include "chainserver/db/types.hpp"
 #include "communication/message_elements/byte_size.hpp"
-#include "defi/token/id.hpp"
 #include "general/funds.hpp"
 #include "general/reader.hpp"
 #include "general/writer.hpp"
 
-struct BalanceIdFunds {
-    BalanceId balanceId;
-    Funds_uint64 funds;
-    BalanceIdFunds(BalanceId balanceId, Funds_uint64 funds)
-        : balanceId(balanceId)
-        , funds(funds)
+struct IdBalance {
+    BalanceId id;
+    Funds_uint64 balance;
+    IdBalance(BalanceId id, Funds_uint64 balance)
+        : id(id)
+        , balance(balance)
     {
     }
     static size_t byte_size() { return BalanceId::byte_size() + Funds_uint64::byte_size(); }
     void serialize(Serializer auto&& s) const
     {
-        s << balanceId << funds;
+        s << id << balance;
     }
-    BalanceIdFunds(Reader&);
+    IdBalance(Reader&);
 };
 
 namespace rollback {
@@ -30,9 +30,9 @@ struct TypeSerializer {
     {
         return { r };
     }
-    static void write(const T& v, Writer& w)
+    static void write(const T& v, Serializer auto&& s)
     {
-        w << v;
+        s << v;
     }
 };
 
@@ -47,19 +47,20 @@ struct TypeSerializer<std::vector<T>> {
             v.push_back(T(r));
         return v;
     }
-    static void write(const std::vector<T>& v, Writer& w)
+    static void write(const std::vector<T>& v, Serializer auto&& s)
     {
-        w << uint32_t(v.size());
+        s << uint32_t(v.size());
         for (auto& e : v)
-            w << e;
+            s << e;
     }
 };
 
 template <typename T>
-void write_type(const T& t, Writer& w)
+void write_type(const T& t, Serializer auto&& s)
 {
-    TypeSerializer<T>::write(t, w);
+    TypeSerializer<T>::write(t, s);
 }
+
 template <typename T>
 auto read_type(Reader& r)
 {
@@ -84,14 +85,13 @@ class Serializable<T1, T...> {
     T1 _value;
     rest_t _rest;
 
-protected:
-    friend Writer& operator<<(Writer& w, const Serializable<T1, T...>& s)
+public:
+    void serialize(Serializer auto&& s)
     {
-        write_type(s._value, w);
-        return w << s._rest;
+        write_type(_value, s);
+        s << _rest;
     }
 
-public:
     static constexpr size_t elements = rest_t::elements + 1;
     Serializable(Reader& r)
         : _value(read_type<T1>(r))
@@ -143,8 +143,29 @@ public:
         return ::byte_size(_value) + _rest.byte_size();
     }
 };
+struct OrderData : public chain_db::OrderData {
+    OrderData(chain_db::OrderData od)
+        : chain_db::OrderData(std::move(od))
+    {
+    }
+    OrderData(Reader& r)
+        : chain_db::OrderData { r, r, r, r, r, r, r }
+    {
+    }
+};
 
-using BaseData = Serializable<StateId32, StateId64, std::vector<BalanceIdFunds>>;
+struct OrderFillstate : public chain_db::OrderFillstate {
+    OrderFillstate(chain_db::OrderFillstate fs)
+        : chain_db::OrderFillstate(std::move(fs))
+    {
+    }
+    OrderFillstate(Reader& r)
+        : chain_db::OrderFillstate { r, r, r }
+    {
+    }
+};
+
+using BaseData = Serializable<StateId32, StateId64, std::vector<IdBalance>, std::vector<OrderData>, std::vector<OrderFillstate>>;
 class Data : protected BaseData {
 private:
     Data(Reader v)
@@ -160,27 +181,46 @@ public:
     {
     }
     Data(const ChainDB& db)
-        : BaseData(db.next_id32(), db.next_id64(), {})
+        : BaseData(db.next_id32(), db.next_id64(), {}, {}, {})
     {
     }
     auto& next_state_id32() const { return get<0>(); }
     auto& next_state_id64() const { return get<1>(); }
     auto& original_balances() { return get<2>(); }
     auto& original_balances() const { return get<2>(); }
-    void register_balance(BalanceId balanceId, Funds_uint64 originalBalance)
+    auto& original_orders() { return get<3>(); }
+    auto& original_orders() const { return get<3>(); }
+    auto& original_fillstates() { return get<4>(); }
+    auto& original_fillstates() const { return get<4>(); }
+
+private:
+    void register_object(auto& vector, auto element)
     {
-        if (balanceId >= next_state_id64())
+        if (element.id >= next_state_id64())
             return;
 
-        auto& ob { original_balances() };
         bool exists = false;
-        for (auto& b : ob) {
-            if (b.balanceId == balanceId)
+        for (auto& b : vector) {
+            if (b.id == element.id)
                 exists = true;
             break;
         }
         assert(!exists);
-        ob.push_back({ balanceId, originalBalance });
+        vector.push_back(std::move(element));
+    }
+
+public:
+    void register_original_balance(IdBalance o)
+    {
+        register_object(original_balances(), std::move(o));
+    }
+    void register_original_order(chain_db::OrderData o)
+    {
+        register_object(original_orders(), std::move(o));
+    };
+    void register_original_fillstate(chain_db::OrderFillstate o)
+    {
+        register_object(original_fillstates(), std::move(o));
     }
 
     void foreach_balance_update(const auto& lambda) const

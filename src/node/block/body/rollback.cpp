@@ -1,7 +1,9 @@
 #include "rollback.hpp"
 
-BalanceIdFunds::BalanceIdFunds(Reader& r)
-    : balanceId(r)
-    , funds(r)
+IdBalance::IdBalance(Reader& r)
+    : id(r)
+    , balance(r)
 {
 }
+namespace rollback {
+};

@@ -864,9 +864,9 @@ public:
             // roll back state modifications
             rollback::Data rbv(d.rawUndo);
             rbv.foreach_balance_update(
-                [&](const BalanceIdFunds& entry) {
+                [&](const IdBalance& entry) {
                     const Funds_uint64& bal { entry.funds };
-                    const BalanceId& id { entry.balanceId };
+                    const BalanceId& id { entry.id };
                     auto b { db.get_token_balance(id) };
                     if (!b.has_value())
                         throw std::runtime_error("Database corrupted, cannot roll back");

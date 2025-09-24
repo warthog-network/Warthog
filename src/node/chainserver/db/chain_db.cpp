@@ -663,9 +663,9 @@ void ChainDB::insert_order(const chain_db::OrderData& o)
     else
         stmtInsertBaseSellOrder.run(o.id, o.txid.accountId, o.txid.pinHeight, o.txid.nonceId, o.aid, o.total, o.filled, o.limit);
 }
-void ChainDB::change_fillstate(const chain_db::OrderFillstate& o, bool buy)
+void ChainDB::update_order_fillstate(const chain_db::OrderFillstate& o)
 {
-    if (buy)
+    if (o.buy)
         stmtUpdateFillQuoteBuyOrder.run(o.filled, o.id);
     else
         stmtUpdateFillBaseSellOrder.run(o.filled, o.id);

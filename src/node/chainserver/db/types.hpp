@@ -27,6 +27,11 @@ struct OrderDelete {
 struct OrderFillstate {
     HistoryId id;
     Funds_uint64 filled;
+    bool buy;
+    void serialize(Serializer auto&& s) const
+    {
+        s << id << filled << buy;
+    }
 };
 struct OrderData {
     HistoryId id;
@@ -36,5 +41,9 @@ struct OrderData {
     Funds_uint64 total;
     Funds_uint64 filled;
     Price_uint64 limit;
+    void serialize(Serializer auto&& s) const
+    {
+        s << id << buy << txid << aid << total << filled << limit;
+    }
 };
 }

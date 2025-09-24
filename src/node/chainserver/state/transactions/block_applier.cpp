@@ -135,12 +135,13 @@ private:
 template <bool ASCENDING>
 struct OrderAggregator {
     using loader_t = OrderLoader<ASCENDING>;
-    OrderAggregator(loader_t loader, const UnsortedOrders<ASCENDING>& orders)
-        : OrderAggregator(OrderMergeLoader<ASCENDING> { std::move(loader), orders })
+    OrderAggregator(loader_t loader, const UnsortedOrders<ASCENDING>& orders, const std::set<HistoryId>& ignoreOrderIds)
+        : OrderAggregator(OrderMergeLoader<ASCENDING> { std::move(loader), orders }, ignoreOrderIds)
     {
     }
-    OrderAggregator(OrderMergeLoader<ASCENDING> l)
+    OrderAggregator(OrderMergeLoader<ASCENDING> l, const std::set<HistoryId>& ignoreOrderIds)
         : l(std::move(l))
+        , ignoreOrderIds(ignoreOrderIds)
     {
         load_next();
     }
@@ -174,18 +175,23 @@ private:
         if (finished == true)
             return;
 
-        auto o { l() };
-        if (!o) {
-            finished = true;
-            return;
+        while (true) {
+            std::optional<OrderData> o { l() };
+            if (!o) {
+                finished = true;
+                return;
+            }
+            if (ignoreOrderIds.contains(o->id))
+                continue;
+            loaded.push_back(*o);
         }
-        loaded.push_back(*o);
     }
 
 private:
     bool finished { false };
     std::vector<OrderData> loaded;
     OrderMergeLoader<ASCENDING> l;
+    const std::set<HistoryId>& ignoreOrderIds;
 };
 using BuyOrderAggregator = OrderAggregator<false>;
 using SellOrderAggregator = OrderAggregator<true>;
@@ -194,20 +200,32 @@ struct AggregatorMatch {
     SellOrderAggregator sellAscAggregator;
     BuyOrderAggregator buyDescAggregator;
     defi::MatchResult_uint64 m;
-    AggregatorMatch(const ChainDB& db, const UnsortedOrderbook& unsortedOrderbook, AssetId aid, const defi::PoolLiquidity_uint64& p)
-        : sellAscAggregator { db.base_order_loader_ascending(aid), unsortedOrderbook.sells }
-        , buyDescAggregator { db.quote_order_loader_descending(aid), unsortedOrderbook.buys }
+    AggregatorMatch(const ChainDB& db, const UnsortedOrderbook& unsortedOrderbook, AssetId aid, const defi::PoolLiquidity_uint64& p, const std::set<HistoryId>& ignoreOrderIds)
+        : sellAscAggregator { db.base_order_loader_ascending(aid), unsortedOrderbook.sells, ignoreOrderIds }
+        , buyDescAggregator { db.quote_order_loader_descending(aid), unsortedOrderbook.buys, ignoreOrderIds }
         , m { defi::match_lazy(sellAscAggregator, buyDescAggregator, p) }
     {
     }
 };
 
+struct FillUpdate {
+    chain_db::OrderFillstate newFillState;
+    Funds_uint64 originalFilled;
+    chain_db::OrderFillstate original_fill_state() const
+    {
+        return {
+            .id { newFillState.id },
+            .filled { originalFilled },
+            .buy = newFillState.buy
+        };
+    }
+};
 struct MatchStateDelta {
     AssetId assetId;
     defi::PoolLiquidity_uint64 poolAfterMatch; // pool liquidity after match
-    std::vector<chain_db::OrderDelete> orderDeletes;
-    std::optional<chain_db::OrderFillstate> orderBuyPartial;
-    std::optional<chain_db::OrderFillstate> orderSellPartial;
+    std::vector<chain_db::OrderData> orderDeletes; // orders that shall be deleted because they were filled
+    std::optional<FillUpdate> orderBuyPartial; // order that is partially filled and needs to be updated in the database
+    std::optional<FillUpdate> orderSellPartial; // order that is partially filled and needs to be updated in the database
     MatchStateDelta(AssetId assetId, defi::PoolLiquidity_uint64 pool)
         : assetId(assetId)
         , poolAfterMatch(std::move(pool))
@@ -220,8 +238,8 @@ private:
     MatchActions(const AggregatorMatch& m, AssetId assetId, const defi::PoolLiquidity_uint64& p);
 
 public:
-    MatchActions(const ChainDB& db, const UnsortedOrderbook& unsortedOrderbook, AssetId aid, const defi::PoolLiquidity_uint64& poolBeforeMatch)
-        : MatchActions(AggregatorMatch { db, unsortedOrderbook, aid, poolBeforeMatch }, aid, poolBeforeMatch)
+    MatchActions(const ChainDB& db, const UnsortedOrderbook& unsortedOrderbook, AssetId aid, const defi::PoolLiquidity_uint64& poolBeforeMatch, const std::set<HistoryId>& ignoreOrderIds)
+        : MatchActions(AggregatorMatch { db, unsortedOrderbook, aid, poolBeforeMatch, ignoreOrderIds }, aid, poolBeforeMatch)
     {
     }
 
@@ -254,7 +272,7 @@ MatchActions::MatchActions(const AggregatorMatch& am, AssetId assetId, const def
         Nonzero_uint64 filledBase { m.filled.base.value() };
         Funds_uint64 quoteDistributed { 0 };
         auto remaining { m.filled.base };
-        for (auto& o : am.sellAscAggregator.loaded_orders()) {
+        for (const auto& o : am.sellAscAggregator.loaded_orders()) {
             if (remaining == 0)
                 break;
             auto orderFilled { o.filled };
@@ -269,10 +287,18 @@ MatchActions::MatchActions(const AggregatorMatch& am, AssetId assetId, const def
 
             if (orderFilled >= o.order.amount) {
                 assert(orderFilled == o.order.amount);
-                orderDeletes.push_back({ .id { o.id }, .buy = false });
+                orderDeletes.push_back({
+                    .id = o.id,
+                    .buy = false,
+                    .txid = o.txid,
+                    .aid = assetId,
+                    .total = o.order.amount,
+                    .filled = o.filled,
+                    .limit = o.order.limit,
+                });
             } else {
                 assert(remaining == 0);
-                orderSellPartial.emplace(chain_db::OrderFillstate { .id { o.id }, .filled { orderFilled } });
+                orderSellPartial.emplace(FillUpdate { { .id { o.id }, .filled { orderFilled }, .buy = false }, o.filled });
             }
             sellSwaps.push_back(SellSwapInternal { { .oId { o.id }, .txid { o.txid }, .base { b }, .quote { Wart::from_funds_throw(*q) } } });
             // order swapped b -> q
@@ -284,7 +310,7 @@ MatchActions::MatchActions(const AggregatorMatch& am, AssetId assetId, const def
         Nonzero_uint64 filledQuote { m.filled.quote.value() };
         Funds_uint64 baseDistributed { 0 };
         auto remaining { m.filled.quote };
-        for (auto& o : am.buyDescAggregator.loaded_orders()) {
+        for (const auto& o : am.buyDescAggregator.loaded_orders()) {
             if (remaining == 0)
                 break;
             auto orderFilled { o.filled };
@@ -300,10 +326,18 @@ MatchActions::MatchActions(const AggregatorMatch& am, AssetId assetId, const def
             // order swapped q -> b
             if (orderFilled >= o.order.amount) {
                 assert(orderFilled == o.order.amount);
-                orderDeletes.push_back({ .id { o.id }, .buy = true });
+                orderDeletes.push_back({
+                    .id = o.id,
+                    .buy = true,
+                    .txid = o.txid,
+                    .aid = assetId,
+                    .total = o.order.amount,
+                    .filled = o.filled,
+                    .limit = o.order.limit,
+                });
             } else {
                 assert(remaining == 0);
-                orderBuyPartial.emplace(chain_db::OrderFillstate { .id { o.id }, .filled { orderFilled } });
+                orderBuyPartial.emplace(FillUpdate { { .id { o.id }, .filled { orderFilled }, .buy = true }, o.filled });
             }
             buySwaps.push_back(BuySwapInternal { { .oId { o.id }, .txid { o.txid }, .base { *b }, .quote { Wart::from_funds_throw(q) } } });
         }
@@ -813,26 +847,123 @@ public:
 } // namespace
 
 namespace chainserver {
-class Preparation {
+struct BalanceUpdate {
+    AccountToken at;
+    BalanceId id;
+    Funds_uint64 original;
+    Funds_uint64 updated;
+};
+using OrderDelete = chain_db::OrderData;
 
+class RollbackTrackingDB {
 public:
-    HistoryEntries historyEntries;
+    RollbackTrackingDB(ChainDB& db)
+        : db(db)
+        , rg(db)
+    {
+    }
+    void insert_account(const AddressView address, AccountId verifyNextId)
+    {
+        db.insert_account(address, verifyNextId);
+    }
+    void update_balance(const BalanceUpdate& u)
+    {
+        db.set_balance(u.id, u.updated);
+        rg.register_original_balance({ u.id, u.original });
+    }
+    void insert_token_balance(AccountToken at, Funds_uint64 balance)
+    {
+        db.insert_token_balance(at, balance);
+    }
+    void delete_order(OrderDelete od)
+    {
+        db.delete_order({ .id = od.id, .buy = od.buy });
+        rg.register_original_order(std::move(od));
+    }
+    void insert_order(const chain_db::OrderData& o)
+    {
+        db.insert_order(o);
+    }
+    void update_order_fillstate(const FillUpdate& o)
+    {
+        db.update_order_fillstate(o.newFillState);
+        rg.register_original_fillstate(o.original_fill_state());
+    }
+    auto rollback_data() &&
+    {
+        return std::move(rg);
+    }
+
+private:
+    ChainDB& db;
     rollback::Data rg;
-    std::set<TransactionId> txset;
-    std::vector<std::tuple<BalanceId, AccountToken, Funds_uint64>> updateBalances;
+};
+
+struct ApplyActions {
+    std::vector<BalanceUpdate> updateBalances;
     std::vector<std::tuple<AccountToken, Funds_uint64>> insertBalances;
     std::vector<std::tuple<AddressView, AccountId>> insertAccounts;
-    std::vector<chain_db::OrderDelete> deleteOrders;
+    std::vector<OrderDelete> deleteCanceledOrders;
     std::vector<chain_db::AssetData> insertAssetCreations;
     std::vector<chain_db::OrderData> insertOrders;
     std::vector<TransactionId> insertCancelOrder;
     std::vector<MatchStateDelta> matchDeltas;
+    std::set<TransactionId> canceledTxids;
+    std::set<HistoryId> canceledOrderIds;
+    [[nodiscard]] auto apply(RollbackTrackingDB db)
+    {
+        // Checklist for different transaction types
+        // insertAccounts:       generate [ ], apply [x], rollback [ ]
+        // updateBalances:       generate [ ], apply [x], rollback [ ]
+        // insertBalances:       generate [ ], apply [x], rollback [ ]
+        // deleteOrders:         generate [ ], apply [x], rollback [ ]
+        // insertAssetCreations: generate [ ], apply [ ], rollback [ ]
+        // insertOrders:         generate [ ], apply [ ], rollback [ ]
+        // insertCancelOrder:    generate [ ], apply [ ], rollback [ ]
+        // matchDeltas:          generate [ ], apply [ ], rollback [ ]
+        
+        // new accounts
+        for (auto& [address, accId] : insertAccounts)
+            db.insert_account(address, accId);
+        // update old balances
+        for (auto& u : updateBalances)
+            db.update_balance(u);
+        // insert new balances
+        for (auto& [at, bal] : insertBalances)
+            db.insert_token_balance(at, bal);
+
+        for (auto& d : deleteCanceledOrders)
+            db.delete_order(d);
+        for (auto& o : insertOrders) // new orders
+            db.insert_order(o);
+        for (auto& d : matchDeltas) {
+            if (auto& o { d.orderBuyPartial })
+                db.update_order_fillstate(*o);
+            if (auto& o { d.orderSellPartial })
+                db.update_order_fillstate(*o);
+            for (auto& o : d.orderDeletes)
+                db.delete_order(o);
+            db.set_pool_liquidity(d.assetId, d.poolAfterMatch);
+        }
+
+        // insert asset creations
+        for (auto& tc : prepared.insertAssetCreations)
+            db.insert_new_asset(tc);
+        return std::move(db).rollback_data();
+    }
+};
+
+class Preparation {
+
+public:
+    HistoryEntries historyEntries;
+    std::set<TransactionId> txset;
+    ApplyActions blockEffects;
     api::block::Actions api;
 
 private:
     friend class PreparationGenerator;
-    Preparation(const ChainDB& db)
-        : rg(db)
+    Preparation()
     {
     }
 };
@@ -897,7 +1028,7 @@ private:
             auto assetId { idIncrementer.next_asset_id_inc() };
             const auto verified { ac.verify(txVerifier) };
             auto& ref { history.push_asset_creation(verified, assetId) };
-            insertAssetCreations.push_back(chain_db::AssetData {
+            blockEffects.insertAssetCreations.push_back(chain_db::AssetData {
                 .id { assetId },
                 .height { height },
                 .ownerAccountId { ac.origin.id },
@@ -916,15 +1047,18 @@ private:
         if (tokenFlow.out() > Funds_uint64::zero()) // We do not allow resend of newly inserted balance
             throw Error(EBALANCE); // insufficient balance
         Funds_uint64 balance { tokenFlow.in() };
-        insertBalances.push_back({ at, balance });
+        blockEffects.insertBalances.push_back({ at, balance });
     }
-    auto adjust_existing_balance(const AccountToken& at, const auto& tokenFlow, BalanceId balanceId, Funds_uint64 balance)
+    auto adjust_existing_balance(const AccountToken& at, const auto& tokenFlow, IdBalance ib)
     {
-        rg.register_balance(balanceId, balance);
         // check that balances are correct
-        auto totalIn { Funds_uint64::sum_throw(tokenFlow.in(), balance) };
+        auto totalIn { Funds_uint64::sum_throw(tokenFlow.in(), ib.balance) };
         Funds_uint64 newbalance { Funds_uint64::diff_throw(totalIn, tokenFlow.out()) };
-        updateBalances.push_back({ balanceId, at, newbalance });
+        blockEffects.updateBalances.push_back(BalanceUpdate {
+            .at { at },
+            .id { ib.id },
+            .original { ib.balance },
+            .updated { newbalance } });
     }
     auto db_addr(AccountId id)
     {
@@ -947,7 +1081,7 @@ private:
             for (auto& [tokenId, tokenFlow] : accountData.token_flow()) {
                 AccountToken at { accountId, tokenId };
                 if (auto [balanceId, balance] { db.get_token_balance_recursive(accountId, tokenId) }; balanceId)
-                    adjust_existing_balance(at, tokenFlow, *balanceId, balance);
+                    adjust_existing_balance(at, tokenFlow, { *balanceId, balance });
                 else
                     adjust_new_balance(at, tokenFlow);
             }
@@ -963,15 +1097,15 @@ private:
             }
             if (!referred)
                 throw Error(EIDPOLICY); // id was not referred
-            insertAccounts.push_back({ a.address, a.id });
+            blockEffects.insertAccounts.push_back({ a.address, a.id });
         }
     }
 
     void process_actions()
     {
         process_reward();
-        process_wart_transfers();
         process_cancelations();
+        process_wart_transfers();
         process_token_sections();
     }
 
@@ -1071,9 +1205,11 @@ private:
             auto verified { c.verify(txVerifier) };
             auto hid { history.push_cancelation(verified).historyId };
             api.cancelations.push_back({ make_signed_info(verified, hid), {} });
+            blockEffects.canceledTxids.insert(verified.ref.cancel_txid());
             auto o { db.select_order(verified.ref.cancel_txid()) };
             if (o) { // transaction is removed from the database
-                deleteOrders.push_back({ o->id, o->buy });
+                blockEffects.canceledOrderIds.insert(o->id);
+                blockEffects.deleteCanceledOrders.push_back(*o);
             }
         }
     }
@@ -1112,7 +1248,7 @@ private:
                     .buy = o.buy(),
                 } });
             no.push_back({ verified, ref.historyId });
-            insertOrders.push_back(chain_db::OrderData {
+            blockEffects.insertOrders.push_back(chain_db::OrderData {
                 .id { ref.historyId },
                 .buy = o.buy(),
                 .txid { verified.txid },
@@ -1122,7 +1258,7 @@ private:
                 .limit { o.limit() } });
         }
 
-        MatchActions m(db, no, asset.info().id, poolBeforeMatch);
+        MatchActions m(db, no, asset.info().id, poolBeforeMatch, blockEffects.canceledOrderIds); // ignore orders in matching that were canceled in the same block
 
         history::MatchData h(asset.id(), poolBeforeMatch, m.poolAfterMatch);
         std::vector<AccountId> accounts;
@@ -1134,7 +1270,7 @@ private:
             h.sell_swaps().push_back({ s.base, s.quote, s.oId });
             accounts.push_back(s.txid.accountId);
         }
-        matchDeltas.push_back(std::move(m));
+        blockEffects.matchDeltas.push_back(std::move(m));
         auto& ref { history.push_match(accounts, h, blockhash, asset.id()) };
 
         api.matches.push_back(
@@ -1204,7 +1340,7 @@ public:
     // * check every new address is indeed new OK
     // * check signatures OK
     PreparationGenerator(const BlockApplier::Preparer& preparer, const Block& b, const BlockHash& hash)
-        : Preparation(preparer.db)
+        : Preparation()
         , db(preparer.db)
         , hc(preparer.hc)
         , idIncrementer(db.next_id32())
@@ -1258,51 +1394,21 @@ api::CompleteBlock BlockApplier::apply_block(const Block& block, const BlockHash
         }
     } };
     try {
+        // merge transaction ids of this block into  newTxIds
         preparer.newTxIds.merge(std::move(prepared.txset));
 
-        // create new pools
-        // create new tokens
+        // write block effects to database
+        auto rollback { prepared.blockEffects.apply(db) };
 
-        // update old balances
-        for (auto& [balId, accountToken, bal] : prepared.updateBalances) {
-            db.set_balance(balId, bal);
-            update_wart_balance(accountToken, bal);
-        }
-
-        for (auto& [address, accId] : prepared.insertAccounts) // new accounts
-            db.insert_account(address, accId);
-
-        for (auto& d : prepared.deleteOrders) // delete orders
-            db.delete_order(d);
-        for (auto& o : prepared.insertOrders) // new orders
-            db.insert_order(o);
-        for (auto& d : prepared.matchDeltas) {
-            if (auto& o { d.orderBuyPartial })
-                db.change_fillstate(*o, true);
-            if (auto& o { d.orderSellPartial })
-                db.change_fillstate(*o, false);
-            for (auto& o : d.orderDeletes)
-                db.delete_order(o);
-            db.set_pool_liquidity(d.assetId, d.poolAfterMatch);
-        }
-
-        // insert asset creations
-        for (auto& tc : prepared.insertAssetCreations)
-            db.insert_new_asset(tc);
-
-        // insert new balances
-        for (auto& [at, bal] : prepared.insertBalances) {
-            db.insert_token_balance(at, bal);
-            update_wart_balance(at, bal);
-        }
-
-        // write undo data
-        db.set_block_undo(blockId, prepared.rg.serialize());
+        // write rollback data
+        db.set_block_undo(blockId, rollback.serialize());
 
         // write consensus data
-        db.insert_consensus(block.height, blockId, db.next_history_id(), prepared.rg.next_state_id32());
+        db.insert_consensus(block.height, blockId, db.next_history_id(), rollback.next_state_id32());
 
+        // write history entries
         prepared.historyEntries.write(db);
+
         return api::CompleteBlock(api::Block(block.header, block.height, 0, std::move(prepared.api)));
     } catch (Error e) {
         throw std::runtime_error(std::string("Unexpected exception: ") + __PRETTY_FUNCTION__ + ":" + e.strerror());

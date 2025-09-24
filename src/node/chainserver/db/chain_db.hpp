@@ -177,7 +177,7 @@ public:
     /////////////////////
     // Order functions
     void insert_order(const chain_db::OrderData&);
-    void change_fillstate(const chain_db::OrderFillstate&, bool buy);
+    void update_order_fillstate(const chain_db::OrderFillstate&);
     void delete_order(const chain_db::OrderDelete&);
     [[nodiscard]] std::optional<chain_db::OrderData> select_order(TransactionId) const;
 

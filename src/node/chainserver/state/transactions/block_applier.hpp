@@ -8,10 +8,14 @@
 class Headerchain;
 class BlockId;
 
-namespace block_apply{
+namespace block_apply {
 
 }
 namespace chainserver {
+
+// this guard makes sure that rollback information is generated
+// when database operations are executed
+
 class Preparation;
 struct BlockApplier {
     BlockApplier(ChainDB& db, const Headerchain& hc, const std::set<TransactionId, ByPinHeight>& baseTxIds, bool fromStage)
