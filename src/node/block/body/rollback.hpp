@@ -164,24 +164,53 @@ struct OrderFillstate : public chain_db::OrderFillstate {
     {
     }
 };
+struct Poolstate {
+    AssetId id;
+    Funds_uint64 base;
+    Funds_uint64 quote;
+    Funds_uint64 shares;
+    Poolstate(AssetId id, const defi::Pool_uint64& pool)
+        : id(id)
+        , base(pool.base)
+        , quote(pool.quote)
+        , shares(pool.shares_total())
+    {
+    }
+    Poolstate(Reader& r)
+        : id(r)
+        , base(r)
+        , quote(r)
+        , shares(r)
+    {
+    }
+    void serializer(Serializer auto&& s)
+    {
+        s << id << base << quote << shares;
+    }
+};
 
-using BaseData = Serializable<StateId32, StateId64, std::vector<IdBalance>, std::vector<OrderData>, std::vector<OrderFillstate>>;
+using BaseData = Serializable<StateId32, StateId64, std::vector<IdBalance>, std::vector<OrderData>, std::vector<OrderFillstate>, std::vector<Poolstate>>;
 class Data : protected BaseData {
 private:
-    Data(Reader v)
+    HistoryId nextHistoryId;
+
+private:
+    Data(Reader v, HistoryId nextHistoryId)
         : BaseData(v)
+        , nextHistoryId(nextHistoryId)
     {
     }
 
 public:
     using BaseData::Serializable;
     using BaseData::serialize;
-    Data(const std::vector<uint8_t>& v)
-        : Data(Reader(v))
+    Data(const std::vector<uint8_t>& v, HistoryId nextHistoryId)
+        : Data(Reader(v), nextHistoryId)
     {
     }
     Data(const ChainDB& db)
-        : BaseData(db.next_id32(), db.next_id64(), {}, {}, {})
+        : BaseData(db.next_id32(), db.next_id64(), {}, {}, {}, {})
+        , nextHistoryId(db.next_history_id())
     {
     }
     auto& next_state_id32() const { return get<0>(); }
@@ -192,13 +221,12 @@ public:
     auto& original_orders() const { return get<3>(); }
     auto& original_fillstates() { return get<4>(); }
     auto& original_fillstates() const { return get<4>(); }
+    auto& original_poolstates() { return get<5>(); }
+    auto& original_poolstates() const { return get<5>(); }
 
 private:
-    void register_object(auto& vector, auto element)
+    void register_object(auto& vector, auto&& element)
     {
-        if (element.id >= next_state_id64())
-            return;
-
         bool exists = false;
         for (auto& b : vector) {
             if (b.id == element.id)
@@ -208,19 +236,41 @@ private:
         assert(!exists);
         vector.push_back(std::move(element));
     }
+    void register_object64(auto& vector, auto element)
+    {
+        if (StateId64(element.id) >= next_state_id64())
+            return;
+        register_object(vector, std::move(element));
+    }
+    void register_object_hist(auto& vector, auto element)
+    {
+        if (element.id >= nextHistoryId)
+            return;
+        register_object(vector, std::move(element));
+    }
+    void register_object32(auto& vector, auto element)
+    {
+        if (StateId32(element.id) >= next_state_id32())
+            return;
+        register_object(vector, std::move(element));
+    }
 
 public:
     void register_original_balance(IdBalance o)
     {
-        register_object(original_balances(), std::move(o));
+        register_object64(original_balances(), std::move(o));
     }
     void register_original_order(chain_db::OrderData o)
     {
-        register_object(original_orders(), std::move(o));
+        register_object_hist(original_orders(), std::move(o));
     };
     void register_original_fillstate(chain_db::OrderFillstate o)
     {
-        register_object(original_fillstates(), std::move(o));
+        register_object_hist(original_fillstates(), std::move(o));
+    }
+    void register_original_poolstate(Poolstate o)
+    {
+        register_object32(original_poolstates(), std::move(o));
     }
 
     void foreach_balance_update(const auto& lambda) const

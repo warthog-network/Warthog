@@ -3,9 +3,11 @@
 #include "block/body/rollback.hpp"
 #include "block/chain/header_chain.hpp"
 #include "block/chain/history/history.hpp"
+#include "block_effects.hpp"
 #include "chainserver/db/chain_db.hpp"
 #include "chainserver/db/ids.hpp"
 #include "chainserver/db/types.hpp"
+#include "chainserver/state/block_apply/types.hpp"
 #include "defi/token/account_token.hpp"
 #include "defi/token/info.hpp"
 #include "defi/uint64/lazy_matching.hpp"
@@ -13,7 +15,9 @@
 
 using namespace block::body;
 
+namespace chainserver {
 namespace {
+
 api::block::SignedInfoData make_signed_info(const auto& verified, HistoryId hid)
 {
     return api::block::SignedInfoData {
@@ -102,9 +106,9 @@ class OrderMergeLoader {
     }
 
 public:
-    OrderMergeLoader(loader_t loader, const UnsortedOrders<ASCENDING>& orders)
+    OrderMergeLoader(loader_t loader, const UnsortedOrders<ASCENDING>& new_orders)
         : loader(std::move(loader))
-        , newOrders(orders)
+        , newOrders(new_orders)
         , nextOrder(newOrders.begin())
     {
     }
@@ -135,8 +139,8 @@ private:
 template <bool ASCENDING>
 struct OrderAggregator {
     using loader_t = OrderLoader<ASCENDING>;
-    OrderAggregator(loader_t loader, const UnsortedOrders<ASCENDING>& orders, const std::set<HistoryId>& ignoreOrderIds)
-        : OrderAggregator(OrderMergeLoader<ASCENDING> { std::move(loader), orders }, ignoreOrderIds)
+    OrderAggregator(loader_t loader, const UnsortedOrders<ASCENDING>& newOrders, const std::set<HistoryId>& ignoreOrderIds)
+        : OrderAggregator(OrderMergeLoader<ASCENDING> { std::move(loader), newOrders }, ignoreOrderIds)
     {
     }
     OrderAggregator(OrderMergeLoader<ASCENDING> l, const std::set<HistoryId>& ignoreOrderIds)
@@ -208,143 +212,132 @@ struct AggregatorMatch {
     }
 };
 
-struct FillUpdate {
-    chain_db::OrderFillstate newFillState;
-    Funds_uint64 originalFilled;
-    chain_db::OrderFillstate original_fill_state() const
+struct MatchProcessor {
+
+    struct Swaps {
+        std::vector<SwapInternal> buySwaps;
+        std::vector<SwapInternal> sellSwaps;
+    };
+
+    Swaps match(defi::PoolLiquidity_uint64& pool, block_apply::BlockEffects* blockEffects = nullptr) const
     {
-        return {
-            .id { newFillState.id },
-            .filled { originalFilled },
-            .buy = newFillState.buy
-        };
+        Swaps res;
+        AggregatorMatch am { db, unsortedOrderbook, assetId, pool, ignoreOrderIds };
+        auto& m { am.m };
+        Funds_uint64 fromPool { 0 };
+        defi::BaseQuote_uint64 returned { m.filled };
+        if (m.toPool) {
+            auto pa { m.toPool->amount() };
+            if (m.toPool->is_quote()) {
+                returned.quote.subtract_assert(pa);
+                fromPool = pool.buy(pa, 50);
+                returned.base.add_assert(fromPool);
+            } else {
+                returned.base.subtract_assert(pa);
+                fromPool = pool.sell(pa, 50);
+                returned.quote.add_assert(fromPool);
+            }
+        }
+
+        if (m.filled.base != 0) { // seller match
+            Nonzero_uint64 filledBase { m.filled.base.value() };
+            Funds_uint64 quoteDistributed { 0 };
+            auto remaining { m.filled.base };
+            for (const auto& o : am.sellAscAggregator.loaded_orders()) {
+                if (remaining == 0)
+                    break;
+                auto orderFilled { o.filled };
+                auto b { std::min(remaining, o.remaining()) };
+                orderFilled.add_assert(b);
+                remaining.subtract_assert(b);
+
+                // compute return of that order
+                auto q { Prod128(b, returned.quote).divide_floor(filledBase) };
+                assert(q.has_value());
+                quoteDistributed.add_assert(*q);
+
+                // order swapped b -> q
+                if (orderFilled >= o.order.amount) {
+                    assert(orderFilled == o.order.amount);
+                    if (blockEffects) {
+                        blockEffects->orderDeletes.push_back({
+                            .id = o.id,
+                            .buy = false,
+                            .txid = o.txid,
+                            .aid = assetId,
+                            .total = o.order.amount,
+                            .filled = o.filled,
+                            .limit = o.order.limit,
+                        });
+                    }
+                } else {
+                    assert(remaining == 0);
+                    if (blockEffects)
+                        blockEffects->orderUpdates.push_back({ .newFillState { .id { o.id }, .filled { orderFilled }, .buy = false }, .originalFilled { o.filled } });
+                }
+                res.sellSwaps.push_back(SwapInternal { { .oId { o.id }, .txid { o.txid }, .base { b }, .quote { Wart::from_funds_throw(*q) } } });
+            }
+            assert(remaining == 0);
+            returned.quote.subtract_assert(quoteDistributed);
+        }
+        if (m.filled.quote != 0) { // buyer match
+            Nonzero_uint64 filledQuote { m.filled.quote.value() };
+            Funds_uint64 baseDistributed { 0 };
+            auto remaining { m.filled.quote };
+            for (const auto& o : am.buyDescAggregator.loaded_orders()) {
+                if (remaining == 0)
+                    break;
+                auto orderFilled { o.filled };
+                auto q { std::min(remaining, o.remaining()) };
+                orderFilled.add_assert(q);
+                remaining.subtract_assert(q);
+
+                // compute return of that order
+                auto b { Prod128(q, returned.base).divide_floor(filledQuote) };
+                assert(b.has_value());
+                baseDistributed.add_assert(*b);
+
+                // order swapped q -> b
+                if (orderFilled >= o.order.amount) {
+                    assert(orderFilled == o.order.amount);
+                    if (blockEffects) {
+                        blockEffects->orderDeletes.push_back({
+                            .id = o.id,
+                            .buy = true,
+                            .txid = o.txid,
+                            .aid = assetId,
+                            .total = o.order.amount,
+                            .filled = o.filled,
+                            .limit = o.order.limit,
+                        });
+                    }
+                } else {
+                    assert(remaining == 0);
+                    if (blockEffects)
+                        blockEffects->orderUpdates.push_back({ .newFillState { .id { o.id }, .filled { orderFilled }, .buy = true }, .originalFilled { o.filled } });
+                }
+                res.buySwaps.push_back(SwapInternal { .oId { o.id }, .txid { o.txid }, .base { *b }, .quote { Wart::from_funds_throw(q) } });
+            }
+            assert(remaining == 0);
+            returned.base.subtract_assert(baseDistributed);
+        }
+        return res;
     }
-};
-struct MatchStateDelta {
-    AssetId assetId;
-    defi::PoolLiquidity_uint64 poolAfterMatch; // pool liquidity after match
-    std::vector<chain_db::OrderData> orderDeletes; // orders that shall be deleted because they were filled
-    std::optional<FillUpdate> orderBuyPartial; // order that is partially filled and needs to be updated in the database
-    std::optional<FillUpdate> orderSellPartial; // order that is partially filled and needs to be updated in the database
-    MatchStateDelta(AssetId assetId, defi::PoolLiquidity_uint64 pool)
+    MatchProcessor(AssetId assetId, const ChainDB& db, const std::set<HistoryId>& ignoreOrderIds, const UnsortedOrderbook& unsortedOrderbook)
         : assetId(assetId)
-        , poolAfterMatch(std::move(pool))
+        , db(db)
+        , ignoreOrderIds(ignoreOrderIds)
+        , unsortedOrderbook(unsortedOrderbook)
     {
     }
-};
 
-struct MatchActions : public MatchStateDelta {
 private:
-    MatchActions(const AggregatorMatch& m, AssetId assetId, const defi::PoolLiquidity_uint64& p);
-
-public:
-    MatchActions(const ChainDB& db, const UnsortedOrderbook& unsortedOrderbook, AssetId aid, const defi::PoolLiquidity_uint64& poolBeforeMatch, const std::set<HistoryId>& ignoreOrderIds)
-        : MatchActions(AggregatorMatch { db, unsortedOrderbook, aid, poolBeforeMatch, ignoreOrderIds }, aid, poolBeforeMatch)
-    {
-    }
-
-    // state changes
-
-    std::vector<BuySwapInternal> buySwaps;
-    std::vector<SellSwapInternal> sellSwaps;
+    AssetId assetId;
+    const ChainDB& db;
+    const std::set<HistoryId>& ignoreOrderIds;
+    const UnsortedOrderbook& unsortedOrderbook;
 };
 
-MatchActions::MatchActions(const AggregatorMatch& am, AssetId assetId, const defi::PoolLiquidity_uint64& p)
-    : MatchStateDelta { assetId, p }
-{
-    auto& m { am.m };
-    Funds_uint64 fromPool { 0 };
-    defi::BaseQuote_uint64 returned { m.filled };
-    if (m.toPool) {
-        auto pa { m.toPool->amount() };
-        if (m.toPool->is_quote()) {
-            returned.quote.subtract_assert(pa);
-            fromPool = poolAfterMatch.buy(pa, 50);
-            returned.base.add_assert(fromPool);
-        } else {
-            returned.base.subtract_assert(pa);
-            fromPool = poolAfterMatch.sell(pa, 50);
-            returned.quote.add_assert(fromPool);
-        }
-    }
-
-    if (m.filled.base != 0) { // seller match
-        Nonzero_uint64 filledBase { m.filled.base.value() };
-        Funds_uint64 quoteDistributed { 0 };
-        auto remaining { m.filled.base };
-        for (const auto& o : am.sellAscAggregator.loaded_orders()) {
-            if (remaining == 0)
-                break;
-            auto orderFilled { o.filled };
-            auto b { std::min(remaining, o.remaining()) };
-            orderFilled.add_assert(b);
-            remaining.subtract_assert(b);
-
-            // compute return of that order
-            auto q { Prod128(b, returned.quote).divide_floor(filledBase) };
-            assert(q.has_value());
-            quoteDistributed.add_assert(*q);
-
-            if (orderFilled >= o.order.amount) {
-                assert(orderFilled == o.order.amount);
-                orderDeletes.push_back({
-                    .id = o.id,
-                    .buy = false,
-                    .txid = o.txid,
-                    .aid = assetId,
-                    .total = o.order.amount,
-                    .filled = o.filled,
-                    .limit = o.order.limit,
-                });
-            } else {
-                assert(remaining == 0);
-                orderSellPartial.emplace(FillUpdate { { .id { o.id }, .filled { orderFilled }, .buy = false }, o.filled });
-            }
-            sellSwaps.push_back(SellSwapInternal { { .oId { o.id }, .txid { o.txid }, .base { b }, .quote { Wart::from_funds_throw(*q) } } });
-            // order swapped b -> q
-        }
-        assert(remaining == 0);
-        returned.quote.subtract_assert(quoteDistributed);
-    }
-    if (m.filled.quote != 0) { // buyer match
-        Nonzero_uint64 filledQuote { m.filled.quote.value() };
-        Funds_uint64 baseDistributed { 0 };
-        auto remaining { m.filled.quote };
-        for (const auto& o : am.buyDescAggregator.loaded_orders()) {
-            if (remaining == 0)
-                break;
-            auto orderFilled { o.filled };
-            auto q { std::min(remaining, o.remaining()) };
-            orderFilled.add_assert(q);
-            remaining.subtract_assert(q);
-
-            // compute return of that order
-            auto b { Prod128(q, returned.base).divide_floor(filledQuote) };
-            assert(b.has_value());
-            baseDistributed.add_assert(*b);
-
-            // order swapped q -> b
-            if (orderFilled >= o.order.amount) {
-                assert(orderFilled == o.order.amount);
-                orderDeletes.push_back({
-                    .id = o.id,
-                    .buy = true,
-                    .txid = o.txid,
-                    .aid = assetId,
-                    .total = o.order.amount,
-                    .filled = o.filled,
-                    .limit = o.order.limit,
-                });
-            } else {
-                assert(remaining == 0);
-                orderBuyPartial.emplace(FillUpdate { { .id { o.id }, .filled { orderFilled }, .buy = true }, o.filled });
-            }
-            buySwaps.push_back(BuySwapInternal { { .oId { o.id }, .txid { o.txid }, .base { *b }, .quote { Wart::from_funds_throw(q) } } });
-        }
-        assert(remaining == 0);
-        returned.base.subtract_assert(baseDistributed);
-    }
-}
 struct NewOrdersInternal : UnsortedOrderbook {
     bool empty() const { return buys.empty() && sells.empty(); }
     void push_back(VerifiedOrderWithId o)
@@ -844,121 +837,14 @@ public:
     }
 };
 
-} // namespace
-
-namespace chainserver {
-struct BalanceUpdate {
-    AccountToken at;
-    BalanceId id;
-    Funds_uint64 original;
-    Funds_uint64 updated;
-};
-using OrderDelete = chain_db::OrderData;
-
-class RollbackTrackingDB {
-public:
-    RollbackTrackingDB(ChainDB& db)
-        : db(db)
-        , rg(db)
-    {
-    }
-    void insert_account(const AddressView address, AccountId verifyNextId)
-    {
-        db.insert_account(address, verifyNextId);
-    }
-    void update_balance(const BalanceUpdate& u)
-    {
-        db.set_balance(u.id, u.updated);
-        rg.register_original_balance({ u.id, u.original });
-    }
-    void insert_token_balance(AccountToken at, Funds_uint64 balance)
-    {
-        db.insert_token_balance(at, balance);
-    }
-    void delete_order(OrderDelete od)
-    {
-        db.delete_order({ .id = od.id, .buy = od.buy });
-        rg.register_original_order(std::move(od));
-    }
-    void insert_order(const chain_db::OrderData& o)
-    {
-        db.insert_order(o);
-    }
-    void update_order_fillstate(const FillUpdate& o)
-    {
-        db.update_order_fillstate(o.newFillState);
-        rg.register_original_fillstate(o.original_fill_state());
-    }
-    auto rollback_data() &&
-    {
-        return std::move(rg);
-    }
-
-private:
-    ChainDB& db;
-    rollback::Data rg;
-};
-
-struct ApplyActions {
-    std::vector<BalanceUpdate> updateBalances;
-    std::vector<std::tuple<AccountToken, Funds_uint64>> insertBalances;
-    std::vector<std::tuple<AddressView, AccountId>> insertAccounts;
-    std::vector<OrderDelete> deleteCanceledOrders;
-    std::vector<chain_db::AssetData> insertAssetCreations;
-    std::vector<chain_db::OrderData> insertOrders;
-    std::vector<TransactionId> insertCancelOrder;
-    std::vector<MatchStateDelta> matchDeltas;
-    std::set<TransactionId> canceledTxids;
-    std::set<HistoryId> canceledOrderIds;
-    [[nodiscard]] auto apply(RollbackTrackingDB db)
-    {
-        // Checklist for different transaction types
-        // insertAccounts:       generate [ ], apply [x], rollback [ ]
-        // updateBalances:       generate [ ], apply [x], rollback [ ]
-        // insertBalances:       generate [ ], apply [x], rollback [ ]
-        // deleteOrders:         generate [ ], apply [x], rollback [ ]
-        // insertAssetCreations: generate [ ], apply [ ], rollback [ ]
-        // insertOrders:         generate [ ], apply [ ], rollback [ ]
-        // insertCancelOrder:    generate [ ], apply [ ], rollback [ ]
-        // matchDeltas:          generate [ ], apply [ ], rollback [ ]
-        
-        // new accounts
-        for (auto& [address, accId] : insertAccounts)
-            db.insert_account(address, accId);
-        // update old balances
-        for (auto& u : updateBalances)
-            db.update_balance(u);
-        // insert new balances
-        for (auto& [at, bal] : insertBalances)
-            db.insert_token_balance(at, bal);
-
-        for (auto& d : deleteCanceledOrders)
-            db.delete_order(d);
-        for (auto& o : insertOrders) // new orders
-            db.insert_order(o);
-        for (auto& d : matchDeltas) {
-            if (auto& o { d.orderBuyPartial })
-                db.update_order_fillstate(*o);
-            if (auto& o { d.orderSellPartial })
-                db.update_order_fillstate(*o);
-            for (auto& o : d.orderDeletes)
-                db.delete_order(o);
-            db.set_pool_liquidity(d.assetId, d.poolAfterMatch);
-        }
-
-        // insert asset creations
-        for (auto& tc : prepared.insertAssetCreations)
-            db.insert_new_asset(tc);
-        return std::move(db).rollback_data();
-    }
-};
+}
 
 class Preparation {
 
 public:
     HistoryEntries historyEntries;
     std::set<TransactionId> txset;
-    ApplyActions blockEffects;
+    block_apply::BlockEffects blockEffects;
     api::block::Actions api;
 
 private:
@@ -1027,7 +913,6 @@ private:
             auto& ac { assetCreations[i] };
             auto assetId { idIncrementer.next_asset_id_inc() };
             const auto verified { ac.verify(txVerifier) };
-            auto& ref { history.push_asset_creation(verified, assetId) };
             blockEffects.insertAssetCreations.push_back(chain_db::AssetData {
                 .id { assetId },
                 .height { height },
@@ -1038,6 +923,8 @@ private:
                 .name { ac.asset_name() },
                 .hash { AssetHash(TxHash(verified.hash)) },
                 .data {} });
+
+            auto& ref { history.push_asset_creation(verified, assetId) };
             api.assetCreations.push_back({ make_signed_info(verified, ref.historyId), { .name { ac.asset_name() }, .supply { ac.supply() }, .assetId { assetId } } });
         }
     }
@@ -1054,11 +941,11 @@ private:
         // check that balances are correct
         auto totalIn { Funds_uint64::sum_throw(tokenFlow.in(), ib.balance) };
         Funds_uint64 newbalance { Funds_uint64::diff_throw(totalIn, tokenFlow.out()) };
-        blockEffects.updateBalances.push_back(BalanceUpdate {
-            .at { at },
-            .id { ib.id },
-            .original { ib.balance },
-            .updated { newbalance } });
+        blockEffects.updateBalances.push_back(
+            { .at { at },
+                .id { ib.id },
+                .original { ib.balance },
+                .updated { newbalance } });
     }
     auto db_addr(AccountId id)
     {
@@ -1137,7 +1024,7 @@ private:
     struct AssetHandle {
         struct LoadedPool {
             bool create;
-            PoolData pool;
+            block_apply::PoolUpdate pool;
         };
         AssetHandle(AssetBasic t)
             : _info(std::move(t))
@@ -1148,7 +1035,7 @@ private:
         auto& precision() const { return info().precision; }
         auto id() const { return _info.id; }
         auto& name() const { return _info.name; }
-        [[nodiscard]] auto& get_pool(const ChainDB& db) const
+        [[nodiscard]] auto& get_pool(const ChainDB& db)
         {
             if (!o) {
                 if (auto p { db.select_pool(info().id) })
@@ -1156,8 +1043,9 @@ private:
                 else
                     o.emplace(LoadedPool { true, PoolData::zero(id()) });
             }
-            return o->pool;
+            return o->pool.updated;
         }
+        auto& loaded_pool() const { return o; }
 
     private:
         AssetBasic _info;
@@ -1168,14 +1056,21 @@ private:
         auto ts { balanceChecker.get_token_sections() };
         for (auto& ts : balanceChecker.get_token_sections()) {
             auto ihn { db_asset(ts.asset_id()) };
-            AssetHandle th(ihn);
-            process_token_transfers(th, ts.sharesTransfers);
-            match_new_orders(th, ts.orders);
-            process_liquidity_deposits(th, ts.liquidityAdds);
-            process_liquidity_withdrawals(th, ts.liquidityRemoves);
+            AssetHandle ah(ihn);
+            process_token_transfers(ah, ts.sharesTransfers);
+            match_new_orders(ah, ts.orders);
+            process_liquidity_deposits(ah, ts.liquidityAdds);
+            process_liquidity_withdrawals(ah, ts.liquidityRemoves);
+            if (auto& o { ah.loaded_pool() }) {
+                auto& p { *o };
+                if (p.create && p.pool.nonzero())
+                    blockEffects.poolInsertions.push_back({ ah.id(), p.pool.updated });
+                else
+                    blockEffects.poolUpdates.push_back(o->pool);
+            }
         }
     }
-    template <typename... T>
+    // template <typename... T>
     // [[nodiscard]] auto verify(auto& tx, T&&... t)
     // {
     //     return tx.verify(txVerifier, std::forward<T>(t)...);
@@ -1228,14 +1123,9 @@ private:
                 } });
         }
     }
-    void match_new_orders(const AssetHandle& asset, const std::vector<block_apply::Order::Internal>& orders)
+    [[nodiscard]] NewOrdersInternal generate_new_orders(const AssetHandle& asset, const std::vector<block_apply::Order::Internal>& orders)
     {
-        if (orders.size() == 0)
-            return;
-        const auto& p { asset.get_pool(db) };
-        const auto poolBeforeMatch { p.liquidity() };
-        NewOrdersInternal no;
-
+        NewOrdersInternal res;
         for (auto& o : orders) {
             auto verified { o.verify(txVerifier, asset.hash()) };
             auto& ref { history.push_order(verified) };
@@ -1247,8 +1137,8 @@ private:
                     .limit { o.limit() },
                     .buy = o.buy(),
                 } });
-            no.push_back({ verified, ref.historyId });
-            blockEffects.insertOrders.push_back(chain_db::OrderData {
+            res.push_back({ verified, ref.historyId });
+            blockEffects.OrderInsertions.push_back(chain_db::OrderData {
                 .id { ref.historyId },
                 .buy = o.buy(),
                 .txid { verified.txid },
@@ -1257,20 +1147,32 @@ private:
                 .filled { Funds_uint64::zero() },
                 .limit { o.limit() } });
         }
+        return res;
+    }
+    void match_new_orders(AssetHandle& asset, const std::vector<block_apply::Order::Internal>& orders)
+    {
+        if (orders.size() == 0)
+            return;
+        auto newOrders { generate_new_orders(asset, orders) };
 
-        MatchActions m(db, no, asset.info().id, poolBeforeMatch, blockEffects.canceledOrderIds); // ignore orders in matching that were canceled in the same block
+        auto& pool { asset.get_pool(db) };
 
-        history::MatchData h(asset.id(), poolBeforeMatch, m.poolAfterMatch);
+        MatchProcessor m(asset.id(), db, blockEffects.canceledOrderIds, newOrders);
+
+        const defi::PoolLiquidity_uint64 poolBeforeMatch { pool };
+        auto swaps { m.match(pool, &blockEffects) };
+
+        // generate history entry for swap
+        history::MatchData h(asset.id(), poolBeforeMatch, pool);
         std::vector<AccountId> accounts;
-        for (auto& s : m.buySwaps) {
+        for (auto& s : swaps.buySwaps) {
             h.buy_swaps().push_back({ s.base, s.quote, s.oId });
             accounts.push_back(s.txid.accountId);
         }
-        for (auto& s : m.sellSwaps) {
+        for (auto& s : swaps.sellSwaps) {
             h.sell_swaps().push_back({ s.base, s.quote, s.oId });
             accounts.push_back(s.txid.accountId);
         }
-        blockEffects.matchDeltas.push_back(std::move(m));
         auto& ref { history.push_match(accounts, h, blockhash, asset.id()) };
 
         api.matches.push_back(
@@ -1288,7 +1190,7 @@ private:
         auto b { api.matches.back() };
     }
 
-    void process_liquidity_deposits(const AssetHandle& ah, const std::vector<block_apply::LiquidityDeposit::Internal>& deposits)
+    void process_liquidity_deposits(AssetHandle& ah, const std::vector<block_apply::LiquidityDeposit::Internal>& deposits)
     {
         auto& pool { ah.get_pool(db) };
         for (auto& d : deposits) {
@@ -1306,7 +1208,7 @@ private:
         }
     }
 
-    void process_liquidity_withdrawals(const AssetHandle& ah, const std::vector<block_apply::LiquidityWithdrawal::Internal>& withdrawals)
+    void process_liquidity_withdrawals(AssetHandle& ah, const std::vector<block_apply::LiquidityWithdrawal::Internal>& withdrawals)
     {
         auto& pool { ah.get_pool(db) };
         for (auto& a : withdrawals) {

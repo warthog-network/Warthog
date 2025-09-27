@@ -122,6 +122,8 @@ public:
             return result;
         }
     }
+    auto& liquidity() { return *(static_cast<PoolLiquidity_uint64*>(this)); }
+    auto& liquidity() const { return *(static_cast<const PoolLiquidity_uint64*>(this)); }
 
     [[nodiscard]] BaseQuote_uint64 liquidity_equivalent(NonzeroFunds_uint64 shares) const
     {

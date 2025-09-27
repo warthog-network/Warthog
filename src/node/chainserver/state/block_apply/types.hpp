@@ -62,10 +62,6 @@ struct SwapInternal {
     Wart quote;
 };
 
-struct BuySwapInternal : public SwapInternal {
-};
-struct SellSwapInternal : public SwapInternal {
-};
 
 struct RewardInternal {
     ValidAccountId toAccountId;

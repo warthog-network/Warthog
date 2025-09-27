@@ -50,6 +50,11 @@ struct PoolData : public defi::Pool_uint64 {
         Funds_uint64 quote;
         Funds_uint64 shares;
     };
+    PoolData(AssetId assetId, defi::Pool_uint64 pool)
+        : defi::Pool_uint64(std::move(pool))
+        , assetId(assetId)
+    {
+    }
     PoolData(Initializer i)
         : defi::Pool_uint64(i.base.value(), i.quote.value(), i.shares.value())
         , assetId(i.assetId)
@@ -66,8 +71,6 @@ struct PoolData : public defi::Pool_uint64 {
     }
 
     auto asset_id() const { return assetId; }
-
-    defi::PoolLiquidity_uint64 liquidity() const { return { base, quote }; }
 
 private:
     AssetId assetId;
@@ -201,7 +204,7 @@ public:
     void insert_pool(const PoolData& pool);
     [[nodiscard]] std::optional<PoolData> select_pool(AssetId assetId) const;
     void update_pool(TokenId shareId, Funds_uint64 base, Funds_uint64 quote, Funds_uint64 shares);
-    void set_pool_liquidity(AssetId, const defi::PoolLiquidity_uint64&);
+    void update_pool_liquidity(AssetId, const defi::PoolLiquidity_uint64&);
 
     /////////////////////
     // Token fork balance functions

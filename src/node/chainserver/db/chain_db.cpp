@@ -663,6 +663,7 @@ void ChainDB::insert_order(const chain_db::OrderData& o)
     else
         stmtInsertBaseSellOrder.run(o.id, o.txid.accountId, o.txid.pinHeight, o.txid.nonceId, o.aid, o.total, o.filled, o.limit);
 }
+
 void ChainDB::update_order_fillstate(const chain_db::OrderFillstate& o)
 {
     if (o.buy)
@@ -752,7 +753,7 @@ void ChainDB::update_pool(TokenId shareId, Funds_uint64 base, Funds_uint64 quote
     stmtUpdatePool.run(base, quote, shares, shareId);
 }
 
-void ChainDB::set_pool_liquidity(AssetId assetId, const defi::PoolLiquidity_uint64& pl)
+void ChainDB::update_pool_liquidity(AssetId assetId, const defi::PoolLiquidity_uint64& pl)
 {
     stmtUpdatePoolLiquidity.run(pl.base, pl.quote, assetId);
 }
