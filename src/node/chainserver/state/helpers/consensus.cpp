@@ -7,7 +7,7 @@
 namespace chainserver {
 
 Chainstate::Chainstate(const ChainDB& db, BatchRegistry& br)
-    : Chainstate(db.getConsensusHeaders(), db, br)
+    : Chainstate(db.get_consensus_headers(), db, br)
 {
 }
 

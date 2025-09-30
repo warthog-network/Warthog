@@ -5,7 +5,7 @@
 #include "block/chain/history/history.hpp"
 #include "block_effects.hpp"
 #include "chainserver/db/chain_db.hpp"
-#include "chainserver/db/ids.hpp"
+#include "chainserver/db/state_ids.hpp"
 #include "chainserver/db/types.hpp"
 #include "chainserver/state/block_apply/types.hpp"
 #include "defi/token/account_token.hpp"
@@ -275,7 +275,7 @@ struct MatchProcessor {
                     if (blockEffects)
                         blockEffects->orderUpdates.push_back({ .newFillState { .id { o.id }, .filled { orderFilled }, .buy = false }, .originalFilled { o.filled } });
                 }
-                res.sellSwaps.push_back(SwapInternal { { .oId { o.id }, .txid { o.txid }, .base { b }, .quote { Wart::from_funds_throw(*q) } } });
+                res.sellSwaps.push_back(SwapInternal { .oId { o.id }, .txid { o.txid }, .base { b }, .quote { Wart::from_funds_throw(*q) } });
             }
             assert(remaining == 0);
             returned.quote.subtract_assert(quoteDistributed);
@@ -847,6 +847,14 @@ public:
     block_apply::BlockEffects blockEffects;
     api::block::Actions api;
 
+    void write_wart_updates(std::map<AccountId, Wart>& wartUpdates) const
+    {
+        for (auto& u : blockEffects.updateBalances) {
+            if (u.at.token_id() == TokenId::WART)
+                wartUpdates.insert_or_assign(u.at.account_id(), Wart::from_funds_throw(u.original));
+        }
+    }
+
 private:
     friend class PreparationGenerator;
     Preparation()
@@ -1290,12 +1298,10 @@ api::CompleteBlock BlockApplier::apply_block(const Block& block, const BlockHash
     //////////////////////////////
     // BELOW NO "Error" TROWS
 
-    auto update_wart_balance { [this](AccountToken at, Funds_uint64 bal) {
-        if (at.token_id() == TokenId::WART) {
-            WART_BalanceUpdates.insert_or_assign(at.account_id(), Wart::from_funds_throw(bal));
-        }
-    } };
     try {
+        // write WART balance updates in the cumulative map 'wartUpdates' of all blocks applied so far
+        prepared.write_wart_updates(wartUpdates);
+
         // merge transaction ids of this block into  newTxIds
         preparer.newTxIds.merge(std::move(prepared.txset));
 

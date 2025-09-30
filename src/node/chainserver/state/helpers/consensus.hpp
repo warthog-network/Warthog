@@ -7,7 +7,7 @@
 #include "block/chain/offsts.hpp"
 #include "cache_fwd.hpp"
 #include "chainserver/db/deletion_key.hpp"
-#include "chainserver/db/ids.hpp"
+#include "chainserver/db/state_ids.hpp"
 #include "chainserver/db/types_fwd.hpp"
 #include "mempool/mempool.hpp"
 #include <cstdint>
@@ -76,7 +76,7 @@ struct Chainstate {
     Descriptor descriptor() const { return dsc; }
     const auto& txids() const { return chainTxIds; }
     const auto& mempool() const { return _mempool; }
-    [[nodiscard]] inline auto historyOffset(NonzeroHeight height) const
+    [[nodiscard]] inline auto history_offset(NonzeroHeight height) const
     {
         if (height.value() == 1)
             return HistoryId::smallest();
@@ -88,7 +88,7 @@ struct Chainstate {
     }
     State32Height account_height(AccountId id) const
     {
-        return state32Offsets.height(id);
+        return state32Offsets.height(state_id(id));
     }
 
 protected:

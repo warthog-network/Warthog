@@ -4,7 +4,7 @@
 #include "block/chain/history/history.hpp"
 #include "block/header/header_impl.hpp"
 #include "block/header/view_inline.hpp"
-#include "chainserver/db/ids.hpp"
+#include "chainserver/db/state_ids.hpp"
 #include "db/sqlite.hpp"
 #include "defi/token/account_token.hpp"
 #include "defi/token/info.hpp"
@@ -283,7 +283,6 @@ ChainDB::ChainDB(const std::string& path)
     , stmtInsertPool(db, "INSERT INTO `" POOLS_TABLE "` (asset_id, pool_wart, pool_token, pool_shares) VALUES (?,?,?,?)")
     , stmtSelectPool(db, "SELECT (asset_id, liquidity_token, liquidity_wart, pool_shares) FROM `" POOLS_TABLE "` WHERE asset_id=?")
     , stmtUpdatePool(db, "UPDATE `" POOLS_TABLE "` SET liquidity_base=?, liquidity_quote=?, pool_shares=? WHERE asset_id=?")
-    , stmtUpdatePoolLiquidity(db, "UPDATE `" POOLS_TABLE "` SET liquidity_base=?, liquidity_quote=? WHERE asset_id=?")
     , stmtTokenForkBalanceInsert(db, "INSERT INTO `" TOKENFORKBALANCES_TABLE "` "
                                      "(id, account_id, token_id, height, balance) "
                                      "VALUES (?,?,?,?)")
@@ -748,15 +747,12 @@ std::optional<PoolData> ChainDB::select_pool(AssetId assetId) const
     });
 }
 
-void ChainDB::update_pool(TokenId shareId, Funds_uint64 base, Funds_uint64 quote, Funds_uint64 shares)
+void ChainDB::update_pool(const PoolData& d)
 {
-    stmtUpdatePool.run(base, quote, shares, shareId);
+    // stmtUpdatePool(db, "UPDATE `" POOLS_TABLE "` SET liquidity_base=?, liquidity_quote=?, pool_shares=? WHERE asset_id=?")
+    stmtUpdatePool.run(d.base, d.quote, d.shares_total(), d.asset_id());
 }
 
-void ChainDB::update_pool_liquidity(AssetId assetId, const defi::PoolLiquidity_uint64& pl)
-{
-    stmtUpdatePoolLiquidity.run(pl.base, pl.quote, assetId);
-}
 void ChainDB::insert_token_fork_balance(TokenForkBalanceId id, TokenId tokenId, TokenForkId forkId, Funds_uint64 balance)
 {
     stmtTokenForkBalanceInsert.run(id, tokenId, forkId, balance);
@@ -831,7 +827,7 @@ api::Richlist ChainDB::lookup_richlist(TokenId tokenId, size_t limit) const
     return out;
 }
 
-std::tuple<std::vector<Batch>, HistoryHeights, State32Heights> ChainDB::getConsensusHeaders() const
+std::tuple<std::vector<Batch>, HistoryHeights, State32Heights> ChainDB::get_consensus_headers() const
 {
     uint32_t h = 1;
     std::vector<Batch> batches;
@@ -843,7 +839,7 @@ std::tuple<std::vector<Batch>, HistoryHeights, State32Heights> ChainDB::getConse
             throw std::runtime_error("Database corrupted, block height not consecutive");
         }
         historyHeights.append(r.get<HistoryId>(1));
-        accountHeights.append(r.get<AccountId>(2));
+        accountHeights.append(state_id(r.get<AccountId>(2)));
         Header header { r.get_array<80>(3) };
         if (b.size() >= HEADERBATCHSIZE) {
             assert(b.complete());

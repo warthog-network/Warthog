@@ -20,7 +20,9 @@ ApplyStageTransaction::ApplyStageTransaction(const State& s, ChainDBTransaction&
     auto& res { applyResult.value() };
     auto& baseTxIds { rb ? rb->chainTxIds : ccs.chainstate.txids() };
     chainserver::BlockApplier ba { ccs.db, ccs.stage, baseTxIds, true };
-    for (NonzeroHeight h = (chainlength + 1).nonzero_assert(); h <= ccs.stage.length(); ++h) {
+    Error err(0);
+    NonzeroHeight h = (chainlength + 1).nonzero_assert();
+    for (; h <= ccs.stage.length(); ++h) {
         auto historyId { ccs.db.next_history_id() };
         auto state32Id { ccs.db.next_id32() };
         auto hash { ccs.stage.hash_at(h) };
@@ -44,16 +46,19 @@ ApplyStageTransaction::ApplyStageTransaction(const State& s, ChainDBTransaction&
             std::ofstream f(fname);
             f << serialize_hex(block.header) << '\n'
               << serialize_hex(block.body.data);
-            res.newTxIds = ba.move_new_txids();
+            err = e;
+            goto end;
             return { e, h };
         }
         res.newHistoryOffsets.push_back(historyId);
         res.state32Offsets.push_back(state32Id);
         chainlength = h;
     }
+    assert((ccs.stage.length() + 1).nonzero_assert() == h);
+end:
     res.newTxIds = ba.move_new_txids();
-    res.wartUpdates = ba.move_balance_updates();
-    return { Error(0), (ccs.stage.length() + 1).nonzero_assert() };
+    res.wartUpdates = ba.move_wart_updates();
+    return { err, h };
 }
 
 void ApplyStageTransaction::consider_rollback(Height shrinkLength)

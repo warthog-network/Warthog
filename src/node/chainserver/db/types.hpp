@@ -28,6 +28,10 @@ struct OrderFillstate {
     HistoryId id;
     Funds_uint64 filled;
     bool buy;
+    static constexpr size_t byte_size()
+    {
+        return HistoryId::byte_size() + Funds_uint64::byte_size() + 1;
+    }
     void serialize(Serializer auto&& s) const
     {
         s << id << filled << buy;
@@ -41,6 +45,10 @@ struct OrderData {
     Funds_uint64 total;
     Funds_uint64 filled;
     Price_uint64 limit;
+    static constexpr size_t byte_size()
+    {
+        return HistoryId::byte_size() + 1 + TransactionId::byte_size() + AssetId::byte_size() + 2 * Funds_uint64::byte_size() + Price_uint64::byte_size();
+    }
     void serialize(Serializer auto&& s) const
     {
         s << id << buy << txid << aid << total << filled << limit;

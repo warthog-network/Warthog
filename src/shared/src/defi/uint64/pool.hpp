@@ -93,9 +93,9 @@ private:
 class Pool_uint64 : public PoolLiquidity_uint64 {
 
 public:
-    Pool_uint64(uint64_t base, uint64_t quote, uint64_t shares)
+    Pool_uint64(Funds_uint64 base, Funds_uint64 quote, Funds_uint64 shares)
         : PoolLiquidity_uint64(base, quote)
-        , sharesTotal(shares)
+        , sharesTotal(shares.value())
     {
     }
     Pool_uint64()

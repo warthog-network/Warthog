@@ -86,7 +86,7 @@ class Serializable<T1, T...> {
     rest_t _rest;
 
 public:
-    void serialize(Serializer auto&& s)
+    void serialize(Serializer auto&& s) const
     {
         write_type(_value, s);
         s << _rest;
@@ -143,6 +143,7 @@ public:
         return ::byte_size(_value) + _rest.byte_size();
     }
 };
+
 struct OrderData : public chain_db::OrderData {
     OrderData(chain_db::OrderData od)
         : chain_db::OrderData(std::move(od))
@@ -183,34 +184,38 @@ struct Poolstate {
         , shares(r)
     {
     }
-    void serializer(Serializer auto&& s)
+    static constexpr size_t byte_size() { return AssetId::byte_size() + 3 * Funds_uint64::byte_size(); }
+    void serialize(Serializer auto&& s) const
     {
         s << id << base << quote << shares;
     }
 };
 
-using BaseData = Serializable<StateId32, StateId64, std::vector<IdBalance>, std::vector<OrderData>, std::vector<OrderFillstate>, std::vector<Poolstate>>;
+using BaseData = Serializable<
+    StateId32, // 0
+    StateId64, // 1
+    std::vector<IdBalance>, // 2
+    std::vector<OrderData>, // 3
+    std::vector<OrderFillstate>, // 4
+    std::vector<Poolstate>, // 5
+    std::vector<AssetId>>; // 6
 class Data : protected BaseData {
-private:
-    HistoryId nextHistoryId;
 
 private:
-    Data(Reader v, HistoryId nextHistoryId)
+    Data(Reader v)
         : BaseData(v)
-        , nextHistoryId(nextHistoryId)
     {
     }
 
 public:
     using BaseData::Serializable;
     using BaseData::serialize;
-    Data(const std::vector<uint8_t>& v, HistoryId nextHistoryId)
-        : Data(Reader(v), nextHistoryId)
+    Data(const std::vector<uint8_t>& v)
+        : Data(Reader(v))
     {
     }
     Data(const ChainDB& db)
-        : BaseData(db.next_id32(), db.next_id64(), {}, {}, {}, {})
-        , nextHistoryId(db.next_history_id())
+        : BaseData(db.next_id32(), db.next_id64(), {}, {}, {}, {}, {})
     {
     }
     auto& next_state_id32() const { return get<0>(); }
@@ -223,34 +228,45 @@ public:
     auto& original_fillstates() const { return get<4>(); }
     auto& original_poolstates() { return get<5>(); }
     auto& original_poolstates() const { return get<5>(); }
+    auto& newly_created_pools() { return get<6>(); }
+    auto& newly_created_pools() const { return get<6>(); }
 
 private:
+    auto get_id(auto&& element)
+    {
+        if constexpr (std::is_same_v<std::remove_cvref_t<decltype(element)>, AssetId>)
+            return element;
+        else
+            return element.id;
+    }
+    bool id_is_present(auto& vector, auto&& element)
+    {
+        for (auto& b : vector) {
+            if (get_id(b) == get_id(element))
+                return true;
+        }
+        return false;
+    }
     void register_object(auto& vector, auto&& element)
     {
-        bool exists = false;
-        for (auto& b : vector) {
-            if (b.id == element.id)
-                exists = true;
-            break;
-        }
-        assert(!exists);
+        assert(!id_is_present(vector, element));
         vector.push_back(std::move(element));
     }
     void register_object64(auto& vector, auto element)
     {
-        if (StateId64(element.id) >= next_state_id64())
+        if (StateId64::from_id(get_id(element)) >= next_state_id64())
             return;
         register_object(vector, std::move(element));
     }
-    void register_object_hist(auto& vector, auto element)
+    void register_object_hist(auto& vector, auto element, HistoryId nextHistoryId)
     {
-        if (element.id >= nextHistoryId)
+        if (get_id(element) >= nextHistoryId)
             return;
         register_object(vector, std::move(element));
     }
     void register_object32(auto& vector, auto element)
     {
-        if (StateId32(element.id) >= next_state_id32())
+        if (StateId32::from_id(get_id(element)) >= next_state_id32())
             return;
         register_object(vector, std::move(element));
     }
@@ -260,22 +276,46 @@ public:
     {
         register_object64(original_balances(), std::move(o));
     }
-    void register_original_order(chain_db::OrderData o)
+    void register_original_order(chain_db::OrderData o, HistoryId nextHistoryId)
     {
-        register_object_hist(original_orders(), std::move(o));
+        register_object_hist(original_orders(), std::move(o), nextHistoryId);
     };
-    void register_original_fillstate(chain_db::OrderFillstate o)
+    void register_original_fillstate(chain_db::OrderFillstate o, HistoryId nextHistoryId)
     {
-        register_object_hist(original_fillstates(), std::move(o));
+        register_object_hist(original_fillstates(), std::move(o), nextHistoryId);
     }
     void register_original_poolstate(Poolstate o)
     {
         register_object32(original_poolstates(), std::move(o));
     }
+    void register_newly_created_pool(AssetId id)
+    {
+        register_object32(newly_created_pools(), std::move(id));
+    }
 
-    void foreach_balance_update(const auto& lambda) const
+    void foreach_changed_balance(const auto& lambda) const
     {
         for (auto& o : original_balances())
+            lambda(o);
+    }
+    void foreach_deleted_order(const auto& lambda) const
+    {
+        for (auto& o : original_orders())
+            lambda(o);
+    }
+    void foreach_changed_order(const auto& lambda) const
+    {
+        for (auto& o : original_fillstates())
+            lambda(o);
+    }
+    void foreach_newly_created_pool(const auto& lambda) const
+    {
+        for (auto& o : newly_created_pools())
+            lambda(o);
+    }
+    void foreach_changed_poolstate(const auto& lambda) const
+    {
+        for (auto& o : original_poolstates())
             lambda(o);
     }
 };

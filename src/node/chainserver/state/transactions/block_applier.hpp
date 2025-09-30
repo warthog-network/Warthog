@@ -25,7 +25,7 @@ struct BlockApplier {
     {
     }
     TransactionIds&& move_new_txids() { return std::move(preparer.newTxIds); };
-    auto&& move_balance_updates() { return std::move(WART_BalanceUpdates); };
+    auto&& move_wart_updates() { return std::move(wartUpdates); };
     [[nodiscard]] api::CompleteBlock apply_block(const Block& b, const BlockHash& hash, BlockId blockId);
 
 private: // private methods
@@ -41,7 +41,7 @@ private: // private methods
 
 private: // private data
     Preparer preparer;
-    std::map<AccountId, Wart> WART_BalanceUpdates;
+    std::map<AccountId, Wart> wartUpdates;
     ChainDB& db;
     bool fromStage;
 };

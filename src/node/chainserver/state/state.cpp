@@ -195,9 +195,9 @@ std::optional<api::Block> State::api_get_block(Height zh) const
         return {};
     auto h { zh.nonzero_assert() };
     auto pinFloor { h.pin_floor() };
-    auto lower = chainstate.historyOffset(h);
+    auto lower = chainstate.history_offset(h);
     auto upper = (h == chainlength() ? HistoryId { 0 }
-                                     : chainstate.historyOffset(h + 1));
+                                     : chainstate.history_offset(h + 1));
     auto header = chainstate.headers()[h];
 
     auto entries { db.lookup_history_range(lower, upper) };
@@ -434,7 +434,7 @@ auto State::api_get_latest_blocks(size_t N) const -> api::TransactionsByBlocks
     HistoryId upper { db.next_history_id() };
     auto l { chainlength().value() };
     auto hLower { l > N ? Height(l + 1 - N).nonzero_assert() : Height { 1 }.nonzero_assert() };
-    HistoryId lower { chainstate.historyOffset(hLower) };
+    HistoryId lower { chainstate.history_offset(hLower) };
     return api_get_transaction_range(lower, upper);
 }
 
@@ -442,7 +442,7 @@ auto State::api_get_miner(NonzeroHeight h) const -> std::optional<api::AddressWi
 {
     if (chainlength() < h)
         return {};
-    auto offset { chainstate.historyOffset(h) };
+    auto offset { chainstate.history_offset(h) };
     auto parsed { db.fetch_history(offset).data };
 
     assert(std::holds_alternative<history::RewardData>(parsed));
@@ -483,7 +483,7 @@ auto State::api_get_transaction_range(HistoryId lower, HistoryId upper) const ->
             auto pinFloor { h.pin_floor() };
             auto header { chainstate.headers()[h] };
             auto b { api::Block(header, h, chainlength() - h + 1, {}) };
-            auto beginId { chainstate.historyOffset(h) };
+            auto beginId { chainstate.history_offset(h) };
             return std::tuple { pinFloor, beginId, b };
         };
         auto tmp { update_tmp(upper - 1) };
@@ -757,22 +757,50 @@ class RollbackSession {
 public:
     const ChainDB& db;
     const PinFloor newPinFloor;
+    const HistoryId oldHistoryIdStart;
     const StateId32 oldStateId32Start;
     const StateId64 oldStateId64Start;
+    struct DeletePool { };
+    using UpdatePool = PoolData;
+    using PoolAction = wrt::variant<DeletePool, UpdatePool>;
 
-    std::map<BalanceId, Funds_uint64> balanceUpdates;
-    std::map<AccountId, Wart> wartUpdates;
+    struct OrderAction {
+        std::optional<rollback::OrderFillstate> fillstate;
+        std::optional<chain_db::OrderData> create;
+    };
+
     std::vector<TransactionMessage> toMempool;
-    std::optional<BalanceId> oldBalanceStart;
+    std::map<AccountId, Wart> wartUpdates;
+
+    // actions to be run against database
+    std::map<BalanceId, Funds_uint64> balanceUpdates;
+    std::map<HistoryId, OrderAction> orderActions;
+    std::map<AssetId, PoolAction> poolActions;
 
 private:
     RollbackSession(const ChainDB& db, NonzeroHeight beginHeight,
-        const rollback::Data& rb)
+        HistoryId oldHistoryIdStart, const rollback::Data& rb)
         : db(db)
         , newPinFloor(beginHeight.pin_floor())
+        , oldHistoryIdStart(oldHistoryIdStart)
         , oldStateId32Start(rb.next_state_id32())
         , oldStateId64Start(rb.next_state_id64())
     {
+    }
+    // returns true if the id passed was not counted up to
+    // at the block height that we roll back to.
+    template <typename T>
+    bool is_deprecated_id(T t)
+    {
+        if constexpr (std::is_same_v<std::remove_cvref_t<T>, HistoryId>) {
+            return t >= oldHistoryIdStart;
+        } else if constexpr (StateId32::is_id_t<std::remove_cvref_t<T>>()) {
+            return StateId32::from_id(t) >= oldStateId32Start;
+        } else if constexpr (StateId64::is_id_t<std::remove_cvref_t<T>>()) {
+            return StateId64::from_id(t) >= oldStateId64Start;
+        } else {
+            static_assert(false, "is_deprecated only takes state ids");
+        }
     }
 
     static BlockUndoData fetch_undo(const ChainDB& db, BlockId id)
@@ -784,8 +812,8 @@ private:
     }
 
 public:
-    RollbackSession(const ChainDB& db, NonzeroHeight beginHeight, BlockId firstId)
-        : RollbackSession(db, beginHeight, rollback::Data(fetch_undo(db, firstId).rawUndo))
+    RollbackSession(const ChainDB& db, NonzeroHeight beginHeight, HistoryId oldHistoryIdStart, BlockId firstId)
+        : RollbackSession(db, beginHeight, oldHistoryIdStart, rollback::Data(fetch_undo(db, firstId).rawUndo))
     {
     }
 
@@ -852,7 +880,7 @@ private:
     }
 
 public:
-    void rollback_block(BlockId id, NonzeroHeight height, DBCache& c)
+    void rollback_block_inc_order(BlockId id, NonzeroHeight height, HistoryId historyOffset, DBCache& c)
     {
         try {
             BlockUndoData d { fetch_undo(db, id) };
@@ -863,9 +891,11 @@ public:
 
             // roll back state modifications
             rollback::Data rbv(d.rawUndo);
-            rbv.foreach_balance_update(
+            rbv.foreach_changed_balance(
                 [&](const IdBalance& entry) {
-                    const Funds_uint64& bal { entry.funds };
+                    if (is_deprecated_id(entry.id))
+                        return;
+                    const Funds_uint64& bal { entry.balance };
                     const BalanceId& id { entry.id };
                     auto b { db.get_token_balance(id) };
                     if (!b.has_value())
@@ -875,6 +905,36 @@ public:
                         wartUpdates.try_emplace(b->accountId, Wart(bal.value()));
                     balanceUpdates.try_emplace(id, bal);
                 });
+            rbv.foreach_deleted_order([&](const rollback::OrderData& o) {
+                if (is_deprecated_id(o.id))
+                    return;
+                // restore the order
+                auto& create { orderActions.try_emplace(o.id).first->second.create };
+                assert(!create.has_value()); // order can only be deleted once
+                create = o;
+            });
+            rbv.foreach_changed_order([&](const rollback::OrderFillstate& o) {
+                if (is_deprecated_id(o.id))
+                    return;
+                auto& action { orderActions.try_emplace(o.id).first->second };
+
+                // we run through blocks in order and in each block either the order was deleted or updated.
+                // If it was updated, then it cannot have been deleted before, so there cannot be a create entry
+                assert(!action.create.has_value());
+
+                // assign the fillstate
+                action.fillstate = o;
+            });
+            rbv.foreach_changed_poolstate([&](const rollback::Poolstate& s) {
+                if (is_deprecated_id(s.id))
+                    return;
+                poolActions.try_emplace(s.id, UpdatePool { s.id, defi::Pool_uint64 { s.base, s.quote, s.shares } });
+            });
+            rbv.foreach_newly_created_pool([&](const AssetId& id) {
+                if (is_deprecated_id(id))
+                    return;
+                poolActions.try_emplace(id, DeletePool {});
+            });
         } catch (const Error& e) {
             throw std::runtime_error(
                 "Cannot rollback block at height" + std::to_string(height) + ":" + e.err_name());
@@ -889,7 +949,7 @@ State::rollback(const Height newlength) const
     const Height oldlength { chainlength() };
     spdlog::info("Rolling back chain");
     assert(newlength < chainlength());
-    NonzeroHeight beginHeight = (newlength + 1).nonzero_assert();
+    const NonzeroHeight beginHeight = newlength.add1();
     auto endHeight(chainlength().add1());
 
     // load ids
@@ -897,11 +957,16 @@ State::rollback(const Height newlength) const
     assert(ids.size() == endHeight - beginHeight);
     assert(ids.size() > 0);
 
-    RollbackSession rs(db, beginHeight, ids[0]);
+    auto historyOffset { chainstate.history_offset(beginHeight) };
+    RollbackSession rs(db, beginHeight, historyOffset, ids[0]);
 
     for (size_t i = 0; i < ids.size(); ++i) {
         NonzeroHeight height = beginHeight + i;
-        rs.rollback_block(ids[i], height, dbcache);
+        // note that the blocks are rolled back in increasing height order,
+        // the rollback data supports this rollback style and it is more efficient
+        // because for example only the earliest occurrence of a balance update is the
+        // final rolled back balance when considering the blocks in increasing order.
+        rs.rollback_block_inc_order(ids[i], height, historyOffset, dbcache);
     }
 
     db.delete_history_from(newlength.add1());
@@ -912,6 +977,31 @@ State::rollback(const Height newlength) const
     // write balances to db
     for (auto& p : rs.balanceUpdates)
         db.set_balance(p.first, p.second);
+    for (auto& [id, a] : rs.orderActions) {
+        if (a.create) {
+            auto orderData { *a.create };
+            if (a.fillstate) {
+                orderData.filled = a.fillstate->filled;
+                assert(orderData.id == a.fillstate->id);
+            }
+            db.insert_order(orderData);
+        } else {
+            // every element that was inserted into orderActions
+            // has a value for at least one of the optional members.
+            assert(a.fillstate.has_value());
+            db.update_order_fillstate(*a.fillstate);
+        }
+    }
+    for (auto& [id, a] : rs.poolActions) {
+        a.visit_overload(
+            [&](RollbackSession::DeletePool&) {
+                db.delete_pool(id);
+            },
+            [&](RollbackSession::UpdatePool& p) {
+                db.update_pool(p);
+            });
+    }
+
     return chainserver::RollbackResult {
         .shrink { newlength, oldlength - newlength },
         .toMempool { std::move(rs.toMempool) },
@@ -1033,7 +1123,7 @@ auto State::append_mined_block(const Block& b) -> StateUpdateWithAPIBlocks
 
     std::unique_lock<std::mutex> ul(chainstateMutex);
     auto headerchainAppend = chainstate.append(Chainstate::AppendSingle {
-        .wartUpdates { e.move_balance_updates() },
+        .wartUpdates { e.move_wart_updates() },
         .signedSnapshot { signedSnapshot },
         .prepared { prepared.value() },
         .newTxIds { e.move_new_txids() },
@@ -1198,7 +1288,7 @@ auto State::api_get_history(Address a, int64_t beforeId) const -> std::optional<
             bool b = height == chainlength();
             nextHistoryOffset = (b
                     ? HistoryId { std::numeric_limits<uint64_t>::max() }
-                    : chainstate.historyOffset(height + 1));
+                    : chainstate.history_offset(height + 1));
             blocks_reversed.push_back(
                 api::Block(header, height, 1 + (chainlength() - height), std::move(actions)));
             actions = {};

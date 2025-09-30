@@ -2,7 +2,7 @@
 #include "block/body/account_id.hpp"
 #include "block/chain/height.hpp"
 #include "block/chain/history/index.hpp"
-#include "chainserver/db/ids.hpp"
+#include "chainserver/db/state_ids.hpp"
 #include <algorithm>
 
 template <typename HeightType, typename T>

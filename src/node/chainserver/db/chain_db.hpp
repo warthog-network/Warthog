@@ -11,7 +11,7 @@
 #include "block/chain/offsts.hpp"
 #include "block/chain/worksum.hpp"
 #include "block/id.hpp"
-#include "chainserver/db/ids.hpp"
+#include "chainserver/db/state_ids.hpp"
 #include "chainserver/transaction_ids.hpp"
 #include "db/sqlite_fwd.hpp"
 #include "defi/token/info.hpp"
@@ -56,7 +56,7 @@ struct PoolData : public defi::Pool_uint64 {
     {
     }
     PoolData(Initializer i)
-        : defi::Pool_uint64(i.base.value(), i.quote.value(), i.shares.value())
+        : defi::Pool_uint64(i.base, i.quote, i.shares)
         , assetId(i.assetId)
     {
     }
@@ -136,7 +136,7 @@ public:
     void insert_consensus(NonzeroHeight height, BlockId blockId, HistoryId historyCursor, StateId32 stateId);
 
     std::tuple<std::vector<Batch>, HistoryHeights, State32Heights>
-    getConsensusHeaders() const;
+    get_consensus_headers() const;
 
     // Consensus Functions
     Worksum get_consensus_work() const;
@@ -202,9 +202,9 @@ public:
     /////////////////////
     // Pool functions
     void insert_pool(const PoolData& pool);
+    void delete_pool(AssetId assetId);
     [[nodiscard]] std::optional<PoolData> select_pool(AssetId assetId) const;
-    void update_pool(TokenId shareId, Funds_uint64 base, Funds_uint64 quote, Funds_uint64 shares);
-    void update_pool_liquidity(AssetId, const defi::PoolLiquidity_uint64&);
+    void update_pool(const PoolData&);
 
     /////////////////////
     // Token fork balance functions
@@ -334,7 +334,6 @@ private:
     Statement stmtInsertPool;
     mutable Statement stmtSelectPool;
     Statement stmtUpdatePool;
-    Statement stmtUpdatePoolLiquidity;
 
     // TokenForks statements
     Statement stmtTokenForkBalanceInsert;

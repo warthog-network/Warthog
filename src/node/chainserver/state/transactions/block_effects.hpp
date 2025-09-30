@@ -63,7 +63,7 @@ public:
     void delete_order(OrderDelete od)
     {
         db.delete_order({ .id = od.id, .buy = od.buy });
-        rg.register_original_order(std::move(od));
+        rg.register_original_order(std::move(od), db.next_history_id());
     }
     void insert_order(const chain_db::OrderData& o)
     {
@@ -72,16 +72,17 @@ public:
     void update_order_fillstate(const OrderUpdate& o)
     {
         db.update_order_fillstate(o.newFillState);
-        rg.register_original_fillstate(o.original_fill_state());
+        rg.register_original_fillstate(o.original_fill_state(), db.next_history_id());
     }
     void insert_pool(const PoolData& p)
     {
+        rg.register_newly_created_pool(p.asset_id());
         db.insert_pool(p);
     }
     void update_pool(const PoolUpdate& u)
     {
         rg.register_original_poolstate(u.original);
-        db.update_pool_liquidity(u.original.id, u.updated);
+        db.update_pool({ u.original.id, u.updated });
     }
     auto rollback_data() &&
     {
@@ -97,16 +98,17 @@ struct BlockEffects {
     std::vector<BalanceUpdate> updateBalances;
     std::vector<std::tuple<AccountToken, Funds_uint64>> insertBalances;
     std::vector<std::tuple<AddressView, AccountId>> insertAccounts;
-    std::vector<OrderDelete> deleteCanceledOrders;
+    // std::vector<OrderDelete> deleteCanceledOrders;
     std::vector<chain_db::AssetData> insertAssetCreations;
-    std::vector<TransactionId> insertCancelOrder;
+    // std::vector<TransactionId> insertCancelOrder;
     std::vector<chain_db::OrderData> OrderInsertions;
     std::vector<OrderUpdate> orderUpdates;
     std::vector<OrderDelete> orderDeletes;
     std::vector<PoolUpdate> poolUpdates;
     std::vector<PoolData> poolInsertions;
-    std::set<TransactionId> canceledTxids;
-    std::set<HistoryId> canceledOrderIds;
+    // std::set<TransactionId> canceledTxids;
+    // std::set<HistoryId> canceledOrderIds;
+
     [[nodiscard]] auto apply(RollbackTrackingDB db)
     {
         // Checklist for different transaction types
