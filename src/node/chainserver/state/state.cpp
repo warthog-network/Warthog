@@ -880,7 +880,7 @@ private:
     }
 
 public:
-    void rollback_block_inc_order(BlockId id, NonzeroHeight height, HistoryId historyOffset, DBCache& c)
+    void rollback_block_inc_order(BlockId id, NonzeroHeight height, DBCache& c)
     {
         try {
             BlockUndoData d { fetch_undo(db, id) };
@@ -966,7 +966,7 @@ State::rollback(const Height newlength) const
         // the rollback data supports this rollback style and it is more efficient
         // because for example only the earliest occurrence of a balance update is the
         // final rolled back balance when considering the blocks in increasing order.
-        rs.rollback_block_inc_order(ids[i], height, historyOffset, dbcache);
+        rs.rollback_block_inc_order(ids[i], height, dbcache);
     }
 
     db.delete_history_from(newlength.add1());
