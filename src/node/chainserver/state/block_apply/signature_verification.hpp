@@ -1,6 +1,7 @@
 #pragma once
 
 #include "block/body/account_id.hpp"
+#include "block/body/body.hpp"
 #include "block/body/nonce.hpp"
 #include "block/body/transaction_id.hpp"
 #include "block/chain/header_chain.hpp"
@@ -9,6 +10,7 @@
 #include "general/compact_uint.hpp"
 #include "general/errors.hpp"
 #include <functional>
+#include <set>
 
 struct VerifiedHash {
 protected:
@@ -73,6 +75,7 @@ private:
 
 struct TransactionVerifier {
     using validator_t = std::function<bool(TransactionId)>;
+
     const Headerchain& hc;
     NonzeroHeight h;
     validator_t validator;
@@ -107,16 +110,18 @@ public:
         const PinFloor pinFloor { h.pin_floor() };
         PinHeight pinHeight(sd.pinNonce.pin_height_from_floored(pinFloor));
         auto pinHash { hc.hash_at(h) };
+        TransactionId txid { sd.origin.id, pinHeight, sd.pinNonce.id };
+
         return {
             sd.verify_hash(
                 TxHash(((HasherSHA256()
-                     << pinHash
-                     << pinHeight
-                     << sd.pinNonce.id
-                     << sd.pinNonce.reserved
-                     << sd.fee())
+                            << pinHash
+                            << pinHeight
+                            << sd.pinNonce.id
+                            << sd.pinNonce.reserved
+                            << sd.fee())
                     << ... << hashArgs))),
-            { { sd.origin.id, pinHeight, sd.pinNonce.id }, validator }
+            { txid, validator }
         };
     }
 };

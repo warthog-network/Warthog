@@ -3,6 +3,7 @@
 #include "crypto/hasher_sha256.hpp"
 #include "general/is_testnet.hpp"
 #include "general/writer.hpp"
+#include <set>
 namespace block {
 namespace body {
 namespace elements {
@@ -136,12 +137,25 @@ Hash MerkleLeaves::merkle_root(const BodyData& data, NonzeroHeight h) const
     }
 }
 
-std::vector<TransactionId> ParsedBody::tx_ids(NonzeroHeight height) const
+auto ParsedBody::tx_ids(NonzeroHeight height, PinHeight minPinHeight) const -> BlockTxids
 {
-    auto pf { height.pin_floor() };
-    std::vector<TransactionId> res;
+    BlockTxids res;
+
+    for (auto& c : cancelations()) {
+        // may produce duplacates at this point, later we will enforce that
+        // blocks cannot include transactions which are canceled in the same
+        // block
+        auto cid { c.canceled_txid() };
+        if (cid.pinHeight >= height)
+            throw std::runtime_error("pinHeight > height for canceled transaction id");
+        if (cid.pinHeight >= minPinHeight) {
+            res.fromCancelations.push_back(cid);
+        }
+    }
+
     // read transaction ids of all entries in the block
-    visit_signed_entries([&](auto&& entry) { entry.append_txids(res, pf); });
+    visit_signed_entries([&](auto&& entry) { entry.append_txids(res.fromTransactions, height.pin_floor(), minPinHeight); });
+
     return res;
 }
 

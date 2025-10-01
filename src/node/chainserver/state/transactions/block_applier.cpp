@@ -507,6 +507,7 @@ public:
     {
         auto compactFee { v.compact_fee() };
         AccountData& from { accounts[v.origin_account_id()] };
+        assert(from.id == v.origin_account_id());
         charge_fee(from, compactFee);
         return {
             SignerData { from.id, from.address, v.pin_nonce(), compactFee, v.signature() },
@@ -526,18 +527,17 @@ public:
 
         return to;
     }
-    void register_wart_transfer(WartTransfer tv)
+    void register_wart_transfer(const WartTransfer& tv)
     {
         auto s(process_signer(tv));
         auto toAcc { __register_transfer(TokenId::WART, tv.to_id(), tv.wart(), s) };
         wartTransfers.push_back({ std::move(s), { std::move(toAcc), tv.wart() } });
     }
 
-    void register_cancelation(Cancelation c)
+    void register_cancelation(const Cancelation& c)
     {
         auto s(process_signer(c));
-        TransactionId cancelTxId { s.origin.id, c.cancel_height(), c.cancel_nonceid() };
-        cancelations.push_back({ std::move(s), { cancelTxId } });
+        cancelations.push_back({ std::move(s), { c.canceled_txid() } });
     }
 
     block_apply::LiquidityDeposit::Internal register_liquidity_deposit(const LiquidityDeposit& l, AssetId aid)
@@ -553,13 +553,13 @@ public:
         accounts[aid].add(tid, amount);
     }
 
-    block_apply::LiquidityWithdrawal::Internal register_liquidity_withdraw(LiquidityWithdraw l, AssetId aid)
+    block_apply::LiquidityWithdrawal::Internal register_liquidity_withdraw(const LiquidityWithdraw& l, AssetId aid)
     {
         auto s { process_signer(l) };
         s.account.subtract(aid.token_id(true), l.amount());
         return { std::move(s), { l.amount(), aid } };
     }
-    block_apply::Order::Internal register_new_order(Order o, AssetId aid)
+    block_apply::Order::Internal register_new_order(const Order& o, AssetId aid)
     {
         auto s { process_signer(o) };
 
@@ -880,6 +880,8 @@ private:
     BalanceChecker balanceChecker;
     HistoryEntriesGenerator history;
     TransactionVerifier txVerifier;
+    std::set<TransactionId> canceledTxids;
+    std::set<HistoryId> ignoreOrderIds;
 
 private:
     // Check uniqueness of new addresses
@@ -999,7 +1001,7 @@ private:
     void process_actions()
     {
         process_reward();
-        process_cancelations();
+        process_cancelations(); // cancelations must be processed first
         process_wart_transfers();
         process_token_sections();
     }
@@ -1108,11 +1110,11 @@ private:
             auto verified { c.verify(txVerifier) };
             auto hid { history.push_cancelation(verified).historyId };
             api.cancelations.push_back({ make_signed_info(verified, hid), {} });
-            blockEffects.canceledTxids.insert(verified.ref.cancel_txid());
+            canceledTxids.insert(verified.ref.cancel_txid());
             auto o { db.select_order(verified.ref.cancel_txid()) };
             if (o) { // transaction is removed from the database
-                blockEffects.canceledOrderIds.insert(o->id);
-                blockEffects.deleteCanceledOrders.push_back(*o);
+                ignoreOrderIds.insert(o->id);
+                blockEffects.orderDeletes.push_back(*o);
             }
         }
     }
@@ -1131,11 +1133,13 @@ private:
                 } });
         }
     }
-    [[nodiscard]] NewOrdersInternal generate_new_orders(const AssetHandle& asset, const std::vector<block_apply::Order::Internal>& orders)
+    [[nodiscard]] NewOrdersInternal generate_new_orders(const AssetHandle& asset, const std::vector<block_apply::Order::Internal>& orders, const std::set<TransactionId>& canceled)
     {
         NewOrdersInternal res;
         for (auto& o : orders) {
             auto verified { o.verify(txVerifier, asset.hash()) };
+            if (canceled.contains(verified.txid))
+                continue;
             auto& ref { history.push_order(verified) };
             api.newOrders.push_back(api::block::NewOrder {
                 make_signed_info(verified, ref.historyId),
@@ -1161,11 +1165,11 @@ private:
     {
         if (orders.size() == 0)
             return;
-        auto newOrders { generate_new_orders(asset, orders) };
+        auto newOrders { generate_new_orders(asset, orders, canceledTxids) };
 
         auto& pool { asset.get_pool(db) };
 
-        MatchProcessor m(asset.id(), db, blockEffects.canceledOrderIds, newOrders);
+        MatchProcessor m(asset.id(), db, ignoreOrderIds, newOrders);
 
         const defi::PoolLiquidity_uint64 poolBeforeMatch { pool };
         auto swaps { m.match(pool, &blockEffects) };
@@ -1271,14 +1275,17 @@ public:
 
         /// Read block sections
         verify_new_address_policy(); // new address section
+        register_cancelations(); // cancelations must be registered first after other tranasactions because we build the list of cancelations there
         register_wart_transfers(); // WART transfer section
-        register_cancelations();
         register_token_sections();
         register_asset_creations(); // token creation section
 
         /// Process block sections
         process_actions();
         process_balances();
+
+        // merge canceled transaction ids
+        txset.merge(std::move(canceledTxids));
     }
 };
 

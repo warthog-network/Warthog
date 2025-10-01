@@ -98,16 +98,12 @@ struct BlockEffects {
     std::vector<BalanceUpdate> updateBalances;
     std::vector<std::tuple<AccountToken, Funds_uint64>> insertBalances;
     std::vector<std::tuple<AddressView, AccountId>> insertAccounts;
-    // std::vector<OrderDelete> deleteCanceledOrders;
     std::vector<chain_db::AssetData> insertAssetCreations;
-    // std::vector<TransactionId> insertCancelOrder;
     std::vector<chain_db::OrderData> OrderInsertions;
     std::vector<OrderUpdate> orderUpdates;
     std::vector<OrderDelete> orderDeletes;
     std::vector<PoolUpdate> poolUpdates;
     std::vector<PoolData> poolInsertions;
-    // std::set<TransactionId> canceledTxids;
-    // std::set<HistoryId> canceledOrderIds;
 
     [[nodiscard]] auto apply(RollbackTrackingDB db)
     {

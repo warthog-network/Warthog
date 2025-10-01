@@ -161,10 +161,10 @@ struct body_vector : public std::vector<T> {
         }
     }
 
-    void append_txids(std::vector<TransactionId>& v, PinFloor pf) const
+    void append_txids(std::vector<TransactionId>& v, PinFloor pf, PinHeight minPinHeight) const
     {
         for (auto& e : *this)
-            e.append_txids(v, pf);
+            e.append_txids(v, pf, minPinHeight);
     }
 
     auto operator<=>(const body_vector<T>&) const = default;
@@ -232,9 +232,9 @@ struct VectorElement {
     {
         s << elements;
     }
-    void append_txids(std::vector<TransactionId>& out, PinFloor pf) const
+    void append_txids(std::vector<TransactionId>& out, PinFloor pf, PinHeight minPinHeight) const
     {
-        elements.append_txids(out, pf);
+        elements.append_txids(out, pf, minPinHeight);
     }
 
     VectorElement() { }
@@ -369,7 +369,7 @@ public:
         visit_components(Overload { std::forward<Ls>(lambdas)... });
     }
     TokenEntries(MerkleReadHooker& h)
-        : TokenEntries{std::index_sequence_for<Ts...>(), bits_t(h.hook()), h}
+        : TokenEntries { std::index_sequence_for<Ts...>(), bits_t(h.hook()), h }
     {
     }
     auto& token_entries() const { return *this; }
@@ -383,9 +383,9 @@ public:
         s << bits_t(arr);
         (s << ... << *static_cast<const Ts*>(this));
     }
-    void append_txids(std::vector<TransactionId>& v, PinFloor pf) const
+    void append_txids(std::vector<TransactionId>& v, PinFloor pf, PinHeight minPinHeight) const
     {
-        (static_cast<const Ts*>(this)->append_txids(v, pf), ...);
+        (static_cast<const Ts*>(this)->append_txids(v, pf, minPinHeight), ...);
     }
     void write(MerkleWriteHooker& m) const
     {
@@ -421,9 +421,9 @@ public:
     TokenSection(MerkleReadHooker&);
     TokenSection(AssetId tid)
         : AssetIdElement(tid) { };
-    void append_txids(std::vector<TransactionId>& out, PinFloor pf) const
+    void append_txids(std::vector<TransactionId>& out, PinFloor pf, PinHeight minPinHeight) const
     {
-        TokenEntries::append_txids(out, pf);
+        TokenEntries::append_txids(out, pf, minPinHeight);
     }
     size_t byte_size() const
     {
@@ -532,9 +532,9 @@ public:
     {
         (static_cast<const Ts*>(this)->write(m), ...);
     }
-    void append_txids(std::vector<TransactionId>& v, PinFloor pf) const
+    void append_txids(std::vector<TransactionId>& v, PinFloor pf, PinHeight minPinHeight) const
     {
-        (static_cast<const Ts*>(this)->append_txids(v, pf), ...);
+        (static_cast<const Ts*>(this)->append_txids(v, pf, minPinHeight), ...);
     }
 };
 
@@ -582,7 +582,11 @@ public:
         , Entries(std::move(entries))
     {
     }
-    std::vector<TransactionId> tx_ids(NonzeroHeight) const;
+    struct BlockTxids {
+        std::vector<TransactionId> fromTransactions;
+        std::vector<TransactionId> fromCancelations;
+    };
+    BlockTxids tx_ids(NonzeroHeight height, PinHeight minPinHeight) const;
     [[nodiscard]] static std::pair<ParsedBody, MerkleLeaves> parse_throw(std::span<const uint8_t> rd, NonzeroHeight h, BlockVersion version);
     size_t byte_size() const;
     [[nodiscard]] SerializedBody serialize() const;

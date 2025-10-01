@@ -332,6 +332,7 @@ private:
 
     // Pool statements
     Statement stmtInsertPool;
+    Statement stmtDeletePool;
     mutable Statement stmtSelectPool;
     Statement stmtUpdatePool;
 

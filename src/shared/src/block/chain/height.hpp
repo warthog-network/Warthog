@@ -79,15 +79,9 @@ public:
     }
 
     HeightRange latest(uint32_t n) const;
-    Height pin_begin()
-    {
-        uint32_t shifted = val >> 5;
-        if (shifted < 255u)
-            return Height(0);
-        return Height((shifted - 255u) << 5);
-    }
+    PinHeight pin_begin() const;
     std::optional<PinHeight> pin_height() const;
-    bool is_pin_height() const;
+    constexpr bool is_pin_height() const;
 
     friend bool operator==(const Height& h1, uint32_t h)
     {
@@ -137,10 +131,7 @@ public:
 
     NonzeroHeight& operator=(const NonzeroHeight&) = default;
 
-    auto pin_begin() const
-    {
-        return Height(value()).pin_begin();
-    }
+    PinHeight pin_begin() const;
     PinFloor pin_floor() const;
 
     bool is_retarget_height() const
@@ -301,8 +292,29 @@ inline NonzeroHeight Height::one_if_zero() const
 
 class PinHeight : public Height {
 public:
-    explicit PinHeight(const Height h);
+    constexpr explicit PinHeight(Height h)
+        : Height(h)
+    {
+        if (!h.is_pin_height())
+            throw Error(ENOPINHEIGHT);
+    }
 };
+
+inline PinHeight NonzeroHeight::pin_begin() const
+{
+    return Height(value()).pin_begin();
+}
+
+inline PinHeight Height::pin_begin() const
+{
+    uint32_t shifted = val >> 5;
+    if (shifted < 255u)
+        return PinHeight(Height(0));
+    auto ph { Height((shifted - 255u) << 5).pin_height() };
+    assert(ph.has_value());
+    return *ph;
+}
+
 struct State32Height : public NonzeroHeight {
     using NonzeroHeight::NonzeroHeight;
 };
@@ -331,7 +343,7 @@ inline PinFloor NonzeroHeight::pin_floor() const
     return PinFloor(PrevHeight(*this));
 }
 
-inline bool Height::is_pin_height() const
+inline constexpr bool Height::is_pin_height() const
 {
     return (val & 0x0000001F) == 0;
 }

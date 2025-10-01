@@ -58,9 +58,19 @@ struct SignedCombined : public Combined<OriginAccIdEl, PinNonceEl, CompactFeeEl,
         auto pinHeight { pn.pin_height_from_floored(pinFloor) };
         return { this->origin_account_id(), pinHeight, pn.id };
     }
-    void append_txids(std::vector<TransactionId>& txids, PinFloor pf) const
+    void append_txids(std::vector<TransactionId>& txids, PinFloor pf, PinHeight minPinheight) const
     {
-        txids.push_back(txid_from_floored(pf));
+        TransactionId txid{txid_from_floored(pf)};
+        if (txid.pinHeight < minPinheight) 
+            return;
+        txids.push_back(txid);
+    }
+};
+struct Cancelation : public SignedCombined<CancelHeightEl, CancelNonceEl> {
+    using SignedCombined<CancelHeightEl, CancelNonceEl>::SignedCombined;
+    TransactionId canceled_txid() const
+    {
+        return { origin_account_id(), cancel_height(), cancel_nonceid() };
     }
 };
 

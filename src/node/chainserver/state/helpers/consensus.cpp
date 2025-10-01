@@ -192,7 +192,7 @@ auto Chainstate::append(AppendSingle d) -> HeaderchainAppend
     // adapt header chain and offsets
     headerchain.append(d.prepared, *global().batchRegistry);
     historyOffsets.append(d.newHistoryOffset);
-    state32Offsets.append(d.newAccountOffset);
+    state32Offsets.append(state_id(d.newAccountOffset));
     assert_equal_length();
 
     //////////////////////////////

@@ -281,6 +281,7 @@ ChainDB::ChainDB(const std::string& path)
     , stmtInsertCanceled(db, "INSERT INTO `" CANCELED_TABLE "` (id, account_id, pin_height, nonce_id) VALUES (?,?,?,?)")
     , stmtDeleteCanceled(db, "DELETE FROM `" CANCELED_TABLE "` WHERE id = ?")
     , stmtInsertPool(db, "INSERT INTO `" POOLS_TABLE "` (asset_id, pool_wart, pool_token, pool_shares) VALUES (?,?,?,?)")
+    , stmtDeletePool(db, "DELETE FROM `" POOLS_TABLE "` WHERE asset_id = ?")
     , stmtSelectPool(db, "SELECT (asset_id, liquidity_token, liquidity_wart, pool_shares) FROM `" POOLS_TABLE "` WHERE asset_id=?")
     , stmtUpdatePool(db, "UPDATE `" POOLS_TABLE "` SET liquidity_base=?, liquidity_quote=?, pool_shares=? WHERE asset_id=?")
     , stmtTokenForkBalanceInsert(db, "INSERT INTO `" TOKENFORKBALANCES_TABLE "` "
@@ -375,7 +376,7 @@ ChainDB::ChainDB(const std::string& path)
 
 void ChainDB::insert_account(const AddressView address, AccountId verifyNextId)
 {
-    if (cache.stateId32 != StateId32(verifyNextId))
+    if (cache.stateId32 != state_id(verifyNextId))
         throw std::runtime_error("Internal error, state id inconsistent.");
     stmtAccountsInsert.run(cache.stateId32, address);
     cache.stateId32++;
@@ -733,6 +734,11 @@ void ChainDB::delete_canceled(CancelId cid)
 void ChainDB::insert_pool(const PoolData& d)
 {
     stmtInsertPool.run(d.asset_id(), d.quote, d.base, d.shares_total());
+}
+
+void ChainDB::delete_pool(AssetId id)
+{
+    stmtDeletePool.run(id);
 }
 
 std::optional<PoolData> ChainDB::select_pool(AssetId assetId) const
@@ -1113,6 +1119,7 @@ std::pair<std::optional<BalanceId>, Wart> ChainDB::get_wart_balance(AccountId ai
 chainserver::TransactionIds ChainDB::fetch_tx_ids(Height height) const
 {
     const auto r = chainserver::TransactionIds::block_range(height);
+    auto minPinHeight { height.add1().pin_begin() };
     chainserver::TransactionIds out;
     spdlog::debug("Loading nonces from blocks {} to {} into cache...", r.hbegin.value(), r.hend.value());
     auto ids { consensus_block_ids(r) };
@@ -1123,16 +1130,18 @@ chainserver::TransactionIds ChainDB::fetch_tx_ids(Height height) const
         Height height = r.hbegin + i;
         auto id = ids[i];
         auto b { get_block(id) };
-        if (!b) {
+        if (!b)
             throw std::runtime_error("Database corrupted (consensus block id " + std::to_string(id.value()) + "+ not available)");
-        }
         assert(height == b->height);
-        for (auto& tid : b->tx_ids()) {
+        auto txids { b->tx_ids(minPinHeight) };
+        for (auto& tid : txids.fromTransactions) {
             if (out.emplace(tid).second == false) {
                 throw std::runtime_error(
                     "Database corrupted (duplicate transaction id in chain)");
             };
         }
+        for (auto& txid : txids.fromCancelations)
+            out.insert(txid); // Cancelations can have collisions with existing txids, don't check for duplicates.
     }
     return out;
 }

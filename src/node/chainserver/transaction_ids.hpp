@@ -21,7 +21,7 @@ struct TransactionIds : public std::set<TransactionId, ByPinHeight> {
     }
     void prune(Height length)
     {
-        const Height minPinHeight { (length + 1).pin_begin() };
+        const auto minPinHeight { (length + 1).pin_begin() };
         auto iter = begin();
         while (iter != end() && iter->pinHeight < minPinHeight)
             erase(iter++);
