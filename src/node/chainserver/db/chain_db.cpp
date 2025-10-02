@@ -1134,14 +1134,18 @@ chainserver::TransactionIds ChainDB::fetch_tx_ids(Height height) const
             throw std::runtime_error("Database corrupted (consensus block id " + std::to_string(id.value()) + "+ not available)");
         assert(height == b->height);
         auto txids { b->tx_ids(minPinHeight) };
+
+        for (auto& txid : txids.fromCancelations)
+            out.insert(txid); // Cancelations can have collisions with txids from previous blocks, don't check for duplicates.
+        
+        // check txids.fromTransactions for duplicates in previous blocks transaction
+        // ids AND same block cancelation ids, therefore this for loop comes second
         for (auto& tid : txids.fromTransactions) {
             if (out.emplace(tid).second == false) {
                 throw std::runtime_error(
                     "Database corrupted (duplicate transaction id in chain)");
             };
         }
-        for (auto& txid : txids.fromCancelations)
-            out.insert(txid); // Cancelations can have collisions with existing txids, don't check for duplicates.
     }
     return out;
 }

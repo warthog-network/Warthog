@@ -30,14 +30,29 @@ std::vector<TransactionMessage> Mempool::get_transactions(size_t n, NonzeroHeigh
     constexpr uint32_t fivedaysBlocks = 5 * 24 * 60 * 3;
     constexpr uint32_t unblockXeggexHeight = 2576442 + fivedaysBlocks;
 
+    std::set<TransactionId> tx_txids;
+    std::set<TransactionId> cancel_txids;
     for (auto txiter : byFee) {
-        if (height.value() <= unblockXeggexHeight && txiter->from_id().value() == 1910)
-            continue;
         if (res.size() >= n)
             break;
-        res.push_back(*txiter);
+        if (height.value() <= unblockXeggexHeight && txiter->from_id().value() == 1910)
+            continue;
+        auto& tx { *txiter };
+        auto id { tx.txid() };
+        if (tx_txids.contains(id) || cancel_txids.contains(id))
+            continue;
+        if (tx.holds<CancelationMessage>()) {
+            auto cid { tx.get<CancelationMessage>().cancel_txid() };
+            assert(cid != id); // should be ensured in CancelationMessage::throw_if_bad
+            if (tx_txids.contains(cid))
+                continue;
+            cancel_txids.insert(cid);
+        }
+        tx_txids.insert(id);
+
+        res.push_back(tx);
         if (hashes)
-            hashes->emplace_back(txiter->txhash);
+            hashes->emplace_back(tx.txhash);
     }
     return res;
 }

@@ -598,7 +598,7 @@ public:
         tokenSections.push_back(std::move(ts));
     }
 
-    void register_asset_creation(const AssetCreation& tc, Height)
+    void register_asset_creation(const AssetCreation& tc, NonzeroHeight)
     {
         auto s { process_signer(tc) };
         assetCreations.push_back(block_apply::AssetCreation::Internal {
@@ -880,7 +880,6 @@ private:
     BalanceChecker balanceChecker;
     HistoryEntriesGenerator history;
     TransactionVerifier txVerifier;
-    std::set<TransactionId> canceledTxids;
     std::set<HistoryId> ignoreOrderIds;
 
 private:
@@ -915,28 +914,8 @@ private:
 
     void register_asset_creations()
     {
-        for (size_t i { 0 }; i < body.asset_creations().size(); ++i)
-            balanceChecker.register_asset_creation(body.asset_creations()[i], height);
-
-        auto& assetCreations { balanceChecker.asset_creations() };
-        for (size_t i { 0 }; i < assetCreations.size(); ++i) {
-            auto& ac { assetCreations[i] };
-            auto assetId { idIncrementer.next_asset_id_inc() };
-            const auto verified { ac.verify(txVerifier) };
-            blockEffects.insertAssetCreations.push_back(chain_db::AssetData {
-                .id { assetId },
-                .height { height },
-                .ownerAccountId { ac.origin.id },
-                .supply { ac.supply() },
-                .groupId { assetId.token_id() },
-                .parentId { TokenId { 0 } },
-                .name { ac.asset_name() },
-                .hash { AssetHash(TxHash(verified.hash)) },
-                .data {} });
-
-            auto& ref { history.push_asset_creation(verified, assetId) };
-            api.assetCreations.push_back({ make_signed_info(verified, ref.historyId), { .name { ac.asset_name() }, .supply { ac.supply() }, .assetId { assetId } } });
-        }
+        for (auto& ac : body.asset_creations())
+            balanceChecker.register_asset_creation(ac, height);
     }
 
     auto adjust_new_balance(const AccountToken& at, const auto& tokenFlow)
@@ -1004,6 +983,7 @@ private:
         process_cancelations(); // cancelations must be processed first
         process_wart_transfers();
         process_token_sections();
+        process_asset_creations();
     }
 
     void process_reward()
@@ -1080,6 +1060,29 @@ private:
             }
         }
     }
+    void process_asset_creations()
+    {
+        auto& assetCreations { balanceChecker.asset_creations() };
+        for (size_t i { 0 }; i < assetCreations.size(); ++i) {
+            auto& ac { assetCreations[i] };
+            auto assetId { idIncrementer.next_asset_id_inc() };
+            const auto verified { ac.verify(txVerifier) };
+            blockEffects.insertAssetCreations.push_back(chain_db::AssetData {
+                .id { assetId },
+                .height { height },
+                .ownerAccountId { ac.origin.id },
+                .supply { ac.supply() },
+                .groupId { assetId.token_id() },
+                .parentId { TokenId { 0 } },
+                .name { ac.asset_name() },
+                .hash { AssetHash(TxHash(verified.hash)) },
+                .data {} });
+
+            auto& ref { history.push_asset_creation(verified, assetId) };
+            api.assetCreations.push_back({ make_signed_info(verified, ref.historyId), { .name { ac.asset_name() }, .supply { ac.supply() }, .assetId { assetId } } });
+        }
+    }
+
     // template <typename... T>
     // [[nodiscard]] auto verify(auto& tx, T&&... t)
     // {
@@ -1105,16 +1108,28 @@ private:
 
     void process_cancelations()
     {
-        const auto& balanceChecker { this->balanceChecker }; // const lock balanceChecker
+        auto& balanceChecker { this->balanceChecker }; // const lock balanceChecker
         for (auto& c : balanceChecker.get_cancelations()) {
             auto verified { c.verify(txVerifier) };
+
             auto hid { history.push_cancelation(verified).historyId };
+            if (verified.txid.pinHeight < verified.ref.cancel_txid().pinHeight)
+                throw Error(ECANCELFUTURE);
+            if (verified.txid == verified.ref.cancel_txid())
+                throw Error(ECANCELSELF);
             api.cancelations.push_back({ make_signed_info(verified, hid), {} });
-            canceledTxids.insert(verified.ref.cancel_txid());
+            txset.emplace(verified.ref.cancel_txid());
             auto o { db.select_order(verified.ref.cancel_txid()) };
             if (o) { // transaction is removed from the database
                 ignoreOrderIds.insert(o->id);
                 blockEffects.orderDeletes.push_back(*o);
+
+                // credit remaining locked amount
+                if (o->buy) {
+                    balanceChecker.add_balance(c.origin.id, TokenId::WART, o->remaining());
+                } else {
+                    balanceChecker.add_balance(c.origin.id, o->aid.token_id(false), o->remaining());
+                }
             }
         }
     }
@@ -1133,13 +1148,11 @@ private:
                 } });
         }
     }
-    [[nodiscard]] NewOrdersInternal generate_new_orders(const AssetHandle& asset, const std::vector<block_apply::Order::Internal>& orders, const std::set<TransactionId>& canceled)
+    [[nodiscard]] NewOrdersInternal generate_new_orders(const AssetHandle& asset, const std::vector<block_apply::Order::Internal>& orders)
     {
         NewOrdersInternal res;
         for (auto& o : orders) {
             auto verified { o.verify(txVerifier, asset.hash()) };
-            if (canceled.contains(verified.txid))
-                continue;
             auto& ref { history.push_order(verified) };
             api.newOrders.push_back(api::block::NewOrder {
                 make_signed_info(verified, ref.historyId),
@@ -1165,7 +1178,7 @@ private:
     {
         if (orders.size() == 0)
             return;
-        auto newOrders { generate_new_orders(asset, orders, canceledTxids) };
+        auto newOrders { generate_new_orders(asset, orders) };
 
         auto& pool { asset.get_pool(db) };
 
@@ -1283,9 +1296,6 @@ public:
         /// Process block sections
         process_actions();
         process_balances();
-
-        // merge canceled transaction ids
-        txset.merge(std::move(canceledTxids));
     }
 };
 

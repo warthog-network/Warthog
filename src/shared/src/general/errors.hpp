@@ -131,6 +131,8 @@
     XX(131, ETOKIDNOTFOUND, "token id not found")                                  \
     XX(132, ENOPOOL, "no pool liquidity")                                          \
     XX(133, ERTCDISABLED, "WebRTC disabled, cannot receive message")               \
+    XX(187, ECANCELSELF, "Cannot cancel future transactions")                      \
+    XX(188, ECANCELFUTURE, "Cannot cancel future transactions")                    \
     XX(189, ETXTYPE, "Invalid transaction message type")                           \
     XX(190, EEXCESSBYTES, "Excessive bytes after parsing")                         \
     XX(191, EWARTTOKID, "Illegal use of WART in non-WART token id")                \

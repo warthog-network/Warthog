@@ -44,6 +44,11 @@ struct OrderData {
     AssetId aid;
     Funds_uint64 total;
     Funds_uint64 filled;
+    Funds_uint64 remaining() const
+    {
+        return Funds_uint64::diff_assert(total, filled);
+    }
+
     Price_uint64 limit;
     static constexpr size_t byte_size()
     {

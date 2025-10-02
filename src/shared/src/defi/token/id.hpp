@@ -51,7 +51,6 @@ inline std::optional<NonWartTokenId> TokenId::non_wart() const
 }
 
 struct AssetId : public UInt32WithOperators<AssetId> { // assets are tokens that are not pool shares
-    static const AssetId WART;
     constexpr explicit AssetId(uint32_t id)
         : UInt32WithOperators(id)
     {

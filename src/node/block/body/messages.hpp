@@ -127,8 +127,30 @@ public:
 };
 
 class CancelationMessage : public ComposeTransactionMessage<7, CancelHeightEl, CancelNonceEl> {
+private:
+    void throw_if_bad()
+    {
+        if (cancel_height() > txid().pinHeight)
+            throw Error(ECANCELFUTURE);
+        if (cancel_height() == txid().pinHeight && cancel_nonceid() == txid().nonceId) 
+            throw Error(ECANCELSELF);
+    }
+
 public:
-    using parent_t::parent_t;
+    TransactionId cancel_txid() const
+    {
+        return { from_id(), cancel_height(), cancel_nonceid() };
+    }
+    CancelationMessage(const TransactionId& txid, NonceReserved reserved, CompactUInt compactFee, PinHeight cancelHeight, NonceId nid, RecoverableSignature signature)
+        : ComposeTransactionMessage<7, CancelHeightEl, CancelNonceEl>(txid, reserved, compactFee, cancelHeight, nid, signature)
+    {
+        throw_if_bad();
+    }
+    CancelationMessage(Reader& r)
+        : ComposeTransactionMessage<7, CancelHeightEl, CancelNonceEl>(r)
+    {
+        throw_if_bad();
+    }
 };
 
 struct InvTxTypeExceptionGenerator {
