@@ -75,7 +75,7 @@ public:
     }
     void apply(const BalanceInsert& b)
     {
-        db.insert_token_balance(b);
+        db.insert_guarded(b);
     }
     void apply(OrderDelete od)
     {

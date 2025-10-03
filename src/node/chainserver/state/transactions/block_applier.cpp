@@ -368,67 +368,6 @@ public:
     }
 };
 
-class StateIncrementer {
-    StateId32 next32;
-    StateId64 next64;
-
-    template <typename base_t>
-    class NextBase {
-    protected:
-        template <typename T>
-        static constexpr bool is_id_t() { return StateId32::is_id_t<T>() || StateId64::is_id_t<T>(); }
-        base_t& s;
-        NextBase(base_t& s)
-            : s(s)
-        {
-        }
-        template <typename T>
-        requires(StateId32::is_id_t<T>())
-        auto& get_state()
-        {
-            return s.next32;
-        }
-        template <typename T>
-        requires(StateId64::is_id_t<T>())
-        auto& get_state()
-        {
-            return s.next64;
-        }
-    };
-    class Next : NextBase<const StateIncrementer> {
-        friend class StateIncrementer;
-        using NextBase<const StateIncrementer>::NextBase;
-
-    public:
-        template <typename T>
-        requires(is_id_t<T>())
-        operator T() &&
-        {
-            return this->get_state<T>();
-        }
-    };
-    class NextInc : NextBase<StateIncrementer> {
-        friend class StateIncrementer;
-        using NextBase<StateIncrementer>::NextBase;
-
-    public:
-        template <typename T>
-        requires(is_id_t<T>())
-        operator T() &&
-        {
-            return get_state<T>()++;
-        }
-    };
-
-public:
-    StateIncrementer(StateId32 next32, StateId64 next64)
-        : next32(next32)
-        , next64(next64)
-    {
-    }
-    Next next() const { return { *this }; }
-    NextInc next_inc() { return { *this }; }
-};
 
 class BalanceChecker {
 
@@ -1320,7 +1259,7 @@ public:
         : Preparation()
         , db(preparer.db)
         , hc(preparer.hc)
-        , idIncrementer(db.next_id32(), db.next_id64())
+        , idIncrementer(db.id_incrementer())
         , baseTxIds(preparer.baseTxIds)
         , newTxIds(preparer.newTxIds)
         , blockhash(hash)

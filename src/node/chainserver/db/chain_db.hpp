@@ -98,7 +98,7 @@ public:
     template <typename T>
     void insert_guarded(const T& t)
     {
-        auto& stateId { cache.corresponding_state(t.id) };
+        auto& stateId { cache.ids.corresponding_state(t.id) };
         stateId.if_unequal_throw(t.id);
         insert_unguarded(t);
         stateId++;
@@ -108,6 +108,7 @@ private:
     void insert_unguarded(const AccountData&);
     void insert_unguarded(const TokenForkBalanceData&);
     void insert_unguarded(const AssetData&);
+    void insert_unguarded(const BalanceData&);
 
 public:
     void delete_state32_from(StateId32 fromStateId);
@@ -209,7 +210,6 @@ public:
     [[nodiscard]] AssetDetail fetch_asset(AssetId id) const;
     [[nodiscard]] std::optional<AssetDetail> lookup_asset(const AssetHash&) const;
     [[nodiscard]] AssetDetail fetch_asset(const AssetHash&) const;
-    void insert_token_balance(const BalanceData&);
     void set_balance(BalanceId, Funds_uint64 balance);
     std::vector<std::pair<TokenId, Funds_uint64>> get_tokens(AccountId, size_t limit);
     [[nodiscard]] api::Richlist lookup_richlist(TokenId, size_t limit) const;
@@ -250,8 +250,9 @@ public:
     {
         return cache.nextHistoryId;
     }
-    auto next_id32() const { return cache.stateId32; }
-    auto next_id64() const { return cache.stateId64; }
+    const auto& id_incrementer() const { return cache.ids; }
+    StateId32 next_id32() const { return cache.ids.next(); }
+    auto next_id() const { return cache.ids.next(); }
 
     [[nodiscard]] std::pair<std::optional<BalanceId>, Funds_uint64> get_token_balance_recursive(AccountId aid, TokenId tid, api::AssetLookupTrace* trace = nullptr) const;
     [[nodiscard]] std::pair<std::optional<BalanceId>, Wart> get_wart_balance(AccountId aid) const;
@@ -272,21 +273,9 @@ private:
         Database(const std::string& path);
     } db;
     struct Cache {
-        StateId32 stateId32; // incremental id for tables other than Accounts and Assets
-        StateId64 stateId64; // incremental id for tables other than Accounts and Assets
+        StateIncrementer ids;
         HistoryId nextHistoryId;
         DeletionKey deletionKey;
-        template <typename T>
-        auto& corresponding_state(const T&)
-        {
-            if constexpr (StateId64::is_id_t<std::remove_cvref_t<T>>()) {
-                return stateId64;
-            } else if constexpr (StateId32::is_id_t<std::remove_cvref_t<T>>()) {
-                return stateId32;
-            } else {
-                static_assert(false, "argument is no valid stateId");
-            }
-        }
         static Cache init(SQLite::Database& db);
     } cache;
     StateIdStatements<StateId32> state32Statements;

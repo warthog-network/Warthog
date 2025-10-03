@@ -215,7 +215,7 @@ public:
     {
     }
     Data(const ChainDB& db)
-        : BaseData(db.next_id32(), db.next_id64(), {}, {}, {}, {}, {})
+        : BaseData(db.next_id(), db.next_id(), {}, {}, {}, {}, {})
     {
     }
     auto& next_state_id32() const { return get<0>(); }
@@ -266,7 +266,7 @@ private:
     }
     void register_object32(auto& vector, auto element)
     {
-        if (StateId32::from_id(get_id(element)) >= next_state_id32())
+        if (state_id(get_id(element)) >= next_state_id32())
             return;
         register_object(vector, std::move(element));
     }
@@ -286,11 +286,11 @@ public:
     }
     void register_original_poolstate(Poolstate o)
     {
-        register_object32(original_poolstates(), std::move(o));
+        register_object64(original_poolstates(), std::move(o));
     }
     void register_newly_created_pool(AssetId id)
     {
-        register_object32(newly_created_pools(), std::move(id));
+        register_object64(newly_created_pools(), std::move(id));
     }
 
     void foreach_changed_balance(const auto& lambda) const

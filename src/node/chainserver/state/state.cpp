@@ -1172,7 +1172,7 @@ std::optional<TokenId> State::normalize(api::TokenIdOrSpec token) const
         auto o { db.lookup_asset(h.assetHash) };
         if (o) {
             auto tid { o->id.token_id(h.poolLiquidity) };
-            if (static_cast<AssetId>(db.next_id32()).token_id() > tid) {
+            if (static_cast<AssetId>(db.next_id()).token_id() > tid) {
                 // tokenId does exist in database
                 return tid;
             }

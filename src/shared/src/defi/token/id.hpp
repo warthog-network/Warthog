@@ -6,8 +6,8 @@
 
 struct AssetId;
 class NonWartTokenId;
-struct TokenId : public UInt32WithOperators<TokenId> {
-    using UInt32WithOperators::UInt32WithOperators;
+struct TokenId : public UInt64WithOperators<TokenId> {
+    using UInt64WithOperators::UInt64WithOperators;
     static const TokenId WART;
     [[nodiscard]] bool is_wart() const { return value() == 0; }
     [[nodiscard]] bool is_share() const
@@ -50,16 +50,8 @@ inline std::optional<NonWartTokenId> TokenId::non_wart() const
     return NonWartTokenId::non_wart(*this);
 }
 
-struct AssetId : public UInt32WithOperators<AssetId> { // assets are tokens that are not pool shares
-    constexpr explicit AssetId(uint32_t id)
-        : UInt32WithOperators(id)
-    {
-    }
-    AssetId(Reader& r)
-        : UInt32WithOperators<AssetId>(r)
-    {
-    }
-
+struct AssetId : public UInt64WithOperators<AssetId> { // assets are tokens that are not pool shares
+    using UInt64WithOperators<AssetId>::UInt64WithOperators;
     constexpr NonWartTokenId token_id(bool poolLiquidity = false) const { return TokenId { 1 + 2 * value() + poolLiquidity }; }
 };
 

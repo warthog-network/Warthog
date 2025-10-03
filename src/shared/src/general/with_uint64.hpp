@@ -83,7 +83,7 @@ public:
     auto operator<=>(const IsUint64&) const = default;
 
     operator nlohmann::json() const;
-    uint64_t value() const
+    constexpr uint64_t value() const
     {
         return val;
     }

@@ -231,10 +231,8 @@ struct GetNextId {
 ChainDB::Cache ChainDB::Cache::init(SQLite::Database& db)
 {
     GetNextId nextId(db);
-
     return {
-        .stateId32 { StateId32::max_component(nextId) },
-        .stateId64 { StateId64::max_component(nextId) },
+        .ids { StateId32::max_component(nextId), StateId64::max_component(nextId) },
         .nextHistoryId { static_cast<HistoryId>(nextId) },
         .deletionKey { 2 }
     };
@@ -382,20 +380,22 @@ void ChainDB::insert_unguarded(const AccountData& ad)
 void ChainDB::delete_state32_from(StateId32 fromId)
 {
     assert(fromId.value() > 0);
-    if (cache.stateId32 <= fromId) {
-        spdlog::error("BUG: Deleting nothing, fromId = {} >= {} = cache.stateId32", fromId.value(), cache.stateId32.value());
+    auto& next_ref { cache.ids.next32 };
+    if (next_ref <= fromId) {
+        spdlog::error("BUG: Deleting nothing, fromId = {} >= {} = cache.stateId32", fromId.value(), next_ref.value());
     } else {
-        cache.stateId32 = fromId;
+        next_ref = fromId;
         state32Statements.delete_from(fromId);
     }
 }
 void ChainDB::delete_state64_from(StateId64 fromId)
 {
     assert(fromId.value() > 0);
-    if (cache.stateId64 <= fromId) {
-        spdlog::error("BUG: Deleting nothing, fromId = {} >= {} = cache.stateId64", fromId.value(), cache.stateId64.value());
+    auto& next_ref { cache.ids.next64 };
+    if (next_ref <= fromId) {
+        spdlog::error("BUG: Deleting nothing, fromId = {} >= {} = cache.stateId64", fromId.value(), next_ref.value());
     } else {
-        cache.stateId64 = fromId;
+        next_ref = fromId;
         state64Statements.delete_from(fromId);
     }
 }
@@ -789,11 +789,9 @@ std::optional<NonzeroHeight> ChainDB::get_latest_fork_height(TokenId tid, Height
     return NonzeroHeight { res[0] };
 }
 
-void ChainDB::insert_token_balance(const BalanceData& b)
+void ChainDB::insert_unguarded(const BalanceData& b)
 {
-    cache.stateId64.if_unequal_throw(b.id);
     stmtTokenInsertBalance.run(b.id, b.tid, b.aid, b.balance);
-    cache.stateId64++;
 }
 
 std::optional<std::pair<BalanceId, Funds_uint64>> ChainDB::get_balance(AccountId aid, TokenId tid) const
@@ -883,7 +881,7 @@ HistoryId ChainDB::insertHistory(const HashView hash,
 
 void ChainDB::delete_history_from(NonzeroHeight h)
 {
-    const auto nextHistoryId { stmtConsensusSelectHistory.one(h).get<uint64_t>(0)};
+    const auto nextHistoryId { stmtConsensusSelectHistory.one(h).get<uint64_t>(0) };
     stmtHistoryDeleteFrom.run(nextHistoryId);
     stmtAccountHistoryDeleteFrom.run(nextHistoryId);
     cache.nextHistoryId = HistoryId { nextHistoryId };
