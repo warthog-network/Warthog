@@ -78,6 +78,14 @@ inline T Row::get(int index) const
     return operator[](index);
 }
 
+template <>
+inline uint64_t Row::get<uint64_t>(int index) const
+{
+    int64_t v{ operator[](index)};
+    assert(v >=0);
+    return v;
+}
+
 template <size_t N>
 inline std::array<uint8_t, N> Row::get_array(int index) const
 {

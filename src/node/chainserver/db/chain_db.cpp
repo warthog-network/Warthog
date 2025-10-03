@@ -877,14 +877,13 @@ void ChainDB::insert_history_link(HistoryId parent, HistoryId link)
 HistoryId ChainDB::insertHistory(const HashView hash,
     const std::vector<uint8_t>& data)
 {
-    stmtHistoryInsert.run((int64_t)cache.nextHistoryId.value(), hash, data);
+    stmtHistoryInsert.run(cache.nextHistoryId, hash, data);
     return cache.nextHistoryId++;
 }
 
 void ChainDB::delete_history_from(NonzeroHeight h)
 {
-    const int64_t nextHistoryId = stmtConsensusSelectHistory.one(h).get<int64_t>(0);
-    assert(nextHistoryId >= 0);
+    const auto nextHistoryId { stmtConsensusSelectHistory.one(h).get<uint64_t>(0)};
     stmtHistoryDeleteFrom.run(nextHistoryId);
     stmtAccountHistoryDeleteFrom.run(nextHistoryId);
     cache.nextHistoryId = HistoryId { nextHistoryId };

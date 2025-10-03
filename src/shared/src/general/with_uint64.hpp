@@ -74,11 +74,8 @@ public:
 
 struct IsUint64 {
 public:
-    explicit IsUint64(int64_t w);
     IsUint64(Reader& r);
     static constexpr size_t byte_size() { return sizeof(val); }
-    explicit IsUint64(int w)
-        : IsUint64((int64_t)(w)) { };
     explicit constexpr IsUint64(uint64_t val)
         : val(val) { };
 

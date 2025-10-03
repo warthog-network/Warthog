@@ -73,9 +73,6 @@ public:
     operator Hash() const { return { get_array<32>() }; }
     operator Height() const { return Height(getUInt32()); }
     operator PinHeight() const { return PinHeight(static_cast<Height>(*this)); }
-    operator HistoryId() const { return HistoryId { getUInt64() }; }
-    operator NonceId() const { return NonceId { getUInt32() }; }
-    operator BalanceId() const { return BalanceId { getUInt64() }; }
     operator std::vector<uint8_t>() const { return get_vector(); }
     operator Address() const { return get_array<20>(); }
     operator BodyData() const { return get_vector(); }
@@ -86,9 +83,7 @@ public:
         return Height { *this }.nonzero_throw("NonzeroHeight cannot be 0.");
     }
     operator int64_t() const { return getInt64(); }
-    operator AccountId() const { return AccountId { getUInt64() }; }
-    operator IsUint64() const { return IsUint64(getUInt64()); }
-    operator BlockId() const { return BlockId(getInt64()); }
+    // operator IsUint64() const { return IsUint64(getUInt64()); }
     operator Funds_uint64() const
     {
         auto v { Funds_uint64::from_value(getUInt64()) };
@@ -97,6 +92,7 @@ public:
         return *v;
     }
     operator uint64_t() const { return getUInt64(); }
+    operator uint32_t() const { return getUInt32(); }
     operator AssetHash() const { return AssetHash(Hash(*this)); }
     operator AssetName() const
     {
@@ -110,8 +106,6 @@ public:
         return *p;
     }
     operator Worksum() const { return get_array<32>(); }
-    operator TokenId() const { return TokenId(getUInt32()); }
-    operator AssetId() const { return AssetId(getUInt32()); }
 };
 
 namespace bind_convert {
