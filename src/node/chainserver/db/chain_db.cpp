@@ -285,13 +285,13 @@ ChainDB::ChainDB(const std::string& path)
     , stmtSelectPool(db, "SELECT (asset_id, liquidity_token, liquidity_wart, pool_shares) FROM `" POOLS_TABLE "` WHERE asset_id=?")
     , stmtUpdatePool(db, "UPDATE `" POOLS_TABLE "` SET liquidity_base=?, liquidity_quote=?, pool_shares=? WHERE asset_id=?")
     , stmtTokenForkBalanceInsert(db, "INSERT INTO `" TOKENFORKBALANCES_TABLE "` "
-                                     "(id, account_id, token_id, height, balance) "
-                                     "VALUES (?,?,?,?)")
+                                     "(id, account_id, asset_id, height, balance) "
+                                     "VALUES (?,?,?,?,?)")
     , stmtTokenForkBalanceEntryExists(db, "SELECT 1 FROM `" TOKENFORKBALANCES_TABLE "` "
                                           "WHERE account_id=? "
-                                          "AND token_id=? "
+                                          "AND asset_id=? "
                                           "AND height=?")
-    , stmtTokenForkBalanceSelect(db, "SELECT height, balance FROM `" TOKENFORKBALANCES_TABLE "` WHERE token_id=? height>=? ORDER BY height ASC LIMIT 1")
+    , stmtTokenForkBalanceSelect(db, "SELECT height, balance FROM `" TOKENFORKBALANCES_TABLE "` WHERE account_id=? height>=? ORDER BY height ASC LIMIT 1")
 
     , stmtAssetInsert(db, "INSERT INTO `" ASSETS_TABLE "` ( `id`, `hash, `name`, `precision`, `height`, `owner_account_id`, total_supply, group_id, parent_id, data) VALUES (?,?,?,?,?,?,?,?,?,?)")
     , stmtAssetSelectForkHeight(db, "SELECT height FROM `" ASSETS_TABLE "` WHERE parent_id=? AND height>=? ORDER BY height DESC LIMIT 1")
@@ -374,12 +374,9 @@ ChainDB::ChainDB(const std::string& path)
     db.exec("UPDATE `" DELETESCHEDULE_TABLE "` SET `deletion_key`=1");
 }
 
-void ChainDB::insert_account(const AddressView address, AccountId verifyNextId)
+void ChainDB::insert_unguarded(const AccountData& ad)
 {
-    if (cache.stateId32 != state_id(verifyNextId))
-        throw std::runtime_error("Internal error, state id inconsistent.");
-    stmtAccountsInsert.run(cache.stateId32, address);
-    cache.stateId32++;
+    stmtAccountsInsert.run(ad.id, ad.address);
 }
 
 void ChainDB::delete_state32_from(StateId32 fromId)
@@ -656,7 +653,7 @@ std::vector<Candle> ChainDB::select_candles_1h(TokenId tid, Timestamp from, Time
         tid, from, to);
 }
 
-void ChainDB::insert_order(const chain_db::OrderData& o)
+void ChainDB::insert(const chain_db::OrderData& o)
 {
     if (o.buy)
         stmtInsertQuoteBuyOrder.run(o.id, o.txid.accountId, o.txid.pinHeight, o.txid.nonceId, o.aid, o.total, o.filled, o.limit);
@@ -755,13 +752,12 @@ std::optional<PoolData> ChainDB::select_pool(AssetId assetId) const
 
 void ChainDB::update_pool(const PoolData& d)
 {
-    // stmtUpdatePool(db, "UPDATE `" POOLS_TABLE "` SET liquidity_base=?, liquidity_quote=?, pool_shares=? WHERE asset_id=?")
     stmtUpdatePool.run(d.base, d.quote, d.shares_total(), d.asset_id());
 }
 
-void ChainDB::insert_token_fork_balance(TokenForkBalanceId id, TokenId tokenId, TokenForkId forkId, Funds_uint64 balance)
+void ChainDB::insert_unguarded(const TokenForkBalanceData& b)
 {
-    stmtTokenForkBalanceInsert.run(id, tokenId, forkId, balance);
+    stmtTokenForkBalanceInsert.run(b.id, b.accountId, b.assetId, b.height, b.balance);
 }
 
 // bool ChainDB::fork_balance_exists(AccountToken at, NonzeroHeight h)
@@ -780,12 +776,9 @@ std::optional<std::pair<NonzeroHeight, Funds_uint64>> ChainDB::get_balance_snaps
     return std::pair<NonzeroHeight, Funds_uint64> { res[0], res[1] };
 }
 
-void ChainDB::insert_new_asset(const AssetData& d)
+void ChainDB::insert_unguarded(const AssetData& d)
 {
-    if (d.id.value() != cache.stateId32.value())
-        throw std::runtime_error("Internal error, token id inconsistent.");
     stmtAssetInsert.run(d.id, d.hash, d.name, d.supply.precision.value(), d.height, d.ownerAccountId, d.supply.funds.value(), d.groupId, d.parentId, d.data);
-    ++cache.stateId32;
 }
 
 std::optional<NonzeroHeight> ChainDB::get_latest_fork_height(TokenId tid, Height h)
@@ -796,10 +789,11 @@ std::optional<NonzeroHeight> ChainDB::get_latest_fork_height(TokenId tid, Height
     return NonzeroHeight { res[0] };
 }
 
-void ChainDB::insert_token_balance(AccountToken at, Funds_uint64 balance)
+void ChainDB::insert_token_balance(const BalanceData& b)
 {
-    stmtTokenInsertBalance.run(cache.stateId32, at.token_id(), at.account_id(), balance);
-    cache.stateId32++;
+    cache.stateId64.if_unequal_throw(b.id);
+    stmtTokenInsertBalance.run(b.id, b.tid, b.aid, b.balance);
+    cache.stateId64++;
 }
 
 std::optional<std::pair<BalanceId, Funds_uint64>> ChainDB::get_balance(AccountId aid, TokenId tid) const
@@ -1137,7 +1131,7 @@ chainserver::TransactionIds ChainDB::fetch_tx_ids(Height height) const
 
         for (auto& txid : txids.fromCancelations)
             out.insert(txid); // Cancelations can have collisions with txids from previous blocks, don't check for duplicates.
-        
+
         // check txids.fromTransactions for duplicates in previous blocks transaction
         // ids AND same block cancelation ids, therefore this for loop comes second
         for (auto& tid : txids.fromTransactions) {

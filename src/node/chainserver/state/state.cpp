@@ -761,7 +761,7 @@ public:
     const StateId32 oldStateId32Start;
     const StateId64 oldStateId64Start;
     struct DeletePool { };
-    using UpdatePool = PoolData;
+    using UpdatePool = chain_db::PoolData;
     using PoolAction = wrt::variant<DeletePool, UpdatePool>;
 
     struct OrderAction {
@@ -984,7 +984,7 @@ State::rollback(const Height newlength) const
                 orderData.filled = a.fillstate->filled;
                 assert(orderData.id == a.fillstate->id);
             }
-            db.insert_order(orderData);
+            db.insert(orderData);
         } else {
             // every element that was inserted into orderActions
             // has a value for at least one of the optional members.

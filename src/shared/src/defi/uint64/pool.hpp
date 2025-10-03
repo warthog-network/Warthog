@@ -102,6 +102,7 @@ public:
         : Pool_uint64(0, 0, 0)
     {
     }
+    bool nonzero() const { return *this != Pool_uint64(0, 0, 0); }
     [[nodiscard]] Funds_uint64 deposit(Funds_uint64 addBase, Funds_uint64 addQuote)
     {
         auto s0 { Prod128(base, quote).sqrt() };

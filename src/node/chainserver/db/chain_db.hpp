@@ -43,39 +43,6 @@ struct Candle {
     Funds_uint64 volume;
 };
 
-struct PoolData : public defi::Pool_uint64 {
-    struct Initializer {
-        AssetId assetId;
-        Funds_uint64 base;
-        Funds_uint64 quote;
-        Funds_uint64 shares;
-    };
-    PoolData(AssetId assetId, defi::Pool_uint64 pool)
-        : defi::Pool_uint64(std::move(pool))
-        , assetId(assetId)
-    {
-    }
-    PoolData(Initializer i)
-        : defi::Pool_uint64(i.base, i.quote, i.shares)
-        , assetId(i.assetId)
-    {
-    }
-    static PoolData zero(AssetId assetId)
-    {
-        return Initializer {
-            .assetId { assetId },
-            .base { 0 },
-            .quote { 0 },
-            .shares { 0 }
-        };
-    }
-
-    auto asset_id() const { return assetId; }
-
-private:
-    AssetId assetId;
-};
-
 struct BlockUndoData {
     Header header;
     BodyData body;
@@ -128,8 +95,21 @@ public:
     };
     ChainDB(const std::string& path);
     [[nodiscard]] ChainDBTransaction transaction();
-    void insert_account(const AddressView address, AccountId verifyNextId);
+    template <typename T>
+    void insert_guarded(const T& t)
+    {
+        auto& stateId { cache.corresponding_state(t.id) };
+        stateId.if_unequal_throw(t.id);
+        insert_unguarded(t);
+        stateId++;
+    }
 
+private:
+    void insert_unguarded(const AccountData&);
+    void insert_unguarded(const TokenForkBalanceData&);
+    void insert_unguarded(const AssetData&);
+
+public:
     void delete_state32_from(StateId32 fromStateId);
     void delete_state64_from(StateId64 fromStateId);
     // void setStateBalance(AccountId accountId, Funds balance);
@@ -179,7 +159,7 @@ public:
 
     /////////////////////
     // Order functions
-    void insert_order(const chain_db::OrderData&);
+    void insert(const chain_db::OrderData&);
     void update_order_fillstate(const chain_db::OrderFillstate&);
     void delete_order(const chain_db::OrderDelete&);
     [[nodiscard]] std::optional<chain_db::OrderData> select_order(TransactionId) const;
@@ -208,13 +188,15 @@ public:
 
     /////////////////////
     // Token fork balance functions
-    void insert_token_fork_balance(TokenForkBalanceId, TokenId, TokenForkId, Funds_uint64);
+
+public:
     // bool fork_balance_exists(AccountToken, NonzeroHeight);
     std::optional<std::pair<NonzeroHeight, Funds_uint64>> get_balance_snapshot_after(TokenId tokenId, NonzeroHeight minHeight) const;
 
     /////////////////////
     // Token functions
-    void insert_new_asset(const chain_db::AssetData&);
+
+public:
     [[nodiscard]] std::optional<NonzeroHeight> get_latest_fork_height(TokenId, Height);
 
     [[nodiscard]] std::optional<Balance> get_token_balance(BalanceId id) const;
@@ -227,7 +209,7 @@ public:
     [[nodiscard]] AssetDetail fetch_asset(AssetId id) const;
     [[nodiscard]] std::optional<AssetDetail> lookup_asset(const AssetHash&) const;
     [[nodiscard]] AssetDetail fetch_asset(const AssetHash&) const;
-    void insert_token_balance(AccountToken, Funds_uint64 balance);
+    void insert_token_balance(const BalanceData&);
     void set_balance(BalanceId, Funds_uint64 balance);
     std::vector<std::pair<TokenId, Funds_uint64>> get_tokens(AccountId, size_t limit);
     [[nodiscard]] api::Richlist lookup_richlist(TokenId, size_t limit) const;
@@ -294,6 +276,17 @@ private:
         StateId64 stateId64; // incremental id for tables other than Accounts and Assets
         HistoryId nextHistoryId;
         DeletionKey deletionKey;
+        template <typename T>
+        auto& corresponding_state(const T&)
+        {
+            if constexpr (StateId64::is_id_t<std::remove_cvref_t<T>>()) {
+                return stateId64;
+            } else if constexpr (StateId32::is_id_t<std::remove_cvref_t<T>>()) {
+                return stateId32;
+            } else {
+                static_assert(false, "argument is no valid stateId");
+            }
+        }
         static Cache init(SQLite::Database& db);
     } cache;
     StateIdStatements<StateId32> state32Statements;

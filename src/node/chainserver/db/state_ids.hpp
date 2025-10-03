@@ -18,13 +18,20 @@ struct StateIdBase : public UInt64WithOperators<self_t> {
     requires(std::is_same_v<T, Ids> || ...)
     static self_t from_id(T t)
     {
-        return self_t( uint64_t(t.value()) );
+        return self_t(uint64_t(t.value()));
     }
     template <typename T>
     requires(is_id_t<T>())
     operator T() const
     {
         return T(this->value());
+    }
+    template <typename T>
+    requires(is_id_t<T>())
+    void if_unequal_throw(T id) const
+    {
+        if (from_id(id) != *static_cast<const self_t*>(this))
+            throw std::runtime_error("Internal error, token id inconsistent.");
     }
     [[nodiscard]] static self_t max_component(auto& generator)
     {

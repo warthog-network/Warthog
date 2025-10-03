@@ -6,6 +6,7 @@
 #include "block/chain/history/index.hpp"
 #include "defi/token/id.hpp"
 #include "defi/token/token.hpp"
+#include "defi/uint64/pool.hpp"
 #include "defi/uint64/price.hpp"
 #include "types_fwd.hpp"
 namespace chain_db {
@@ -37,6 +38,23 @@ struct OrderFillstate {
         s << id << filled << buy;
     }
 };
+struct AccountData {
+    AccountId id;
+    AddressView address;
+};
+struct BalanceData {
+    BalanceId id;
+    AccountId aid;
+    TokenId tid;
+    Funds_uint64 balance;
+};
+struct TokenForkBalanceData {
+    TokenForkBalanceId id;
+    AccountId accountId;
+    AssetId assetId;
+    Height height;
+    Funds_uint64 balance;
+};
 struct OrderData {
     HistoryId id;
     bool buy;
@@ -58,5 +76,37 @@ struct OrderData {
     {
         s << id << buy << txid << aid << total << filled << limit;
     }
+};
+struct PoolData : public defi::Pool_uint64 {
+    struct Initializer {
+        AssetId assetId;
+        Funds_uint64 base;
+        Funds_uint64 quote;
+        Funds_uint64 shares;
+    };
+    PoolData(AssetId assetId, defi::Pool_uint64 pool)
+        : defi::Pool_uint64(std::move(pool))
+        , assetId(assetId)
+    {
+    }
+    PoolData(Initializer i)
+        : defi::Pool_uint64(i.base, i.quote, i.shares)
+        , assetId(i.assetId)
+    {
+    }
+    static PoolData zero(AssetId assetId)
+    {
+        return Initializer {
+            .assetId { assetId },
+            .base { 0 },
+            .quote { 0 },
+            .shares { 0 }
+        };
+    }
+
+    auto asset_id() const { return assetId; }
+
+private:
+    AssetId assetId;
 };
 }

@@ -260,7 +260,7 @@ struct MatchProcessor {
                 if (orderFilled >= o.order.amount) {
                     assert(orderFilled == o.order.amount);
                     if (blockEffects) {
-                        blockEffects->orderDeletes.push_back({
+                        blockEffects->insert(block_apply::OrderDelete({
                             .id = o.id,
                             .buy = false,
                             .txid = o.txid,
@@ -268,12 +268,13 @@ struct MatchProcessor {
                             .total = o.order.amount,
                             .filled = o.filled,
                             .limit = o.order.limit,
-                        });
+                        }));
                     }
                 } else {
                     assert(remaining == 0);
                     if (blockEffects)
-                        blockEffects->orderUpdates.push_back({ .newFillState { .id { o.id }, .filled { orderFilled }, .buy = false }, .originalFilled { o.filled } });
+                        blockEffects->insert(block_apply::OrderUpdate {
+                            .newFillState { .id { o.id }, .filled { orderFilled }, .buy = false }, .originalFilled { o.filled } });
                 }
                 res.sellSwaps.push_back(SwapInternal { .oId { o.id }, .txid { o.txid }, .base { b }, .quote { Wart::from_funds_throw(*q) } });
             }
@@ -301,7 +302,7 @@ struct MatchProcessor {
                 if (orderFilled >= o.order.amount) {
                     assert(orderFilled == o.order.amount);
                     if (blockEffects) {
-                        blockEffects->orderDeletes.push_back({
+                        blockEffects->insert(block_apply::OrderInsert({
                             .id = o.id,
                             .buy = true,
                             .txid = o.txid,
@@ -309,12 +310,13 @@ struct MatchProcessor {
                             .total = o.order.amount,
                             .filled = o.filled,
                             .limit = o.order.limit,
-                        });
+                        }));
                     }
                 } else {
                     assert(remaining == 0);
                     if (blockEffects)
-                        blockEffects->orderUpdates.push_back({ .newFillState { .id { o.id }, .filled { orderFilled }, .buy = true }, .originalFilled { o.filled } });
+                        blockEffects->insert(block_apply::OrderUpdate {
+                            .newFillState { .id { o.id }, .filled { orderFilled }, .buy = true }, .originalFilled { o.filled } });
                 }
                 res.buySwaps.push_back(SwapInternal { .oId { o.id }, .txid { o.txid }, .base { *b }, .quote { Wart::from_funds_throw(q) } });
             }
@@ -366,18 +368,68 @@ public:
     }
 };
 
-class AccountAndAssetIncrementer {
-    StateId32 next;
+class StateIncrementer {
+    StateId32 next32;
+    StateId64 next64;
+
+    template <typename base_t>
+    class NextBase {
+    protected:
+        template <typename T>
+        static constexpr bool is_id_t() { return StateId32::is_id_t<T>() || StateId64::is_id_t<T>(); }
+        base_t& s;
+        NextBase(base_t& s)
+            : s(s)
+        {
+        }
+        template <typename T>
+        requires(StateId32::is_id_t<T>())
+        auto& get_state()
+        {
+            return s.next32;
+        }
+        template <typename T>
+        requires(StateId64::is_id_t<T>())
+        auto& get_state()
+        {
+            return s.next64;
+        }
+    };
+    class Next : NextBase<const StateIncrementer> {
+        friend class StateIncrementer;
+        using NextBase<const StateIncrementer>::NextBase;
+
+    public:
+        template <typename T>
+        requires(is_id_t<T>())
+        operator T() &&
+        {
+            return this->get_state<T>();
+        }
+    };
+    class NextInc : NextBase<StateIncrementer> {
+        friend class StateIncrementer;
+        using NextBase<StateIncrementer>::NextBase;
+
+    public:
+        template <typename T>
+        requires(is_id_t<T>())
+        operator T() &&
+        {
+            return get_state<T>()++;
+        }
+    };
 
 public:
-    AccountAndAssetIncrementer(StateId32 next)
-        : next(next)
+    StateIncrementer(StateId32 next32, StateId64 next64)
+        : next32(next32)
+        , next64(next64)
     {
     }
-    AssetId next_asset_id_inc() { return AssetId((next++).value()); }
-    AccountId next_account_id_inc() { return AccountId((next++).value()); }
-    AccountId next_account_id_state() const { return AccountId(next.value()); }
+    Next next() const { return { *this }; }
+    NextInc next_inc() { return { *this }; }
 };
+
 class BalanceChecker {
 
     class FundFlow {
@@ -429,14 +481,14 @@ class BalanceChecker {
     };
 
     struct Accounts {
-        Accounts(AccountAndAssetIncrementer& inc, const Body& b)
-            : beginNew(inc.next_account_id_state())
+        Accounts(StateIncrementer& inc, const Body& b)
+            : beginNew(inc.next())
             , beginInvalid(beginNew + b.newAddresses.size())
         {
             size_t n { b.newAddresses.size() };
             newAccounts.reserve(n);
             for (size_t i = 0; i < n; ++i)
-                newAccounts.push_back({ b.newAddresses[i], (inc.next_account_id_inc()).validate_throw(beginInvalid) });
+                newAccounts.push_back({ b.newAddresses[i], AccountId(inc.next_inc()).validate_throw(beginInvalid) });
         }
         [[nodiscard]] AccountData& operator[](AccountId id)
         {
@@ -483,7 +535,7 @@ public:
             .toAddress { a.address }
         };
     }
-    BalanceChecker(AccountAndAssetIncrementer& inc, const Body& b, NonzeroHeight height)
+    BalanceChecker(StateIncrementer& inc, const Body& b, NonzeroHeight height)
         : height(height)
         , pinFloor(height.pin_floor())
         , b(b)
@@ -847,14 +899,6 @@ public:
     block_apply::BlockEffects blockEffects;
     api::block::Actions api;
 
-    void write_wart_updates(std::map<AccountId, Wart>& wartUpdates) const
-    {
-        for (auto& u : blockEffects.updateBalances) {
-            if (u.at.token_id() == TokenId::WART)
-                wartUpdates.insert_or_assign(u.at.account_id(), Wart::from_funds_throw(u.original));
-        }
-    }
-
 private:
     friend class PreparationGenerator;
     Preparation()
@@ -868,7 +912,7 @@ private:
     // constants
     const ChainDB& db;
     const Headerchain& hc;
-    AccountAndAssetIncrementer idIncrementer;
+    StateIncrementer idIncrementer;
     decltype(BlockApplier::Preparer::baseTxIds)& baseTxIds;
     const decltype(BlockApplier::Preparer::newTxIds)& newTxIds;
     const BlockHash& blockhash;
@@ -918,23 +962,27 @@ private:
             balanceChecker.register_asset_creation(ac, height);
     }
 
-    auto adjust_new_balance(const AccountToken& at, const auto& tokenFlow)
+    auto process_new_balance(const AccountToken& at, const auto& tokenFlow)
     {
         if (tokenFlow.out() > Funds_uint64::zero()) // We do not allow resend of newly inserted balance
             throw Error(EBALANCE); // insufficient balance
         Funds_uint64 balance { tokenFlow.in() };
-        blockEffects.insertBalances.push_back({ at, balance });
+        blockEffects.insert(block_apply::BalanceInsert({
+            .id { idIncrementer.next_inc() },
+            .aid { at.account_id() },
+            .tid { at.token_id() },
+            .balance { balance },
+        }));
     }
-    auto adjust_existing_balance(const AccountToken& at, const auto& tokenFlow, IdBalance ib)
+    auto process_existing_balance(const AccountToken& at, const auto& tokenFlow, IdBalance ib)
     {
         // check that balances are correct
         auto totalIn { Funds_uint64::sum_throw(tokenFlow.in(), ib.balance) };
         Funds_uint64 newbalance { Funds_uint64::diff_throw(totalIn, tokenFlow.out()) };
-        blockEffects.updateBalances.push_back(
-            { .at { at },
-                .id { ib.id },
-                .original { ib.balance },
-                .updated { newbalance } });
+        blockEffects.insert(block_apply::BalanceUpdate { .at { at },
+            .id { ib.id },
+            .original { ib.balance },
+            .updated { newbalance } });
     }
     auto db_addr(AccountId id)
     {
@@ -957,9 +1005,9 @@ private:
             for (auto& [tokenId, tokenFlow] : accountData.token_flow()) {
                 AccountToken at { accountId, tokenId };
                 if (auto [balanceId, balance] { db.get_token_balance_recursive(accountId, tokenId) }; balanceId)
-                    adjust_existing_balance(at, tokenFlow, { *balanceId, balance });
+                    process_existing_balance(at, tokenFlow, { *balanceId, balance });
                 else
-                    adjust_new_balance(at, tokenFlow);
+                    process_new_balance(at, tokenFlow);
             }
         }
 
@@ -969,11 +1017,11 @@ private:
             for (auto& [tokenId, tokenFlow] : a.token_flow()) {
                 if (!tokenFlow.in().is_zero())
                     referred = true;
-                adjust_new_balance({ a.id, tokenId }, tokenFlow);
+                process_new_balance({ a.id, tokenId }, tokenFlow);
             }
             if (!referred)
                 throw Error(EIDPOLICY); // id was not referred
-            blockEffects.insertAccounts.push_back({ a.address, a.id });
+            blockEffects.insert(block_apply::AccountInsert { a.id, a.address });
         }
     }
 
@@ -1031,7 +1079,7 @@ private:
                 if (auto p { db.select_pool(info().id) })
                     o.emplace(LoadedPool { false, *p });
                 else
-                    o.emplace(LoadedPool { true, PoolData::zero(id()) });
+                    o.emplace(LoadedPool { true, chain_db::PoolData::zero(id()) });
             }
             return o->pool.updated;
         }
@@ -1054,9 +1102,9 @@ private:
             if (auto& o { ah.loaded_pool() }) {
                 auto& p { *o };
                 if (p.create && p.pool.nonzero())
-                    blockEffects.poolInsertions.push_back({ ah.id(), p.pool.updated });
+                    blockEffects.insert(block_apply::PoolInsert { ah.id(), p.pool.updated });
                 else
-                    blockEffects.poolUpdates.push_back(o->pool);
+                    blockEffects.insert(block_apply::PoolUpdate(o->pool));
             }
         }
     }
@@ -1065,18 +1113,20 @@ private:
         auto& assetCreations { balanceChecker.asset_creations() };
         for (size_t i { 0 }; i < assetCreations.size(); ++i) {
             auto& ac { assetCreations[i] };
-            auto assetId { idIncrementer.next_asset_id_inc() };
+            AssetId assetId { idIncrementer.next_inc() };
             const auto verified { ac.verify(txVerifier) };
-            blockEffects.insertAssetCreations.push_back(chain_db::AssetData {
-                .id { assetId },
-                .height { height },
-                .ownerAccountId { ac.origin.id },
-                .supply { ac.supply() },
-                .groupId { assetId.token_id() },
-                .parentId { TokenId { 0 } },
-                .name { ac.asset_name() },
-                .hash { AssetHash(TxHash(verified.hash)) },
-                .data {} });
+            blockEffects.insert(block_apply::AssetInsert(
+                { .id { assetId },
+                    .height { height },
+                    .ownerAccountId { ac.origin.id },
+                    .supply { ac.supply() },
+                    .groupId { assetId.token_id() },
+                    .parentId { TokenId { 0 } },
+                    .name { ac.asset_name() },
+                    .hash { AssetHash(TxHash(verified.hash)) },
+                    .data {} }));
+
+            balanceChecker.add_balance(ac.origin.id, assetId.token_id(false), ac.supply().funds);
 
             auto& ref { history.push_asset_creation(verified, assetId) };
             api.assetCreations.push_back({ make_signed_info(verified, ref.historyId), { .name { ac.asset_name() }, .supply { ac.supply() }, .assetId { assetId } } });
@@ -1122,7 +1172,7 @@ private:
             auto o { db.select_order(verified.ref.cancel_txid()) };
             if (o) { // transaction is removed from the database
                 ignoreOrderIds.insert(o->id);
-                blockEffects.orderDeletes.push_back(*o);
+                blockEffects.insert(block_apply::OrderDelete(*o));
 
                 // credit remaining locked amount
                 if (o->buy) {
@@ -1163,14 +1213,14 @@ private:
                     .buy = o.buy(),
                 } });
             res.push_back({ verified, ref.historyId });
-            blockEffects.OrderInsertions.push_back(chain_db::OrderData {
-                .id { ref.historyId },
-                .buy = o.buy(),
-                .txid { verified.txid },
-                .aid { asset.id() },
-                .total { o.amount() },
-                .filled { Funds_uint64::zero() },
-                .limit { o.limit() } });
+            blockEffects.insert(block_apply::OrderInsert(
+                { .id { ref.historyId },
+                    .buy = o.buy(),
+                    .txid { verified.txid },
+                    .aid { asset.id() },
+                    .total { o.amount() },
+                    .filled { Funds_uint64::zero() },
+                    .limit { o.limit() } }));
         }
         return res;
     }
@@ -1270,7 +1320,7 @@ public:
         : Preparation()
         , db(preparer.db)
         , hc(preparer.hc)
-        , idIncrementer(db.next_id32())
+        , idIncrementer(db.next_id32(), db.next_id64())
         , baseTxIds(preparer.baseTxIds)
         , newTxIds(preparer.newTxIds)
         , blockhash(hash)
@@ -1316,14 +1366,12 @@ api::CompleteBlock BlockApplier::apply_block(const Block& block, const BlockHash
     // BELOW NO "Error" TROWS
 
     try {
-        // write WART balance updates in the cumulative map 'wartUpdates' of all blocks applied so far
-        prepared.write_wart_updates(wartUpdates);
 
         // merge transaction ids of this block into  newTxIds
         preparer.newTxIds.merge(std::move(prepared.txset));
 
         // write block effects to database
-        auto rollback { prepared.blockEffects.apply(db) };
+        auto rollback { prepared.blockEffects.apply2((ChainDB&)(db), (std::map<AccountId, Wart>&)(wartUpdates)) };
 
         // write rollback data
         db.set_block_undo(blockId, rollback.serialize());
