@@ -72,18 +72,24 @@ public:
 
     operator Hash() const { return { get_array<32>() }; }
     operator Height() const { return Height(getUInt32()); }
-    operator PinHeight() const { return PinHeight(static_cast<Height>(*this)); }
+    operator PinHeight() const
+    {
+        if (auto h { Height(*this).pin_height() })
+            return *h;
+        throw std::runtime_error("Database error: Height is not a PinHeight.");
+    }
+    operator NonzeroHeight() const
+    {
+        if (auto h { Height(*this).nonzero() })
+            return *h;
+        throw std::runtime_error("Database error: Height is not a NonzeroHeight.");
+    }
     operator std::vector<uint8_t>() const { return get_vector(); }
     operator Address() const { return get_array<20>(); }
     operator BodyData() const { return get_vector(); }
     operator Header() const { return get_array<80>(); }
     operator AssetPrecision() const { return AssetPrecision::from_number_throw(getUInt8()); }
-    operator NonzeroHeight() const
-    {
-        return Height { *this }.nonzero_throw("NonzeroHeight cannot be 0.");
-    }
     operator int64_t() const { return getInt64(); }
-    // operator IsUint64() const { return IsUint64(getUInt64()); }
     operator Funds_uint64() const
     {
         auto v { Funds_uint64::from_value(getUInt64()) };
@@ -93,7 +99,6 @@ public:
     }
     operator uint64_t() const { return getUInt64(); }
     operator uint32_t() const { return getUInt32(); }
-    operator AssetHash() const { return AssetHash(Hash(*this)); }
     operator AssetName() const
     {
         return AssetName::parse_throw(static_cast<std::string>(c));

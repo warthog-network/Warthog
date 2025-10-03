@@ -31,7 +31,7 @@ public:
 
     NonzeroHeight nonzero_assert() const;
     NonzeroHeight nonzero_throw(Error) const;
-    NonzeroHeight nonzero_throw(std::string) const;
+    std::optional<NonzeroHeight> nonzero() const;
     NonzeroHeight one_if_zero() const;
     NonzeroHeight add1() const;
     // Height& operator--()
@@ -268,17 +268,15 @@ inline NonzeroHeight Height::nonzero_assert() const
 
 inline NonzeroHeight Height::nonzero_throw(Error e) const
 {
-    if (val == 0) {
+    if (val == 0)
         throw e;
-    }
     return nonzero_assert();
 }
 
-inline NonzeroHeight Height::nonzero_throw(std::string error) const
+inline std::optional<NonzeroHeight> Height::nonzero() const
 {
-    if (val == 0) {
-        throw std::runtime_error(error);
-    }
+    if (val == 0)
+        return {};
     return nonzero_assert();
 }
 
