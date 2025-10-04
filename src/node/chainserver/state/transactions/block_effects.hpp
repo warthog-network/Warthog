@@ -107,6 +107,7 @@ public:
     }
     void apply(const AssetInsert& a)
     {
+        db.insert_guarded(a);
     }
     auto rollback_data() &&
     {

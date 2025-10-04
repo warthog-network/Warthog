@@ -368,7 +368,6 @@ public:
     }
 };
 
-
 class BalanceChecker {
 
     class FundFlow {
@@ -933,7 +932,7 @@ private:
     {
         if (auto address { db.lookup_asset(id) })
             return *address;
-        throw Error(ETOKIDNOTFOUND); // invalid token id (not found in database)
+        throw Error(EASSETIDNOTFOUND); // invalid token id (not found in database)
     }
 
     void process_balances()
