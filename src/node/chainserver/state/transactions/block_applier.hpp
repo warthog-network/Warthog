@@ -3,6 +3,7 @@
 #include "api/types/forward_declarations.hpp"
 #include "block/block_fwd.hpp"
 #include "chainserver/db/types_fwd.hpp"
+#include "chainserver/types.hpp"
 #include "crypto/hash.hpp"
 
 class Headerchain;
@@ -25,7 +26,7 @@ struct BlockApplier {
     {
     }
     TransactionIds&& move_new_txids() { return std::move(preparer.newTxIds); };
-    auto&& move_wart_updates() { return std::move(wartUpdates); };
+    auto&& move_free_balance_updates() { return std::move(freeBalanceUpdates); };
     [[nodiscard]] api::CompleteBlock apply_block(const Block& b, const BlockHash& hash, BlockId blockId);
 
 private: // private methods
@@ -41,7 +42,7 @@ private: // private methods
 
 private: // private data
     Preparer preparer;
-    std::map<AccountId, Wart> wartUpdates;
+    free_balance_udpates_t freeBalanceUpdates;
     ChainDB& db;
     bool fromStage;
 };

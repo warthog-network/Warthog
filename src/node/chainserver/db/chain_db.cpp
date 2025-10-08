@@ -172,11 +172,11 @@ ChainDB::Database::Database(const std::string& path)
     exec("CREATE INDEX IF NOT EXISTS `" ASSETS_TABLE "ParentIndex` ON "
          "`" ASSETS_TABLE "` (parent_id, height)");
 
-    exec("CREATE TABLE IF NOT EXISTS `" BALANCES_TABLE "` (`id` INTEGER NOT NULL, `account_id` INTEGER NOT NULL, `token_id` INTEGER NOT NULL, `balance` INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(`id`))");
+    exec("CREATE TABLE IF NOT EXISTS `" BALANCES_TABLE "` (`id` INTEGER NOT NULL, `account_id` INTEGER NOT NULL, `token_id` INTEGER NOT NULL, `total` INTEGER NOT NULL DEFAULT 0, `locked` INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(`id`))");
     exec("CREATE UNIQUE INDEX IF NOT EXISTS `" BALANCES_TABLE "Index` ON "
          "`" BALANCES_TABLE "` (`account_id` ASC, `token_id` ASC)");
     exec("CREATE INDEX IF NOT EXISTS `" BALANCES_TABLE "Index2` ON "
-         "`" BALANCES_TABLE "` (`token_id`, `balance` DESC)");
+         "`" BALANCES_TABLE "` (`token_id`, `total` DESC)");
     exec("CREATE TABLE IF NOT EXISTS `" CONSENSUS_TABLE "` ( `height` INTEGER NOT "
          "NULL, `block_id` INTEGER NOT NULL, `history_cursor` INTEGER NOT "
          "NULL, `account_cursor` INTEGER NOT NULL, PRIMARY KEY(`height`) )");
@@ -295,13 +295,13 @@ ChainDB::ChainDB(const std::string& path)
     , stmtAssetSelectForkHeight(db, "SELECT height FROM `" ASSETS_TABLE "` WHERE parent_id=? AND height>=? ORDER BY height DESC LIMIT 1")
     , stmtAssetLookup(db, "SELECT (id, hash, name, precision, height, owner_account_id, total_supply, group_id, parent_id) FROM `" ASSETS_TABLE "` WHERE `id`=?")
     , stmtAssetLookupByHash(db, "SELECT (id, hash, name, precision, height, owner_account_id, total_supply, group_id, parent_id) FROM `" ASSETS_TABLE "` WHERE `hash`=?")
-    , stmtSelectBalanceId(db, "SELECT `account_id`, `token_id`, `balance` FROM `" BALANCES_TABLE "` WHERE `id`=?")
-    , stmtTokenInsertBalance(db, "INSERT INTO `" BALANCES_TABLE "` ( id, `token_id`, `account_id`, `balance`) VALUES (?,?,?,?)")
-    , stmtTokenSelectBalance(db, "SELECT `id`, `balance` FROM `" BALANCES_TABLE "` WHERE `token_id`=? AND `account_id`=?")
-    , stmtAccountSelectAssets(db, "SELECT `token_id`, `balance` FROM `" BALANCES_TABLE "` WHERE `account_id`=? LIMIT ?")
-    , stmtTokenUpdateBalanceById(db, "UPDATE `" BALANCES_TABLE "` SET `balance`=? WHERE `id`=?")
-    , stmtTokenUpdateBalanceByAccountToken(db, "UPDATE `" BALANCES_TABLE "` SET `balance`=? WHERE `id`=?")
-    , stmtTokenSelectRichlist(db, "SELECT `address`, `balance` FROM `" BALANCES_TABLE "` b JOIN `" ACCOUNTS_TABLE "` a on a.id = b.account_id WHERE `token_id`=? ORDER BY `balance` DESC LIMIT ?")
+    , stmtSelectBalanceId(db, "SELECT `account_id`, `token_id`, `total`, `locked` FROM `" BALANCES_TABLE "` WHERE `id`=?")
+    , stmtTokenInsertBalance(db, "INSERT INTO `" BALANCES_TABLE "` ( id, `token_id`, `account_id`, `total`, `locked`) VALUES (?,?,?,?,?)")
+    , stmtTokenSelectBalance(db, "SELECT `id`, `total`, `locked` FROM `" BALANCES_TABLE "` WHERE `token_id`=? AND `account_id`=?")
+    , stmtAccountSelectAssets(db, "SELECT `token_id`, `total`, `locked` FROM `" BALANCES_TABLE "` WHERE `account_id`=? LIMIT ?")
+    , stmtTokenUpdateBalanceTotalById(db, "UPDATE `" BALANCES_TABLE "` SET `total`=? WHERE `id`=?")
+    , stmtTokenUpdateBalanceLockedById(db, "UPDATE `" BALANCES_TABLE "` SET `locked`=? WHERE `id`=?")
+    , stmtTokenSelectRichlist(db, "SELECT `address`, `total` FROM `" BALANCES_TABLE "` b JOIN `" ACCOUNTS_TABLE "` a on a.id = b.account_id WHERE `token_id`=? ORDER BY `total` DESC LIMIT ?")
     , stmtConsensusHeaders(db, "SELECT c.height, c.history_cursor, c.account_cursor, b.header "
                                "FROM `" BLOCKS_TABLE "` b JOIN `" CONSENSUS_TABLE "` c ON "
                                "b.ROWID=c.block_id ORDER BY c.height ASC;")
@@ -791,15 +791,15 @@ std::optional<NonzeroHeight> ChainDB::get_latest_fork_height(TokenId tid, Height
 
 void ChainDB::insert_unguarded(const BalanceData& b)
 {
-    stmtTokenInsertBalance.run(b.id, b.tid, b.aid, b.balance);
+    stmtTokenInsertBalance.run(b.id, b.tokenId, b.accountId, b.total, b.locked);
 }
 
-std::optional<std::pair<BalanceId, Funds_uint64>> ChainDB::get_balance(AccountId aid, TokenId tid) const
+std::optional<std::pair<BalanceId, Balance_uint64>> ChainDB::get_balance(AccountId aid, TokenId tid) const
 {
     auto res { stmtTokenSelectBalance.one(tid, aid) };
     if (!res.has_value())
         return {};
-    return std::pair { res.get<BalanceId>(0), res.get<Funds_uint64>(1) };
+    return std::pair<BalanceId, Balance_uint64> { res[0], { res[1], res[2] } };
 }
 
 std::vector<std::pair<TokenId, Funds_uint64>> ChainDB::get_tokens(AccountId accountId, size_t limit)
@@ -810,9 +810,9 @@ std::vector<std::pair<TokenId, Funds_uint64>> ChainDB::get_tokens(AccountId acco
         accountId, limit);
 }
 
-void ChainDB::set_balance(BalanceId id, Funds_uint64 balance)
+void ChainDB::set_balance(BalanceId id, Balance_uint64 bl)
 {
-    stmtTokenUpdateBalanceById.run(balance, id);
+    stmtTokenUpdateBalanceTotalById.run(bl.total, bl.locked, id);
 }
 
 api::Richlist ChainDB::lookup_richlist(TokenId tokenId, size_t limit) const
@@ -969,14 +969,15 @@ Address ChainDB::fetch_address(AccountId id) const
     return *p;
 }
 
-auto ChainDB::get_token_balance(BalanceId id) const -> std::optional<Balance>
+auto ChainDB::get_token_balance(BalanceId id) const -> std::optional<BalanceData>
 {
     return stmtSelectBalanceId.one(id).process([&](const sqlite::Row& o) {
-        return Balance {
-            .balanceId = id,
+        return BalanceData {
+            .id = id,
             .accountId = o[0],
             .tokenId = o[1],
-            .balance = o[2]
+            .total = o[2],
+            .locked = o[3]
         };
     });
 }
@@ -1067,7 +1068,7 @@ void ChainDB::delete_bad_block(HashView blockhash)
     stmtScheduleDelete.run(id);
 }
 
-std::pair<std::optional<BalanceId>, Funds_uint64> ChainDB::get_token_balance_recursive(AccountId aid, TokenId tid, api::AssetLookupTrace* trace) const
+std::pair<std::optional<BalanceId>, Balance_uint64> ChainDB::get_token_balance_recursive(AccountId aid, TokenId tid, api::AssetLookupTrace* trace) const
 {
     while (true) {
         // direct lookup
@@ -1075,7 +1076,7 @@ std::pair<std::optional<BalanceId>, Funds_uint64> ChainDB::get_token_balance_rec
             return *b;
 
         auto nw { tid.non_wart() };
-        if (!nw || nw->is_share())
+        if (!nw || nw->is_liquidity())
             goto notfound; // WART and pool share token types cannot have any parent
         // auto assetId { tid.asset_id() };
 
@@ -1093,18 +1094,18 @@ std::pair<std::optional<BalanceId>, Funds_uint64> ChainDB::get_token_balance_rec
             auto& [height, funds] { *o };
             if (trace)
                 trace->snapshotHeight = height;
-            return { std::nullopt, funds };
+            return { std::nullopt, Balance_uint64::from_total_locked(funds, 0) };
         };
         tid = *pid;
     }
 notfound:
-    return { std::nullopt, Funds_uint64::zero() };
+    return { std::nullopt, Balance_uint64::zero() };
 }
 
-std::pair<std::optional<BalanceId>, Wart> ChainDB::get_wart_balance(AccountId aid) const
+std::pair<std::optional<BalanceId>, Funds_uint64> ChainDB::get_free_balance(AccountToken at) const
 {
-    auto [id, bal] { get_token_balance_recursive(aid, TokenId::WART, nullptr) };
-    return { id, Wart::from_funds_throw(bal) };
+    auto [id, bal] { get_token_balance_recursive(at.account_id(), at.token_id(), nullptr) };
+    return { id, bal.free_assert() };
 }
 
 chainserver::TransactionIds ChainDB::fetch_tx_ids(Height height) const

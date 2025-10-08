@@ -18,6 +18,14 @@ struct MsgBase : public CombineElements<TransactionIdEl, NonceReservedEl, Compac
     }
 };
 
+namespace messages{
+struct SpendToken {
+    AssetHash hash;
+    bool isLiquidity;
+    Funds_uint64 amount;
+};
+}
+
 template <uint8_t indicator, typename... Ts>
 class ComposeTransactionMessage : public MsgBase, public CombineElements<Ts..., SignatureEl> {
 
@@ -25,6 +33,7 @@ protected:
     using parent_t = ComposeTransactionMessage;
 
 public:
+    static constexpr bool has_asset_hash = std::derived_from<parent_t, AssetHashEl>;
     static constexpr uint8_t INDICATOR { indicator }; // used for serialization of transaction message vectors
     ComposeTransactionMessage(const TransactionId& txid, NonceReserved reserved, CompactUInt compactFee, Ts::data_t... ts, RecoverableSignature signature)
         : MsgBase { txid, std::move(reserved), std::move(compactFee) }
@@ -59,6 +68,7 @@ public:
             << ... << CombineElements<Ts..., SignatureEl>::template get<Ts>()));
     }
     [[nodiscard]] Wart spend_wart_throw() const { return this->fee(); } // default only spend fee, but is overridden in WartTransferMessage and LiquidityDepositMessage
+    // [[nodiscard]] std::optional<SpendToken> spend_token_throw() const { return {}; } // default no other token than WART
     [[nodiscard]] Address from_address(const TxHash& txHash) const
     {
         return this->signature().recover_pubkey(txHash.data()).address();
@@ -67,6 +77,7 @@ public:
 
 class WartTransferMessage : public ComposeTransactionMessage<1, ToAddrEl, WartEl> {
 public:
+    static_assert(!has_asset_hash);
     using WartTransfer = block::body::WartTransfer;
     WartTransferMessage(TransactionId txid, NonceReserved nr, CompactUInt fee, Address addr, Wart wart, RecoverableSignature sgn)
         : ComposeTransactionMessage(std::move(txid), std::move(nr), std::move(fee), std::move(addr), std::move(wart), std::move(sgn))
@@ -87,8 +98,9 @@ public:
     [[nodiscard]] Wart spend_wart_throw() const { return Wart::sum_throw(fee(), wart()); }
 };
 
-class TokenTransferMessage : public ComposeTransactionMessage<2, AssetHashEl, PoolFlagEl, ToAddrEl, AmountEl> { // for defi we include the asset hash
+class TokenTransferMessage : public ComposeTransactionMessage<2, AssetHashEl, LiquidityFlagEl, ToAddrEl, AmountEl> { // for defi we include the asset hash
 public:
+    static_assert(has_asset_hash);
     TokenTransferMessage(TransactionId txid, NonceReserved nr, CompactUInt fee, AssetHash ah, bool poolFlag, Address addr, Funds_uint64 amount, RecoverableSignature sgn)
         : ComposeTransactionMessage(std::move(txid), std::move(nr), std::move(fee), std::move(ah), poolFlag, std::move(addr), std::move(amount), std::move(sgn))
     {
@@ -104,6 +116,7 @@ public:
         if (amount().is_zero())
             throw Error(EZEROAMOUNT);
     }
+    [[nodiscard]] std::optional<messages::SpendToken> spend_token_throw() const { return messages::SpendToken { asset_hash(), is_liquidity(), amount() }; }
 };
 
 class AssetCreationMessage : public ComposeTransactionMessage<3, AssetSupplyEl, AssetNameEl> {
@@ -112,27 +125,50 @@ public:
 };
 
 class OrderMessage : public ComposeTransactionMessage<4, AssetHashEl, BuyEl, AmountEl, LimitPriceEl> { // for defi we include the token hash
+    static_assert(has_asset_hash);
+
 public:
+    [[nodiscard]] std::optional<messages::SpendToken> spend_token_throw() const
+    {
+        if (buy())
+            return {};
+        return messages::SpendToken { asset_hash(), false, amount() };
+    }
+    [[nodiscard]] Wart spend_wart_throw() const { return Wart::sum_throw(fee(), buy() ? Wart::from_funds_throw(amount()) : Wart(0)); }
     using parent_t::parent_t;
 };
 class LiquidityDepositMessage : public ComposeTransactionMessage<5, AssetHashEl, WartEl, AmountEl> {
+    static_assert(has_asset_hash);
+
 public:
     [[nodiscard]] Wart spend_wart_throw() const { return Wart::sum_throw(fee(), wart()); }
+    [[nodiscard]] messages::SpendToken spend_token_throw() const
+    {
+        return { asset_hash(), false, amount() };
+    }
     using parent_t::parent_t;
 };
 
 class LiquidityWithdrawMessage : public ComposeTransactionMessage<6, AssetHashEl, AmountEl> {
+    static_assert(has_asset_hash);
+
 public:
+    [[nodiscard]] messages::SpendToken spend_token_throw() const
+    {
+        return { asset_hash(), true, amount() };
+    }
     using parent_t::parent_t;
 };
 
 class CancelationMessage : public ComposeTransactionMessage<7, CancelHeightEl, CancelNonceEl> {
+    static_assert(!has_asset_hash);
+
 private:
     void throw_if_bad()
     {
         if (cancel_height() > txid().pinHeight)
             throw Error(ECANCELFUTURE);
-        if (cancel_height() == txid().pinHeight && cancel_nonceid() == txid().nonceId) 
+        if (cancel_height() == txid().pinHeight && cancel_nonceid() == txid().nonceId)
             throw Error(ECANCELSELF);
     }
 
@@ -178,6 +214,16 @@ public:
     [[nodiscard]] auto spend_wart_throw() const
     {
         return visit([](auto& m) { return m.spend_wart_throw(); });
+    }
+    [[nodiscard]] auto spend_token_throw() const
+    {
+        return visit([]<typename T>(const T& m) -> std::optional<messages::SpendToken> {
+            if constexpr (T::has_asset_hash) {
+                return m.spend_token_throw();
+            } else {
+                return {};
+            }
+        });
     }
     [[nodiscard]] auto spend_wart_assert() const
     {

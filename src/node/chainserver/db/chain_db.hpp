@@ -49,6 +49,40 @@ struct BlockUndoData {
     RawUndo rawUndo;
 };
 
+struct Balance_uint64 {
+private:
+    constexpr Balance_uint64(Funds_uint64 total, Funds_uint64 locked)
+        : total(std::move(total))
+        , locked(std::move(locked))
+    {
+    }
+
+public:
+    Balance_uint64(Reader& r)
+        : total(r)
+        , locked(r)
+    {
+    }
+    static constexpr Balance_uint64 from_total_locked(Funds_uint64 total, Funds_uint64 locked)
+    {
+        return { total, locked };
+    }
+    constexpr static size_t byte_size() { return 2 * Funds_uint64::byte_size(); }
+    void serialize(Serializer auto&& s) const
+    {
+        s << total << locked;
+    }
+
+    auto free_assert() const { return Funds_uint64::diff_assert(total, locked); }
+    static constexpr Balance_uint64 zero()
+    {
+        return { 0, 0 };
+    }
+    // data
+    Funds_uint64 total;
+    Funds_uint64 locked; // <= total
+};
+
 namespace chain_db {
 
 using Statement = sqlite::Statement;
@@ -86,13 +120,6 @@ private:
     static constexpr int64_t SIGNEDPINID = -2;
 
 public:
-    // data types
-    struct Balance {
-        BalanceId balanceId;
-        AccountId accountId;
-        TokenId tokenId;
-        Funds_uint64 balance;
-    };
     ChainDB(const std::string& path);
     [[nodiscard]] ChainDBTransaction transaction();
     template <typename T>
@@ -200,17 +227,17 @@ public:
 public:
     [[nodiscard]] std::optional<NonzeroHeight> get_latest_fork_height(TokenId, Height);
 
-    [[nodiscard]] std::optional<Balance> get_token_balance(BalanceId id) const;
+    [[nodiscard]] std::optional<BalanceData> get_token_balance(BalanceId id) const;
 
 private:
-    [[nodiscard]] std::optional<std::pair<BalanceId, Funds_uint64>> get_balance(AccountId aid, TokenId tid) const;
+    [[nodiscard]] std::optional<std::pair<BalanceId, Balance_uint64>> get_balance(AccountId aid, TokenId tid) const;
 
 public:
     [[nodiscard]] std::optional<AssetDetail> lookup_asset(AssetId) const;
     [[nodiscard]] AssetDetail fetch_asset(AssetId id) const;
     [[nodiscard]] std::optional<AssetDetail> lookup_asset(const AssetHash&) const;
     [[nodiscard]] AssetDetail fetch_asset(const AssetHash&) const;
-    void set_balance(BalanceId, Funds_uint64 balance);
+    void set_balance(BalanceId, Balance_uint64 bl);
     std::vector<std::pair<TokenId, Funds_uint64>> get_tokens(AccountId, size_t limit);
     [[nodiscard]] api::Richlist lookup_richlist(TokenId, size_t limit) const;
     /////////////////////
@@ -254,8 +281,8 @@ public:
     StateId32 next_id32() const { return cache.ids.next(); }
     auto next_id() const { return cache.ids.next(); }
 
-    [[nodiscard]] std::pair<std::optional<BalanceId>, Funds_uint64> get_token_balance_recursive(AccountId aid, TokenId tid, api::AssetLookupTrace* trace = nullptr) const;
-    [[nodiscard]] std::pair<std::optional<BalanceId>, Wart> get_wart_balance(AccountId aid) const;
+    [[nodiscard]] std::pair<std::optional<BalanceId>, Balance_uint64> get_token_balance_recursive(AccountId aid, TokenId tid, api::AssetLookupTrace* trace = nullptr) const;
+    [[nodiscard]] std::pair<std::optional<BalanceId>, Funds_uint64> get_free_balance(AccountToken at) const;
 
     //////////////////////////////
     // BELOW METHODS REQUIRED FOR INDEXING NODES
@@ -334,8 +361,8 @@ private:
     Statement stmtTokenInsertBalance;
     mutable Statement stmtTokenSelectBalance;
     mutable Statement stmtAccountSelectAssets;
-    Statement stmtTokenUpdateBalanceById;
-    Statement stmtTokenUpdateBalanceByAccountToken;
+    Statement stmtTokenUpdateBalanceTotalById;
+    Statement stmtTokenUpdateBalanceLockedById;
     mutable Statement stmtTokenSelectRichlist;
 
     // Consensus table functions

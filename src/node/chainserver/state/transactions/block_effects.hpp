@@ -2,6 +2,7 @@
 #include "block/body/rollback.hpp"
 #include "chainserver/db/chain_db.hpp"
 #include "chainserver/db/types.hpp"
+#include "chainserver/types.hpp"
 #include "defi/token/account_token.hpp"
 #include "general/funds.hpp"
 #include <vector>
@@ -14,8 +15,8 @@ struct AccountInsert : public chain_db::AccountData {
 struct BalanceUpdate {
     AccountToken at;
     BalanceId id;
-    Funds_uint64 original;
-    Funds_uint64 updated;
+    Balance_uint64 original;
+    Balance_uint64 updated;
 };
 struct BalanceInsert : public chain_db::BalanceData { };
 struct OrderDelete : public chain_db::OrderData { };
@@ -56,9 +57,9 @@ struct AssetInsert : public chain_db::AssetData {
 
 class TrackingDBApplier {
 public:
-    TrackingDBApplier(ChainDB& db, std::map<AccountId, Wart>& wartUpdates)
+    TrackingDBApplier(ChainDB& db, chainserver::free_balance_udpates_t& freeBalanceUpdates)
         : db(db)
-        , wartUpdates(wartUpdates)
+        , freeBalanceUpdates(freeBalanceUpdates)
         , rg(db)
     {
     }
@@ -68,8 +69,7 @@ public:
     }
     void apply(const BalanceUpdate& u)
     {
-        if (u.at.token_id() == TokenId::WART)
-            wartUpdates.insert_or_assign(u.at.account_id(), Wart::from_funds_throw(u.original));
+        freeBalanceUpdates[u.at.account_id()].insert_or_assign(u.at.token_id(), u.updated.free_assert());
         db.set_balance(u.id, u.updated);
         rg.register_original_balance({ u.id, u.original });
     }
@@ -116,7 +116,7 @@ public:
 
 private:
     ChainDB& db;
-    std::map<AccountId, Wart>& wartUpdates;
+    chainserver::free_balance_udpates_t& freeBalanceUpdates;
     rollback::Data rg;
 };
 
@@ -141,9 +141,9 @@ public:
         data.push_back(std::forward<T>(t));
     }
 
-    auto apply2(ChainDB& db, std::map<AccountId, Wart>& wartUpdatess) const
+    auto apply(ChainDB& db, chainserver::free_balance_udpates_t& freeBalanceUpdates) const
     {
-        return apply(TrackingDBApplier { db, wartUpdatess });
+        return apply(TrackingDBApplier { db, freeBalanceUpdates });
     }
 };
 

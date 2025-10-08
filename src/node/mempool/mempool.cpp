@@ -13,7 +13,7 @@ bool LockedBalance::set_avail(Wart amount)
 
 void LockedBalance::lock(Wart amount)
 {
-    assert(amount <= remaining());
+    assert(amount <= free());
     used.add_assert(amount);
 }
 
@@ -73,9 +73,11 @@ void Mempool::apply_logevent(const Put& a)
     auto p = txs().insert(std::move(a.entry));
     api::event::emit_mempool_add(a, txs.size());
     assert(p.second);
-    assert(byPin.insert(p.first).second);
+    assert(index.insert(p.first));
+    // assert(byPin.insert(p.first).second);
+    // assert(byHash.insert(p.first).second);
     assert(byFee.insert(p.first));
-    assert(byHash.insert(p.first).second);
+    assert(byToken.insert(p.first));
 }
 
 void Mempool::apply_logevent(const Erase& e)
@@ -94,27 +96,32 @@ std::optional<TransactionMessage> Mempool::operator[](const TransactionId& id) c
 
 std::optional<TransactionMessage> Mempool::operator[](const HashView txHash) const
 {
-    auto iter = byHash.find(txHash);
-    if (iter == byHash.end())
+    auto iter = index.hash().find(txHash);
+    if (iter == index.hash().end())
         return {};
     assert((*iter)->txhash == txHash);
     return *static_cast<const TransactionMessage*>(&**iter);
 }
 
-bool Mempool::erase_internal(Txset::const_iterator iter, BalanceEntries::iterator b_iter, bool gc)
+bool Mempool::erase_internal(Txset::const_iter_t iter, BalanceEntries::iterator b_iter, bool gc)
 {
+    assert(size() == index.size());
+    // assert(size() == byPin.size());
+    // assert(size() == byHash.size());
     assert(size() == byFee.size());
-    assert(size() == byPin.size());
-    assert(size() == byHash.size());
+    assert(size() == byToken.size());
 
     // copy before erase
     const TransactionId id { iter->txid() };
     Wart spend { iter->spend_wart_assert() };
 
     // erase iter and its references
-    assert(byPin.erase(iter) == 1);
+
+    assert(index.erase(iter) == 1);
+    // assert(byHash.erase(iter) == 1);
+    // assert(byPin.erase(iter) == 1);
     assert(byFee.erase(iter) == 1);
-    assert(byHash.erase(iter) == 1);
+    assert(byToken.erase(iter) == 1);
     txs().erase(iter);
 
     if (master)
@@ -132,23 +139,23 @@ bool Mempool::erase_internal(Txset::const_iterator iter, BalanceEntries::iterato
     return false;
 }
 
-void Mempool::erase_internal(Txset::const_iterator iter)
+void Mempool::erase_internal(Txset::const_iter_t iter)
 {
-    auto b_iter = lockedBalances.find(iter->from_id());
+    auto b_iter = lockedBalances.find({ iter->from_id(), iter->altToken });
     erase_internal(iter, b_iter);
 }
 
 void Mempool::erase_from_height(Height h)
 {
-    auto iter = byPin.lower_bound(h);
-    while (iter != byPin.end())
+    auto iter { index.pin().lower_bound(h) };
+    while (iter != index.pin().end())
         erase_internal(*(iter++));
 }
 
 void Mempool::erase_before_height(Height h)
 {
-    auto end = byPin.lower_bound(h);
-    for (auto iter = byPin.begin(); iter != end;)
+    auto end = index.pin().lower_bound(h);
+    for (auto iter = index.pin().begin(); iter != end;)
         erase_internal(*(iter++));
 }
 
@@ -183,16 +190,16 @@ std::vector<TransactionId> Mempool::filter_new(const std::vector<TxidWithFee>& v
     return out;
 }
 
-void Mempool::set_wart_balance(AccountId aid, Wart newBalance)
+void Mempool::set_free_balance(AccountToken at, Wart newBalance)
 {
-    auto b_iter { lockedBalances.find(aid) };
+    auto b_iter { lockedBalances.find(at) };
     if (b_iter == lockedBalances.end())
         return;
     auto& balanceEntry { b_iter->second };
     if (balanceEntry.set_avail(newBalance))
         return;
 
-    auto iterators { txs.by_fee_inc(aid) };
+    auto iterators { txs.by_fee_inc(at.account_id()) };
 
     for (size_t i = 0; i < iterators.size(); ++i) {
         bool allErased = erase_internal(iterators[i], b_iter);
@@ -206,74 +213,136 @@ void Mempool::set_wart_balance(AccountId aid, Wart newBalance)
     assert(false); // should not happen
 }
 
-Error Mempool::insert_tx(const TransactionMessage& pm, TxHeight txh, const TxHash& hash, chainserver::WartCache& wartCache)
+Error Mempool::insert_tx(const TransactionMessage& pm, TxHeight txh, const TxHash& hash, chainserver::DBCache& cache)
 {
     try {
-        insert_tx_throw(pm, txh, hash, wartCache);
+        insert_tx_throw(pm, txh, hash, cache);
         return 0;
     } catch (Error e) {
         return e;
     }
 }
 
+std::optional<TokenFunds> Mempool::token_spend_throw(const TransactionMessage& pm, chainserver::DBCache& cache) const
+{
+    TokenId tokenId { TokenId::WART };
+    if (auto s { pm.spend_token_throw() }) {
+        auto pAsset { cache.assetsByHash.lookup(s->hash) };
+        if (pAsset == nullptr)
+            throw Error(EASSETHASHNOTFOUND);
+        auto& asset { *pAsset };
+        tokenId = asset.id.token_id(s->isLiquidity);
+        return TokenFunds { tokenId, s->amount };
+    }
+    return {};
+}
+auto Mempool::get_balance(AccountToken at, chainserver::DBCache& cache) -> LockedBalance
+{
+    auto balanceIter { lockedBalances.upper_bound(at) };
+    if (balanceIter == lockedBalances.end() || balanceIter->first != at) {
+        // need to insert
+        auto total { cache.balance[at] };
+        return LockedBalance(total);
+        // balanceIter = lockedBalances.emplace_hint(balanceIter, at, bal);
+    }
+    return balanceIter->second;
+}
+
 void Mempool::insert_tx_throw(const TransactionMessage& pm,
     TxHeight txh,
-    const TxHash& txhash, chainserver::WartCache& wartCache)
+    const TxHash& txhash, chainserver::DBCache& cache)
 {
 
     auto fromId { pm.from_id() };
-    auto balanceIter { lockedBalances.upper_bound(pm.from_id()) };
-    if (balanceIter == lockedBalances.end() || balanceIter->first != pm.from_id()) {
-        // need to insert
-        auto wart { wartCache[fromId] };
-        if (wart.is_zero())
-            throw Error(EBALANCE);
-        balanceIter = lockedBalances.emplace_hint(balanceIter, pm.from_id(), wart);
-    }
-    auto& e { balanceIter->second };
-    const Wart spend { pm.spend_wart_throw() };
 
-    { // check if we can delete enough old entries to insert new entry
-        std::vector<Txset::const_iterator> clear;
-        std::optional<Txset::const_iterator> match;
-        const auto& t { txs };
-        if (auto iter = t().find(pm.txid()); iter != t().end()) {
-            if (iter->compact_fee() >= pm.compact_fee()) {
-                throw Error(ENONCE);
-            }
+    std::optional<Txset::const_iter_t> match;
+    std::vector<Txset::const_iter_t> clear;
+    const auto& t { txs };
+    if (auto iter = t().find(pm.txid()); iter != t().end()) {
+        if (iter->compact_fee() >= pm.compact_fee()) {
+            throw Error(ENONCE);
+        }
+        clear.push_back(iter);
+        match = iter;
+    }
+
+    const Wart wartSpend { pm.spend_wart_throw() };
+    auto wartBal { get_balance({ pm.from_id(), TokenId::WART }, cache) };
+    if (wartBal.total() < wartSpend)
+        throw Error(EBALANCE);
+
+    size_t token_idx0 { clear.size() };
+    if (auto ts { token_spend_throw(pm, cache) }) { // if this transaction spends tokens different from WART
+        // first make sure we can delete enough elements from the
+        // mempool to cover the amount of nonwart tokens needed
+        // for this transaction
+        AccountToken at { fromId, ts->id };
+        auto tokenSpend { ts->amount };
+        auto tokenBal { get_balance(at, cache) };
+        if (tokenBal.total() < tokenSpend)
+            throw Error(ETOKBALANCE);
+        auto& set { index.account_token_fee() };
+        // loop through the range where the AccountToken is equal
+        for (auto it { set.lower_bound(at) };
+            it != set.end() && (*it)->altToken == at.token_id() && (*it)->from_id() == fromId; ++it) {
+            if (tokenBal.free() >= tokenSpend)
+                break;
+            auto iter = *it;
+            if (iter == match)
+                continue;
+            if (iter->compact_fee() >= pm.compact_fee())
+                break;
             clear.push_back(iter);
-            match = iter;
+            wartBal.unlock(iter->spend_wart_assert());
+            tokenBal.unlock(iter->spend_token_throw()->amount);
         }
-        const auto remaining { e.remaining() };
-        if (remaining < spend) {
-            Wart clearSum { Wart::zero() };
-            auto iterators { txs.by_fee_inc(pm.txid().accountId) };
-            for (auto iter : iterators) {
-                if (iter == match)
-                    continue;
-                if (iter->compact_fee() >= pm.compact_fee())
-                    break;
-                clear.push_back(iter);
-                clearSum.add_assert(iter->spend_wart_assert());
-                if (Wart::sum_assert(remaining, clearSum) >= spend) {
-                    goto candelete;
+        if (tokenBal.free() < tokenSpend)
+            throw Error(ETOKBALANCE);
+    }
+    size_t token_idx1 { clear.size() };
+    size_t i { token_idx0 };
+
+    {
+        AccountToken at { pm.from_id(), TokenId::WART };
+        { // check if we can delete enough old entries to insert new entry
+            if (wartBal.free() < wartSpend) {
+                auto iterators { txs.by_fee_inc(pm.txid().accountId) };
+                for (auto iter : iterators) {
+                    if (iter == match)
+                        continue;
+                    if (i < token_idx1) {
+                        if (clear[i] == iter) {
+                            // iter already inserted in token balance loop
+                            i += 1;
+                            continue;
+                        };
+                    }
+                    if (iter->compact_fee() >= pm.compact_fee())
+                        break;
+                    clear.push_back(iter);
+                    wartBal.unlock(iter->spend_wart_assert());
+                    if (wartBal.free() >= wartSpend)
+                        goto candelete;
                 }
+                throw Error(EBALANCE);
+            candelete:;
             }
-            throw Error(EBALANCE);
-        candelete:;
+            for (auto& iter : clear)
+                erase_internal(iter, balanceIter, false); // make sure we don't delete balanceIter
         }
-        for (auto& iter : clear)
-            erase_internal(iter, balanceIter, false); // make sure we don't delete balanceIter
+        wartBal.lock(wartSpend);
     }
 
-    e.lock(spend);
-    auto [iter, inserted] = txs().insert(Entry { pm, txhash, txh });
+    auto [iter, inserted] = txs().insert(Entry { pm, txhash, txh, token_spend_throw });
     assert(inserted);
     if (master)
         updates.push_back(Put { *iter });
-    assert(byPin.insert(iter).second);
+    index.insert(iter);
+    assert(index.insert(iter));
+    // assert(byPin.insert(iter).second);
+    // assert(byHash.insert(iter).second);
     assert(byFee.insert(iter));
-    assert(byHash.insert(iter).second);
+    assert(byToken.insert(iter));
     prune();
 }
 

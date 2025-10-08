@@ -60,7 +60,7 @@ json tx_to_json(const api::block::NewOrder&);
 json tx_to_json(const api::block::Match&);
 json tx_to_json(const api::block::LiquidityDeposit&);
 json tx_to_json(const api::block::LiquidityWithdrawal&);
-json tx_to_json(const api::block::Cancelation&);
+json tx_to_json(const api::block::TransactionCancelation&);
 
 inline json to_json(const json& j) { return j; }
 

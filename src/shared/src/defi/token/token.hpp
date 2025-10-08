@@ -19,6 +19,11 @@ enum class TokenMintType {
     Auction = 1
 };
 
+struct TokenFunds{
+    TokenId id;
+    Funds_uint64 amount;
+};
+
 class AssetName {
     AssetName(std::string s)
     {

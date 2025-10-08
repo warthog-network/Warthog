@@ -2,7 +2,7 @@
 namespace chainserver {
 class AddressCache;
 class AssetCacheById;
-class WartCache;
+class BalanceCache;
 class HistoryCache;
 class DBCache;
 }

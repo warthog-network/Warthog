@@ -11,12 +11,21 @@ const AssetDetail& AssetCacheById::operator[](AssetId id)
         return iter->second;
     return map.emplace(id, db.fetch_asset(id)).first->second;
 }
-const AssetDetail& AssetCacheByHash::operator[](AssetHash h)
+const AssetDetail& AssetCacheByHash::fetch(AssetHash h)
 {
     auto iter = map.find(h);
     if (iter != map.end())
         return iter->second;
     return map.emplace(h, db.fetch_asset(h)).first->second;
+}
+const AssetDetail* AssetCacheByHash::lookup(AssetHash h)
+{
+    auto iter = map.find(h);
+    if (iter != map.end())
+        return &iter->second;
+    if (auto a { db.lookup_asset(h) })
+        return &map.emplace(h, *a).first->second;
+    return nullptr;
 }
 
 const std::optional<Address>& AddressCache::get(AccountId id)
@@ -34,11 +43,11 @@ const Address& AddressCache::fetch(AccountId id)
     throw std::runtime_error("Cannot fetch address with id" + std::to_string(id.value()) + ".");
 }
 
-Wart WartCache::operator[](AccountId aid)
+Funds_uint64 BalanceCache::operator[](AccountToken at)
 {
-    auto iter { map.find(aid) };
+    auto iter { map.find(at) };
     if (iter == map.end())
-        iter = map.emplace(aid, db.get_wart_balance(aid).second).first;
+        iter = map.emplace(at, db.get_free_balance(at).second).first;
     return iter->second;
 }
 

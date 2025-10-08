@@ -11,6 +11,7 @@
 #include "block/header/header.hpp"
 #include "communication/mining_task.hpp"
 #include "crypto/address.hpp"
+#include "defi/order_id.hpp"
 #include "defi/token/token.hpp"
 #include "defi/types.hpp"
 #include "defi/uint64/pool.hpp"
@@ -70,24 +71,28 @@ struct TokenBalance {
         AddressWithId address;
         AssetLookupTrace lookupFails;
     };
+
 private:
-    TokenBalance(std::optional<Lookup> lookup, FundsDecimal balance)
+    TokenBalance(std::optional<Lookup> lookup, FundsDecimal total, FundsDecimal locked)
         : lookup(std::move(lookup))
-        , balance(std::move(balance))
+        , total(std::move(total))
+        , locked(std::move(locked))
     {
     }
+
 public:
     // data
     std::optional<Lookup> lookup;
-    FundsDecimal balance;
+    FundsDecimal total;
+    FundsDecimal locked;
 
     static TokenBalance notfound()
     {
-        return { {}, FundsDecimal::zero() };
+        return { {}, FundsDecimal::zero(), FundsDecimal::zero() };
     }
-    static TokenBalance found(const Address& addr, const AccountId& aid, AssetLookupTrace lookupTrace, FundsDecimal b)
+    static TokenBalance found(const Address& addr, const AccountId& aid, AssetLookupTrace lookupTrace, FundsDecimal total, FundsDecimal locked)
     {
-        return { Lookup{AddressWithId{addr,aid}, std::move(lookupTrace)}, std::move(b) };
+        return { Lookup { AddressWithId { addr, aid }, std::move(lookupTrace) }, std::move(total), std::move(locked) };
     }
 };
 
@@ -122,14 +127,16 @@ struct WithHistoryBase : public HistoryDataBase, T {
 };
 
 struct SignedInfoData : public HistoryDataBase {
-    SignedInfoData(TxHash txHash, std::optional<HistoryId> hid, Address originAddress, Wart fee, NonceId nonceId, PinHeight pinHeight)
+    SignedInfoData(TxHash txHash, std::optional<HistoryId> hid, AccountId originId, Address originAddress, Wart fee, NonceId nonceId, PinHeight pinHeight)
         : HistoryDataBase(std::move(txHash), std::move(hid))
+        , originId(std::move(originId))
         , originAddress(std::move(originAddress))
         , fee(std::move(fee))
         , nonceId(std::move(nonceId))
         , pinHeight(std::move(pinHeight))
     {
     }
+    AccountId originId;
     Address originAddress;
     Wart fee;
     NonceId nonceId;
@@ -160,6 +167,7 @@ struct WartTransferData {
 struct TokenTransferData {
     static constexpr const char label[] = "TokenTransfer";
     AssetBasic assetInfo;
+    bool isLiquidity;
     Address toAddress;
     Funds_uint64 amount;
     FundsDecimal amount_decimal() const { return { amount, assetInfo.precision }; }
@@ -194,6 +202,16 @@ struct AssetCreationData {
 
 struct CancelationData {
     static constexpr const char label[] = "Cancelation";
+    TransactionId cancelTxid;
+};
+
+struct OrderCancelationData {
+    static constexpr const char label[] = "OrderCancelation";
+    TransactionId cancelTxid;
+    bool buy;
+    AssetBasic assetInfo;
+    HistoryId historyId;
+    Funds_uint64 remaining;
 };
 
 struct LiquidityDepositData {
@@ -221,7 +239,8 @@ struct Actions {
     std::vector<block::Match> matches;
     std::vector<block::LiquidityDeposit> liquidityDeposit;
     std::vector<block::LiquidityWithdrawal> liquidityWithdrawal;
-    std::vector<block::Cancelation> cancelations;
+    std::vector<block::TransactionCancelation> cancelations;
+    std::vector<block::OrderCancelation> orderCancelations;
 };
 }
 
@@ -273,6 +292,7 @@ struct AddressCount {
 
 struct AccountHistory {
     Wart balance;
+    Wart locked;
     HistoryId fromId;
     std::vector<api::Block> blocks_reversed;
 };

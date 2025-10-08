@@ -57,7 +57,7 @@ ApplyStageTransaction::ApplyStageTransaction(const State& s, ChainDBTransaction&
     assert((ccs.stage.length() + 1).nonzero_assert() == h);
 end:
     res.newTxIds = ba.move_new_txids();
-    res.wartUpdates = ba.move_wart_updates();
+    res.freeBalanceUpdates = ba.move_free_balance_updates();
     return { err, h };
 }
 

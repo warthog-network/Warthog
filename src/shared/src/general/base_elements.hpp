@@ -193,6 +193,10 @@ struct QuoteWartEl : public ElementBase<Wart> {
     using ElementBase::ElementBase;
     [[nodiscard]] const Wart& quote_wart() const { return data; }
 };
+struct FillEl : public ElementBase<Funds_uint64> {
+    using ElementBase::ElementBase;
+    [[nodiscard]] const Funds_uint64& amount() const { return data; }
+};
 struct AmountEl : public ElementBase<Funds_uint64> {
     using ElementBase::ElementBase;
     [[nodiscard]] const Funds_uint64& amount() const { return data; }
@@ -212,8 +216,7 @@ struct CancelHeightEl : public ElementBase<PinHeight> {
 
 struct CancelTxidEl : public ElementBase<TransactionId> {
     using ElementBase::ElementBase;
-    [[nodiscard]] const auto& cancel_pin_nonce() const { return data; }
-    [[nodiscard]] const auto& cancel_account_id() const { return data.accountId; }
+    [[nodiscard]] const auto& cancel_txid() const { return data; }
 };
 struct OrderIdEl : public ElementBase<HistoryId> {
     using ElementBase::ElementBase;
@@ -259,9 +262,9 @@ private:
     bool b;
 };
 
-struct PoolFlagEl : public BoolElBase { // specifies whether a token transfer is the asset itself or the corresponding asset's pool token (there are only pools with WART quote).
+struct LiquidityFlagEl : public BoolElBase { // specifies whether a token transfer is the asset itself or the corresponding asset's pool token (there are only pools with WART quote).
     using BoolElBase::BoolElBase;
-    bool pool_flag() const
+    bool is_liquidity() const
     {
         return get();
     }

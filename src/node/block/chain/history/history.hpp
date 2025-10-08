@@ -40,6 +40,7 @@ using AssetCreationData = IdCombineSigned<3, AssetIdEl, AssetSupplyEl, AssetName
 using TokenTransferData = IdCombineSigned<4, NonWartTokenIdEl, ToAccIdEl, AmountEl>;
 using OrderData = IdCombineSigned<5, AssetIdEl, BuyEl, LimitPriceEl, AmountEl>;
 using CancelationData = IdCombineSigned<6, CancelTxidEl>;
+using OrderCancelationData = IdCombineSigned<7, CancelTxidEl, BuyEl, AssetIdEl, OrderIdEl, FillEl>;
 
 struct PoolBeforeEl : public ElementBase<defi::BaseQuote> {
     using base_t::base_t;
@@ -104,7 +105,7 @@ struct SellSwapsEl : public ElementBase<vect_len32<CombineElements<BaseEl, Quote
     [[nodiscard]] auto& sell_swaps() { return data; }
 };
 
-using MatchDataBase = IdCombine<7, AssetIdEl, PoolBeforeEl, PoolAfterEl, BuySwapsEl, SellSwapsEl>;
+using MatchDataBase = IdCombine<8, AssetIdEl, PoolBeforeEl, PoolAfterEl, BuySwapsEl, SellSwapsEl>;
 struct MatchData : public MatchDataBase {
     MatchData(AssetId assetId, defi::PoolLiquidity_uint64 poolBefore, defi::PoolLiquidity_uint64 poolAfter)
         : MatchData(assetId, defi::BaseQuote_uint64(std::move(poolBefore)), std::move(poolAfter), {}, {})
@@ -113,9 +114,8 @@ struct MatchData : public MatchDataBase {
     using MatchDataBase::MatchDataBase;
 };
 
-using LiquidityDeposit = IdCombineSigned<8, AssetIdEl, BaseEl, QuoteEl, SharesEl>;
-using LiquidityWithdraw = IdCombineSigned<9, AssetIdEl, BaseEl, QuoteEl, SharesEl>;
-
+using LiquidityDeposit = IdCombineSigned<9, AssetIdEl, BaseEl, QuoteEl, SharesEl>;
+using LiquidityWithdraw = IdCombineSigned<10, AssetIdEl, BaseEl, QuoteEl, SharesEl>;
 
 struct CantParseHistoryExceptionGenerator {
     std::exception operator()() const
@@ -132,6 +132,7 @@ using HistoryVariant = wrt::indicator_variant<
     TokenTransferData,
     OrderData,
     CancelationData,
+    OrderCancelationData,
     MatchData,
     LiquidityDeposit,
     LiquidityWithdraw>;

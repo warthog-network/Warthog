@@ -23,6 +23,7 @@ api::block::SignedInfoData make_signed_info(const auto& verified, HistoryId hid)
     return api::block::SignedInfoData {
         verified.hash,
         std::move(hid),
+        verified.ref.origin.id,
         verified.ref.origin.address,
         verified.ref.compactFee.uncompact(),
         verified.ref.pinNonce.id,
@@ -368,33 +369,45 @@ public:
     }
 };
 
+class FundFlow {
+public:
+    auto& positive() const { return _positive; }
+    auto& negative() const { return _negative; }
+    void add(Funds_uint64 f) { _positive.add_throw(f); }
+    void subtract(Funds_uint64 f) { _negative.add_throw(f); }
+
+private:
+    Funds_uint64 _positive { Funds_uint64::zero() };
+    Funds_uint64 _negative { Funds_uint64::zero() };
+};
+struct BalanceFlow {
+    FundFlow total;
+    FundFlow locked;
+};
+
 class BalanceChecker {
 
-    class FundFlow {
-    public:
-        auto& in() const { return _in; }
-        auto& out() const { return _out; }
-        void add_in(Funds_uint64 f) { _in.add_throw(f); }
-        void add_out(Funds_uint64 f) { _out.add_throw(f); }
-
-    private:
-        Funds_uint64 _in { Funds_uint64::zero() };
-        Funds_uint64 _out { Funds_uint64::zero() };
-    };
-
-    using TokenFlow = std::map<TokenId, FundFlow>;
+    using TokenFlow = std::map<TokenId, BalanceFlow>;
     struct AccountData : public block_apply::ValidAccount {
     private:
         TokenFlow flow;
 
     public:
-        void add(TokenId id, Funds_uint64 v)
+        void add_total(TokenId id, Funds_uint64 v)
         {
-            flow[id].add_in(v);
+            flow[id].total.add(v);
         }
-        void subtract(TokenId id, Funds_uint64 v)
+        void subtract_total(TokenId id, Funds_uint64 v)
         {
-            flow[id].add_out(v);
+            flow[id].total.subtract(v);
+        }
+        void add_locked(TokenId id, Funds_uint64 v)
+        {
+            flow[id].locked.add(v);
+        }
+        void subtract_locked(TokenId id, Funds_uint64 v)
+        {
+            flow[id].locked.subtract(v);
         }
         auto& token_flow() const { return flow; }
         AccountData(AddressView address, ValidAccountId accountId)
@@ -465,7 +478,7 @@ public:
         auto r { b.reward };
         auto& a { accounts[r.to_id()] };
         auto am { r.wart() };
-        a.add(TokenId::WART, am);
+        a.add_total(TokenId::WART, am);
         return {
             .toAccountId { a.id },
             .wart { am },
@@ -486,7 +499,7 @@ public:
     {
         auto fee { compactFee.uncompact() };
         totalfee.add_throw(fee);
-        a.subtract(TokenId::WART, fee);
+        a.subtract_total(TokenId::WART, fee);
     }
 
     struct ProcessedSigner : public SignerData {
@@ -512,8 +525,8 @@ public:
         if (s.origin.id == to.id)
             throw Error(ESELFSEND);
 
-        to.add(tokenId, amount);
-        s.account.subtract(tokenId, amount);
+        to.add_total(tokenId, amount);
+        s.account.subtract_total(tokenId, amount);
 
         return to;
     }
@@ -533,20 +546,20 @@ public:
     block_apply::LiquidityDeposit::Internal register_liquidity_deposit(const LiquidityDeposit& l, AssetId aid)
     {
         auto s { process_signer(l) };
-        s.account.subtract(aid.token_id(), l.base_amount());
-        s.account.subtract(TokenId::WART, l.quote_wart());
+        s.account.subtract_total(aid.token_id(), l.base_amount());
+        s.account.subtract_total(TokenId::WART, l.quote_wart());
         return { std::move(s), { defi::BaseQuote { l.base_amount(), l.quote_wart() }, aid } };
     }
 
     void add_balance(AccountId aid, TokenId tid, Funds_uint64 amount)
     {
-        accounts[aid].add(tid, amount);
+        accounts[aid].add_total(tid, amount);
     }
 
     block_apply::LiquidityWithdrawal::Internal register_liquidity_withdraw(const LiquidityWithdraw& l, AssetId aid)
     {
         auto s { process_signer(l) };
-        s.account.subtract(aid.token_id(true), l.amount());
+        s.account.subtract_total(aid.token_id(true), l.amount());
         return { std::move(s), { l.amount(), aid } };
     }
     block_apply::Order::Internal register_new_order(const Order& o, AssetId aid)
@@ -556,9 +569,9 @@ public:
         auto buy { o.buy() };
         auto amount { o.amount() };
         if (buy)
-            s.account.subtract(TokenId::WART, amount);
+            s.account.subtract_total(TokenId::WART, amount);
         else
-            s.account.subtract(aid.token_id(), amount);
+            s.account.subtract_total(aid.token_id(), amount);
 
         return {
             std::move(s),
@@ -900,27 +913,37 @@ private:
             balanceChecker.register_asset_creation(ac, height);
     }
 
-    auto process_new_balance(const AccountToken& at, const auto& tokenFlow)
+    auto process_new_balance(const AccountToken& at, const BalanceFlow& tokenFlow)
     {
-        if (tokenFlow.out() > Funds_uint64::zero()) // We do not allow resend of newly inserted balance
+        if (!tokenFlow.total.negative().is_zero()
+            || !tokenFlow.locked.negative().is_zero()
+            || !tokenFlow.locked.positive().is_zero()) // We do not allow spending newly inserted balance
             throw Error(EBALANCE); // insufficient balance
-        Funds_uint64 balance { tokenFlow.in() };
+        Funds_uint64 locked { tokenFlow.locked.positive() };
+        Funds_uint64 total { tokenFlow.total.positive() };
+        if (total < locked)
+            throw Error(EBALANCE);
         blockEffects.insert(block_apply::BalanceInsert({
             .id { idIncrementer.next_inc() },
-            .aid { at.account_id() },
-            .tid { at.token_id() },
-            .balance { balance },
+            .accountId { at.account_id() },
+            .tokenId { at.token_id() },
+            .total { total },
+            .locked { locked },
         }));
     }
-    auto process_existing_balance(const AccountToken& at, const auto& tokenFlow, IdBalance ib)
+    auto process_existing_balance(const AccountToken& at, const BalanceFlow& flow, const IdBalance ib)
     {
         // check that balances are correct
-        auto totalIn { Funds_uint64::sum_throw(tokenFlow.in(), ib.balance) };
-        Funds_uint64 newbalance { Funds_uint64::diff_throw(totalIn, tokenFlow.out()) };
+        auto lockedPositive { Funds_uint64::sum_throw(flow.locked.positive(), ib.balance.locked) };
+        auto lockedUpdated { Funds_uint64::diff_throw(lockedPositive, flow.locked.negative()) }; // throws if < 0
+        auto totalPositive { Funds_uint64::sum_throw(flow.total.positive(), ib.balance.total) };
+        auto totalUpdated { Funds_uint64::diff_throw(totalPositive, flow.total.negative()) }; // throws if < 0
+        if (totalUpdated < lockedUpdated)
+            throw Error(EBALANCE);
         blockEffects.insert(block_apply::BalanceUpdate { .at { at },
             .id { ib.id },
             .original { ib.balance },
-            .updated { newbalance } });
+            .updated { totalUpdated, lockedUpdated } });
     }
     auto db_addr(AccountId id)
     {
@@ -953,7 +976,7 @@ private:
         for (auto& a : balanceChecker.get_new_accounts()) {
             bool referred { false };
             for (auto& [tokenId, tokenFlow] : a.token_flow()) {
-                if (!tokenFlow.in().is_zero())
+                if (!tokenFlow.total.positive().is_zero())
                     referred = true;
                 process_new_balance({ a.id, tokenId }, tokenFlow);
             }
@@ -1033,7 +1056,8 @@ private:
         for (auto& ts : balanceChecker.get_token_sections()) {
             auto ihn { db_asset(ts.asset_id()) };
             AssetHandle ah(ihn);
-            process_token_transfers(ah, ts.sharesTransfers);
+            process_token_transfers(ah, ts.assetTransfers, false);
+            process_token_transfers(ah, ts.sharesTransfers, true);
             match_new_orders(ah, ts.orders);
             process_liquidity_deposits(ah, ts.liquidityAdds);
             process_liquidity_withdrawals(ah, ts.liquidityRemoves);
@@ -1099,13 +1123,13 @@ private:
         auto& balanceChecker { this->balanceChecker }; // const lock balanceChecker
         for (auto& c : balanceChecker.get_cancelations()) {
             auto verified { c.verify(txVerifier) };
-
             auto hid { history.push_cancelation(verified).historyId };
+            auto ctxid { verified.ref.cancel_txid() };
             if (verified.txid.pinHeight < verified.ref.cancel_txid().pinHeight)
                 throw Error(ECANCELFUTURE);
             if (verified.txid == verified.ref.cancel_txid())
                 throw Error(ECANCELSELF);
-            api.cancelations.push_back({ make_signed_info(verified, hid), {} });
+            api.cancelations.push_back({ make_signed_info(verified, hid), { ctxid } });
             txset.emplace(verified.ref.cancel_txid());
             auto o { db.select_order(verified.ref.cancel_txid()) };
             if (o) { // transaction is removed from the database
@@ -1122,15 +1146,16 @@ private:
         }
     }
 
-    void process_token_transfers(AssetHandle& token, const std::vector<block_apply::TokenTransfer::Internal>& transfers)
+    void process_token_transfers(AssetHandle& asset, const std::vector<block_apply::TokenTransfer::Internal>& transfers, bool isLiquidity)
     {
         for (auto& tr : transfers) {
-            auto verified { tr.verify(txVerifier, token.info().hash) };
-            auto& ref { history.push_token_transfer(verified, token.id().token_id()) };
+            auto verified { tr.verify(txVerifier, asset.info().hash) };
+            auto& ref { history.push_token_transfer(verified, asset.id().token_id()) };
             api.tokenTransfers.push_back(api::block::TokenTransfer {
                 make_signed_info(verified, ref.historyId),
                 {
-                    .assetInfo { token.info() },
+                    .assetInfo { asset.info() },
+                    .isLiquidity = isLiquidity,
                     .toAddress { tr.to_address() },
                     .amount { tr.amount() },
                 } });
@@ -1309,7 +1334,7 @@ api::CompleteBlock BlockApplier::apply_block(const Block& block, const BlockHash
         preparer.newTxIds.merge(std::move(prepared.txset));
 
         // write block effects to database
-        auto rollback { prepared.blockEffects.apply2((ChainDB&)(db), (std::map<AccountId, Wart>&)(wartUpdates)) };
+        auto rollback { prepared.blockEffects.apply((ChainDB&)(db), freeBalanceUpdates) };
 
         // write rollback data
         db.set_block_undo(blockId, rollback.serialize());

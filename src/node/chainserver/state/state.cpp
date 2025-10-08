@@ -31,6 +31,7 @@ void MiningCache::update_validity(CacheValidity cv)
         cache.clear();
     cacheValidity = cv;
 }
+
 auto MiningCache::lookup(const Address& a, bool disableTxs) const -> const value_t*
 {
     auto iter { std::find_if(cache.begin(), cache.end(), [&](const Item& i) {
@@ -111,7 +112,7 @@ void push_history(api::Block& b, const std::pair<HistoryId, history::Entry>& p, 
 {
     auto& [hid, e] { p };
     auto signed_info_data { [&](const history::SignData& sd) {
-        return api::block::SignedInfoData(e.hash, hid, c.addresses.fetch(sd.origin_account_id()), sd.fee(), sd.pin_nonce().id, sd.pin_nonce().pin_height_from_floored(pinFloor));
+        return api::block::SignedInfoData(e.hash, hid, sd.origin_account_id(), c.addresses.fetch(sd.origin_account_id()), sd.fee(), sd.pin_nonce().id, sd.pin_nonce().pin_height_from_floored(pinFloor));
     } };
     e.data.visit_overload(
         [&](const history::WartTransferData& d) {
@@ -139,6 +140,7 @@ void push_history(api::Block& b, const std::pair<HistoryId, history::Entry>& p, 
             b.actions.tokenTransfers.push_back(
                 { signed_info_data(d.sign_data()),
                     { .assetInfo = assetData,
+                        .isLiquidity = d.token_id().is_liquidity(),
                         .toAddress = c.addresses.fetch(d.to_id()),
                         .amount = { d.amount() } } });
         },
@@ -155,7 +157,16 @@ void push_history(api::Block& b, const std::pair<HistoryId, history::Entry>& p, 
         },
         [&](const history::CancelationData& d) {
             b.actions.cancelations.push_back({ signed_info_data(d.sign_data()),
-                {} });
+                { d.cancel_txid() } });
+        },
+        [&](const history::OrderCancelationData& d) {
+            auto& asset { c.assetsById[d.asset_id()] };
+            b.actions.orderCancelations.push_back({ e.hash, hid,
+                { .cancelTxid { d.cancel_txid() },
+                    .buy = d.buy(),
+                    .assetInfo { asset },
+                    .historyId { d.order_id() },
+                    .remaining { d.amount() } } });
         },
         [&](const history::MatchData& d) {
             auto& asset { c.assetsById[d.asset_id()] };
@@ -215,9 +226,10 @@ auto State::api_tx_cache() const -> const TransactionIds
 api::Transaction State::api_dispatch_mempool(const TxHash& txHash, TransactionMessage&& tx) const
 {
     auto gen_temporal = []() { return api::TemporalInfo { 0, Height(0), 0 }; };
+
     auto make_signed_info {
         [&txHash](auto& tx) {
-            return api::block::SignedInfoData(txHash, std::nullopt, tx.from_address(txHash), tx.fee(), tx.nonce_id(), tx.pin_height());
+            return api::block::SignedInfoData(txHash, std::nullopt, tx.from_id(), tx.from_address(txHash), tx.fee(), tx.nonce_id(), tx.pin_height());
         }
     };
 
@@ -234,19 +246,20 @@ api::Transaction State::api_dispatch_mempool(const TxHash& txHash, TransactionMe
         },
         [&](TokenTransferMessage&& ttm) -> api::Transaction {
             // ttm.byte_size
-            auto& a { dbcache.assetsByHash[ttm.asset_hash()] };
+            auto& a { dbcache.assetsByHash.fetch(ttm.asset_hash()) };
             return api::TokenTransferTransaction {
                 gen_temporal(),
                 { make_signed_info(ttm),
                     {
                         .assetInfo { a },
+                        .isLiquidity = ttm.is_liquidity(),
                         .toAddress = ttm.to_addr(),
                         .amount = ttm.amount(),
                     } }
             };
         },
         [&](OrderMessage&& o) -> api::Transaction {
-            auto& a { dbcache.assetsByHash[o.asset_hash()] };
+            auto& a { dbcache.assetsByHash.fetch(o.asset_hash()) };
             return api::NewOrderTransaction {
                 gen_temporal(),
                 { make_signed_info(o),
@@ -261,11 +274,11 @@ api::Transaction State::api_dispatch_mempool(const TxHash& txHash, TransactionMe
         [&](CancelationMessage&& a) -> api::Transaction {
             return api::CancelationTransaction {
                 gen_temporal(),
-                { make_signed_info(a), {} }
+                { make_signed_info(a), { .cancelTxid { a.cancel_txid() } } }
             };
         },
         [&](LiquidityDepositMessage&& rd) -> api::Transaction {
-            auto& a { dbcache.assetsByHash[rd.asset_hash()] };
+            auto& a { dbcache.assetsByHash.fetch(rd.asset_hash()) };
             return api::LiquidityDepositTransaction {
                 gen_temporal(),
                 { make_signed_info(rd),
@@ -278,7 +291,7 @@ api::Transaction State::api_dispatch_mempool(const TxHash& txHash, TransactionMe
             };
         },
         [&](LiquidityWithdrawMessage&& rm) -> api::Transaction {
-            auto& a { dbcache.assetsByHash[rm.asset_hash()] };
+            auto& a { dbcache.assetsByHash.fetch(rm.asset_hash()) };
             return api::LiquidityWithdrawalTransaction {
                 gen_temporal(),
                 { make_signed_info(rm),
@@ -311,7 +324,7 @@ api::Transaction State::api_dispatch_history(const TxHash& txHash, HistoryId hid
     } };
     auto make_signed_info {
         [&](auto& tx) {
-            return api::block::SignedInfoData(txHash, hid, fetch_addr(tx.sign_data().origin_account_id()), tx.sign_data().fee(), tx.sign_data().pin_nonce().id, tx.sign_data().pin_nonce().pin_height_from_floored(h.pin_floor()));
+            return api::block::SignedInfoData(txHash, hid, tx.sign_data().origin_account_id(), fetch_addr(tx.sign_data().origin_account_id()), tx.sign_data().fee(), tx.sign_data().pin_nonce().id, tx.sign_data().pin_nonce().pin_height_from_floored(h.pin_floor()));
         }
     };
     return std::move(tx).visit_overload(
@@ -333,6 +346,7 @@ api::Transaction State::api_dispatch_history(const TxHash& txHash, HistoryId hid
                 { make_signed_info(ttm),
                     {
                         .assetInfo { a },
+                        .isLiquidity = ttm.token_id().is_liquidity(),
                         .toAddress = fetch_addr(ttm.to_id()),
                         .amount = ttm.amount(),
                     } }
@@ -355,7 +369,20 @@ api::Transaction State::api_dispatch_history(const TxHash& txHash, HistoryId hid
             return api::CancelationTransaction {
                 gen_temporal(),
                 { make_signed_info(c),
-                    {} }
+                    { .cancelTxid { c.cancel_txid() } } }
+            };
+        },
+        [&](history::OrderCancelationData&& c) -> api::Transaction {
+            auto& a { dbcache.assetsById[c.asset_id()] };
+            return api::OrderCancelationTransaction {
+                gen_temporal(),
+                { txHash, hid,
+                    api::block::OrderCancelationData {
+                        .cancelTxid { c.cancel_txid() },
+                        .buy = c.buy(),
+                        .assetInfo { a },
+                        .historyId { c.order_id() },
+                        .remaining { c.amount() } } }
             };
         },
         [&](history::LiquidityDeposit&& ld) -> api::Transaction {
@@ -585,7 +612,7 @@ Result<ChainMiningTask> State::mining_task(const Address& miner, bool disableTxs
                 [&, assetOffsets = std::map<AssetHash, size_t> {}](AssetHash hash) mutable -> auto& {
                     auto [it, inserted] = assetOffsets.try_emplace(hash, entries.tokens().size());
                     if (inserted)
-                        entries.tokens().push_back({ dbcache.assetsByHash[hash].id });
+                        entries.tokens().push_back({ dbcache.assetsByHash.fetch(hash).id });
                     return entries.tokens()[it->second];
                 }
             };
@@ -770,10 +797,10 @@ public:
     };
 
     std::vector<TransactionMessage> toMempool;
-    std::map<AccountId, Wart> wartUpdates;
+    free_balance_udpates_t freeBalanceUpdates;
 
     // actions to be run against database
-    std::map<BalanceId, Funds_uint64> balanceUpdates;
+    std::map<BalanceId, Balance_uint64> balanceUpdates;
     std::map<HistoryId, OrderAction> orderActions;
     std::map<AssetId, PoolAction> poolActions;
 
@@ -895,14 +922,13 @@ public:
                 [&](const IdBalance& entry) {
                     if (is_deprecated_id(entry.id))
                         return;
-                    const Funds_uint64& bal { entry.balance };
+                    const auto& bal { entry.balance };
                     const BalanceId& id { entry.id };
                     auto b { db.get_token_balance(id) };
                     if (!b.has_value())
                         throw std::runtime_error("Database corrupted, cannot roll back");
 
-                    if (b->tokenId.is_wart())
-                        wartUpdates.try_emplace(b->accountId, Wart(bal.value()));
+                    freeBalanceUpdates[b->accountId].insert_or_assign(b->tokenId, bal.free_assert());
                     balanceUpdates.try_emplace(id, bal);
                 });
             rbv.foreach_deleted_order([&](const rollback::OrderData& o) {
@@ -1005,7 +1031,7 @@ State::rollback(const Height newlength) const
     return chainserver::RollbackResult {
         .shrink { newlength, oldlength - newlength },
         .toMempool { std::move(rs.toMempool) },
-        .wartUpdates { std::move(rs.wartUpdates) },
+        .freeBalanceUpdates { std::move(rs.freeBalanceUpdates) },
         .chainTxIds { db.fetch_tx_ids(newlength) },
         .deletionKey { dk }
     };
@@ -1123,7 +1149,7 @@ auto State::append_mined_block(const Block& b) -> StateUpdateWithAPIBlocks
 
     std::unique_lock<std::mutex> ul(chainstateMutex);
     auto headerchainAppend = chainstate.append(Chainstate::AppendSingle {
-        .wartUpdates { e.move_wart_updates() },
+        .freeBalanceUpdates { e.move_free_balance_updates() },
         .signedSnapshot { signedSnapshot },
         .prepared { prepared.value() },
         .newTxIds { e.move_new_txids() },
@@ -1160,7 +1186,7 @@ api::WartBalance State::api_get_wart_balance(api::AccountIdOrAddress a) const
     api::WartBalance res;
     auto b { api_get_token_balance_recursive(a, TokenId::WART) };
     if (b.lookup) {
-        res.balance = Wart(b.balance.funds.value());
+        res.balance = Wart(b.total.funds.value());
         res.address = b.lookup->address;
     }
     return res;
@@ -1201,7 +1227,7 @@ api::TokenBalance State::api_get_token_balance_recursive(AccountId aid, TokenId 
         auto [balanceId, funds] { db.get_token_balance_recursive(aid, tid, &trace) };
 
         std::optional<AssetPrecision> prec;
-        if (tid.is_share() || !trace.fails.empty()) {
+        if (tid.is_liquidity() || !trace.fails.empty()) {
             prec = trace.fails.front().precision; // pool shares have WART precision by definition
         } else {
             if (auto nw { tid.non_wart() }) {
@@ -1212,7 +1238,7 @@ api::TokenBalance State::api_get_token_balance_recursive(AccountId aid, TokenId 
         }
         if (!prec)
             return api::TokenBalance::notfound();
-        return api::TokenBalance::found(*addr, aid, std::move(trace), FundsDecimal(funds, *prec));
+        return api::TokenBalance::found(*addr, aid, std::move(trace), FundsDecimal(funds.total, *prec), FundsDecimal(funds.locked, *prec));
     }
     return api::TokenBalance::notfound();
 }
@@ -1264,7 +1290,7 @@ auto State::api_get_history(Address a, int64_t beforeId) const -> std::optional<
     if (!p)
         return {};
     auto& accountId(*p);
-    Wart wart(db.get_token_balance_recursive(accountId, TokenId::WART).second.value());
+    auto wartBalance(db.get_token_balance_recursive(accountId, TokenId::WART).second);
 
     std::vector entries_desc = db.lookup_history_100_desc(accountId, beforeId);
     std::vector<api::Block> blocks_reversed;
@@ -1298,7 +1324,8 @@ auto State::api_get_history(Address a, int64_t beforeId) const -> std::optional<
     }
 
     return api::AccountHistory {
-        .balance = wart,
+        .balance = Wart::from_funds_throw(wartBalance.total),
+        .locked = Wart::from_funds_throw(wartBalance.locked),
         .fromId = firstHistoryId,
         .blocks_reversed = blocks_reversed
     };

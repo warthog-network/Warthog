@@ -9,6 +9,7 @@
 #include "chainserver/db/deletion_key.hpp"
 #include "chainserver/db/state_ids.hpp"
 #include "chainserver/db/types_fwd.hpp"
+#include "chainserver/types.hpp"
 #include "mempool/mempool.hpp"
 #include <cstdint>
 
@@ -16,12 +17,12 @@ namespace chainserver {
 struct RollbackResult {
     ShrinkInfo shrink;
     std::vector<TransactionMessage> toMempool;
-    std::map<AccountId, Wart> wartUpdates;
+    free_balance_udpates_t freeBalanceUpdates;
     TransactionIds chainTxIds;
     DeletionKey deletionKey;
 };
 struct AppendBlocksResult {
-    std::map<AccountId, Wart> wartUpdates;
+    free_balance_udpates_t freeBalanceUpdates;
     std::vector<HistoryId> newHistoryOffsets;
     std::vector<StateId32> state32Offsets;
     TransactionIds newTxIds;
@@ -41,7 +42,7 @@ struct Chainstate {
         AppendBlocksResult&& appendResult;
     };
     struct AppendSingle {
-        std::map<AccountId, Wart> wartUpdates;
+        free_balance_udpates_t freeBalanceUpdates;
         std::optional<SignedSnapshot>& signedSnapshot;
         HeaderVerifier::PreparedAppend prepared;
         TransactionIds&& newTxIds;
@@ -63,7 +64,7 @@ struct Chainstate {
 
     auto insert_txs(const std::vector<TransactionMessage>& txs) -> std::vector<Error>;
 
-    TxHash insert_tx(const TransactionMessage& m, WartCache& ac);
+    TxHash insert_tx(const TransactionMessage& m, BalanceCache& ac);
     [[nodiscard]] TxHash create_tx(const WartTransferCreate& m);
 
     // const functions
@@ -92,7 +93,7 @@ struct Chainstate {
     }
 
 protected:
-    TxHash insert_tx_internal(const TransactionMessage&, TxHeight, TxHash, WartCache, const Address fromAddr);
+    TxHash insert_tx_internal(const TransactionMessage&, TxHeight, TxHash, BalanceCache, const Address fromAddr);
     void prune_txids();
     Chainstate(std::tuple<std::vector<Batch>, HistoryHeights, State32Heights> init,
         const ChainDB& db, BatchRegistry& br);

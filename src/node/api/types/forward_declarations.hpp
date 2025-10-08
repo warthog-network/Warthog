@@ -33,6 +33,7 @@ struct NewOrderData;
 struct LiquidityDepositData;
 struct LiquidityWithdrawalData;
 struct CancelationData;
+struct OrderCancelationData;
 struct MatchData;
 
 template <typename T>
@@ -47,9 +48,9 @@ using AssetCreation = WithSignedInfo<AssetCreationData>;
 using NewOrder = WithSignedInfo<NewOrderData>;
 using LiquidityDeposit = WithSignedInfo<LiquidityDepositData>;
 using LiquidityWithdrawal = WithSignedInfo<LiquidityWithdrawalData>;
-using Cancelation = WithSignedInfo<CancelationData>;
+using TransactionCancelation = WithSignedInfo<CancelationData>;
+using OrderCancelation = WithHistoryBase<OrderCancelationData>;
 using Match = WithHistoryBase<MatchData>;
-
 
 };
 template <typename TxType>
@@ -62,7 +63,8 @@ using NewOrderTransaction = Temporal<block::NewOrder>;
 using MatchTransaction = Temporal<block::Match>;
 using LiquidityDepositTransaction = Temporal<block::LiquidityDeposit>;
 using LiquidityWithdrawalTransaction = Temporal<block::LiquidityWithdrawal>;
-using CancelationTransaction = Temporal<block::Cancelation>;
+using CancelationTransaction = Temporal<block::TransactionCancelation>;
+using OrderCancelationTransaction = Temporal<block::OrderCancelation>;
 
 using Transaction = wrt::variant<
     RewardTransaction,
@@ -73,7 +75,8 @@ using Transaction = wrt::variant<
     MatchTransaction,
     LiquidityDepositTransaction,
     LiquidityWithdrawalTransaction,
-    CancelationTransaction>;
+    CancelationTransaction,
+    OrderCancelationTransaction>;
 
 struct Richlist;
 struct Rollback;

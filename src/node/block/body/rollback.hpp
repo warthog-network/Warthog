@@ -9,8 +9,8 @@
 
 struct IdBalance {
     BalanceId id;
-    Funds_uint64 balance;
-    IdBalance(BalanceId id, Funds_uint64 balance)
+    Balance_uint64 balance;
+    IdBalance(BalanceId id, Balance_uint64 balance)
         : id(id)
         , balance(balance)
     {

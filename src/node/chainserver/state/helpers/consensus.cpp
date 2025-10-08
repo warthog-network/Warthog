@@ -53,14 +53,14 @@ void Chainstate::fork(Chainstate::ForkData&& fd)
 
     //////////////////////////////
     // inform mempool about balance changes
-    auto balanceUpdates { std::move(fd.appendResult.wartUpdates) };
-    balanceUpdates.merge(fd.rollbackResult.wartUpdates);
+    auto balanceUpdates { std::move(fd.appendResult.freeBalanceUpdates) };
+    balanceUpdates.merge(fd.rollbackResult.freeBalanceUpdates);
     for (auto& [accountId, balance] : balanceUpdates)
         _mempool.set_wart_balance(accountId, balance);
 
     //////////////////////////////
     // insert transactions into mempool
-    WartCache wartCache(db);
+    BalanceCache wartCache(db);
     for (auto& tx : fd.rollbackResult.toMempool) {
         AccountId fromId { tx.from_id() };
         if (fromId >= db.next_id32())
@@ -119,14 +119,14 @@ auto Chainstate::rollback(const RollbackResult& rb) -> HeaderchainRollback
 
     //////////////////////////////
     // inform mempool about balance changes
-    auto& balanceUpdates { rb.wartUpdates };
+    auto& balanceUpdates { rb.freeBalanceUpdates };
     for (auto& [accountId, wart] : balanceUpdates)
         _mempool.set_wart_balance(accountId, wart);
 
     //////////////////////////////
     // insert transactions into mempool
     AddressCache addressCache(db);
-    WartCache wartCache(db);
+    BalanceCache wartCache(db);
     for (auto& tx : rb.toMempool) {
         AccountId fromId { tx.from_id() };
 
@@ -163,8 +163,8 @@ auto Chainstate::append(AppendMulti ad) -> HeaderchainAppend
 
     //////////////////////////////
     // inform mempool about balance changes
-    auto& wartUpdates { ad.appendResult.wartUpdates };
-    for (auto& [accountId, balance] : wartUpdates)
+    auto& freeBalanceUpdates { ad.appendResult.freeBalanceUpdates };
+    for (auto& [accountId, balance] : freeBalanceUpdates)
         _mempool.set_wart_balance(accountId, balance);
 
     // remove from mempool
@@ -197,8 +197,8 @@ auto Chainstate::append(AppendSingle d) -> HeaderchainAppend
 
     //////////////////////////////
     // inform mempool about balance changes
-    auto& wartUpdates { d.wartUpdates };
-    for (auto& [accountId, balance] : wartUpdates)
+    auto& freeBalanceUpdates { d.freeBalanceUpdates };
+    for (auto& [accountId, balance] : freeBalanceUpdates)
         _mempool.set_wart_balance(accountId, balance);
 
     // remove from mempool
@@ -221,7 +221,7 @@ auto Chainstate::append(AppendSingle d) -> HeaderchainAppend
 
 auto Chainstate::insert_txs(const std::vector<TransactionMessage>& txs) -> std::vector<Error>
 {
-    WartCache wc(db);
+    BalanceCache wc(db);
     std::vector<Error> res;
     res.reserve(txs.size());
     for (auto& tx : txs) {
@@ -235,7 +235,7 @@ auto Chainstate::insert_txs(const std::vector<TransactionMessage>& txs) -> std::
     return res;
 }
 
-TxHash Chainstate::insert_tx(const TransactionMessage& tm, WartCache& wc)
+TxHash Chainstate::insert_tx(const TransactionMessage& tm, BalanceCache& wc)
 {
     if (tm.pin_height() < (length() + 1).pin_begin())
         throw Error(EPINHEIGHT);
@@ -283,11 +283,11 @@ TxHash Chainstate::create_tx(const WartTransferCreate& m)
 
     WartTransferMessage pm(txid, m.nonce_reserved(), m.compact_fee(), m.to_addr(), m.wart(), m.signature());
 
-    WartCache wc(db);
+    BalanceCache wc(db);
     return insert_tx_internal(std::move(pm), th, txHash, wc, fromAddr);
 }
 
-TxHash Chainstate::insert_tx_internal(const TransactionMessage& m, TxHeight th, TxHash txHash, WartCache wc, const Address fromAddr)
+TxHash Chainstate::insert_tx_internal(const TransactionMessage& m, TxHeight th, TxHash txHash, BalanceCache wc, const Address fromAddr)
 {
     // additional checks
     m.visit_overload(

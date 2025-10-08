@@ -268,7 +268,9 @@ json tx_to_json(const api::block::TokenTransfer& tx)
     json j(to_json_signed_info(tx, "fromAddress"));
     j["toAddress"] = tx.toAddress.to_string();
     j["amount"] = to_json(tx.amount);
-    j["token"] = to_json(tx.assetInfo);
+    j["asset"] = to_json(tx.assetInfo);
+    j["isLiquidity"] = tx.isLiquidity;
+    j["tokenSpec"] = api::TokenSpec(tx.assetInfo.hash, tx.isLiquidity).to_string();
     return j;
 }
 
@@ -281,20 +283,27 @@ json tx_to_json(const api::block::AssetCreation& tx)
     return j;
 }
 
-json tx_to_json(const api::block::NewOrder& tx)
+namespace {
+void add(json& j, const api::block::NewOrderData& tx)
 {
-    json j(to_json_signed_info(tx, "address"));
-    j["asset"] = jsonmsg::to_json(tx.assetInfo); // TODO: check that asset exists when NewOrder goes to mempool
+    j["baseAsset"] = jsonmsg::to_json(tx.assetInfo); // TODO: check that asset exists when NewOrder goes to mempool
     j["amount"] = amount_json(tx.amount, tx.assetInfo.precision);
     j["limit"] = limit_json(tx.limit, tx.assetInfo.precision);
     j["buy"] = tx.buy;
+}
+}
+
+json tx_to_json(const api::block::NewOrder& tx)
+{
+    json j(to_json_signed_info(tx, "address"));
+    add(j, *static_cast<const api::block::NewOrderData*>(&tx));
     return j;
 }
 
 json tx_to_json(const api::block::Match& tx)
 {
     auto j(to_json_history_base(tx));
-    j["asset"] = to_json(tx.assetInfo);
+    j["baseAsset"] = to_json(tx.assetInfo);
 
     auto bq_json {
         [&](const auto& bq) -> json {
@@ -325,7 +334,7 @@ json tx_to_json(const api::block::Match& tx)
 json tx_to_json(const api::block::LiquidityDeposit& tx)
 {
     json j(to_json_signed_info(tx, "address"));
-    j["asset"] = jsonmsg::to_json(tx.assetInfo);
+    j["baseAsset"] = jsonmsg::to_json(tx.assetInfo);
     j["baseDeposited"] = to_json(tx.baseDeposited.to_decimal(tx.assetInfo.precision));
     j["quoteDeposited"] = to_json(tx.quoteDeposited);
     j["sharesReceived"] = (tx.sharesReceived ? to_json(tx.sharesReceived->to_decimal(AssetPrecision::digits8())) : json(nullptr));
@@ -335,16 +344,27 @@ json tx_to_json(const api::block::LiquidityDeposit& tx)
 json tx_to_json(const api::block::LiquidityWithdrawal& tx)
 {
     json j(to_json_signed_info(tx, "address"));
-    j["asset"] = jsonmsg::to_json(tx.assetInfo);
+    j["baseAsset"] = jsonmsg::to_json(tx.assetInfo);
     j["sharesRedeemed"] = to_json(tx.sharesRedeemed.to_decimal(AssetPrecision::digits8()));
     j["baseReceived"] = (tx.baseReceived ? to_json(tx.baseReceived->to_decimal(tx.assetInfo.precision)) : json(nullptr));
     j["quoteReceived"] = (tx.quoteReceived ? to_json(*tx.quoteReceived) : json(nullptr));
     return {};
 }
 
-json tx_to_json(const api::block::Cancelation& tx)
+json tx_to_json(const api::block::TransactionCancelation& tx)
 {
     json j(to_json_signed_info(tx, "address"));
+    return j;
+}
+
+json tx_to_json(const api::block::OrderCancelation& tx)
+{
+    auto j(to_json_history_base(tx));
+    j["cancelTxid"] = to_json(tx.cancelTxid);
+    j["buy"] = tx.buy;
+    j["baseAsset"] = jsonmsg::to_json(tx.assetInfo);
+    j["historyId"] = tx.historyId.value();
+    j["remaining"] = to_json(tx.buy ? tx.remaining.to_decimal(Wart::precision) : tx.remaining.to_decimal(tx.assetInfo.precision));
     return j;
 }
 
@@ -479,8 +499,8 @@ json to_json(const api::MempoolEntries& entries)
                 elem["toAddress"] = m.to_addr().to_string();
                 elem["amountU64"] = m.amount().value();
                 elem["assetHash"] = m.asset_hash();
-                elem["isLiquidity"] = m.pool_flag();
-                elem["tokenSpec"] = api::TokenSpec(m.asset_hash(), m.pool_flag()).to_string();
+                elem["isLiquidity"] = m.is_liquidity();
+                elem["tokenSpec"] = api::TokenSpec(m.asset_hash(), m.is_liquidity()).to_string();
             },
             [&](const OrderMessage& m) {
                 elem["type"] = api::block::NewOrderData::label;
@@ -530,7 +550,7 @@ json to_json(const api::TokenBalance& tb)
 {
 
     json j {
-        { "balance", to_json(tb.balance) },
+        { "balance", to_json(tb.total) },
     };
     json lookup;
 
@@ -628,7 +648,8 @@ json to_json(const api::AccountHistory& h)
     json j;
     j["perBlock"] = a;
     j["fromId"] = h.fromId;
-    j["balance"] = to_json(h.balance);
+    j["wartTotal"] = to_json(h.balance);
+    j["wartLocked"] = to_json(h.locked);
     return j;
 }
 

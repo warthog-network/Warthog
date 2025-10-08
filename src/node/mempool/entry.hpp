@@ -6,10 +6,12 @@ namespace mempool {
 struct Entry : public TransactionMessage {
     TxHash txhash;
     TxHeight txHeight; // when was the account first registered
-    Entry(TransactionMessage m, const TxHash& txHash, TxHeight txHeight)
+    TokenId altToken;
+    Entry(TransactionMessage m, const TxHash& txHash, TxHeight txHeight, TokenId altToken)
         : TransactionMessage(std::move(m))
         , txhash(txHash)
         , txHeight(txHeight)
+        , altToken(std::move(altToken))
     {
     }
     // Entry(TransactionMessage m, const PinHash& pinHash, TxHeight txHeight)

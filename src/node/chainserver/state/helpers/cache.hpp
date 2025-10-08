@@ -3,6 +3,7 @@
 #include "block/chain/history/history.hpp"
 #include "block/chain/history/index.hpp"
 #include "chainserver/db/types_fwd.hpp"
+#include "defi/token/account_token.hpp"
 #include "defi/token/info.hpp"
 #include <map>
 
@@ -30,10 +31,10 @@ public:
     const Address& fetch(AccountId);
 };
 
-class WartCache : public DBCacheBase<AccountId, Wart> {
+class BalanceCache : public DBCacheBase<AccountToken, Wart> {
 public:
     using DBCacheBase::DBCacheBase;
-    [[nodiscard]] Wart operator[](AccountId aid);
+    [[nodiscard]] Funds_uint64 operator[](AccountToken at);
 };
 
 class AssetCacheById : public DBCacheBase<AssetId, AssetDetail> {
@@ -45,7 +46,8 @@ public:
 class AssetCacheByHash : public DBCacheBase<AssetHash, AssetDetail> {
 public:
     using DBCacheBase::DBCacheBase;
-    [[nodiscard]] const AssetDetail& operator[](AssetHash);
+    [[nodiscard]] const AssetDetail& fetch(AssetHash);
+    [[nodiscard]] const AssetDetail* lookup(AssetHash);
 };
 
 class HistoryCache : public DBCacheBase<HistoryId, history::Entry> {
@@ -58,7 +60,7 @@ class DBCache {
 public:
     DBCache(const ChainDB& db)
         : addresses(db)
-        , wart(db)
+        , balance(db)
         , assetsById(db)
         , assetsByHash(db)
         , history(db)
@@ -67,14 +69,14 @@ public:
     void clear()
     {
         addresses.clear();
-        wart.clear();
+        balance.clear();
         assetsById.clear();
         assetsByHash.clear();
         history.clear();
     }
 
     AddressCache addresses;
-    WartCache wart;
+    BalanceCache balance;
     AssetCacheById assetsById;
     AssetCacheByHash assetsByHash;
     HistoryCache history;

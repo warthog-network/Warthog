@@ -44,9 +44,10 @@ struct AccountData {
 };
 struct BalanceData {
     BalanceId id;
-    AccountId aid;
-    TokenId tid;
-    Funds_uint64 balance;
+    AccountId accountId;
+    TokenId tokenId;
+    Funds_uint64 total;
+    Funds_uint64 locked;
 };
 struct TokenForkBalanceData {
     TokenForkBalanceId id;

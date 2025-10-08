@@ -10,7 +10,7 @@ struct TokenId : public UInt64WithOperators<TokenId> {
     using UInt64WithOperators::UInt64WithOperators;
     static const TokenId WART;
     [[nodiscard]] bool is_wart() const { return value() == 0; }
-    [[nodiscard]] bool is_share() const
+    [[nodiscard]] bool is_liquidity() const
     {
         return (value() & 1) != 0; // shares have odd ids
     }
@@ -52,7 +52,7 @@ inline std::optional<NonWartTokenId> TokenId::non_wart() const
 
 struct AssetId : public UInt64WithOperators<AssetId> { // assets are tokens that are not pool shares
     using UInt64WithOperators<AssetId>::UInt64WithOperators;
-    constexpr NonWartTokenId token_id(bool poolLiquidity = false) const { return TokenId { 1 + 2 * value() + poolLiquidity }; }
+    [[nodiscard]] constexpr NonWartTokenId token_id(bool isLiquidity = false) const { return TokenId { 1 + 2 * value() + isLiquidity }; }
 };
 
 inline constexpr TokenId TokenId::WART { 0 };
