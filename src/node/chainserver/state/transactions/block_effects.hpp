@@ -69,7 +69,7 @@ public:
     }
     void apply(const BalanceUpdate& u)
     {
-        freeBalanceUpdates[u.at.account_id()].insert_or_assign(u.at.token_id(), u.updated.free_assert());
+        freeBalanceUpdates.insert_or_assign(u.at, u.updated.free_assert());
         db.set_balance(u.id, u.updated);
         rg.register_original_balance({ u.id, u.original });
     }

@@ -233,6 +233,14 @@ public:
             assert(false);
         }
     }
+    [[nodiscard]] auto spend_token_assert() const
+    {
+        try {
+            return spend_token_throw();
+        } catch (Error e) {
+            assert(false);
+        }
+    }
     [[nodiscard]] auto& txid() const { return base().txid(); }
     [[nodiscard]] auto nonce_reserved() const { return base().nonce_reserved(); }
     [[nodiscard]] AccountId from_id() const { return base().from_id(); }

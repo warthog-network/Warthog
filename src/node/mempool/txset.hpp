@@ -48,7 +48,7 @@ public:
         return _set;
     }
     auto& operator()() const { return _set; }
-    [[nodiscard]] std::vector<const_iter_t> by_fee_inc(AccountId) const;
+    [[nodiscard]] std::vector<const_iter_t> by_fee_inc_le(AccountId, std::optional<CompactUInt> threshold = {}) const;
 };
 
 class TokenData {
@@ -64,13 +64,13 @@ public:
         // auto tokenId { iter->altToken };
         // if (tokenId == TokenId::WART)
         //     return;
-        map[iter->altToken].iterators.push_back(iter);
+        map[iter->altTokenId].iterators.push_back(iter);
         return true;
     }
 
     size_t erase(const_iterator_t iter)
     {
-        auto tokenId { iter->altToken };
+        auto tokenId { iter->altTokenId };
         // if (tokenId == TokenId::WART) {
         //     _size -= 1;
         //     return 1;
@@ -93,12 +93,55 @@ private:
     size_t _size;
     std::map<TokenId, Entry> map;
 };
-[[nodiscard]] inline auto get_pin_height(Txset::const_iter_t it) { return it->pin_height(); };
-[[nodiscard]] inline auto& get_txid(Txset::const_iter_t it) { return it->txid(); };
-[[nodiscard]] inline auto get_account_id(Txset::const_iter_t it) { return it->from_id(); };
-[[nodiscard]] inline auto get_token_id(Txset::const_iter_t it) { return it->altToken; };
-[[nodiscard]] inline auto get_fee(Txset::const_iter_t it) { return it->compact_fee(); };
-[[nodiscard]] inline auto get_nonce_id(Txset::const_iter_t it) { return it->nonce_id(); };
+namespace extractors {
+using txit_t = Txset::const_iter_t;
+
+template <typename T>
+struct For {
+    static_assert(false, "unsupported type to extract");
+};
+
+template <>
+struct For<PinHeight> {
+    [[nodiscard]] auto operator()(Txset::const_iter_t it) const { return it->pin_height(); };
+};
+
+template <>
+struct For<TransactionId> {
+    [[nodiscard]] auto operator()(Txset::const_iter_t it) const { return it->txid(); };
+};
+
+template <>
+struct For<AccountId> {
+    auto operator()(Txset::const_iter_t it) const { return it->from_id(); }
+    auto operator()(const AccountToken& at) const { return at.account_id(); }
+};
+
+template <>
+struct For<TokenId> {
+    auto operator()(Txset::const_iter_t it) const { return it->altTokenId; }
+    auto operator()(const AccountToken& at) const { return at.token_id(); }
+};
+
+template <>
+struct For<CompactUInt> {
+    auto operator()(Txset::const_iter_t it) const { return it->compact_fee(); };
+};
+
+template <>
+struct For<NonceId> {
+    auto operator()(Txset::const_iter_t it) const { return it->nonce_id(); }
+};
+
+template <typename T>
+struct GetExtractor {
+    static constexpr struct : public For<T> {
+        using For<T>::operator();
+        const T& operator()(const T& t) const { return t; }
+    } value{};
+};
+
+}
 
 struct ByFeeDesc {
     using const_iter_t = Txset::const_iter_t;

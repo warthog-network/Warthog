@@ -1,3 +1,0 @@
-
-#i
-Entry(TransactionMessage m);

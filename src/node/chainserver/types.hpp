@@ -1,8 +1,7 @@
 #pragma once
-#include "block/body/account_id.hpp"
-#include "defi/token/id.hpp"
+#include "defi/token/account_token.hpp"
 #include "general/funds.hpp"
 #include <map>
 namespace chainserver {
-using free_balance_udpates_t = std::map<AccountId, std::map<TokenId, Funds_uint64>>;
+using free_balance_udpates_t = std::map<AccountToken, Funds_uint64>;
 }

@@ -31,7 +31,7 @@ public:
     const Address& fetch(AccountId);
 };
 
-class BalanceCache : public DBCacheBase<AccountToken, Wart> {
+class BalanceCache : public DBCacheBase<AccountToken, Funds_uint64> {
 public:
     using DBCacheBase::DBCacheBase;
     [[nodiscard]] Funds_uint64 operator[](AccountToken at);

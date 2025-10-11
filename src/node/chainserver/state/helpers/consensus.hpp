@@ -64,7 +64,7 @@ struct Chainstate {
 
     auto insert_txs(const std::vector<TransactionMessage>& txs) -> std::vector<Error>;
 
-    TxHash insert_tx(const TransactionMessage& m, BalanceCache& ac);
+    TxHash insert_tx(const TransactionMessage& m, DBCache& ac);
     [[nodiscard]] TxHash create_tx(const WartTransferCreate& m);
 
     // const functions
@@ -93,7 +93,7 @@ struct Chainstate {
     }
 
 protected:
-    TxHash insert_tx_internal(const TransactionMessage&, TxHeight, TxHash, BalanceCache, const Address fromAddr);
+    TxHash insert_tx_internal(const TransactionMessage&, TxHeight, TxHash, DBCache&, const Address fromAddr);
     void prune_txids();
     Chainstate(std::tuple<std::vector<Batch>, HistoryHeights, State32Heights> init,
         const ChainDB& db, BatchRegistry& br);

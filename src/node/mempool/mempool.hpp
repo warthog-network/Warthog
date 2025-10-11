@@ -46,7 +46,7 @@ public:
     Error insert_tx(const TransactionMessage& pm, TxHeight txh, const TxHash& hash, chainserver::DBCache& wartCache);
     void insert_tx_throw(const TransactionMessage& pm, TxHeight txh, const TxHash& hash, chainserver::DBCache& wartCache);
     void erase(TransactionId id);
-    void set_free_balance(AccountToken, Wart newBalance);
+    void set_free_balance(AccountToken, Funds_uint64 newBalance);
     void erase_from_height(Height);
     void erase_before_height(Height);
 
@@ -68,12 +68,14 @@ public:
 
 private:
     using BalanceEntries = std::map<AccountToken, LockedBalance>;
+    using balance_iterator = BalanceEntries::iterator;
     void apply_logevent(const Put&);
     void apply_logevent(const Erase&);
-    void erase_internal(Txset::const_iter_t);
-    [[nodiscard]] LockedBalance get_balance(AccountToken at, chainserver::DBCache&);
+    [[nodiscard]] std::pair<LockedBalance, std::optional<balance_iterator>> get_balance(AccountToken at, chainserver::DBCache&);
     [[nodiscard]] std::optional<TokenFunds> token_spend_throw(const TransactionMessage& pm, chainserver::DBCache& cache) const;
-    bool erase_internal(Txset::const_iter_t, BalanceEntries::iterator, bool gc = true);
+    void erase_internal(Txset::const_iter_t);
+    bool erase_internal(Txset::const_iter_t, balance_iterator wartBalanceIter, bool gc = true);
+    [[nodiscard]] balance_iterator create_or_get_balance_iter(AccountToken at, chainserver::DBCache& cache);
     void prune();
 
 private:
@@ -130,7 +132,7 @@ private:
     private:
         tuple_t tuple;
     };
-    struct : public CombineIndices<ComparatorPin, ComparatorAccountTokenFee, ComparatorAccountFee, ComparatorHash> {
+    struct : public CombineIndices<ComparatorPin, ComparatorTokenAccountFee, ComparatorAccountFee, ComparatorHash> {
         [[nodiscard]] const auto& pin() const { return get<0>(); }
         [[nodiscard]] const auto& account_token_fee() const { return get<1>(); }
         [[nodiscard]] const auto& account_fee() const { return get<2>(); }

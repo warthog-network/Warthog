@@ -16,7 +16,7 @@ struct ComparatorPin {
     }
     inline bool operator()(const_iter_t it1, const_iter_t it2) const
     {
-        return lex_compare_less_by(it1, it2, get_pin_height, get_txid);
+        return lex_less_by<PinHeight, TransactionId>(it1, it2);
     }
 };
 
@@ -41,31 +41,32 @@ struct ComparatorAccountFee {
     using is_transparent = std::true_type;
     bool operator()(const_iter_t it1, const_iter_t it2) const
     {
-        return lex_compare_less_by(it1, it2, get_account_id, get_fee, get_nonce_id);
+        using namespace extractors;
+        return lex_less_by<AccountId, CompactUInt, NonceId>(it1, it2);
     }
     inline bool operator()(const_iter_t i1, const AccountId& rhs) const
     {
-        return i1->from_id() < rhs;
+        return lex_less_by<AccountId>(i1, rhs);
     }
     inline bool operator()(const AccountId& lhs, const_iter_t i2) const
     {
-        return lhs < i2->from_id();
+        return lex_less_by<AccountId>(lhs, i2);
     }
 };
-struct ComparatorAccountTokenFee {
+struct ComparatorTokenAccountFee {
     using const_iter_t = Txset::const_iter_t;
     using is_transparent = std::true_type;
     bool operator()(const_iter_t it1, const_iter_t it2) const
     {
-        return lex_compare_less_by(it1, it2, get_account_id, get_token_id, get_fee, get_nonce_id);
+        return lex_less_by<TokenId, AccountId, CompactUInt, NonceId>(it1, it2);
     }
     inline bool operator()(const_iter_t i1, const AccountToken& rhs) const
     {
-        return AccountToken(i1->from_id(), i1->altToken) < rhs;
+        return lex_less_by<TokenId, AccountId>(i1, rhs);
     }
     inline bool operator()(const AccountToken& lhs, const_iter_t i2) const
     {
-        return lhs < AccountToken(i2->from_id(), i2->altToken);
+        return lex_less_by<TokenId, AccountId>(lhs, i2);
     }
 };
 }

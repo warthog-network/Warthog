@@ -3,15 +3,17 @@
 #include <algorithm>
 #include <random>
 namespace mempool {
-auto Txset::by_fee_inc(AccountId id) const -> std::vector<const_iter_t>
+auto Txset::by_fee_inc_le(AccountId id, std::optional<CompactUInt> threshold) const -> std::vector<const_iter_t>
 {
     auto lb { _set.lower_bound(id) };
     auto ub { _set.upper_bound(id) };
     std::vector<const_iter_t> iterators;
-    for (auto iter { lb }; iter != ub; ++iter)
-        iterators.push_back(iter);
+    for (auto iter { lb }; iter != ub; ++iter) {
+        if (threshold && (iter->compact_fee() <= threshold)) // "le" in function name stands for less or equal
+            iterators.push_back(iter);
+    }
     std::sort(iterators.begin(), iterators.end(), [](const_iter_t it1, const_iter_t it2) {
-        return lex_compare_less_by(it1, it2, get_fee, get_nonce_id);
+        return lex_less(it1, it2, get_fee, get_nonce_id);
     });
     return iterators;
 };

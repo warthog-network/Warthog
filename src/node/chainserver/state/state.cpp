@@ -928,7 +928,7 @@ public:
                     if (!b.has_value())
                         throw std::runtime_error("Database corrupted, cannot roll back");
 
-                    freeBalanceUpdates[b->accountId].insert_or_assign(b->tokenId, bal.free_assert());
+                    freeBalanceUpdates.insert_or_assign(AccountToken{b->accountId,b->tokenId}, bal.free_assert());
                     balanceUpdates.try_emplace(id, bal);
                 });
             rbv.foreach_deleted_order([&](const rollback::OrderData& o) {

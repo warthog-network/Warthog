@@ -1,8 +1,8 @@
 #pragma once
 #include <utility>
 
-template <typename T, typename Projection, typename... Projections>
-bool lex_compare_less_by(const T& lhs, const T& rhs, Projection&& projection, Projections&&... projections)
+template <typename Projection, typename... Projections>
+bool lex_less_project(const auto& lhs, const auto& rhs, Projection&& projection, Projections&&... projections)
 {
     auto lhs_val { projection(lhs) };
     auto rhs_val { projection(rhs) };
@@ -13,6 +13,18 @@ bool lex_compare_less_by(const T& lhs, const T& rhs, Projection&& projection, Pr
     if constexpr (sizeof...(projections) == 0) {
         return false;
     } else {
-        return lex_compare_les(lhs, rhs, std::forward<Projections>(projections)...);
+        return lex_less_project(lhs, rhs, std::forward<Projections>(projections)...);
     }
+}
+
+namespace mempool{
+namespace extractors {
+template <typename T>
+struct GetExtractor;
+}
+}
+template <typename... ByTypes>
+bool lex_less_by(const auto& lhs, const auto& rhs)
+{
+    return lex_less_project(lhs, rhs, mempool::extractors::GetExtractor<ByTypes>::value...);
 }
