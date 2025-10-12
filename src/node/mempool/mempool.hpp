@@ -16,9 +16,9 @@ struct LockedBalance {
     void lock(Funds_uint64 amount);
     void unlock(Funds_uint64 amount);
     [[nodiscard]] bool set_avail(Funds_uint64 amount);
-    auto free() const { return Funds_uint64::diff_assert(avail, used); }
+    auto free() const { return diff_assert(avail, used); }
     auto locked() const { return used; }
-    auto total() const { return Funds_uint64::sum_assert(avail, used); }
+    auto total() const { return sum_assert(avail, used); }
     bool is_clean() { return used.is_zero(); }
 
 private:
@@ -83,7 +83,7 @@ private:
     Txset txs;
     TokenData byToken;
     template <typename... Comparators>
-    struct CombineIndices {
+    struct MultiIndex {
         static_assert(sizeof...(Comparators) > 0);
         using tuple_t = std::tuple<std::set<const_iter_t, Comparators>...>;
         template <size_t I>
@@ -103,28 +103,36 @@ private:
             struct check_t {
                 size_t size;
                 bool inserted;
+                bool operator==(const check_t&) const = default;
             };
             std::optional<check_t> prev;
-            std::apply([&](auto& set) {
-                auto inserted { set.insert(iter).second };
-                check_t next { set.size(), inserted };
-                if (prev)
-                    assert(*prev == next);
-                else
-                    prev = next;
-            });
-            return prev.value();
+            std::apply([&](auto&... args) {
+                ([&](auto& arg) {
+                    auto inserted { arg.insert(iter).second };
+                    check_t next { arg.size(), inserted };
+                    if (prev)
+                        assert(*prev == next);
+                    else
+                        prev = next;
+                }(args),
+                    ...);
+            },
+                tuple);
+            return prev.value().inserted;
         }
         size_t erase(const_iter_t iter)
         {
             std::optional<size_t> prevErased;
-            std::apply([&](auto& set) {
-                auto erased { set.erase(iter) };
-                if (prevErased)
-                    assert(*prevErased == erased);
-                else
-                    prevErased = erased;
-            });
+            std::apply([&](auto&... args) {
+                ([&](auto& arg) {
+                    auto erased { arg.erase(iter) };
+                    if (prevErased)
+                        assert(*prevErased == erased);
+                    else
+                        prevErased = erased;
+                }(args),
+                    ...);
+            }, tuple);
             return prevErased.value();
         }
         auto size() const { return get<0>().size(); }
@@ -132,7 +140,7 @@ private:
     private:
         tuple_t tuple;
     };
-    struct : public CombineIndices<ComparatorPin, ComparatorTokenAccountFee, ComparatorAccountFee, ComparatorHash> {
+    struct : public MultiIndex<ComparatorPin, ComparatorTokenAccountFee, ComparatorAccountFee, ComparatorHash> {
         [[nodiscard]] const auto& pin() const { return get<0>(); }
         [[nodiscard]] const auto& account_token_fee() const { return get<1>(); }
         [[nodiscard]] const auto& account_fee() const { return get<2>(); }

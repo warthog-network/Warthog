@@ -73,7 +73,7 @@ public:
         s << total << locked;
     }
 
-    auto free_assert() const { return Funds_uint64::diff_assert(total, locked); }
+    auto free_assert() const { return diff_assert(total, locked); }
     static constexpr Balance_uint64 zero()
     {
         return { 0, 0 };

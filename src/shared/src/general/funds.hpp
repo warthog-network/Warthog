@@ -118,7 +118,7 @@ public:
     }
 
     template <typename... T>
-    static R sum_throw(FundsBase<R> a, T&&... t)
+    friend R sum_throw(FundsBase<R> a, T&&... t)
     {
         auto s { sum(a, std::forward<T>(t)...) };
         if (!s.has_value())
@@ -127,7 +127,7 @@ public:
     }
 
     template <typename... T>
-    static R sum_assert(FundsBase<R> a, T&&... t)
+    friend R sum_assert(FundsBase<R> a, T&&... t)
     {
         auto s { sum(a, std::forward<T>(t)...) };
         assert(s.has_value());
@@ -138,19 +138,19 @@ public:
     {
         *this = diff_assert(*this, f);
     }
-    static std::optional<R> diff(FundsBase<R> a, FundsBase<R> b)
+    friend std::optional<R> diff(FundsBase<R> a, FundsBase<R> b)
     {
         if (a.val < b.val)
             return {};
         return from_value(a.val - b.val);
     }
-    static R diff_assert(FundsBase<R> a, FundsBase<R> b)
+    friend R diff_assert(FundsBase<R> a, FundsBase<R> b)
     {
         auto d { diff(a, b) };
         assert(d.has_value());
         return *d;
     }
-    static R diff_throw(FundsBase<R> a, FundsBase<R> b)
+    friend R diff_throw(FundsBase<R> a, FundsBase<R> b)
     {
         auto d { diff(a, b) };
         if (!d.has_value())

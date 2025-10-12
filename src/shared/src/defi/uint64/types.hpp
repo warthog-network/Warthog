@@ -63,12 +63,12 @@ struct BaseQuote_uint64 {
     {
         auto q { multiply_floor(base.value(), p) };
         if (q.has_value() && *q <= quote) // too much base
-            return { true, Funds_uint64::diff_assert(quote, Funds_uint64::from_value_throw(*q)) };
+            return { true, diff_assert(quote, Funds_uint64::from_value_throw(*q)) };
         auto b { divide_floor(quote.value(), p) };
         assert(b.has_value()); // TODO: verify assert by checking precision of
                                // divide_floor
         assert(*b <= base);
-        return { false, Funds_uint64::diff_assert(base, Funds_uint64::from_value_throw(*b)) };
+        return { false, diff_assert(base, Funds_uint64::from_value_throw(*b)) };
     }
     auto price() const { return PriceRelative_uint64::from_fraction(quote.value(), base.value()); }
 };

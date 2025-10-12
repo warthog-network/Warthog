@@ -95,7 +95,7 @@ public:
             throw Error(EZEROWART);
     }
 
-    [[nodiscard]] Wart spend_wart_throw() const { return Wart::sum_throw(fee(), wart()); }
+    [[nodiscard]] Wart spend_wart_throw() const { return sum_throw(fee(), wart()); }
 };
 
 class TokenTransferMessage : public ComposeTransactionMessage<2, AssetHashEl, LiquidityFlagEl, ToAddrEl, AmountEl> { // for defi we include the asset hash
@@ -134,14 +134,14 @@ public:
             return {};
         return messages::SpendToken { asset_hash(), false, amount() };
     }
-    [[nodiscard]] Wart spend_wart_throw() const { return Wart::sum_throw(fee(), buy() ? Wart::from_funds_throw(amount()) : Wart(0)); }
+    [[nodiscard]] Wart spend_wart_throw() const { return sum_throw(fee(), buy() ? Wart::from_funds_throw(amount()) : Wart(0)); }
     using parent_t::parent_t;
 };
 class LiquidityDepositMessage : public ComposeTransactionMessage<5, AssetHashEl, WartEl, AmountEl> {
     static_assert(has_asset_hash);
 
 public:
-    [[nodiscard]] Wart spend_wart_throw() const { return Wart::sum_throw(fee(), wart()); }
+    [[nodiscard]] Wart spend_wart_throw() const { return sum_throw(fee(), wart()); }
     [[nodiscard]] messages::SpendToken spend_token_throw() const
     {
         return { asset_hash(), false, amount() };

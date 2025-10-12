@@ -53,12 +53,12 @@ struct StateIdBase : public UInt64WithOperators<self_t> {
 // and assets. By doing this, the sqlite table will not need as much space for the
 // table ids as it would if we used the same globally incremented id over
 // all tables.
-class StateId32 : public StateIdBase<StateId32, AccountId> {
+class StateId32 : public StateIdBase<StateId32> {
     using parent_t::parent_t;
 };
 
 // This state id can grow over 2^32 in the long run.
-class StateId64 : public StateIdBase<StateId64, BalanceId, TokenForkBalanceId, AssetId> {
+class StateId64 : public StateIdBase<StateId64, AccountId, BalanceId, TokenForkBalanceId, AssetId> {
 public:
     using parent_t::parent_t;
 };
@@ -99,6 +99,12 @@ class StateIncrementer {
         operator StateId64() &&
         {
             return s.next64;
+        }
+        template <typename T>
+        requires(StateId64::is_id_t<T>())
+        auto& get_state() const
+        {
+
         }
     };
     class Next : public NextBase<const StateIncrementer> {

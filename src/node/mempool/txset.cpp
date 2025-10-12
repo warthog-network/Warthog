@@ -13,7 +13,7 @@ auto Txset::by_fee_inc_le(AccountId id, std::optional<CompactUInt> threshold) co
             iterators.push_back(iter);
     }
     std::sort(iterators.begin(), iterators.end(), [](const_iter_t it1, const_iter_t it2) {
-        return lex_less(it1, it2, get_fee, get_nonce_id);
+        return lex_less_by<CompactUInt, NonceId>(it1, it2);
     });
     return iterators;
 };

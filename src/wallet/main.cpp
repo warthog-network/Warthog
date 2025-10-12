@@ -122,7 +122,7 @@ Funds_uint64 read_amount(auto balance_lambda, CompactUInt cfee)
         auto fee(cfee.uncompact());
         if (balance <= fee)
             throw std::runtime_error("Insufficient funds");
-        return Funds_uint64::diff_assert(balance, fee);
+        return diff_assert(balance, fee);
     }
     return parse_amount(input);
 }

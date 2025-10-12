@@ -594,7 +594,7 @@ Result<ChainMiningTask> State::mining_task(const Address& miner, bool disableTxs
 
             std::vector<Address> newAddresses;
             auto addr_id {
-                [&, map = std::map<Address, AccountId> {}, nextAccountId = db.next_id32()](const Address& address) mutable -> AccountId {
+                [&, map = std::map<Address, AccountId> {}, nextAccountId = db.next_id()](const Address& address) mutable -> AccountId {
                     auto a { db.lookup_account(address) };
                     if (a)
                         return a.value();

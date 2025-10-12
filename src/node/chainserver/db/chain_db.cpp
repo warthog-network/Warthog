@@ -799,7 +799,7 @@ std::optional<std::pair<BalanceId, Balance_uint64>> ChainDB::get_balance(Account
     auto res { stmtTokenSelectBalance.one(tid, aid) };
     if (!res.has_value())
         return {};
-    return std::pair<BalanceId, Balance_uint64> { res[0], { res[1], res[2] } };
+    return std::pair<BalanceId, Balance_uint64> { res[0], Balance_uint64::from_total_locked( res[1], res[2] ) };
 }
 
 std::vector<std::pair<TokenId, Funds_uint64>> ChainDB::get_tokens(AccountId accountId, size_t limit)

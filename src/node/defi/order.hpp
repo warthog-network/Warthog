@@ -12,7 +12,7 @@ struct OrderData {
     Funds_uint64 filled;
     Funds_uint64 remaining() const
     {
-        return Funds_uint64::diff_assert(order.amount, filled);
+        return diff_assert(order.amount, filled);
     }
     OrderData(HistoryId id, TransactionId txid,
         Funds_uint64 amount, Funds_uint64 filled, Price_uint64 limit)

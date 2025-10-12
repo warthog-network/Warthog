@@ -934,16 +934,16 @@ private:
     auto process_existing_balance(const AccountToken& at, const BalanceFlow& flow, const IdBalance ib)
     {
         // check that balances are correct
-        auto lockedPositive { Funds_uint64::sum_throw(flow.locked.positive(), ib.balance.locked) };
-        auto lockedUpdated { Funds_uint64::diff_throw(lockedPositive, flow.locked.negative()) }; // throws if < 0
-        auto totalPositive { Funds_uint64::sum_throw(flow.total.positive(), ib.balance.total) };
-        auto totalUpdated { Funds_uint64::diff_throw(totalPositive, flow.total.negative()) }; // throws if < 0
+        auto lockedPositive { sum_throw(flow.locked.positive(), ib.balance.locked) };
+        auto lockedUpdated { diff_throw(lockedPositive, flow.locked.negative()) }; // throws if < 0
+        auto totalPositive { sum_throw(flow.total.positive(), ib.balance.total) };
+        auto totalUpdated { diff_throw(totalPositive, flow.total.negative()) }; // throws if < 0
         if (totalUpdated < lockedUpdated)
             throw Error(EBALANCE);
         blockEffects.insert(block_apply::BalanceUpdate { .at { at },
             .id { ib.id },
             .original { ib.balance },
-            .updated { totalUpdated, lockedUpdated } });
+            .updated { Balance_uint64::from_total_locked(totalUpdated, lockedUpdated) } });
     }
     auto db_addr(AccountId id)
     {
@@ -1000,7 +1000,7 @@ private:
         const auto& balanceChecker { this->balanceChecker }; // shadow balanceChecker
 
         auto& r { balanceChecker.get_reward() };
-        if (r.wart > Wart::sum_throw(height.reward(), balanceChecker.getTotalFee()))
+        if (r.wart > sum_throw(height.reward(), balanceChecker.getTotalFee()))
             throw Error(EBALANCE);
         assert(!r.toAddress.is_null());
         auto& ref { history.push_reward(r) };
