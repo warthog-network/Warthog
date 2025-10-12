@@ -786,7 +786,6 @@ public:
     const ChainDB& db;
     const PinFloor newPinFloor;
     const HistoryId oldHistoryIdStart;
-    const StateId32 oldStateId32Start;
     const StateId64 oldStateId64Start;
     struct DeletePool { };
     using UpdatePool = chain_db::PoolData;
@@ -811,7 +810,6 @@ private:
         : db(db)
         , newPinFloor(beginHeight.pin_floor())
         , oldHistoryIdStart(oldHistoryIdStart)
-        , oldStateId32Start(rb.next_state_id32())
         , oldStateId64Start(rb.next_state_id64())
     {
     }
@@ -822,8 +820,6 @@ private:
     {
         if constexpr (std::is_same_v<std::remove_cvref_t<T>, HistoryId>) {
             return t >= oldHistoryIdStart;
-        } else if constexpr (StateId32::is_id_t<std::remove_cvref_t<T>>()) {
-            return StateId32::from_id(t) >= oldStateId32Start;
         } else if constexpr (StateId64::is_id_t<std::remove_cvref_t<T>>()) {
             return StateId64::from_id(t) >= oldStateId64Start;
         } else {
@@ -997,7 +993,7 @@ State::rollback(const Height newlength) const
     }
 
     db.delete_history_from(newlength.add1());
-    db.delete_state32_from(rs.oldStateId32Start);
+    // db.delete_state32_from(rs.oldStateId32Start);
     db.delete_state64_from(rs.oldStateId64Start);
     auto dk { db.delete_consensus_from((newlength + 1).nonzero_assert()) };
 

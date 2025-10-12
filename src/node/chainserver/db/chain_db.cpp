@@ -179,9 +179,9 @@ ChainDB::Database::Database(const std::string& path)
          "`" BALANCES_TABLE "` (`token_id`, `total` DESC)");
     exec("CREATE TABLE IF NOT EXISTS `" CONSENSUS_TABLE "` ( `height` INTEGER NOT "
          "NULL, `block_id` INTEGER NOT NULL, `history_cursor` INTEGER NOT "
-         "NULL, `account_cursor` INTEGER NOT NULL, PRIMARY KEY(`height`) )");
+         "NULL, `state_cursor` INTEGER NOT NULL, PRIMARY KEY(`height`) )");
     exec(" INSERT OR IGNORE INTO `" CONSENSUS_TABLE "` (`height`, "
-         "`block_id`,`history_cursor`, `account_cursor`) "
+         "`block_id`,`history_cursor`, `state_cursor`) "
          "VALUES "
          "(-1,x'"
          "0000000000000000000000000000000000000000000000000000000000"
@@ -232,7 +232,7 @@ ChainDB::Cache ChainDB::Cache::init(SQLite::Database& db)
 {
     GetNextId nextId(db);
     return {
-        .ids { StateId32::max_component(nextId), StateId64::max_component(nextId) },
+        .ids { /* StateId32::max_component(nextId), */ StateId64::max_component(nextId) },
         .nextHistoryId { static_cast<HistoryId>(nextId) },
         .deletionKey { 2 }
     };
@@ -246,7 +246,7 @@ ChainDB::ChainDB(const std::string& path)
     : fl(path)
     , db(path)
     , cache(Cache::init(db))
-    , state32Statements(db)
+    // , state32Statements(db)
     , state64Statements(db)
     , stmtBlockInsert(db, "INSERT INTO `" BLOCKS_TABLE "` ( `height`, `header`, `body` "
                           ", `hash`) VALUES (?,?,?,?)")
@@ -302,13 +302,13 @@ ChainDB::ChainDB(const std::string& path)
     , stmtTokenUpdateBalanceTotalById(db, "UPDATE `" BALANCES_TABLE "` SET `total`=? WHERE `id`=?")
     , stmtTokenUpdateBalanceLockedById(db, "UPDATE `" BALANCES_TABLE "` SET `locked`=? WHERE `id`=?")
     , stmtTokenSelectRichlist(db, "SELECT `address`, `total` FROM `" BALANCES_TABLE "` b JOIN `" ACCOUNTS_TABLE "` a on a.id = b.account_id WHERE `token_id`=? ORDER BY `total` DESC LIMIT ?")
-    , stmtConsensusHeaders(db, "SELECT c.height, c.history_cursor, c.account_cursor, b.header "
+    , stmtConsensusHeaders(db, "SELECT c.height, c.history_cursor, c.state_cursor, b.header "
                                "FROM `" BLOCKS_TABLE "` b JOIN `" CONSENSUS_TABLE "` c ON "
                                "b.ROWID=c.block_id ORDER BY c.height ASC;")
     , stmtConsensusInsert(db, "INSERT INTO `" CONSENSUS_TABLE "` ( `height`, "
-                              "`block_id`, `history_cursor`, `account_cursor`) VALUES (?,?,?,?)")
+                              "`block_id`, `history_cursor`, `state_cursor`) VALUES (?,?,?,?)")
     , stmtConsensusSetProperty(
-          db, "INSERT OR REPLACE INTO `" CONSENSUS_TABLE "` (`height`,`block_id`, `history_cursor`, `account_cursor`) VALUES (?,?,0,0)")
+          db, "INSERT OR REPLACE INTO `" CONSENSUS_TABLE "` (`height`,`block_id`, `history_cursor`, `state_cursor`) VALUES (?,?,0,0)")
     , stmtConsensusSelect(
           db, "SELECT `block_id` FROM `" CONSENSUS_TABLE "` WHERE `height`=?")
     , stmtConsensusSelectRange(
@@ -377,17 +377,17 @@ void ChainDB::insert_unguarded(const AccountData& ad)
     stmtAccountsInsert.run(ad.id, ad.address);
 }
 
-void ChainDB::delete_state32_from(StateId32 fromId)
-{
-    assert(fromId.value() > 0);
-    auto& next_ref { cache.ids.next32 };
-    if (next_ref <= fromId) {
-        spdlog::error("BUG: Deleting nothing, fromId = {} >= {} = cache.stateId32", fromId.value(), next_ref.value());
-    } else {
-        next_ref = fromId;
-        state32Statements.delete_from(fromId);
-    }
-}
+// void ChainDB::delete_state32_from(StateId32 fromId)
+// {
+//     assert(fromId.value() > 0);
+//     auto& next_ref { cache.ids.next32 };
+//     if (next_ref <= fromId) {
+//         spdlog::error("BUG: Deleting nothing, fromId = {} >= {} = cache.stateId32", fromId.value(), next_ref.value());
+//     } else {
+//         next_ref = fromId;
+//         state32Statements.delete_from(fromId);
+//     }
+// }
 void ChainDB::delete_state64_from(StateId64 fromId)
 {
     assert(fromId.value() > 0);
@@ -400,7 +400,7 @@ void ChainDB::delete_state64_from(StateId64 fromId)
     }
 }
 
-void ChainDB::insert_consensus(NonzeroHeight height, BlockId blockId, HistoryId historyCursor, StateId32 stateId)
+void ChainDB::insert_consensus(NonzeroHeight height, BlockId blockId, HistoryId historyCursor, StateId64 stateId)
 {
     stmtConsensusInsert.run(height, blockId, historyCursor, stateId);
     stmtScheduleDelete.run(blockId);

@@ -192,13 +192,12 @@ struct Poolstate {
 };
 
 using BaseData = Serializable<
-    StateId32, // 0
-    StateId64, // 1
-    std::vector<IdBalance>, // 2
-    std::vector<OrderData>, // 3
-    std::vector<OrderFillstate>, // 4
-    std::vector<Poolstate>, // 5
-    std::vector<AssetId>>; // 6
+    StateId64, // 0
+    std::vector<IdBalance>, // 1
+    std::vector<OrderData>, // 2
+    std::vector<OrderFillstate>, // 3
+    std::vector<Poolstate>, // 4
+    std::vector<AssetId>>; // 5
 class Data : protected BaseData {
 
 private:
@@ -215,21 +214,20 @@ public:
     {
     }
     Data(const ChainDB& db)
-        : BaseData(db.next_id(), db.next_id(), {}, {}, {}, {}, {})
+        : BaseData( db.next_id(), {}, {}, {}, {}, {})
     {
     }
-    auto& next_state_id32() const { return get<0>(); }
-    auto& next_state_id64() const { return get<1>(); }
-    auto& original_balances() { return get<2>(); }
-    auto& original_balances() const { return get<2>(); }
-    auto& original_orders() { return get<3>(); }
-    auto& original_orders() const { return get<3>(); }
-    auto& original_fillstates() { return get<4>(); }
-    auto& original_fillstates() const { return get<4>(); }
-    auto& original_poolstates() { return get<5>(); }
-    auto& original_poolstates() const { return get<5>(); }
-    auto& newly_created_pools() { return get<6>(); }
-    auto& newly_created_pools() const { return get<6>(); }
+    auto& next_state_id64() const { return get<0>(); }
+    auto& original_balances() { return get<1>(); }
+    auto& original_balances() const { return get<1>(); }
+    auto& original_orders() { return get<2>(); }
+    auto& original_orders() const { return get<2>(); }
+    auto& original_fillstates() { return get<3>(); }
+    auto& original_fillstates() const { return get<3>(); }
+    auto& original_poolstates() { return get<4>(); }
+    auto& original_poolstates() const { return get<4>(); }
+    auto& newly_created_pools() { return get<5>(); }
+    auto& newly_created_pools() const { return get<5>(); }
 
 private:
     auto get_id(auto&& element)
@@ -264,12 +262,12 @@ private:
             return;
         register_object(vector, std::move(element));
     }
-    void register_object32(auto& vector, auto element)
-    {
-        if (state_id(get_id(element)) >= next_state_id32())
-            return;
-        register_object(vector, std::move(element));
-    }
+    // void register_object32(auto& vector, auto element)
+    // {
+    //     if (state_id(get_id(element)) >= next_state_id32())
+    //         return;
+    //     register_object(vector, std::move(element));
+    // }
 
 public:
     void register_original_balance(IdBalance o)

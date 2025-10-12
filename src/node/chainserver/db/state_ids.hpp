@@ -66,9 +66,10 @@ public:
 template <typename T>
 [[nodiscard]] auto state_id(T&& t)
 {
-    if constexpr (StateId32::is_id_t<std::remove_cvref_t<T>>()) {
-        return StateId32::from_id(t);
-    } else if constexpr (StateId64::is_id_t<std::remove_cvref_t<T>>()) {
+    // if constexpr (StateId32::is_id_t<std::remove_cvref_t<T>>()) {
+    //     return StateId32::from_id(t);
+    // } else 
+    if constexpr (StateId64::is_id_t<std::remove_cvref_t<T>>()) {
         return StateId64::from_id(t);
     } else {
         static_assert(false, "argument has no state id");
@@ -100,12 +101,6 @@ class StateIncrementer {
         {
             return s.next64;
         }
-        template <typename T>
-        requires(StateId64::is_id_t<T>())
-        auto& get_state() const
-        {
-
-        }
     };
     class Next : public NextBase<const StateIncrementer> {
         friend class StateIncrementer;
@@ -133,22 +128,22 @@ class StateIncrementer {
     };
 
 public:
-    StateId32 next32;
+    // StateId32 next32;
     StateId64 next64;
 
 public:
-    template <typename T>
-    requires(StateId32::is_id_t<T>())
-    auto& get_state()
-    {
-        return next32;
-    }
-    template <typename T>
-    requires(StateId32::is_id_t<T>())
-    auto& get_state() const
-    {
-        return next32;
-    }
+    // template <typename T>
+    // requires(StateId32::is_id_t<T>())
+    // auto& get_state()
+    // {
+    //     return next32;
+    // }
+    // template <typename T>
+    // requires(StateId32::is_id_t<T>())
+    // auto& get_state() const
+    // {
+    //     return next32;
+    // }
     template <typename T>
     requires(StateId64::is_id_t<T>())
     auto& get_state()
@@ -167,9 +162,9 @@ public:
     {
         return get_state<std::remove_cvref_t<T>>();
     }
-    StateIncrementer(StateId32 next32, StateId64 next64)
-        : next32(next32)
-        , next64(next64)
+    StateIncrementer(/* StateId32 next32, */ StateId64 next64)
+        // : next32(next32)
+        : next64(next64)
     {
     }
     Next next() const { return { *this }; }

@@ -1340,7 +1340,7 @@ api::CompleteBlock BlockApplier::apply_block(const Block& block, const BlockHash
         db.set_block_undo(blockId, rollback.serialize());
 
         // write consensus data
-        db.insert_consensus(block.height, blockId, db.next_history_id(), rollback.next_state_id32());
+        db.insert_consensus(block.height, blockId, db.next_history_id(), rollback.next_state_id64());
 
         // write history entries
         prepared.historyEntries.write(db);

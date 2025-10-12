@@ -138,10 +138,10 @@ private:
     void insert_unguarded(const BalanceData&);
 
 public:
-    void delete_state32_from(StateId32 fromStateId);
+    // void delete_state32_from(StateId32 fromStateId);
     void delete_state64_from(StateId64 fromStateId);
     // void setStateBalance(AccountId accountId, Funds balance);
-    void insert_consensus(NonzeroHeight height, BlockId blockId, HistoryId historyCursor, StateId32 stateId);
+    void insert_consensus(NonzeroHeight height, BlockId blockId, HistoryId historyCursor, StateId64 stateId);
 
     std::tuple<std::vector<Batch>, HistoryHeights, State64Heights>
     get_consensus_headers() const;
@@ -306,7 +306,7 @@ private:
         DeletionKey deletionKey;
         static Cache init(SQLite::Database& db);
     } cache;
-    StateIdStatements<StateId32> state32Statements;
+    // StateIdStatements<StateId32> state32Statements;
     StateIdStatements<StateId64> state64Statements;
     Statement stmtBlockInsert;
     Statement stmtUndoSet;
