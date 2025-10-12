@@ -24,7 +24,7 @@ struct RollbackResult {
 struct AppendBlocksResult {
     free_balance_udpates_t freeBalanceUpdates;
     std::vector<HistoryId> newHistoryOffsets;
-    std::vector<StateId32> state32Offsets;
+    std::vector<StateId64> stateOffsets;
     TransactionIds newTxIds;
 };
 
@@ -47,8 +47,7 @@ struct Chainstate {
         HeaderVerifier::PreparedAppend prepared;
         TransactionIds&& newTxIds;
         HistoryId newHistoryOffset;
-        AccountId newAccountOffset;
-        StateId32 nextStateId;
+        StateId64 newStateOffset;
     };
     Chainstate(const ChainDB& db, BatchRegistry& br);
 
@@ -87,15 +86,15 @@ struct Chainstate {
     {
         return historyOffsets.height(historyIndex);
     }
-    State32Height account_height(AccountId id) const
+    StateHeight account_height(AccountId id) const
     {
-        return state32Offsets.height(state_id(id));
+        return stateOffsets.height(state_id(id));
     }
 
 protected:
     TxHash insert_tx_internal(const TransactionMessage&, TxHeight, TxHash, DBCache&, const Address fromAddr);
     void prune_txids();
-    Chainstate(std::tuple<std::vector<Batch>, HistoryHeights, State32Heights> init,
+    Chainstate(std::tuple<std::vector<Batch>, HistoryHeights, State64Heights> init,
         const ChainDB& db, BatchRegistry& br);
 
 private:
@@ -104,7 +103,7 @@ private:
     void assert_equal_length();
     ExtendableHeaderchain headerchain;
     HistoryHeights historyOffsets;
-    State32Heights state32Offsets;
+    State64Heights stateOffsets;
     TransactionIds chainTxIds; // replay protection
     mempool::Mempool _mempool;
 };

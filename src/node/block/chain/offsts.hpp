@@ -43,4 +43,4 @@ protected:
     std::vector<T> data;
 };
 using HistoryHeights = Heights<NonzeroHeight, HistoryId>;
-using State32Heights = Heights<State32Height, StateId32>;
+using State64Heights = Heights<StateHeight, StateId64>;

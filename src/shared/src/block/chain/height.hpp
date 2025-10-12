@@ -313,12 +313,12 @@ inline PinHeight Height::pin_begin() const
     return *ph;
 }
 
-struct State32Height : public NonzeroHeight {
+struct StateHeight : public NonzeroHeight {
     using NonzeroHeight::NonzeroHeight;
 };
 
 struct TxHeight : public NonzeroHeight {
-    TxHeight(PinHeight ph, State32Height ah)
+    TxHeight(PinHeight ph, StateHeight ah)
         : NonzeroHeight([&]() -> NonzeroHeight {
             if (ah < ph)
                 return NonzeroHeight(ph);

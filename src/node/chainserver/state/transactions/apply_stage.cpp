@@ -24,7 +24,7 @@ ApplyStageTransaction::ApplyStageTransaction(const State& s, ChainDBTransaction&
     NonzeroHeight h = (chainlength + 1).nonzero_assert();
     for (; h <= ccs.stage.length(); ++h) {
         auto historyId { ccs.db.next_history_id() };
-        auto state32Id { ccs.db.next_id32() };
+        StateId64 stateId { ccs.db.next_id() };
         auto hash { ccs.stage.hash_at(h) };
         auto p = ccs.db.get_block(hash);
         if (!p) {
@@ -51,7 +51,7 @@ ApplyStageTransaction::ApplyStageTransaction(const State& s, ChainDBTransaction&
             return { e, h };
         }
         res.newHistoryOffsets.push_back(historyId);
-        res.state32Offsets.push_back(state32Id);
+        res.stateOffsets.push_back(stateId);
         chainlength = h;
     }
     assert((ccs.stage.length() + 1).nonzero_assert() == h);

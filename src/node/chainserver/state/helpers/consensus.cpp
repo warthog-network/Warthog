@@ -12,13 +12,13 @@ Chainstate::Chainstate(const ChainDB& db, BatchRegistry& br)
 }
 
 Chainstate::Chainstate(
-    std::tuple<std::vector<Batch>, HistoryHeights, State32Heights> init,
+    std::tuple<std::vector<Batch>, HistoryHeights, State64Heights> init,
     const ChainDB& db,
     BatchRegistry& br)
     : db(db)
     , headerchain(std::move(std::get<0>(init)), br)
     , historyOffsets(std::move(std::get<1>(init)))
-    , state32Offsets(std::move(std::get<2>(init)))
+    , stateOffsets(std::move(std::get<2>(init)))
     , chainTxIds(db.fetch_tx_ids(length()))
 {
     assert(this->historyOffsets.size() == headerchain.length());
@@ -28,7 +28,7 @@ Chainstate::Chainstate(
 void Chainstate::assert_equal_length()
 {
     assert(historyOffsets.size() == headerchain.length());
-    assert(state32Offsets.size() == headerchain.length());
+    assert(stateOffsets.size() == headerchain.length());
 }
 
 void Chainstate::fork(Chainstate::ForkData&& fd)
@@ -43,8 +43,8 @@ void Chainstate::fork(Chainstate::ForkData&& fd)
     headerchain = std::move(fd.stage);
     historyOffsets.shrink(fd.rollbackResult.shrink.length);
     historyOffsets.append_vector(fd.appendResult.newHistoryOffsets);
-    state32Offsets.shrink(fd.rollbackResult.shrink.length);
-    state32Offsets.append_vector(fd.appendResult.state32Offsets);
+    stateOffsets.shrink(fd.rollbackResult.shrink.length);
+    stateOffsets.append_vector(fd.appendResult.stateOffsets);
     assert_equal_length();
 
     //////////////////////////////
@@ -63,7 +63,7 @@ void Chainstate::fork(Chainstate::ForkData&& fd)
     DBCache dbCache(db);
     for (auto& tx : fd.rollbackResult.toMempool) {
         AccountId fromId { tx.from_id() };
-        if (fromId >= db.next_id32())
+        if (fromId >= db.next_id64())
             continue;
 
         PinHeight ph { tx.pin_height() };
@@ -101,7 +101,7 @@ auto Chainstate::rollback(const RollbackResult& rb) -> HeaderchainRollback
     // adapt header chain and offsets
     headerchain.shrink(rb.shrink.length);
     historyOffsets.shrink(rb.shrink.length);
-    state32Offsets.shrink(rb.shrink.length);
+    stateOffsets.shrink(rb.shrink.length);
     assert_equal_length();
 
     // set transaction ids
@@ -158,7 +158,7 @@ auto Chainstate::append(AppendMulti ad) -> HeaderchainAppend
     // adapt header chain and offsets
     headerchain = std::move(ad.patchedChain);
     historyOffsets.append_vector(ad.appendResult.newHistoryOffsets);
-    state32Offsets.append_vector(ad.appendResult.state32Offsets);
+    stateOffsets.append_vector(ad.appendResult.stateOffsets);
     assert_equal_length();
 
     //////////////////////////////
@@ -192,7 +192,7 @@ auto Chainstate::append(AppendSingle d) -> HeaderchainAppend
     // adapt header chain and offsets
     headerchain.append(d.prepared, *global().batchRegistry);
     historyOffsets.append(d.newHistoryOffset);
-    state32Offsets.append(state_id(d.newAccountOffset));
+    stateOffsets.append(d.newStateOffset);
     assert_equal_length();
 
     //////////////////////////////

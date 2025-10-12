@@ -591,10 +591,11 @@ Result<ChainMiningTask> State::mining_task(const Address& miner, bool disableTxs
             auto minerReward { height.reward() };
 
             using namespace block;
+            AccountId nextAccountId { db.next_id() };
 
             std::vector<Address> newAddresses;
             auto addr_id {
-                [&, map = std::map<Address, AccountId> {}, nextAccountId = db.next_id()](const Address& address) mutable -> AccountId {
+                [&, map = std::map<Address, AccountId> {}](const Address& address) mutable -> AccountId {
                     auto a { db.lookup_account(address) };
                     if (a)
                         return a.value();
@@ -928,7 +929,7 @@ public:
                     if (!b.has_value())
                         throw std::runtime_error("Database corrupted, cannot roll back");
 
-                    freeBalanceUpdates.insert_or_assign(AccountToken{b->accountId,b->tokenId}, bal.free_assert());
+                    freeBalanceUpdates.insert_or_assign(AccountToken { b->accountId, b->tokenId }, bal.free_assert());
                     balanceUpdates.try_emplace(id, bal);
                 });
             rbv.foreach_deleted_order([&](const rollback::OrderData& o) {
@@ -1128,9 +1129,8 @@ auto State::append_mined_block(const Block& b) -> StateUpdateWithAPIBlocks
     if (chainlength() + 1 != b.height)
         throw Error(EBADHEIGHT);
 
-    const auto nextAccountAndAssetId { db.next_id32() };
+    const auto nextStateId { db.next_id64() };
     const auto nextHistoryId { db.next_history_id() };
-    const auto nextId32 { db.next_id32() };
 
     // do db transaction for new block
     auto transaction = db.transaction();
@@ -1154,8 +1154,8 @@ auto State::append_mined_block(const Block& b) -> StateUpdateWithAPIBlocks
         .prepared { prepared.value() },
         .newTxIds { e.move_new_txids() },
         .newHistoryOffset { nextHistoryId },
-        .newAccountOffset { nextId32 },
-        .nextStateId = nextAccountAndAssetId });
+        .newStateOffset { nextStateId }
+    });
     ul.unlock();
 
     dbCacheValidity += 1;

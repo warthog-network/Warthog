@@ -143,7 +143,7 @@ public:
     // void setStateBalance(AccountId accountId, Funds balance);
     void insert_consensus(NonzeroHeight height, BlockId blockId, HistoryId historyCursor, StateId32 stateId);
 
-    std::tuple<std::vector<Batch>, HistoryHeights, State32Heights>
+    std::tuple<std::vector<Batch>, HistoryHeights, State64Heights>
     get_consensus_headers() const;
 
     // Consensus Functions
@@ -278,8 +278,9 @@ public:
         return cache.nextHistoryId;
     }
     const auto& id_incrementer() const { return cache.ids; }
-    StateId32 next_id32() const { return cache.ids.next(); }
     auto next_id() const { return cache.ids.next(); }
+    StateId64 next_id64() const { return next_id(); }
+    // StateId32 next_id32() const { return next_id(); }
 
     [[nodiscard]] std::pair<std::optional<BalanceId>, Balance_uint64> get_token_balance_recursive(AccountId aid, TokenId tid, api::AssetLookupTrace* trace = nullptr) const;
     [[nodiscard]] std::pair<std::optional<BalanceId>, Funds_uint64> get_free_balance(AccountToken at) const;
