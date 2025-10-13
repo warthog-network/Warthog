@@ -3,7 +3,7 @@
 #include "chainserver/state/helpers/cache.hpp"
 // #include "api/events/emit.hpp"
 namespace mempool {
-bool LockedBalance::set_avail(Funds_uint64 amount)
+bool LockedBalance::try_set_avail(Funds_uint64 amount)
 {
     if (used > amount)
         return false;
@@ -202,7 +202,7 @@ void Mempool::set_free_balance(AccountToken at, Funds_uint64 newBalance)
     if (b_iter == lockedBalances.end())
         return;
     auto& balanceEntry { b_iter->second };
-    if (balanceEntry.set_avail(newBalance))
+    if (balanceEntry.try_set_avail(newBalance))
         return;
 
     auto iterators { txs.by_fee_inc_le(at.account_id()) };
@@ -213,7 +213,7 @@ void Mempool::set_free_balance(AccountToken at, Funds_uint64 newBalance)
         assert(allErased == lastIteration);
         // balanceEntry reference is invalidateed when all entries are erased
         // because it will be wiped together with last entry.
-        if (allErased || balanceEntry.set_avail(newBalance))
+        if (allErased || balanceEntry.try_set_avail(newBalance))
             return;
     }
     assert(false); // should not happen

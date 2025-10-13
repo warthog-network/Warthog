@@ -15,7 +15,7 @@ struct LockedBalance {
 
     void lock(Funds_uint64 amount);
     void unlock(Funds_uint64 amount);
-    [[nodiscard]] bool set_avail(Funds_uint64 amount);
+    [[nodiscard]] bool try_set_avail(Funds_uint64 amount);
     auto free() const { return diff_assert(avail, used); }
     auto locked() const { return used; }
     auto total() const { return sum_assert(avail, used); }
