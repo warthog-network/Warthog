@@ -129,6 +129,11 @@ struct For<CompactUInt> {
 };
 
 template <>
+struct For<TxHeight> {
+    auto operator()(Txset::const_iter_t it) const { return it->txHeight; };
+};
+
+template <>
 struct For<NonceId> {
     auto operator()(Txset::const_iter_t it) const { return it->nonce_id(); }
 };
@@ -138,7 +143,7 @@ struct GetExtractor {
     static constexpr struct : public For<T> {
         using For<T>::operator();
         const T& operator()(const T& t) const { return t; }
-    } value{};
+    } value {};
 };
 
 }

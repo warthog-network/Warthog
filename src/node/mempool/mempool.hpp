@@ -47,8 +47,8 @@ public:
     void insert_tx_throw(const TransactionMessage& pm, TxHeight txh, const TxHash& hash, chainserver::DBCache& wartCache);
     void erase(TransactionId id);
     void set_free_balance(AccountToken, Funds_uint64 newBalance);
-    void erase_from_height(Height);
-    void erase_before_height(Height);
+    void erase_from_height(NonzeroHeight);
+    void erase_pinned_before_height(Height);
 
     // getters
     [[nodiscard]] auto cache_validity() const { return txs.cache_validity(); }
@@ -140,11 +140,12 @@ private:
     private:
         tuple_t tuple;
     };
-    struct : public MultiIndex<ComparatorPin, ComparatorTokenAccountFee, ComparatorAccountFee, ComparatorHash> {
+    struct : public MultiIndex<ComparatorPin, ComparatorTokenAccountFee, ComparatorAccountFee, ComparatorHash, ComparatorTxHeight> {
         [[nodiscard]] const auto& pin() const { return get<0>(); }
         [[nodiscard]] const auto& account_token_fee() const { return get<1>(); }
         [[nodiscard]] const auto& account_fee() const { return get<2>(); }
         [[nodiscard]] const auto& hash() const { return get<3>(); }
+        [[nodiscard]] const auto& txheight() const { return get<4>(); }
     } index;
     ByFeeDesc byFee;
     BalanceEntries lockedBalances;

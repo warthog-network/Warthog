@@ -249,13 +249,13 @@ void ChainServer::on_chain_changed(StateUpdateWithAPIBlocks&& su)
 {
     emit_chain_state_event();
 
-    subscription_state::NewBlockInfo nbi {
+    subscription_state::NewBlockInfo info {
         su.update.chainstateUpdate.rollback(),
         su.appendedBlocks
     };
-    minerdistSubscriptions.on_chain_changed(state, nbi);
-    addressSubscriptions.on_chain_changed(state, nbi);
-    chainSubscriptions.on_chain_changed(state, nbi);
+    minerdistSubscriptions.on_chain_changed(state, info);
+    addressSubscriptions.on_chain_changed(state, info);
+    chainSubscriptions.on_chain_changed(state, info);
 
     // rollback api actions
     if (auto s { su.update.chainstateUpdate.rollback() })

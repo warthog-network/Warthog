@@ -151,14 +151,14 @@ void Mempool::erase_internal(Txset::const_iter_t iter)
     erase_internal(iter, b_iter);
 }
 
-void Mempool::erase_from_height(Height h)
+void Mempool::erase_from_height(NonzeroHeight h)
 {
-    auto iter { index.pin().lower_bound(h) };
-    while (iter != index.pin().end())
+    auto iter { index.txheight().lower_bound(h) };
+    while (iter != index.txheight().end())
         erase_internal(*(iter++));
 }
 
-void Mempool::erase_before_height(Height h)
+void Mempool::erase_pinned_before_height(Height h)
 {
     auto end = index.pin().lower_bound(h);
     for (auto iter = index.pin().begin(); iter != end;)

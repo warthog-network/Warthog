@@ -34,7 +34,7 @@ void Chainstate::assert_equal_length()
 void Chainstate::fork(Chainstate::ForkData&& fd)
 {
 
-    const auto forkHeight { fd.rollbackResult.shrink.length + 1 };
+    const auto forkHeight { fd.rollbackResult.shrink.length.add1() };
     assert(fd.rollbackResult.shrink.length < length());
     // increment descriptor
     dsc += 1;
@@ -92,7 +92,7 @@ void Chainstate::fork(Chainstate::ForkData&& fd)
 
 auto Chainstate::rollback(const RollbackResult& rb) -> HeaderchainRollback
 {
-    const auto forkHeight { rb.shrink.length + 1 };
+    const auto forkHeight { rb.shrink.length.add1() };
     assert(rb.shrink.length < length());
 
     // increment descriptor
@@ -170,7 +170,7 @@ auto Chainstate::append(AppendMulti ad) -> HeaderchainAppend
     // remove from mempool
     // remove outdated transactions
     auto nextBlockPinBegin { (ad.patchedChain.length() + 1).pin_begin() };
-    _mempool.erase_before_height(nextBlockPinBegin);
+    _mempool.erase_pinned_before_height(nextBlockPinBegin);
     // remove used transactions
     for (const auto& tid : ad.appendResult.newTxIds)
         _mempool.erase(tid);
@@ -204,7 +204,7 @@ auto Chainstate::append(AppendSingle d) -> HeaderchainAppend
     // remove from mempool
     // remove outdated transactions
     auto nextBlockPinBegin { (l + 1).pin_begin() };
-    _mempool.erase_before_height(nextBlockPinBegin);
+    _mempool.erase_pinned_before_height(nextBlockPinBegin);
     // remove used transactions
     for (auto& tid : d.newTxIds)
         _mempool.erase(tid);

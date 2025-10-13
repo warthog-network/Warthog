@@ -7,6 +7,19 @@
 
 namespace mempool {
 
+struct ComparatorTxHeight {
+    using const_iter_t = Txset::const_iter_t;
+    using is_transparent = std::true_type;
+    inline bool operator()(const_iter_t i1, Height h2) const
+    {
+        return i1->txHeight< h2;
+    }
+    inline bool operator()(const_iter_t it1, const_iter_t it2) const
+    {
+        return lex_less_by<TxHeight, TransactionId>(it1, it2);
+    }
+};
+
 struct ComparatorPin {
     using const_iter_t = Txset::const_iter_t;
     using is_transparent = std::true_type;
