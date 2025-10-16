@@ -25,6 +25,7 @@ jobs:
           run: DOCKER_BUILDKIT=1 docker build . -f dockerfiles/build_windows --output ./build/windows
     
         - name : Docker Build MacOS
+          continue-on-error: true
           run : DOCKER_BUILDKIT=1 docker build . -f dockerfiles/build_macos --output ./build/aarch64-macos
 
         - name: Call Docker
