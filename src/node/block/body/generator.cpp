@@ -133,20 +133,9 @@ BodyContainer BlockGenerator::gen_block(NonzeroHeight height,
         throw std::runtime_error("Too many payments");
     }
 
-    // filter valid payments to survive self send
-    std::vector<TransferTxExchangeMessage> validTransfers;
-    for (auto& pmsg : transfers) {
-        if (nas.getId(pmsg.toAddr, true).value() == pmsg.from_id()) {
-            // This should not be possible because self sending transactions
-            // are detected on entering mempool.
-            spdlog::warn("Impossible self send detected.");
-            continue;
-        }
-        validTransfers.push_back(pmsg);
-    }
 
     TransferSection trs;
-    for (auto& pmsg : validTransfers) {
+    for (auto& pmsg : transfers) {
         size_t size { 10 + nas.binarysize() + RewardSection::binary_size + trs.binarysize() };
         assert(size <= MAXBLOCKSIZE);
         size_t remaining = MAXBLOCKSIZE - size;
@@ -154,6 +143,20 @@ BodyContainer BlockGenerator::gen_block(NonzeroHeight height,
             break;
         bool allowNewAddress { remaining >= 99 + 20 };
         auto toId = nas.getId(pmsg.toAddr, allowNewAddress);
+
+        // filter out invalid self send 
+        if (toId == pmsg.from_id()) {
+            // This should not be possible because self sending transactions
+            // are detected on entering mempool.
+            spdlog::warn("Impossible self send detected.");
+            // we can continue because nas.getId only assigns a new id to an address if that address
+            // has not existed before and this cannot happen for toId == pmsg.from_id() because in this case
+            // the sender must have positive balance (there are no zero value transactions) and therefore
+            // has existed in the chain before.
+            // => we know that  nas.getId did not assign a new account id to pmsg.toAddr so we can continue without
+            // violating block policy that every account Id must be referred.
+            continue;
+        }
         if (!toId)
             break;
 
