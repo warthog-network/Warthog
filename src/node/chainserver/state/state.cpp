@@ -273,7 +273,7 @@ tl::expected<ChainMiningTask, Error> State::mining_task(const Address& a, bool d
         [&]() {
             std::vector<TransferTxExchangeMessage> payments;
             if (!disableTxs) {
-                payments = chainstate.mempool().get_payments(400, height);
+                payments = chainstate.mempool().get_payments(100, height);
             }
 
             Funds totalfee { Funds::zero() };
