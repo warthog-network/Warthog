@@ -298,7 +298,7 @@ Preparation BlockApplier::Preparer::prepare(const BodyView& bv, const NonzeroHei
     for (size_t i = 0; i < newAccounts.size(); ++i) {
         auto& acc = newAccounts[i];
         if (acc.in().is_zero()) {
-            throw Error(EIDPOLICY); // id was not referred
+            throw Error(EIDNOTREFERENCED); // id was not referred
         }
         if (acc.out() > Funds::zero()) // Not (acc.out() > acc.in()) because we do not like chains of new accounts
             throw Error(EBALANCE); // insufficient balance

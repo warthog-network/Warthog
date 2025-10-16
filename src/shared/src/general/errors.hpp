@@ -40,7 +40,7 @@
     XX(17, EMROOT, "merkle root mismatch")                                         \
     XX(18, ENOBLOCK, "peer did not provide block")                                 \
     XX(19, EUNREQUESTED, "received unrequested message")                           \
-    XX(20, EIDPOLICY, "block transaction id policy violated")                      \
+    XX(20, EIDNOTREFERENCED, "account id not referenced")                          \
     XX(21, EADDRPOLICY, "new address policy violated")                             \
     XX(22, EBALANCE, "insufficient balance")                                       \
     XX(23, ECORRUPTEDSIG, "corrupted signature")                                   \
@@ -128,6 +128,7 @@
     XX(128, EFROZENACC, "account is frozen and can't send")                        \
     XX(129, EHEADERRANGE, "invalid header range")                                  \
     XX(130, ERTCDISABLED, "WebRTC disabled, cannot receive message")               \
+    XX(131, EIDPOLICY, "block transaction id policy violated")                     \
     XX(198, EBATCHSIZE2, "invalid batch size")                                     \
     XX(199, EBATCHSIZE3, "invalid batch size")                                     \
     /*200 - 299: Errors not leading to ban*/                                       \
