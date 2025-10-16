@@ -44,7 +44,7 @@ public:
     void register_reward(AccountId to, Funds amount, uint16_t offset) // OK
     {
         if (!validAccountId(to))
-            throw Error(EIDPOLICY);
+            throw Error(EIDPOLICY2);
         payouts.emplace_back(to, amount, height, offset);
         size_t i = payouts.size() - 1;
         auto& ref = payouts[i];
@@ -74,9 +74,9 @@ public:
         if (from == to)
             throw Error(ESELFSEND);
         if (!validAccountId(from))
-            throw Error(EIDPOLICY);
+            throw Error(EIDPOLICY3);
         if (!validAccountId(to))
-            throw Error(EIDPOLICY);
+            throw Error(EIDPOLICY4);
 
         payments.emplace_back(from, compactFee, to, amount, tv.pin_nonce(), tv.signature());
         size_t i = payments.size() - 1;
@@ -291,7 +291,7 @@ Preparation BlockApplier::Preparer::prepare(const BodyView& bv, const NonzeroHei
     for (size_t i = 0; i < newAccounts.size(); ++i) {
         auto& acc = newAccounts[i];
         if (acc.in().is_zero()) {
-            throw Error(EIDPOLICY); // id was not referred
+            throw Error(EIDNOTREFERENCED); // id was not referred
         }
         if (acc.out() > Funds::zero()) // Not (acc.out() > acc.in()) because we do not like chains of new accounts
             throw Error(EBALANCE); // insufficient balance

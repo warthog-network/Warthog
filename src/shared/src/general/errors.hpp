@@ -37,7 +37,7 @@
     XX(17, EMROOT, "merkle root mismatch")                              \
     XX(18, ENOBLOCK, "peer did not provide block")                      \
     XX(19, EUNREQUESTED, "received unrequested message")                \
-    XX(20, EIDPOLICY, "block transaction id policy violated")           \
+    XX(20, EIDNOTREFERENCED, "account id not referenced")               \
     XX(21, EADDRPOLICY, "new address policy violated")                  \
     XX(22, EBALANCE, "insufficient balance")                            \
     XX(23, ECORRUPTEDSIG, "corrupted signature")                        \
@@ -98,6 +98,9 @@
     XX(100, EMSGINTEGRITY, "message integrity check failed")            \
     XX(101, EADDRNOTFOUND, "address not found")                         \
     XX(102, EADDRIDNOTFOUND, "address id not found")                    \
+    XX(103, EIDPOLICY2, "block transaction id policy violated")         \
+    XX(104, EIDPOLICY3, "block transaction id policy violated")         \
+    XX(105, EIDPOLICY4, "block transaction id policy violated")         \
     XX(198, EBATCHSIZE2, "invalid batch size")                          \
     XX(199, EBATCHSIZE3, "invalid batch size")                          \
     XX(200, EINV_HEX, "cannot parse hexadecimal input")                 \
