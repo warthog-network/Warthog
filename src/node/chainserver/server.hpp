@@ -100,6 +100,9 @@ public:
         DescriptedBlockRange range;
         getBlocksCb callback;
     };
+    struct MempoolConstraintUpdate { 
+        MempoolConstraintCb callback;
+    };
     struct PutMempoolBatch {
         std::vector<TransferTxExchangeMessage> txs;
     };
@@ -147,6 +150,7 @@ public:
         GetBlocks,
         stage_operation::StageAddOperation,
         stage_operation::StageSetOperation,
+        MempoolConstraintUpdate,
         PutMempoolBatch,
         SetSignedPin,
         SubscribeAccount,
@@ -195,6 +199,7 @@ public:
     bool is_busy();
 
     void async_set_synced(bool synced);
+    void async_notify_mempool_constraint_update(MempoolConstraintCb);
 
     void async_put_mempool(std::vector<TransferTxExchangeMessage> txs);
     void async_get_head(ChainHeadCb callback);
@@ -260,6 +265,7 @@ private:
     void handle_event(GetBlocks&&);
     void handle_event(stage_operation::StageSetOperation&&);
     void handle_event(stage_operation::StageAddOperation&&);
+    void handle_event(MempoolConstraintUpdate&&);
     void handle_event(PutMempoolBatch&&);
     void handle_event(SetSignedPin&&);
     void handle_event(SubscribeAccount&&);

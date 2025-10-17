@@ -207,6 +207,10 @@ public:
         hook_get_1(t, "/transaction/lookup/:txid", lookup_tx);
         hook_get(t, "/transaction/latest", get_latest_transactions);
 
+
+        t.indexGenerator.section("Settings Endpoints");
+        hook_get_1(t, "/settings/mempool/minfee/:feeE8", set_minfee, true);
+
         t.indexGenerator.section("Chain Endpoints");
         hook_get(t, "/chain/head", get_block_head);
         hook_get(t, "/chain/grid", get_chain_grid, true);

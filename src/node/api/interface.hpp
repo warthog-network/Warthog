@@ -35,6 +35,8 @@ void disconnect_peer(uint64_t, ResultCb&& cb);
 void get_throttled_peers(ThrottledCb&& cb);
 void get_connected_connection(ConnectedConnectionCB&& cb);
 
+void set_minfee(uint64_t fee, MempoolConstraintCb cb);
+
 // tools functions
 void get_round16bit_e8(uint64_t e8, RoundCb cb);
 void get_round16bit_funds(Funds e8, RoundCb cb);

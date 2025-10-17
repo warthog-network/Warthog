@@ -51,6 +51,11 @@ void ChainServer::async_set_synced(bool synced)
     defer(SetSynced { synced });
 }
 
+void ChainServer::async_notify_mempool_constraint_update(MempoolConstraintCb cb)
+{
+    defer(MempoolConstraintUpdate { std::move(cb) });
+}
+
 void ChainServer::async_put_mempool(std::vector<TransferTxExchangeMessage> txs)
 {
     defer(PutMempoolBatch { std::move(txs) });
@@ -444,6 +449,11 @@ void ChainServer::handle_event(PutMempool&& e)
     } catch (Error err) {
         e.callback(tl::make_unexpected(err.code));
     }
+}
+
+void ChainServer::handle_event(MempoolConstraintUpdate&& e)
+{
+    e.callback(api::MempoolUpdate { .deletedTransactions = state.on_mempool_constraint_update() });
 }
 
 void ChainServer::handle_event(PutMempoolBatch&& mb)

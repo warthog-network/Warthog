@@ -43,6 +43,7 @@ using JSONCb = std::function<void(const tl::expected<nlohmann::json, Error>&)>;
 // using OffensesCb = std::function<void(const tl::expected<std, Error>&)>;
 using MempoolCb = std::function<void(const tl::expected<api::MempoolEntries, Error>&)>;
 using MempoolInsertCb = std::function<void(const tl::expected<TxHash, Error>&)>;
+using MempoolConstraintCb = std::function<void(const tl::expected<api::MempoolUpdate, Error>&)>;
 using MempoolTxsCb = std::function<void(std::vector<std::optional<TransferTxExchangeMessage>>&)>;
 using ChainMiningCb = std::function<void(const tl::expected<ChainMiningTask, Error>&)>;
 using MiningCb = std::function<void(const tl::expected<api::MiningState, Error>&)>;

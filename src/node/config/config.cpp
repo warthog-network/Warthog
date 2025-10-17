@@ -130,7 +130,7 @@ tl::expected<ConfigParams, int> ConfigParams::from_args(int argc, char** argv)
     if (auto i { c.init(p->value()) }; i < 1) {
         return tl::make_unexpected(i);
     }
-    return c;
+    return tl::expected<ConfigParams, int>(c);
 }
 
 #ifndef DISABLE_LIBUV

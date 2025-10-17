@@ -8,7 +8,7 @@ Writer& operator<<(Writer&, CompactUInt);
 class CompactUInt {
     static std::optional<Funds> uncompact_value(uint16_t val)
     { // OK
-        uint64_t e = (val & uint64_t(0xFC00u)) >> 10;
+        uint64_t e = (val & uint64_t(0xFC00u)) >> 10; // < 2^6 = 64
         uint64_t m = (val & uint64_t(0x03FFu)) + uint64_t(0x0400u);
         if (e < 10) {
             return Funds::from_value(m >> (10 - e));
@@ -25,6 +25,7 @@ public:
     CompactUInt(Reader& r);
     static consteval size_t byte_size(){return sizeof(val);}
     static constexpr auto smallest(){return CompactUInt(0);}
+    static constexpr auto largest() { return CompactUInt(0xFFFFu); }
     static CompactUInt from_value_assert(uint16_t val)
     {
         auto v { from_value(val) };
@@ -51,7 +52,7 @@ public:
         return *v;
     };
     auto to_string() const { return uncompact().to_string(); }
-    static CompactUInt compact(Funds);
+    [[nodiscard]] static CompactUInt compact(Funds, bool ceil = false);
     auto next() const
     {
         auto res(*this);

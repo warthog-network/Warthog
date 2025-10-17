@@ -16,6 +16,7 @@ struct HashrateTimeChart;
 struct Head;
 struct HeightOrHash;
 struct MempoolEntries;
+struct MempoolUpdate;
 struct MiningState;
 struct Peerinfo;
 struct PeerinfoConnections;

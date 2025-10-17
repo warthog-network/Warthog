@@ -145,6 +145,7 @@
     XX(210, ERTCIDIP, "IP in verification offer is not announced as identity")     \
     XX(211, ERTCFEELER, "Normal feeler connection shutdown")                       \
     XX(213, EAPICMD, "Triggered by API command")                                   \
+    XX(214, EMINFEE, "transaction fee below threshold")                            \
     /*300 - 399: API triggered errors*/                                            \
     XX(300, EINV_HEX, "cannot parse hexadecimal input")                            \
     XX(301, EBADNONCE, "cannot parse nonce")                                       \

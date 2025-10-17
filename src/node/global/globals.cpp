@@ -66,6 +66,10 @@ const Config& config()
 {
     return *globalinstance.conf;
 }
+Config& set_config()
+{
+    return *globalinstance.conf;
+}
 
 #ifndef DISABLE_LIBUV
 HTTPEndpoint& http_endpoint()

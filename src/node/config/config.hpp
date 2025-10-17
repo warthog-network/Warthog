@@ -2,6 +2,7 @@
 
 #include "block/chain/signed_snapshot.hpp"
 #include "expected.hpp"
+#include "general/compact_uint.hpp"
 #include "general/start_time_points.hpp"
 #include "transport/helpers/peer_addr.hpp"
 #include "transport/helpers/tcp_sockaddr.hpp"
@@ -89,7 +90,7 @@ struct ConfigParams {
     [[nodiscard]] static tl::expected<ConfigParams, int> from_args(int argc, char** argv);
 
 private:
-    ConfigParams() {};
+    ConfigParams() { };
     void prepare_warthog_dir(const std::string&, bool log);
     void assign_defaults();
     int init(const gengetopt_args_info&);
@@ -101,6 +102,7 @@ struct Config : public ConfigParams {
     Config(ConfigParams&&);
     std::atomic<bool> logCommunication { false };
     std::atomic<bool> logRTC { false };
+    std::atomic<CompactUInt> minMempoolFee { CompactUInt::smallest() };
     auto& started_at() const { return startedAt; }
 
 private:
