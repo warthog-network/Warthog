@@ -1,6 +1,7 @@
 #pragma once
 
 #include "block/chain/signed_snapshot.hpp"
+#include "general/compact_uint.hpp"
 #include "general/tcp_util.hpp"
 #include <atomic>
 struct gengetopt_args_info;
@@ -32,6 +33,7 @@ struct Config {
     struct Node {
         std::optional<SnapshotSigner> snapshotSigner;
         EndpointAddress bind;
+        std::atomic<CompactUInt> minMempoolFee { CompactUInt::smallest() };
         bool isolated { false };
         bool disableTxsMining { false }; // don't mine transactions
         std::atomic<bool> logCommunication { false };

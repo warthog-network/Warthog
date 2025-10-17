@@ -62,6 +62,10 @@ const Config& config()
 {
     return globalinstance.conf;
 }
+Config& set_config()
+{
+    return globalinstance.conf;
+}
 
 void global_init(BatchRegistry* pbr, PeerServer* pps, ChainServer* pcs, Conman* pcm, Eventloop* pel, HTTPEndpoint* httpEndpoint)
 {

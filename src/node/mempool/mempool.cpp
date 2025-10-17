@@ -1,5 +1,6 @@
 #include "mempool.hpp"
 #include "chainserver/transaction_ids.hpp"
+#include "global/globals.hpp"
 #include <algorithm>
 #include <numeric>
 #include <random>
@@ -208,6 +209,8 @@ void Mempool::insert_tx_throw(const TransferTxExchangeMessage& pm,
     const TxHash& txhash,
     const AddressFunds& af)
 {
+    if (pm.compactFee < config().node.minMempoolFee)
+        throw Error(EMINFEE);
     if (pm.from_address(txhash) != af.address)
         throw Error(EFAKEACCID);
 
@@ -260,6 +263,19 @@ void Mempool::insert_tx_throw(const TransferTxExchangeMessage& pm,
     assert(byFee.insert(iter));
     assert(byHash.insert(iter).second);
     prune();
+}
+
+size_t Mempool::on_constraint_update()
+{
+    size_t deleted { 0 };
+    auto minFee { config().node.minMempoolFee.load() };
+    while (byFee.size() != 0) {
+        if (byFee.smallest()->second.fee >= minFee)
+            break;
+        erase_internal(byFee.smallest());
+        deleted += 1;
+    }
+    return deleted;
 }
 
 void Mempool::prune()

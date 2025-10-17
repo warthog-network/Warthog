@@ -32,5 +32,6 @@ inline spdlog::logger& connection_log() { return *global().connLogger; }
 inline auto& timing_log() { return global().timingLogger.value(); }
 inline spdlog::logger& syncdebug_log() { return *global().syncdebugLogger; }
 const Config& config();
+Config& set_config();
 int init_config(int argc, char** argv);
 void global_init(BatchRegistry* pbr, PeerServer* pps, ChainServer* pcs, Conman* pcm, Eventloop* pel, HTTPEndpoint* httpEndpoint);

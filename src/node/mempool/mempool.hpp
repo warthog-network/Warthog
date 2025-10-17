@@ -44,6 +44,7 @@ public:
     void apply_log(const Log& log);
     int32_t insert_tx(const TransferTxExchangeMessage& pm, TransactionHeight txh, const TxHash& hash, const AddressFunds& e);
     void insert_tx_throw(const TransferTxExchangeMessage& pm, TransactionHeight txh, const TxHash& hash, const AddressFunds& e);
+    size_t on_constraint_update();
     void erase(TransactionId id);
     void set_balance(AccountId, Funds newBalance);
     void erase_from_height(Height);

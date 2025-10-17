@@ -1,5 +1,6 @@
 #pragma once
 
+#include "accountid_or_address.hpp"
 #include "block/body/primitives.hpp"
 #include "block/chain/history/index.hpp"
 #include "block/chain/signed_snapshot.hpp"
@@ -13,7 +14,6 @@
 #include "general/funds.hpp"
 #include "general/tcp_util.hpp"
 #include "height_or_hash.hpp"
-#include "accountid_or_address.hpp"
 #include <variant>
 #include <vector>
 namespace chainserver {
@@ -124,10 +124,12 @@ struct MempoolEntry : public TransferTxExchangeMessage {
 struct MempoolEntries {
     std::vector<MempoolEntry> entries;
 };
+
 struct OffenseHistory {
     std::vector<Hash> hashes;
     std::vector<TransferTxExchangeMessage> entries;
 };
+
 struct HashrateInfo {
     size_t nBlocks;
     uint64_t estimate;
@@ -141,6 +143,10 @@ struct HashrateChartRequest {
 struct HashrateChart {
     HashrateChartRequest range;
     std::vector<double> chart;
+};
+
+struct MempoolUpdate {
+    size_t deletedTransactions;
 };
 
 struct Peerinfo {
@@ -165,14 +171,13 @@ struct Round16Bit {
     Funds original;
 };
 
-struct Wallet{
+struct Wallet {
     PrivKey pk;
 };
 
-struct Raw{
+struct Raw {
     std::string s;
 };
-
 
 using OffenseEntry = ::OffenseEntry;
 

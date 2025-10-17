@@ -1,6 +1,7 @@
 #pragma once
 #include <variant>
 namespace API {
+struct MempoolUpdate;
 struct MempoolEntries;
 struct TransferTransaction;
 struct Head;
@@ -19,7 +20,7 @@ struct Peerinfo;
 struct HeightOrHash;
 struct Round16Bit;
 struct PeerinfoConnections;
-struct AccountIdOrAddress;;
+struct AccountIdOrAddress;
 struct Wallet;
 struct Rollback;
 struct Raw;

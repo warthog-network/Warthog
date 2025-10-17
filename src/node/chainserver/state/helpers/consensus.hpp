@@ -59,6 +59,7 @@ struct Chainstate {
     [[nodiscard]] auto append(AppendMulti) -> HeaderchainAppend;
     [[nodiscard]] auto append(AppendSingle) -> HeaderchainAppend;
 
+    size_t on_mempool_constraint_update();
     TxHash insert_tx(const TransferTxExchangeMessage& m);
     [[nodiscard]] TxHash insert_tx(const PaymentCreateMessage& m);
 

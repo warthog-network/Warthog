@@ -57,6 +57,12 @@ void get_connected_connection(ConnectedConnectionCB&& cb)
     });
 }
 
+void set_minfee(uint64_t fee, MempoolConstraintCb cb)
+{
+    set_config().node.minMempoolFee = CompactUInt::compact(Funds::from_value_throw(fee), true);
+    global().pcs->async_notify_mempool_constraint_update(cb);
+}
+
 void get_round16bit_e8(uint64_t e8, RoundCb cb)
 {
     cb(API::Round16Bit { Funds::from_value_throw(e8) });

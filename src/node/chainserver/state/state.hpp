@@ -70,6 +70,7 @@ public:
 
     // mempool
     [[nodiscard]] auto insert_txs(const TxVec&) -> std::pair<std::vector<int32_t>, mempool::Log>;
+    [[nodiscard]] size_t on_mempool_constraint_update();
 
     // stage methods
     auto set_stage(Headerchain&& hc) -> stage_operation::StageSetResult;

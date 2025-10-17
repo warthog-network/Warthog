@@ -313,6 +313,14 @@ json to_json(const API::MiningState& ms)
     j["testnet"] = is_testnet();
     return j;
 }
+
+json to_json(const API::MempoolUpdate& r)
+{
+    return {
+        { "deleted", r.deletedTransactions }
+    };
+}
+
 json to_json(const API::MempoolEntries& entries)
 {
     json j;

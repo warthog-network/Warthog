@@ -133,6 +133,9 @@ void HTTPEndpoint::work()
     get_1("/transaction/lookup/:txid", lookup_tx);
     get("/transaction/latest", get_latest_transactions);
 
+    indexGenerator.section("Settings");
+    get_1("/settings/mempool/minfee/:feeE8", set_minfee, true);
+
     indexGenerator.section("Chain Endpoints");
     get("/chain/head", get_block_head);
     get("/chain/grid", get_chain_grid, true);

@@ -30,6 +30,8 @@ void get_verified_addresses(PeerServer::BannedCB cb);
 void get_connected_peers2(PeersCb&& cb);
 void get_connected_connection(ConnectedConnectionCB&& cb);
 
+void set_minfee(uint64_t fee, MempoolConstraintCb cb);
+
 // tools functions
 void get_round16bit_e8(uint64_t e8, RoundCb cb);
 void get_round16bit_funds(Funds e8, RoundCb cb);

@@ -32,12 +32,14 @@ class Header;
 using PeersCb = std::function<void(const std::vector<API::Peerinfo>&)>;
 using SyncedCb = std::function<void(bool)>;
 using ResultCb = std::function<void(const tl::expected<void, int32_t>&)>;
+using ResultCb = std::function<void(const tl::expected<void, int32_t>&)>;
 using ConnectedConnectionCB = std::function<void(const API::PeerinfoConnections&)>;
 using BalanceCb = std::function<void(const tl::expected<API::Balance, int32_t>&)>;
 
 // using OffensesCb = std::function<void(const tl::expected<std, int32_t>&)>;
 using MempoolCb = std::function<void(const tl::expected<API::MempoolEntries, int32_t>&)>;
 using MempoolInsertCb = std::function<void(const tl::expected<TxHash, int32_t>&)>;
+using MempoolConstraintCb = std::function<void(const tl::expected<API::MempoolUpdate, int32_t>&)>;
 using MempoolTxsCb = std::function<void(std::vector<std::optional<TransferTxExchangeMessage>>&)>;
 using ChainMiningCb = std::function<void(const tl::expected<ChainMiningTask, Error>&)>;
 using MiningCb = std::function<void(const tl::expected<API::MiningState, Error>&)>;

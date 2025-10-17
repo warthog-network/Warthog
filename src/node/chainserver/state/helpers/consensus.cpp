@@ -215,6 +215,10 @@ auto Chainstate::append(AppendSingle d) -> HeaderchainAppend
     return headers().get_append(l);
 }
 
+size_t Chainstate::on_mempool_constraint_update(){
+    return _mempool.on_constraint_update();
+};
+
 TxHash Chainstate::insert_tx(const TransferTxExchangeMessage& pm)
 {
     if (pm.pin_height() < (length() + 1).pin_begin())

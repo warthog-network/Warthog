@@ -666,6 +666,10 @@ API::Balance State::api_get_address(AccountId accountId)
     }
 }
 
+size_t State::on_mempool_constraint_update(){
+    return chainstate.on_mempool_constraint_update();
+}
+
 auto State::insert_txs(const TxVec& txs) -> std::pair<std::vector<int32_t>, mempool::Log>
 {
     std::vector<int32_t> res;
