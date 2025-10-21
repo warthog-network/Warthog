@@ -101,7 +101,7 @@ std::optional<TransactionMessage> Mempool::operator[](const HashView txHash) con
     return *static_cast<const TransactionMessage*>(&**iter);
 }
 
-bool Mempool::erase_internal(Txset::const_iter_t iter, BalanceEntries::iterator b_iter, bool gc)
+auto Mempool::erase_internal(Txset::const_iter_t iter, balance_iterator wartIter, std::optional<balance_iterator> tokenIter) -> EraseResult
 {
     assert(size() == index.size());
     assert(size() == byFee.size());
@@ -111,38 +111,41 @@ bool Mempool::erase_internal(Txset::const_iter_t iter, BalanceEntries::iterator 
     const TransactionId id { iter->txid() };
 
     // erase iter and its references
-
     assert(index.erase(iter) == 1);
     assert(byFee.erase(iter) == 1);
     assert(byToken.erase(iter) == 1);
 
     auto fromId { iter->from_id() };
-    Wart wartSpend { iter->spend_wart_assert() };
-    auto tokenSpend { iter->spend_token_assert() };
     txs().erase(iter);
 
     if (master)
         updates.push_back(Erase { id });
 
-    // update locked balance
+    auto unlock { [&](BalanceEntries::iterator& iter, Funds_uint64 amount) {
+        assert(iter != lockedBalances.end()); // because there is nonzero locked balance (t->amount != 0)
+        auto& balanceEntry { iter->second };
+        balanceEntry.unlock(amount);
+        if (balanceEntry.is_clean()) {
+            lockedBalances.erase(iter);
+            iter = lockedBalances.end();
+        }
+        return false;
+    } };
+    EraseResult er { false, false };
+
+    // update locked token balance
+    auto tokenSpend { iter->spend_token_assert() };
     if (tokenSpend->amount != 0) {
-        auto t_iter { lockedBalances.find({ fromId, iter->altTokenId }) };
-        assert(t_iter != lockedBalances.end()); // because there is nonzero locked balance (t->amount != 0)
-        auto& balanceEntry { b_iter->second };
-        balanceEntry.unlock(tokenSpend->amount);
-        if (gc && balanceEntry.is_clean()) {
-            lockedBalances.erase(b_iter);
-        }
+        balance_iterator dummy; // dummy reference will be used if we received ptokenBalanceIter == nullptr
+        if (!tokenIter)
+            tokenIter = lockedBalances.find({ fromId, iter->altTokenId });
+        er.erasedToken = unlock(*tokenIter, tokenSpend->amount);
     }
-    if (b_iter != lockedBalances.end()) {
-        auto& balanceEntry { b_iter->second };
-        balanceEntry.unlock(wartSpend);
-        if (gc && balanceEntry.is_clean()) {
-            lockedBalances.erase(b_iter);
-            return true;
-        }
-    };
-    return false;
+
+    // update locked wart balance
+    Wart wartSpend { iter->spend_wart_assert() };
+    er.erasedWart = unlock(wartIter, wartSpend);
+    return er;
 }
 
 void Mempool::erase_internal(Txset::const_iter_t iter)
@@ -198,25 +201,46 @@ std::vector<TransactionId> Mempool::filter_new(const std::vector<TxidWithFee>& v
 
 void Mempool::set_free_balance(AccountToken at, Funds_uint64 newBalance)
 {
-    auto b_iter { lockedBalances.find(at) };
-    if (b_iter == lockedBalances.end())
+    auto tokenIter { lockedBalances.find(at) };
+    if (tokenIter == lockedBalances.end())
         return;
-    auto& balanceEntry { b_iter->second };
+    auto& balanceEntry { tokenIter->second };
     if (balanceEntry.try_set_avail(newBalance))
         return;
+    if (at.token_id() == TokenId::WART) {
 
-    auto iterators { txs.by_fee_inc_le(at.account_id()) };
+        auto iterators { txs.by_fee_inc_le(at.account_id()) };
+        for (size_t i = 0; i < iterators.size(); ++i) {
+            bool allErased = erase_internal(iterators[i], tokenIter).erasedWart;
+            bool lastIteration = (i == iterators.size() - 1);
+            assert(allErased == lastIteration);
+            // balanceEntry reference is invalidateed when all entries are erased
+            // because it will be wiped together with last entry.
+            if (allErased || balanceEntry.try_set_avail(newBalance))
+                return;
+        }
+        assert(false); // should not happen
+    } else {
+        auto wart_iter { lockedBalances.find({ at.account_id(), TokenId::WART }) };
 
-    for (size_t i = 0; i < iterators.size(); ++i) {
-        bool allErased = erase_internal(iterators[i], b_iter);
-        bool lastIteration = (i == iterators.size() - 1);
-        assert(allErased == lastIteration);
-        // balanceEntry reference is invalidateed when all entries are erased
-        // because it will be wiped together with last entry.
-        if (allErased || balanceEntry.try_set_avail(newBalance))
-            return;
+        // since tokenIter != end(), there are some transactions in the mempool
+        // associated with this account and so there must be some WART locked.
+        assert(wart_iter != lockedBalances.end()); // since some WART must be locked
+
+        auto& sorted { index.account_token_fee() };
+        auto iter = sorted.lower_bound(at);
+        auto iteration_done { [&]() { return iter == sorted.end() || (*iter)->account_token() != at; } };
+        bool done { iteration_done() };
+        assert(!done); // tokenIter != end(), there must be some entries for `at`.
+        // We know that `balanceEntry.try_set_avail(newBalance) == false` here, was verified before
+        do {
+            bool erasedTokenEntry { erase_internal(*iter++, wart_iter, tokenIter).erasedToken };
+            done = iteration_done();
+            assert(erasedTokenEntry == done);
+        } while (!done &&
+            // by short circuiting, we know that erasedTokenEntry == false and balanceEntry reference is valid.
+            !balanceEntry.try_set_avail(newBalance));
     }
-    assert(false); // should not happen
 }
 
 Error Mempool::insert_tx(const TransactionMessage& pm, TxHeight txh, const TxHash& hash, chainserver::DBCache& cache)

@@ -74,7 +74,11 @@ private:
     [[nodiscard]] std::pair<LockedBalance, std::optional<balance_iterator>> get_balance(AccountToken at, chainserver::DBCache&);
     [[nodiscard]] std::optional<TokenFunds> token_spend_throw(const TransactionMessage& pm, chainserver::DBCache& cache) const;
     void erase_internal(Txset::const_iter_t);
-    bool erase_internal(Txset::const_iter_t, balance_iterator wartBalanceIter, bool gc = true);
+    struct EraseResult {
+        bool erasedWart;
+        bool erasedToken;
+    };
+    EraseResult erase_internal(Txset::const_iter_t, balance_iterator wartIter, std::optional<balance_iterator> tokenIter={});
     [[nodiscard]] balance_iterator create_or_get_balance_iter(AccountToken at, chainserver::DBCache& cache);
     void prune();
 
@@ -132,7 +136,8 @@ private:
                         prevErased = erased;
                 }(args),
                     ...);
-            }, tuple);
+            },
+                tuple);
             return prevErased.value();
         }
         auto size() const { return get<0>().size(); }
