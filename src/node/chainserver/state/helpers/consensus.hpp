@@ -17,12 +17,12 @@ namespace chainserver {
 struct RollbackResult {
     ShrinkInfo shrink;
     std::vector<TransactionMessage> toMempool;
-    free_balance_udpates_t freeBalanceUpdates;
+    FreeBalanceUpdates freeBalanceUpdates;
     TransactionIds chainTxIds;
     DeletionKey deletionKey;
 };
 struct AppendBlocksResult {
-    free_balance_udpates_t freeBalanceUpdates;
+    FreeBalanceUpdates freeBalanceUpdates;
     std::vector<HistoryId> newHistoryOffsets;
     std::vector<StateId64> stateOffsets;
     TransactionIds newTxIds;
@@ -42,7 +42,7 @@ struct Chainstate {
         AppendBlocksResult&& appendResult;
     };
     struct AppendSingle {
-        free_balance_udpates_t freeBalanceUpdates;
+        FreeBalanceUpdates freeBalanceUpdates;
         std::optional<SignedSnapshot>& signedSnapshot;
         HeaderVerifier::PreparedAppend prepared;
         TransactionIds&& newTxIds;
@@ -94,6 +94,7 @@ struct Chainstate {
 protected:
     TxHash insert_tx_internal(const TransactionMessage&, TxHeight, TxHash, DBCache&, const Address fromAddr);
     void prune_txids();
+    void update_free_balances(const FreeBalanceUpdates& updates);
     Chainstate(std::tuple<std::vector<Batch>, HistoryHeights, State64Heights> init,
         const ChainDB& db, BatchRegistry& br);
 

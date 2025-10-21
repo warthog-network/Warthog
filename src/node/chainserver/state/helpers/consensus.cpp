@@ -54,9 +54,8 @@ void Chainstate::fork(Chainstate::ForkData&& fd)
     //////////////////////////////
     // inform mempool about balance changes
     auto balanceUpdates { std::move(fd.appendResult.freeBalanceUpdates) };
-    balanceUpdates.merge(fd.rollbackResult.freeBalanceUpdates);
-    for (auto& [accountToken, balance] : balanceUpdates)
-        _mempool.set_free_balance(accountToken, balance);
+    balanceUpdates.merge(std::move(fd.rollbackResult.freeBalanceUpdates));
+    update_free_balances(balanceUpdates);
 
     //////////////////////////////
     // insert transactions into mempool
@@ -119,9 +118,7 @@ auto Chainstate::rollback(const RollbackResult& rb) -> HeaderchainRollback
 
     //////////////////////////////
     // inform mempool about balance changes
-    auto& balanceUpdates { rb.freeBalanceUpdates };
-    for (auto& [accountToken, bal] : balanceUpdates)
-        _mempool.set_free_balance(accountToken, bal);
+    update_free_balances(rb.freeBalanceUpdates);
 
     //////////////////////////////
     // insert transactions into mempool
@@ -163,9 +160,7 @@ auto Chainstate::append(AppendMulti ad) -> HeaderchainAppend
 
     //////////////////////////////
     // inform mempool about balance changes
-    auto& freeBalanceUpdates { ad.appendResult.freeBalanceUpdates };
-    for (auto& [accountToken, balance] : freeBalanceUpdates)
-        _mempool.set_free_balance(accountToken, balance);
+    update_free_balances(ad.appendResult.freeBalanceUpdates);
 
     // remove from mempool
     // remove outdated transactions
@@ -197,9 +192,7 @@ auto Chainstate::append(AppendSingle d) -> HeaderchainAppend
 
     //////////////////////////////
     // inform mempool about balance changes
-    auto& freeBalanceUpdates { d.freeBalanceUpdates };
-    for (auto& [accountToken, balance] : freeBalanceUpdates)
-        _mempool.set_free_balance(accountToken, balance);
+    update_free_balances(d.freeBalanceUpdates);
 
     // remove from mempool
     // remove outdated transactions
@@ -285,6 +278,17 @@ TxHash Chainstate::create_tx(const WartTransferCreate& m)
 
     DBCache c(db);
     return insert_tx_internal(std::move(pm), th, txHash, c, fromAddr);
+}
+
+void Chainstate::update_free_balances(const FreeBalanceUpdates& updates)
+{
+    // First set balance for nonWart because this will implicitly free some
+    // frozen from mempool WART too, i.e. this order is superior in purging
+    // as few entries as possible from the mempool.
+    for (auto& [accountToken, balance] : updates.nonWart)
+        _mempool.set_free_balance(accountToken, balance);
+    for (auto& [accountToken, balance] : updates.wart)
+        _mempool.set_free_balance(accountToken, balance);
 }
 
 TxHash Chainstate::insert_tx_internal(const TransactionMessage& m, TxHeight th, TxHash txHash, DBCache& c, const Address fromAddr)

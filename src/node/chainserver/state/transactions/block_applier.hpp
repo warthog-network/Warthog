@@ -42,7 +42,7 @@ private: // private methods
 
 private: // private data
     Preparer preparer;
-    free_balance_udpates_t freeBalanceUpdates;
+    FreeBalanceUpdates freeBalanceUpdates;
     ChainDB& db;
     bool fromStage;
 };

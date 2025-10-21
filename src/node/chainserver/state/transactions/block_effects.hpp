@@ -57,7 +57,7 @@ struct AssetInsert : public chain_db::AssetData {
 
 class TrackingDBApplier {
 public:
-    TrackingDBApplier(ChainDB& db, chainserver::free_balance_udpates_t& freeBalanceUpdates)
+    TrackingDBApplier(ChainDB& db, chainserver::FreeBalanceUpdates& freeBalanceUpdates)
         : db(db)
         , freeBalanceUpdates(freeBalanceUpdates)
         , rg(db)
@@ -116,7 +116,7 @@ public:
 
 private:
     ChainDB& db;
-    chainserver::free_balance_udpates_t& freeBalanceUpdates;
+    chainserver::FreeBalanceUpdates& freeBalanceUpdates;
     rollback::Data rg;
 };
 
@@ -141,7 +141,7 @@ public:
         data.push_back(std::forward<T>(t));
     }
 
-    auto apply(ChainDB& db, chainserver::free_balance_udpates_t& freeBalanceUpdates) const
+    auto apply(ChainDB& db, chainserver::FreeBalanceUpdates& freeBalanceUpdates) const
     {
         return apply(TrackingDBApplier { db, freeBalanceUpdates });
     }

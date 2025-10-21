@@ -797,7 +797,7 @@ public:
     };
 
     std::vector<TransactionMessage> toMempool;
-    free_balance_udpates_t freeBalanceUpdates;
+    FreeBalanceUpdates freeBalanceUpdates;
 
     // actions to be run against database
     std::map<BalanceId, Balance_uint64> balanceUpdates;

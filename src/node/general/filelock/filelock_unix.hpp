@@ -14,8 +14,9 @@ class Filelock {
             return ;
         fd = open(path.c_str(), 0);
         if (fd < 0) {
-            throw std::runtime_error("Cannot open file \"" + path +
-                                     "\": " + strerror(errno));
+            return;
+            // throw std::runtime_error("Cannot open file \"" + path +
+            //                          "\": " + strerror(errno));
         }
         if (flock(fd, LOCK_EX | LOCK_NB) < 0) {
             throw std::runtime_error("Another instance is accessing the database \"" + path +

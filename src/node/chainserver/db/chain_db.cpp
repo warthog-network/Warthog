@@ -35,10 +35,10 @@ ChainDB::Database::Database(const std::string& path)
     return path; }(), SQLite::OPEN_READWRITE | SQLite::OPEN_CREATE)
 {
     exec("PRAGMA foreign_keys = ON");
-    exec("CREATE TABLE IF NOT EXISTS Metadata ("
-         "id INTEGER NOT NULL  "
-         "value BLOB, "
-         "PRIMARY KEY(id))");
+    // exec("CREATE TABLE IF NOT EXISTS Metadata ("
+    //      "id INTEGER NOT NULL  "
+    //      "value BLOB, "
+    //      "PRIMARY KEY(id))");
     exec("CREATE TABLE IF NOT EXISTS `" ACCOUNTHISTORY_TABLE "` ("
          "`account_id` INTEGER, "
          "`history_id` INTEGER, "
@@ -53,7 +53,7 @@ ChainDB::Database::Database(const std::string& path)
 
     // candles 5m
     exec("CREATE TABLE IF NOT EXISTS Candles5m ("
-         "tokenId INTEGER NOT NULL, "
+         "asset_id INTEGER NOT NULL, "
          "timestamp INTEGER NOT NULL, " // start timestamp
          "open INTEGER NOT NULL, "
          "high INTEGER NOT NULL, "
@@ -67,7 +67,7 @@ ChainDB::Database::Database(const std::string& path)
 
     // candles 1h
     exec("CREATE TABLE IF NOT EXISTS Candles1h ("
-         "tokenId INTEGER NOT NULL, "
+         "asset_id INTEGER NOT NULL, "
          "timestamp INTEGER NOT NULL, " // start timestamp
          "open INTEGER NOT NULL, "
          "high INTEGER NOT NULL, "
@@ -88,10 +88,10 @@ ChainDB::Database::Database(const std::string& path)
          "asset_id INTEGER NOT NULL, "
          "totalBase INTEGER NOT NULL, "
          "filledBase INTEGER NOT NULL, "
-         "limit NOT NULL DEFAULT 0, "
+         "limitPrice INTEGER NOT NULL DEFAULT 0, "
          "PRIMARY KEY(`id`))");
     exec("CREATE INDEX IF NOT EXISTS `" SELLORDERS_TABLE "Index` ON "
-         "`" SELLORDERS_TABLE "` (asset_id, limit ASC, id ASC)");
+         "`" SELLORDERS_TABLE "` (asset_id, limitPrice ASC, id ASC)");
     exec("CREATE UNIQUE INDEX IF NOT EXISTS `" SELLORDERS_TABLE "AccountIndex` ON "
          "`" SELLORDERS_TABLE "` (account_id, pin_height, nonce_id)");
 
@@ -104,10 +104,10 @@ ChainDB::Database::Database(const std::string& path)
          "asset_id INTEGER NOT NULL, "
          "totalQuote INTEGER NOT NULL, "
          "filledQuote INTEGER NOT NULL, "
-         "limit NOT NULL DEFAULT 0, "
+         "limitPrice INTEGER NOT NULL DEFAULT 0, "
          "PRIMARY KEY(`id`))");
     exec("CREATE INDEX IF NOT EXISTS `" BUYORDERS_TABLE "Index` ON "
-         "`" BUYORDERS_TABLE "` (asset_id, limit DESC, id ASC)");
+         "`" BUYORDERS_TABLE "` (asset_id, limitPrice DESC, id ASC)");
     exec("CREATE UNIQUE INDEX IF NOT EXISTS `" BUYORDERS_TABLE "AccountIndex` ON "
          "`" BUYORDERS_TABLE "` (account_id, pin_height, nonce_id)");
 
@@ -118,7 +118,7 @@ ChainDB::Database::Database(const std::string& path)
          "nonce_id INTEGER NOT NULL, "
          "PRIMARY KEY(`id`))");
     exec("CREATE INDEX IF NOT EXISTS `" CANCELED_TABLE "Index` ON "
-         "`" CANCELED_TABLE "` (accountId, pin_height, nonce_id)");
+         "`" CANCELED_TABLE "` (account_id, pin_height, nonce_id)");
 
     // Pools
     exec("CREATE TABLE IF NOT EXISTS " POOLS_TABLE " ("
@@ -136,7 +136,7 @@ ChainDB::Database::Database(const std::string& path)
          "out_total INTEGER NOT NULL, "
          "out_paid INTEGER NOT NULL DEFAULT 0, "
          "in_total INTEGER NOT NULL, "
-         "in_burnt INTEGER NOT NULL DEFAULT 0"
+         "in_burnt INTEGER NOT NULL DEFAULT 0, "
          "in_asset_id INTEGER NOT NULL UNIQUE, "
          "expiration_height INTEGER NOT NULL, "
          "PRIMARY KEY(`id`))");
@@ -144,7 +144,7 @@ ChainDB::Database::Database(const std::string& path)
          "`" PEG_TABLE "` (expiration_height)");
 
     // TokenForkBalances
-    exec("CREATE TABLE IF NOT EXISTS " TOKENFORKBALANCES_TABLE "("
+    exec("CREATE TABLE IF NOT EXISTS " TOKENFORKBALANCES_TABLE " ("
          "`id` INTEGER NOT NULL, "
          "`account_id` INTEGER NOT NULL, "
          "`asset_id` INTEGER NOT NULL, "
@@ -155,7 +155,7 @@ ChainDB::Database::Database(const std::string& path)
          "ON `" TOKENFORKBALANCES_TABLE "` (account_id, asset_id, height)");
 
     // Assets
-    exec("CREATE TABLE IF NOT EXISTS ` " ASSETS_TABLE "` ( "
+    exec("CREATE TABLE IF NOT EXISTS `" ASSETS_TABLE "` ( "
          "`id` INTEGER DEFAULT NULL, "
          "`hash` TEXT NOT NULL UNIQUE, "
          "`name` TEXT NOT NULL UNIQUE, "
@@ -250,7 +250,7 @@ ChainDB::ChainDB(const std::string& path)
     , state64Statements(db)
     , stmtBlockInsert(db, "INSERT INTO `" BLOCKS_TABLE "` ( `height`, `header`, `body` "
                           ", `hash`) VALUES (?,?,?,?)")
-    , stmtUndoSet(db, "UPDATE `" BLOCKS_TABLE " SET `undo`=? WHERE `ROWID`=?")
+    , stmtUndoSet(db, "UPDATE `" BLOCKS_TABLE "` SET `undo`=? WHERE `ROWID`=?")
     , stmtBlockGetUndo(
           db, "SELECT `header`,`body`, `undo` FROM `" BLOCKS_TABLE "` WHERE `ROWID`=?")
     , stmtBlockById(
@@ -258,30 +258,30 @@ ChainDB::ChainDB(const std::string& path)
     , stmtBlockByHash(
           db, "SELECT ROWID, `height`, `header`, `body` FROM `" BLOCKS_TABLE "` WHERE `hash`=?;")
     , stmtPruneCandles5m(db, "DELETE FROM Candles5m WHERE timestamp >=?")
-    , stmtInsertCandles5m(db, "INSERT OR REPLACE INTO Candles5m (tokenId, timestamp, open, high, low, close, quantity, volume) VALUES (?,?,?,?,?,?,?,?)")
-    , stmtSelectCandles5m(db, "SELECT (timestamp, open, high, low, close, quantity, volume) FROM Candles5m WHERE asset_id=? AND timestamp>=? AND timestamp<=?")
+    , stmtInsertCandles5m(db, "INSERT OR REPLACE INTO Candles5m (asset_id, timestamp, open, high, low, close, quantity, volume) VALUES (?,?,?,?,?,?,?,?)")
+    , stmtSelectCandles5m(db, "SELECT timestamp, open, high, low, close, quantity, volume FROM Candles5m WHERE asset_id=? AND timestamp>=? AND timestamp<=?")
     , stmtPruneCandles1h(db, "DELETE FROM Candles1h WHERE timestamp >=?")
-    , stmtInsertCandles1h(db, "INSERT OR REPLACE INTO Candles1h (tokenId, timestamp, open, high, low, close, quantity, volume) VALUES (?,?,?,?,?,?,?,?)")
-    , stmtSelectCandles1h(db, "SELECT (timestamp, open, high, low, close, quantity, volume) FROM Candles1h WHERE asset_id=? AND timestamp>=? AND timestamp<=?")
+    , stmtInsertCandles1h(db, "INSERT OR REPLACE INTO Candles1h (asset_id, timestamp, open, high, low, close, quantity, volume) VALUES (?,?,?,?,?,?,?,?)")
+    , stmtSelectCandles1h(db, "SELECT timestamp, open, high, low, close, quantity, volume FROM Candles1h WHERE asset_id=? AND timestamp>=? AND timestamp<=?")
 
-    , stmtInsertBaseSellOrder(db, "INSERT INTO `" SELLORDERS_TABLE "` (id, account_id, pin_height, nonce_id, asset_id, totalBase, filledBase, limit) VALUES(?,?,?,?,?,?,?,?)")
+    , stmtInsertBaseSellOrder(db, "INSERT INTO `" SELLORDERS_TABLE "` (id, account_id, pin_height, nonce_id, asset_id, totalBase, filledBase, limitPrice) VALUES(?,?,?,?,?,?,?,?)")
     , stmtUpdateFillBaseSellOrder(db, "UPDATE `" SELLORDERS_TABLE "` SET filledBase = ? WHERE id = ?")
     , stmtDeleteBaseSellOrder(db, "DELETE FROM `" SELLORDERS_TABLE "` WHERE id = ?")
     , stmtDeleteBaseSellOrderTxid(db, "DELETE FROM `" SELLORDERS_TABLE "` WHERE account_id = ? AND pin_height = ? AND nonce_id = ?")
-    , stmtInsertQuoteBuyOrder(db, "INSERT INTO `" BUYORDERS_TABLE "` (id, account_id, pin_height, nonce_id, asset_id, totalQuote, filledQuote, limit) VALUES(?,?,?,?,?,?,?,?)")
+    , stmtInsertQuoteBuyOrder(db, "INSERT INTO `" BUYORDERS_TABLE "` (id, account_id, pin_height, nonce_id, asset_id, totalQuote, filledQuote, limitPrice) VALUES(?,?,?,?,?,?,?,?)")
     , stmtUpdateFillQuoteBuyOrder(db, "UPDATE `" BUYORDERS_TABLE "` SET filledQuote = ? WHERE id = ?")
     , stmtDeleteQuoteBuyOrder(db, "DELETE FROM `" BUYORDERS_TABLE "` WHERE id = ?")
     , stmtDeleteQuoteBuyOrderTxid(db, "DELETE FROM `" BUYORDERS_TABLE "` WHERE account_id = ? AND pin_height = ? AND nonce_id = ?")
-    , stmtSelectBaseSellOrderAsc(db, "SELECT (id, account_id, pin_height, nonce_id, totalBase, filledBase, limit) FROM `" SELLORDERS_TABLE "` WHERE asset_id=? ORDER BY limit ASC, id ASC")
-    , stmtSelectQuoteBuyOrderDesc(db, "SELECT (id, account_id, pin_height, nonce_id, totalQuote, filledQuote, limit) FROM `" BUYORDERS_TABLE "` WHERE asset_id=? ORDER BY limit DESC, id ASC")
-    , stmtSelectBaseSell(db, "SELECT (id, asset_id, totalBase, filledBase, limit) FROM `" SELLORDERS_TABLE "` WHERE account_id = ? AND pin_height = ? AND nonce_id = ?")
-    , stmtSelectQuoteBuy(db, "SELECT (id, asset_id, totalQuote, filledQuote, limit) FROM `" BUYORDERS_TABLE "` WHERE account_id = ? AND pin_height = ? AND nonce_id = ?")
+    , stmtSelectBaseSellOrderAsc(db, "SELECT id, account_id, pin_height, nonce_id, totalBase, filledBase, limitPrice FROM `" SELLORDERS_TABLE "` WHERE asset_id=? ORDER BY limitPrice ASC, id ASC")
+    , stmtSelectQuoteBuyOrderDesc(db, "SELECT id, account_id, pin_height, nonce_id, totalQuote, filledQuote, limitPrice FROM `" BUYORDERS_TABLE "` WHERE asset_id=? ORDER BY limitPrice DESC, id ASC")
+    , stmtSelectBaseSell(db, "SELECT id, asset_id, totalBase, filledBase, limitPrice FROM `" SELLORDERS_TABLE "` WHERE account_id = ? AND pin_height = ? AND nonce_id = ?")
+    , stmtSelectQuoteBuy(db, "SELECT id, asset_id, totalQuote, filledQuote, limitPrice FROM `" BUYORDERS_TABLE "` WHERE account_id = ? AND pin_height = ? AND nonce_id = ?")
     , stmtInsertCanceled(db, "INSERT INTO `" CANCELED_TABLE "` (id, account_id, pin_height, nonce_id) VALUES (?,?,?,?)")
     , stmtDeleteCanceled(db, "DELETE FROM `" CANCELED_TABLE "` WHERE id = ?")
-    , stmtInsertPool(db, "INSERT INTO `" POOLS_TABLE "` (asset_id, pool_wart, pool_token, pool_shares) VALUES (?,?,?,?)")
+    , stmtInsertPool(db, "INSERT INTO `" POOLS_TABLE "` (asset_id, liquidity_wart, liquidity_token, pool_shares) VALUES (?,?,?,?)")
     , stmtDeletePool(db, "DELETE FROM `" POOLS_TABLE "` WHERE asset_id = ?")
-    , stmtSelectPool(db, "SELECT (asset_id, liquidity_token, liquidity_wart, pool_shares) FROM `" POOLS_TABLE "` WHERE asset_id=?")
-    , stmtUpdatePool(db, "UPDATE `" POOLS_TABLE "` SET liquidity_base=?, liquidity_quote=?, pool_shares=? WHERE asset_id=?")
+    , stmtSelectPool(db, "SELECT asset_id, liquidity_token, liquidity_wart, pool_shares FROM `" POOLS_TABLE "` WHERE asset_id=?")
+    , stmtUpdatePool(db, "UPDATE `" POOLS_TABLE "` SET liquidity_token=?, liquidity_wart=?, pool_shares=? WHERE asset_id=?")
     , stmtTokenForkBalanceInsert(db, "INSERT INTO `" TOKENFORKBALANCES_TABLE "` "
                                      "(id, account_id, asset_id, height, balance) "
                                      "VALUES (?,?,?,?,?)")
@@ -289,12 +289,12 @@ ChainDB::ChainDB(const std::string& path)
                                           "WHERE account_id=? "
                                           "AND asset_id=? "
                                           "AND height=?")
-    , stmtTokenForkBalanceSelect(db, "SELECT height, balance FROM `" TOKENFORKBALANCES_TABLE "` WHERE account_id=? height>=? ORDER BY height ASC LIMIT 1")
+    , stmtTokenForkBalanceSelect(db, "SELECT height, balance FROM `" TOKENFORKBALANCES_TABLE "` WHERE account_id=? AND height>=? ORDER BY height ASC LIMIT 1")
 
-    , stmtAssetInsert(db, "INSERT INTO `" ASSETS_TABLE "` ( `id`, `hash, `name`, `precision`, `height`, `owner_account_id`, total_supply, group_id, parent_id, data) VALUES (?,?,?,?,?,?,?,?,?,?)")
+    , stmtAssetInsert(db, "INSERT INTO `" ASSETS_TABLE "` (id, hash, name, precision, height, owner_account_id, total_supply, group_id, parent_id, data) VALUES (?,?,?,?,?,?,?,?,?,?)")
     , stmtAssetSelectForkHeight(db, "SELECT height FROM `" ASSETS_TABLE "` WHERE parent_id=? AND height>=? ORDER BY height DESC LIMIT 1")
-    , stmtAssetLookup(db, "SELECT (id, hash, name, precision, height, owner_account_id, total_supply, group_id, parent_id) FROM `" ASSETS_TABLE "` WHERE `id`=?")
-    , stmtAssetLookupByHash(db, "SELECT (id, hash, name, precision, height, owner_account_id, total_supply, group_id, parent_id) FROM `" ASSETS_TABLE "` WHERE `hash`=?")
+    , stmtAssetLookup(db, "SELECT id, hash, name, precision, height, owner_account_id, total_supply, group_id, parent_id FROM `" ASSETS_TABLE "` WHERE `id`=?")
+    , stmtAssetLookupByHash(db, "SELECT id, hash, name, precision, height, owner_account_id, total_supply, group_id, parent_id FROM `" ASSETS_TABLE "` WHERE `hash`=?")
     , stmtSelectBalanceId(db, "SELECT `account_id`, `token_id`, `total`, `locked` FROM `" BALANCES_TABLE "` WHERE `id`=?")
     , stmtTokenInsertBalance(db, "INSERT INTO `" BALANCES_TABLE "` ( id, `token_id`, `account_id`, `total`, `locked`) VALUES (?,?,?,?,?)")
     , stmtTokenSelectBalance(db, "SELECT `id`, `total`, `locked` FROM `" BALANCES_TABLE "` WHERE `token_id`=? AND `account_id`=?")
@@ -341,7 +341,7 @@ ChainDB::ChainDB(const std::string& path)
     , stmtBadblockGet(db, "SELECT `height`, `header` FROM `" BADBLOCKS_TABLE "`")
 
     , stmtAccountsLookup(db, "SELECT `Address` FROM `" ACCOUNTS_TABLE "` WHERE id=?")
-    , stmtHistoryLinkInsert(db, "INSERT INTO FillLinks (id,link) VALUES (?,?)")
+    , stmtHistoryLinkInsert(db, "INSERT INTO `" FILLLINK_TABLE "` (id,link) VALUES (?,?)")
     , stmtHistoryInsert(db, "INSERT INTO `" HISTORY_TABLE "` (`id`,`hash`, `data`"
                             ") VALUES (?,?,?)")
     , stmtHistoryDeleteFrom(db, "DELETE FROM `" HISTORY_TABLE "` WHERE `id`>=?")
@@ -361,7 +361,7 @@ ChainDB::ChainDB(const std::string& path)
 
     // BELOW STATEMENTS REQUIRED FOR INDEXING NODES
     //
-    , stmtAddressLookup(db, "SELECT b.`ROWID`, FROM `" ACCOUNTS_TABLE " WHERE `address`=?")
+    , stmtAddressLookup(db, "SELECT ROWID FROM " ACCOUNTS_TABLE " WHERE `address`=?")
     , stmtHistoryById(db, "SELECT h.id, `hash`,`data` FROM `" HISTORY_TABLE "` `h` JOIN "
                           "`" ACCOUNTHISTORY_TABLE "` `ah` ON h.id=`ah`.history_id WHERE "
                           "ah.`account_id`=? AND h.id<? ORDER BY h.id DESC LIMIT 100")
