@@ -4,6 +4,7 @@
 #include "block/body/transaction_id.hpp"
 #include "crypto/hasher_sha256.hpp"
 #include "general/reader.hpp"
+#include "spdlog/spdlog.h"
 #include "tools/indicator_variant.hpp"
 #include "tools/variant.hpp"
 
@@ -134,7 +135,7 @@ public:
             return {};
         return messages::SpendToken { asset_hash(), false, amount() };
     }
-    [[nodiscard]] Wart spend_wart_throw() const { return sum_throw(fee(), buy() ? Wart::from_funds_throw(amount()) : Wart(0)); }
+    [[nodiscard]] Wart spend_wart_throw() const { return sum_throw(fee(), buy() ? Wart::from_funds_throw(amount()) : Wart::zero()); }
     using parent_t::parent_t;
 };
 class LiquidityDepositMessage : public ComposeTransactionMessage<5, AssetHashEl, WartEl, AmountEl> {
@@ -190,8 +191,9 @@ public:
 };
 
 struct InvTxTypeExceptionGenerator {
-    auto operator()() const
+    static auto generate(uint8_t txtype)
     {
+        spdlog::warn("Invalid txtype {}", txtype);
         return Error(ETXTYPE);
     }
 };

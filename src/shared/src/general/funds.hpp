@@ -1,5 +1,6 @@
 #pragma once
 #include "general/errors.hpp"
+#include "general/params.hpp"
 #include "general/serializer_fwd.hxx"
 #include "general/with_uint64.hpp"
 #include <cassert>
@@ -69,24 +70,13 @@ struct ParsedFunds {
 
 template <typename R>
 class FundsBase : public IsUint64 {
-private:
+public:
     constexpr FundsBase(uint64_t val)
         : IsUint64(val) { };
-
-public:
     static constexpr R zero() { return { 0 }; }
+    static constexpr std::optional<R> from_value(uint64_t val) { return R(val); }
+    static constexpr R from_value_throw(uint64_t val) { return R(val); }
     auto operator<=>(const FundsBase<R>&) const = default;
-    static constexpr std::optional<R> from_value(uint64_t value)
-    {
-        return R(value);
-    }
-    static constexpr R from_value_throw(uint64_t value)
-    {
-        auto v { from_value(value) };
-        if (!v)
-            throw Error(EINV_FUNDS);
-        return *v;
-    }
 
     bool is_zero() const { return val == 0; }
     // std::string format(std::string_view unit) const;
@@ -162,10 +152,7 @@ public:
 struct FundsDecimal;
 class Funds_uint64 : public FundsBase<Funds_uint64> {
 public:
-    constexpr Funds_uint64(uint64_t v)
-        : FundsBase<Funds_uint64>(from_value_throw(v))
-    {
-    }
+    using FundsBase<Funds_uint64>::FundsBase;
     Funds_uint64(Reader& r);
     auto operator<=>(const Funds_uint64&) const = default;
     static std::optional<Funds_uint64> parse(std::string_view, AssetPrecision);
@@ -209,21 +196,18 @@ inline FundsDecimal Funds_uint64::to_decimal(AssetPrecision d) const
     return { value(), d };
 }
 
-struct Supply : public FundsDecimal{
+struct Supply : public FundsDecimal {
     nlohmann::json to_json() const;
 };
 
 class Wart : public FundsBase<Wart> {
 public:
+    using FundsBase<Wart>::FundsBase;
     static constexpr AssetPrecision precision { AssetPrecision::digits8() };
-    constexpr Wart(uint64_t v)
-        : FundsBase<Wart>(from_value_throw(v))
-    {
-    }
     Wart(Reader& r);
-    [[nodiscard]] static Wart from_funds_throw(Funds_uint64 f)
+    [[nodiscard]] static constexpr Wart from_funds_throw(Funds_uint64 f)
     {
-        return from_value_throw(f.value());
+        return Wart(f.value());
     }
     auto operator<=>(const Wart&) const = default;
     static std::optional<Wart> parse(std::string_view);
@@ -233,7 +217,7 @@ public:
     uint64_t E8() const { return val; };
     operator Funds_uint64() const
     {
-        return Funds_uint64::from_value_throw(E8());
+        return Funds_uint64(E8());
     }
 
 private:

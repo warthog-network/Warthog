@@ -200,6 +200,7 @@ private:
     void handle_msg(Conref cr, TxnotifyMsg&&);
     void handle_msg(Conref cr, TxreqMsg&&);
     void handle_msg(Conref cr, TxrepMsg&&);
+    void handle_msg(Conref cr, LegacyTxrepMsg&&);
     void handle_msg(Conref cr, LeaderMsg&&);
     void handle_msg(Conref cr, RTCIdentity&&);
     void handle_msg(Conref cr, RTCQuota&&);

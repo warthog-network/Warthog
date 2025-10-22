@@ -117,6 +117,10 @@ std::string TxreqMsg::log_str() const
     return fmt_lib::format("TxreqMsg size {}", txids().size());
 }
 
+std::string LegacyTxrepMsg::log_str() const
+{
+    return fmt_lib::format("TxrepMsg size {}", txs().size());
+}
 std::string TxrepMsg::log_str() const
 {
     return fmt_lib::format("TxrepMsg size {}", txs().size());
@@ -214,6 +218,13 @@ TxreqMsg::TxreqMsg(Reader& r)
 {
     if (txids().size() > MAXENTRIES)
         throw Error(EINV_TXREQ);
+}
+
+LegacyTxrepMsg::LegacyTxrepMsg(Reader& r)
+    : Base(r)
+{
+    if (txs().size() > TxreqMsg::MAXENTRIES)
+        throw Error(EINV_TXREP);
 }
 
 TxrepMsg::TxrepMsg(Reader& r)

@@ -40,7 +40,8 @@ constexpr uint32_t MEDIAN_N = DEBUG_PARAMS ? 5 : 50; // the median of this many 
 // Halving
 /////////////
 constexpr uint32_t HALVINTINTERVAL = DEBUG_PARAMS ? 400 : (2 * 365 * 24 * 60 * 60) / BLOCKTIME; // halving approx. every two years
-constexpr uint64_t MAXSUPPLY = GENESISBLOCKREWARD * HALVINTINTERVAL * 2;
+constexpr uint64_t WARTMAXSUPPLY = GENESISBLOCKREWARD * HALVINTINTERVAL * 2;
+constexpr uint64_t TOKENLIMITSUPPLY = 0x8FFFFFFFFFFFFFFF;
 
 /////////////
 // Difficulty adjustment heights
@@ -74,4 +75,4 @@ constexpr uint32_t JANUSV7RETARGETSTART = 987000;
 constexpr uint32_t JANUSV8BLOCKV3START = retarget_floor(1658880);
 constexpr uint32_t NEWMERKLEROOT = 900000;
 constexpr uint32_t NEWBLOCKSTRUCUTREHEIGHT = 981500;
-constexpr uint32_t TOKENSTARTHEIGHT = 981500;
+constexpr uint32_t TOKENSTARTHEIGHT = 9815000;

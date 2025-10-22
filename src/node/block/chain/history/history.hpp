@@ -118,7 +118,7 @@ using LiquidityDeposit = IdCombineSigned<9, AssetIdEl, BaseEl, QuoteEl, SharesEl
 using LiquidityWithdraw = IdCombineSigned<10, AssetIdEl, BaseEl, QuoteEl, SharesEl>;
 
 struct CantParseHistoryExceptionGenerator {
-    std::exception operator()() const
+    static std::exception generate(uint8_t)
     {
         return std::runtime_error("Cannot parse history entry");
     }

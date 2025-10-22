@@ -207,12 +207,12 @@ struct TxreqMsg : public MsgCombineRequest<14, messages::VectorRest<TransactionI
     std::string log_str() const;
 };
 
-struct TxrepMsg : public MsgCombineReply<15, messages::VectorRest<messages::Optional<TransactionMessage>>> {
+struct LegacyTxrepMsg : public MsgCombineReply<15, messages::VectorRest<messages::Optional<WartTransferMessage>>> {
     static constexpr size_t maxSize = 2 + 4 + TxreqMsg::MAXENTRIES * (1 + TransactionMessage::max_byte_size);
     using Base::Base;
 
     using vector_t = messages::VectorRest<messages::Optional<TransactionMessage>>;
-    TxrepMsg(Reader& r);
+    LegacyTxrepMsg(Reader& r);
     [[nodiscard]] auto& txs() const { return get<0>(); }
     std::string log_str() const;
 };
@@ -254,7 +254,7 @@ struct RTCRequestForwardOffer : public MsgCombine<21, uint64_t, String16> {
     using Base::Base;
 
     [[nodiscard]] const auto& signaling_list_key() const { return get<0>(); }
-    [[nodiscard]] const std::string& offer() const & { return get<1>().data; }
+    [[nodiscard]] const std::string& offer() const& { return get<1>().data; }
     [[nodiscard]] std::string& offer() && { return get<1>().data; }
     std::string log_str() const;
 };
@@ -361,8 +361,18 @@ struct InitMsgV3 : public MsgCombine<30, Descriptor, SignedSnapshot::Priority, H
     [[nodiscard]] auto rtc_enabled() const { return (get<5>() & 1) != 0; }
 };
 
+struct TxrepMsg : public MsgCombineReply<31, messages::VectorRest<messages::Optional<TransactionMessage>>> {
+    static constexpr size_t maxSize = 2 + 4 + TxreqMsg::MAXENTRIES * (1 + TransactionMessage::max_byte_size);
+    using Base::Base;
+
+    using vector_t = messages::VectorRest<messages::Optional<TransactionMessage>>;
+    TxrepMsg(Reader& r);
+    [[nodiscard]] auto& txs() const { return get<0>(); }
+    std::string log_str() const;
+};
+
 namespace messages {
 [[nodiscard]] size_t size_bound(uint8_t msgtype);
 
-using Msg = std::variant<InitMsgV1, ForkMsg, AppendMsg, SignedPinRollbackMsg, PingMsg, PongMsg, BatchreqMsg, BatchrepMsg, ProbereqMsg, ProberepMsg, BlockreqMsg, BlockrepMsg, TxnotifyMsg, TxreqMsg, TxrepMsg, LeaderMsg, RTCIdentity, RTCQuota, RTCSignalingList, RTCRequestForwardOffer, RTCForwardedOffer, RTCRequestForwardAnswer, RTCForwardOfferDenied, RTCForwardedAnswer, RTCVerificationOffer, RTCVerificationAnswer, PingV2Msg, PongV2Msg, InitMsgV3>;
+using Msg = std::variant<InitMsgV1, ForkMsg, AppendMsg, SignedPinRollbackMsg, PingMsg, PongMsg, BatchreqMsg, BatchrepMsg, ProbereqMsg, ProberepMsg, BlockreqMsg, BlockrepMsg, TxnotifyMsg, TxreqMsg, LegacyTxrepMsg, LeaderMsg, RTCIdentity, RTCQuota, RTCSignalingList, RTCRequestForwardOffer, RTCForwardedOffer, RTCRequestForwardAnswer, RTCForwardOfferDenied, RTCForwardedAnswer, RTCVerificationOffer, RTCVerificationAnswer, PingV2Msg, PongV2Msg, InitMsgV3, TxrepMsg>;
 } // namespace messages

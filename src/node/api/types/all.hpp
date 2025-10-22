@@ -61,7 +61,7 @@ struct WartBalance {
     std::optional<AddressWithId> address;
     Wart balance;
     WartBalance()
-        : balance(0)
+        : balance(Wart::zero())
     {
     }
 };

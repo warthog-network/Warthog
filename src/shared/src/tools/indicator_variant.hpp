@@ -1,8 +1,9 @@
+#include "expected.hpp"
 #include "general/reader.hpp"
 #include "general/writer.hpp"
 #include "variant.hpp"
 namespace wrt {
-template <typename gen_parse_exception, typename... Ts>
+template <typename parse_exception_generator_t, typename... Ts>
 struct indicator_variant : public wrt::variant<Ts...> {
 private:
     static constexpr auto Max(auto const& value, auto const&... args)
@@ -15,9 +16,9 @@ private:
         }
     }
 
-public:
-    static constexpr const size_t max_byte_size = Max(Ts::byte_size()...);
-    [[nodiscard]] static std::optional<indicator_variant> try_parse(Reader& r)
+    using expected_t = tl::expected<indicator_variant, uint8_t>;
+
+    [[nodiscard]] static expected_t try_parse_expected(Reader& r)
     {
         std::optional<indicator_variant> o;
         auto i { r.uint8() };
@@ -28,8 +29,25 @@ public:
                 }
                 return false;
             }() || ...))
-            return o;
-        return {};
+            return *o;
+        return tl::make_unexpected(i);
+    }
+
+public:
+    static constexpr const size_t max_byte_size = Max(Ts::byte_size()...);
+    [[nodiscard]] static std::optional<indicator_variant> try_parse(Reader& r)
+    {
+        if (expected_t e { try_parse_expected(r) })
+            return *e;
+        else
+            return e.error();
+    }
+    [[nodiscard]] static indicator_variant parse_throw(Reader& r)
+    {
+        if (expected_t o { try_parse_expected(r) })
+            return *o;
+        else
+            throw parse_exception_generator_t::generate(o.error());
     }
     static constexpr bool is_ascending()
     {
@@ -42,12 +60,6 @@ public:
     }
     static_assert(is_ascending()); // indicators must be in ascending order to ensure they are all different
 
-    [[nodiscard]] static indicator_variant parse_throw(Reader& r)
-    {
-        if (auto o { try_parse(r) })
-            return *o;
-        throw gen_parse_exception();
-    }
 
     using wrt::variant<Ts...>::variant;
     using parent_t1 = wrt::variant<Ts...>;

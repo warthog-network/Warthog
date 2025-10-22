@@ -175,11 +175,13 @@ void Mempool::erase(TransactionId id)
         erase_internal(iter);
 }
 
-std::vector<TxidWithFee> Mempool::sample(size_t N) const
+std::vector<TxidWithFee> Mempool::sample(size_t N, bool onlyWartTransfer) const
 {
     auto sampled { byFee.sample(800, N) };
     std::vector<TxidWithFee> out;
     for (auto iter : sampled) {
+        if (onlyWartTransfer && !iter->holds<WartTransferMessage>()) 
+            continue;
         out.push_back({ iter->txid(), iter->compact_fee() });
     }
     return out;

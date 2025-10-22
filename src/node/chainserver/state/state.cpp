@@ -1182,7 +1182,7 @@ api::WartBalance State::api_get_wart_balance(api::AccountIdOrAddress a) const
     api::WartBalance res;
     auto b { api_get_token_balance_recursive(a, TokenId::WART) };
     if (b.lookup) {
-        res.balance = Wart(b.total.funds.value());
+        res.balance = Wart::from_funds_throw(b.total.funds);
         res.address = b.lookup->address;
     }
     return res;

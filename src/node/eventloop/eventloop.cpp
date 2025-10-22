@@ -1274,7 +1274,7 @@ void Eventloop::handle_msg(Conref c, PingMsg&& m)
     if (!c.is_tcp())
         nAddr = 0;
     auto addresses { connections.sample_verified_tcp(nAddr) };
-    PongMsg msg { m.nonce(), std::move(addresses), mempool.sample(m.maxTransactions()) };
+    PongMsg msg { m.nonce(), std::move(addresses), mempool.sample(m.maxTransactions(), c.version().protocol().before_defi()) };
     spdlog::debug("{} Sending {} addresses", c.str(), msg.addresses().size());
 #else
     PongMsg msg(m.nonce(), {}, {});
@@ -1295,7 +1295,7 @@ void Eventloop::handle_msg(Conref c, PingV2Msg&& m)
     if (!c.is_tcp())
         nAddr = 0;
     auto addresses = connections.sample_verified_tcp(nAddr);
-    PongV2Msg msg { m.nonce(), std::move(addresses), mempool.sample(m.maxTransactions()) };
+    PongV2Msg msg { m.nonce(), std::move(addresses), mempool.sample(m.maxTransactions(), c.version().protocol().before_defi()) };
 #else
     PongV2Msg msg(m.nonce(), {}, {});
 #endif
@@ -1493,9 +1493,23 @@ void Eventloop::handle_msg(Conref cr, TxreqMsg&& m)
         cr.send(TxrepMsg(m.nonce(), out));
 }
 
+void Eventloop::handle_msg(Conref cr, LegacyTxrepMsg&& m)
+{
+    log_communication("{} handle LegacyTxrepMsg", cr.str());
+    // TODO: check that sent transactions were actually requested ones
+    std::vector<TransactionMessage> txs;
+    for (auto& o : m.txs()) {
+        if (o)
+            txs.push_back(*o);
+    };
+    stateServer.async_put_mempool(std::move(txs));
+    do_requests();
+}
+
 void Eventloop::handle_msg(Conref cr, TxrepMsg&& m)
 {
     log_communication("{} handle TxrepMsg", cr.str());
+    // TODO: check that sent transactions were actually requested ones
     std::vector<TransactionMessage> txs;
     for (auto& o : m.txs()) {
         if (o)
