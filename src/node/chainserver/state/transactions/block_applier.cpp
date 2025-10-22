@@ -913,7 +913,7 @@ private:
             balanceChecker.register_asset_creation(ac, height);
     }
 
-    auto process_new_balance(const AccountToken& at, const BalanceFlow& tokenFlow)
+    auto process_new_balance(const AccountToken& at, const BalanceFlow& tokenFlow, std::optional<BalanceId> id = {})
     {
         if (!tokenFlow.total.negative().is_zero()
             || !tokenFlow.locked.negative().is_zero()
@@ -924,7 +924,7 @@ private:
         if (total < locked)
             throw Error(EBALANCE);
         blockEffects.insert(block_apply::BalanceInsert({
-            .id { idIncrementer.next_inc() },
+            .id { id ? *id : BalanceId(idIncrementer.next_inc()) },
             .accountId { at.account_id() },
             .tokenId { at.token_id() },
             .total { total },
@@ -978,7 +978,9 @@ private:
             for (auto& [tokenId, tokenFlow] : a.token_flow()) {
                 if (!tokenFlow.total.positive().is_zero())
                     referred = true;
-                process_new_balance({ a.id, tokenId }, tokenFlow);
+                
+                // for new accounts, use newly generated AccountId also as BalanceId
+                process_new_balance({ a.id, tokenId }, tokenFlow, BalanceId(a.id.value()));
             }
             if (!referred)
                 throw Error(EIDPOLICY); // id was not referred
