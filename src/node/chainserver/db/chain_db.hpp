@@ -123,12 +123,15 @@ public:
     ChainDB(const std::string& path);
     [[nodiscard]] ChainDBTransaction transaction();
     template <typename T>
-    void insert_guarded(const T& t)
+    void insert_guarded(const T& t, bool checkId = true)
     {
-        auto& stateId { cache.ids.corresponding_state(t.id) };
-        stateId.if_unequal_throw(t.id);
-        insert_unguarded(t);
-        stateId++;
+        if (checkId) {
+            auto& stateId { cache.ids.corresponding_state(t.id) };
+            stateId.if_unequal_throw(t.id);
+            stateId++;
+        } else {
+            insert_unguarded(t);
+        }
     }
 
 private:

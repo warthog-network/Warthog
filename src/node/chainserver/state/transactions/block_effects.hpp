@@ -19,6 +19,7 @@ struct BalanceUpdate {
     Balance_uint64 updated;
 };
 struct BalanceInsert : public chain_db::BalanceData { };
+struct BalanceInsertUnguarded : public chain_db::BalanceData { };
 struct OrderDelete : public chain_db::OrderData { };
 struct OrderInsert : public chain_db::OrderData { };
 struct PoolUpdate {
@@ -76,6 +77,10 @@ public:
     void apply(const BalanceInsert& b)
     {
         db.insert_guarded(b);
+    }
+    void apply(const BalanceInsertUnguarded& b)
+    {
+        db.insert_guarded(b, false);
     }
     void apply(OrderDelete od)
     {
@@ -147,7 +152,7 @@ public:
     }
 };
 
-using BlockEffects = BlockEffectsBase<AccountInsert, BalanceUpdate, BalanceInsert, OrderDelete, OrderInsert, OrderUpdate, PoolInsert, PoolUpdate, AssetInsert>;
+using BlockEffects = BlockEffectsBase<AccountInsert, BalanceUpdate, BalanceInsert, BalanceInsertUnguarded, OrderDelete, OrderInsert, OrderUpdate, PoolInsert, PoolUpdate, AssetInsert>;
 
 // struct BlockEffects {
 //     std::vector<AccountInsert> accountInserts;

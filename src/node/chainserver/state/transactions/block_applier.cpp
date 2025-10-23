@@ -923,13 +923,23 @@ private:
         Funds_uint64 total { tokenFlow.total.positive() };
         if (total < locked)
             throw Error(EBALANCE);
-        blockEffects.insert(block_apply::BalanceInsert({
-            .id { id ? *id : BalanceId(idIncrementer.next_inc()) },
-            .accountId { at.account_id() },
-            .tokenId { at.token_id() },
-            .total { total },
-            .locked { locked },
-        }));
+        if (id) {
+            blockEffects.insert(block_apply::BalanceInsertUnguarded({
+                .id { *id },
+                .accountId { at.account_id() },
+                .tokenId { at.token_id() },
+                .total { total },
+                .locked { locked },
+            }));
+        } else {
+            blockEffects.insert(block_apply::BalanceInsert({
+                .id { BalanceId(idIncrementer.next_inc()) },
+                .accountId { at.account_id() },
+                .tokenId { at.token_id() },
+                .total { total },
+                .locked { locked },
+            }));
+        }
     }
     auto process_existing_balance(const AccountToken& at, const BalanceFlow& flow, const IdBalance ib)
     {
@@ -978,9 +988,13 @@ private:
             for (auto& [tokenId, tokenFlow] : a.token_flow()) {
                 if (!tokenFlow.total.positive().is_zero())
                     referred = true;
-                
-                // for new accounts, use newly generated AccountId also as BalanceId
-                process_new_balance({ a.id, tokenId }, tokenFlow, BalanceId(a.id.value()));
+
+                if (tokenId.is_wart()) {
+                    // for new accounts, use newly generated AccountId also as BalanceId for Wart
+                    process_new_balance({ a.id, tokenId }, tokenFlow, BalanceId(a.id.value()));
+                } else {
+                    process_new_balance({ a.id, tokenId }, tokenFlow);
+                }
             }
             if (!referred)
                 throw Error(EIDPOLICY); // id was not referred
