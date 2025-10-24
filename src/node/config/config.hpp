@@ -33,7 +33,7 @@ struct Config {
     struct Node {
         std::optional<SnapshotSigner> snapshotSigner;
         EndpointAddress bind;
-        std::atomic<CompactUInt> minMempoolFee { CompactUInt::compact(Funds::from_value(9992).value()) };
+        std::atomic<CompactUInt> minMempoolFee { CompactUInt::compact(Funds::from_value(1000448).value()) };
         bool isolated { false };
         bool disableTxsMining { false }; // don't mine transactions
         std::atomic<bool> logCommunication { false };
