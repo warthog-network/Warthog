@@ -1,6 +1,6 @@
 #include "api/http/endpoint.hpp"
-#include "asyncio/conman.hpp"
 #include "api/stratum/stratum_server.hpp"
+#include "asyncio/conman.hpp"
 #include "chainserver/server.hpp"
 #include "db/chain_db.hpp"
 #include "db/peer_db.hpp"
@@ -84,6 +84,7 @@ int main(int argc, char** argv)
     spdlog::flush_every(5s);
     spdlog::info("Chain database: {}", config().data.chaindb);
     spdlog::info("Peers database: {}", config().data.peersdb);
+    spdlog::info("Minimal transaction fee: {} WART", config().node.minMempoolFee.load().to_string());
 
     // spdlog::flush_on(spdlog::level::debug);
     /////////////////////
@@ -98,7 +99,7 @@ int main(int argc, char** argv)
 
     spdlog::debug("Opening chain database \"{}\"", config().data.chaindb);
     ChainDB db(config().data.chaindb);
-    auto cs =ChainServer::make_chain_server(db, breg, config().node.snapshotSigner);
+    auto cs = ChainServer::make_chain_server(db, breg, config().node.snapshotSigner);
 
     std::optional<StratumServer> stratumServer;
     if (config().stratumPool) {
@@ -114,7 +115,7 @@ int main(int argc, char** argv)
 
     // starting endpoint
     HTTPEndpoint endpoint { config().jsonrpc.bind };
-    auto endpointPublic { HTTPEndpoint::make_public_endpoint(config())};
+    auto endpointPublic { HTTPEndpoint::make_public_endpoint(config()) };
 
     // setup globals
     global_init(&breg, &ps, &*cs, &cm, &el, &endpoint);

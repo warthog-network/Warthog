@@ -13,6 +13,7 @@ option "isolated" - "Do not allow peers (for testing purposes, do not use in pro
 option "temporary" - "Use temporary database (for testing purposes, do not use in production)" details="This option starts the node with a temporary empty chain database." optional
 option "testnet" - "Enable testnet" optional
 option "disable-tx-mining" - "Don't mine transactions (in case of bugs)" optional
+option "minfee" - "Set minimal transaction fee accepted by this node, defaults to 0.01" optional string
 
 section "Data file options"
 option "chain-db" - "specify chain data file" details="Defaults to ~/.warthog/chain.db3 in Linux, %LOCALAPPDATA%/Warthog/chain.db3 on Windows.'" optional string 

@@ -50,6 +50,9 @@ struct gengetopt_args_info
   const char *temporary_help; /**< @brief Use temporary database (for testing purposes, do not use in production) help description.  */
   const char *testnet_help; /**< @brief Enable testnet help description.  */
   const char *disable_tx_mining_help; /**< @brief Don't mine transactions (in case of bugs) help description.  */
+  char * minfee_arg;	/**< @brief Set minimal transaction fee accepted by this node, defaults to 0.01.  */
+  char * minfee_orig;	/**< @brief Set minimal transaction fee accepted by this node, defaults to 0.01 original value given at command line.  */
+  const char *minfee_help; /**< @brief Set minimal transaction fee accepted by this node, defaults to 0.01 help description.  */
   char * chain_db_arg;	/**< @brief specify chain data file.  */
   char * chain_db_orig;	/**< @brief specify chain data file original value given at command line.  */
   const char *chain_db_help; /**< @brief specify chain data file help description.  */
@@ -82,6 +85,7 @@ struct gengetopt_args_info
   unsigned int temporary_given ;	/**< @brief Whether temporary was given.  */
   unsigned int testnet_given ;	/**< @brief Whether testnet was given.  */
   unsigned int disable_tx_mining_given ;	/**< @brief Whether disable-tx-mining was given.  */
+  unsigned int minfee_given ;	/**< @brief Whether minfee was given.  */
   unsigned int chain_db_given ;	/**< @brief Whether chain-db was given.  */
   unsigned int peers_db_given ;	/**< @brief Whether peers-db was given.  */
   unsigned int debug_given ;	/**< @brief Whether debug was given.  */
