@@ -132,6 +132,7 @@ void HTTPEndpoint::work()
     get("/transaction/mempool", get_mempool);
     get_1("/transaction/lookup/:txid", lookup_tx);
     get("/transaction/latest", get_latest_transactions);
+    get("/transaction/minfee", get_transaction_minfee);
 
     indexGenerator.section("Settings");
     get_1("/settings/mempool/minfee/:feeE8", set_minfee, true);

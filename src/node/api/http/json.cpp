@@ -383,6 +383,15 @@ json to_json(const API::TransactionsByBlocks& txs)
     return arr;
 }
 
+json to_json(const API::TransactionMinfee& f)
+{
+    return {
+        { "amount", f.minfee.to_string() },
+        { "E8", f.minfee.uncompact().E8() },
+        { "16bit", f.minfee.value() }
+    };
+}
+
 json to_json(const API::Block& block)
 {
     json j;

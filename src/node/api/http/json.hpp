@@ -21,6 +21,7 @@ nlohmann::json to_json(const API::MempoolEntries&);
 nlohmann::json to_json(const API::Transaction&);
 nlohmann::json to_json(const API::PeerinfoConnections&);
 nlohmann::json to_json(const API::TransactionsByBlocks&);
+nlohmann::json to_json(const API::TransactionMinfee&);
 nlohmann::json to_json(const API::Block&);
 nlohmann::json to_json(const API::AccountHistory&);
 nlohmann::json to_json(const API::Richlist&);

@@ -25,7 +25,11 @@ void lookup_tx(const Hash hash, TxCb f)
 void get_latest_transactions(LatestTxsCb f)
 {
     global().pcs->api_lookup_latest_txs(std::move(f));
-};
+}
+
+void get_transaction_minfee(TransactionMinfeeCb f){
+    global().pcs->api_get_transaction_minfee(std::move(f));
+}
 
 // peer db functions
 

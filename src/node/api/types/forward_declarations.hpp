@@ -13,6 +13,7 @@ struct HashrateInfo;
 struct Block;
 struct AccountHistory;
 struct TransactionsByBlocks;
+struct TransactionMinfee;
 struct HashrateChart;
 struct HashrateChartRequest;
 struct Richlist;

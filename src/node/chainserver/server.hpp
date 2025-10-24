@@ -69,6 +69,9 @@ public:
     struct LookupLatestTxs {
         LatestTxsCb callback;
     };
+    struct GetTransactionMinfee {
+        TransactionMinfeeCb callback;
+    };
     struct SetSynced {
         bool synced;
     };
@@ -110,7 +113,7 @@ public:
         DescriptedBlockRange range;
         getBlocksCb callback;
     };
-    struct MempoolConstraintUpdate { 
+    struct MempoolConstraintUpdate {
         MempoolConstraintCb callback;
     };
     struct PutMempoolBatch {
@@ -130,6 +133,7 @@ public:
         LookupTxids,
         LookupTxHash,
         LookupLatestTxs,
+        GetTransactionMinfee,
         SetSynced,
         GetHistory,
         GetRichlist,
@@ -198,6 +202,7 @@ public:
     void api_get_mempool(MempoolCb callback);
     void api_lookup_tx(const HashView hash, TxCb callback);
     void api_lookup_latest_txs(LatestTxsCb callback);
+    void api_get_transaction_minfee(TransactionMinfeeCb callback);
     void api_get_history(const Address& address, uint64_t beforeId, HistoryCb callback);
     void api_get_richlist(RichlistCb callback);
     void api_get_header(API::HeightOrHash, HeaderCb callback);
@@ -230,6 +235,7 @@ private:
     void handle_event(LookupTxids&&);
     void handle_event(LookupTxHash&&);
     void handle_event(LookupLatestTxs&&);
+    void handle_event(GetTransactionMinfee&&);
     void handle_event(SetSynced&& e);
     void handle_event(GetHistory&&);
     void handle_event(GetRichlist&&);

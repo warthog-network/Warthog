@@ -178,6 +178,11 @@ std::optional<API::Transaction> State::api_get_tx(const HashView txHash) const
     return {};
 }
 
+auto State::api_get_transaction_minfee() -> API::TransactionMinfee
+{
+    return { chainstate.mempool().min_fee() };
+}
+
 auto State::api_get_latest_txs(size_t N) const -> API::TransactionsByBlocks
 {
     HistoryId upper { db.next_history_id() };
@@ -666,7 +671,8 @@ API::Balance State::api_get_address(AccountId accountId)
     }
 }
 
-size_t State::on_mempool_constraint_update(){
+size_t State::on_mempool_constraint_update()
+{
     return chainstate.on_mempool_constraint_update();
 }
 
