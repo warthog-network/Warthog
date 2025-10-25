@@ -31,6 +31,7 @@ json to_json(const api::MempoolEntries&);
 json to_json(const api::Transaction&);
 json to_json(const api::PeerinfoConnections&);
 json to_json(const api::TransactionsByBlocks&);
+json to_json(const api::TransactionMinfee&);
 json to_json(const api::Block&);
 json to_json(const api::BlockSummary&);
 json to_json(const api::AccountHistory&);

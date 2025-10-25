@@ -26,6 +26,7 @@ struct Richlist;
 struct Rollback;
 struct Round16Bit;
 struct TransactionsByBlocks;
+struct TransactionMinfee;
 struct TransferTransaction;
 struct Wallet;
 struct DBSize;

@@ -386,8 +386,16 @@ void ConfigParams::process_args(const gengetopt_args_info& ai)
             return *p;
         };
     };
+    auto arg_to_minfee { [](std::string_view argval) {
+        try {
+            return CompactUInt::compact(Funds::parse_throw(argval), true);
+        } catch (...) {
+            throw std::runtime_error("Bad --minfee option '"s + std::string(argval) + "' specified");
+        }
+    } };
     fill_arg(peers.connect, ai.connect_given, ai.connect_arg, parse_endpoints);
     fill_arg(node.bind, ai.bind_given, ai.bind_arg, arg_to_peer_lambda("--bind"));
+    fill_arg(node.minMempoolFee, ai.minfee_given, ai.minfee_arg, arg_to_minfee);
     fill_arg(jsonrpc.bind, ai.rpc_given, ai.rpc_arg, arg_to_peer_lambda("--rpc"));
     fill_arg(publicAPI, ai.publicrpc_given, ai.publicrpc_arg, arg_to_peer_lambda("--publicrpc"));
     fill_arg(stratumPool, ai.stratum_given, ai.stratum_arg, arg_to_peer_lambda("--stratum"));
@@ -660,4 +668,5 @@ Config::Config(ConfigParams&& params)
 {
     logCommunication = node.logCommunicationVal;
     logRTC = node.logRTC;
+    minMempoolFee = node.minMempoolFee;
 }

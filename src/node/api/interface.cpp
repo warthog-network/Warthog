@@ -29,6 +29,9 @@ void get_latest_transactions(LatestTxsCb f)
 {
     global().chainServer->api_lookup_latest_txs(std::move(f));
 };
+void get_transaction_minfee(TransactionMinfeeCb f){
+    global().chainServer->api_get_transaction_minfee(std::move(f));
+}
 
 // peer functions
 

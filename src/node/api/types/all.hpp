@@ -147,6 +147,9 @@ struct TransactionsByBlocks {
     HistoryId fromId;
     std::vector<api::Block> blocks_reversed;
 };
+struct TransactionMinfee{
+    CompactUInt minfee;
+};
 struct Richlist {
     std::vector<std::pair<Address, Funds>> entries;
 };

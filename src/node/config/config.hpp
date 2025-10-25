@@ -72,6 +72,7 @@ struct ConfigParams {
         bool isolated { false };
         bool disableTxsMining { false }; // don't mine transactions
         bool enableWebRTC { false }; // don't use WebRTC
+        CompactUInt minMempoolFee { CompactUInt::compact(Funds::from_value(9992).value()) };
         bool logCommunicationVal { false };
         bool logRTC { false };
     } node;

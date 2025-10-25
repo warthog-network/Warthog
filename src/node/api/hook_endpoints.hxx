@@ -206,6 +206,7 @@ public:
         hook_get(t, "/transaction/mempool", get_mempool);
         hook_get_1(t, "/transaction/lookup/:txid", lookup_tx);
         hook_get(t, "/transaction/latest", get_latest_transactions);
+        hook_get(t,"/transaction/minfee", get_transaction_minfee);
 
 
         t.indexGenerator.section("Settings Endpoints");

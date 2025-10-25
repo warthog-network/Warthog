@@ -61,6 +61,7 @@ using HashCb = std::function<void(const tl::expected<Hash, Error>&)>;
 using GridCb = std::function<void(const tl::expected<Grid, Error>&)>;
 using TxCb = std::function<void(const tl::expected<api::Transaction, Error>&)>;
 using LatestTxsCb = std::function<void(const tl::expected<api::TransactionsByBlocks, Error>&)>;
+using TransactionMinfeeCb = std::function<void(const tl::expected<api::TransactionMinfee, Error>&)>;
 using BlockCb = std::function<void(const tl::expected<api::Block, Error>&)>;
 using HistoryCb = std::function<void(const tl::expected<api::AccountHistory, Error>&)>;
 using RichlistCb = std::function<void(const tl::expected<api::Richlist, Error>&)>;

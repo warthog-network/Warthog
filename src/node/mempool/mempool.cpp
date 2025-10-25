@@ -292,9 +292,12 @@ void Mempool::prune()
 
 CompactUInt Mempool::min_fee() const
 {
-    if (size() < maxSize)
-        return CompactUInt::smallest();
-    return byFee.smallest()->second.fee.next();
+    auto minFromMempool { [&]() {
+        if (size() < maxSize)
+            return CompactUInt::smallest();
+        return byFee.smallest()->second.fee.next();
+    }() };
+    return std::max(config().minMempoolFee.load(), minFromMempool);
 }
 
 }
