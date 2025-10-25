@@ -1,6 +1,6 @@
 #include "communication/buffers/sndbuffer.hpp"
 #include "general/writer.hpp"
-#include "message_elements/byte_size.hpp"
+#include "serialization/byte_size.hpp"
 #include "message_elements/helper_types_impl.hpp"
 #include "message_elements/packer_impl.hpp"
 #include "messages.hpp"

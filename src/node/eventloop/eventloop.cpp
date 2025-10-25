@@ -1309,7 +1309,7 @@ void Eventloop::handle_msg(Conref c, PingV2Msg&& m)
 
 // only process received addresses when we are a native node (not browser nodes)
 #ifndef DISABLE_LIBUV
-void Eventloop::on_received_addresses(Conref cr, const messages::Vector16<TCPPeeraddr>& addresses)
+void Eventloop::on_received_addresses(Conref cr, const serialization::Vector16<TCPPeeraddr>& addresses)
 {
     if (auto ip { cr.peer().ip() }; ip.has_value() && cr.is_tcp()) {
         spdlog::debug("{} Received {} addresses", cr.str(), addresses.size());
@@ -1317,7 +1317,7 @@ void Eventloop::on_received_addresses(Conref cr, const messages::Vector16<TCPPee
             connections.verify(addresses, ip->get_v4());
     }
 #else
-void Eventloop::on_received_addresses(Conref, const messages::Vector16<TCPPeeraddr>&)
+void Eventloop::on_received_addresses(Conref, const serialization::Vector16<TCPPeeraddr>&)
 {
 #endif
 }

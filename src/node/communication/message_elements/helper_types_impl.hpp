@@ -1,8 +1,8 @@
 #pragma once
-#include "byte_size.hpp"
 #include "general/reader.hpp"
 #include "general/writer.hpp"
 #include "helper_types.hpp"
+#include "serialization/byte_size.hpp"
 #include <cassert>
 
 namespace messages {
@@ -31,7 +31,6 @@ inline size_t vector_bytesize(const std::vector<T>& v)
     return T::byte_size() * v.size();
 }
 
-
 template <typename T>
 inline size_t VectorRest<T>::byte_size() const
 {
@@ -43,28 +42,6 @@ inline VectorRest<T>::VectorRest(Reader& r)
 {
     while (r.remaining() > 0)
         std::vector<T>::push_back({ r });
-}
-
-template <typename T, typename len_t>
-inline size_t VectorLentype<T, len_t>::byte_size() const
-{
-    return sizeof(len_t) + vector_bytesize<T>(*this);
-}
-
-template <typename T, typename len_t>
-inline VectorLentype<T, len_t>::VectorLentype(Reader& r)
-{
-    size_t n { len_t { r } };
-    this->reserve(n);
-    for (size_t i = 0; i < n; ++i) {
-        push_back({ r });
-    }
-}
-template <typename T, typename len_t>
-inline void VectorLentype<T, len_t>::push_back(T t)
-{
-    std::vector<T>::push_back(t);
-    assert(this->size() <= maxlen);
 }
 
 template <typename T>
@@ -88,18 +65,6 @@ inline ReadRest<T>::ReadRest(Reader& r)
     : T(r.rest())
 {
 }
-}
-
-template <typename T, typename len_t>
-inline Writer& operator<<(Writer& w, const messages::VectorLentype<T, len_t>& vec)
-{
-    assert(vec.size() <= vec.maxlen);
-    len_t len(vec.size());
-    w << len;
-    for (auto& e : vec) {
-        w << e;
-    }
-    return w;
 }
 
 template <typename T>

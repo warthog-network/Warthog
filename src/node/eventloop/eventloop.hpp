@@ -1,5 +1,6 @@
 #pragma once
 #include "address_manager/address_manager.hpp"
+#include "serialization/vector.hpp"
 #include "api/callbacks.hpp"
 #include "api/events/subscription_fwd.hpp"
 #include "block/chain/height_header_work.hpp"
@@ -216,7 +217,7 @@ private:
     ////////////////////////
     // convenience functions
     void consider_send_snapshot(Conref);
-    void on_received_addresses(Conref cr, const messages::Vector16<TCPPeeraddr>&);
+    void on_received_addresses(Conref cr, const serialization::Vector16<TCPPeeraddr>&);
 
     void send_schedule_signaling_lists();
 

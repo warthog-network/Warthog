@@ -55,19 +55,6 @@ public:
 
 namespace messages {
 
-template <typename T, typename len_t>
-struct VectorLentype : public std::vector<T> {
-    static constexpr size_t maxlen = len_t(-1);
-    VectorLentype() { }
-    VectorLentype(std::vector<T> v)
-        : std::vector<T>(std::move(v))
-    {
-    }
-    VectorLentype(Reader&);
-    void push_back(T t);
-    size_t byte_size() const;
-};
-
 template <typename T>
 struct VectorRest : public std::vector<T> {
     using std::vector<T>::vector;
@@ -79,11 +66,6 @@ struct VectorRest : public std::vector<T> {
     size_t byte_size() const;
 };
 
-template <typename T>
-using Vector8 = VectorLentype<T, uint8_t>;
-
-template <typename T>
-using Vector16 = VectorLentype<T, uint16_t>;
 
 template <typename T>
 class Optional : public std::optional<T> {

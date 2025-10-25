@@ -2,10 +2,10 @@
 #include "block/body/account_id.hpp"
 #include "chainserver/db/chain_db.hpp"
 #include "chainserver/db/types.hpp"
-#include "communication/message_elements/byte_size.hpp"
 #include "general/funds.hpp"
 #include "general/reader.hpp"
 #include "general/writer.hpp"
+#include "serialization/byte_size.hpp"
 
 struct IdBalance {
     BalanceId id;
@@ -28,7 +28,7 @@ template <typename T>
 struct TypeSerializer {
     static T read(Reader& r)
     {
-        return { r };
+        return T(r);
     }
     static void write(const T& v, Serializer auto&& s)
     {
@@ -74,7 +74,7 @@ class Serializable<> {
 public:
     static constexpr size_t elements = 0;
     size_t byte_size() const { return 0; }
-    friend Writer& operator<<(Writer& w, const Serializable<>&) { return w; }
+    void serialize(Serializer auto&&) const { } // do nothing
     Serializable() { }
     Serializable(Reader&) { }
 };
@@ -133,7 +133,7 @@ public:
     std::vector<uint8_t> serialize()
     {
         std::vector<uint8_t> out;
-        out.reserve(byte_size());
+        out.resize(byte_size());
         Writer w(out);
         w << *this;
         return out;
@@ -193,11 +193,11 @@ struct Poolstate {
 
 using BaseData = Serializable<
     StateId64, // 0
-    std::vector<IdBalance>, // 1
-    std::vector<OrderData>, // 2
-    std::vector<OrderFillstate>, // 3
-    std::vector<Poolstate>, // 4
-    std::vector<AssetId>>; // 5
+    serialization::Vector32<IdBalance>, // 1
+    serialization::Vector32<OrderData>, // 2
+    serialization::Vector32<OrderFillstate>, // 3
+    serialization::Vector32<Poolstate>, // 4
+    serialization::Vector32<AssetId>>; // 5
 class Data : protected BaseData {
 
 private:
@@ -214,7 +214,7 @@ public:
     {
     }
     Data(const ChainDB& db)
-        : BaseData( db.next_id(), {}, {}, {}, {}, {})
+        : BaseData(db.next_id(), {}, {}, {}, {}, {})
     {
     }
     auto& next_state_id64() const { return get<0>(); }

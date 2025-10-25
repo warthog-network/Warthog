@@ -49,6 +49,7 @@ class Reader {
     }
 
 public:
+    using is_reader = std::true_type;
     Reader(std::span<const uint8_t> s)
         : begin(s.data())
         , pos(begin)

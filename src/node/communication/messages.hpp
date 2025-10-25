@@ -10,6 +10,7 @@
 #include "general/params.hpp"
 #include "message_elements/helper_types.hpp"
 #include "message_elements/packer.hpp"
+#include "serialization/vector.hpp"
 #include "transport/helpers/ip.hpp"
 #include "transport/helpers/tcp_sockaddr.hpp"
 #include "transport/webrtc/sdp_util.hpp"
@@ -102,18 +103,18 @@ struct PingMsg : public MsgCombineRequest<4, SignedSnapshot::Priority, uint16_t,
     [[nodiscard]] const uint16_t& maxTransactions() const { return get<2>(); }
 };
 
-struct PongMsg : public MsgCombineReply<5, messages::Vector16<TCPPeeraddr>, messages::Vector16<TxidWithFee>> {
+struct PongMsg : public MsgCombineReply<5, serialization::Vector16<TCPPeeraddr>, serialization::Vector16<TxidWithFee>> {
     static constexpr size_t maxSize = 4 + 2 + 6 * 100 + 18 * 1000;
     using Base::Base;
     std::string log_str() const;
-    PongMsg(uint32_t nonce, messages::Vector16<TCPPeeraddr> addresses, messages::Vector16<TxidWithFee> txids)
+    PongMsg(uint32_t nonce, serialization::Vector16<TCPPeeraddr> addresses, serialization::Vector16<TxidWithFee> txids)
         : Base { nonce, std::move(addresses), std::move(txids) }
     {
     }
 
     Error check(const PingMsg&) const;
-    [[nodiscard]] const messages::Vector16<TCPPeeraddr>& addresses() const { return get<0>(); }
-    [[nodiscard]] const messages::Vector16<TxidWithFee>& txids() const { return get<1>(); }
+    [[nodiscard]] const serialization::Vector16<TCPPeeraddr>& addresses() const { return get<0>(); }
+    [[nodiscard]] const serialization::Vector16<TxidWithFee>& txids() const { return get<1>(); }
 };
 
 struct BatchreqMsg : public MsgCombineRequest<6, BatchSelector> {
@@ -186,13 +187,13 @@ struct TxsubscribeMsg : public MsgCombineRequest<12, Height> {
     [[nodiscard]] const Height& upper() const { return get<0>(); }
 };
 
-struct TxnotifyMsg : public MsgCombineRequest<13, messages::Vector16<TxidWithFee>> {
+struct TxnotifyMsg : public MsgCombineRequest<13, serialization::Vector16<TxidWithFee>> {
     static constexpr size_t MAXENTRIES = 5000;
     using Base::Base;
 
     using send_iter = std::vector<mempool::Entry>::iterator;
     // static Sndbuffer direct_send(send_iter begin, send_iter end);
-    [[nodiscard]] const messages::Vector16<TxidWithFee>& txids() const { return get<0>(); }
+    [[nodiscard]] const serialization::Vector16<TxidWithFee>& txids() const { return get<0>(); }
     static constexpr size_t maxSize = 4 + TxnotifyMsg::MAXENTRIES * TransactionId::bytesize;
     std::string log_str() const;
 };
@@ -241,7 +242,7 @@ struct RTCQuota : public MsgCombine<19, uint8_t> {
     std::string log_str() const;
 };
 
-struct RTCSignalingList : public MsgCombine<20, messages::Vector8<IP>> {
+struct RTCSignalingList : public MsgCombine<20, serialization::Vector8<IP>> {
     static constexpr size_t maxSize = 100000;
     using Base::Base;
 
@@ -334,17 +335,17 @@ struct PingV2Msg : public MsgCombineRequest<28, SignedSnapshot::Priority, uint16
     // [[nodiscard]] const uint32_t& minForwardKey() const { return get<3>(); }
 };
 
-struct PongV2Msg : public MsgCombineReply<29, messages::Vector16<TCPPeeraddr>, messages::Vector16<TxidWithFee>> {
+struct PongV2Msg : public MsgCombineReply<29, serialization::Vector16<TCPPeeraddr>, serialization::Vector16<TxidWithFee>> {
     static constexpr size_t maxSize = 4 + 2 + 6 * 100 + 18 * 1000;
     using Base::Base;
-    PongV2Msg(uint32_t nonce, messages::Vector16<TCPPeeraddr> addresses, messages::Vector16<TxidWithFee> txids)
+    PongV2Msg(uint32_t nonce, serialization::Vector16<TCPPeeraddr> addresses, serialization::Vector16<TxidWithFee> txids)
         : Base { nonce, std::move(addresses), std::move(txids) }
     {
     }
 
     Error check(const PingV2Msg&) const;
-    [[nodiscard]] const messages::Vector16<TCPPeeraddr>& addresses() const { return get<0>(); }
-    [[nodiscard]] const messages::Vector16<TxidWithFee>& txids() const { return get<1>(); }
+    [[nodiscard]] const serialization::Vector16<TCPPeeraddr>& addresses() const { return get<0>(); }
+    [[nodiscard]] const serialization::Vector16<TxidWithFee>& txids() const { return get<1>(); }
     std::string log_str() const;
 };
 

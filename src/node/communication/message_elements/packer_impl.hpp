@@ -1,7 +1,7 @@
 #pragma once
-#include "byte_size.hpp"
 #include "communication/buffers/sndbuffer.hpp"
 #include "packer.hpp"
+#include "serialization/byte_size.hpp"
 #include <cstddef>
 
 template <size_t code, typename... Ts>

@@ -1,7 +1,7 @@
 #include "sdp_util.hpp"
-#include "communication/message_elements/byte_size.hpp"
 #include "general/reader.hpp"
 #include "general/writer.hpp"
+#include "serialization/byte_size.hpp"
 #include <optional>
 
 namespace {
@@ -179,4 +179,3 @@ bool IdentityIps::assign_if_routable(IP ip)
     }
     return false;
 }
-

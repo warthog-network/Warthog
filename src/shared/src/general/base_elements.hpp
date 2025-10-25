@@ -54,7 +54,7 @@ struct CombineElementsEnumerated<i, Element, Elements...> : public Element, publ
         , parent_t(std::move(ts)...)
     {
     }
-    [[nodiscard]] size_t byte_size() const { return (Elements::byte_size() + ...); }
+    [[nodiscard]] size_t byte_size() const { return Element::byte_size() + (Elements::byte_size() + ...); }
     template <typename E>
     auto& get() const
     {
