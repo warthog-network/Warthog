@@ -72,7 +72,7 @@ struct ConfigParams {
         bool isolated { false };
         bool disableTxsMining { false }; // don't mine transactions
         bool enableWebRTC { false }; // don't use WebRTC
-        CompactUInt minMempoolFee { CompactUInt::compact(Funds::from_value(9992).value()) };
+        CompactUInt minMempoolFee { CompactUInt::compact(Funds::from_value(1000448).value()) };
         bool logCommunicationVal { false };
         bool logRTC { false };
     } node;
@@ -103,7 +103,7 @@ struct Config : public ConfigParams {
     Config(ConfigParams&&);
     std::atomic<bool> logCommunication { false };
     std::atomic<bool> logRTC { false };
-    std::atomic<CompactUInt> minMempoolFee { CompactUInt::compact(Funds::from_value(9992).value()) };
+    std::atomic<CompactUInt> minMempoolFee { CompactUInt::compact(Funds::from_value(1000448).value()) };
     auto& started_at() const { return startedAt; }
 
 private:
