@@ -299,8 +299,7 @@ ChainDB::ChainDB(const std::string& path)
     , stmtTokenInsertBalance(db, "INSERT INTO `" BALANCES_TABLE "` ( id, `token_id`, `account_id`, `total`, `locked`) VALUES (?,?,?,?,?)")
     , stmtTokenSelectBalance(db, "SELECT `id`, `total`, `locked` FROM `" BALANCES_TABLE "` WHERE `token_id`=? AND `account_id`=?")
     , stmtAccountSelectAssets(db, "SELECT `token_id`, `total`, `locked` FROM `" BALANCES_TABLE "` WHERE `account_id`=? LIMIT ?")
-    , stmtTokenUpdateBalanceTotalById(db, "UPDATE `" BALANCES_TABLE "` SET `total`=? WHERE `id`=?")
-    , stmtTokenUpdateBalanceLockedById(db, "UPDATE `" BALANCES_TABLE "` SET `locked`=? WHERE `id`=?")
+    , stmtTokenUpdateBalanceTotalById(db, "UPDATE `" BALANCES_TABLE "` SET `total`=?, `locked`=? WHERE `id`=?")
     , stmtTokenSelectRichlist(db, "SELECT `address`, `total` FROM `" BALANCES_TABLE "` b JOIN `" ACCOUNTS_TABLE "` a on a.id = b.account_id WHERE `token_id`=? ORDER BY `total` DESC LIMIT ?")
     , stmtConsensusHeaders(db, "SELECT c.height, c.history_cursor, c.state_cursor, b.header "
                                "FROM `" BLOCKS_TABLE "` b JOIN `" CONSENSUS_TABLE "` c ON "

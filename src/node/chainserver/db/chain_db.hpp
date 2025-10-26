@@ -128,6 +128,7 @@ public:
         if (checkId) {
             auto& stateId { cache.ids.corresponding_state(t.id) };
             stateId.if_unequal_throw(t.id);
+            insert_unguarded(t);
             stateId++;
         } else {
             insert_unguarded(t);
@@ -366,7 +367,6 @@ private:
     mutable Statement stmtTokenSelectBalance;
     mutable Statement stmtAccountSelectAssets;
     Statement stmtTokenUpdateBalanceTotalById;
-    Statement stmtTokenUpdateBalanceLockedById;
     mutable Statement stmtTokenSelectRichlist;
 
     // Consensus table functions

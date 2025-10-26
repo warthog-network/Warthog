@@ -5,6 +5,7 @@
 
 namespace chainserver {
 
+
 class ApplyStageTransaction {
     using StateUpdate = state_update::StateUpdate;
     using commit_t = state_update::StateUpdateWithAPIBlocks;
@@ -13,7 +14,10 @@ public:
     ApplyStageTransaction(const State& s, ChainDBTransaction&& transaction);
 
     void consider_rollback(Height shrinkLength);
-    [[nodiscard]] ChainError apply_stage_blocks();
+    struct ChainErrorWork: public ChainError {
+        Worksum worksum;
+    };
+    [[nodiscard]] ChainErrorWork apply_stage_blocks();
     [[nodiscard]] commit_t commit(State&) &&;
 
 private:

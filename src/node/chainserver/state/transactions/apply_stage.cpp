@@ -13,7 +13,7 @@ ApplyStageTransaction::ApplyStageTransaction(const State& s, ChainDBTransaction&
 {
 }
 
-[[nodiscard]] ChainError ApplyStageTransaction::apply_stage_blocks()
+[[nodiscard]] auto ApplyStageTransaction::apply_stage_blocks() -> ChainErrorWork
 {
     assert(!applyResult);
     applyResult = AppendBlocksResult {};
@@ -48,7 +48,6 @@ ApplyStageTransaction::ApplyStageTransaction(const State& s, ChainDBTransaction&
               << serialize_hex(block.body.data);
             err = e;
             goto end;
-            return { e, h };
         }
         res.newHistoryOffsets.push_back(historyId);
         res.stateOffsets.push_back(stateId);
@@ -58,7 +57,7 @@ ApplyStageTransaction::ApplyStageTransaction(const State& s, ChainDBTransaction&
 end:
     res.newTxIds = ba.move_new_txids();
     res.freeBalanceUpdates = ba.move_free_balance_updates();
-    return { err, h };
+    return { {err, h}, ccs.stage.total_work_at(h) };
 }
 
 void ApplyStageTransaction::consider_rollback(Height shrinkLength)

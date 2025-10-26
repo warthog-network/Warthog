@@ -273,7 +273,7 @@ TCPConnectionSchedule::TCPConnectionSchedule(InitArg ia)
     : peerServer(ia.peerServer)
     , pinned(ia.pin.begin(), ia.pin.end())
 {
-    spdlog::info("Pinned {} peers.", ia.pin.size());
+    spdlog::info("Pinned {} peer{}.", ia.pin.size(), (ia.pin.size() == 1 ? "" : "s"));
 }
 
 [[nodiscard]] auto TCPConnectionSchedule::find_disconnected(const TCPPeeraddr& a) -> std::optional<FoundDisconnected>
@@ -446,8 +446,8 @@ void TCPConnectionSchedule::on_outbound_failed(const TCPConnectRequest& cr, Erro
             }) };
             assert(n <= 1);
         } else { // just exponential backoff reconnect
-            if (auto f{disconnectedVerified.find(a)})
-                increas_sleeptime(*f,disconnectedVerified);
+            if (auto f { disconnectedVerified.find(a) })
+                increas_sleeptime(*f, disconnectedVerified);
         }
     }
 }
