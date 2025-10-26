@@ -40,7 +40,7 @@ struct variant : public std::variant<Ts...> {
         return std::visit(lambda, std::move(*this));
     }
     template <typename T>
-    bool holds() const { return std::holds_alternative<T>(*this); }
+    [[nodiscard]] bool holds() const { return std::holds_alternative<T>(*this); }
     template <typename T>
     auto& get() const { return std::get<T>(*this); }
 

@@ -136,7 +136,7 @@ private:
 
     struct ApplyStageResult {
         stage_operation::StageAddStatus status;
-        Worksum worksum;
+        std::optional<Worksum> worksum; // has value when status is not 0
         std::optional<state_update::StateUpdateWithAPIBlocks> update;
     };
     [[nodiscard]] auto apply_stage(ChainDBTransaction&& t) -> ApplyStageResult;

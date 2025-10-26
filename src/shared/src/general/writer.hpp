@@ -33,15 +33,6 @@ public:
         pos += s.size();
     }
 
-    template <typename T>
-    Writer& operator<<(const std::optional<T>& o)
-    {
-        if (o)
-            return *this << uint8_t(1) << *o;
-        else
-            return *this << uint8_t(0);
-    }
-
     template <typename... Ts>
     Writer& operator<<(const std::tuple<Ts...>& t)
     {

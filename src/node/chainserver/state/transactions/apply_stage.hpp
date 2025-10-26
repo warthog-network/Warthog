@@ -14,10 +14,8 @@ public:
     ApplyStageTransaction(const State& s, ChainDBTransaction&& transaction);
 
     void consider_rollback(Height shrinkLength);
-    struct ChainErrorWork: public ChainError {
-        Worksum worksum;
-    };
-    [[nodiscard]] ChainErrorWork apply_stage_blocks();
+
+    [[nodiscard]] ChainError apply_stage_blocks();
     [[nodiscard]] commit_t commit(State&) &&;
 
 private:

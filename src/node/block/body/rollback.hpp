@@ -133,7 +133,7 @@ public:
     std::vector<uint8_t> serialize()
     {
         std::vector<uint8_t> out;
-        out.resize(byte_size());
+        out.resize(count_bytes(*this));
         Writer w(out);
         w << *this;
         return out;

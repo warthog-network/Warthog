@@ -756,16 +756,17 @@ auto State::add_stage(const std::vector<Block>& blocks, const Headerchain& hc) -
         stage.append(prepared.value(), batchRegistry);
     }
     if (stage.total_work() > chainstate.headers().total_work()) {
-        auto [status, worksum, update] { apply_stage(std::move(transaction)) };
+        auto [status, errorWorksum, update] { apply_stage(std::move(transaction)) };
 
         if (status.ce.is_error()) {
+            assert(errorWorksum.has_value());
             // Something went wrong on block body level so block header must be also tainted
             // as we checked for correct merkleroot already
             // => we need to collect data on rogue header
             RogueHeaderData rogueHeaderData(
                 status.ce,
                 stage[status.ce.height()],
-                worksum);
+                errorWorksum.value());
             return { { status }, rogueHeaderData, update };
         } else {
             // pass {} as header arg because we can't to block any headers when
@@ -1043,6 +1044,7 @@ auto State::apply_stage(ChainDBTransaction&& t) -> ApplyStageResult
 
     chainserver::ApplyStageTransaction tr { *this, std::move(t) };
     tr.consider_rollback(fh - 1);
+    std::optional<Worksum> errorWorksum;
     auto status { tr.apply_stage_blocks() };
     if (status.is_error()) {
         if (config().localDebug) {
@@ -1050,11 +1052,13 @@ auto State::apply_stage(ChainDBTransaction&& t) -> ApplyStageResult
         }
         for (auto h { status.height() }; h < stage.length(); ++h)
             db.delete_bad_block(stage.hash_at(h));
+        assert(status.height() < stage.length());
+        errorWorksum = stage.total_work_at(status.height());
         stage.shrink(status.height() - 1);
         if (stage.total_work_at(status.height() - 1) <= chainstate.headers().total_work()) {
             return {
                 { status },
-                status.worksum,
+                errorWorksum,
                 {},
             };
         }
@@ -1063,7 +1067,7 @@ auto State::apply_stage(ChainDBTransaction&& t) -> ApplyStageResult
     auto update { std::move(tr).commit(*this) };
     dbcache.clear();
 
-    return { { status }, status.worksum, update };
+    return { { status }, errorWorksum, update };
 }
 
 auto State::apply_signed_snapshot(SignedSnapshot&& ssnew) -> std::optional<StateUpdateWithAPIBlocks>
