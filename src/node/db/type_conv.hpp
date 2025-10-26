@@ -22,6 +22,7 @@ namespace sqlite {
 class ColumnConverter {
     const Column& c;
 
+public:
     template <size_t size>
     std::array<uint8_t, size> get_array() const
     {
@@ -40,7 +41,6 @@ class ColumnConverter {
         return res;
     }
 
-public:
     int64_t getInt64() const noexcept { return c.getInt64(); }
     uint64_t getUInt64() const
     {

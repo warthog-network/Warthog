@@ -100,7 +100,7 @@ json to_json_history_base(const api::block::HistoryDataBase& hb)
 {
     return {
         { "txHash", serialize_hex(hb.txhash) },
-        { "historyId", (hb.hid ? json(hb.hid->value()) : json(nullptr)) },
+        { "historyId", (hb.hid ? json(hb.hid.value().value()) : json(nullptr)) },
     };
 }
 [[nodiscard]] json to_json_signed_info(const api::block::SignedInfoData& d, const char* originLabel)

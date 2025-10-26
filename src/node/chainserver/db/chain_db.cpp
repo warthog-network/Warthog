@@ -346,8 +346,7 @@ ChainDB::ChainDB(const std::string& path)
     , stmtHistoryDeleteFrom(db, "DELETE FROM `" HISTORY_TABLE "` WHERE `id`>=?")
     , stmtHistoryLookup(db,
           "SELECT `id`, `data` FROM `" HISTORY_TABLE "` WHERE `hash`=?")
-    , stmtHistoryLookupRange(db,
-          "SELECT `id`, `hash`, `data` FROM `" HISTORY_TABLE "` WHERE `id`>=? AND`id`<?")
+    , stmtHistoryLookupRange(db, "SELECT `id`, `hash`, `data` FROM `" HISTORY_TABLE "` WHERE `id`>=? AND `id`<?")
     , stmtAccountHistoryInsert(db, "INSERT OR IGNORE INTO `" ACCOUNTHISTORY_TABLE "` "
                                    "(`account_id`,`history_id`) VALUES (?,?)")
     , stmtAccountHistoryDeleteFrom(
@@ -424,7 +423,7 @@ std::optional<SignedSnapshot> ChainDB::get_signed_snapshot() const
     if (!o.has_value()) {
         return {};
     }
-    std::vector<uint8_t> v { o.get_vector(0) };
+    auto v(o.get_vector(0));
     Reader r(v);
     try {
         return SignedSnapshot(r);
@@ -798,7 +797,7 @@ std::optional<std::pair<BalanceId, Balance_uint64>> ChainDB::get_balance(Account
     auto res { stmtTokenSelectBalance.one(tid, aid) };
     if (!res.has_value())
         return {};
-    return std::pair<BalanceId, Balance_uint64> { res[0], Balance_uint64::from_total_locked( res[1], res[2] ) };
+    return std::pair<BalanceId, Balance_uint64> { res[0], Balance_uint64::from_total_locked(res[1], res[2]) };
 }
 
 std::vector<std::pair<TokenId, Funds_uint64>> ChainDB::get_tokens(AccountId accountId, size_t limit)
@@ -890,7 +889,7 @@ std::optional<std::pair<history::HistoryVariant, HistoryId>> ChainDB::lookup_his
 {
     return stmtHistoryLookup.one(hash).process([](auto& o) {
         return std::pair<history::HistoryVariant, HistoryId> {
-            ReadExhaustive(std::vector<uint8_t> { o[1] }), o[0]
+            ReadExhaustive(std::vector<uint8_t>(o[1])), o[0]
         };
     });
 }
@@ -906,7 +905,7 @@ std::vector<std::pair<HistoryId, history::Entry>> ChainDB::lookup_history_range(
     int64_t u = (upper == HistoryId { 0 } ? std::numeric_limits<int64_t>::max() : upper.value());
     try {
         return stmtHistoryLookupRange.all([&](const sqlite::Row& r) {
-            return std::pair<HistoryId, history::Entry> { r[0], { r[1], history::HistoryVariant(ReadExhaustive(std::vector<uint8_t> { r[2] })) } };
+            return std::pair<HistoryId, history::Entry> { r[0], { r[1], history::HistoryVariant(ReadExhaustive(r.get_vector(2))) } };
         },
             l, u);
     } catch (...) {
