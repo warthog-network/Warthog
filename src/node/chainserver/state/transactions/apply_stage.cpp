@@ -78,7 +78,6 @@ auto ApplyStageTransaction::commit(State& cs) && -> commit_t
     assert(applyResult);
     commited = true;
 
-    std::unique_lock<std::mutex> ul(cs.chainstateMutex);
     auto result { rb ? cs.commit_fork(std::move(*rb), std::move(*applyResult))
                      : cs.commit_append(std::move(*applyResult)) };
     transaction.commit();

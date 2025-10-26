@@ -155,7 +155,7 @@ private:
     // finalize helpers
     [[nodiscard]] auto commit_fork(RollbackResult&& rr, AppendBlocksResult&&) -> StateUpdate;
     [[nodiscard]] auto commit_append(AppendBlocksResult&& abr) -> StateUpdate;
-    std::optional<SignedSnapshot> try_sign_chainstate();
+    std::optional<SignedSnapshot> try_sign_locked_chainstate();
     MiningCache::CacheValidity mining_cache_validity();
 
 private:
@@ -171,7 +171,7 @@ private:
     tp signAfter { tp::max() };
     bool signingEnabled { true };
 
-    mutable std::mutex chainstateMutex; // protects pastChains and chainstate
+    mutable std::mutex chainstateMutex; // protects writes to blockCashe and chainstate (descriptor and headers) for "_concurrent" methods
     BlockCache blockCache;
     chainserver::Chainstate chainstate;
 

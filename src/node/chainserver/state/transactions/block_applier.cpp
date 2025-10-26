@@ -965,7 +965,7 @@ private:
     {
         if (auto address { db.lookup_asset(id) })
             return *address;
-        throw Error(EASSETIDNOTFOUND); // invalid token id (not found in database)
+        throw Error(EASSETIDNOTFOUND); // invalid asset id (not found in database)
     }
 
     void process_balances()

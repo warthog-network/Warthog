@@ -545,27 +545,27 @@ void State::garbage_collect()
 
 Batch State::get_headers_concurrent(BatchSelector s) const
 {
-    std::unique_lock<std::mutex> lcons(chainstateMutex);
+    std::lock_guard l (chainstateMutex);
     if (s.descriptor == chainstate.descriptor()) {
         return chainstate.headers().get_headers(s.header_range());
     } else {
-        return blockCache.get_batch(s);
+        return blockCache.get_batch_concurrent(s);
     }
 }
 
 std::optional<HeaderView> State::get_header_concurrent(Descriptor descriptor, Height height) const
 {
-    std::unique_lock<std::mutex> lcons(chainstateMutex);
+    std::lock_guard l(chainstateMutex);
     if (descriptor == chainstate.descriptor()) {
         return chainstate.headers().get_header(height);
     } else {
-        return blockCache.get_header(descriptor, height);
+        return blockCache.get_header_concurrent(descriptor, height);
     }
 }
 
 ConsensusSlave State::get_chainstate_concurrent()
 {
-    std::unique_lock<std::mutex> l(chainstateMutex);
+    std::lock_guard l(chainstateMutex);
     return { signedSnapshot, chainstate.descriptor(), chainstate.headers() };
 }
 
@@ -1091,7 +1091,7 @@ auto State::apply_signed_snapshot(SignedSnapshot&& ssnew) -> std::optional<State
         assert(signedSnapshot->height() <= chainlength());
         auto rb { rollback(signedSnapshot->height() - 1) };
 
-        std::unique_lock<std::mutex> ul(chainstateMutex);
+        std::lock_guard l(chainstateMutex);
         auto headers_ptr { blockCache.add_old_chain(chainstate, rb.deletionKey) };
 
         res.update.chainstateUpdate = state_update::SignedSnapshotApply {
@@ -1143,22 +1143,21 @@ auto State::append_mined_block(const Block& b) -> StateUpdateWithAPIBlocks
     transaction.commit();
     dbcache.clear();
 
-    std::unique_lock<std::mutex> ul(chainstateMutex);
+    std::unique_lock ul(chainstateMutex);
     auto headerchainAppend = chainstate.append(Chainstate::AppendSingle {
         .freeBalanceUpdates { e.move_free_balance_updates() },
         .signedSnapshot { signedSnapshot },
         .prepared { prepared.value() },
         .newTxIds { e.move_new_txids() },
         .newHistoryOffset { nextHistoryId },
-        .newStateOffset { nextStateId }
-    });
+        .newStateOffset { nextStateId } });
     ul.unlock();
 
     dbCacheValidity += 1;
     return { .update {
                  .chainstateUpdate { state_update::Append {
                      headerchainAppend,
-                     try_sign_chainstate() } },
+                     try_sign_locked_chainstate() } },
                  .mempoolUpdates { chainstate.pop_mempool_updates() },
              },
         .appendedBlocks { std::move(apiBlock) } };
@@ -1373,19 +1372,17 @@ auto State::commit_fork(RollbackResult&& rr, AppendBlocksResult&& abr) -> StateU
     assert(!signedSnapshot || signedSnapshot->compatible(stage));
     auto headers_ptr { blockCache.add_old_chain(chainstate, rr.deletionKey) };
 
-    {
-        std::unique_lock<std::mutex> lcons(chainstateMutex);
-        chainstate.fork(chainserver::Chainstate::ForkData {
-            .stage { stage },
-            .rollbackResult { std::move(rr) },
-            .appendResult { std::move(abr) },
-        });
-    }
+    std::lock_guard l(chainstateMutex);
+    chainstate.fork(chainserver::Chainstate::ForkData {
+        .stage { stage },
+        .rollbackResult { std::move(rr) },
+        .appendResult { std::move(abr) },
+    });
 
     state_update::Fork forkMsg {
         chainstate.headers().get_fork(rr.shrink, chainstate.descriptor()),
         std::move(headers_ptr),
-        try_sign_chainstate()
+        try_sign_locked_chainstate()
     };
 
     return StateUpdate {
@@ -1397,26 +1394,25 @@ auto State::commit_fork(RollbackResult&& rr, AppendBlocksResult&& abr) -> StateU
 auto State::commit_append(AppendBlocksResult&& abr) -> StateUpdate
 {
     assert(!signedSnapshot || signedSnapshot->compatible(stage));
-    auto headerchainAppend { [&]() {
-        std::unique_lock<std::mutex> lcons(chainstateMutex);
-        return chainstate.append(Chainstate::AppendMulti {
-            .patchedChain = stage,
-            .appendResult { std::move(abr) },
-        });
-    }() };
+    std::lock_guard l(chainstateMutex);
+    auto headerchainAppend { chainstate.append(Chainstate::AppendMulti {
+        .patchedChain = stage,
+        .appendResult { std::move(abr) },
+    }) };
 
     return {
         .chainstateUpdate {
             state_update::Append {
                 headerchainAppend,
-                try_sign_chainstate(),
+                try_sign_locked_chainstate(),
             } },
         .mempoolUpdates { chainstate.pop_mempool_updates() },
     };
 }
 
-std::optional<SignedSnapshot> State::try_sign_chainstate()
+std::optional<SignedSnapshot> State::try_sign_locked_chainstate()
 {
+    // here, chainstateMutex should be locked already
     if ((!signedSnapshot.has_value() || (signedSnapshot->height() < chainstate.length()))
         && (signAfter < std::chrono::steady_clock::now() && signingEnabled)
         && snapshotSigner.has_value()) {
