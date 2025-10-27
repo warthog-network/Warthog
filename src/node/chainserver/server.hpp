@@ -57,6 +57,9 @@ public:
     struct LookupLatestTxs {
         LatestTxsCb callback;
     };
+    struct GetTransactionMinfee {
+        TransactionMinfeeCb callback;
+    };
     struct SetSynced {
         bool synced;
     };
@@ -102,6 +105,9 @@ public:
         DescriptedBlockRange range;
         getBlocksCb callback;
     };
+    struct MempoolConstraintUpdate {
+        MempoolConstraintCb callback;
+    };
     struct PutMempoolBatch {
         std::vector<TransactionMessage> txs;
     };
@@ -134,6 +140,7 @@ public:
         LookupTxids,
         LookupTxHash,
         LookupLatestTxs,
+        GetTransactionMinfee,
         SetSynced,
         GetHistory,
         GetRichlist,
@@ -149,6 +156,7 @@ public:
         GetBlocks,
         stage_operation::StageAddOperation,
         stage_operation::StageSetOperation,
+        MempoolConstraintUpdate,
         PutMempoolBatch,
         SetSignedPin,
         SubscribeAccount,
@@ -197,6 +205,7 @@ public:
     bool is_busy();
 
     void async_set_synced(bool synced);
+    void async_notify_mempool_constraint_update(MempoolConstraintCb);
 
     void async_put_mempool(std::vector<TransactionMessage> txs);
     void async_get_head(ChainHeadCb callback);
@@ -210,6 +219,7 @@ public:
     void api_get_mempool(MempoolCb callback);
     void api_lookup_tx(const TxHash& hash, TxCb callback);
     void api_lookup_latest_txs(LatestTxsCb callback);
+    void api_get_transaction_minfee(TransactionMinfeeCb callback);
     void api_get_history(const Address& address, uint64_t beforeId, HistoryCb callback);
     void api_get_richlist(api::TokenIdOrSpec tokenId, RichlistCb callback);
     void api_get_header(api::HeightOrHash, HeaderCb callback);
@@ -247,6 +257,7 @@ private:
     void handle_event(LookupTxids&&);
     void handle_event(LookupTxHash&&);
     void handle_event(LookupLatestTxs&&);
+    void handle_event(GetTransactionMinfee&&);
     void handle_event(SetSynced&& e);
     void handle_event(GetHistory&&);
     void handle_event(GetRichlist&&);
@@ -262,6 +273,7 @@ private:
     void handle_event(GetBlocks&&);
     void handle_event(stage_operation::StageSetOperation&&);
     void handle_event(stage_operation::StageAddOperation&&);
+    void handle_event(MempoolConstraintUpdate&&);
     void handle_event(PutMempoolBatch&&);
     void handle_event(SetSignedPin&&);
     void handle_event(SubscribeAccount&&);

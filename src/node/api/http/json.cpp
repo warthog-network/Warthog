@@ -476,6 +476,14 @@ json to_json(const api::MiningState& ms)
     j["testnet"] = is_testnet();
     return j;
 }
+
+json to_json(const api::MempoolUpdate& r)
+{
+    return {
+        { "deleted", r.deletedTransactions }
+    };
+}
+
 json to_json(const api::MempoolEntries& entries)
 {
     json j;
@@ -603,6 +611,15 @@ json to_json(const api::TransactionsByBlocks& txs)
     };
 
     return arr;
+}
+
+json to_json(const api::TransactionMinfee& f)
+{
+    return {
+        { "amount", f.minfee.to_string() },
+        { "E8", f.minfee.uncompact().E8() },
+        { "16bit", f.minfee.value() }
+    };
 }
 
 json to_json(const api::Block& block)

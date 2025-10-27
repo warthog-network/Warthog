@@ -301,6 +301,9 @@ struct TransactionsByBlocks {
     HistoryId fromId;
     std::vector<api::Block> blocks_reversed;
 };
+struct TransactionMinfee{
+    CompactUInt minfee;
+};
 struct Richlist {
     std::vector<std::pair<Address, Wart>> entries;
 };
@@ -310,6 +313,7 @@ struct MempoolEntry : public TransactionMessage {
 struct MempoolEntries {
     std::vector<MempoolEntry> entries;
 };
+
 struct HashrateInfo {
     size_t nBlocks;
     uint64_t estimate;
@@ -354,6 +358,9 @@ struct ThrottleState {
         , blockreq(t.blockreq)
     {
     }
+};
+struct MempoolUpdate {
+    size_t deletedTransactions;
 };
 
 struct Peerinfo {

@@ -75,6 +75,7 @@ public:
 
     // mempool
     [[nodiscard]] auto insert_txs(const TxVec&) -> std::pair<std::vector<Error>, mempool::Updates>;
+    [[nodiscard]] size_t on_mempool_constraint_update();
 
     // stage methods
     auto set_stage(Headerchain&& hc) -> stage_operation::StageSetStatus;
@@ -112,6 +113,7 @@ public:
     auto api_get_richlist(api::TokenIdOrSpec token, size_t limit) const -> Result<api::Richlist>;
     auto api_get_mempool(size_t) const -> api::MempoolEntries;
     auto api_get_tx(const TxHash& hash) const -> std::optional<api::Transaction>;
+    auto api_get_transaction_minfee() -> api::TransactionMinfee;
     auto api_get_latest_txs(size_t N = 100) const -> api::TransactionsByBlocks;
     auto api_get_latest_blocks(size_t N = 100) const -> api::TransactionsByBlocks;
     auto api_get_miner(NonzeroHeight h) const -> std::optional<api::AddressWithId>;

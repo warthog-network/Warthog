@@ -1,7 +1,7 @@
 #include "mempool.hpp"
 #include "api/events/emit.hpp"
 #include "chainserver/state/helpers/cache.hpp"
-// #include "api/events/emit.hpp"
+#include "global/globals.hpp"
 namespace mempool {
 bool LockedBalance::try_set_avail(Funds_uint64 amount)
 {
@@ -180,7 +180,7 @@ std::vector<TxidWithFee> Mempool::sample(size_t N, bool onlyWartTransfer) const
     auto sampled { byFee.sample(800, N) };
     std::vector<TxidWithFee> out;
     for (auto iter : sampled) {
-        if (onlyWartTransfer && !iter->holds<WartTransferMessage>()) 
+        if (onlyWartTransfer && !iter->holds<WartTransferMessage>())
             continue;
         out.push_back({ iter->txid(), iter->compact_fee() });
     }
@@ -392,6 +392,19 @@ void Mempool::insert_tx_throw(const TransactionMessage& pm,
     prune();
 }
 
+size_t Mempool::on_constraint_update()
+{
+    size_t deleted { 0 };
+    auto minFee { config().minMempoolFee.load() };
+    while (byFee.size() != 0) {
+        if (byFee.smallest()->compact_fee() >= minFee)
+            break;
+        erase_internal(byFee.smallest());
+        deleted += 1;
+    }
+    return deleted;
+}
+
 void Mempool::prune()
 {
     while (size() > maxSize)
@@ -400,9 +413,12 @@ void Mempool::prune()
 
 CompactUInt Mempool::min_fee() const
 {
-    if (size() < maxSize)
-        return CompactUInt::smallest();
-    return byFee.smallest()->compact_fee().next();
+    auto minFromMempool { [&]() {
+        if (size() < maxSize)
+            return CompactUInt::smallest();
+        return byFee.smallest()->compact_fee().next();
+    }() };
+    return std::max(config().minMempoolFee.load(), minFromMempool);
 }
 
 }

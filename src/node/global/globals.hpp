@@ -45,6 +45,7 @@ inline auto& timing_log() { return global().timingLogger.value(); }
 inline spdlog::logger& syncdebug_log() { return *global().syncdebugLogger; }
 inline spdlog::logger& communication_log() { return *global().communicationLogger; }
 const Config& config();
+Config& set_config();
 int init_config(int argc, char** argv);
 void start_global_services();
 

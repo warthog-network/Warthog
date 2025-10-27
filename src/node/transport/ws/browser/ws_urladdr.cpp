@@ -3,7 +3,7 @@
 #include <charconv>
 #include <regex>
 
-const std::optional<IP> WSUrladdr::ip={};
+const std::optional<IP> WSUrladdr::ip = {};
 namespace {
 std::optional<uint16_t> parse_port(std::string_view scheme, std::string_view portStr)
 {
@@ -13,8 +13,9 @@ std::optional<uint16_t> parse_port(std::string_view scheme, std::string_view por
         return 80;
     }
     uint16_t res;
-    auto result = std::from_chars(portStr.begin(), portStr.end(), res);
-    if (result.ec != std::errc {} || result.ptr != portStr.end())
+    auto end { portStr.data() + portStr.size() };
+    auto result = std::from_chars(portStr.data(), end, res);
+    if (result.ec != std::errc {} || result.ptr != end)
         return {};
     return res;
 }

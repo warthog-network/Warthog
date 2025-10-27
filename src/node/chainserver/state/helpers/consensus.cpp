@@ -212,6 +212,10 @@ auto Chainstate::append(AppendSingle d) -> HeaderchainAppend
     return headers().get_append(l);
 }
 
+size_t Chainstate::on_mempool_constraint_update(){
+    return _mempool.on_constraint_update();
+};
+
 auto Chainstate::insert_txs(const std::vector<TransactionMessage>& txs) -> std::vector<Error>
 {
     DBCache c(db);
@@ -242,6 +246,8 @@ TxHash Chainstate::insert_tx(const TransactionMessage& tm, DBCache& wc)
     auto fromAddr = db.lookup_address(tm.from_id());
     if (!fromAddr)
         throw Error(EACCIDNOTFOUND);
+    if (tm.compact_fee() < config().minMempoolFee)
+        throw Error(EMINFEE);
     if (tm.from_address(txHash) != fromAddr)
         throw Error(EFAKEACCID);
 

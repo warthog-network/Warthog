@@ -448,6 +448,10 @@ std::optional<api::Transaction> State::api_get_tx(const TxHash& txHash) const
     return {};
 }
 
+auto State::api_get_transaction_minfee() -> api::TransactionMinfee
+{
+    return { chainstate.mempool().min_fee() };
+}
 auto State::api_get_latest_txs(size_t N) const -> api::TransactionsByBlocks
 {
     HistoryId upper { db.next_history_id() };
@@ -1205,6 +1209,11 @@ std::optional<TokenId> State::normalize(api::TokenIdOrSpec token) const
         }
         return {};
     });
+}
+
+size_t State::on_mempool_constraint_update()
+{
+    return chainstate.on_mempool_constraint_update();
 }
 std::optional<AccountId> State::normalize(api::AccountIdOrAddress a) const
 {

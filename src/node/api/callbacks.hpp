@@ -44,6 +44,7 @@ using JSONCb = std::function<void(const Result<nlohmann::json>&)>;
 
 using MempoolCb = std::function<void(const Result<api::MempoolEntries>&)>;
 using MempoolInsertCb = std::function<void(const Result<TxHash>&)>;
+using MempoolConstraintCb = std::function<void(const Result<api::MempoolUpdate>&)>;
 using MempoolTxsCb = std::function<void(std::vector<std::optional<TransactionMessage>>&)>;
 using ChainMiningCb = std::function<void(const Result<ChainMiningTask>&)>;
 using MiningCb = std::function<void(const Result<api::MiningState>&)>;
@@ -61,6 +62,7 @@ using HashCb = std::function<void(const Result<Hash>&)>;
 using GridCb = std::function<void(const Result<Grid>&)>;
 using TxCb = std::function<void(const Result<api::Transaction>&)>;
 using LatestTxsCb = std::function<void(const Result<api::TransactionsByBlocks>&)>;
+using TransactionMinfeeCb = std::function<void(const Result<api::TransactionMinfee>&)>;
 using BlockCb = std::function<void(const Result<api::Block>&)>;
 using HistoryCb = std::function<void(const Result<api::AccountHistory>&)>;
 using RichlistCb = std::function<void(const Result<api::Richlist>&)>;

@@ -45,6 +45,7 @@ public:
     void apply_log(const Updates& log);
     Error insert_tx(const TransactionMessage& pm, TxHeight txh, const TxHash& hash, chainserver::DBCache& wartCache);
     void insert_tx_throw(const TransactionMessage& pm, TxHeight txh, const TxHash& hash, chainserver::DBCache& wartCache);
+    size_t on_constraint_update();
     void erase(TransactionId id);
     void set_free_balance(AccountToken, Funds_uint64 newBalance);
     void erase_from_height(NonzeroHeight);

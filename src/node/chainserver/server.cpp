@@ -53,6 +53,11 @@ void ChainServer::async_set_synced(bool synced)
     defer(SetSynced { synced });
 }
 
+void ChainServer::async_notify_mempool_constraint_update(MempoolConstraintCb cb)
+{
+    defer(MempoolConstraintUpdate { std::move(cb) });
+}
+
 void ChainServer::async_put_mempool(std::vector<TransactionMessage> txs)
 {
     defer(PutMempoolBatch { std::move(txs) });
@@ -87,6 +92,10 @@ void ChainServer::api_lookup_tx(const TxHash& hash,
 void ChainServer::api_lookup_latest_txs(LatestTxsCb callback)
 {
     defer_maybe_busy(LookupLatestTxs { std::move(callback) });
+}
+void ChainServer::api_get_transaction_minfee(TransactionMinfeeCb callback)
+{
+    defer_maybe_busy(GetTransactionMinfee { std::move(callback) });
 }
 
 void ChainServer::async_get_head(ChainHeadCb callback)
@@ -333,11 +342,17 @@ void ChainServer::handle_event(LookupTxHash&& e)
     e.callback(noval_to_err(state.api_get_tx(e.hash)));
 }
 
+void ChainServer::handle_event(GetTransactionMinfee&& e)
+{
+    auto t { timing->time("GetTransactionMinfee") };
+    e.callback(state.api_get_transaction_minfee());
+}
+
 void ChainServer::handle_event(LookupLatestTxs&& e)
 {
     auto t { timing->time("LookupLatestTxs") };
     e.callback(state.api_get_latest_txs());
-};
+}
 
 void ChainServer::handle_event(SetSynced&& e)
 {
@@ -444,6 +459,11 @@ void ChainServer::handle_event(PutMempool&& e)
     } catch (Error err) {
         e.callback(err);
     }
+}
+
+void ChainServer::handle_event(MempoolConstraintUpdate&& e)
+{
+    e.callback(api::MempoolUpdate { .deletedTransactions = state.on_mempool_constraint_update() });
 }
 
 void ChainServer::handle_event(PutMempoolBatch&& mb)

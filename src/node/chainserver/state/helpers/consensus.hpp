@@ -63,6 +63,7 @@ struct Chainstate {
 
     auto insert_txs(const std::vector<TransactionMessage>& txs) -> std::vector<Error>;
 
+    size_t on_mempool_constraint_update();
     TxHash insert_tx(const TransactionMessage& m, DBCache& ac);
     [[nodiscard]] TxHash create_tx(const WartTransferCreate& m);
 

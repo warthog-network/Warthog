@@ -40,7 +40,7 @@
     XX(17, EMROOT, "merkle root mismatch")                                         \
     XX(18, ENOBLOCK, "peer did not provide block")                                 \
     XX(19, EUNREQUESTED, "received unrequested message")                           \
-    XX(20, EIDPOLICY, "block transaction id policy violated")                      \
+    XX(20, EIDNOTREFERENCED, "account id not referenced")                          \
     XX(21, EADDRPOLICY, "new address policy violated")                             \
     XX(22, EBALANCE, "insufficient balance")                                       \
     XX(23, ECORRUPTEDSIG, "corrupted signature")                                   \
@@ -131,6 +131,7 @@
     XX(131, ETOKIDNOTFOUND, "token id not found")                                  \
     XX(132, ENOPOOL, "no pool liquidity")                                          \
     XX(133, ERTCDISABLED, "WebRTC disabled, cannot receive message")               \
+    XX(134, EIDPOLICY, "block transaction id policy violated")                     \
     XX(184, ETOKBALANCE, "insufficient token balance")                             \
     XX(185, EASSETHASHNOTFOUND, "asset hash not found")                            \
     XX(186, EASSETIDNOTFOUND, "asset id not found")                                \
@@ -161,6 +162,7 @@
     XX(210, ERTCIDIP, "IP in verification offer is not announced as identity")     \
     XX(211, ERTCFEELER, "Normal feeler connection shutdown")                       \
     XX(213, EAPICMD, "Triggered by API command")                                   \
+    XX(214, EMINFEE, "transaction fee below threshold")                            \
     /*300 - 399: API triggered errors*/                                            \
     XX(300, EINV_HEX, "cannot parse hexadecimal input")                            \
     XX(301, EBADNONCE, "cannot parse nonce")                                       \

@@ -100,6 +100,7 @@ int run_app(int argc, char** argv)
     spdlog::info("Chain database: {}", config().data.chaindb);
     spdlog::info("Peers database: {}", config().data.peersdb);
     spdlog::info("Rxtx database: {}", config().data.rxtxdb);
+    spdlog::info("Minimal transaction fee: {} WART", config().minMempoolFee.load().to_string());
 
     // spdlog::flush_on(spdlog::level::debug);
 #ifndef DISABLE_LIBUV
@@ -136,10 +137,10 @@ int run_app(int argc, char** argv)
     global_init(&breg, &rxtxServer, &ps, &*cs, el.get());
 #endif
 
-    // setup globals
+        // setup globals
 
-    // spawn new threads
-    ps.start();
+        // spawn new threads
+        ps.start();
     cs->start();
     el->start();
     rxtxServer.start();

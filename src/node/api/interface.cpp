@@ -29,6 +29,9 @@ void get_latest_transactions(LatestTxsCb f)
 {
     global().chainServer->api_lookup_latest_txs(std::move(f));
 };
+void get_transaction_minfee(TransactionMinfeeCb f){
+    global().chainServer->api_get_transaction_minfee(std::move(f));
+}
 
 // peer functions
 
@@ -77,6 +80,12 @@ void get_connected_connection(ConnectedConnectionCB&& cb)
     global().core->api_get_peers([cb = std::move(cb)](const std::vector<api::Peerinfo>& pi) {
         cb({ pi });
     });
+}
+
+void set_minfee(uint64_t fee, MempoolConstraintCb cb)
+{
+    set_config().minMempoolFee = CompactUInt::compact(Wart::from_value_throw(fee), true);
+    global().chainServer->async_notify_mempool_constraint_update(cb);
 }
 
 void get_round16bit_e8(uint64_t e8, RoundCb cb)

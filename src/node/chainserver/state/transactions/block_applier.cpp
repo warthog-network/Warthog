@@ -915,6 +915,8 @@ private:
 
     auto process_new_balance(const AccountToken& at, const BalanceFlow& tokenFlow, std::optional<BalanceId> id = {})
     {
+        if (tokenFlow.total.positive().is_zero())
+            throw Error(EIDNOTREFERENCED); // id was not referred
         if (!tokenFlow.total.negative().is_zero()
             || !tokenFlow.locked.negative().is_zero()
             || !tokenFlow.locked.positive().is_zero()) // We do not allow spending newly inserted balance

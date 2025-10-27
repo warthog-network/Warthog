@@ -22,8 +22,9 @@ struct ParameterParser {
     operator T()
     {
         T res {};
-        auto result = std::from_chars(sv.data(), sv.end(), res);
-        if (result.ec != std::errc {} || result.ptr != sv.end()) {
+        auto end { sv.data() + sv.size() };
+        auto result = std::from_chars(sv.data(), end, res);
+        if (result.ec != std::errc {} || result.ptr != end) {
             throw Error(EINV_ARGS);
         }
         return res;
@@ -227,6 +228,11 @@ public:
         hook_get(t, "/transaction/mempool", get_mempool);
         hook_get_1(t, "/transaction/lookup/:txid", lookup_tx);
         hook_get(t, "/transaction/latest", get_latest_transactions);
+        hook_get(t,"/transaction/minfee", get_transaction_minfee);
+
+
+        t.indexGenerator.section("Settings Endpoints");
+        hook_get_1(t, "/settings/mempool/minfee/:feeE8", set_minfee, true);
 
         t.indexGenerator.section("Chain Endpoints");
         hook_get(t, "/chain/head", get_block_head);
