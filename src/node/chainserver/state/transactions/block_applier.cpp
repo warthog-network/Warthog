@@ -213,16 +213,13 @@ struct AggregatorMatch {
     }
 };
 
+template <typename OnDelete, typename OnUpdate, typename OnBuySwap, typename OnSellSwap>
 struct MatchProcessor {
 
-    struct Swaps {
-        std::vector<SwapInternal> buySwaps;
-        std::vector<SwapInternal> sellSwaps;
-    };
+    // block_apply::OrderInsert
 
-    Swaps match(defi::PoolLiquidity_uint64& pool, block_apply::BlockEffects* blockEffects = nullptr) const
+    void match(defi::PoolLiquidity_uint64& pool) const
     {
-        Swaps res;
         AggregatorMatch am { db, unsortedOrderbook, assetId, pool, ignoreOrderIds };
         auto& m { am.m };
         Funds_uint64 fromPool { 0 };
@@ -260,24 +257,21 @@ struct MatchProcessor {
                 // order swapped b -> q
                 if (orderFilled >= o.order.amount) {
                     assert(orderFilled == o.order.amount);
-                    if (blockEffects) {
-                        blockEffects->insert(block_apply::OrderDelete({
-                            .id = o.id,
-                            .buy = false,
-                            .txid = o.txid,
-                            .aid = assetId,
-                            .total = o.order.amount,
-                            .filled = o.filled,
-                            .limit = o.order.limit,
-                        }));
-                    }
+                    on_order_delete(block_apply::OrderDelete({
+                        .id = o.id,
+                        .buy = false,
+                        .txid = o.txid,
+                        .aid = assetId,
+                        .total = o.order.amount,
+                        .filled = o.filled,
+                        .limit = o.order.limit,
+                    }));
                 } else {
                     assert(remaining == 0);
-                    if (blockEffects)
-                        blockEffects->insert(block_apply::OrderUpdate {
-                            .newFillState { .id { o.id }, .filled { orderFilled }, .buy = false }, .originalFilled { o.filled } });
+                    on_order_update(block_apply::OrderUpdate {
+                        .newFillState { .id { o.id }, .filled { orderFilled }, .buy = false }, .originalFilled { o.filled } });
                 }
-                res.sellSwaps.push_back(SwapInternal { .oId { o.id }, .txid { o.txid }, .base { b }, .quote { Wart::from_funds_throw(*q) } });
+                on_sell_swap(SwapInternal { .oId { o.id }, .txid { o.txid }, .base { b }, .quote { Wart::from_funds_throw(*q) } });
             }
             assert(remaining == 0);
             returned.quote.subtract_assert(quoteDistributed);
@@ -302,43 +296,35 @@ struct MatchProcessor {
                 // order swapped q -> b
                 if (orderFilled >= o.order.amount) {
                     assert(orderFilled == o.order.amount);
-                    if (blockEffects) {
-                        blockEffects->insert(block_apply::OrderInsert({
-                            .id = o.id,
-                            .buy = true,
-                            .txid = o.txid,
-                            .aid = assetId,
-                            .total = o.order.amount,
-                            .filled = o.filled,
-                            .limit = o.order.limit,
-                        }));
-                    }
+                    on_order_delete(block_apply::OrderDelete({
+                        .id = o.id,
+                        .buy = true,
+                        .txid = o.txid,
+                        .aid = assetId,
+                        .total = o.order.amount,
+                        .filled = o.filled,
+                        .limit = o.order.limit,
+                    }));
                 } else {
                     assert(remaining == 0);
-                    if (blockEffects)
-                        blockEffects->insert(block_apply::OrderUpdate {
-                            .newFillState { .id { o.id }, .filled { orderFilled }, .buy = true }, .originalFilled { o.filled } });
+                    on_order_update(block_apply::OrderUpdate {
+                        .newFillState { .id { o.id }, .filled { orderFilled }, .buy = true }, .originalFilled { o.filled } });
                 }
-                res.buySwaps.push_back(SwapInternal { .oId { o.id }, .txid { o.txid }, .base { *b }, .quote { Wart::from_funds_throw(q) } });
+                on_buy_swap(SwapInternal { .oId { o.id }, .txid { o.txid }, .base { *b }, .quote { Wart::from_funds_throw(q) } });
             }
             assert(remaining == 0);
             returned.base.subtract_assert(baseDistributed);
         }
-        return res;
-    }
-    MatchProcessor(AssetId assetId, const ChainDB& db, const std::set<HistoryId>& ignoreOrderIds, const UnsortedOrderbook& unsortedOrderbook)
-        : assetId(assetId)
-        , db(db)
-        , ignoreOrderIds(ignoreOrderIds)
-        , unsortedOrderbook(unsortedOrderbook)
-    {
     }
 
-private:
     AssetId assetId;
     const ChainDB& db;
     const std::set<HistoryId>& ignoreOrderIds;
     const UnsortedOrderbook& unsortedOrderbook;
+    OnDelete on_order_delete;
+    OnUpdate on_order_update;
+    OnBuySwap on_buy_swap;
+    OnSellSwap on_sell_swap;
 };
 
 struct NewOrdersInternal : UnsortedOrderbook {
@@ -393,22 +379,38 @@ class BalanceChecker {
         TokenFlow flow;
 
     public:
-        void add_total(TokenId id, Funds_uint64 v)
+        // adds funds to unlocked balance
+        void add_balance(TokenId id, Funds_uint64 v)
         {
             flow[id].total.add(v);
         }
-        void subtract_total(TokenId id, Funds_uint64 v)
+
+        // subtracts funds from unlocked balance
+        void subtract_balance(TokenId id, Funds_uint64 v)
         {
             flow[id].total.subtract(v);
         }
-        void add_locked(TokenId id, Funds_uint64 v)
+
+        // locks value `v` using unlocked balance (no change of total balance)
+        void lock_balance(TokenId id, Funds_uint64 v)
         {
             flow[id].locked.add(v);
         }
+
+        // unlocks value `v` using locked (no change of total balance)
+        void unlock_balance(TokenId id, Funds_uint64 v)
+        {
+            flow[id].locked.add(v);
+        }
+
+        // subtracts funds from locked balance
         void subtract_locked(TokenId id, Funds_uint64 v)
         {
-            flow[id].locked.subtract(v);
+            auto& f { flow[id] };
+            f.locked.subtract(v);
+            f.total.subtract(v);
         }
+
         auto& token_flow() const { return flow; }
         AccountData(AddressView address, ValidAccountId accountId)
             : ValidAccount(address, accountId)
@@ -424,7 +426,20 @@ class BalanceChecker {
         {
         }
         auto& token_flow() { return data.token_flow(); }
+        OldAccountData(const OldAccountData&) = delete;
+
+    private:
+        bool addressInitialized { false };
         Address address;
+
+    public:
+        void initialize_address_if_necessary(auto&& gen_addr)
+        {
+            if (addressInitialized)
+                return;
+            addressInitialized = true;
+            address = std::forward<decltype(gen_addr)>(gen_addr)(data.id);
+        }
         operator AccountData&() { return data; }
 
     private:
@@ -478,7 +493,7 @@ public:
         auto r { b.reward };
         auto& a { accounts[r.to_id()] };
         auto am { r.wart() };
-        a.add_total(TokenId::WART, am);
+        a.add_balance(TokenId::WART, am);
         return {
             .toAccountId { a.id },
             .wart { am },
@@ -499,7 +514,7 @@ public:
     {
         auto fee { compactFee.uncompact() };
         totalfee.add_throw(fee);
-        a.subtract_total(TokenId::WART, fee);
+        a.subtract_balance(TokenId::WART, fee);
     }
 
     struct ProcessedSigner : public SignerData {
@@ -525,8 +540,8 @@ public:
         if (s.origin.id == to.id)
             throw Error(ESELFSEND);
 
-        to.add_total(tokenId, amount);
-        s.account.subtract_total(tokenId, amount);
+        to.add_balance(tokenId, amount);
+        s.account.subtract_balance(tokenId, amount);
 
         return to;
     }
@@ -546,20 +561,43 @@ public:
     block_apply::LiquidityDeposit::Internal register_liquidity_deposit(const LiquidityDeposit& l, AssetId aid)
     {
         auto s { process_signer(l) };
-        s.account.subtract_total(aid.token_id(), l.base_amount());
-        s.account.subtract_total(TokenId::WART, l.quote_wart());
+        s.account.subtract_balance(aid.token_id(), l.base_amount());
+        s.account.subtract_balance(TokenId::WART, l.quote_wart());
         return { std::move(s), { defi::BaseQuote { l.base_amount(), l.quote_wart() }, aid } };
     }
 
     void add_balance(AccountId aid, TokenId tid, Funds_uint64 amount)
     {
-        accounts[aid].add_total(tid, amount);
+        accounts[aid].add_balance(tid, amount);
+    }
+
+    void subtract_balance(AccountId aid, TokenId tid, Funds_uint64 amount)
+    {
+        accounts[aid].subtract_balance(tid, amount);
+    }
+    void fill_buy(AccountId aid, AssetId assetId, Funds_uint64 baseReceive, Wart quotePay)
+    {
+        auto& acc { accounts[aid] };
+        acc.subtract_locked(TokenId::WART, quotePay);
+        acc.add_balance(assetId.token_id(), baseReceive);
+    }
+
+    void fill_sell(AccountId aid, AssetId assetId, Funds_uint64 basePay, Wart quoteReceive)
+    {
+        auto& acc { accounts[aid] };
+        acc.add_balance(TokenId::WART, quoteReceive);
+        acc.subtract_locked(assetId.token_id(), basePay);
+    }
+
+    void unlock_balance(AccountId aid, TokenId tid, Funds_uint64 amount)
+    {
+        accounts[aid].unlock_balance(tid, amount);
     }
 
     block_apply::LiquidityWithdrawal::Internal register_liquidity_withdraw(const LiquidityWithdraw& l, AssetId aid)
     {
         auto s { process_signer(l) };
-        s.account.subtract_total(aid.token_id(true), l.amount());
+        s.account.subtract_balance(aid.token_id(true), l.amount());
         return { std::move(s), { l.amount(), aid } };
     }
     block_apply::Order::Internal register_new_order(const Order& o, AssetId aid)
@@ -569,9 +607,9 @@ public:
         auto buy { o.buy() };
         auto amount { o.amount() };
         if (buy)
-            s.account.subtract_total(TokenId::WART, amount);
+            s.account.lock_balance(TokenId::WART, amount);
         else
-            s.account.subtract_total(aid.token_id(), amount);
+            s.account.lock_balance(aid.token_id(), amount);
 
         return {
             std::move(s),
@@ -974,7 +1012,7 @@ private:
     {
         // process old accounts
         for (auto& [accountId, accountData] : balanceChecker.old_accounts()) {
-            accountData.address = db_addr(accountId);
+            accountData.initialize_address_if_necessary([this](AccountId aid) { return db_addr(aid); });
             for (auto& [tokenId, tokenFlow] : accountData.token_flow()) {
                 AccountToken at { accountId, tokenId };
                 if (auto [balanceId, balance] { db.get_token_balance_recursive(accountId, tokenId) }; balanceId)
@@ -1002,6 +1040,12 @@ private:
                 throw Error(EIDPOLICY); // id was not referred
             blockEffects.insert(block_apply::AccountInsert { a.id, a.address });
         }
+    }
+
+    void load_addresses()
+    {
+        for (auto& [accountId, accountData] : balanceChecker.old_accounts())
+            accountData.initialize_address_if_necessary([this](AccountId aid) { return db_addr(aid); });
     }
 
     void process_actions()
@@ -1074,9 +1118,9 @@ private:
         for (auto& ts : balanceChecker.get_token_sections()) {
             auto ihn { db_asset(ts.asset_id()) };
             AssetHandle ah(ihn);
-            process_token_transfers(ah, ts.assetTransfers, false);
-            process_token_transfers(ah, ts.sharesTransfers, true);
-            match_new_orders(ah, ts.orders);
+            process_asset_transfers(ah, ts.assetTransfers);
+            process_liquidity_transfers(ah, ts.sharesTransfers);
+            process_orders(ah, ts.orders); // matching happens here.
             process_liquidity_deposits(ah, ts.liquidityAdds);
             process_liquidity_withdrawals(ah, ts.liquidityRemoves);
             if (auto& o { ah.loaded_pool() }) {
@@ -1113,15 +1157,10 @@ private:
         }
     }
 
-    // template <typename... T>
-    // [[nodiscard]] auto verify(auto& tx, T&&... t)
-    // {
-    //     return tx.verify(txVerifier, std::forward<T>(t)...);
-    // }
-    // generate history for transfers and check signatures
-    // and check for unique transaction ids
     void process_wart_transfers()
     {
+        // generate history for transfers and check signatures
+        // and check for unique transaction ids
         const auto& balanceChecker { this->balanceChecker }; // shadow balanceChecker
         for (auto& tr : balanceChecker.get_wart_transfers()) {
             auto verified { tr.verify(txVerifier) };
@@ -1152,14 +1191,8 @@ private:
             auto o { db.select_order(verified.ref.cancel_txid()) };
             if (o) { // transaction is removed from the database
                 ignoreOrderIds.insert(o->id);
+                balanceChecker.unlock_balance(c.origin.id, o->spend_token_id(), o->remaining());
                 blockEffects.insert(block_apply::OrderDelete(*o));
-
-                // credit remaining locked amount
-                if (o->buy) {
-                    balanceChecker.add_balance(c.origin.id, TokenId::WART, o->remaining());
-                } else {
-                    balanceChecker.add_balance(c.origin.id, o->aid.token_id(false), o->remaining());
-                }
             }
         }
     }
@@ -1178,6 +1211,14 @@ private:
                     .amount { tr.amount() },
                 } });
         }
+    }
+    void process_asset_transfers(AssetHandle& asset, const std::vector<block_apply::TokenTransfer::Internal>& transfers)
+    {
+        return process_token_transfers(asset, transfers, false);
+    }
+    void process_liquidity_transfers(AssetHandle& asset, const std::vector<block_apply::TokenTransfer::Internal>& transfers)
+    {
+        return process_token_transfers(asset, transfers, true);
     }
     [[nodiscard]] NewOrdersInternal generate_new_orders(const AssetHandle& asset, const std::vector<block_apply::Order::Internal>& orders)
     {
@@ -1205,7 +1246,7 @@ private:
         }
         return res;
     }
-    void match_new_orders(AssetHandle& asset, const std::vector<block_apply::Order::Internal>& orders)
+    void process_orders(AssetHandle& asset, const std::vector<block_apply::Order::Internal>& orders)
     {
         if (orders.size() == 0)
             return;
@@ -1213,24 +1254,34 @@ private:
 
         auto& pool { asset.get_pool(db) };
 
-        MatchProcessor m(asset.id(), db, ignoreOrderIds, newOrders);
+        history::MatchData h(asset.id(), pool);
 
-        const defi::PoolLiquidity_uint64 poolBeforeMatch { pool };
-        auto swaps { m.match(pool, &blockEffects) };
-
-        // generate history entry for swap
-        history::MatchData h(asset.id(), poolBeforeMatch, pool);
         std::vector<AccountId> accounts;
-        for (auto& s : swaps.buySwaps) {
-            h.buy_swaps().push_back({ s.base, s.quote, s.oId });
-            accounts.push_back(s.txid.accountId);
-        }
-        for (auto& s : swaps.sellSwaps) {
-            h.sell_swaps().push_back({ s.base, s.quote, s.oId });
-            accounts.push_back(s.txid.accountId);
-        }
+
+        MatchProcessor {
+            .assetId { asset.id() },
+            .db { db },
+            .ignoreOrderIds { ignoreOrderIds },
+            .unsortedOrderbook { newOrders },
+            .on_order_delete = [&](block_apply::OrderDelete o) { blockEffects.insert(std::move(o)); },
+            .on_order_update = [&](block_apply::OrderUpdate o) { blockEffects.insert(std::move(o)); },
+            .on_buy_swap = [&](SwapInternal s) { 
+                auto accId{s.txid.accountId};
+                balanceChecker.fill_buy(accId,asset.id(),s.base,s.quote);
+                h.buy_swaps().push_back({ s.base, s.quote, s.oId });
+                accounts.push_back(accId); },
+            .on_sell_swap = [&](SwapInternal s) { 
+                auto accId{s.txid.accountId};
+                balanceChecker.fill_sell(accId,asset.id(),s.base,s.quote);
+                h.sell_swaps().push_back({ s.base, s.quote, s.oId });
+                accounts.push_back(accId); }
+        }.match(pool);
+
+        h.pool_after() = pool; // write moodified pool after match
+
         auto& ref { history.push_match(accounts, h, blockhash, asset.id()) };
 
+        // create API entry
         api.matches.push_back(
             api::block::Match {
                 ref.he.hash,
@@ -1323,6 +1374,9 @@ public:
         register_wart_transfers(); // WART transfer section
         register_token_sections();
         register_asset_creations(); // token creation section
+
+        // we need to load addresses from db to check the signatures
+        load_addresses();
 
         /// Process block sections
         process_actions();

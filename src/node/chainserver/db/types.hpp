@@ -67,6 +67,12 @@ struct OrderData {
     {
         return diff_assert(total, filled);
     }
+    TokenId spend_token_id() const
+    {
+        if (buy)
+            return TokenId::WART;
+        return aid.token_id();
+    }
 
     Price_uint64 limit;
     static constexpr size_t byte_size()

@@ -6,8 +6,6 @@
 #include "crypto/hash.hpp"
 #include "defi/types.hpp"
 #include "signature_verification.hpp"
-// #include "defi/token/token.hpp"
-// #include "defi/uint64/price.hpp"
 
 namespace selectors {
 template <bool replace, size_t I>
@@ -85,8 +83,6 @@ struct ValidAccount {
 
 namespace impl {
 
-template <typename Combined, typename Selectors, typename VerifyArgPack>
-struct Internal;
 
 template <typename internal_t>
 struct Verified : public VerifiedTransaction {
@@ -144,6 +140,9 @@ struct ReplacedArgsComputer<ArgTypesPack> {
 
 template <typename... Elements>
 using GetArgs = ReplacedArgsComputer<ArgTypesPack<>, Elements...>::pack_t;
+
+template <typename Combined, typename Selectors, typename VerifyArgPack>
+struct Internal;
 
 template <typename Combined, typename Selectors, typename... VerifyArgs>
 struct Internal<Combined, Selectors, ArgTypesPack<VerifyArgs...>> : public SignerData, public Combined {
@@ -220,20 +219,3 @@ using TokenTransfer = signed_entry<ToValidAccEl, AmountEl, AssetIdEl>;
 using AssetCreation = signed_entry<AssetNameEl, AssetSupplyEl>;
 
 }
-
-// struct TokenCreationInternal;
-// struct VerifiedAssetCreation : public VerifiedTransaction {
-//     friend struct TokenCreationInternal;
-//     VerifiedAssetCreation(const TokenCreationInternal&, const TransactionVerifier&);
-//     const TokenCreationInternal& tci;
-// };
-//
-// struct TokenCreationInternal : public SignerData {
-//     size_t index;
-//     AssetName name;
-//     FundsDecimal supply;
-//     [[nodiscard]] VerifiedAssetCreation verify(const TransactionVerifier& tv) const
-//     {
-//         return { *this, tv };
-//     }
-// };

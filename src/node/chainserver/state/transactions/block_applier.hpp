@@ -1,4 +1,5 @@
 #pragma once
+
 #include "../../transaction_ids.hpp"
 #include "api/types/forward_declarations.hpp"
 #include "block/block_fwd.hpp"

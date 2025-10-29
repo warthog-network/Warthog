@@ -1,7 +1,6 @@
 #pragma once
 #include "block/body/transaction_id.hpp"
 #include "chainserver/state/block_apply/types.hpp"
-#include "crypto/crypto.hpp"
 #include "crypto/hash.hpp"
 #include "defi/token/token.hpp"
 #include "defi/uint64/pool.hpp"
@@ -50,6 +49,7 @@ struct PoolBeforeEl : public ElementBase<defi::BaseQuote> {
 struct PoolAfterEl : public ElementBase<defi::BaseQuote> {
     using base_t::base_t;
     [[nodiscard]] const auto& pool_after() const { return data; }
+    [[nodiscard]] auto& pool_after() { return data; }
 };
 
 template <typename T>
@@ -107,8 +107,8 @@ struct SellSwapsEl : public ElementBase<vect_len32<CombineElements<BaseEl, Quote
 
 using MatchDataBase = IdCombine<8, AssetIdEl, PoolBeforeEl, PoolAfterEl, BuySwapsEl, SellSwapsEl>;
 struct MatchData : public MatchDataBase {
-    MatchData(AssetId assetId, defi::PoolLiquidity_uint64 poolBefore, defi::PoolLiquidity_uint64 poolAfter)
-        : MatchData(assetId, defi::BaseQuote_uint64(std::move(poolBefore)), std::move(poolAfter), {}, {})
+    MatchData(AssetId assetId, defi::PoolLiquidity_uint64 poolBefore)
+        : MatchData(assetId, defi::BaseQuote_uint64(std::move(poolBefore)), std::move(poolBefore), {}, {})
     {
     }
     using MatchDataBase::MatchDataBase;
