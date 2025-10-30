@@ -38,7 +38,7 @@ using Lead_set = std::set<Lead_iter>;
 
 inline bool operator<(const Lead_iter& l1, const Lead_iter& l2)
 {
-    return &*l1< &*l2;
+    return &*l1 < &*l2;
 }
 
 struct NonzeroSnapshot {
@@ -57,7 +57,7 @@ struct VerifierNode {
 };
 inline bool operator<(const Ver_iter& l1, const Ver_iter& l2)
 {
-    return &*l1< &*l2;
+    return &*l1 < &*l2;
 }
 struct QueueBatchNode {
     std::optional<Conref> cr;
@@ -70,7 +70,7 @@ struct QueueBatchNode {
 using Queued_iter = std::map<Header, QueueBatchNode>::iterator;
 inline bool operator<(const Queued_iter& l1, const Queued_iter& l2)
 {
-    return &*l1< &*l2;
+    return &*l1 < &*l2;
 }
 
 struct QueueEntry {
@@ -211,11 +211,8 @@ private:
 
 public:
     std::vector<ChainOffender> on_rogue_header(const RogueHeaderData& rogueHeaderData);
-    [[nodiscard]] bool is_active() const
-    {
-        return leaderList.size() > 0;
-    }
     size_t size() const { return connections.size(); }
+    [[nodiscard]] bool is_active() const { return !leaderList.empty(); }
     Downloader(const StageAndConsensus& cache, Worksum minWork)
         : chains(cache)
         , minWork(minWork)

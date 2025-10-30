@@ -6,12 +6,11 @@
 
 ForkRange& ChaincacheMatch::fork_range(Conref cr) const
 {
-    using T = ChaincacheMatch::Type;
-    ForkRange fr;
+    using enum Type;
     switch (type) {
-    case T::CONSENSUS:
+    case CONSENSUS:
         return cr.chain().consensus_fork_range();
-    case T::STAGE:
+    case STAGE:
         return cr.chain().stage_fork_range();
     }
     assert(false);
@@ -75,13 +74,13 @@ auto StageAndConsensus::update_consensus(const RollbackData& rd) -> std::optiona
 
 std::optional<ChaincacheMatch> StageAndConsensus::lookup(std::optional<ChainPin> p) const
 {
-    using T = enum ChaincacheMatch::Type;
+    using enum ChaincacheMatch::Type;
     if (!p.has_value()) {
         if (stageHeaders->length() != 0) {
-            return ChaincacheMatch { T::STAGE, stage_pin() };
+            return ChaincacheMatch { STAGE, stage_pin() };
         }
         if (consensus.headers().length() != 0) {
-            return ChaincacheMatch { T::CONSENSUS, consensus_pin() };
+            return ChaincacheMatch { CONSENSUS, consensus_pin() };
         }
         return {};
     }
@@ -89,12 +88,12 @@ std::optional<ChaincacheMatch> StageAndConsensus::lookup(std::optional<ChainPin>
     if (stageHeaders->length() > p->height) {
         auto bh = stageHeaders->get_header(p->height);
         if (bh && *bh == p->header)
-            return ChaincacheMatch { T::STAGE, stage_pin() };
+            return ChaincacheMatch { STAGE, stage_pin() };
     }
     if (consensus.headers().length() > p->height) {
         auto ch = consensus.headers().get_header(p->height);
         if (ch && ch == p->header)
-            return ChaincacheMatch { T::CONSENSUS, consensus_pin() };
+            return ChaincacheMatch { CONSENSUS, consensus_pin() };
     }
     return {};
 }

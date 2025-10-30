@@ -1,7 +1,7 @@
 #include "header_download.hpp"
-#include "eventloop/eventloop.hpp"
 #include "block/chain/consensus_headers.hpp"
 #include "eventloop/chain_cache.hpp"
+#include "eventloop/eventloop.hpp"
 #include "eventloop/types/peer_requests.hpp"
 #include "global/globals.hpp"
 #include "probe_balanced.hpp"
@@ -133,9 +133,9 @@ bool Downloader::can_insert_leader(Conref cr)
 {
     auto& id { data(cr).ignoreDescriptor };
     auto& d { cr.chain().descripted() };
-    auto version_ok =[](Conref cr){
-        auto v{cr->c->node_version()};
-            return (v.minor() >= 8 || (v.minor() == 6 && v.patch() >= 21));
+    auto version_ok = [](Conref cr) {
+        auto v { cr->c->node_version() };
+        return (v.minor() >= 8 || (v.minor() == 6 && v.patch() >= 21));
     };
 
     bool res = !is_leader(cr)
@@ -144,11 +144,11 @@ bool Downloader::can_insert_leader(Conref cr)
         && d->worksum() > minWork // provides more work
         && d->grid().valid_checkpoint() // valid checkpoint
         && version_ok(cr)
-        && (!id || id != d->descriptor); // no signed pin fail for this descriptor
+        && id != d->descriptor; // no signed pin fail for this descriptor
 
-    if (res) {
-        assert(d->chain_length() != 0);
-    }
+    if (res)
+        assert(!res || (d->chain_length() != 0));
+
     return res;
 }
 
@@ -251,7 +251,7 @@ std::optional<Conref> Downloader::try_send(ConnectionFinder& f, std::vector<Chai
             // consider updating probe with cacheMatch
             if (rd.cacheMatch && (!pd || pd->qiter == rd.queueEntry.iter)) {
                 ForkRange& fr { rd.cacheMatch->fork_range(cr) };
-                try { 
+                try {
                     fr.on_match(rd.slot.offset()); // TODO: check this
                 } catch (const ChainError& e) {
                     offenders.push_back({ e, cr });
@@ -421,9 +421,9 @@ std::vector<ChainOffender> Downloader::do_header_requests(RequestSender s)
 
 void Downloader::on_request_expire(Conref cr, const HeaderRequest&)
 {
-    if (data(cr).jobPtr) {
-        data(cr).jobPtr->cr.reset();
-        data(cr).jobPtr = nullptr;
+    if (auto& j { data(cr).jobPtr }) {
+        j->cr.reset();
+        j = nullptr;
     }
 }
 
@@ -684,9 +684,9 @@ auto Downloader::on_response(Conref cr, HeaderRequest&& req, Batch&& res) -> std
 
 [[nodiscard]] std::optional<std::tuple<LeaderInfo, Headerchain>> Downloader::pop_data()
 {
-    if (!has_data()) {
+    if (!has_data()) 
         return {};
-    }
+
     auto& m = maximizer.value();
 
     Headerchain chain { m.headers };
@@ -703,7 +703,7 @@ bool Downloader::has_data() const
 
 bool Downloader::erase(Conref cr)
 {
-    if(! std::erase(connections, cr))
+    if (!std::erase(connections, cr))
         return false;
 
     clear_connection_probe(cr);
@@ -744,8 +744,8 @@ std::vector<ChainOffender> Downloader::on_rogue_header(const RogueHeaderData& hh
     if (hhw.worksum > minWork && rogueHeaders.add(hhw)) {
         for (auto li = leaderList.begin(); li != leaderList.end();) {
             if (has_header(*li, hhw)) {
-                if (flag_connection(li->cr)) 
-                    res.push_back({hhw.chain_error(), li->cr});
+                if (flag_connection(li->cr))
+                    res.push_back({ hhw.chain_error(), li->cr });
                 erase_leader(li++);
             } else
                 ++li;

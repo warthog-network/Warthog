@@ -16,7 +16,7 @@ ForkRange::ForkRange(const Headerchain& hc, const Grid& g, Batchslot begin)
 }
 
 void ForkRange::on_fork(NonzeroHeight forkHeight)
-{ //OK
+{ // OK
     if (forkHeight < l) {
         l = forkHeight;
         u = forkHeight;
@@ -35,7 +35,7 @@ void ForkRange::on_fork(NonzeroHeight forkHeight, const Descripted& theirs, cons
 }
 
 bool ForkRange::detect_shrink(const Descripted& theirs, const Headerchain& ours)
-{ //OK
+{ // OK
     Height minlength = std::min(theirs.chain_length(), ours.length());
     if (l > minlength) {
         l = minlength.one_if_zero();
@@ -50,14 +50,14 @@ bool ForkRange::detect_shrink(const Descripted& theirs, const Headerchain& ours)
     return false;
 }
 void ForkRange::on_append_or_shrink(const Descripted& theirs, const Headerchain& ours)
-{ //OK
+{ // OK
     if (detect_shrink(theirs, ours))
         return;
     on_append(theirs, ours);
 }
 
 void ForkRange::on_shrink(const Descripted& theirs, const Headerchain& ours)
-{ //OK
+{ // OK
     detect_shrink(theirs, ours);
 }
 
@@ -88,14 +88,16 @@ void ForkRange::grid_match(Batchslot begin, const Grid& theirGrid, const Headerc
 ForkRange::Change ForkRange::on_match(Height matchHeight)
 { // OK
     if (matchHeight < l) {
+        // we already know that matches occur at heights < l
+        return Change::none();
     } else if (matchHeight < u) {
-        l = (matchHeight + 1).nonzero_assert();
+        // fork height must be in interval [matchHeight + 1,u]
+        l = matchHeight.add1();
         return Change::lower();
     } else {
         // matchHeight is nonzero in this branch because l is nonzero.
-        throw ChainError { EBADMATCH, matchHeight.nonzero_assert() }; 
+        throw ChainError { EBADMATCH, matchHeight.nonzero_assert() };
     }
-    return Change::none();
 }
 
 ForkRange::Change ForkRange::match(const Headerchain& hc, NonzeroHeight h, HeaderView hv)
@@ -110,13 +112,14 @@ ForkRange::Change ForkRange::match(const Headerchain& hc, NonzeroHeight h, Heade
 }
 
 ForkRange::Change ForkRange::on_mismatch(NonzeroHeight mismatchHeight)
-{ //OK
+{ // OK
     if (mismatchHeight < l) {
         throw ChainError { EBADMISMATCH, mismatchHeight };
     } else if (mismatchHeight < u) {
         u = mismatchHeight;
         return Change::upper();
-    } else {
+    } else { // mismatchHeight >= u
+        // we already know that mismatches occur at heights >= u
+        return Change::none();
     }
-    return Change::none();
 }
