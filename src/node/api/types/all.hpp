@@ -119,7 +119,7 @@ struct HistoryDataBase {
 
 template <typename T>
 struct WithHistoryBase : public HistoryDataBase, T {
-    WithHistoryBase(TxHash txhash, HistoryId, T t)
+    WithHistoryBase(TxHash txhash, HistoryId hid, T t)
         : HistoryDataBase(std::move(txhash), std::move(hid))
         , T(std::move(t))
     {
