@@ -913,7 +913,7 @@ private:
     void verify_new_address_policy()
     {
         std::set<AddressView> newAddresses;
-        for (auto address : body.newAddresses) {
+        for (auto &address : body.newAddresses) {
             if (newAddresses.emplace(address).second == false)
                 throw Error(EADDRPOLICY);
             if (db.lookup_account(address))
