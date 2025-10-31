@@ -10,7 +10,7 @@ struct SignedCombined;
 
 using Reward = Combined<ToAccIdEl, WartEl>;
 using WartTransfer = SignedCombined<ToAccIdEl, WartEl>;
-using TokenTransfer = SignedCombined<ToAccIdEl, AmountEl>;
+using AssetTransfer = SignedCombined<ToAccIdEl, AmountEl>;
 using ShareTransfer = SignedCombined<ToAccIdEl, SharesEl>;
 using AssetCreation = SignedCombined<AssetSupplyEl, AssetNameEl>;
 using Order = SignedCombined<BuyEl, AmountEl, LimitPriceEl>;

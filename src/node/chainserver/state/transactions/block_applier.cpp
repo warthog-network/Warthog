@@ -558,12 +558,12 @@ public:
         cancelations.push_back({ std::move(s), { c.canceled_txid() } });
     }
 
-    block_apply::LiquidityDeposit::Internal register_liquidity_deposit(const LiquidityDeposit& l, AssetId aid)
+    block_apply::LiquidityDeposit::Internal register_liquidity_deposit(const LiquidityDeposit& ld, AssetId aid)
     {
-        auto s { process_signer(l) };
-        s.account.subtract_balance(aid.token_id(), l.base_amount());
-        s.account.subtract_balance(TokenId::WART, l.quote_wart());
-        return { std::move(s), { defi::BaseQuote { l.base_amount(), l.quote_wart() }, aid } };
+        auto s { process_signer(ld) };
+        s.account.subtract_balance(aid.token_id(), ld.base_amount());
+        s.account.subtract_balance(TokenId::WART, ld.quote_wart());
+        return { std::move(s), { aid, defi::BaseQuote { ld.base_amount(), ld.quote_wart() } } };
     }
 
     void add_balance(AccountId aid, TokenId tid, Funds_uint64 amount)
@@ -613,29 +613,33 @@ public:
 
         return {
             std::move(s),
-            { o.limit(), amount, buy, aid }
+            { aid, buy, amount, o.limit() }
         };
     }
     void register_token_section(const block::body::elements::tokens::TokenSection& t)
     {
         auto aid { t.asset_id() };
         TokenSectionInternal ts(t.asset_id());
-        for (auto& tr : t.asset_transfers()) {
-            auto s(process_signer(tr));
-            auto valid_to_id { __register_transfer(aid.token_id(), tr.to_id(), tr.amount(), s) };
-            ts.assetTransfers.push_back({ s, { valid_to_id, tr.amount(), aid } });
-        }
-        for (auto& tr : t.share_transfers()) {
-            auto s(process_signer(tr));
-            auto valid_to_id { __register_transfer(aid.token_id(true), tr.to_id(), tr.shares(), s) };
-            ts.sharesTransfers.push_back({ s, { valid_to_id, tr.shares(), aid } });
-        }
-        for (auto& o : t.orders())
-            ts.orders.push_back(register_new_order(o, aid));
-        for (auto& a : t.liquidity_deposits())
-            ts.liquidityAdds.push_back(register_liquidity_deposit(a, t.asset_id()));
-        for (auto& r : t.liquidity_withdrawals())
-            ts.liquidityRemoves.push_back(register_liquidity_withdraw(r, t.asset_id()));
+        t.visit_components_overload(
+            [&](const block::body::AssetTransfer& at) {
+                auto s(process_signer(at));
+                auto valid_to_id { __register_transfer(aid.token_id(), at.to_id(), at.amount(), s) };
+                ts.assetTransfers.push_back({ s, { valid_to_id, at.amount(), aid } });
+            },
+            [&](const block::body::ShareTransfer& st) {
+                auto s(process_signer(st));
+                auto valid_to_id { __register_transfer(aid.token_id(true), st.to_id(), st.shares(), s) };
+                ts.sharesTransfers.push_back({ s, { valid_to_id, st.shares(), aid } });
+            },
+            [&](const block::body::Order& o) {
+                ts.orders.push_back(register_new_order(o, aid));
+            },
+            [&](const block::body::LiquidityDeposit& ld) {
+                ts.liquidityAdds.push_back(register_liquidity_deposit(ld, t.asset_id()));
+            },
+            [&](const block::body::LiquidityWithdraw& lw) {
+                ts.liquidityRemoves.push_back(register_liquidity_withdraw(lw, t.asset_id()));
+            });
         tokenSections.push_back(std::move(ts));
     }
 
@@ -828,17 +832,6 @@ public:
             entries.insertAccountHistory.push_back({ aid, h.hid });
         return h;
     };
-    // ForAccounts for_accounts(const auto& account_id_generator)
-    // {
-    //     ForAccounts h { next_id(), *this };
-    //     while (true) {
-    //         if (std::optional<AccountId> aid { account_id_generator() })
-    //             entries.insertAccountHistory.push_back({ *aid, h.hid });
-    //         else
-    //             break;
-    //     }
-    //     return h;
-    // };
 
     [[nodiscard]] const auto& push_reward(const RewardInternal& r)
     {
@@ -1096,7 +1089,7 @@ private:
         auto& precision() const { return info().precision; }
         auto id() const { return _info.id; }
         auto& name() const { return _info.name; }
-        [[nodiscard]] auto& get_pool(const ChainDB& db)
+        [[nodiscard]] auto& get_pool(const ChainDB& db) const
         {
             if (!o) {
                 if (auto p { db.select_pool(info().id) })
@@ -1246,20 +1239,20 @@ private:
         }
         return res;
     }
-    void process_orders(AssetHandle& asset, const std::vector<block_apply::Order::Internal>& orders)
+    void process_orders(const AssetHandle& ah, const std::vector<block_apply::Order::Internal>& orders)
     {
         if (orders.size() == 0)
             return;
-        auto newOrders { generate_new_orders(asset, orders) };
+        auto newOrders { generate_new_orders(ah, orders) };
 
-        auto& pool { asset.get_pool(db) };
+        auto& pool { ah.get_pool(db) };
 
-        history::MatchData h(asset.id(), pool);
+        history::MatchData h(ah.id(), pool);
 
         std::vector<AccountId> accounts;
 
         MatchProcessor {
-            .assetId { asset.id() },
+            .assetId { ah.id() },
             .db { db },
             .ignoreOrderIds { ignoreOrderIds },
             .unsortedOrderbook { newOrders },
@@ -1267,19 +1260,19 @@ private:
             .on_order_update = [&](block_apply::OrderUpdate o) { blockEffects.insert(std::move(o)); },
             .on_buy_swap = [&](SwapInternal s) { 
                 auto accId{s.txid.accountId};
-                balanceChecker.fill_buy(accId,asset.id(),s.base,s.quote);
+                balanceChecker.fill_buy(accId,ah.id(),s.base,s.quote);
                 h.buy_swaps().push_back({ s.base, s.quote, s.oId });
                 accounts.push_back(accId); },
             .on_sell_swap = [&](SwapInternal s) { 
                 auto accId{s.txid.accountId};
-                balanceChecker.fill_sell(accId,asset.id(),s.base,s.quote);
+                balanceChecker.fill_sell(accId,ah.id(),s.base,s.quote);
                 h.sell_swaps().push_back({ s.base, s.quote, s.oId });
                 accounts.push_back(accId); }
         }.match(pool);
 
         h.pool_after() = pool; // write moodified pool after match
 
-        auto& ref { history.push_match(accounts, h, blockhash, asset.id()) };
+        auto& ref { history.push_match(accounts, h, blockhash, ah.id()) };
 
         // create API entry
         api.matches.push_back(
@@ -1287,7 +1280,7 @@ private:
                 ref.he.hash,
                 ref.historyId,
                 api::block::MatchData {
-                    asset.info(),
+                    ah.info(),
                     h.pool_before(),
                     h.pool_after(),
                     h.buy_swaps(),

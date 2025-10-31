@@ -60,7 +60,6 @@ struct SwapInternal {
     Wart quote;
 };
 
-
 struct RewardInternal {
     ValidAccountId toAccountId;
     Wart wart;
@@ -83,7 +82,6 @@ struct ValidAccount {
 
 namespace impl {
 
-
 template <typename internal_t>
 struct Verified : public VerifiedTransaction {
 private:
@@ -103,6 +101,8 @@ struct ArgTypesPack {
     template <typename R>
     using append = ArgTypesPack<T..., R>;
 };
+
+
 template <typename T>
 struct ReplaceArg {
     static constexpr const bool replace = false;
@@ -120,6 +120,7 @@ struct ReplacedArgsComputer;
 
 template <bool replace, typename ArgTypesPack, typename Element, typename... Elements>
 struct RecurseReplacedArgs;
+
 template <typename ArgTypesPack, typename Element, typename... Elements>
 struct RecurseReplacedArgs<false, ArgTypesPack, Element, Elements...> {
     using next = ReplacedArgsComputer<ArgTypesPack, Elements...>;
@@ -146,9 +147,9 @@ struct Internal;
 
 template <typename Combined, typename Selectors, typename... VerifyArgs>
 struct Internal<Combined, Selectors, ArgTypesPack<VerifyArgs...>> : public SignerData, public Combined {
-    Internal(SignerData s, Combined e)
-        : SignerData(std::move(s))
-        , Combined(std::move(e))
+    Internal(SignerData signerData, Combined data)
+        : SignerData(std::move(signerData))
+        , Combined(std::move(data))
     {
     }
     [[nodiscard]] Verified<Internal> verify(const TransactionVerifier& verifier, const VerifyArgs&... args) const
@@ -211,8 +212,8 @@ struct ToValidAccEl : public ElementBase<ValidAccount> {
 };
 
 using Cancelation = signed_entry<CancelTxIdElement>;
-using Order = signed_entry<LimitPriceEl, AmountEl, BuyEl, AssetIdEl>;
-using LiquidityDeposit = signed_entry<BaseQuoteEl, AssetIdEl>;
+using Order = signed_entry<AssetIdEl, BuyEl, AmountEl, LimitPriceEl>;
+using LiquidityDeposit = signed_entry<AssetIdEl, BaseQuoteEl>;
 using LiquidityWithdrawal = signed_entry<AmountEl, AssetIdEl>;
 using WartTransfer = signed_entry<ToValidAccEl, WartEl>;
 using TokenTransfer = signed_entry<ToValidAccEl, AmountEl, AssetIdEl>;

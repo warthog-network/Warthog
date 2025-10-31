@@ -887,7 +887,7 @@ private:
             [&](const TokenSection& s) {
                     auto asset { c.assetsById[s.asset_id()] };
                     apply_to_array(s,
-                        [&](PinHeight pinHeight, const TokenTransfer& t) {
+                        [&](PinHeight pinHeight, const AssetTransfer& t) {
                                 auto toAddress { c.addresses.fetch(t.to_id()) };
                                 toMempool.push_back(TokenTransferMessage(t.txid(pinHeight), t.pin_nonce().reserved, t.compact_fee(), asset.hash, false, toAddress, t.amount(), t.signature()));
                         },

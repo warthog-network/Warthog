@@ -249,7 +249,7 @@ protected:
 
 namespace tokens {
 
-struct AssetTransfers : public VectorElement<body::TokenTransfer> {
+struct AssetTransfers : public VectorElement<body::AssetTransfer> {
     using VectorElement::VectorElement;
     auto& asset_transfers() const { return get(); }
     auto& asset_transfers() { return get(); }
