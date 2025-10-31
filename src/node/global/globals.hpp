@@ -55,5 +55,8 @@ void global_init(BatchRegistry* pbr, rxtx::Server* ts, PeerServer* pps, ChainSer
 #else
 void global_init(BatchRegistry* pbr, rxtx::Server* ts, PeerServer* pps, ChainServer* pcs, Eventloop* pel);
 #endif
-void global_startup();
-void global_cleanup();
+
+struct GlobalsSession {
+    GlobalsSession();
+    ~GlobalsSession();
+};

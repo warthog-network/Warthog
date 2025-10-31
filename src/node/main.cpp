@@ -137,10 +137,10 @@ int run_app(int argc, char** argv)
     global_init(&breg, &rxtxServer, &ps, &*cs, el.get());
 #endif
 
-        // setup globals
+    // setup globals
 
-        // spawn new threads
-        ps.start();
+    // spawn new threads
+    ps.start();
     cs->start();
     el->start();
     rxtxServer.start();
@@ -175,8 +175,6 @@ error:
 
 int main(int argc, char** argv)
 {
-    global_startup();
-    auto i { run_app(argc, argv) };
-    global_cleanup();
-    return i;
+    GlobalsSession s; // cleans up in destructor
+    return run_app(argc, argv);
 }

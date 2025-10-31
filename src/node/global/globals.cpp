@@ -22,7 +22,7 @@ std::string logdir()
     }
 }
 
-[[nodiscard]] auto create_log(std::string_view name, size_t sizeMegabytes = 5 , size_t nFiles = 3)
+[[nodiscard]] auto create_log(std::string_view name, size_t sizeMegabytes = 5, size_t nFiles = 3)
 {
     size_t max_size = 1048576 * sizeMegabytes;
     using namespace std::string_literals;
@@ -33,7 +33,7 @@ std::string logdir()
 
 auto create_connection_logger()
 {
-    auto res{create_log("connections")};
+    auto res { create_log("connections") };
     res->flush_on(spdlog::level::info);
     return res;
 }
@@ -94,8 +94,8 @@ void global_init(BatchRegistry* pbr, rxtx::Server* ts, PeerServer* pps, ChainSer
     globalinstance.core = pel;
     globalinstance.connLogger = create_connection_logger();
     globalinstance.syncdebugLogger = create_log("syncdebug");
-    globalinstance.timingLogger.emplace(create_log("timing",50,10), create_log("longrunning",50,10));
-    globalinstance.communicationLogger = create_log("communication",50,3);
+    globalinstance.timingLogger.emplace(create_log("timing", 50, 10), create_log("longrunning", 50, 10));
+    globalinstance.communicationLogger = create_log("communication", 50, 3);
 };
 
 namespace {
@@ -119,14 +119,13 @@ void initialize_srand()
 
 }
 
-void global_startup()
+GlobalsSession::GlobalsSession()
 {
     ECC_Start();
     initialize_logging();
     initialize_srand();
 }
-
-void global_cleanup()
+GlobalsSession::~GlobalsSession()
 {
     ECC_Stop();
     spdlog::shutdown();
