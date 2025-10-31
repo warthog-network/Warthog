@@ -109,7 +109,7 @@ public:
     {
         const PinFloor pinFloor { h.pin_floor() };
         PinHeight pinHeight(sd.pinNonce.pin_height_from_floored(pinFloor));
-        auto pinHash { hc.hash_at(h) };
+        auto pinHash { hc.hash_at(pinHeight) };
         TransactionId txid { sd.origin.id, pinHeight, sd.pinNonce.id };
 
         return {
