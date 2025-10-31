@@ -53,9 +53,6 @@ private: // private data
     std::array<uint8_t, 32> keydata;
 };
 
-bool check_signature(const uint8_t* in65_signature,
-    HashView);
-
 class RecoverableSignature {
 public:
     static constexpr size_t length = 65;
