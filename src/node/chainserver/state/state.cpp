@@ -1060,6 +1060,7 @@ auto State::apply_stage(ChainDBTransaction&& t) -> ApplyStageResult
         assert(status.height() < stage.length());
         errorWorksum = stage.total_work_at(status.height());
         errorHeader = stage[status.height()];
+        spdlog::warn("Invalid block at height {}: {}", status.height().value(), status.err_name());
         stage.shrink(status.height() - 1);
         if (stage.total_work_at(status.height() - 1) <= chainstate.headers().total_work()) {
             return {
@@ -1074,7 +1075,7 @@ auto State::apply_stage(ChainDBTransaction&& t) -> ApplyStageResult
     auto update { std::move(tr).commit(*this) };
     dbcache.clear();
 
-    return { { status }, errorWorksum, update };
+    return { { status }, errorWorksum, errorHeader, update };
 }
 
 auto State::apply_signed_snapshot(SignedSnapshot&& ssnew) -> std::optional<StateUpdateWithAPIBlocks>
