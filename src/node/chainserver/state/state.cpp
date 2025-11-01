@@ -446,21 +446,21 @@ auto State::add_stage(const std::vector<Block>& blocks, const Headerchain& hc) -
         stage.append(prepared.value(), batchRegistry);
     }
     if (stage.total_work() > chainstate.headers().total_work()) {
-        auto [status, update] { apply_stage(std::move(transaction)) };
+        auto r { apply_stage(std::move(transaction)) };
 
-        if (status.ce.is_error()) {
+        if (r.status.ce.is_error()) {
             // Something went wrong on block body level so block header must be also tainted
             // as we checked for correct merkleroot already
             // => we need to collect data on rogue header
             RogueHeaderData rogueHeaderData(
-                status.ce,
-                stage[status.ce.height()],
-                stage.total_work_at(status.ce.height()));
-            return { { status }, rogueHeaderData, update };
+                r.status.ce,
+                r.errorHeader.value(),
+                r.errorWorksum.value());
+            return { { r.status }, std::move(rogueHeaderData), std::move(r.update) };
         } else {
             // pass {} as header arg because we can't to block any headers when
             // we have a wrong body (EINV_BODY or EMROOT)
-            return { { ce }, {}, update };
+            return { { ce }, {}, std::move(r.update) };
         }
     } else {
         // pass {} as header arg because we can't to block any headers when
@@ -549,6 +549,8 @@ auto State::apply_stage(ChainDBTransaction&& t) -> ApplyStageResult
 
     chainserver::ApplyStageTransaction tr { *this, std::move(t) };
     tr.consider_rollback(fh - 1);
+    std::optional<Worksum> errorWorksum;
+    std::optional<Header> errorHeader;
     auto status { tr.apply_stage_blocks() };
     if (status.is_error()) {
         if (config().localDebug) {
@@ -556,10 +558,15 @@ auto State::apply_stage(ChainDBTransaction&& t) -> ApplyStageResult
         }
         for (auto h { status.height() }; h < stage.length(); ++h)
             db.delete_bad_block(stage.hash_at(h));
+        errorWorksum = stage.total_work_at(status.height());
+        errorHeader = stage[status.height()];
+        spdlog::warn("Invalid block at height {}: {}", status.height().value(), status.err_name());
         stage.shrink(status.height() - 1);
         if (stage.total_work_at(status.height() - 1) <= chainstate.headers().total_work()) {
             return {
                 { status },
+                errorWorksum,
+                errorHeader,
                 {},
             };
         }
@@ -567,7 +574,7 @@ auto State::apply_stage(ChainDBTransaction&& t) -> ApplyStageResult
     db.set_consensus_work(stage.total_work());
     auto update { std::move(tr).commit(*this) };
 
-    return { { status }, update };
+    return { { status }, errorWorksum, errorHeader, update };
 }
 
 auto State::apply_signed_snapshot(SignedSnapshot&& ssnew) -> std::optional<StateUpdateWithAPIBlocks>
