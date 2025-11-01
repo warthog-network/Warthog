@@ -221,7 +221,7 @@ void Mempool::set_free_balance(AccountToken at, Funds_uint64 newBalance)
             if (allErased || balanceEntry.try_set_avail(newBalance))
                 return;
         }
-        assert(false); // should not happen
+        assert(iterators.empty()); // can only reach this point when empty
     } else {
         auto wart_iter { lockedBalances.find({ at.account_id(), TokenId::WART }) };
 
