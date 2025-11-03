@@ -239,6 +239,7 @@ public:
         hook_get(t, "/chain/grid", get_chain_grid, true);
         hook_get_1(t, "/chain/block/:id/hash", get_chain_hash);
         hook_get_1(t, "/chain/block/:id/header", get_chain_header);
+        hook_get_1(t, "/chain/block/:id/binary", get_chain_binary);
         hook_get_1(t, "/chain/block/:id", get_chain_block);
         hook_get_1(t, "/chain/mine/:account", get_chain_mine);
         hook_get_1(t, "/chain/mine/:account/log", get_chain_mine);

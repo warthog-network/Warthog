@@ -282,6 +282,11 @@ void get_chain_header(api::HeightOrHash hh, HeaderCb f)
 {
     global().chainServer->api_get_header(hh, f);
 }
+
+void get_chain_binary(api::HeightOrHash hh, BlockBinaryCb cb){
+    global().chainServer->api_get_block_binary(hh, cb);
+}
+
 void get_chain_hash(Height hh, HashCb f)
 {
     global().chainServer->api_get_hash(hh, f);

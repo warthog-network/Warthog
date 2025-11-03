@@ -156,6 +156,7 @@ public:
     std::optional<SignedSnapshot> get_signed_snapshot() const;
     void set_signed_snapshot(const SignedSnapshot&);
     [[nodiscard]] std::vector<BlockId> consensus_block_ids(HeightRange) const;
+    [[nodiscard]] std::optional<BlockId> consensus_block_id(Height) const;
 
     //////////////////
     // delete schedule functiosn
@@ -174,6 +175,7 @@ public:
     [[nodiscard]] std::optional<BlockUndoData> get_block_undo(BlockId id) const;
     [[nodiscard]] std::optional<Block> get_block(BlockId id) const;
     [[nodiscard]] std::optional<std::pair<BlockId, Block>> get_block(HashView hash) const;
+    [[nodiscard]] std::optional<BlockData> get_block_data(BlockId id) const;
     [[nodiscard]] std::optional<BodyData> get_block_body(HashView hash) const;
     // set
     std::pair<BlockId, bool> insert_protect(const Block&);

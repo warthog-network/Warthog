@@ -136,38 +136,36 @@ struct CompactFeeEl : public ElementBaseWithAnnotation<"compactFee", CompactUInt
     [[nodiscard]] Wart fee() const { return data.uncompact(); }
 };
 
-#define ELEMENTMAP(NO_ANNOTATE, ANNOTATE)                            \
-    NO_ANNOTATE(AccountIdEl, AccountId, account_id)                  \
-    NO_ANNOTATE(AmountEl, Funds_uint64, amount)                      \
-    NO_ANNOTATE(AssetHashEl, AssetHash, asset_hash)                  \
-    NO_ANNOTATE(AssetIdEl, AssetId, asset_id)                        \
-    NO_ANNOTATE(AssetNameEl, AssetName, asset_name)                  \
-    NO_ANNOTATE(AssetPrecisionEl, AssetPrecision, asset_precision)   \
-    NO_ANNOTATE(AssetSupplyEl, FundsDecimal, supply)                 \
-    NO_ANNOTATE(BaseAmountEl, Funds_uint64, base_amount)             \
-    NO_ANNOTATE(BaseEl, Funds_uint64, base)                          \
-    NO_ANNOTATE(CancelHeightEl, PinHeight, cancel_height)            \
-    NO_ANNOTATE(CancelNonceEl, NonceId, cancel_nonceid)              \
-    NO_ANNOTATE(CancelTxidEl, TransactionId, cancel_txid)            \
-    NO_ANNOTATE(CreatorAddrEl, Address, creator_addr)                \
-    NO_ANNOTATE(FillEl, Funds_uint64, amount)                        \
-    NO_ANNOTATE(LimitPriceEl, Price_uint64, limit)                   \
-    NO_ANNOTATE(NonWartTokenIdEl, NonWartTokenId, token_id)          \
-    NO_ANNOTATE(NonceIdEl, NonceId, nonce_id)                        \
-    NO_ANNOTATE(NonceReservedEl, NonceReserved, nonce_reserved)      \
-    NO_ANNOTATE(OrderIdEl, HistoryId, order_id)                      \
-    NO_ANNOTATE(OriginAccIdEl, AccountId, origin_account_id)         \
-    NO_ANNOTATE(PinHeightEl, PinHeight, pin_height)                  \
-    NO_ANNOTATE(PinNonceEl, PinNonce, pin_nonce)                     \
-    NO_ANNOTATE(QuoteEl, Wart, quote)                                \
-    NO_ANNOTATE(QuoteWartEl, Wart, quote_wart)                       \
-    NO_ANNOTATE(ReferredHistoryIdEl, HistoryId, referred_history_id) \
-    NO_ANNOTATE(SharesEl, Funds_uint64, shares)                      \
-    NO_ANNOTATE(SignatureEl, RecoverableSignature, signature)        \
-    NO_ANNOTATE(ToAccIdEl, AccountId, to_id)                         \
-    NO_ANNOTATE(ToAddrEl, Address, to_addr)                          \
-    ANNOTATE(AddrEl, Address, address, "address")                    \
-    NO_ANNOTATE(WartEl, Wart, wart)
+#define ELEMENTMAP(NO_ANNOTATE, ANNOTATE)                                              \
+    ANNOTATE(AccountIdEl, AccountId, account_id, "accountId")                          \
+    ANNOTATE(AmountEl, Funds_uint64, amount, "amount")                                 \
+    ANNOTATE(AssetHashEl, AssetHash, asset_hash, "assetHash")                          \
+    ANNOTATE(AssetIdEl, AssetId, asset_id, "assetId")                                  \
+    ANNOTATE(AssetNameEl, AssetName, asset_name, "assetName")                          \
+    ANNOTATE(AssetPrecisionEl, AssetPrecision, asset_precision, "assetPrecision")      \
+    ANNOTATE(AssetSupplyEl, FundsDecimal, supply, "assetSupply")                       \
+    ANNOTATE(BaseEl, Funds_uint64, base, "baseAmount")                                 \
+    ANNOTATE(CancelHeightEl, PinHeight, cancel_height, "cancelHeight")                 \
+    ANNOTATE(CancelNonceEl, NonceId, cancel_nonceid, "cancelNonce")                    \
+    ANNOTATE(CancelTxidEl, TransactionId, cancel_txid, "cancelTxid")                   \
+    ANNOTATE(CreatorAddrEl, Address, creator_addr, "creatorAddress")                   \
+    ANNOTATE(FillEl, Funds_uint64, amount, "fillAmount")                               \
+    ANNOTATE(LimitPriceEl, Price_uint64, limit, "limitPrice")                          \
+    ANNOTATE(NonWartTokenIdEl, NonWartTokenId, token_id, "nonWartTokenId")             \
+    ANNOTATE(NonceIdEl, NonceId, nonce_id, "nonceId")                                  \
+    ANNOTATE(NonceReservedEl, NonceReserved, nonce_reserved, "nonceReserved")          \
+    ANNOTATE(OrderIdEl, HistoryId, order_id, "orderId")                                \
+    ANNOTATE(OriginAccIdEl, AccountId, origin_account_id, "originAccountId")           \
+    ANNOTATE(PinHeightEl, PinHeight, pin_height, "pinHeight")                          \
+    ANNOTATE(PinNonceEl, PinNonce, pin_nonce, "pinNonce")                              \
+    ANNOTATE(QuoteEl, Wart, quote, "quoteWart")                                        \
+    ANNOTATE(ReferredHistoryIdEl, HistoryId, referred_history_id, "referredHistoryId") \
+    ANNOTATE(SharesEl, Funds_uint64, shares, "sharesAmount")                           \
+    ANNOTATE(SignatureEl, RecoverableSignature, signature, "signature")                \
+    ANNOTATE(ToAccIdEl, AccountId, to_id, "toAccountId")                               \
+    ANNOTATE(ToAddrEl, Address, to_addr, "toAddress")                                  \
+    /*ANNOTATE(AddrEl, Address, address, "address", "address")*/                       \
+    ANNOTATE(WartEl, Wart, wart, "wart")
 
 #define ELEMENT_DEFINE_NOANNOTATE(structname, datatype, methodname)   \
     struct structname : public ElementBase<datatype> {                \

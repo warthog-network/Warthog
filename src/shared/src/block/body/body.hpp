@@ -350,7 +350,7 @@ public:
 
     void write(MerkleWriteHooker& w);
     TokenSection(StructuredReader& m)
-        : TokenSection(m.annotate_enter("tokenSection"), {})
+        : TokenSection(m.annotate("tokenSection", true), {})
     {
     }
     TokenSection(AssetId tid)
@@ -389,7 +389,7 @@ struct UntaggedSizeVector : public Vector<Elem> {
     }
 };
 template <StaticString tag, typename UInt, typename Elem>
-using SizeVector = Tag<tag, UntaggedSizeVector<UInt, Elem>>;
+using SizeVector = Tag<tag, UntaggedSizeVector<UInt, Elem>, true>;
 
 template <typename T>
 void apply_to_entries(T&& t, auto&& lambda)
@@ -526,7 +526,7 @@ public:
         std::vector<TransactionId> fromCancelations;
     };
     BlockTxids tx_ids(NonzeroHeight height, PinHeight minPinHeight) const;
-    [[nodiscard]] static std::pair<ParsedBody, MerkleLeaves> parse_throw(std::span<const uint8_t> rd, NonzeroHeight h, BlockVersion version);
+    [[nodiscard]] static std::pair<ParsedBody, MerkleLeaves> parse_throw(std::span<const uint8_t> rd, NonzeroHeight h, BlockVersion version, ParseAnnotations* = nullptr);
     size_t byte_size() const;
     [[nodiscard]] SerializedBody serialize() const;
 };
@@ -534,7 +534,7 @@ public:
 struct Body : public ParsedBody {
     VersionedBodyData data;
     MerkleLeaves merkleLeaves;
-    [[nodiscard]] static Body parse_throw(VersionedBodyData c, NonzeroHeight h);
+    [[nodiscard]] static Body parse_throw(VersionedBodyData c, NonzeroHeight h, ParseAnnotations* parseAnnotations = nullptr);
     [[nodiscard]] static Body serialize(ParsedBody);
     auto merkle_root(NonzeroHeight h) const
     {

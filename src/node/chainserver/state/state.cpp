@@ -95,6 +95,17 @@ std::optional<Hash> State::get_hash(Height h) const
     return chainstate.headers().get_hash(h);
 }
 
+std::optional<api::BlockBinary> State::api_get_block_binary(const api::HeightOrHash& hh) const
+{
+    if (std::holds_alternative<Height>(hh.data)) {
+        return api_get_block_binary(std::get<Height>(hh.data));
+    }
+    auto h { consensus_height(std::get<Hash>(hh.data)) };
+    if (!h.has_value())
+        return {};
+    return api_get_block_binary(*h);
+}
+
 std::optional<api::Block> State::api_get_block(const api::HeightOrHash& hh) const
 {
     if (std::holds_alternative<Height>(hh.data)) {
@@ -200,6 +211,21 @@ void push_history(api::Block& b, const std::pair<HistoryId, history::Entry>& p, 
 }
 }
 
+std::optional<api::BlockBinary> State::api_get_block_binary(Height h) const
+{
+    return db.consensus_block_id(h)
+        .and_then([&](BlockId id) {
+            return db.get_block_data(id);
+        })
+        .transform([](BlockData&& bd) {
+            ParseAnnotations annotations;
+            auto parsed { std::move(bd).parse_throw(&annotations) };
+            return api::BlockBinary {
+                .data { std::move(parsed.body.data) },
+                .annotations { std::move(annotations) }
+            };
+        });
+}
 std::optional<api::Block> State::api_get_block(Height zh) const
 {
     if (zh == 0 || zh > chainlength())
@@ -899,7 +925,7 @@ private:
                                 toMempool.push_back(OrderMessage(t.txid(pinHeight), t.pin_nonce().reserved, t.compact_fee(), asset.hash, t.buy(), t.amount(), t.limit(), t.signature()));
                         },
                         [&](PinHeight pinHeight, const LiquidityDeposit& t) {
-                                toMempool.push_back(LiquidityDepositMessage(t.txid(pinHeight), t.pin_nonce().reserved, t.compact_fee(), asset.hash, t.quote_wart(), t.base_amount(), t.signature()));
+                                toMempool.push_back(LiquidityDepositMessage(t.txid(pinHeight), t.pin_nonce().reserved, t.compact_fee(), asset.hash, t.quote(), t.base(), t.signature()));
                         },
                         [&](PinHeight pinHeight, const LiquidityWithdrawal& t) {
                                 toMempool.push_back(LiquidityWithdrawMessage(t.txid(pinHeight), t.pin_nonce().reserved, t.compact_fee(), asset.hash, t.amount(), t.signature()));

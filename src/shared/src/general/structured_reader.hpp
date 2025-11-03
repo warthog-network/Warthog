@@ -22,14 +22,14 @@ struct MerkleLeaves {
 // blocks.
 struct ParseAnnotation {
     ParseAnnotation(std::string name, size_t offsetBegin)
-        : name(std::move(name))
+        : tag(std::move(name))
         , offsetBegin(offsetBegin)
     {
     }
     using Children = std::vector<ParseAnnotation>;
 
     // members
-    std::string name;
+    std::string tag;
     size_t offsetBegin;
     size_t offsetEnd;
     std::optional<Children> children;
@@ -90,10 +90,17 @@ private:
 
     // Sets offsetEnd in destructor
     struct AnnotatorFrame : public Frame {
-        AnnotatorFrame(StructuredReader& r)
+        AnnotatorFrame(StructuredReader& r, std::string name, bool enter)
             : Frame(r)
             , annotations(r.annotations) // save original annotations pointer
         {
+            if (annotations) {
+                annotations->emplace_back(std::move(name), reader.offset());
+                if (enter) {
+                    annotations->back().children.emplace();
+                    reader.annotations = &*annotations->back().children;
+                }
+            }
         }
 
         AnnotatorFrame(AnnotatorFrame&& other)
@@ -121,21 +128,9 @@ public:
     {
     }
 
-    [[nodiscard]] AnnotatorFrame annotate(std::string name)
+    [[nodiscard]] AnnotatorFrame annotate(std::string name, bool enter = false)
     {
-        if (annotations)
-            annotations->emplace_back(std::move(name), offset());
-        return *this;
-    }
-
-    [[nodiscard]] AnnotatorFrame annotate_enter(std::string name)
-    {
-        if (annotations) {
-            annotations->emplace_back(std::move(name), offset());
-            annotations->back().children.emplace();
-            annotations = &*annotations->back().children;
-        }
-        return *this;
+        return { *this, std::move(name), enter };
     }
 
     [[nodiscard]] MerkleFrame merkle_frame() { return { *this }; }
@@ -159,7 +154,7 @@ class Tag : public T {
 public:
     using T::T;
     Tag(StructuredReader& s)
-        : T(s.annotate(annotation.to_string()).reader)
+        : T(s.annotate(annotation.to_string(), enter).reader)
     {
     }
     using parent_t = Tag;

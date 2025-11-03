@@ -265,6 +265,11 @@ public:
     void set_reward(block::Reward r);
 };
 
+struct BlockBinary {
+    std::vector<uint8_t> data;
+    ParseAnnotations annotations;
+};
+
 struct CompleteBlock : public Block {
     explicit CompleteBlock(Block b)
         : Block(std::move(b))
@@ -301,7 +306,7 @@ struct TransactionsByBlocks {
     HistoryId fromId;
     std::vector<api::Block> blocks_reversed;
 };
-struct TransactionMinfee{
+struct TransactionMinfee {
     CompactUInt minfee;
 };
 struct Richlist {

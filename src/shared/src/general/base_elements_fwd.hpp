@@ -1,10 +1,10 @@
 #pragma once
 struct ToAccIdEl;
 struct WartEl;
-struct QuoteWartEl;
+struct QuoteEl;
 struct AmountEl;
 struct SharesEl;
-struct BaseAmountEl;
+struct BaseEl;
 struct OriginAccIdEl;
 struct CancelNonceEl;
 struct CancelHeightEl;

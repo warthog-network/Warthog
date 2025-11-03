@@ -561,9 +561,9 @@ public:
     block_apply::LiquidityDeposit::Internal register_liquidity_deposit(const LiquidityDeposit& ld, AssetId aid)
     {
         auto s { process_signer(ld) };
-        s.account.subtract_balance(aid.token_id(), ld.base_amount());
-        s.account.subtract_balance(TokenId::WART, ld.quote_wart());
-        return { std::move(s), { aid, defi::BaseQuote { ld.base_amount(), ld.quote_wart() } } };
+        s.account.subtract_balance(aid.token_id(), ld.base());
+        s.account.subtract_balance(TokenId::WART, ld.quote());
+        return { std::move(s), { aid, defi::BaseQuote { ld.base(), ld.quote() } } };
     }
 
     void add_balance(AccountId aid, TokenId tid, Funds_uint64 amount)

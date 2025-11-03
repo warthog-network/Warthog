@@ -11,7 +11,9 @@ struct StaticString {
     }
     std::string to_string() const
     {
-        return std::string { value, N };
+        if (N == 0)
+            return {};
+        return std::string { value, N - 1 };
     }
 
     char value[N];

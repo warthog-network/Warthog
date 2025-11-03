@@ -58,11 +58,11 @@ auto ParsedBody::tx_ids(NonzeroHeight height, PinHeight minPinHeight) const -> B
     return res;
 }
 
-std::pair<ParsedBody, MerkleLeaves> ParsedBody::parse_throw(std::span<const uint8_t> data, NonzeroHeight h, BlockVersion version)
+std::pair<ParsedBody, MerkleLeaves> ParsedBody::parse_throw(std::span<const uint8_t> data, NonzeroHeight h, BlockVersion version, ParseAnnotations* parseAnnotations)
 {
     if (data.size() > MAXBLOCKSIZE)
         throw Error(EINV_BODY);
-    StructuredReader r(data);
+    StructuredReader r(data, parseAnnotations);
     try {
         bool block_v2 = is_testnet() || h.value() >= NEWBLOCKSTRUCUTREHEIGHT;
 
@@ -74,15 +74,17 @@ std::pair<ParsedBody, MerkleLeaves> ParsedBody::parse_throw(std::span<const uint
             r.skip(block_v2 ? 10 : 4); // for mining
         }
 
-        // read number of addresses
-        size_t len { [&]() -> size_t {
-            auto a { r.annotate("length") };
-            return block_v2 ? size_t(r.uint16()) : size_t(r.uint32());
-        }() };
+        {
+            auto a { r.annotate("newAddresses", true) };
+            // read number of addresses
+            size_t len { [&]() -> size_t {
+                auto a { r.annotate("length") };
+                return block_v2 ? size_t(r.uint16()) : size_t(r.uint32());
+            }() };
 
-        // read addresses
-        addresses = { len, r.annotate("address").reader };
-
+            // read addresses
+            addresses = { len, r };
+        }
         auto reward {
             [&]() {
                 // create hook to auto-insert merkle entry
@@ -90,7 +92,7 @@ std::pair<ParsedBody, MerkleLeaves> ParsedBody::parse_throw(std::span<const uint
                 if (!block_v2) {
                     r.annotate("reserved(1)").reader.skip(2); // # of entries, which should be 1
                 }
-                return body::Reward { r.annotate("reward") };
+                return body::Reward { r.annotate("reward", true) };
             }()
         };
         body::Entries entries(r);
@@ -133,9 +135,9 @@ SerializedBody ParsedBody::serialize() const
         std::move(merkle).move_leaves() };
 };
 
-Body Body::parse_throw(VersionedBodyData c, NonzeroHeight h)
+Body Body::parse_throw(VersionedBodyData c, NonzeroHeight h, ParseAnnotations* parseAnnotations)
 {
-    auto p { ParsedBody::parse_throw(c, h, c.version) };
+    auto p { ParsedBody::parse_throw(c, h, c.version, parseAnnotations) };
     return Body(std::move(p.first), std::move(c), std::move(p.second));
 }
 

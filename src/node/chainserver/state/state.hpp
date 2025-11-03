@@ -122,6 +122,7 @@ public:
     auto api_get_transaction_range(HistoryId lower, HistoryId upper) const -> api::TransactionsByBlocks;
     auto api_get_header(api::HeightOrHash& h) const -> std::optional<std::pair<NonzeroHeight, Header>>;
     auto api_get_block(const api::HeightOrHash& h) const -> std::optional<api::Block>;
+    auto api_get_block_binary(const api::HeightOrHash& h) const -> std::optional<api::BlockBinary>;
     auto api_tx_cache() const -> const TransactionIds;
     size_t api_db_size() const;
 
@@ -131,6 +132,7 @@ private:
     // std::optional<AssetDetail> db_lookup_token(const api::AssetIdOrHash&) const;
     // delegated getters
     auto api_get_block(Height h) const -> std::optional<api::Block>;
+    auto api_get_block_binary(Height h) const -> std::optional<api::BlockBinary>;
     std::optional<NonzeroHeight> consensus_height(const Hash&) const;
     NonzeroHeight next_height() const { return chainlength().add1(); }
 

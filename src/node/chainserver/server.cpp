@@ -146,6 +146,12 @@ void ChainServer::api_get_header(api::HeightOrHash hoh, HeaderCb callback)
 {
     defer_maybe_busy(GetHeader { hoh, std::move(callback) });
 }
+
+void ChainServer::api_get_block_binary(api::HeightOrHash hoh, BlockBinaryCb callback)
+{
+    defer_maybe_busy(GetBlockBinary { hoh, std::move(callback) });
+}
+
 void ChainServer::api_get_hash(Height height, HashCb callback)
 {
     defer_maybe_busy(GetHash { height, std::move(callback) });
@@ -383,6 +389,11 @@ void ChainServer::handle_event(GetHeader&& e)
 {
     auto t { timing->time("GetHeader") };
     e.callback(noval_to_err(state.api_get_header(e.heightOrHash)));
+}
+
+void ChainServer::handle_event(GetBlockBinary&& e){
+    auto t { timing->time("GetBlockBinary") };
+    e.callback(noval_to_err(state.api_get_block_binary(e.heightOrHash)));
 }
 
 void ChainServer::handle_event(GetHash&& e)

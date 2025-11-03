@@ -36,6 +36,7 @@ json to_json(const api::PeerinfoConnections&);
 json to_json(const api::TransactionsByBlocks&);
 json to_json(const api::TransactionMinfee&);
 json to_json(const api::Block&);
+json to_json(const api::BlockBinary&);
 json to_json(const api::BlockSummary&);
 json to_json(const api::AccountHistory&);
 json to_json(const api::AddressCount&);

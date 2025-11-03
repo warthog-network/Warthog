@@ -9,6 +9,7 @@ struct AddressWithId;
 struct AssetLookupTrace;
 struct Block;
 struct ChainHead;
+struct BlockBinary;
 struct CompleteBlock;
 struct HashrateBlockChart;
 struct HashrateChartRequest;

@@ -207,9 +207,29 @@ json header_json(const Header& header, NonzeroHeight height)
     return j;
 }
 
+
+json to_json(const ParseAnnotations& a);
+json to_json(const ParseAnnotation& a)
+{
+    return json {
+        { "tag", a.tag },
+        { "offsetBegin", a.offsetBegin },
+        { "offsetEnd", a.offsetEnd },
+        { "children", a.children ? to_json(*a.children) : json::array() }
+    };
+}
+json to_json(const ParseAnnotations& arr)
+{
+    auto j(json::array());
+    for (auto& a : arr)
+        j.push_back(to_json(a));
+    return j;
+}
+
+
 json amount_json(Funds_uint64 amt, AssetPrecision prec)
 {
-    return to_json(FundsDecimal(amt, prec));
+    return jsonmsg::to_json(FundsDecimal(amt, prec));
 }
 
 json limit_json(Price_uint64 limit, AssetPrecision prec)
@@ -223,7 +243,13 @@ json limit_json(Price_uint64 limit, AssetPrecision prec)
 }
 } // namespace
 
-using namespace nlohmann;
+json to_json(const api::BlockBinary& b)
+{
+    return {
+        { "bytes", serialize_hex(b.data) },
+        { "structure", to_json(b.annotations) }
+    };
+}
 
 json to_json(Wart w)
 {

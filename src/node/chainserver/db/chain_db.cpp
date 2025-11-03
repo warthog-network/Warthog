@@ -451,6 +451,13 @@ std::vector<BlockId> ChainDB::consensus_block_ids(HeightRange range) const
     return out;
 }
 
+std::optional<BlockId> ChainDB::consensus_block_id(Height h) const
+{
+    return stmtConsensusSelectRange.one(h, h.add1()).process([&](const sqlite::Row& r) {
+        return BlockId { r[0] };
+    });
+}
+
 void ChainDB::garbage_collect_blocks(DeletionKey dk)
 {
     stmtDeleteGCBlocks.run(dk.value());
@@ -500,11 +507,16 @@ DeletionKey ChainDB::delete_consensus_from(NonzeroHeight height)
 
 std::optional<Block> ChainDB::get_block(BlockId id) const
 {
+    return get_block_data(id).and_then([&](BlockData&& bd) -> std::optional<Block> { return std::move(bd).parse_throw(); });
+}
+
+std::optional<BlockData> ChainDB::get_block_data(BlockId id) const
+{
     auto o { stmtBlockById.one(id) };
     if (!o.has_value())
         return {};
     try {
-        return Block(o[0], Header(o[1]), BodyData(o[2]));
+        return BlockData(o[0], Header(o[1]), BodyData(o[2]));
     } catch (...) {
         throw std::runtime_error("Cannot load block with id " + std::to_string(id.value()) + ". ");
     }
@@ -529,8 +541,8 @@ std::optional<std::pair<BlockId, Block>> ChainDB::get_block(HashView hash) const
         return {};
     try {
         return std::pair<BlockId, Block> {
-            o[0],
-            { o[1], Header(o[2]), BodyData(o[3]) }
+            BlockId(o[0]),
+            BlockData { o[1], Header(o[2]), BodyData(o[3]) }.parse_throw()
         };
     } catch (...) {
         throw std::runtime_error("Cannot load block with hash " + serialize_hex(hash) + ".");

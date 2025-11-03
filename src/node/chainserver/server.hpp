@@ -79,6 +79,10 @@ public:
         api::HeightOrHash heightOrHash;
         HeaderCb callback;
     };
+    struct GetBlockBinary {
+        api::HeightOrHash heightOrHash;
+        BlockBinaryCb callback;
+    };
     struct GetHash {
         Height height;
         HashCb callback;
@@ -146,6 +150,7 @@ public:
         GetRichlist,
         GetHead,
         GetHeader,
+        GetBlockBinary,
         GetHash,
         GetBlock,
         GetMining,
@@ -223,6 +228,7 @@ public:
     void api_get_history(const Address& address, uint64_t beforeId, HistoryCb callback);
     void api_get_richlist(api::TokenIdOrSpec tokenId, RichlistCb callback);
     void api_get_header(api::HeightOrHash, HeaderCb callback);
+    void api_get_block_binary(api::HeightOrHash hoh, BlockBinaryCb callback);
     void api_get_hash(Height height, HashCb callback);
     void api_get_block(api::HeightOrHash, BlockCb callback);
     void api_get_mining(const Address& a, ChainMiningCb callback);
@@ -263,6 +269,7 @@ private:
     void handle_event(GetRichlist&&);
     void handle_event(GetHead&&);
     void handle_event(GetHeader&&);
+    void handle_event(GetBlockBinary&&);
     void handle_event(GetHash&&);
     void handle_event(GetBlock&&);
     void handle_event(GetMining&&);

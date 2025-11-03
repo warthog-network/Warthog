@@ -2,9 +2,9 @@
 #include "api/types/forward_declarations.hpp"
 #include "expected.hpp"
 #include "general/result.hpp"
-#include <nlohmann/json_fwd.hpp>
 #include <cstdint>
 #include <functional>
+#include <nlohmann/json_fwd.hpp>
 #include <optional>
 #include <string>
 #include <variant>
@@ -27,7 +27,6 @@ struct TransactionIds;
 }
 struct PrintNodeVersion {
 };
-
 
 class Header;
 struct TCPPeeraddr;
@@ -58,6 +57,7 @@ using ChainHeadCb = std::function<void(const Result<api::ChainHead>&)>;
 using RoundCb = std::function<void(const Result<api::Round16Bit>&)>;
 using HeaderdownloadCb = std::function<void(const HeaderDownload::Downloader&)>;
 using HeaderCb = std::function<void(const Result<std::pair<NonzeroHeight, Header>>&)>;
+using BlockBinaryCb = std::function<void(const Result<api::BlockBinary>&)>;
 using HashCb = std::function<void(const Result<Hash>&)>;
 using GridCb = std::function<void(const Result<Grid>&)>;
 using TxCb = std::function<void(const Result<api::Transaction>&)>;
