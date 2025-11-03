@@ -3,6 +3,6 @@
 
 struct StructuredReader;
 
-template <StaticString annotation, typename T, bool enter=false>
+template <StaticString annotation, typename T>
 class Tag;
 

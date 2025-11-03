@@ -75,7 +75,7 @@ std::pair<ParsedBody, MerkleLeaves> ParsedBody::parse_throw(std::span<const uint
         }
 
         {
-            auto a { r.annotate("newAddresses", true) };
+            auto a { r.annotate("newAddresses") };
             // read number of addresses
             size_t len { [&]() -> size_t {
                 auto a { r.annotate("length") };
@@ -92,7 +92,7 @@ std::pair<ParsedBody, MerkleLeaves> ParsedBody::parse_throw(std::span<const uint
                 if (!block_v2) {
                     r.annotate("reserved(1)").reader.skip(2); // # of entries, which should be 1
                 }
-                return body::Reward { r.annotate("reward", true) };
+                return body::Reward { r.annotate("reward") };
             }()
         };
         body::Entries entries(r);

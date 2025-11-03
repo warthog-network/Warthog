@@ -350,7 +350,7 @@ public:
 
     void write(MerkleWriteHooker& w);
     TokenSection(StructuredReader& m)
-        : TokenSection(m.annotate("tokenSection", true), {})
+        : TokenSection(m.annotate("tokenSection"), {})
     {
     }
     TokenSection(AssetId tid)
@@ -389,7 +389,7 @@ struct UntaggedSizeVector : public Vector<Elem> {
     }
 };
 template <StaticString tag, typename UInt, typename Elem>
-using SizeVector = Tag<tag, UntaggedSizeVector<UInt, Elem>, true>;
+using SizeVector = Tag<tag, UntaggedSizeVector<UInt, Elem>>;
 
 template <typename T>
 void apply_to_entries(T&& t, auto&& lambda)

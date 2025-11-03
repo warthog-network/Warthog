@@ -90,17 +90,10 @@ private:
 
     // Sets offsetEnd in destructor
     struct AnnotatorFrame : public Frame {
-        AnnotatorFrame(StructuredReader& r, std::string name, bool enter)
+        AnnotatorFrame(StructuredReader& r)
             : Frame(r)
-            , annotations(r.annotations) // save original annotations pointer
         {
-            if (annotations) {
-                annotations->emplace_back(std::move(name), reader.offset());
-                if (enter) {
-                    annotations->back().children.emplace();
-                    reader.annotations = &*annotations->back().children;
-                }
-            }
+            annotations = reader.annotations; // take snapshot of annotations pointer (to be restored in destructor)
         }
 
         AnnotatorFrame(AnnotatorFrame&& other)
@@ -114,6 +107,7 @@ private:
             if (annotations) {
                 reader.annotations = annotations; // restore original children pointer (POP stack)
                 annotations->back().offsetEnd = reader.offset(); // set offsetEnd
+                reader.pendingAnnotation = false;
             }
         }
 
@@ -128,9 +122,17 @@ public:
     {
     }
 
-    [[nodiscard]] AnnotatorFrame annotate(std::string name, bool enter = false)
+    [[nodiscard]] AnnotatorFrame annotate(std::string name)
     {
-        return { *this, std::move(name), enter };
+        if (annotations) {
+            if (pendingAnnotation) {
+                annotations->back().children.emplace();
+                annotations = &*annotations->back().children;
+            }
+            annotations->emplace_back(std::move(name), offset());
+            pendingAnnotation = true;
+        }
+        return { *this};
     }
 
     [[nodiscard]] MerkleFrame merkle_frame() { return { *this }; }
@@ -147,14 +149,15 @@ private: // methods
 private:
     MerkleLeaves leaves;
     ParseAnnotations* annotations;
+    bool pendingAnnotation { false };
 };
 
-template <StaticString annotation, typename T, bool enter>
+template <StaticString annotation, typename T>
 class Tag : public T {
 public:
     using T::T;
     Tag(StructuredReader& s)
-        : T(s.annotate(annotation.to_string(), enter).reader)
+        : T(s.annotate(annotation.to_string()).reader)
     {
     }
     using parent_t = Tag;
