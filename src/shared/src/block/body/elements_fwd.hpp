@@ -1,5 +1,6 @@
 #pragma once
 #include "general/base_elements_fwd.hpp"
+#include "general/structured_reader_fwd.hpp"
 namespace block {
 namespace body {
 
@@ -7,15 +8,18 @@ template <typename... Ts>
 struct Combined;
 template <typename... Ts>
 struct SignedCombined;
+template <StaticString tag, typename... Ts>
+using TaggedSignedCombined = Tag< tag,SignedCombined<Ts...>>;
 
 using Reward = Combined<ToAccIdEl, WartEl>;
-using WartTransfer = SignedCombined<ToAccIdEl, WartEl>;
-using AssetTransfer = SignedCombined<ToAccIdEl, AmountEl>;
-using ShareTransfer = SignedCombined<ToAccIdEl, SharesEl>;
-using AssetCreation = SignedCombined<AssetSupplyEl, AssetNameEl>;
-using Order = SignedCombined<BuyEl, AmountEl, LimitPriceEl>;
-struct Cancelation;
-using LiquidityDeposit = SignedCombined<QuoteWartEl, BaseAmountEl>;
-using LiquidityWithdraw = SignedCombined<AmountEl>;
+using WartTransfer = TaggedSignedCombined<"wartTransfer", ToAccIdEl, WartEl>;
+using AssetTransfer = TaggedSignedCombined<"assetTransfer", ToAccIdEl, AmountEl>;
+using ShareTransfer = TaggedSignedCombined<"shareTransfer", ToAccIdEl, SharesEl>;
+using AssetCreation = TaggedSignedCombined<"assetCreation", AssetSupplyEl, AssetNameEl>;
+using Order = TaggedSignedCombined<"order", BuyEl, AmountEl, LimitPriceEl>;
+struct CancelationBase;
+using Cancelation = Tag<"cancelation", CancelationBase>;
+using LiquidityDeposit = TaggedSignedCombined<"liquidityDeposit", QuoteWartEl, BaseAmountEl>;
+using LiquidityWithdrawal = TaggedSignedCombined<"liquidityWithdrawal", AmountEl>;
 }
 }

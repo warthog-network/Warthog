@@ -5,89 +5,12 @@
 #include "block/version.hpp"
 #include "crypto/hasher_sha256.hpp"
 #include "general/reader_declaration.hpp"
+#include "general/structured_reader.hpp"
 #include "general/writer_fwd.hpp"
 #include <cstdint>
 
 namespace block {
 namespace body {
-struct MerkleLeaves {
-    void add_hash(Hash hash)
-    {
-        hashes.push_back(std::move(hash));
-    }
-    std::vector<uint8_t> merkle_prefix() const; // only since shifus merkle tree
-    Hash merkle_root(const BodyData& data, NonzeroHeight h) const;
-    std::vector<Hash> hashes;
-};
-
-struct MerkleReadHooker;
-struct MerkleReadHook {
-public:
-    operator Reader&() &&
-    {
-        return reader;
-    }
-    operator Reader&() &
-    {
-        return reader;
-    }
-
-    MerkleReadHook(const MerkleReadHook& mi) = delete;
-    MerkleReadHook(MerkleReadHook&& mi)
-        : MerkleReadHook(mi.reader, mi.creator)
-    {
-        mi.begin = nullptr;
-    }
-
-    ~MerkleReadHook();
-
-private:
-    friend MerkleReadHooker;
-    MerkleReadHook(Reader& r, MerkleReadHooker& c)
-        : reader(r)
-        , creator(c)
-        , begin(r.cursor())
-    {
-    }
-
-public:
-    Reader& reader;
-
-private:
-    MerkleReadHooker& creator;
-    const uint8_t* begin;
-};
-
-struct MerkleReadHooker {
-    friend MerkleReadHook;
-
-    MerkleReadHooker(Reader& r)
-        : reader(r)
-    {
-    }
-    MerkleReadHook hook() { return { reader, *this }; }
-    MerkleLeaves move_leaves() && { return std::move(leaves); }
-
-private: // methods
-    MerkleReadHooker(const MerkleReadHooker&) = delete;
-
-    void add_hash_of(const std::span<const uint8_t>& s)
-    {
-        leaves.add_hash(hashSHA256(s));
-    }
-
-public:
-    Reader& reader;
-
-private:
-    MerkleLeaves leaves;
-};
-
-inline MerkleReadHook::~MerkleReadHook()
-{
-    if (begin)
-        creator.add_hash_of({ begin, reader.cursor() });
-}
 
 struct MerkleWriteHooker;
 struct MerkleWriteHook {
@@ -138,10 +61,11 @@ public:
 private:
     MerkleLeaves leaves;
 };
+
 template <typename T>
-struct body_vector : public std::vector<T> {
+struct vector : public std::vector<T> {
     using std::vector<T>::vector;
-    body_vector(std::vector<T> v)
+    vector(std::vector<T> v)
         : std::vector<T>(std::move(v))
     {
     }
@@ -167,7 +91,7 @@ struct body_vector : public std::vector<T> {
             e.append_txids(v, pf, minPinHeight);
     }
 
-    auto operator<=>(const body_vector<T>&) const = default;
+    auto operator<=>(const vector<T>&) const = default;
 
     size_t byte_size() const
     {
@@ -176,18 +100,17 @@ struct body_vector : public std::vector<T> {
             i += elem.byte_size();
         return i;
     }
-    body_vector(size_t n, MerkleReadHooker& m)
+    vector(size_t n, Reader& r)
     {
         for (size_t i { 0 }; i < n; ++i) {
-            auto h { m.hook() };
-            this->push_back(T(h.reader));
+            this->push_back(T(r));
         }
     }
-
-    body_vector(size_t n, Reader& r)
+    vector(size_t n, StructuredReader& m)
     {
-        for (size_t i { 0 }; i < n; ++i)
-            this->push_back({ r });
+        for (size_t i { 0 }; i < n; ++i) {
+            this->push_back(T(m.merkle_frame().reader));
+        }
     }
 };
 
@@ -219,7 +142,7 @@ private:
 namespace elements {
 
 template <typename Elem>
-struct VectorElement {
+struct Vector {
     using elem_t = Elem;
     auto& get() const { return elements; }
     auto& get() { return elements; }
@@ -237,48 +160,47 @@ struct VectorElement {
         elements.append_txids(out, pf, minPinHeight);
     }
 
-    VectorElement() { }
-    VectorElement(size_t N, MerkleReadHooker& m)
-        : elements(N, m)
+    Vector() { }
+    Vector(size_t N, StructuredReader& m)
+        : elements { N, m }
     {
     }
 
 protected:
-    body_vector<Elem> elements;
+    vector<Elem> elements;
 };
 
 namespace tokens {
 
-struct AssetTransfers : public VectorElement<body::AssetTransfer> {
-    using VectorElement::VectorElement;
+struct AssetTransfers : public Tag<"assetTransfers", Vector<body::AssetTransfer>> {
+    using Tag::Tag;
     auto& asset_transfers() const { return get(); }
     auto& asset_transfers() { return get(); }
 };
-struct ShareTransfers : public VectorElement<body::ShareTransfer> {
-    using VectorElement::VectorElement;
+struct ShareTransfers : public Tag<"shareTransfers", Vector<body::ShareTransfer>> {
+    using Tag::Tag;
     auto& share_transfers() const { return get(); }
     auto& share_transfers() { return get(); }
 };
-struct Orders : public VectorElement<body::Order> {
-    using VectorElement::VectorElement;
+struct Orders : public Tag<"orders", Vector<body::Order>> {
+    using Tag::Tag;
     auto& orders() const { return get(); }
     auto& orders() { return get(); }
 };
-struct LiquidityDeposits : public VectorElement<body::LiquidityDeposit> {
-    using VectorElement::VectorElement;
+struct LiquidityDeposits : public Vector<body::LiquidityDeposit> {
+    using Vector::Vector;
     auto& liquidity_deposits() const { return get(); }
     auto& liquidity_deposits() { return get(); }
 };
-struct LiquidityWithdrawals : public VectorElement<body::LiquidityWithdraw> {
-    using VectorElement::VectorElement;
+struct LiquidityWithdrawals : public Tag<"liquidityWithdrawals", Vector<body::LiquidityWithdrawal>> {
+    using Tag::Tag;
     auto& liquidity_withdrawals() const { return get(); }
     auto& liquidity_withdrawals() { return get(); }
 };
 
 template <size_t N>
-struct TenBitsBlocks {
+struct TenBitLengths {
     using arr_t = std::array<size_t, N>;
-    using aaaa = std::array<size_t, N>;
 
 private:
     static constexpr size_t byte_size() { return (10 * N + 7) / 8; }
@@ -301,11 +223,13 @@ private:
     }
 
 public:
-    TenBitsBlocks(Reader& rd)
-        : data(read_data(std::make_index_sequence<N>(), rd))
+    TenBitLengths(StructuredReader& mr)
+        : data([&]() {
+        auto mf{mr.merkle_frame()};
+        return read_data(std::make_index_sequence<N>(), mr.annotate("tenBitsLengths")); }())
     {
     }
-    TenBitsBlocks(arr_t arr)
+    TenBitLengths(arr_t arr)
         : data { std::move(arr) }
     {
     }
@@ -339,9 +263,9 @@ private:
 template <typename... Ts>
 struct TokenEntries : public Ts... {
 private:
-    using bits_t = TenBitsBlocks<sizeof...(Ts)>;
+    using bits_t = TenBitLengths<sizeof...(Ts)>;
     template <size_t... Is>
-    TokenEntries(std::index_sequence<Is...>, const bits_t& lengths, MerkleReadHooker& m)
+    TokenEntries(std::index_sequence<Is...>, const bits_t& lengths, StructuredReader& m)
         : Ts(lengths.template at<Is>(), m)...
     {
     }
@@ -368,8 +292,8 @@ public:
     {
         visit_components(Overload { std::forward<Ls>(lambdas)... });
     }
-    TokenEntries(MerkleReadHooker& h)
-        : TokenEntries { std::index_sequence_for<Ts...>(), bits_t(h.hook()), h }
+    TokenEntries(StructuredReader& mr)
+        : TokenEntries { std::index_sequence_for<Ts...>(), bits_t(mr), mr }
     {
     }
     auto& token_entries() const { return *this; }
@@ -379,7 +303,7 @@ public:
     }
     void serialize(Serializer auto&& s) const
     {
-        typename TenBitsBlocks<sizeof...(Ts)>::arr_t arr { static_cast<const Ts*>(this)->get().size()... };
+        typename TenBitLengths<sizeof...(Ts)>::arr_t arr { static_cast<const Ts*>(this)->get().size()... };
         s << bits_t(arr);
         (s << ... << *static_cast<const Ts*>(this));
     }
@@ -408,17 +332,27 @@ public:
         : assetId(id)
     {
     }
+    AssetIdElement(StructuredReader& r)
+        : assetId(r.annotate("assetId"))
+    {
+    }
     auto asset_id() const { return assetId; }
 };
 
-struct TokenSection : public AssetIdElement, public TokenEntries<AssetTransfers, ShareTransfers, Orders, LiquidityDeposits, LiquidityWithdrawals> {
+class TokenSection : public AssetIdElement, public TokenEntries<AssetTransfers, ShareTransfers, Orders, LiquidityDeposits, LiquidityWithdrawals> {
+    struct Dummy { };
+
+    TokenSection(StructuredReader& m, Dummy); // different signature to delegate to (for annotation)
 
 public:
     static constexpr const size_t n_vectors = 5;
     void append_tx_ids(PinFloor, std::vector<TransactionId>& appendTo) const;
 
     void write(MerkleWriteHooker& w);
-    TokenSection(MerkleReadHooker&);
+    TokenSection(StructuredReader& m)
+        : TokenSection(m.annotate_enter("tokenSection"), {})
+    {
+    }
     TokenSection(AssetId tid)
         : AssetIdElement(tid) { };
     void append_txids(std::vector<TransactionId>& out, PinFloor pf, PinHeight minPinHeight) const
@@ -433,18 +367,29 @@ public:
 }
 
 template <typename UInt, typename Elem>
-struct SizeVector : public VectorElement<Elem> {
-    [[nodiscard]] size_t byte_size() const { return sizeof(UInt) + this->get().byte_size(); }
+struct UntaggedSizeVector : public Vector<Elem> {
+    [[nodiscard]] size_t byte_size() const
+    {
+        return sizeof(UInt) + this->get().byte_size();
+    }
     void write(MerkleWriteHooker& w) const
     {
         this->elements.template write<UInt>(w);
     }
-    SizeVector() { }
-    SizeVector(MerkleReadHooker& m)
-        : VectorElement<Elem> { m.reader.remaining() > 0 ? size_t(UInt(m.reader)) : 0, m }
+    UntaggedSizeVector() { }
+    UntaggedSizeVector(StructuredReader& r)
+        : Vector<Elem> { [&]() {
+            if (r.remaining() == 0) {
+                return Vector<Elem> {};
+            } else {
+                return Vector<Elem> { UInt(r.annotate("length").reader), r };
+            };
+        }() }
     {
     }
 };
+template <StaticString tag, typename UInt, typename Elem>
+using SizeVector = Tag<tag, UntaggedSizeVector<UInt, Elem>>;
 
 template <typename T>
 void apply_to_entries(T&& t, auto&& lambda)
@@ -453,35 +398,29 @@ void apply_to_entries(T&& t, auto&& lambda)
 }
 
 template <typename UInt, typename Elem>
-void apply_to_entries(SizeVector<UInt, Elem>& v, auto&& lambda)
+void apply_to_entries(UntaggedSizeVector<UInt, Elem>& v, auto&& lambda)
 {
     for (auto& e : v)
         apply_to_entries(e, lambda);
 }
 
-// using Reward = Combined<ToAccIdEl, WartEl>;
-// using TokenTransfer = SignedCombined<ToAccIdEl, AmountEl>;
-// using ShareTransfer = SignedCombined<ToAccIdEl, AmountEl>;
-// using AssetCreation = SignedCombined<AssetSupplyEl, AssetNameEl>;
-// using Order = SignedCombined<BuyEl, AmountEl, LimitPriceEl>;
-// using LiquidityDeposit = SignedCombined<QuoteWartEl, BaseAmountEl>;
-// using LiquidityWithdraw = SignedCombined<AmountEl>;
-struct WartTransfers : public SizeVector<uint32_t, body::WartTransfer> {
+struct WartTransfers : public SizeVector<"wartTransfers", uint32_t, body::WartTransfer> {
+    using Tag::Tag;
     auto& wart_transfers() const { return get(); }
     auto& wart_transfers() { return get(); }
 };
 
-struct TokenSections : public SizeVector<uint16_t, tokens::TokenSection> {
+struct TokenSections : public SizeVector<"tokenSections", uint16_t, tokens::TokenSection> {
     auto& tokens() const { return get(); }
     auto& tokens() { return get(); }
 };
 
-struct Cancelations : public SizeVector<uint16_t, body::Cancelation> {
+struct Cancelations : public SizeVector<"cancelations", uint16_t, body::Cancelation> {
     auto& cancelations() const { return get(); }
     auto& cancelations() { return get(); }
 };
 
-struct AssetCreations : public SizeVector<uint16_t, body::AssetCreation> {
+struct AssetCreations : public SizeVector<"assetCreations", uint16_t, body::AssetCreation> {
     auto& asset_creations() const { return get(); }
     auto& asset_creations() { return get(); }
 };
@@ -495,7 +434,7 @@ private:
     };
 
 public:
-    CombineElements(MerkleReadHooker& r)
+    CombineElements(StructuredReader& r)
         : Ts(r)...
     {
     }
@@ -565,7 +504,7 @@ struct AddressReward {
         , reward(std::move(reward))
     {
     }
-    body_vector<Address> newAddresses;
+    vector<Address> newAddresses;
     body::Reward reward;
 };
 using elements::Entries;
@@ -574,7 +513,7 @@ using elements::tokens::TokenSection;
 class ParsedBody : public AddressReward, public Entries {
 private:
     template <typename T>
-    using body_vector = body_vector<T>;
+    using body_vector = vector<T>;
 
 public:
     ParsedBody(std::vector<Address> newAddresses, Reward reward, Entries entries)
@@ -615,5 +554,4 @@ private:
     }
 };
 }
-
 }

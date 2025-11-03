@@ -1,0 +1,166 @@
+#pragma once
+
+#include "block/body/body_fwd.hpp"
+#include "crypto/hasher_sha256.hpp"
+#include "general/reader.hpp"
+#include "structured_reader_fwd.hpp"
+#include <vector>
+
+struct MerkleLeaves {
+    void add_hash(Hash hash)
+    {
+        hashes.push_back(std::move(hash));
+    }
+    std::vector<uint8_t> merkle_prefix() const; // only since shifus merkle tree
+    Hash merkle_root(const BodyData& data, NonzeroHeight h) const;
+    std::vector<Hash> hashes;
+};
+
+// The ParseNode class is used for representation and construction of
+// structured description of parsing from binary. It is used applied
+// in API functions to help understand the binary structure of Warthog
+// blocks.
+struct ParseAnnotation {
+    ParseAnnotation(std::string name, size_t offsetBegin)
+        : name(std::move(name))
+        , offsetBegin(offsetBegin)
+    {
+    }
+    using Children = std::vector<ParseAnnotation>;
+
+    // members
+    std::string name;
+    size_t offsetBegin;
+    size_t offsetEnd;
+    std::optional<Children> children;
+};
+using ParseAnnotations = ParseAnnotation::Children;
+
+// Reader with stack-like frame types that construct a
+// human-readable tree of parsed sections with annotated meaning.
+
+struct StructuredReader : public Reader {
+private:
+    struct Frame {
+        StructuredReader& reader;
+
+        template <typename T>
+        operator T()
+        {
+            return T(reader);
+        }
+        operator Reader&()
+        {
+            return reader;
+        }
+        operator StructuredReader&()
+        {
+            return reader;
+        }
+        StructuredReader& operator->()
+        {
+            return reader;
+        }
+    };
+    struct MerkleFrame : public Frame {
+    public:
+        MerkleFrame(const MerkleFrame& mi) = delete;
+        MerkleFrame(MerkleFrame&& mi)
+            : Frame(std::move(mi))
+            , begin(mi.begin)
+        {
+            mi.begin = nullptr;
+        }
+
+        MerkleFrame(StructuredReader& c)
+            : Frame(c)
+            , begin(reader.cursor())
+        {
+        }
+
+        ~MerkleFrame()
+        {
+            if (begin)
+                reader.add_hash_of({ begin, reader.cursor() });
+        }
+
+    private:
+        const uint8_t* begin;
+    };
+
+    // Sets offsetEnd in destructor
+    struct AnnotatorFrame : public Frame {
+        AnnotatorFrame(StructuredReader& r)
+            : Frame(r)
+            , annotations(r.annotations) // save original annotations pointer
+        {
+        }
+
+        AnnotatorFrame(AnnotatorFrame&& other)
+            : Frame(std::move(other))
+            , annotations(other.annotations)
+        {
+            other.annotations = nullptr;
+        }
+        ~AnnotatorFrame()
+        {
+            if (annotations) {
+                reader.annotations = annotations; // restore original children pointer (POP stack)
+                annotations->back().offsetEnd = reader.offset(); // set offsetEnd
+            }
+        }
+
+    private:
+        ParseAnnotations* annotations;
+    };
+
+public:
+    StructuredReader(Reader r, ParseAnnotations* annotations = nullptr)
+        : Reader(std::move(r))
+        , annotations(annotations)
+    {
+    }
+
+    [[nodiscard]] AnnotatorFrame annotate(std::string name)
+    {
+        if (annotations)
+            annotations->emplace_back(std::move(name), offset());
+        return *this;
+    }
+
+    [[nodiscard]] AnnotatorFrame annotate_enter(std::string name)
+    {
+        if (annotations) {
+            annotations->emplace_back(std::move(name), offset());
+            annotations->back().children.emplace();
+            annotations = &*annotations->back().children;
+        }
+        return *this;
+    }
+
+    [[nodiscard]] MerkleFrame merkle_frame() { return { *this }; }
+    MerkleLeaves move_leaves() && { return std::move(leaves); }
+
+private: // methods
+    StructuredReader(const StructuredReader&) = delete;
+
+    void add_hash_of(const std::span<const uint8_t>& s)
+    {
+        leaves.add_hash(hashSHA256(s));
+    }
+
+private:
+    MerkleLeaves leaves;
+    ParseAnnotations* annotations;
+};
+
+template <StaticString annotation, typename T, bool enter>
+class Tag : public T {
+public:
+    using T::T;
+    Tag(StructuredReader& s)
+        : T(s.annotate(annotation.to_string()).reader)
+    {
+    }
+    using parent_t = Tag;
+};

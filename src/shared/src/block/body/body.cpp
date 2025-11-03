@@ -3,7 +3,6 @@
 #include "crypto/hasher_sha256.hpp"
 #include "general/is_testnet.hpp"
 #include "general/writer.hpp"
-#include <set>
 namespace block {
 namespace body {
 namespace elements {
@@ -12,8 +11,8 @@ void TokenSection::write(MerkleWriteHooker& w)
     w.writer << assetId;
     token_entries().write(w);
 }
-TokenSection::TokenSection(MerkleReadHooker& r)
-    : AssetIdElement(static_cast<Reader&>(r.hook()))
+TokenSection::TokenSection(StructuredReader& r, Dummy)
+    : AssetIdElement(r.merkle_frame().reader)
     , TokenEntries(r)
 {
 }
@@ -35,106 +34,6 @@ MerkleWriteHook::~MerkleWriteHook()
 MerkleWriteHook MerkleWriteHooker::hook()
 {
     return { writer, *this };
-}
-
-std::vector<uint8_t> MerkleLeaves::merkle_prefix() const
-{
-    const std::vector<Hash>* from;
-    std::vector<Hash> tmp, to;
-    from = &hashes;
-
-    do {
-        const size_t I { (from->size() + 1) / 2 };
-        to.clear();
-        to.reserve(I);
-        size_t j = 0;
-        for (size_t i = 0; i < I; ++i) {
-            if (I == 1) {
-                std::vector<uint8_t> res;
-                std::copy((*from)[j].begin(), (*from)[j].end(), std::back_inserter(res));
-                if (j + 1 < from->size())
-                    std::copy((*from)[j + 1].begin(), (*from)[j + 1].end(), std::back_inserter(res));
-                return res;
-            }
-            HasherSHA256 hasher {};
-            hasher.write((*from)[j]);
-            if (j + 1 < from->size()) {
-                hasher.write((*from)[j + 1]);
-            }
-
-            to.push_back(std::move(hasher));
-            j += 2;
-        }
-        std::swap(tmp, to);
-        from = &tmp;
-    } while (from->size() > 1);
-    assert(false);
-}
-
-Hash MerkleLeaves::merkle_root(const BodyData& data, NonzeroHeight h) const
-{
-    const std::vector<Hash>* from;
-    std::vector<Hash> tmp, to;
-    from = &hashes;
-
-    bool new_root_type = is_testnet() || h.value() >= NEWMERKLEROOT;
-    bool block_v2 = is_testnet() || h.value() >= NEWBLOCKSTRUCUTREHEIGHT;
-    if (new_root_type) {
-        do {
-            const size_t I { (from->size() + 1) / 2 };
-            to.clear();
-            to.reserve(I);
-            size_t j = 0;
-            for (size_t i = 0; i < I; ++i) {
-                HasherSHA256 hasher {};
-                hasher.write((*from)[j]);
-                if (j + 1 < from->size())
-                    hasher.write((*from)[j + 1]);
-                if (I == 1)
-                    hasher.write({ data.data(), block_v2 ? 10u : 4u });
-                to.push_back(std::move(hasher));
-                j += 2;
-            }
-            std::swap(tmp, to);
-            from = &tmp;
-        } while (from->size() > 1);
-        return from->front();
-    } else {
-        bool includedSeed = false;
-        bool finish = false;
-        do {
-            const size_t I { (from->size() + 1) / 2 };
-            to.clear();
-            to.reserve(I);
-            if (from->size() <= 2 && !includedSeed) {
-
-                HasherSHA256 hasher {};
-                hasher.write((*from)[0]);
-                if (1 < from->size()) {
-                    hasher.write((*from)[1]);
-                }
-                hasher.write({ data.data(), 4u });
-                includedSeed = true;
-                to.push_back(std::move(hasher));
-            } else {
-                if (from->size() == 1)
-                    finish = true;
-                size_t j = 0;
-                for (size_t i = 0; i < (from->size() + 1) / 2; ++i) {
-                    HasherSHA256 hasher {};
-                    hasher.write((*from)[j]);
-                    if (j + 1 < from->size()) {
-                        hasher.write((*from)[j + 1]);
-                    }
-                    to.push_back(std::move(hasher));
-                    j += 2;
-                }
-            }
-            std::swap(tmp, to);
-            from = &tmp;
-        } while (!finish);
-        return from->front();
-    }
 }
 
 auto ParsedBody::tx_ids(NonzeroHeight height, PinHeight minPinHeight) const -> BlockTxids
@@ -163,35 +62,40 @@ std::pair<ParsedBody, MerkleLeaves> ParsedBody::parse_throw(std::span<const uint
 {
     if (data.size() > MAXBLOCKSIZE)
         throw Error(EINV_BODY);
-    Reader r(data);
-    body::MerkleReadHooker merkle(r);
+    StructuredReader r(data);
     try {
         bool block_v2 = is_testnet() || h.value() >= NEWBLOCKSTRUCUTREHEIGHT;
 
         body_vector<Address> addresses;
-        if (block_v2) {
-            // Read new address section
-            r.skip(10); // for mining
-            addresses = { r.uint16(), merkle };
-        } else {
-            // Read new address section
-            r.skip(4); // for mining
 
-            addresses = { r.uint32(), merkle };
+        // read extra nonce
+        {
+            auto a { r.annotate("extraNonce") };
+            r.skip(block_v2 ? 10 : 4); // for mining
         }
+
+        // read number of addresses
+        size_t len { [&]() -> size_t {
+            auto a { r.annotate("length") };
+            return block_v2 ? size_t(r.uint16()) : size_t(r.uint32());
+        }() };
+
+        // read addresses
+        addresses = { len, r.annotate("address").reader };
 
         auto reward {
             [&]() {
                 // create hook to auto-insert merkle entry
-                auto hook { merkle.hook() };
-                if (!block_v2)
-                    r.skip(2); // # of entries, which should be 1
-                return body::Reward { r };
+                auto hook { r.merkle_frame() };
+                if (!block_v2) {
+                    r.annotate("reserved(1)").reader.skip(2); // # of entries, which should be 1
+                }
+                return body::Reward { r.annotate("reward") };
             }()
         };
-        body::Entries entries(merkle);
+        body::Entries entries(r);
         entries.validate_version(version);
-        return { ParsedBody { std::move(addresses), std::move(reward), std::move(entries) }, std::move(merkle).move_leaves() };
+        return { ParsedBody { std::move(addresses), std::move(reward), std::move(entries) }, std::move(r).move_leaves() };
     } catch (const Error& e) {
         if (e.code == EMSGINTEGRITY)
             throw Error(EINV_BODY); // more meaningful error

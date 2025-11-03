@@ -1,7 +1,6 @@
 #pragma once
 namespace block {
 namespace body {
-struct MerkleLeaves;
 struct SerializedBody;
 class ParsedBody;
 struct Body;

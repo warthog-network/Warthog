@@ -901,7 +901,7 @@ private:
                         [&](PinHeight pinHeight, const LiquidityDeposit& t) {
                                 toMempool.push_back(LiquidityDepositMessage(t.txid(pinHeight), t.pin_nonce().reserved, t.compact_fee(), asset.hash, t.quote_wart(), t.base_amount(), t.signature()));
                         },
-                        [&](PinHeight pinHeight, const LiquidityWithdraw& t) {
+                        [&](PinHeight pinHeight, const LiquidityWithdrawal& t) {
                                 toMempool.push_back(LiquidityWithdrawMessage(t.txid(pinHeight), t.pin_nonce().reserved, t.compact_fee(), asset.hash, t.amount(), t.signature()));
                         }); },
             // asset creation lambda

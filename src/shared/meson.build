@@ -38,6 +38,7 @@ src_wh=[
     './src/general/funds.cpp',
     './src/general/hex.cpp',
     './src/general/is_testnet.cpp',
+    './src/general/structured_reader.cpp',
     './src/general/with_uint64.cpp',
   ]
   )]

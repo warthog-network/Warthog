@@ -10,6 +10,8 @@
 #include "defi/uint64/price.hpp"
 #include "general/compact_uint.hpp"
 #include "general/funds.hpp"
+#include "general/static_string.hpp"
+#include "general/structured_reader.hpp"
 
 namespace enumerated {
 template <size_t i, typename Element>
@@ -72,36 +74,6 @@ struct CombineElementsEnumerated<i> {
     CombineElementsEnumerated(Reader&) { }
     CombineElementsEnumerated() { }
 };
-
-// template <typename... Elements>
-// struct Enumerated {
-//     template <typename T>
-//     struct CombineElementsEnumerated;
-//
-//     template <size_t... Is>
-//     struct CombineElementsEnumerated<std::index_sequence<Is...>> : public Annotated<Is, Elements>... {
-//         using combined_t = CombineElementsEnumerated;
-//         CombineElementsEnumerated(Reader& r)
-//             : Annotated<Is, Elements>(r)...
-//         {
-//         }
-//         CombineElementsEnumerated(Elements::data_t... ts)
-//             : Annotated<Is, Elements>(std::move(ts))...
-//         {
-//         }
-//         [[nodiscard]] size_t byte_size() const { return (Elements::byte_size() + ...); }
-//         template <typename Element>
-//         auto& get() const
-//         {
-//             return static_cast<const Element*>(this)->get();
-//         }
-//         void serialize(Serializer auto&& s) const
-//         {
-//             (s << ... << static_cast<const Elements*>(this)->get());
-//         }
-//     };
-// };
-
 }
 
 template <typename... Elements>
@@ -124,16 +96,12 @@ struct ElementBase {
     [[nodiscard]] size_t byte_size() const { return data.byte_size(); }
     const T& get() const { return data; }
 
-    ElementBase(Reader& r)
-        : data(r)
-    {
-    }
     ElementBase(T t)
         : data(std::move(t))
     {
     }
-    using base_t = ElementBase;
     using data_t = T;
+    using base_t = ElementBase;
 
 protected:
     T data;
@@ -153,100 +121,67 @@ struct ElementBase<T> {
     {
     }
     using data_t = T;
+    using base_t = ElementBase;
 
 protected:
     T data;
 };
 
-struct AccountIdEl : public ElementBase<AccountId> {
-    using ElementBase::ElementBase;
-    [[nodiscard]] const AccountId& account_id() const { return data; }
-};
-struct ToAccIdEl : public ElementBase<AccountId> {
-    using ElementBase::ElementBase;
-    [[nodiscard]] const AccountId& to_id() const { return data; }
-};
-struct OriginAccIdEl : public ElementBase<AccountId> {
-    using ElementBase::ElementBase;
-    [[nodiscard]] const AccountId& origin_account_id() const { return data; }
-};
+template <StaticString tag, typename T>
+using ElementBaseWithAnnotation = Tag<tag, ElementBase<T>>;
 
-struct AssetSupplyEl : public ElementBase<FundsDecimal> {
-    using ElementBase::ElementBase;
-    [[nodiscard]] const auto& supply() const { return data; }
-};
-struct ToAddrEl : public ElementBase<Address> {
-    using ElementBase::ElementBase;
-    [[nodiscard]] const auto& to_addr() const { return data; }
-};
-struct CreatorAddrEl : public ElementBase<Address> {
-    using ElementBase::ElementBase;
-    [[nodiscard]] const auto& creator_addr() const { return data; }
-};
-
-struct WartEl : public ElementBase<Wart> {
-    using ElementBase::ElementBase;
-    [[nodiscard]] const Wart& wart() const { return data; }
-};
-
-struct QuoteWartEl : public ElementBase<Wart> {
-    using ElementBase::ElementBase;
-    [[nodiscard]] const Wart& quote_wart() const { return data; }
-};
-struct FillEl : public ElementBase<Funds_uint64> {
-    using ElementBase::ElementBase;
-    [[nodiscard]] const Funds_uint64& amount() const { return data; }
-};
-struct AmountEl : public ElementBase<Funds_uint64> {
-    using ElementBase::ElementBase;
-    [[nodiscard]] const Funds_uint64& amount() const { return data; }
-};
-struct BaseAmountEl : public ElementBase<Funds_uint64> {
-    using ElementBase::ElementBase;
-    [[nodiscard]] const Funds_uint64& base_amount() const { return data; }
-};
-struct CancelNonceEl : public ElementBase<NonceId> {
-    using ElementBase::ElementBase;
-    [[nodiscard]] const auto& cancel_nonceid() const { return data; }
-};
-struct CancelHeightEl : public ElementBase<PinHeight> {
-    using ElementBase::ElementBase;
-    [[nodiscard]] const auto& cancel_height() const { return data; }
-};
-
-struct CancelTxidEl : public ElementBase<TransactionId> {
-    using ElementBase::ElementBase;
-    [[nodiscard]] const auto& cancel_txid() const { return data; }
-};
-struct OrderIdEl : public ElementBase<HistoryId> {
-    using ElementBase::ElementBase;
-    [[nodiscard]] const auto& order_id() const { return data; }
-};
-struct ReferredHistoryIdEl : public ElementBase<HistoryId> {
-    using ElementBase::ElementBase;
-    [[nodiscard]] const auto& referred_history_id() const { return data; }
-};
-struct PinNonceEl : public ElementBase<PinNonce> {
-    using ElementBase::ElementBase;
-    [[nodiscard]] const PinNonce& pin_nonce() const { return data; }
-};
-struct CompactFeeEl : public ElementBase<CompactUInt> {
-    using ElementBase::ElementBase;
+struct CompactFeeEl : public ElementBaseWithAnnotation<"compactFee", CompactUInt> {
+    using parent_t::parent_t;
     [[nodiscard]] const CompactUInt& compact_fee() const { return data; }
     [[nodiscard]] Wart fee() const { return data.uncompact(); }
 };
-struct AssetPrecisionEl : public ElementBase<AssetPrecision> {
-    using ElementBase::ElementBase;
-    [[nodiscard]] const AssetPrecision& token_precision() const { return data; }
-};
-struct AssetNameEl : public ElementBase<AssetName> {
-    using ElementBase::ElementBase;
-    [[nodiscard]] const AssetName& asset_name() const { return data; }
-};
-struct AssetHashEl : public ElementBase<AssetHash> {
-    using ElementBase::ElementBase;
-    [[nodiscard]] const auto& asset_hash() const { return data; }
-};
+
+#define ELEMENTMAP(NO_ANNOTATE, ANNOTATE)                            \
+    NO_ANNOTATE(AccountIdEl, AccountId, account_id)                  \
+    NO_ANNOTATE(AmountEl, Funds_uint64, amount)                      \
+    NO_ANNOTATE(AssetHashEl, AssetHash, asset_hash)                  \
+    NO_ANNOTATE(AssetIdEl, AssetId, asset_id)                        \
+    NO_ANNOTATE(AssetNameEl, AssetName, asset_name)                  \
+    NO_ANNOTATE(AssetPrecisionEl, AssetPrecision, asset_precision)   \
+    NO_ANNOTATE(AssetSupplyEl, FundsDecimal, supply)                 \
+    NO_ANNOTATE(BaseAmountEl, Funds_uint64, base_amount)             \
+    NO_ANNOTATE(BaseEl, Funds_uint64, base)                          \
+    NO_ANNOTATE(CancelHeightEl, PinHeight, cancel_height)            \
+    NO_ANNOTATE(CancelNonceEl, NonceId, cancel_nonceid)              \
+    NO_ANNOTATE(CancelTxidEl, TransactionId, cancel_txid)            \
+    NO_ANNOTATE(CreatorAddrEl, Address, creator_addr)                \
+    NO_ANNOTATE(FillEl, Funds_uint64, amount)                        \
+    NO_ANNOTATE(LimitPriceEl, Price_uint64, limit)                   \
+    NO_ANNOTATE(NonWartTokenIdEl, NonWartTokenId, token_id)          \
+    NO_ANNOTATE(NonceIdEl, NonceId, nonce_id)                        \
+    NO_ANNOTATE(NonceReservedEl, NonceReserved, nonce_reserved)      \
+    NO_ANNOTATE(OrderIdEl, HistoryId, order_id)                      \
+    NO_ANNOTATE(OriginAccIdEl, AccountId, origin_account_id)         \
+    NO_ANNOTATE(PinHeightEl, PinHeight, pin_height)                  \
+    NO_ANNOTATE(PinNonceEl, PinNonce, pin_nonce)                     \
+    NO_ANNOTATE(QuoteEl, Wart, quote)                                \
+    NO_ANNOTATE(QuoteWartEl, Wart, quote_wart)                       \
+    NO_ANNOTATE(ReferredHistoryIdEl, HistoryId, referred_history_id) \
+    NO_ANNOTATE(SharesEl, Funds_uint64, shares)                      \
+    NO_ANNOTATE(SignatureEl, RecoverableSignature, signature)        \
+    NO_ANNOTATE(ToAccIdEl, AccountId, to_id)                         \
+    NO_ANNOTATE(ToAddrEl, Address, to_addr)                          \
+    ANNOTATE(AddrEl, Address, address, "address")                    \
+    NO_ANNOTATE(WartEl, Wart, wart)
+
+#define ELEMENT_DEFINE_NOANNOTATE(structname, datatype, methodname)   \
+    struct structname : public ElementBase<datatype> {                \
+        using ElementBase::ElementBase;                               \
+        [[nodiscard]] const auto& methodname() const { return data; } \
+    };
+#define ELEMENT_DEFINE_ANNOTATE(structname, datatype, methodname, annotation)             \
+    struct structname : public ElementBaseWithAnnotation<annotation, datatype> {          \
+        using ElementBaseWithAnnotation<annotation, datatype>::ElementBaseWithAnnotation; \
+        [[nodiscard]] const auto& methodname() const { return data; }                     \
+    };
+ELEMENTMAP(ELEMENT_DEFINE_NOANNOTATE, ELEMENT_DEFINE_ANNOTATE)
+#undef ERR_DEFINE
+
 struct BoolElBase {
     BoolElBase(uint8_t v)
         : b(v != 0)
@@ -270,30 +205,9 @@ struct LiquidityFlagEl : public BoolElBase { // specifies whether a token transf
     }
 };
 
-struct NonWartTokenIdEl : public ElementBase<NonWartTokenId> {
-    using ElementBase::ElementBase;
-    [[nodiscard]] const auto& token_id() const { return data; }
-};
-struct AssetIdEl : public ElementBase<AssetId> {
-    using ElementBase::ElementBase;
-    [[nodiscard]] const auto& asset_id() const { return data; }
-};
-struct SignatureEl : public ElementBase<RecoverableSignature> {
-    using ElementBase::ElementBase;
-    [[nodiscard]] const RecoverableSignature& signature() const { return data; }
-};
-struct LimitPriceEl : public ElementBase<Price_uint64> {
-    using ElementBase::ElementBase;
-    [[nodiscard]] const Price_uint64& limit() const { return data; }
-};
 struct BuyEl : BoolElBase {
     using BoolElBase::BoolElBase;
     bool buy() const { return get(); }
-};
-
-struct PinHeightEl : public ElementBase<PinHeight> {
-    using ElementBase::ElementBase;
-    [[nodiscard]] const PinHeight& pin_height() const { return data; }
 };
 
 struct TransactionIdEl : public ElementBase<TransactionId> {
@@ -302,28 +216,4 @@ struct TransactionIdEl : public ElementBase<TransactionId> {
     [[nodiscard]] AccountId from_id() const { return txid().accountId; }
     [[nodiscard]] PinHeight pin_height() const { return txid().pinHeight; }
     [[nodiscard]] NonceId nonce_id() const { return txid().nonceId; }
-};
-
-struct NonceIdEl : public ElementBase<NonceId> {
-    using ElementBase::ElementBase;
-    [[nodiscard]] const NonceId& nonce_id() const { return data; }
-};
-
-struct NonceReservedEl : public ElementBase<NonceReserved> {
-    using ElementBase::ElementBase;
-    [[nodiscard]] const NonceReserved& nonce_reserved() const { return data; }
-};
-
-struct BaseEl : public ElementBase<Funds_uint64> {
-    using ElementBase::ElementBase;
-    [[nodiscard]] const auto& base() const { return data; }
-};
-
-struct QuoteEl : public ElementBase<Wart> {
-    using ElementBase::ElementBase;
-    [[nodiscard]] const auto& quote() const { return data; }
-};
-struct SharesEl : public ElementBase<Funds_uint64> {
-    using ElementBase::ElementBase;
-    [[nodiscard]] const auto& shares() const { return data; }
 };

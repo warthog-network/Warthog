@@ -30,6 +30,7 @@ inline uint8_t readuint8(const uint8_t* pos) { return *(pos); }
 
 template <size_t N>
 class ReaderCheck;
+
 // byte sequence stream-like reader with self-advancing cursor
 class Reader {
     inline void read(void* out, size_t bytes)

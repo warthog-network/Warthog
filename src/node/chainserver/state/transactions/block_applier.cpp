@@ -594,7 +594,7 @@ public:
         accounts[aid].unlock_balance(tid, amount);
     }
 
-    block_apply::LiquidityWithdrawal::Internal register_liquidity_withdraw(const LiquidityWithdraw& l, AssetId aid)
+    block_apply::LiquidityWithdrawal::Internal register_liquidity_withdraw(const LiquidityWithdrawal& l, AssetId aid)
     {
         auto s { process_signer(l) };
         s.account.subtract_balance(aid.token_id(true), l.amount());
@@ -637,7 +637,7 @@ public:
             [&](const block::body::LiquidityDeposit& ld) {
                 ts.liquidityAdds.push_back(register_liquidity_deposit(ld, t.asset_id()));
             },
-            [&](const block::body::LiquidityWithdraw& lw) {
+            [&](const block::body::LiquidityWithdrawal& lw) {
                 ts.liquidityRemoves.push_back(register_liquidity_withdraw(lw, t.asset_id()));
             });
         tokenSections.push_back(std::move(ts));
