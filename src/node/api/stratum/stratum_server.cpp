@@ -9,7 +9,7 @@
 #include <iostream>
 #include <list>
 #include <memory>
-#include <optional>
+#include "wrt/optional.hpp"
 #include <uvw.hpp>
 #include <variant>
 
@@ -173,7 +173,7 @@ OK SubscribeResponse(const std::array<uint8_t, 4>& extra2prefix, int64_t id)
 
 using message = std::variant<MiningSubscribe, MiningAuthorize, MiningSubmit>;
 
-std::optional<messages::message> parse(std::string_view v)
+wrt::optional<messages::message> parse(std::string_view v)
 {
     using namespace nlohmann;
     using array_t = json::array_t;
@@ -224,7 +224,7 @@ void Connection::on_message(std::string_view msg)
     stratumLine += msg.substr(lower, msg.size() - lower);
 };
 
-void Connection::send_result(int64_t stratumId, std::optional<Error> result)
+void Connection::send_result(int64_t stratumId, wrt::optional<Error> result)
 {
     if (result.has_value()) {
         write() << messages::OK(stratumId);
@@ -253,8 +253,8 @@ void Connection::handle_message(messages::MiningSubmit&& m)
     }
     m.apply_to(extra2prefix, *b);
     put_chain_append(BlockWorker { std::move(*b), authorized->worker },
-        // [&, p = shared_from_this(), id = m.id](const std::optional<Error>& res) {
-        [&, p = shared_from_this(), id = m.id](const std::optional<Error>& res) {
+        // [&, p = shared_from_this(), id = m.id](const wrt::optional<Error>& res) {
+        [&, p = shared_from_this(), id = m.id](const wrt::optional<Error>& res) {
             server.on_append_result({ .p = p, .stratumId = id, .result { res } });
         });
 }
@@ -463,7 +463,7 @@ Block* StratumServer::AddressData::add_block(const std::string& jobId, Block&& b
     return &b_iter->second;
 }
 
-std::optional<Block> StratumServer::get_block(Address a, std::string jobId)
+wrt::optional<Block> StratumServer::get_block(Address a, std::string jobId)
 {
     auto iter = addressData.find(a);
     assert(iter != addressData.end());

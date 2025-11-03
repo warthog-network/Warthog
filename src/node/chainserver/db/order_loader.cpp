@@ -6,9 +6,9 @@ OrderLoaderBase::OrderLoaderBase(sqlite::Statement& stmt)
     : stmt(&stmt)
 {
 }
-std::optional<OrderData> OrderLoaderBase::operator()() const
+wrt::optional<OrderData> OrderLoaderBase::operator()() const
 {
-    std::optional<OrderData> res;
+    wrt::optional<OrderData> res;
     auto r { stmt->next_row() };
     if (r.has_value()) {
         TransactionId txid {

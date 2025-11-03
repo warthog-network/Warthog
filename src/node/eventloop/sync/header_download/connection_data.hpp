@@ -14,9 +14,9 @@ private:
         Queued_iter qiter;
     };
 
-    std::optional<ProbeInfo> probeData;
+    wrt::optional<ProbeInfo> probeData;
     QueueBatchNode* jobPtr = nullptr;
-    std::optional<Descriptor> ignoreDescriptor;
+    wrt::optional<Descriptor> ignoreDescriptor;
     bool mustDisconnect { false };
 
     friend class Downloader;

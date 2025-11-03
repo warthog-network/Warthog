@@ -5,7 +5,7 @@
 #include <array>                  // for array
 #include <ftxui/screen/color.hpp> // for Color
 #include <memory>   // for allocator, make_shared, __shared_ptr_access
-#include <optional> // for optional, nullopt
+#include "wrt/optional.hpp" // for optional, nullopt
 #include <string>   // for basic_string, string
 #include <utility>  // for move
 
@@ -35,14 +35,14 @@ static Charsets simple_border_charset = {
 class Border : public Node {
 public:
   Border(Elements children, BorderStyle style,
-         std::optional<Color> foreground_color = std::nullopt)
+         wrt::optional<Color> foreground_color = std::nullopt)
       : Node(std::move(children)),
         charset_(simple_border_charset[style]) // NOLINT
         ,
         foreground_color_(foreground_color) {} // NOLINT
 
   const Charset &charset_; // NOLINT
-  std::optional<Color> foreground_color_;
+  wrt::optional<Color> foreground_color_;
 
   void ComputeRequirement() override {
     Node::ComputeRequirement();

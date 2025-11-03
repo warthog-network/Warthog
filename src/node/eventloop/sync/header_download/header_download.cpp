@@ -12,7 +12,7 @@ struct ReqData {
     HeaderView finalHeader;
     QueueEntry queueEntry;
     Batchslot slot;
-    std::optional<ChaincacheMatch> cacheMatch;
+    wrt::optional<ChaincacheMatch> cacheMatch;
 };
 
 LeaderNode::Queued::iterator::operator ReqData() const
@@ -97,7 +97,7 @@ void Downloader::release_verifier(Ver_iter vi)
     }
 }
 
-void Downloader::acquire_queued_batch(std::optional<Header> prev, HeaderView hv, Lead_iter li)
+void Downloader::acquire_queued_batch(wrt::optional<Header> prev, HeaderView hv, Lead_iter li)
 {
     auto p = queuedBatches.try_emplace(hv);
     auto iter = p.first;
@@ -229,7 +229,7 @@ void Downloader::queue_requests(Lead_iter li)
     }
 }
 
-std::optional<Conref> Downloader::try_send(ConnectionFinder& f, std::vector<ChainOffender> offenders, const ReqData& rd)
+wrt::optional<Conref> Downloader::try_send(ConnectionFinder& f, std::vector<ChainOffender> offenders, const ReqData& rd)
 { // OK
     uint32_t index = f.conIndex;
     uint32_t bound = connections.size();
@@ -682,7 +682,7 @@ auto Downloader::on_response(Conref cr, HeaderRequest&& req, Batch&& res) -> std
     return ret;
 }
 
-[[nodiscard]] std::optional<std::tuple<LeaderInfo, Headerchain>> Downloader::pop_data()
+[[nodiscard]] wrt::optional<std::tuple<LeaderInfo, Headerchain>> Downloader::pop_data()
 {
     if (!has_data()) 
         return {};

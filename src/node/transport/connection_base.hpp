@@ -8,7 +8,7 @@
 #include <atomic>
 #include <chrono>
 #include <memory>
-#include <optional>
+#include "wrt/optional.hpp"
 #include <span>
 #include <variant>
 #include <vector>
@@ -40,7 +40,7 @@ struct HandshakeState {
     bool handshakesent = false;
     struct Parsed {
         NodeVersion version;
-        std::optional<uint16_t> port;
+        wrt::optional<uint16_t> port;
     };
     Parsed parse(bool inboound);
 };

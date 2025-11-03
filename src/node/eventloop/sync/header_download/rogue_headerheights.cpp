@@ -2,7 +2,7 @@
 
 #include "block/chain/header_chain.hpp"
 
-std::optional<ChainError> RogueHeaders::find_rogue_in(const HeaderchainSkeleton& hs) const
+wrt::optional<ChainError> RogueHeaders::find_rogue_in(const HeaderchainSkeleton& hs) const
 {
     auto hsr { hs.header_search_recursive() };
     for (auto it { m.rbegin() }; it != m.rend(); ++it) {

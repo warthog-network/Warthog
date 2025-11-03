@@ -1,7 +1,7 @@
 #pragma once
 
 #include <cstdint>
-#include <optional>
+#include "wrt/optional.hpp"
 #include <string>
 struct WebsocketServerConfig {
     std::string certfile { "ws.cert" };

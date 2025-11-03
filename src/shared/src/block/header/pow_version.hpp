@@ -1,7 +1,7 @@
 #pragma once
 
 #include "block/chain/height.hpp"
-#include <optional>
+#include "wrt/optional.hpp"
 #include <variant>
 class BlockVersion;
 class POWVersion {
@@ -22,7 +22,7 @@ public:
     struct Janus6 : public NonV2_2 { };
     struct Janus7 : public NonV2_2 { };
     struct Janus8 : public V2_2 { };
-    [[nodiscard]] static std::optional<POWVersion> from_params(
+    [[nodiscard]] static wrt::optional<POWVersion> from_params(
         NonzeroHeight height, BlockVersion version, bool testnet);
     auto visit(const auto& lambda) const
     {

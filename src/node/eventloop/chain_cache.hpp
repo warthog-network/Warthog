@@ -34,17 +34,17 @@ public:
     [[nodiscard]] auto update_stage(Headerchain&&) -> ForkHeight;
     [[nodiscard]] auto update_consensus(Append&&) -> AppendMsg;
     [[nodiscard]] auto update_consensus(Fork&&) -> ForkMsg;
-    [[nodiscard]] auto update_consensus(const RollbackData&) -> std::optional<SignedPinRollbackMsg>;
+    [[nodiscard]] auto update_consensus(const RollbackData&) -> wrt::optional<SignedPinRollbackMsg>;
 
     // const lookup functions
-    [[nodiscard]] std::optional<ChaincacheMatch> lookup(std::optional<ChainPin>) const;
+    [[nodiscard]] wrt::optional<ChaincacheMatch> lookup(wrt::optional<ChainPin>) const;
     auto consensus_length() const { return consensus.headers().length(); }
     auto consensus_state() const -> const auto& { return consensus; }
     auto stage_headers() const -> const Headerchain& { return *stageHeaders; }
     void stage_clear();
     const auto& signed_snapshot() const { return consensus.get_signed_snapshot(); }
     ForkHeight fork_height() const { return scForkHeight; }
-    [[nodiscard]] std::optional<HeaderVerifier> header_verifier(const HeaderSpan&) const;
+    [[nodiscard]] wrt::optional<HeaderVerifier> header_verifier(const HeaderSpan&) const;
 
     // pin header chains
     [[nodiscard]] Headerchain::pin_t stage_pin() const

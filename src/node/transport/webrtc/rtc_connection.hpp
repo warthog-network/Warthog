@@ -39,7 +39,7 @@ class RTCConnection final : public ConnectionBase, public std::enable_shared_fro
 
     void send_impl(std::unique_ptr<char[]> data, size_t size) override;
     uint16_t listen_port() const override { return 0; }
-    std::optional<ConnectRequest> connect_request() const override { return {}; }
+    wrt::optional<ConnectRequest> connect_request() const override { return {}; }
 
 public:
     // feeler connection;
@@ -77,7 +77,7 @@ public:
     bool inbound() const override { return isInbound; };
 
     void close(Error) override;
-    [[nodiscard]] std::optional<Error> set_sdp_answer(OneIpSdp);
+    [[nodiscard]] wrt::optional<Error> set_sdp_answer(OneIpSdp);
     [[nodiscard]] auto& verification_con_id() { return verificationConId; }
 
 private:
@@ -101,6 +101,6 @@ private:
     std::shared_ptr<rtc::DataChannel> dc;
 
     std::recursive_mutex errcodeMutex;
-    std::optional<Error> error;
+    wrt::optional<Error> error;
     std::unique_ptr<rtc::PeerConnection> pc;
 };

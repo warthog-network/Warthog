@@ -4,7 +4,7 @@
 #include <bit>
 #include <cassert>
 #include <cstdint>
-#include <optional>
+#include "wrt/optional.hpp"
 class Prod192;
 inline uint64_t shiftl(uint64_t upper, uint64_t lower, unsigned int i)
 {
@@ -63,7 +63,7 @@ public:
         return z;
     }
     bool is_zero() const { return upper == 0 && lower == 0; }
-    std::optional<uint64_t> pow2_64(int shiftExp, bool ceil) const
+    wrt::optional<uint64_t> pow2_64(int shiftExp, bool ceil) const
     { // OK
         if (is_zero())
             return 0;
@@ -135,12 +135,12 @@ public:
         }
     }
     // returns std::nullopt on overflow
-    [[nodiscard]] std::optional<uint64_t> divide_floor(Nonzero_uint64 v) const
+    [[nodiscard]] wrt::optional<uint64_t> divide_floor(Nonzero_uint64 v) const
     {
         return div(v, false);
     }
     // returns std::nullopt on overflow
-    [[nodiscard]] std::optional<uint64_t> divide_ceil(uint64_t v) const
+    [[nodiscard]] wrt::optional<uint64_t> divide_ceil(uint64_t v) const
     {
         return div(v, true);
     }
@@ -148,7 +148,7 @@ public:
     auto v1() const { return lower; }
 
 private:
-    [[nodiscard]] std::optional<uint64_t> div(uint64_t v, bool ceil) const
+    [[nodiscard]] wrt::optional<uint64_t> div(uint64_t v, bool ceil) const
     {
         assert(v != 0);
         if (upper == 0)

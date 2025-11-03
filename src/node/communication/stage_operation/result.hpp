@@ -1,12 +1,12 @@
 #pragma once
 #include "block/chain/height.hpp"
 #include "general/errors.hpp"
-#include <optional>
+#include "wrt/optional.hpp"
 #include <variant>
 namespace stage_operation {
 
 struct StageSetStatus {
-    std::optional<NonzeroHeight> firstMissHeight;
+    wrt::optional<NonzeroHeight> firstMissHeight;
 };
 struct StageAddStatus {
     ChainError ce;

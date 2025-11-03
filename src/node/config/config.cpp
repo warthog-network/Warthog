@@ -75,7 +75,7 @@ std::string ConfigParams::get_default_datadir()
 #endif
 
 namespace {
-// std::optional<SnapshotSigner> parse_leader_key(std::string privKey)
+// wrt::optional<SnapshotSigner> parse_leader_key(std::string privKey)
 // {
 //     try {
 //         SnapshotSigner ss { PrivKey(privKey) };
@@ -88,7 +88,7 @@ namespace {
 // }
 
 struct CmdlineParsed {
-    static std::optional<CmdlineParsed> parse(int argc, char** argv)
+    static wrt::optional<CmdlineParsed> parse(int argc, char** argv)
     {
         gengetopt_args_info ai;
         if (cmdline_parser(argc, argv, &ai) != 0)
@@ -164,7 +164,7 @@ std::runtime_error failed_convert(const toml::node& n)
 }
 
 template <typename T>
-std::optional<T> config_convert(const toml::node& n)
+wrt::optional<T> config_convert(const toml::node& n)
 {
     if (auto val = n.value<T>()) {
         return val.value();
@@ -173,7 +173,7 @@ std::optional<T> config_convert(const toml::node& n)
 }
 
 template <>
-std::optional<TCPPeeraddr> config_convert(const toml::node& n)
+wrt::optional<TCPPeeraddr> config_convert(const toml::node& n)
 {
     if (auto sv { n.value<std::string_view>() }) {
         if (sv->length() == 0)
@@ -185,7 +185,7 @@ std::optional<TCPPeeraddr> config_convert(const toml::node& n)
 }
 
 template <>
-std::optional<Endpoints> config_convert(const toml::node& n)
+wrt::optional<Endpoints> config_convert(const toml::node& n)
 {
     if (n.is_array()) {
         Endpoints endpoints;
@@ -203,7 +203,7 @@ failed:
 }
 
 template <>
-std::optional<SnapshotSigner>
+wrt::optional<SnapshotSigner>
 config_convert(const toml::node& n)
 {
     try {
@@ -247,7 +247,7 @@ struct TableReader : public TableReaderData {
         }
     }
 
-    std::optional<TableReader> subtable(std::string_view s)
+    wrt::optional<TableReader> subtable(std::string_view s)
     {
 
         if (auto it { tbl.find(s) }; it != tbl.end()) {
@@ -265,12 +265,12 @@ struct TableReader : public TableReaderData {
         const toml::node* v;
 
         template <typename T>
-        std::optional<T> get() const
+        wrt::optional<T> get() const
         {
             return config_convert<T>(*v);
         }
     };
-    std::optional<Entry> operator[](std::string_view key) const
+    wrt::optional<Entry> operator[](std::string_view key) const
     {
         if (auto it { tbl.find(key) }; it != tbl.end()) {
             keyUsed[it->first] = true;
@@ -305,7 +305,7 @@ void fill_arg(
 template <typename T>
 void fill(
     T& dst,
-    std::optional<TableReader>& tblreader,
+    wrt::optional<TableReader>& tblreader,
     std::string_view tblkey)
 {
     if (tblreader) {
@@ -320,8 +320,8 @@ void fill(
 
 template <typename T>
 void fill(
-    std::optional<T>& dst,
-    std::optional<TableReader>& tblreader,
+    wrt::optional<T>& dst,
+    wrt::optional<TableReader>& tblreader,
     std::string_view tblkey)
 {
     if (tblreader) {
@@ -337,7 +337,7 @@ void fill(
 //
 // template <typename T, typename U>
 // [[nodiscard]] T fill_default(
-//     std::optional<TableReader>& tblreader,
+//     wrt::optional<TableReader>& tblreader,
 //     std::string_view tblkey,
 //     auto default_val,
 //     bool flag_given,
@@ -352,7 +352,7 @@ void fill(
 //
 // template <typename T, typename U>
 // [[nodiscard]] T fill_default(
-//     std::optional<TableReader>& tblreader,
+//     wrt::optional<TableReader>& tblreader,
 //     std::string_view tblkey,
 //     auto default_val,
 //     bool flag_given,
@@ -364,7 +364,7 @@ void fill(
 //
 // template <typename T>
 // [[nodiscard]] T fill_default(
-//     std::optional<TableReader>& tblreader,
+//     wrt::optional<TableReader>& tblreader,
 //     std::string_view tblkey,
 //     auto default_val)
 // {
@@ -431,7 +431,7 @@ void ConfigParams::process_args(const gengetopt_args_info& ai)
 }
 #endif
 
-std::optional<int> ConfigParams::process_config_file(const gengetopt_args_info& ai, bool silent)
+wrt::optional<int> ConfigParams::process_config_file(const gengetopt_args_info& ai, bool silent)
 {
     std::string filename
         = is_testnet() ? "testnet_config.toml" : "config.toml";

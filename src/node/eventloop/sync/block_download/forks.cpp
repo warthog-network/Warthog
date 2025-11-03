@@ -40,7 +40,7 @@ void Forks::replace_fork_iter(ConnectionData::ForkData& fd, Conref c, ForkRange 
     fd.udpate_iter_range(iter, fr);
 };
 
-std::optional<Height> Forks::reachable_length() const
+wrt::optional<Height> Forks::reachable_length() const
 {
     if (forks.size() == 0)
         return {};

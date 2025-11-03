@@ -2,7 +2,7 @@
 #include "general/move_only_function.hpp"
 #include <chrono>
 #include <map>
-#include <optional>
+#include "wrt/optional.hpp"
 #include <variant>
 
 namespace eventloop {
@@ -51,7 +51,7 @@ public:
     // Methods
 
     bool erase(const Timer&);
-    bool erase(const std::optional<Timer>& o);
+    bool erase(const wrt::optional<Timer>& o);
     bool erase(key_t k)
     {
         return ordered.erase(k) != 0;
@@ -109,7 +109,7 @@ inline bool TimerSystem::erase(const Timer& t)
 {
     return ordered.erase(t.key());
 }
-inline bool TimerSystem::erase(const std::optional<Timer>& o)
+inline bool TimerSystem::erase(const wrt::optional<Timer>& o)
 {
     return o && erase(*o);
 }

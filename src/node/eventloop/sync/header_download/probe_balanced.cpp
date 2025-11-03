@@ -13,12 +13,12 @@ bool can_download(Height forkLower, Height forkUpper, Height bound)
 }
 }
 
-std::optional<Proberequest> ProbeBalanced::probe_request(const ProbeData& pd, const std::shared_ptr<Descripted>& desc, Height maxLength)
+wrt::optional<Proberequest> ProbeBalanced::probe_request(const ProbeData& pd, const std::shared_ptr<Descripted>& desc, Height maxLength)
 {
     return ProbeBalanced { pd, maxLength }.probe_request(desc);
 }
 
-[[nodiscard]] std::optional<HeaderRequest> ProbeBalanced::slot_batch_request(const ProbeData& pd, const std::shared_ptr<Descripted>& desc, Batchslot slot, Header h)
+[[nodiscard]] wrt::optional<HeaderRequest> ProbeBalanced::slot_batch_request(const ProbeData& pd, const std::shared_ptr<Descripted>& desc, Batchslot slot, Header h)
 {
     auto maxLength = slot.upper();
     ProbeBalanced pb { pd, maxLength };
@@ -31,7 +31,7 @@ std::optional<Proberequest> ProbeBalanced::probe_request(const ProbeData& pd, co
     return {};
 }
 
-[[nodiscard]] std::optional<HeaderRequest> ProbeBalanced::final_partial_batch_request(const ProbeData& pd, const std::shared_ptr<Descripted>& desc, NonzeroHeight maxLength, Worksum minWork)
+[[nodiscard]] wrt::optional<HeaderRequest> ProbeBalanced::final_partial_batch_request(const ProbeData& pd, const std::shared_ptr<Descripted>& desc, NonzeroHeight maxLength, Worksum minWork)
 {
     Batchslot slot(maxLength);
     if (slot.upper() == maxLength)
@@ -74,7 +74,7 @@ NonzeroHeight ProbeBalanced::upper(const ProbeData& probeData, Height maxLength)
     return u;
 }
 
-std::optional<Proberequest> ProbeBalanced::probe_request(const std::shared_ptr<Descripted>& desc)
+wrt::optional<Proberequest> ProbeBalanced::probe_request(const std::shared_ptr<Descripted>& desc)
 {
     auto l { lower() };
     auto u { upper() };

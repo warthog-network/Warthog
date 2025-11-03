@@ -3,9 +3,9 @@
 #include <charconv>
 #include <regex>
 
-const std::optional<IP> WSUrladdr::ip = {};
+const wrt::optional<IP> WSUrladdr::ip = {};
 namespace {
-std::optional<uint16_t> parse_port(std::string_view scheme, std::string_view portStr)
+wrt::optional<uint16_t> parse_port(std::string_view scheme, std::string_view portStr)
 {
     if (portStr.length() == 0) {
         if (scheme.length() == 3)
@@ -21,7 +21,7 @@ std::optional<uint16_t> parse_port(std::string_view scheme, std::string_view por
 }
 }
 
-std::optional<WSUrladdr> WSUrladdr::parse(const std::string& url)
+wrt::optional<WSUrladdr> WSUrladdr::parse(const std::string& url)
 {
     const static std::regex re(
         R"((?:(wss?):)?(?:\/\/(?:\[([\d:]+)\]|([^:\/?#]+))(?::(\d+))?)?([^?#]*(?:\?[^#]*)?)(?:#.*)?)");

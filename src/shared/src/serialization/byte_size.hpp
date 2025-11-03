@@ -1,5 +1,5 @@
 #pragma once
-#include <optional>
+#include "wrt/optional.hpp"
 #include <vector>
 
 template <typename T>
@@ -24,7 +24,7 @@ size_t byte_size(const std::vector<T>& v)
 }
 
 template <typename T>
-size_t byte_size(const std::optional<T>& t)
+size_t byte_size(const wrt::optional<T>& t)
 {
     if (t)
         return 1 + byte_size(*t);

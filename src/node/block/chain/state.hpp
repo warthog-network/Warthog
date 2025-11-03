@@ -9,7 +9,7 @@ struct AppendMsg;
 struct Descripted {
     // data
     const Descriptor descriptor;
-    std::optional<std::chrono::steady_clock::time_point> deprecation_time;
+    wrt::optional<std::chrono::steady_clock::time_point> deprecation_time;
 
     Descripted(Descriptor descriptor, Height chainLength, Worksum worksum, Grid grid);
     void deprecate();

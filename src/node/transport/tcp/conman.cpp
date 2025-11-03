@@ -5,7 +5,7 @@
 #include "uvw.hpp"
 #include <memory>
 namespace {
-[[nodiscard]] std::optional<TCPPeeraddr> get_ipv4_endpoint(const uvw::tcp_handle& handle)
+[[nodiscard]] wrt::optional<TCPPeeraddr> get_ipv4_endpoint(const uvw::tcp_handle& handle)
 {
     sockaddr_storage storage;
     int alen = sizeof(storage);

@@ -33,7 +33,7 @@ class DBCache;
 namespace api {
 using sc = std::chrono::steady_clock;
 struct ChainHead {
-    std::optional<SignedSnapshot> signedSnapshot;
+    wrt::optional<SignedSnapshot> signedSnapshot;
     Worksum worksum;
     Target nextTarget;
     Hash hash;
@@ -58,7 +58,7 @@ struct AddressWithId {
     AccountId accountId;
 };
 struct WartBalance {
-    std::optional<AddressWithId> address;
+    wrt::optional<AddressWithId> address;
     Wart balance;
     WartBalance()
         : balance(Wart::zero())
@@ -73,7 +73,7 @@ struct TokenBalance {
     };
 
 private:
-    TokenBalance(std::optional<Lookup> lookup, FundsDecimal total, FundsDecimal locked)
+    TokenBalance(wrt::optional<Lookup> lookup, FundsDecimal total, FundsDecimal locked)
         : lookup(std::move(lookup))
         , total(std::move(total))
         , locked(std::move(locked))
@@ -82,7 +82,7 @@ private:
 
 public:
     // data
-    std::optional<Lookup> lookup;
+    wrt::optional<Lookup> lookup;
     FundsDecimal total;
     FundsDecimal locked;
 
@@ -114,7 +114,7 @@ struct BlockSummary {
 namespace block {
 struct HistoryDataBase {
     TxHash txhash;
-    std::optional<HistoryId> hid;
+    wrt::optional<HistoryId> hid;
 };
 
 template <typename T>
@@ -127,7 +127,7 @@ struct WithHistoryBase : public HistoryDataBase, T {
 };
 
 struct SignedInfoData : public HistoryDataBase {
-    SignedInfoData(TxHash txHash, std::optional<HistoryId> hid, AccountId originId, Address originAddress, Wart fee, NonceId nonceId, PinHeight pinHeight)
+    SignedInfoData(TxHash txHash, wrt::optional<HistoryId> hid, AccountId originId, Address originAddress, Wart fee, NonceId nonceId, PinHeight pinHeight)
         : HistoryDataBase(std::move(txHash), std::move(hid))
         , originId(std::move(originId))
         , originAddress(std::move(originAddress))
@@ -197,7 +197,7 @@ struct AssetCreationData {
     static constexpr const char label[] = "Creation";
     AssetName name;
     FundsDecimal supply;
-    std::optional<AssetId> assetId;
+    wrt::optional<AssetId> assetId;
 };
 
 struct CancelationData {
@@ -219,19 +219,19 @@ struct LiquidityDepositData {
     AssetBasic assetInfo;
     Funds_uint64 baseDeposited;
     Wart quoteDeposited;
-    std::optional<Funds_uint64> sharesReceived;
+    wrt::optional<Funds_uint64> sharesReceived;
 };
 
 struct LiquidityWithdrawalData {
     static constexpr const char label[] = "LiquidityWithdrawal";
     AssetBasic assetInfo;
     Funds_uint64 sharesRedeemed;
-    std::optional<Funds_uint64> baseReceived;
-    std::optional<Wart> quoteReceived;
+    wrt::optional<Funds_uint64> baseReceived;
+    wrt::optional<Wart> quoteReceived;
 };
 
 struct Actions {
-    std::optional<block::Reward> reward;
+    wrt::optional<block::Reward> reward;
     std::vector<block::WartTransfer> wartTransfers;
     std::vector<block::TokenTransfer> tokenTransfers;
     std::vector<block::AssetCreation> assetCreations;

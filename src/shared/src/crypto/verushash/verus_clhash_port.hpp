@@ -5,7 +5,7 @@
 #include "verushash.hpp"
 #include <cstddef>
 #include <cstdint>
-#include <optional>
+#include "wrt/optional.hpp"
 #include <span>
 uint64_t verusclhash_sv2_1_port(void *random, const unsigned char buf[64],
                                 uint64_t keyMask, __m128i **pMoveScratch);

@@ -7,7 +7,7 @@
 #include <atomic>
 #include <chrono>
 #include <cstdint>
-#include <optional>
+#include "wrt/optional.hpp"
 
 class AddressManager;
 class EventloopVariables {
@@ -55,7 +55,7 @@ public:
     virtual ~ConnectionData(){}
     virtual bool inbound() const = 0;
     virtual Peeraddr peer_addr() const = 0;
-    virtual std::optional<ConnectRequest> connect_request() const = 0;
+    virtual wrt::optional<ConnectRequest> connect_request() const = 0;
 };
 
 class Connection : public ConnectionData {

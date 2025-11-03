@@ -19,7 +19,7 @@ class ChainServer : public std::enable_shared_from_this<ChainServer> {
 public:
     // can be called concurrently
     Batch get_headers(BatchSelector selector);
-    std::optional<HeaderView> get_descriptor_header(Descriptor descriptor, Height height);
+    wrt::optional<HeaderView> get_descriptor_header(Descriptor descriptor, Height height);
     ConsensusSlave get_chainstate();
 
     void shutdown();
@@ -195,8 +195,8 @@ private:
     struct Token { };
 
 public:
-    ChainServer(ChainDB& b, BatchRegistry&, std::optional<SnapshotSigner> snapshotSigner, Token);
-    static auto make_chain_server(ChainDB& b, BatchRegistry& br, std::optional<SnapshotSigner> snapshotSigner)
+    ChainServer(ChainDB& b, BatchRegistry&, wrt::optional<SnapshotSigner> snapshotSigner, Token);
+    static auto make_chain_server(ChainDB& b, BatchRegistry& br, wrt::optional<SnapshotSigner> snapshotSigner)
     {
         return std::make_shared<ChainServer>(b, br, snapshotSigner, Token {});
     }
@@ -299,7 +299,7 @@ private:
 
     // state variables
     chainserver::State state;
-    std::optional<logging::TimingSession> timing;
+    wrt::optional<logging::TimingSession> timing;
 
     // mutex protected variables
     std::mutex mutex;

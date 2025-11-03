@@ -136,7 +136,7 @@ public:
         assert(q.has_value());
         return { *b, *q };
     }
-    [[nodiscard]] std::optional<BaseQuote_uint64> withdraw_liquity(NonzeroFunds_uint64 shares)
+    [[nodiscard]] wrt::optional<BaseQuote_uint64> withdraw_liquity(NonzeroFunds_uint64 shares)
     {
         if (sharesTotal < shares.value())
             return {};

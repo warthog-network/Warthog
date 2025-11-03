@@ -6,7 +6,7 @@
 namespace {
 using nlohmann::json;
 template <typename T>
-std::optional<T> get_optional(const json& j, std::string_view key)
+wrt::optional<T> get_optional(const json& j, std::string_view key)
 {
     auto it { j.find(key) };
     if (it == j.end())
@@ -58,7 +58,7 @@ NonceId extract_nonce_id(const nlohmann::json& json)
 CompactUInt extract_fee(const nlohmann::json& json)
 {
     try {
-        std::optional<Wart> fee;
+        wrt::optional<Wart> fee;
         auto iter = json.find("fee");
         if (iter != json.end()) {
             fee = { Wart::parse_throw(iter->get<std::string>()) };
@@ -97,7 +97,7 @@ Address extract_to_addr(const nlohmann::json& json)
 Wart extract_wart(const nlohmann::json& json)
 {
     try {
-        std::optional<Wart> f;
+        wrt::optional<Wart> f;
         auto iter = json.find("amount");
         if (iter != json.end()) {
             f = Wart::parse(iter->get<std::string>());

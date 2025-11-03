@@ -22,8 +22,8 @@ private:
     const State& ccs; // const ref
     ChainDBTransaction transaction;
     Height chainlength;
-    std::optional<RollbackResult> rb;
-    std::optional<AppendBlocksResult> applyResult;
+    wrt::optional<RollbackResult> rb;
+    wrt::optional<AppendBlocksResult> applyResult;
     std::vector<api::CompleteBlock> apiBlocks;
 
     bool commited = false;

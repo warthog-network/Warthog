@@ -59,7 +59,7 @@ std::vector<ChainOffender> StageState::on_result(const stage_operation::StageAdd
         clear_non_pending();
     return offenders;
 }
-std::optional<Height> StageState::on_result(const stage_operation::StageSetStatus& e)
+wrt::optional<Height> StageState::on_result(const stage_operation::StageSetStatus& e)
 {
     auto data { pendingOperation.pop_set_data() };
     if (!e.firstMissHeight || (staleFrom.has_value() && *staleFrom < *e.firstMissHeight)) {

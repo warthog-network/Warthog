@@ -113,9 +113,9 @@ public:
         , nextOrder(newOrders.begin())
     {
     }
-    std::optional<OrderData> operator()()
+    wrt::optional<OrderData> operator()()
     {
-        std::optional<OrderData> res;
+        wrt::optional<OrderData> res;
         prefetch_new();
         prefetch_old();
         if (o_old && (!o_new || sorted_t::in_order(*o_old, *o_new))) {
@@ -130,8 +130,8 @@ public:
 
 private:
     loader_t loader; // order loader that loads from database
-    std::optional<OrderData> o_old;
-    std::optional<OrderData> o_new;
+    wrt::optional<OrderData> o_old;
+    wrt::optional<OrderData> o_new;
     bool loaderDrained { false };
     sorted_t newOrders; // orders not yet in block
     sorted_t::const_iterator nextOrder;
@@ -162,7 +162,7 @@ struct OrderAggregator {
         }
         return o;
     }
-    std::optional<Price_uint64> next_price() const
+    wrt::optional<Price_uint64> next_price() const
     {
         if (finished)
             return {};
@@ -181,7 +181,7 @@ private:
             return;
 
         while (true) {
-            std::optional<OrderData> o { l() };
+            wrt::optional<OrderData> o { l() };
             if (!o) {
                 finished = true;
                 return;
@@ -754,7 +754,7 @@ struct InsertHistoryEntry {
     }
     history::Entry he;
     HistoryId historyId;
-    std::optional<HistoryId> parent;
+    wrt::optional<HistoryId> parent;
 };
 
 class HistoryIdGenerator {
@@ -944,7 +944,7 @@ private:
             balanceChecker.register_asset_creation(ac, height);
     }
 
-    auto process_new_balance(const AccountToken& at, const BalanceFlow& tokenFlow, std::optional<BalanceId> id = {})
+    auto process_new_balance(const AccountToken& at, const BalanceFlow& tokenFlow, wrt::optional<BalanceId> id = {})
     {
         if (tokenFlow.total.positive().is_zero())
             throw Error(EIDNOTREFERENCED); // id was not referred
@@ -1103,7 +1103,7 @@ private:
 
     private:
         AssetBasic _info;
-        mutable std::optional<LoadedPool> o;
+        mutable wrt::optional<LoadedPool> o;
     };
     void process_token_sections()
     {

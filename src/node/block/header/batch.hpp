@@ -92,7 +92,7 @@ public:
     }
     inline HeaderView first() const { return HeaderView(bytes.data()); }
     bool operator==(const Headervec& b) const { return bytes == b.bytes; }
-    std::optional<HeaderView> get_header(size_t id) const
+    wrt::optional<HeaderView> get_header(size_t id) const
     {
         size_t offset = id * 80;
         if (bytes.size() < offset + 80)
@@ -236,7 +236,7 @@ public:
     {
         return Batchslot(Headervec::size());
     }
-    [[nodiscard]] std::optional<ChainPin> back_pin() const
+    [[nodiscard]] wrt::optional<ChainPin> back_pin() const
     {
         if (size() > 0) {
             return ChainPin { slot_end().offset(), last() };

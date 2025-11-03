@@ -9,7 +9,7 @@ class ConsensusSlave {
     using RollbackData = chainserver::state_update::SignedSnapshotApply;
 
 public:
-    ConsensusSlave(std::optional<SignedSnapshot>, Descriptor descriptor, Headerchain headerchain);
+    ConsensusSlave(wrt::optional<SignedSnapshot>, Descriptor descriptor, Headerchain headerchain);
     Worksum total_work() const
     {
         return headerchain->total_work();
@@ -27,13 +27,13 @@ public:
 
     [[nodiscard]] auto apply(Append&& append) -> std::pair<Height, AppendMsg>;
     [[nodiscard]] auto apply(Fork&& fork) -> ForkMsg;
-    [[nodiscard]] auto apply(const RollbackData&) -> std::optional<SignedPinRollbackMsg>;
+    [[nodiscard]] auto apply(const RollbackData&) -> wrt::optional<SignedPinRollbackMsg>;
     [[nodiscard]] auto ratelimit_spare() const { return ratelimitSpare; }
 
 private:
     void update_ratelimit_spare(Height newlength);
     size_t ratelimitSpare { 0 }; // rate limit extra tokens throttling
-    std::optional<SignedSnapshot> signedSnapshot;
+    wrt::optional<SignedSnapshot> signedSnapshot;
     Descriptor descriptor_ { 0 };
     std::shared_ptr<Headerchain> headerchain;
     mutable std::shared_ptr<std::shared_ptr<Headerchain>> pinGenerator;

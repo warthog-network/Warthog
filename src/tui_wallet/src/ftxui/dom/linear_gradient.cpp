@@ -6,7 +6,7 @@
 #include <cstddef>                        // for size_t
 #include <ftxui/dom/linear_gradient.hpp>  // for LinearGradient::Stop, LinearGradient
 #include <memory>    // for allocator_traits<>::value_type, make_shared
-#include <optional>  // for optional, operator!=, operator<
+#include "wrt/optional.hpp"  // for optional, operator!=, operator<
 #include <utility>   // for move
 #include <vector>    // for vector
 

@@ -1,5 +1,5 @@
 #pragma once
-#include <optional>
+#include "wrt/optional.hpp"
 
 class SyncState {
 public:
@@ -18,7 +18,7 @@ public:
         hasInitializedConnections = hasConnections;
     }
 
-    [[nodiscard]] std::optional<bool> detect_change()
+    [[nodiscard]] wrt::optional<bool> detect_change()
     {
         bool newState;
         if (oldState == true) {

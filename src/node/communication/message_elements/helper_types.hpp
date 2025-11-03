@@ -6,7 +6,7 @@
 #include "general/errors_forward.hpp"
 #include <cstddef>
 #include <cstdint>
-#include <optional>
+#include "wrt/optional.hpp"
 #include <string>
 #include <vector>
 
@@ -68,13 +68,13 @@ struct VectorRest : public std::vector<T> {
 
 
 template <typename T>
-class Optional : public std::optional<T> {
+class Optional : public wrt::optional<T> {
 public:
-    using std::optional<T>::optional;
+    using wrt::optional<T>::optional;
     size_t byte_size() const;
     Optional(Reader&);
-    Optional(std::optional<T> o)
-        : std::optional<T>(std::move(o))
+    Optional(wrt::optional<T> o)
+        : wrt::optional<T>(std::move(o))
     {
     }
 };
@@ -96,8 +96,8 @@ struct CurrentAndRequested {
     CurrentAndRequested(Reader& r);
     friend Writer& operator<<(Writer&, const CurrentAndRequested&);
     size_t byte_size() const;
-    std::optional<Header> requested;
-    std::optional<Header> current;
+    wrt::optional<Header> requested;
+    wrt::optional<Header> current;
 };
 
 struct BatchSelector {

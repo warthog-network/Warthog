@@ -9,14 +9,14 @@ class OrderLoaderBase {
     OrderLoaderBase(sqlite::Statement& stmt);
 
 public:
-    [[nodiscard]] std::optional<OrderData> operator()() const;
+    [[nodiscard]] wrt::optional<OrderData> operator()() const;
     OrderLoaderBase(const OrderLoaderBase&) = delete;
     OrderLoaderBase(OrderLoaderBase&& other);
     ~OrderLoaderBase();
 
 private:
     sqlite::Statement* stmt;
-    std::optional<OrderData> loaded;
+    wrt::optional<OrderData> loaded;
 };
 
 template <bool ASCENDING>

@@ -68,7 +68,7 @@ struct Peeraddr {
     }
     Peerhost host() const;
     variant_t data;
-    [[nodiscard]] std::optional<IP> ip() const;
+    [[nodiscard]] wrt::optional<IP> ip() const;
     [[nodiscard]] uint16_t port() const;
     bool operator==(const Peeraddr&) const = default;
     std::string to_string() const;

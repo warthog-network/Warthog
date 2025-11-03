@@ -129,12 +129,12 @@ json EntryWithTimer::to_json() const
     return j;
 }
 
-std::optional<time_point> EntryWithTimer::wakeup_time() const
+wrt::optional<time_point> EntryWithTimer::wakeup_time() const
 {
     return timer.wakeup_time();
 }
 
-std::optional<time_point> EntryWithTimer::make_expired_pending(time_point now, std::vector<ConnectRequest>& outpending)
+wrt::optional<time_point> EntryWithTimer::make_expired_pending(time_point now, std::vector<ConnectRequest>& outpending)
 {
     if (!timer.active())
         return {};
@@ -174,7 +174,7 @@ json VerifiedEntry::to_json() const
     return json;
 }
 
-void TimeoutInfo::update_wakeup_time(const std::optional<time_point>& tp)
+void TimeoutInfo::update_wakeup_time(const wrt::optional<time_point>& tp)
 {
     if (tp && (!wakeup_tp || wakeup_tp > tp))
         wakeup_tp = tp;
@@ -276,7 +276,7 @@ TCPConnectionSchedule::TCPConnectionSchedule(InitArg ia)
     spdlog::info("Pinned {} peer{}.", ia.pin.size(), (ia.pin.size() == 1 ? "" : "s"));
 }
 
-[[nodiscard]] auto TCPConnectionSchedule::find_disconnected(const TCPPeeraddr& a) -> std::optional<FoundDisconnected>
+[[nodiscard]] auto TCPConnectionSchedule::find_disconnected(const TCPPeeraddr& a) -> wrt::optional<FoundDisconnected>
 {
     EntryWithTimer* p = disconnectedVerified.find(a);
     if (p)
@@ -285,7 +285,7 @@ TCPConnectionSchedule::TCPConnectionSchedule(InitArg ia)
         return FoundDisconnected { *p, feelers, false };
     return {};
 }
-auto TCPConnectionSchedule::find(const TCPPeeraddr& a) -> std::optional<Found>
+auto TCPConnectionSchedule::find(const TCPPeeraddr& a) -> wrt::optional<Found>
 {
     VectorEntry* p { connectedVerified.find(a) };
     if (p)
@@ -298,7 +298,7 @@ auto TCPConnectionSchedule::find(const TCPPeeraddr& a) -> std::optional<Found>
     return {};
 }
 
-std::optional<ConnectRequest> TCPConnectionSchedule::add_feeler(TCPPeeraddr addr, Source src)
+wrt::optional<ConnectRequest> TCPConnectionSchedule::add_feeler(TCPPeeraddr addr, Source src)
 {
     if (auto o { find(addr) }) {
         // only track sources of addresses that are not verified
@@ -472,7 +472,7 @@ auto TCPConnectionSchedule::to_json() const -> json
     };
 }
 
-auto TCPConnectionSchedule::updated_wakeup_time() -> std::optional<time_point>
+auto TCPConnectionSchedule::updated_wakeup_time() -> wrt::optional<time_point>
 {
     return wakeup_tp.pop();
 }

@@ -4,7 +4,7 @@
 #include "general/serializer_fwd.hxx"
 #include "general/with_uint64.hpp"
 #include <cassert>
-#include <optional>
+#include "wrt/optional.hpp"
 
 class AssetPrecision { // number of decimal places
 private:
@@ -45,7 +45,7 @@ public:
             return *o;
         throw Error(ETOKENPRECISION);
     }
-    static constexpr std::optional<AssetPrecision> from_number(uint8_t v)
+    static constexpr wrt::optional<AssetPrecision> from_number(uint8_t v)
     {
         if (v > max)
             return {};
@@ -55,7 +55,7 @@ public:
 constexpr const AssetPrecision AssetPrecision::zero { 0 };
 
 struct ParsedFunds {
-    [[nodiscard]] static std::optional<ParsedFunds> parse(std::string_view);
+    [[nodiscard]] static wrt::optional<ParsedFunds> parse(std::string_view);
     ParsedFunds(std::string_view);
     ParsedFunds(uint64_t v, uint8_t decimalPlaces)
         : v(v)
@@ -74,7 +74,7 @@ public:
     constexpr FundsBase(uint64_t val)
         : IsUint64(val) { };
     static constexpr R zero() { return { 0 }; }
-    static constexpr std::optional<R> from_value(uint64_t val) { return R(val); }
+    static constexpr wrt::optional<R> from_value(uint64_t val) { return R(val); }
     static constexpr R from_value_throw(uint64_t val) { return R(val); }
     auto operator<=>(const FundsBase<R>&) const = default;
 
@@ -90,7 +90,7 @@ public:
         *this = sum_assert(*this, add);
     }
 
-    static std::optional<R> sum(FundsBase<R> a, FundsBase<R> b)
+    static wrt::optional<R> sum(FundsBase<R> a, FundsBase<R> b)
     {
         auto s { a.val + b.val };
         if (s < a.val)
@@ -99,7 +99,7 @@ public:
     }
 
     template <typename... T>
-    static std::optional<R> sum(FundsBase<R> a, FundsBase<R> b, T&&... t)
+    static wrt::optional<R> sum(FundsBase<R> a, FundsBase<R> b, T&&... t)
     {
         auto s { sum(a, b) };
         if (!s.has_value())
@@ -128,7 +128,7 @@ public:
     {
         *this = diff_assert(*this, f);
     }
-    friend std::optional<R> diff(FundsBase<R> a, FundsBase<R> b)
+    friend wrt::optional<R> diff(FundsBase<R> a, FundsBase<R> b)
     {
         if (a.val < b.val)
             return {};
@@ -155,8 +155,8 @@ public:
     using FundsBase<Funds_uint64>::FundsBase;
     Funds_uint64(Reader& r);
     auto operator<=>(const Funds_uint64&) const = default;
-    static std::optional<Funds_uint64> parse(std::string_view, AssetPrecision);
-    static std::optional<Funds_uint64> parse(ParsedFunds, AssetPrecision);
+    static wrt::optional<Funds_uint64> parse(std::string_view, AssetPrecision);
+    static wrt::optional<Funds_uint64> parse(ParsedFunds, AssetPrecision);
     static Funds_uint64 parse_throw(std::string_view, AssetPrecision);
     FundsDecimal to_decimal(AssetPrecision d) const;
 };
@@ -210,8 +210,8 @@ public:
         return Wart(f.value());
     }
     auto operator<=>(const Wart&) const = default;
-    static std::optional<Wart> parse(std::string_view);
-    static std::optional<Wart> parse(ParsedFunds);
+    static wrt::optional<Wart> parse(std::string_view);
+    static wrt::optional<Wart> parse(ParsedFunds);
     static Wart parse_throw(std::string_view);
     std::string to_string() const;
     uint64_t E8() const { return val; };

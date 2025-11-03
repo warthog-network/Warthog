@@ -105,7 +105,7 @@ void Server::prune_db()
 
 void Server::finalize_aggregators(Timestamp t, bool drain)
 {
-    std::optional<SQLite::Transaction> tx;
+    wrt::optional<SQLite::Transaction> tx;
     auto finalize {
         [&](auto& aggregator) {
             using agg_t = std::remove_cvref_t<decltype(aggregator)>::agg_t;

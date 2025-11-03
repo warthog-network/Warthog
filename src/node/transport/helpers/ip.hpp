@@ -79,7 +79,7 @@ public:
         : data(ip) {};
     IP(IPv6 ip)
         : data(ip) {};
-    [[nodiscard]] static std::optional<IP> parse(std::string_view s)
+    [[nodiscard]] static wrt::optional<IP> parse(std::string_view s)
     {
         if (auto ipv4 { IPv4::parse(s) })
             return IP { *ipv4 };

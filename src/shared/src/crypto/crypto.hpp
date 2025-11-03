@@ -6,7 +6,7 @@
 #include <array>
 #include <cassert>
 #include <cstring>
-#include <optional>
+#include "wrt/optional.hpp"
 
 void ECC_Start();
 void ECC_Stop();
@@ -61,7 +61,7 @@ public:
     static constexpr size_t byte_size() { return length; }
     RecoverableSignature(View<65>);
     RecoverableSignature(std::string_view);
-    static std::optional<RecoverableSignature> from_view(View<65>);
+    static wrt::optional<RecoverableSignature> from_view(View<65>);
     std::string to_string() const;
     void serialize(uint8_t* out65) const;
     std::array<uint8_t, 65> serialize() const

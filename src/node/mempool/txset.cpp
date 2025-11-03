@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <random>
 namespace mempool {
-auto Txset::by_fee_inc_le(AccountId id, std::optional<CompactUInt> threshold) const -> std::vector<const_iter_t>
+auto Txset::by_fee_inc_le(AccountId id, wrt::optional<CompactUInt> threshold) const -> std::vector<const_iter_t>
 {
     auto lb { _set.lower_bound(id) };
     auto ub { _set.upper_bound(id) };

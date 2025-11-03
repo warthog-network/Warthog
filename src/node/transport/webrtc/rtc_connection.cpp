@@ -136,7 +136,7 @@ void RTCConnection::close(Error e)
 }
 
 // called by eventloop thread
-std::optional<Error> RTCConnection::set_sdp_answer(OneIpSdp sdp)
+wrt::optional<Error> RTCConnection::set_sdp_answer(OneIpSdp sdp)
 {
     // TODO update port;
     log_rtc("Setting remote description for ip {}", sdp.ip().to_string());

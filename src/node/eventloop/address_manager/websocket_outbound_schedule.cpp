@@ -90,7 +90,7 @@ bool WSConnectionSchedule::erase(const WSUrladdr& addr)
     return false;
 }
 
-auto WSConnectionSchedule::pop_wakeup_time() -> std::optional<time_point>
+auto WSConnectionSchedule::pop_wakeup_time() -> wrt::optional<time_point>
 {
     return wakeup_tp.pop();
 }

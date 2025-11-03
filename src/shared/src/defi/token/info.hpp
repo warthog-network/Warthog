@@ -13,7 +13,7 @@ struct AssetDetailData {
     AccountId ownerAccountId;
     Funds_uint64 totalSupply;
     TokenId group_id;
-    std::optional<TokenId> parent_id;
+    wrt::optional<TokenId> parent_id;
 };
 struct AssetDetail: public AssetBasic, public AssetDetailData {
 };

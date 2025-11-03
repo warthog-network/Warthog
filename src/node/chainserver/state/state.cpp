@@ -48,7 +48,7 @@ auto MiningCache::insert(const Address& a, bool disableTxs, value_t v) -> const 
     return cache.back().b;
 }
 
-State::State(ChainDB& db, BatchRegistry& br, std::optional<SnapshotSigner> snapshotSigner)
+State::State(ChainDB& db, BatchRegistry& br, wrt::optional<SnapshotSigner> snapshotSigner)
     : db(db)
     , dbcache(db)
     , batchRegistry(br)
@@ -60,14 +60,14 @@ State::State(ChainDB& db, BatchRegistry& br, std::optional<SnapshotSigner> snaps
 {
 }
 
-std::optional<std::pair<NonzeroHeight, Header>> State::get_header(Height h) const
+wrt::optional<std::pair<NonzeroHeight, Header>> State::get_header(Height h) const
 {
     if (auto p { chainstate.headers().get_header(h) }; p.has_value())
         return std::pair<NonzeroHeight, Header> { h.nonzero_assert(), Header(p.value()) };
     return {};
 }
 
-auto State::api_get_header(api::HeightOrHash& hh) const -> std::optional<std::pair<NonzeroHeight, Header>>
+auto State::api_get_header(api::HeightOrHash& hh) const -> wrt::optional<std::pair<NonzeroHeight, Header>>
 {
     if (std::holds_alternative<Height>(hh.data)) {
         return get_header(std::get<Height>(hh.data));
@@ -78,7 +78,7 @@ auto State::api_get_header(api::HeightOrHash& hh) const -> std::optional<std::pa
     return get_header(*h);
 }
 
-std::optional<NonzeroHeight> State::consensus_height(const Hash& hash) const
+wrt::optional<NonzeroHeight> State::consensus_height(const Hash& hash) const
 {
     auto o { db.lookup_block_height(hash) };
     if (!o.has_value())
@@ -90,12 +90,12 @@ std::optional<NonzeroHeight> State::consensus_height(const Hash& hash) const
     return h;
 }
 
-std::optional<Hash> State::get_hash(Height h) const
+wrt::optional<Hash> State::get_hash(Height h) const
 {
     return chainstate.headers().get_hash(h);
 }
 
-std::optional<api::BlockBinary> State::api_get_block_binary(const api::HeightOrHash& hh) const
+wrt::optional<api::BlockBinary> State::api_get_block_binary(const api::HeightOrHash& hh) const
 {
     if (std::holds_alternative<Height>(hh.data)) {
         return api_get_block_binary(std::get<Height>(hh.data));
@@ -106,7 +106,7 @@ std::optional<api::BlockBinary> State::api_get_block_binary(const api::HeightOrH
     return api_get_block_binary(*h);
 }
 
-std::optional<api::Block> State::api_get_block(const api::HeightOrHash& hh) const
+wrt::optional<api::Block> State::api_get_block(const api::HeightOrHash& hh) const
 {
     if (std::holds_alternative<Height>(hh.data)) {
         return api_get_block(std::get<Height>(hh.data));
@@ -211,7 +211,7 @@ void push_history(api::Block& b, const std::pair<HistoryId, history::Entry>& p, 
 }
 }
 
-std::optional<api::BlockBinary> State::api_get_block_binary(Height h) const
+wrt::optional<api::BlockBinary> State::api_get_block_binary(Height h) const
 {
     return db.consensus_block_id(h)
         .and_then([&](BlockId id) {
@@ -226,7 +226,7 @@ std::optional<api::BlockBinary> State::api_get_block_binary(Height h) const
             };
         });
 }
-std::optional<api::Block> State::api_get_block(Height zh) const
+wrt::optional<api::Block> State::api_get_block(Height zh) const
 {
     if (zh == 0 || zh > chainlength())
         return {};
@@ -462,7 +462,7 @@ api::Transaction State::api_dispatch_history(const TxHash& txHash, HistoryId hid
     );
 }
 
-std::optional<api::Transaction> State::api_get_tx(const TxHash& txHash) const
+wrt::optional<api::Transaction> State::api_get_tx(const TxHash& txHash) const
 {
     if (auto p { chainstate.mempool()[txHash] }; p)
         return api_dispatch_mempool(txHash, std::move(*p));
@@ -495,7 +495,7 @@ auto State::api_get_latest_blocks(size_t N) const -> api::TransactionsByBlocks
     return api_get_transaction_range(lower, upper);
 }
 
-auto State::api_get_miner(NonzeroHeight h) const -> std::optional<api::AddressWithId>
+auto State::api_get_miner(NonzeroHeight h) const -> wrt::optional<api::AddressWithId>
 {
     if (chainlength() < h)
         return {};
@@ -583,7 +583,7 @@ Batch State::get_headers_concurrent(BatchSelector s) const
     }
 }
 
-std::optional<HeaderView> State::get_header_concurrent(Descriptor descriptor, Height height) const
+wrt::optional<HeaderView> State::get_header_concurrent(Descriptor descriptor, Height height) const
 {
     std::lock_guard l(chainstateMutex);
     if (descriptor == chainstate.descriptor()) {
@@ -724,7 +724,7 @@ stage_operation::StageSetStatus State::set_stage(Headerchain&& hc)
     auto t = db.transaction();
     NonzeroHeight fh1 { fork_height(chainstate.headers(), hc) };
     NonzeroHeight fh2 { fork_height(stage, hc) };
-    std::optional<NonzeroHeight> newProtectBegin;
+    wrt::optional<NonzeroHeight> newProtectBegin;
     if (fh1 >= fh2) {
         newProtectBegin = fh1;
         if (fh1 > fh2)
@@ -823,8 +823,8 @@ public:
     using PoolAction = wrt::variant<DeletePool, UpdatePool>;
 
     struct OrderAction {
-        std::optional<rollback::OrderFillstate> fillstate;
-        std::optional<chain_db::OrderData> create;
+        wrt::optional<rollback::OrderFillstate> fillstate;
+        wrt::optional<chain_db::OrderData> create;
     };
 
     std::vector<TransactionMessage> toMempool;
@@ -1074,8 +1074,8 @@ auto State::apply_stage(ChainDBTransaction&& t) -> ApplyStageResult
 
     chainserver::ApplyStageTransaction tr { *this, std::move(t) };
     tr.consider_rollback(fh - 1);
-    std::optional<Worksum> errorWorksum;
-    std::optional<Header> errorHeader;
+    wrt::optional<Worksum> errorWorksum;
+    wrt::optional<Header> errorHeader;
     auto status { tr.apply_stage_blocks() };
     if (status.is_error()) {
         if (config().localDebug) {
@@ -1104,7 +1104,7 @@ auto State::apply_stage(ChainDBTransaction&& t) -> ApplyStageResult
     return { { status }, errorWorksum, errorHeader, update };
 }
 
-auto State::apply_signed_snapshot(SignedSnapshot&& ssnew) -> std::optional<StateUpdateWithAPIBlocks>
+auto State::apply_signed_snapshot(SignedSnapshot&& ssnew) -> wrt::optional<StateUpdateWithAPIBlocks>
 {
     if (signedSnapshot >= ssnew) {
         return {};
@@ -1226,9 +1226,9 @@ api::WartBalance State::api_get_wart_balance(api::AccountIdOrAddress a) const
     return res;
 }
 
-std::optional<TokenId> State::normalize(api::TokenIdOrSpec token) const
+wrt::optional<TokenId> State::normalize(api::TokenIdOrSpec token) const
 {
-    return token.map_alternative([&](const api::TokenSpec& h) -> std::optional<TokenId> {
+    return token.map_alternative([&](const api::TokenSpec& h) -> wrt::optional<TokenId> {
         auto o { db.lookup_asset(h.assetHash) };
         if (o) {
             auto tid { o->id.token_id(h.poolLiquidity) };
@@ -1245,7 +1245,7 @@ size_t State::on_mempool_constraint_update()
 {
     return chainstate.on_mempool_constraint_update();
 }
-std::optional<AccountId> State::normalize(api::AccountIdOrAddress a) const
+wrt::optional<AccountId> State::normalize(api::AccountIdOrAddress a) const
 {
     return a.map_alternative([&](const Address& a) { return db.lookup_account(a); });
 }
@@ -1265,7 +1265,7 @@ api::TokenBalance State::api_get_token_balance_recursive(AccountId aid, TokenId 
         api::AssetLookupTrace trace;
         auto [balanceId, funds] { db.get_token_balance_recursive(aid, tid, &trace) };
 
-        std::optional<AssetPrecision> prec;
+        wrt::optional<AssetPrecision> prec;
         if (tid.is_liquidity() || !trace.fails.empty()) {
             prec = trace.fails.front().precision; // pool shares have WART precision by definition
         } else {
@@ -1282,7 +1282,7 @@ api::TokenBalance State::api_get_token_balance_recursive(AccountId aid, TokenId 
     return api::TokenBalance::notfound();
 }
 
-// std::optional<AssetDetail> State::db_lookup_token(const api::AssetIdOrHash& token) const
+// wrt::optional<AssetDetail> State::db_lookup_token(const api::AssetIdOrHash& token) const
 // {
 //     return token.visit([&](const auto& token) { return db.lookup_asset(token); });
 // }
@@ -1323,7 +1323,7 @@ auto State::api_get_mempool(size_t n) const -> api::MempoolEntries
     return out;
 }
 
-auto State::api_get_history(Address a, int64_t beforeId) const -> std::optional<api::AccountHistory>
+auto State::api_get_history(Address a, int64_t beforeId) const -> wrt::optional<api::AccountHistory>
 {
     auto p = db.lookup_account(a);
     if (!p)
@@ -1406,7 +1406,7 @@ auto State::get_body_data(DescriptedBlockRange range) const -> std::vector<BodyD
     return res;
 }
 
-auto State::get_mempool_tx(TransactionId txid) const -> std::optional<TransactionMessage>
+auto State::get_mempool_tx(TransactionId txid) const -> wrt::optional<TransactionMessage>
 {
     return chainstate.mempool()[txid];
 }
@@ -1454,7 +1454,7 @@ auto State::commit_append(AppendBlocksResult&& abr) -> StateUpdate
     };
 }
 
-std::optional<SignedSnapshot> State::try_sign_locked_chainstate()
+wrt::optional<SignedSnapshot> State::try_sign_locked_chainstate()
 {
     // here, chainstateMutex should be locked already
     if ((!signedSnapshot.has_value() || (signedSnapshot->height() < chainstate.length()))

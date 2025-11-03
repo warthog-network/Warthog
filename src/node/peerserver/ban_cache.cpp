@@ -37,19 +37,19 @@ void BanCache::ban(const IP& ip, ErrorTimepoint banUntil)
     ip.visit([&](auto& ip) { return ban_internal(ip, banUntil); });
 }
 
-auto BanCache::get_expiration_internal(const IPv4& ip) -> std::optional<Timepoint>
+auto BanCache::get_expiration_internal(const IPv4& ip) -> wrt::optional<Timepoint>
 {
     if (auto f { banmapv4.find(ip) })
         return f->timepoint;
     return {};
 }
 
-auto BanCache::get_expiration_internal(const IPv6& ip) -> std::optional<Timepoint>
+auto BanCache::get_expiration_internal(const IPv6& ip) -> wrt::optional<Timepoint>
 {
     return std::max(banmapv6_48.lookup_expiration(ip.ban_handle48()), banmapv6_32.lookup_expiration(ip.ban_handle32()));
 }
 
-auto BanCache::get_expiration(const IP& ip) -> std::optional<Timepoint>
+auto BanCache::get_expiration(const IP& ip) -> wrt::optional<Timepoint>
 {
     return ip.visit([&](auto& ip) { return get_expiration_internal(ip); });
 }

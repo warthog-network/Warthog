@@ -58,11 +58,11 @@ class State {
 
 public:
     // constructor/destructor
-    State(ChainDB& b, BatchRegistry&, std::optional<SnapshotSigner> snapshotSigner);
+    State(ChainDB& b, BatchRegistry&, wrt::optional<SnapshotSigner> snapshotSigner);
 
     // concurrent methods
     Batch get_headers_concurrent(BatchSelector selector) const;
-    std::optional<HeaderView> get_header_concurrent(Descriptor descriptor, Height height) const;
+    wrt::optional<HeaderView> get_header_concurrent(Descriptor descriptor, Height height) const;
     ConsensusSlave get_chainstate_concurrent();
 
     // normal methods
@@ -81,8 +81,8 @@ public:
     auto set_stage(Headerchain&& hc) -> stage_operation::StageSetStatus;
     struct StageActionResult {
         stage_operation::StageAddStatus status;
-        std::optional<RogueHeaderData> rogueHeaderData;
-        std::optional<state_update::StateUpdateWithAPIBlocks> update;
+        wrt::optional<RogueHeaderData> rogueHeaderData;
+        wrt::optional<state_update::StateUpdateWithAPIBlocks> update;
     };
     auto add_stage(const std::vector<Block>& blocks, const Headerchain&) -> StageActionResult;
 
@@ -98,56 +98,56 @@ public:
     }
 
     // general getters
-    auto get_header(Height h) const -> std::optional<std::pair<NonzeroHeight, Header>>;
+    auto get_header(Height h) const -> wrt::optional<std::pair<NonzeroHeight, Header>>;
     auto get_headers() const { return chainstate.headers(); }
-    auto get_hash(Height h) const -> std::optional<Hash>;
+    auto get_hash(Height h) const -> wrt::optional<Hash>;
     auto get_body_data(DescriptedBlockRange) const -> std::vector<BodyData>;
-    auto get_mempool_tx(TransactionId) const -> std::optional<TransactionMessage>;
+    auto get_mempool_tx(TransactionId) const -> wrt::optional<TransactionMessage>;
 
     // api getters
     api::WartBalance api_get_wart_balance(api::AccountIdOrAddress a) const;
     api::TokenBalance api_get_token_balance_recursive(api::AccountIdOrAddress a, api::TokenIdOrSpec t) const;
     api::TokenBalance api_get_token_balance_recursive(AccountId, TokenId) const;
     auto api_get_head() const -> api::ChainHead;
-    auto api_get_history(Address a, int64_t beforeId = 0x7fffffffffffffff) const -> std::optional<api::AccountHistory>;
+    auto api_get_history(Address a, int64_t beforeId = 0x7fffffffffffffff) const -> wrt::optional<api::AccountHistory>;
     auto api_get_richlist(api::TokenIdOrSpec token, size_t limit) const -> Result<api::Richlist>;
     auto api_get_mempool(size_t) const -> api::MempoolEntries;
-    auto api_get_tx(const TxHash& hash) const -> std::optional<api::Transaction>;
+    auto api_get_tx(const TxHash& hash) const -> wrt::optional<api::Transaction>;
     auto api_get_transaction_minfee() -> api::TransactionMinfee;
     auto api_get_latest_txs(size_t N = 100) const -> api::TransactionsByBlocks;
     auto api_get_latest_blocks(size_t N = 100) const -> api::TransactionsByBlocks;
-    auto api_get_miner(NonzeroHeight h) const -> std::optional<api::AddressWithId>;
+    auto api_get_miner(NonzeroHeight h) const -> wrt::optional<api::AddressWithId>;
     auto api_get_latest_miners(uint32_t N = 1000) const -> std::vector<api::AddressWithId>;
     auto api_get_miners(HeightRange) const -> std::vector<api::AddressWithId>;
     auto api_get_transaction_range(HistoryId lower, HistoryId upper) const -> api::TransactionsByBlocks;
-    auto api_get_header(api::HeightOrHash& h) const -> std::optional<std::pair<NonzeroHeight, Header>>;
-    auto api_get_block(const api::HeightOrHash& h) const -> std::optional<api::Block>;
-    auto api_get_block_binary(const api::HeightOrHash& h) const -> std::optional<api::BlockBinary>;
+    auto api_get_header(api::HeightOrHash& h) const -> wrt::optional<std::pair<NonzeroHeight, Header>>;
+    auto api_get_block(const api::HeightOrHash& h) const -> wrt::optional<api::Block>;
+    auto api_get_block_binary(const api::HeightOrHash& h) const -> wrt::optional<api::BlockBinary>;
     auto api_tx_cache() const -> const TransactionIds;
     size_t api_db_size() const;
 
 private:
-    [[nodiscard]] std::optional<TokenId> normalize(api::TokenIdOrSpec) const;
-    [[nodiscard]] std::optional<AccountId> normalize(api::AccountIdOrAddress) const;
-    // std::optional<AssetDetail> db_lookup_token(const api::AssetIdOrHash&) const;
+    [[nodiscard]] wrt::optional<TokenId> normalize(api::TokenIdOrSpec) const;
+    [[nodiscard]] wrt::optional<AccountId> normalize(api::AccountIdOrAddress) const;
+    // wrt::optional<AssetDetail> db_lookup_token(const api::AssetIdOrHash&) const;
     // delegated getters
-    auto api_get_block(Height h) const -> std::optional<api::Block>;
-    auto api_get_block_binary(Height h) const -> std::optional<api::BlockBinary>;
-    std::optional<NonzeroHeight> consensus_height(const Hash&) const;
+    auto api_get_block(Height h) const -> wrt::optional<api::Block>;
+    auto api_get_block_binary(Height h) const -> wrt::optional<api::BlockBinary>;
+    wrt::optional<NonzeroHeight> consensus_height(const Hash&) const;
     NonzeroHeight next_height() const { return chainlength().add1(); }
 
     // transactions
 
     struct ApplyStageResult {
         stage_operation::StageAddStatus status;
-        std::optional<Worksum> errorWorksum; // has value when status is not 0
-        std::optional<Header> errorHeader; // has value when status is not 0
-        std::optional<state_update::StateUpdateWithAPIBlocks> update;
+        wrt::optional<Worksum> errorWorksum; // has value when status is not 0
+        wrt::optional<Header> errorHeader; // has value when status is not 0
+        wrt::optional<state_update::StateUpdateWithAPIBlocks> update;
     };
     [[nodiscard]] auto apply_stage(ChainDBTransaction&& t) -> ApplyStageResult;
 
 public:
-    [[nodiscard]] auto apply_signed_snapshot(SignedSnapshot&& sp) -> std::optional<StateUpdateWithAPIBlocks>;
+    [[nodiscard]] auto apply_signed_snapshot(SignedSnapshot&& sp) -> wrt::optional<StateUpdateWithAPIBlocks>;
     //  stageUpdate;
     [[nodiscard]] auto append_mined_block(const Block&) -> StateUpdateWithAPIBlocks;
 
@@ -161,7 +161,7 @@ private:
     // finalize helpers
     [[nodiscard]] auto commit_fork(RollbackResult&& rr, AppendBlocksResult&&) -> StateUpdate;
     [[nodiscard]] auto commit_append(AppendBlocksResult&& abr) -> StateUpdate;
-    std::optional<SignedSnapshot> try_sign_locked_chainstate();
+    wrt::optional<SignedSnapshot> try_sign_locked_chainstate();
     MiningCache::CacheValidity mining_cache_validity();
 
 private:
@@ -170,8 +170,8 @@ private:
     mutable DBCache dbcache;
     BatchRegistry& batchRegistry;
 
-    std::optional<SnapshotSigner> snapshotSigner;
-    std::optional<SignedSnapshot> signedSnapshot;
+    wrt::optional<SnapshotSigner> snapshotSigner;
+    wrt::optional<SignedSnapshot> signedSnapshot;
 
     int dbCacheValidity { 0 };
     tp signAfter { tp::max() };

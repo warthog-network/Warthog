@@ -2,7 +2,7 @@
 
 #include "general/with_uint64.hpp"
 #include <chrono>
-#include <optional>
+#include "wrt/optional.hpp"
 // #include <compare>
 // #include <cstdint>
 template <uint32_t seconds>
@@ -74,7 +74,7 @@ private:
     friend class Timestamp;
 
 public:
-    static std::optional<RoundedTimestamp<seconds>> try_from_timestamp(Timestamp ts)
+    static wrt::optional<RoundedTimestamp<seconds>> try_from_timestamp(Timestamp ts)
     {
         if (ts.value() % seconds == 0)
             return RoundedTimestamp<seconds> { ts };

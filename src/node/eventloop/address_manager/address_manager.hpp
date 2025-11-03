@@ -123,7 +123,7 @@ public:
     json to_json() const;
 
     void verify(std::vector<TCPPeeraddr>, IPv4 source);
-    [[nodiscard]] std::optional<Conref> find(uint64_t id) const;
+    [[nodiscard]] wrt::optional<Conref> find(uint64_t id) const;
     size_t size() const { return conndatamap.size(); }
     size_t ip_count(const IP& ip) const { return ipCounter.count(ip); };
     bool erase(Conref); // returns whether is pinned
@@ -144,11 +144,11 @@ public:
     void garbage_collect();
 
     void start_scheduled_connections();
-    [[nodiscard]] std::optional<time_point> pop_scheduled_connect_time();
+    [[nodiscard]] wrt::optional<time_point> pop_scheduled_connect_time();
 
 private:
     bool is_own_endpoint(Peeraddr a);
-    std::optional<Conref> eviction_candidate() const;
+    wrt::optional<Conref> eviction_candidate() const;
 
 #ifndef DISABLE_LIBUV
 #endif

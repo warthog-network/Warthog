@@ -15,12 +15,12 @@ namespace defi {
     const auto price { *pr };
 
     Orderbook_uint64 ob;
-    std::optional<Price_uint64> lower, upper;
+    wrt::optional<Price_uint64> lower, upper;
     BaseQuote_uint64 filled { 0, 0 };
 
     // load sell orders below pool price
     size_t I { 0 }; // sell index bound
-    std::optional<Price_uint64> p;
+    wrt::optional<Price_uint64> p;
     while (true) {
         auto np { loaderSellAsc.next_price() };
         if (!np)
@@ -94,7 +94,7 @@ namespace defi {
     } };
 
     if (upper && !more_quote_less_base(*upper)) {
-        std::optional<Price_uint64> np { loaderSellAsc.next_price() };
+        wrt::optional<Price_uint64> np { loaderSellAsc.next_price() };
         while (np) {
 
             while (auto b { upper_buy_bound() }) {
@@ -113,7 +113,7 @@ namespace defi {
             np = loaderSellAsc.next_price();
         }
     } else if (lower && more_quote_less_base(*lower)) {
-        std::optional<Price_uint64> np { loaderBuyDesc.next_price() };
+        wrt::optional<Price_uint64> np { loaderBuyDesc.next_price() };
         while (np) {
 
             while (auto b { lower_sell_bound() }) {

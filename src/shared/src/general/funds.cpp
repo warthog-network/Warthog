@@ -13,7 +13,7 @@ AssetPrecision::AssetPrecision(Reader& r)
 {
 }
 
-std::optional<ParsedFunds> ParsedFunds::parse(std::string_view s)
+wrt::optional<ParsedFunds> ParsedFunds::parse(std::string_view s)
 {
     constexpr const size_t N { 20 }; // max uint64_t has 20 digits max
     char buf[N];
@@ -91,7 +91,7 @@ Funds_uint64::Funds_uint64(Reader& r)
 {
 }
 
-std::optional<Funds_uint64> Funds_uint64::parse(std::string_view s, AssetPrecision digits)
+wrt::optional<Funds_uint64> Funds_uint64::parse(std::string_view s, AssetPrecision digits)
 {
     auto fd { ParsedFunds::parse(s) };
     if (!fd)
@@ -99,7 +99,7 @@ std::optional<Funds_uint64> Funds_uint64::parse(std::string_view s, AssetPrecisi
     return parse(*fd, digits);
 }
 
-std::optional<Funds_uint64> Funds_uint64::parse(ParsedFunds fd, AssetPrecision digits)
+wrt::optional<Funds_uint64> Funds_uint64::parse(ParsedFunds fd, AssetPrecision digits)
 {
     if (fd.decimalPlaces > digits())
         return {};
@@ -121,7 +121,7 @@ nlohmann::json Supply::to_json() const{
     };
 }
 
-std::optional<Wart> Wart::parse(std::string_view s)
+wrt::optional<Wart> Wart::parse(std::string_view s)
 {
     auto fd { ParsedFunds::parse(s) };
     if (!fd)
@@ -129,7 +129,7 @@ std::optional<Wart> Wart::parse(std::string_view s)
     return parse(*fd);
 }
 
-std::optional<Wart> Wart::parse(ParsedFunds fd)
+wrt::optional<Wart> Wart::parse(ParsedFunds fd)
 {
     auto p { Funds_uint64::parse(fd, AssetPrecision::digits8()) };
     if (p)

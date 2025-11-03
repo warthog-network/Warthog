@@ -1,7 +1,7 @@
 #pragma once
 
 #include <chrono>
-#include <optional>
+#include "wrt/optional.hpp"
 
 namespace connection_schedule {
 class WakeupTime {
@@ -25,7 +25,7 @@ public:
 
     auto& val() const { return wakeup_tp; }
 
-    void consider(const std::optional<time_point>& newval)
+    void consider(const wrt::optional<time_point>& newval)
     {
         if (newval.has_value() && (!wakeup_tp.has_value() || *wakeup_tp > *newval)) {
             wakeup_tp = newval;
@@ -34,7 +34,7 @@ public:
     }
 
 private:
-    std::optional<time_point> wakeup_tp;
-    std::optional<time_point> popped_tp;
+    wrt::optional<time_point> wakeup_tp;
+    wrt::optional<time_point> popped_tp;
 };
 }

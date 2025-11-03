@@ -143,7 +143,7 @@
 //         return (uint64_t)i;
 //     }
 //     template <typename T>
-//     operator std::optional<T>() const
+//     operator wrt::optional<T>() const
 //     {
 //         if (isNull())
 //             return {};
@@ -242,7 +242,7 @@
 //         }
 //
 //         template <typename T>
-//         operator std::optional<T>()
+//         operator wrt::optional<T>()
 //         {
 //             if (!hasValue)
 //                 return {};
@@ -252,7 +252,7 @@
 //         auto process(auto lambda) const
 //         {
 //             using ret_t = std::remove_cvref_t<decltype(lambda(*this))>;
-//             std::optional<ret_t> r;
+//             wrt::optional<ret_t> r;
 //             if (has_value())
 //                 r = lambda(*this);
 //             return r;

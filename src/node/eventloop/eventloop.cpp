@@ -814,7 +814,7 @@ void Eventloop::handle_event(GeneratedVerificationSdpOffer&& m)
 
     auto ips { IdentityIps::from_sdp(m.sdp) };
 
-    std::optional<IP> selected { ips.get_ip_with_type(verifyIp.type()) };
+    wrt::optional<IP> selected { ips.get_ip_with_type(verifyIp.type()) };
     if (!selected.has_value()) {
         rtcCon.close(ERTCNOPEER);
         return;

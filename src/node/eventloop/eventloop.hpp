@@ -341,7 +341,7 @@ private:
     };
     struct Loadtest {
         uint64_t connId;
-        std::optional<RequestType> requestType;
+        wrt::optional<RequestType> requestType;
         ResultCb callback;
     };
     struct PushRogue {
@@ -435,12 +435,12 @@ private: // private data
     // Conndatamap connections;
     StageAndConsensus chains;
     mempool::Mempool mempool; // copy of chainserver mempool
-    std::optional<SyncTiming> syncTiming;
+    wrt::optional<SyncTiming> syncTiming;
 
     AddressManager connections;
 
     TimerSystem timerSystem;
-    std::optional<Timer> wakeupTimer;
+    wrt::optional<Timer> wakeupTimer;
 
     // Request related
     size_t activeRequests = 0;
@@ -462,7 +462,7 @@ private: // private data
     std::condition_variable cv;
     std::mutex mutex;
     bool haswork = false;
-    std::optional<Error> closeReason {};
+    wrt::optional<Error> closeReason {};
     bool blockdownloadHalted = false;
     std::queue<Event> events;
     std::thread worker; // worker (constructed last)

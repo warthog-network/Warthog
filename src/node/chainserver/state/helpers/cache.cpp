@@ -28,7 +28,7 @@ const AssetDetail* AssetCacheByHash::lookup(AssetHash h)
     return nullptr;
 }
 
-const std::optional<Address>& AddressCache::get(AccountId id)
+const wrt::optional<Address>& AddressCache::get(AccountId id)
 {
     auto iter { map.find(id) };
     if (iter == map.end())

@@ -2,7 +2,7 @@
 #include "SQLiteCpp/Column.h"
 #include <cassert>
 #include <cstdint>
-#include <optional>
+#include "wrt/optional.hpp"
 #include <vector>
 
 namespace sqlite {
@@ -10,7 +10,7 @@ struct Column : public SQLite::Column {
     template <typename T>
     operator T() const;
     template <typename T>
-    operator std::optional<T>() const
+    operator wrt::optional<T>() const
     {
         if (isNull())
             return {};
@@ -36,7 +36,7 @@ public:
     std::array<uint8_t, N> get_array(int index) const;
     std::vector<uint8_t> get_vector(int index) const;
     template <typename T>
-    operator std::optional<T>();
+    operator wrt::optional<T>();
     bool has_value() const { return hasValue; }
     auto process(auto lambda) const;
 

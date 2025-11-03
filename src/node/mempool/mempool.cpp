@@ -84,7 +84,7 @@ void Mempool::apply_logevent(const Erase& e)
     api::event::emit_mempool_erase(e, size());
 }
 
-std::optional<TransactionMessage> Mempool::operator[](const TransactionId& id) const
+wrt::optional<TransactionMessage> Mempool::operator[](const TransactionId& id) const
 {
     auto iter = txs().find(id);
     if (iter == txs().end())
@@ -92,7 +92,7 @@ std::optional<TransactionMessage> Mempool::operator[](const TransactionId& id) c
     return *static_cast<const TransactionMessage*>(&*iter);
 }
 
-std::optional<TransactionMessage> Mempool::operator[](const HashView txHash) const
+wrt::optional<TransactionMessage> Mempool::operator[](const HashView txHash) const
 {
     auto iter = index.hash().find(txHash);
     if (iter == index.hash().end())
@@ -101,7 +101,7 @@ std::optional<TransactionMessage> Mempool::operator[](const HashView txHash) con
     return *static_cast<const TransactionMessage*>(&**iter);
 }
 
-auto Mempool::erase_internal(Txset::const_iter_t iter, balance_iterator wartIter, std::optional<balance_iterator> tokenIter) -> EraseResult
+auto Mempool::erase_internal(Txset::const_iter_t iter, balance_iterator wartIter, wrt::optional<balance_iterator> tokenIter) -> EraseResult
 {
     assert(size() == index.size());
     assert(size() == byFee.size());
@@ -255,7 +255,7 @@ Error Mempool::insert_tx(const TransactionMessage& pm, TxHeight txh, const TxHas
     }
 }
 
-std::optional<TokenFunds> Mempool::token_spend_throw(const TransactionMessage& pm, chainserver::DBCache& cache) const
+wrt::optional<TokenFunds> Mempool::token_spend_throw(const TransactionMessage& pm, chainserver::DBCache& cache) const
 {
     TokenId tokenId { TokenId::WART };
     if (auto s { pm.spend_token_throw() }) {
@@ -268,7 +268,7 @@ std::optional<TokenFunds> Mempool::token_spend_throw(const TransactionMessage& p
     }
     return {};
 }
-auto Mempool::get_balance(AccountToken at, chainserver::DBCache& cache) -> std::pair<LockedBalance, std::optional<balance_iterator>>
+auto Mempool::get_balance(AccountToken at, chainserver::DBCache& cache) -> std::pair<LockedBalance, wrt::optional<balance_iterator>>
 {
     auto balanceIter { lockedBalances.upper_bound(at) };
     if (balanceIter == lockedBalances.end() || balanceIter->first != at) {
@@ -296,7 +296,7 @@ void Mempool::insert_tx_throw(const TransactionMessage& pm,
 
     auto fromId { pm.from_id() };
 
-    std::optional<Txset::const_iter_t> match;
+    wrt::optional<Txset::const_iter_t> match;
     std::vector<Txset::const_iter_t> clear;
     const auto& t { txs };
     if (auto iter = t().find(pm.txid()); iter != t().end()) {

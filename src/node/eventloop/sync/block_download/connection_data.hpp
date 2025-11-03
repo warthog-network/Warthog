@@ -31,7 +31,7 @@ private:
         void udpate_iter_range(ForkIter iter, ForkRange range);
         ForkData(std::shared_ptr<Descripted> d, ForkIter fi, ForkRange forkRange);
     };
-    std::optional<ForkData> forkData;
+    wrt::optional<ForkData> forkData;
 
 public:
     FocusMap::iterator focusIter;

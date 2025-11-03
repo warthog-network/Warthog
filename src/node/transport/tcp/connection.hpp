@@ -11,7 +11,7 @@ class TCPConnection final : public AuthenticatableConnection, public std::enable
 
     void send_impl(std::unique_ptr<char[]> data, size_t size) override;
     uint16_t listen_port() const override;
-    std::optional<ConnectRequest> connect_request() const override;
+    wrt::optional<ConnectRequest> connect_request() const override;
 
     struct Token {
     };

@@ -35,7 +35,7 @@ class BlockGenerator {
         {
         }
 
-        std::optional<AccountId> getId(const AddressView address, bool allowNew)
+        wrt::optional<AccountId> getId(const AddressView address, bool allowNew)
         {
             if (auto iter = cache.find(address); iter != cache.end()) {
                 return iter->second;

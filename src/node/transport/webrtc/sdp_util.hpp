@@ -10,8 +10,8 @@ class Writer;
 namespace sdp_filter {
 
 [[nodiscard]] std::vector<IP> udp_ips(std::string_view);
-[[nodiscard]] std::optional<IP> load_ip(std::string_view);
-[[nodiscard]] std::optional<std::string> only_udp_ip(const IP&, std::string_view);
+[[nodiscard]] wrt::optional<IP> load_ip(std::string_view);
+[[nodiscard]] wrt::optional<std::string> only_udp_ip(const IP&, std::string_view);
 
 }
 
@@ -38,7 +38,7 @@ struct IdentityIps {
     [[nodiscard]] static IdentityIps from_sdp(const std::string& sdp);
     auto& get_ip4() const { return ipv4; };
     auto& get_ip6() const { return ipv6; };
-    std::optional<IP> get_ip_with_type(IpType t) const
+    wrt::optional<IP> get_ip_with_type(IpType t) const
     {
         using enum IpType;
         if (t == v4) {
@@ -62,6 +62,6 @@ struct IdentityIps {
 private:
     void assign(IPv4 ip) { ipv4 = std::move(ip); }
     void assign(IPv6 ip) { ipv6 = std::move(ip); }
-    std::optional<IPv4> ipv4;
-    std::optional<IPv6> ipv6;
+    wrt::optional<IPv4> ipv4;
+    wrt::optional<IPv6> ipv6;
 };

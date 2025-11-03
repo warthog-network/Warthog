@@ -64,7 +64,7 @@ struct ConnectionJob {
     }
     using data_t = std::variant<AwaitInit, std::monostate, Proberequest, HeaderRequest, BlockRequest>;
     data_t data_v;
-    std::optional<Timer> timer;
+    wrt::optional<Timer> timer;
 
     template <typename T>
     requires T::is_reply
@@ -138,7 +138,7 @@ struct Ping {
         data = std::move(d);
         timer = t;
     }
-    std::optional<Timer> sleep(Timer t)
+    wrt::optional<Timer> sleep(Timer t)
     {
         auto tmp = timer;
         assert(has_value());
@@ -171,7 +171,7 @@ struct Ping {
         return d;
     }
 
-    std::optional<eventloop::Timer> timer;
+    wrt::optional<eventloop::Timer> timer;
 
 private:
     bool has_value() const { return !std::holds_alternative<std::monostate>(data); }
@@ -213,8 +213,8 @@ struct TimingLog {
 };
 
 struct Loadtest {
-    std::optional<RequestType> job;
-    [[nodiscard]] std::optional<Request> generate_load(Conref);
+    wrt::optional<RequestType> job;
+    [[nodiscard]] wrt::optional<Request> generate_load(Conref);
 };
 
 struct ThrottleDelay {
@@ -303,7 +303,7 @@ struct ThrottleQueue {
 private:
     ThrottleDelay td;
     std::deque<messages::Msg> rateLimitedInput;
-    std::optional<eventloop::Timer> timer;
+    wrt::optional<eventloop::Timer> timer;
 };
 
 struct Ratelimit {
@@ -353,7 +353,7 @@ class ConState {
 public:
     ConState(std::shared_ptr<ConnectionBase> c, const ConnectionInserter&);
     std::shared_ptr<ConnectionBase> c;
-    std::optional<mempool::SubscriptionIter> subscriptionIter;
+    wrt::optional<mempool::SubscriptionIter> subscriptionIter;
     ConState(ConState&&) = default;
     ConnectionJob job;
     Height txSubscription { 0 };

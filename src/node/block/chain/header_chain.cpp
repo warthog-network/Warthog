@@ -9,7 +9,7 @@
 using namespace std;
 
 
-std::optional<HeaderView> HeaderchainSkeleton::inefficient_search_header(NonzeroHeight h) const
+wrt::optional<HeaderView> HeaderchainSkeleton::inefficient_search_header(NonzeroHeight h) const
 {
     return HeaderSearchRecursive(finalPin, incompleteBatch).find_prev(h);
 }
@@ -266,7 +266,7 @@ Batch Headerchain::get_headers(HeaderRange range) const
     return Batch(std::move(tmp));
 }
 
-std::optional<HeaderView> Headerchain::get_header(Height h) const
+wrt::optional<HeaderView> Headerchain::get_header(Height h) const
 {
     if (h == 0 || h > length())
         return {};
@@ -290,9 +290,9 @@ ForkHeight fork_height(const Headerchain& h1, const Headerchain& h2, NonzeroHeig
     return { NonzeroHeight(uint32_t(f * HEADERBATCHSIZE + forkIndex + 1)), forked };
 }
 
-std::optional<NonzeroHeight> Headerchain::max_match_height(const HeaderSpan& hrange) const
+wrt::optional<NonzeroHeight> Headerchain::max_match_height(const HeaderSpan& hrange) const
 {
-    std::optional<NonzeroHeight> h;
+    wrt::optional<NonzeroHeight> h;
     for (auto header1 : hrange) {
         auto header2 { get_header(header1.height) };
         if (header2 != header1)

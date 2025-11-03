@@ -189,8 +189,8 @@ private:
     }
     std::mutex m;
     bool sent { false };
-    std::optional<api::ChainHead> head;
-    std::optional<bool> synced;
+    wrt::optional<api::ChainHead> head;
+    wrt::optional<bool> synced;
     HeadCb cb;
 };
 }
@@ -254,8 +254,8 @@ private:
     }
     std::mutex m;
     bool sent { false };
-    std::optional<ChainMiningTask> miningTask;
-    std::optional<bool> synced;
+    wrt::optional<ChainMiningTask> miningTask;
+    wrt::optional<bool> synced;
     MiningCb cb;
 };
 }

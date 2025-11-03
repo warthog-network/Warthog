@@ -4,7 +4,7 @@
 #include <cassert>
 #include <cmath>
 #include <cstdint>
-#include <optional>
+#include "wrt/optional.hpp"
 #include <string>
 struct Price_uint64 {
 private:
@@ -14,7 +14,7 @@ private:
     {
     }
 
-    [[nodiscard]] static std::optional<Price_uint64> compose(auto mantissa, int e)
+    [[nodiscard]] static wrt::optional<Price_uint64> compose(auto mantissa, int e)
     {
         if (!is_exponent(e) || !is_mantissa(mantissa))
             return {};
@@ -84,14 +84,14 @@ public:
         auto b10e { base10_exponent(prec) };
         return to_double_raw() * std::pow(10.0, b10e);
     }
-    [[nodiscard]] static std::optional<Price_uint64>
+    [[nodiscard]] static wrt::optional<Price_uint64>
     from_mantissa_exponent(uint32_t mantissa, int exponent)
     {
         exponent += 63;
         return compose(mantissa, exponent);
     }
 
-    std::optional<Price_uint64> prev_step() const
+    wrt::optional<Price_uint64> prev_step() const
     {
         auto m { _m - 1 };
         if (is_mantissa(m))
@@ -103,7 +103,7 @@ public:
             return {};
         return Price_uint64(m, e);
     }
-    std::optional<Price_uint64> next_step() const
+    wrt::optional<Price_uint64> next_step() const
     {
         auto m { _m + 1 };
         if (is_mantissa(m))
@@ -117,7 +117,7 @@ public:
 
     auto operator<=>(const Price_uint64&) const = default;
 
-    static std::optional<Price_uint64> from_double(double d)
+    static wrt::optional<Price_uint64> from_double(double d)
     {
         if (d <= 0.0)
             return {};
@@ -127,7 +127,7 @@ public:
         return from_mantissa_exponent(mantissa32, exp);
     }
 
-    static std::optional<Price_uint64> from_string(std::string s)
+    static wrt::optional<Price_uint64> from_string(std::string s)
     {
         try {
             return from_double(std::stod(s));
@@ -154,7 +154,7 @@ struct PriceRelative_uint64 { // gives details relative to price grid
         return price.operator<=>(p2);
     }
     const Price_uint64& floor() const { return price; }
-    std::optional<Price_uint64> ceil() const
+    wrt::optional<Price_uint64> ceil() const
     {
         if (exact) {
             return price;
@@ -173,7 +173,7 @@ struct PriceRelative_uint64 { // gives details relative to price grid
         }
         return rel;
     }
-    [[nodiscard]] static std::optional<PriceRelative_uint64> from_fraction(uint64_t numerator,
+    [[nodiscard]] static wrt::optional<PriceRelative_uint64> from_fraction(uint64_t numerator,
         uint64_t denominator)
     { // OK
         if (numerator == 0) {
@@ -231,7 +231,7 @@ private:
     bool exact;
 };
 
-inline std::optional<uint64_t> divide(uint64_t a, Price_uint64 p, bool ceil)
+inline wrt::optional<uint64_t> divide(uint64_t a, Price_uint64 p, bool ceil)
 { // OK
     if (a == 0)
         return 0ull;
@@ -263,20 +263,20 @@ inline std::optional<uint64_t> divide(uint64_t a, Price_uint64 p, bool ceil)
     return res;
 }
 
-[[nodiscard]] inline std::optional<uint64_t> divide_floor(uint64_t a, Price_uint64 p)
+[[nodiscard]] inline wrt::optional<uint64_t> divide_floor(uint64_t a, Price_uint64 p)
 {
     return divide(a, p, false);
 }
-[[nodiscard]] inline std::optional<uint64_t> divide_ceil(uint64_t a, Price_uint64 p)
+[[nodiscard]] inline wrt::optional<uint64_t> divide_ceil(uint64_t a, Price_uint64 p)
 {
     return divide(a, p, true);
 }
-inline std::optional<uint64_t> multiply_floor(uint64_t a, Price_uint64 p)
+inline wrt::optional<uint64_t> multiply_floor(uint64_t a, Price_uint64 p)
 {
     return Prod128(p.mantissa_16bit(), a).pow2_64(p.mantissa_exponent2(), false);
 }
 
-inline std::optional<uint64_t> multiply_ceil(uint64_t a, Price_uint64 p)
+inline wrt::optional<uint64_t> multiply_ceil(uint64_t a, Price_uint64 p)
 {
     return Prod128(p.mantissa_16bit(), a).pow2_64(p.mantissa_exponent2(), true);
 }

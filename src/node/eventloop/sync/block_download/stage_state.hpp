@@ -78,7 +78,7 @@ private: // data
 struct StageState {
     // data
     Height stageSetAck { 0 };
-    std::optional<Height> staleFrom;
+    wrt::optional<Height> staleFrom;
     PendingStageOperation pendingOperation;
 
     // methods
@@ -91,7 +91,7 @@ struct StageState {
     void clear();
     void clear_non_pending();
     [[nodiscard]] std::vector<ChainOffender> on_result(const stage_operation::StageAddStatus&);
-    [[nodiscard]] std::optional<Height> on_result(const stage_operation::StageSetStatus&);
+    [[nodiscard]] wrt::optional<Height> on_result(const stage_operation::StageSetStatus&);
 
 private:
     bool stageSetPhase { true };

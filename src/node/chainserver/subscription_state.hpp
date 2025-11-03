@@ -7,13 +7,13 @@
 #include "crypto/address.hpp"
 #include <list>
 #include <map>
-#include <optional>
+#include "wrt/optional.hpp"
 #include <vector>
 
 namespace subscription_state {
 
 struct NewBlockInfo {
-    std::optional<ShrinkInfo> rollback;
+    wrt::optional<ShrinkInfo> rollback;
     std::vector<api::CompleteBlock>& newBlocks;
 };
 }
@@ -75,7 +75,7 @@ private:
 
     void fill_aggregator(const chainserver::State& a);
 
-    std::optional<Aggregator> aggregator;
+    wrt::optional<Aggregator> aggregator;
     SubscriptionVector subscriptions;
     static constexpr size_t nMiners { 1000 };
 };
@@ -88,7 +88,7 @@ struct SessionAddressCursor {
 };
 
 struct SessionData {
-    std::optional<SessionAddressCursor> session_cursor(const api::Block& b);
+    wrt::optional<SessionAddressCursor> session_cursor(const api::Block& b);
     bool forceReload { false }; // whether the history must be reloaded
                                 // (in case of > 100 entries
                                 // or dirty from rollback)
@@ -135,7 +135,7 @@ private:
     void session_rollback(Height h);
     void session_block(const api::Block&);
     void session_end(const chainserver::State&);
-    std::optional<SessionAddressCursor> session_address_cursor(const api::Block& b, const Address& a, Height);
+    wrt::optional<SessionAddressCursor> session_address_cursor(const api::Block& b, const Address& a, Height);
 };
 }
 using address_subscription::AddressSubscriptionState;

@@ -143,7 +143,7 @@ int process(gengetopt_args_info& ai)
 
     Endpoint endpoint(ai.host_arg, ai.port_arg);
     try {
-        std::optional<Wallet> w;
+        wrt::optional<Wallet> w;
         if (ai.create_given) {
             if (ai.restore_given) {
                 cerr << "Invalid option combination (--create and --restore)." << endl;

@@ -20,8 +20,8 @@ public:
     size_t size() const;
     Height upper_height() const;
     Height lower_height() const;
-    std::optional<Batchslot> slot() const;
-    std::optional<HeaderView> getHeader(size_t id) const;
+    wrt::optional<Batchslot> slot() const;
+    wrt::optional<HeaderView> getHeader(size_t id) const;
     const Batch& getBatch() const;
     Worksum total_work() const;
     bool operator==(const SharedBatchView& rhs) const;
@@ -61,11 +61,11 @@ public:
     bool operator==(const SharedBatch& p2) const;
     size_t size() const { return view().size(); }
     Height upper_height() const { return view().upper_height(); }
-    std::optional<Batchslot> slot() const { return view().slot(); }
+    wrt::optional<Batchslot> slot() const { return view().slot(); }
     Batchslot next_slot() const { return slot().value_or(Batchslot(0)) + 1; }
     Height lower_height() const { return view().lower_height(); }
-    std::optional<HeaderView> getHeader(size_t id) const { return view().getHeader(id); }
-    [[nodiscard]] std::optional<HeaderView> search_header_recursive(NonzeroHeight h) const;
+    wrt::optional<HeaderView> getHeader(size_t id) const { return view().getHeader(id); }
+    [[nodiscard]] wrt::optional<HeaderView> search_header_recursive(NonzeroHeight h) const;
     [[nodiscard]] HeaderView operator[](Height h) const { return getHeader(h - lower_height()).value(); }
     const Batch& getBatch() const { return view().getBatch(); }
     const Worksum total_work() const { return view().total_work(); }
@@ -97,7 +97,7 @@ struct Nodedata {
     {
     }
     ~Nodedata();
-    std::optional<Hash> hash_at(NonzeroHeight);
+    wrt::optional<Hash> hash_at(NonzeroHeight);
     Height upper_height() const
     {
         return slot.upper();
@@ -123,7 +123,7 @@ inline bool SharedBatch::operator==(const SharedBatch& p2) const
     return data.iter == p2.data.iter;
 }
 inline size_t SharedBatchView::size() const { return (valid() ? data.iter->second.batch.size() : 0); }
-inline std::optional<HeaderView> SharedBatchView::getHeader(size_t id) const
+inline wrt::optional<HeaderView> SharedBatchView::getHeader(size_t id) const
 {
     if (valid()) {
         return data.iter->second.batch.get_header(id);
@@ -131,7 +131,7 @@ inline std::optional<HeaderView> SharedBatchView::getHeader(size_t id) const
     return {};
 }
 
-inline std::optional<Batchslot> SharedBatchView::slot() const
+inline wrt::optional<Batchslot> SharedBatchView::slot() const
 {
     if (valid()) {
         return data.iter->second.slot;
@@ -175,7 +175,7 @@ struct HeaderSearchRecursive {
     {
     }
 
-    std::optional<HeaderView> find_prev(NonzeroHeight h)
+    wrt::optional<HeaderView> find_prev(NonzeroHeight h)
     {
         Height bStart { psb->upper_height() + 1 };
         while (h <= psb->upper_height()) {
@@ -203,8 +203,8 @@ public:
     }
     [[nodiscard]] SharedBatch share(Batch&& headerbatch, const SharedBatch& prev);
     [[nodiscard]] SharedBatch share(Batch&& headerbatch, const SharedBatch& prev, Worksum totalWork);
-    std::optional<SharedBatch> find_last(const Grid g, const std::optional<SignedSnapshot>&);
-    // std::optional<SharedBatch> findLast(const std::vector<Batch>& batches, const std::optional<SignedSnapshot>&);
+    wrt::optional<SharedBatch> find_last(const Grid g, const wrt::optional<SignedSnapshot>&);
+    // wrt::optional<SharedBatch> findLast(const std::vector<Batch>& batches, const wrt::optional<SignedSnapshot>&);
 
 private: // private methods
     template <typename T>

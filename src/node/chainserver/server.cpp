@@ -19,7 +19,7 @@ Batch ChainServer::get_headers(BatchSelector selector)
     return state.get_headers_concurrent(selector);
 }
 
-std::optional<HeaderView> ChainServer::get_descriptor_header(Descriptor descriptor, Height height)
+wrt::optional<HeaderView> ChainServer::get_descriptor_header(Descriptor descriptor, Height height)
 {
     return state.get_header_concurrent(descriptor, height);
 }
@@ -29,7 +29,7 @@ ConsensusSlave ChainServer::get_chainstate()
     return state.get_chainstate_concurrent();
 }
 
-ChainServer::ChainServer(ChainDB& db, BatchRegistry& br, std::optional<SnapshotSigner> snapshotSigner, Token)
+ChainServer::ChainServer(ChainDB& db, BatchRegistry& br, wrt::optional<SnapshotSigner> snapshotSigner, Token)
     : db(db)
     , batchRegistry(br)
     , state(db, br, snapshotSigner)
@@ -321,7 +321,7 @@ void ChainServer::handle_event(GetMempool&& e)
 void ChainServer::handle_event(LookupTxids&& e)
 {
     auto t { timing->time("LookupTxIds") };
-    std::vector<std::optional<TransactionMessage>> out;
+    std::vector<wrt::optional<TransactionMessage>> out;
     std::transform(e.txids.begin(), e.txids.end(), std::back_inserter(out),
         [&](auto txid) { return state.get_mempool_tx(txid); });
     e.callback(out);
@@ -335,7 +335,7 @@ void ChainServer::emit_chain_state_event()
 }
 
 template <typename T>
-Result<T> noval_to_err(std::optional<T>&& v)
+Result<T> noval_to_err(wrt::optional<T>&& v)
 {
     if (v)
         return *v;

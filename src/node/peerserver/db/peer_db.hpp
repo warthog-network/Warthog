@@ -107,10 +107,10 @@ public:
         Timestamp banUntil;
         Error offense;
     };
-    // std::optional<GetPeerResult> get_peer(IPv4 ipv4, uint32_t& banUntil, Error& offense)
-    [[nodiscard]] std::optional<GetPeerResult> get_peer(const IP& ip)
+    // wrt::optional<GetPeerResult> get_peer(IPv4 ipv4, uint32_t& banUntil, Error& offense)
+    [[nodiscard]] wrt::optional<GetPeerResult> get_peer(const IP& ip)
     {
-        std::optional<GetPeerResult> res;
+        wrt::optional<GetPeerResult> res;
         if (ip.is_v4()) {
             selectBan.bind(1, ip.get_v4().data);
         } else {

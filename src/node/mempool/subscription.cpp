@@ -2,7 +2,7 @@
 #include "eventloop/types/conref_declaration.hpp"
 
 namespace mempool {
-void Subscription::set(std::optional<Subscription::iter_t> iter, const mempool::OrderKey& k, Conref cr)
+void Subscription::set(wrt::optional<Subscription::iter_t> iter, const mempool::OrderKey& k, Conref cr)
 {
     if (iter)
         m.erase(*iter);

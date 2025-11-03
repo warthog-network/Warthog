@@ -100,7 +100,7 @@ inline std::vector<uint8_t> Row::get_vector(int index) const
 }
 
 template <typename T>
-inline Row::operator std::optional<T>()
+inline Row::operator wrt::optional<T>()
 {
     if (!hasValue)
         return {};
@@ -110,7 +110,7 @@ inline Row::operator std::optional<T>()
 inline auto Row::process(auto lambda) const
 {
     using ret_t = std::remove_cvref_t<decltype(lambda(*this))>;
-    std::optional<ret_t> r;
+    wrt::optional<ret_t> r;
     if (has_value())
         r = lambda(*this);
     return r;

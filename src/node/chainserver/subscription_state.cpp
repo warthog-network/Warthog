@@ -4,7 +4,7 @@
 #include "chainserver/state/state.hpp"
 #include "chainserver/state/update/update.hpp"
 #include "spdlog/spdlog.h"
-#include <optional>
+#include "wrt/optional.hpp"
 #include <ranges>
 
 namespace {
@@ -235,7 +235,7 @@ void Aggregator::count_new_iter(iter_t iter, bool trackDelta)
 
 }
 namespace address_subscription {
-std::optional<SessionAddressCursor> SessionData::session_cursor(const api::Block& b)
+wrt::optional<SessionAddressCursor> SessionData::session_cursor(const api::Block& b)
 {
     if (forceReload)
         return {};
@@ -398,7 +398,7 @@ void AddressSubscriptionState::session_block(const api::Block& b)
             c->b.actions.wartTransfers.push_back(t);
     }
 }
-std::optional<SessionAddressCursor> AddressSubscriptionState::session_address_cursor(const api::Block& b, const Address& a, Height h)
+wrt::optional<SessionAddressCursor> AddressSubscriptionState::session_address_cursor(const api::Block& b, const Address& a, Height h)
 {
     auto iter { map.find(a) };
     if (iter == map.end())

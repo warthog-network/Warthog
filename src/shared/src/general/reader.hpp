@@ -4,7 +4,7 @@
 #include "general/byte_order.hpp"
 #include "general/errors.hpp"
 #include "view.hpp"
-#include <optional>
+#include "wrt/optional.hpp"
 #include <span>
 
 // inline funcitons for access
@@ -123,7 +123,7 @@ public:
     struct Optional {
         Reader& r;
         template <typename T>
-        operator std::optional<T>()
+        operator wrt::optional<T>()
         {
             if (r.uint8())
                 return T { r };

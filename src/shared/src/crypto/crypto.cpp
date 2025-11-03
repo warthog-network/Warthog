@@ -124,7 +124,7 @@ bool PrivKey::check(const uint8_t* vch)
 // RecoverableSignature methods
 //////////////////////////////
 
-std::optional<RecoverableSignature> RecoverableSignature::from_view(View<65> v)
+wrt::optional<RecoverableSignature> RecoverableSignature::from_view(View<65> v)
 {
     RecoverableSignature res { RecoverableSignature() };
     if (res.construct(v))

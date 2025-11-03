@@ -46,7 +46,7 @@ json to_json(const api::HashrateInfo&);
 json to_json(const api::HashrateBlockChart&);
 json to_json(const api::HashrateTimeChart&);
 json to_json(const OffenseEntry& e);
-json to_json(const std::optional<SignedSnapshot>&);
+json to_json(const wrt::optional<SignedSnapshot>&);
 json to_json(const TransactionId&);
 json to_json(const AssetBasic&);
 json to_json(const chainserver::TransactionIds&);
@@ -95,7 +95,7 @@ inline std::string status(Error e)
     return j.dump(1);
 }
 
-inline std::string status(const std::optional<Error>& e)
+inline std::string status(const wrt::optional<Error>& e)
 {
     if (e.has_value()) {
         return status(Error::none);
@@ -104,7 +104,7 @@ inline std::string status(const std::optional<Error>& e)
     }
 }
 
-inline std::string serialize(const std::optional<Error>& e)
+inline std::string serialize(const wrt::optional<Error>& e)
 {
     if (e.has_value()) {
         return status(Error::none);

@@ -9,7 +9,7 @@ struct sockaddr;
 
 class Reader;
 
-constexpr std::optional<uint16_t> parse_port(const std::string_view& s)
+constexpr wrt::optional<uint16_t> parse_port(const std::string_view& s)
 {
     uint16_t out;
     if (s.size() > 5)
@@ -32,7 +32,7 @@ constexpr std::optional<uint16_t> parse_port(const std::string_view& s)
     return out;
 }
 
-std::optional<Sockaddr4> constexpr Sockaddr4::parse(const std::string_view& s)
+wrt::optional<Sockaddr4> constexpr Sockaddr4::parse(const std::string_view& s)
 {
     size_t d1 = s.find(":");
     auto ipv4str { s.substr(0, d1) };
@@ -77,7 +77,7 @@ struct TCPPeeraddr : public Sockaddr4 {
     {
         return { Sockaddr4::from_sql_id(id) };
     }
-    [[nodiscard]] static constexpr std::optional<TCPPeeraddr> parse(const std::string_view& sv)
+    [[nodiscard]] static constexpr wrt::optional<TCPPeeraddr> parse(const std::string_view& sv)
     {
         auto p { Sockaddr4::parse(sv) };
         if (p) {
@@ -103,7 +103,7 @@ struct WSPeeraddr: public Sockaddr  {
     // {
     //     return { TCPSockaddrBase::from_sql_id(id) };
     // }
-    // static constexpr std::optional<WSSockaddr> parse(const std::string_view& sv)
+    // static constexpr wrt::optional<WSSockaddr> parse(const std::string_view& sv)
     // {
     //     auto p { TCPSockaddrBase::parse(sv) };
     //     if (p) {

@@ -8,7 +8,7 @@ uint16_t TCPConnection::listen_port() const
     return conman.bindAddress.port;
 }
 
-std::optional<ConnectRequest> TCPConnection::connect_request() const
+wrt::optional<ConnectRequest> TCPConnection::connect_request() const
 {
     return connectRequest;
 }

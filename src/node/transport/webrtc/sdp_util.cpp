@@ -2,14 +2,14 @@
 #include "general/reader.hpp"
 #include "general/writer.hpp"
 #include "serialization/byte_size.hpp"
-#include <optional>
+#include "wrt/optional.hpp"
 
 namespace {
 auto udp_candidate_ip(std::string_view s)
 {
     struct Result {
         bool candidate { false };
-        std::optional<std::string_view> udp_ip;
+        wrt::optional<std::string_view> udp_ip;
     };
     if (!s.starts_with("a=candidate:"))
         return Result {};
@@ -105,7 +105,7 @@ std::vector<IP> udp_ips(std::string_view sdp)
     return out;
 }
 
-std::optional<IP> load_ip(std::string_view sdp)
+wrt::optional<IP> load_ip(std::string_view sdp)
 {
     auto ips { udp_ips(sdp) };
     if (ips.size() == 0)
@@ -118,7 +118,7 @@ std::optional<IP> load_ip(std::string_view sdp)
     return ip;
 }
 
-std::optional<std::string> only_udp_ip(const IP& ip, std::string_view sdp)
+wrt::optional<std::string> only_udp_ip(const IP& ip, std::string_view sdp)
 {
     std::vector<IP> out;
     bool found { false };

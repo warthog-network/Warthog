@@ -69,7 +69,7 @@ public:
             << ... << CombineElements<Ts..., SignatureEl>::template get<Ts>()));
     }
     [[nodiscard]] Wart spend_wart_throw() const { return this->fee(); } // default only spend fee, but is overridden in WartTransferMessage and LiquidityDepositMessage
-    // [[nodiscard]] std::optional<SpendToken> spend_token_throw() const { return {}; } // default no other token than WART
+    // [[nodiscard]] wrt::optional<SpendToken> spend_token_throw() const { return {}; } // default no other token than WART
     [[nodiscard]] Address from_address(const TxHash& txHash) const
     {
         return this->signature().recover_pubkey(txHash.data()).address();
@@ -117,7 +117,7 @@ public:
         if (amount().is_zero())
             throw Error(EZEROAMOUNT);
     }
-    [[nodiscard]] std::optional<messages::SpendToken> spend_token_throw() const { return messages::SpendToken { asset_hash(), is_liquidity(), amount() }; }
+    [[nodiscard]] wrt::optional<messages::SpendToken> spend_token_throw() const { return messages::SpendToken { asset_hash(), is_liquidity(), amount() }; }
 };
 
 class AssetCreationMessage : public ComposeTransactionMessage<3, AssetSupplyEl, AssetNameEl> {
@@ -129,7 +129,7 @@ class OrderMessage : public ComposeTransactionMessage<4, AssetHashEl, BuyEl, Amo
     static_assert(has_asset_hash);
 
 public:
-    [[nodiscard]] std::optional<messages::SpendToken> spend_token_throw() const
+    [[nodiscard]] wrt::optional<messages::SpendToken> spend_token_throw() const
     {
         if (buy())
             return {};
@@ -219,7 +219,7 @@ public:
     }
     [[nodiscard]] auto spend_token_throw() const
     {
-        return visit([]<typename T>(const T& m) -> std::optional<messages::SpendToken> {
+        return visit([]<typename T>(const T& m) -> wrt::optional<messages::SpendToken> {
             if constexpr (T::has_asset_hash) {
                 return m.spend_token_throw();
             } else {

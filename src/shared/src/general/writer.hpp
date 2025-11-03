@@ -4,7 +4,7 @@
 #include <cassert>
 #include <cstdint>
 #include <cstring>
-#include <optional>
+#include "wrt/optional.hpp"
 #include <span>
 
 class Writer {

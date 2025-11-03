@@ -61,7 +61,7 @@ namespace {
 
     struct ArgNode {
         NextNodes nextNodes;
-        std::optional<NodeData> data;
+        wrt::optional<NodeData> data;
     };
 
     struct NextAndArgNodes {
@@ -99,7 +99,7 @@ namespace {
             }
         }
         std::string chunk;
-        std::optional<NodeData> data;
+        wrt::optional<NodeData> data;
     };
 
     inline ChunkNode& NextNodes::push_back(std::string_view cn)
@@ -274,7 +274,7 @@ namespace {
             Args args;
         };
 
-        [[nodiscard]] std::optional<MatchResult> match(std::string_view s, RequestType rt)
+        [[nodiscard]] wrt::optional<MatchResult> match(std::string_view s, RequestType rt)
         {
             auto [p, args] { match_node(s) };
             if (!p || !*p)
@@ -285,12 +285,12 @@ namespace {
             }
             return {};
         }
-        std::pair<std::optional<NodeData>*, Args> match_node(std::string_view s)
+        std::pair<wrt::optional<NodeData>*, Args> match_node(std::string_view s)
         {
             s = normalize_slash(s);
             NextNodes* nn { &rootNodes.nextNodes };
             auto* an { rootNodes.argNode.get() };
-            std::optional<NodeData>* res { nullptr };
+            wrt::optional<NodeData>* res { nullptr };
             Args args;
             while (true) {
                 if (s.size() == 0)
@@ -322,7 +322,7 @@ namespace {
         bool insert(const ParsedNodes& pn, NodeData::cb_t cb, RequestType rt)
         {
             auto* pNodes { &rootNodes };
-            std::optional<NodeData>* pNodeData { nullptr };
+            wrt::optional<NodeData>* pNodeData { nullptr };
             NextNodes* nn { &rootNodes.nextNodes };
             pn.visit(
                 [&](const ChunkNode& n) {

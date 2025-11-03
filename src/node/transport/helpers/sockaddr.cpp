@@ -3,7 +3,7 @@
 #ifndef DISABLE_LIBUV
 #include <uv.h>
 
-std::optional<Sockaddr> Sockaddr::from_sockaddr_storage(const sockaddr_storage& sa){
+wrt::optional<Sockaddr> Sockaddr::from_sockaddr_storage(const sockaddr_storage& sa){
     switch (sa.ss_family) {
     case AF_INET: {
         sockaddr_in* addr_i4 = (struct sockaddr_in*)&sa;

@@ -7,7 +7,7 @@ namespace chainserver {
 namespace state_update {
     struct Fork : public HeaderchainFork {
         std::shared_ptr<Headerchain> prevChain;
-        std::optional<SignedSnapshot> signedSnapshot;
+        wrt::optional<SignedSnapshot> signedSnapshot;
     };
 
     struct SignedSnapshotApply {
@@ -15,13 +15,13 @@ namespace state_update {
             HeaderchainRollback deltaHeaders;
             std::shared_ptr<Headerchain> prevHeaders;
         };
-        std::optional<Rollback> rollback;
+        wrt::optional<Rollback> rollback;
         SignedSnapshot signedSnapshot;
     };
 
     struct Append {
         HeaderchainAppend headerchainAppend;
-        std::optional<SignedSnapshot> signedSnapshot;
+        wrt::optional<SignedSnapshot> signedSnapshot;
     };
 
     using variant_t = std::variant<
@@ -31,7 +31,7 @@ namespace state_update {
 
     struct ChainstateUpdate : public variant_t {
         using variant_t::variant;
-        std::optional<ShrinkInfo> rollback() const {
+        wrt::optional<ShrinkInfo> rollback() const {
             if (std::holds_alternative<Fork>(*this)) {
                 return std::get<Fork>(*this).shrink;
             }else if (std::holds_alternative<SignedSnapshotApply>(*this)){

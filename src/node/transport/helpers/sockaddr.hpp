@@ -30,7 +30,7 @@ struct Sockaddr4 {
     };
     IP host() const { return ip; }
     auto operator<=>(const Sockaddr4&) const = default;
-    static constexpr std::optional<Sockaddr4> parse(const std::string_view&);
+    static constexpr wrt::optional<Sockaddr4> parse(const std::string_view&);
 #ifndef DISABLE_LIBUV
     operator sockaddr() const;
     sockaddr sock_addr() const;
@@ -71,5 +71,5 @@ struct Sockaddr {
         , port(port)
     {
     }
-    static std::optional<Sockaddr> from_sockaddr_storage(const sockaddr_storage&);
+    static wrt::optional<Sockaddr> from_sockaddr_storage(const sockaddr_storage&);
 };

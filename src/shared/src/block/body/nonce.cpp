@@ -39,7 +39,7 @@ PinHeight PinNonce::pin_height_from_floored(PinFloor pf) const
     return PinHeight(h);
 }
 
-std::optional<PinNonce> PinNonce::make_pin_nonce(NonceId nid, NonzeroHeight height, PinHeight pinHeight)
+wrt::optional<PinNonce> PinNonce::make_pin_nonce(NonceId nid, NonzeroHeight height, PinHeight pinHeight)
 {
     auto ph { height.pin_floor() };
     if (ph < pinHeight)

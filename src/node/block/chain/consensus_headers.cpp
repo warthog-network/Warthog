@@ -60,7 +60,7 @@ HeaderVerifier::HeaderVerifier(const SharedBatch& b)
     }
 }
 
-tl::expected<HeaderVerifier, ChainError> HeaderVerifier::copy_apply(const std::optional<SignedSnapshot>& sp, const HeaderSpan& hrange) const
+tl::expected<HeaderVerifier, ChainError> HeaderVerifier::copy_apply(const wrt::optional<SignedSnapshot>& sp, const HeaderSpan& hrange) const
 {
     HeaderVerifier res { *this };
     assert(hrange.begin_height() == length + 1);
@@ -131,7 +131,7 @@ void HeaderVerifier::append(NonzeroHeight newlength, const PreparedAppend& p)
     }
 }
 
-auto HeaderVerifier::prepare_append(const std::optional<SignedSnapshot>& sp, HeaderView hv) const -> Result<PreparedAppend>
+auto HeaderVerifier::prepare_append(const wrt::optional<SignedSnapshot>& sp, HeaderView hv) const -> Result<PreparedAppend>
 {
     auto hash { hv.hash() };
     NonzeroHeight appendHeight { height() + 1 };
@@ -335,7 +335,7 @@ void ExtendableHeaderchain::append(const HeaderVerifier::PreparedAppend& p,
     checker.append(length().nonzero_assert(), p);
 }
 
-auto ExtendableHeaderchain::prepare_append(const std::optional<SignedSnapshot>& sp, HeaderView hv) const -> Result<HeaderVerifier::PreparedAppend>
+auto ExtendableHeaderchain::prepare_append(const wrt::optional<SignedSnapshot>& sp, HeaderView hv) const -> Result<HeaderVerifier::PreparedAppend>
 {
     return checker.prepare_append(sp, hv);
 }

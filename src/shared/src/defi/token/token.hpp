@@ -8,7 +8,7 @@
 #include <cassert>
 #include <compare>
 #include <cstdint>
-#include <optional>
+#include "wrt/optional.hpp"
 #include <string>
 
 class Reader;
@@ -31,7 +31,7 @@ class AssetName {
     }
 
 public:
-    static std::optional<AssetName> from_string(std::string s)
+    static wrt::optional<AssetName> from_string(std::string s)
     {
         if (s.size() > 5)
             return {};

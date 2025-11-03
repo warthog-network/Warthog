@@ -119,7 +119,7 @@ int run_app(int argc, char** argv)
     auto el { Eventloop::create(ps, *cs, config()) };
 
 #ifndef DISABLE_LIBUV
-    std::optional<StratumServer> stratumServer;
+    wrt::optional<StratumServer> stratumServer;
     if (config().stratumPool) {
         stratumServer.emplace(*config().stratumPool);
     }

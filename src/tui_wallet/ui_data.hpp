@@ -1,7 +1,7 @@
 #pragma once
 #include "tabs_fwd.hpp"
 
-#include <optional>
+#include "wrt/optional.hpp"
 #include <string>
 
 struct AssetNameHash {
@@ -21,9 +21,9 @@ namespace ui {
 struct SelectedAsset {
 private:
   friend AssetTab;
-  std::optional<AssetNameHash> nameHash;
+  wrt::optional<AssetNameHash> nameHash;
 
 public:
-  const std::optional<AssetNameHash> &name_hash() const { return nameHash; };
+  const wrt::optional<AssetNameHash> &name_hash() const { return nameHash; };
 };
 } // namespace ui

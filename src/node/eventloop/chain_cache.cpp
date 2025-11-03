@@ -60,7 +60,7 @@ ForkMsg StageAndConsensus::update_consensus(Fork&& fork)
     return msg;
 }
 
-auto StageAndConsensus::update_consensus(const RollbackData& rd) -> std::optional<SignedPinRollbackMsg>
+auto StageAndConsensus::update_consensus(const RollbackData& rd) -> wrt::optional<SignedPinRollbackMsg>
 {
     auto msg { consensus.apply(rd) };
     if (rd.rollback) {
@@ -72,7 +72,7 @@ auto StageAndConsensus::update_consensus(const RollbackData& rd) -> std::optiona
     return msg;
 }
 
-std::optional<ChaincacheMatch> StageAndConsensus::lookup(std::optional<ChainPin> p) const
+wrt::optional<ChaincacheMatch> StageAndConsensus::lookup(wrt::optional<ChainPin> p) const
 {
     using enum ChaincacheMatch::Type;
     if (!p.has_value()) {
@@ -98,7 +98,7 @@ std::optional<ChaincacheMatch> StageAndConsensus::lookup(std::optional<ChainPin>
     return {};
 }
 
-std::optional<HeaderVerifier> StageAndConsensus::header_verifier(const HeaderSpan& sb) const
+wrt::optional<HeaderVerifier> StageAndConsensus::header_verifier(const HeaderSpan& sb) const
 {
     struct Optimizer {
         const HeaderSpan& hr;
@@ -106,7 +106,7 @@ std::optional<HeaderVerifier> StageAndConsensus::header_verifier(const HeaderSpa
             const Headerchain* h;
             NonzeroHeight matchHeight;
         };
-        std::optional<Optimal> optimal;
+        wrt::optional<Optimal> optimal;
         Optimizer(const HeaderSpan& sb)
             : hr(sb)
         {

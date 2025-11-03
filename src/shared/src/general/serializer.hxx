@@ -3,7 +3,7 @@
 #include "general/byte_order.hpp"
 #include "serializer_fwd.hxx"
 #include <cstdint>
-#include <optional>
+#include "wrt/optional.hpp"
 #include <span>
 #include <string_view>
 
@@ -26,7 +26,7 @@ constexpr auto&& operator<<(Serializer auto&& s, ByteSwappable auto v)
 }
 
 template <typename T>
-auto&& operator<<(Serializer auto&& s, const std::optional<T>& o)
+auto&& operator<<(Serializer auto&& s, const wrt::optional<T>& o)
 {
     if (o)
         return std::forward<decltype(s)>(s << uint8_t(1) << *o);

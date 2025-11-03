@@ -2,7 +2,7 @@
 #include "general/view.hpp"
 #include <array>
 #include <cstring>
-#include <optional>
+#include "wrt/optional.hpp"
 #include <string>
 
 class Hash;
@@ -22,7 +22,7 @@ class Hash : public std::array<uint8_t, 32> {
 
 public:
     static constexpr size_t byte_size() { return 32; }
-    static std::optional<Hash> parse_string(std::string_view);
+    static wrt::optional<Hash> parse_string(std::string_view);
     static Hash uninitialized()
     {
         return {};
@@ -72,7 +72,7 @@ public:
         : Hash(std::move(other))
     {
     }
-    [[nodiscard]] static std::optional<T> parse_string(std::string_view s)
+    [[nodiscard]] static wrt::optional<T> parse_string(std::string_view s)
     {
         auto p { Hash::parse_string(s) };
         if (p)

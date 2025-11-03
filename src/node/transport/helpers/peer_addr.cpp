@@ -20,9 +20,9 @@ std::string_view Peeraddr::type_str() const
     });
 }
 
-std::optional<IP> Peeraddr::ip() const
+wrt::optional<IP> Peeraddr::ip() const
 {
-    return std::visit([](auto& sockAddr) -> std::optional<IP> {
+    return std::visit([](auto& sockAddr) -> wrt::optional<IP> {
         return sockAddr.ip;
     },
         data);

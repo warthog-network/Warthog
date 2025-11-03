@@ -20,7 +20,7 @@ private:
 
     [[nodiscard]] static expected_t try_parse_expected(Reader& r)
     {
-        std::optional<indicator_variant> o;
+        wrt::optional<indicator_variant> o;
         auto i { r.uint8() };
         if (([&] {
                 if (i == Ts::INDICATOR) {
@@ -35,7 +35,7 @@ private:
 
 public:
     static constexpr const size_t max_byte_size = Max(Ts::byte_size()...);
-    [[nodiscard]] static std::optional<indicator_variant> try_parse(Reader& r)
+    [[nodiscard]] static wrt::optional<indicator_variant> try_parse(Reader& r)
     {
         if (expected_t e { try_parse_expected(r) })
             return *e;

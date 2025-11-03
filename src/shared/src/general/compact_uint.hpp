@@ -5,7 +5,7 @@
 class Reader;
 class CompactUInt;
 class CompactUInt {
-    static std::optional<Wart> uncompact_value(uint16_t val)
+    static wrt::optional<Wart> uncompact_value(uint16_t val)
     { // OK
         uint64_t e = (val & uint64_t(0xFC00u)) >> 10; // < 2^6 = 64
         uint64_t m = (val & uint64_t(0x03FFu)) + uint64_t(0x0400u);
@@ -38,7 +38,7 @@ public:
             throw Error(EBADFEE);
         return *v;
     }
-    static std::optional<CompactUInt> from_value(uint16_t val)
+    static wrt::optional<CompactUInt> from_value(uint16_t val)
     {
         if (uncompact_value(val).has_value())
             return CompactUInt { val };

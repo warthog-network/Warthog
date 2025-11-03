@@ -76,7 +76,7 @@ auto Endpoint::send_transaction(const std::string& txjson) -> std::variant<TxHas
          << "=====================================" << endl;
 
     std::string out;
-    std::optional<std::string> error;
+    wrt::optional<std::string> error;
     std::string url = "/transaction/add";
 
     if (!http_post(url, std::vector<uint8_t>(txjson.begin(), txjson.end()), out)) {

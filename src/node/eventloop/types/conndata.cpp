@@ -10,7 +10,7 @@ using namespace std::chrono_literals;
 namespace {
 
 template <std::same_as<HeaderRequest> T>
-std::optional<Request> gen_load(Conref cr)
+wrt::optional<Request> gen_load(Conref cr)
 {
     auto descripted { cr.chain().descripted() };
     return HeaderRequest(descripted, Batchslot(descripted->chain_length()),
@@ -18,7 +18,7 @@ std::optional<Request> gen_load(Conref cr)
 }
 
 template <std::same_as<BlockRequest> T>
-std::optional<Request> gen_load(Conref cr)
+wrt::optional<Request> gen_load(Conref cr)
 {
     auto& d { cr.chain().descripted() };
     Height h { d->chain_length() };
@@ -37,7 +37,7 @@ std::optional<Request> gen_load(Conref cr)
 }
 }
 
-std::optional<Request> Loadtest::generate_load(Conref cr)
+wrt::optional<Request> Loadtest::generate_load(Conref cr)
 {
     if (!job.has_value())
         return {};

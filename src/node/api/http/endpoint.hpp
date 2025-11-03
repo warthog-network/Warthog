@@ -31,7 +31,7 @@ class HTTPEndpoint {
 public:
     static constexpr bool SSL = false;
     using event_t = api::Event;
-    static std::optional<HTTPEndpoint> make_public_endpoint(const ConfigParams&);
+    static wrt::optional<HTTPEndpoint> make_public_endpoint(const ConfigParams&);
     HTTPEndpoint(TCPPeeraddr bind, bool isPublic = false);
     void start()
     {

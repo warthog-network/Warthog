@@ -61,9 +61,9 @@ public:
 
     // operator[]
     [[nodiscard]] auto operator[](const TransactionId& id) const
-        -> std::optional<TransactionMessage>;
+        -> wrt::optional<TransactionMessage>;
     [[nodiscard]] auto operator[](const HashView txHash) const
-        -> std::optional<TransactionMessage>;
+        -> wrt::optional<TransactionMessage>;
     [[nodiscard]] size_t size() const { return txs.size(); }
     [[nodiscard]] CompactUInt min_fee() const;
 
@@ -72,14 +72,14 @@ private:
     using balance_iterator = BalanceEntries::iterator;
     void apply_logevent(const Put&);
     void apply_logevent(const Erase&);
-    [[nodiscard]] std::pair<LockedBalance, std::optional<balance_iterator>> get_balance(AccountToken at, chainserver::DBCache&);
-    [[nodiscard]] std::optional<TokenFunds> token_spend_throw(const TransactionMessage& pm, chainserver::DBCache& cache) const;
+    [[nodiscard]] std::pair<LockedBalance, wrt::optional<balance_iterator>> get_balance(AccountToken at, chainserver::DBCache&);
+    [[nodiscard]] wrt::optional<TokenFunds> token_spend_throw(const TransactionMessage& pm, chainserver::DBCache& cache) const;
     void erase_internal(Txset::const_iter_t);
     struct EraseResult {
         bool erasedWart;
         bool erasedToken;
     };
-    EraseResult erase_internal(Txset::const_iter_t, balance_iterator wartIter, std::optional<balance_iterator> tokenIter={});
+    EraseResult erase_internal(Txset::const_iter_t, balance_iterator wartIter, wrt::optional<balance_iterator> tokenIter={});
     [[nodiscard]] balance_iterator create_or_get_balance_iter(AccountToken at, chainserver::DBCache& cache);
     void prune();
 
@@ -110,7 +110,7 @@ private:
                 bool inserted;
                 bool operator==(const check_t&) const = default;
             };
-            std::optional<check_t> prev;
+            wrt::optional<check_t> prev;
             std::apply([&](auto&... args) {
                 ([&](auto& arg) {
                     auto inserted { arg.insert(iter).second };
@@ -127,7 +127,7 @@ private:
         }
         size_t erase(const_iter_t iter)
         {
-            std::optional<size_t> prevErased;
+            wrt::optional<size_t> prevErased;
             std::apply([&](auto&... args) {
                 ([&](auto& arg) {
                     auto erased { arg.erase(iter) };

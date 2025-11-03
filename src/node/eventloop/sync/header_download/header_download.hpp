@@ -22,7 +22,7 @@ using Ver_iter = VerifierMap::iterator;
 
 struct ReqData;
 struct RequestNode {
-    std::optional<Conref> cr;
+    wrt::optional<Conref> cr;
     uint64_t originId;
     Batch batch;
 
@@ -60,7 +60,7 @@ inline bool operator<(const Ver_iter& l1, const Ver_iter& l2)
     return &*l1 < &*l2;
 }
 struct QueueBatchNode {
-    std::optional<Conref> cr;
+    wrt::optional<Conref> cr;
     uint64_t originId;
     Batch batch;
     Lead_set leaderRefs;
@@ -74,7 +74,7 @@ inline bool operator<(const Queued_iter& l1, const Queued_iter& l2)
 }
 
 struct QueueEntry {
-    std::optional<Header> prevHeader;
+    wrt::optional<Header> prevHeader;
     Queued_iter iter;
 };
 
@@ -106,7 +106,7 @@ public:
     }
 
     std::deque<QueueEntry> queuedIters; // OK
-    std::optional<Ver_iter> verifier; // without value if from genesis
+    wrt::optional<Ver_iter> verifier; // without value if from genesis
     ProbeData probeData;
     Batchslot next_slot();
     Worksum verified_total_work();
@@ -131,7 +131,7 @@ private:
                 return true;
             }
 
-            std::optional<ChainPin> pin_prev() const
+            wrt::optional<ChainPin> pin_prev() const
             {
                 auto& entry = q.ln.queuedIters[i];
                 if (entry.prevHeader) {
@@ -238,7 +238,7 @@ public:
     void on_proberep(Conref c, const Proberequest& req, const ProberepMsg&);
     void on_probe_request_expire(Conref cr);
     [[nodiscard]] std::vector<ChainOffender> on_response(Conref cr, HeaderRequest&&, Batch&&);
-    [[nodiscard]] std::optional<std::tuple<LeaderInfo, Headerchain>> pop_data();
+    [[nodiscard]] wrt::optional<std::tuple<LeaderInfo, Headerchain>> pop_data();
 
 private:
     bool do_exclusive_final_requests(RequestSender&);
@@ -249,7 +249,7 @@ private:
 
     void process_final(Lead_iter, std::vector<Offender>& out);
 
-    std::optional<Conref> try_send(ConnectionFinder& cf, std::vector<ChainOffender> close, const ReqData&);
+    wrt::optional<Conref> try_send(ConnectionFinder& cf, std::vector<ChainOffender> close, const ReqData&);
     bool try_final_request(Lead_iter, RequestSender& s);
 
     std::vector<ChainOffender> filter_leadermismatch_offenders(std::vector<Offender>);
@@ -263,7 +263,7 @@ private:
 
     // queued batch related
     std::map<Header, QueueBatchNode> queuedBatches;
-    void acquire_queued_batch(std::optional<Header>, HeaderView, Lead_iter);
+    void acquire_queued_batch(wrt::optional<Header>, HeaderView, Lead_iter);
     void release_first_queued_batch(Lead_iter);
     void shift_queued_batch(Lead_iter);
 
@@ -285,7 +285,7 @@ private: // data
         HeaderchainSkeleton headers;
         Worksum worksum;
     };
-    std::optional<Maximizer> maximizer;
+    wrt::optional<Maximizer> maximizer;
     size_t pendingDepth = 10;
     size_t maxLeaders = 10;
     RogueHeaders rogueHeaders;

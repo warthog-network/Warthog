@@ -48,7 +48,7 @@ public:
         return _set;
     }
     auto& operator()() const { return _set; }
-    [[nodiscard]] std::vector<const_iter_t> by_fee_inc_le(AccountId, std::optional<CompactUInt> threshold = {}) const;
+    [[nodiscard]] std::vector<const_iter_t> by_fee_inc_le(AccountId, wrt::optional<CompactUInt> threshold = {}) const;
 };
 
 class TokenData {

@@ -8,5 +8,5 @@ struct ChainPin {
 struct GridPin {
     Batchslot slot;
     HeaderView finalHeader;
-    static std::optional<GridPin> checkpoint();
+    static wrt::optional<GridPin> checkpoint();
 };

@@ -11,7 +11,7 @@ private:
 public:
     using iter_t = SubscriptionIter;
     auto& subscriptions() const{return m;}
-    void set(std::optional<iter_t> iter, const mempool::OrderKey&, Conref);
+    void set(wrt::optional<iter_t> iter, const mempool::OrderKey&, Conref);
     void erase(iter_t iter);
 };
 }

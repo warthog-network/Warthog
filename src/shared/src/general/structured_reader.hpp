@@ -32,7 +32,7 @@ struct ParseAnnotation {
     std::string tag;
     size_t offsetBegin;
     size_t offsetEnd;
-    std::optional<Children> children;
+    wrt::optional<Children> children;
 };
 using ParseAnnotations = ParseAnnotation::Children;
 

@@ -5,7 +5,7 @@
 #include <cstdint>
 #include <functional>
 #include <nlohmann/json_fwd.hpp>
-#include <optional>
+#include "wrt/optional.hpp"
 #include <string>
 #include <variant>
 #include <vector>
@@ -35,7 +35,7 @@ using PeersCb = std::function<void(const std::vector<api::Peerinfo>&)>;
 using IpCounterCb = std::function<void(const api::IPCounter&)>;
 using ThrottledCb = std::function<void(const std::vector<api::ThrottledPeer>&)>;
 using SyncedCb = std::function<void(bool)>;
-using ResultCb = std::function<void(const std::optional<Error>&)>;
+using ResultCb = std::function<void(const wrt::optional<Error>&)>;
 using ConnectedConnectionCB = std::function<void(const api::PeerinfoConnections&)>;
 using WartBalanceCb = std::function<void(const Result<api::WartBalance>&)>;
 using TokenBalanceCb = std::function<void(const Result<api::TokenBalance>&)>;
@@ -44,7 +44,7 @@ using JSONCb = std::function<void(const Result<nlohmann::json>&)>;
 using MempoolCb = std::function<void(const Result<api::MempoolEntries>&)>;
 using MempoolInsertCb = std::function<void(const Result<TxHash>&)>;
 using MempoolConstraintCb = std::function<void(const Result<api::MempoolUpdate>&)>;
-using MempoolTxsCb = std::function<void(std::vector<std::optional<TransactionMessage>>&)>;
+using MempoolTxsCb = std::function<void(std::vector<wrt::optional<TransactionMessage>>&)>;
 using ChainMiningCb = std::function<void(const Result<ChainMiningTask>&)>;
 using MiningCb = std::function<void(const Result<api::MiningState>&)>;
 using TxcacheCb = std::function<void(const Result<chainserver::TransactionIds>&)>;

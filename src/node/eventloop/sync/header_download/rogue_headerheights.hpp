@@ -13,7 +13,7 @@ public:
         n = 0;
     }
     size_t prune(const Worksum& minWork);
-    [[nodiscard]] std::optional<ChainError> find_rogue_in(const HeaderchainSkeleton&) const;
+    [[nodiscard]] wrt::optional<ChainError> find_rogue_in(const HeaderchainSkeleton&) const;
 
 private:
     static constexpr size_t MAXSIZE = 100;
@@ -61,7 +61,7 @@ private:
     private:
         const RogueHeaders& ref;
         map_t::const_reverse_iterator mr_it;
-        std::optional<vector_t::const_iterator> it;
+        wrt::optional<vector_t::const_iterator> it;
 
     private:
         const_reverse_iterator(const RogueHeaders& rrh)

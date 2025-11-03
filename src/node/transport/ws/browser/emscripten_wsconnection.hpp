@@ -104,7 +104,7 @@ public:
         return emscripten_websocket_close(socket, code, reason);
     }
 
-    static std::optional<EmscriptenWSConnection> make_new(std::string url)
+    static wrt::optional<EmscriptenWSConnection> make_new(std::string url)
     {
         EmscriptenWebSocketCreateAttributes createAttributes {
             .url = url.c_str(), .protocols = "binary", .createOnMainThread = true

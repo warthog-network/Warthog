@@ -85,7 +85,7 @@ void PeerServer::handle_event(AuthenticateInbound&& nc)
         con.close(EREFUSED);
         return;
     }
-    auto bannedUntil = [this, &ip]() -> std::optional<Timestamp> {
+    auto bannedUntil = [this, &ip]() -> wrt::optional<Timestamp> {
         if (auto res { bancache.get_expiration(ip) }) {
             return res->timestamp();
         }

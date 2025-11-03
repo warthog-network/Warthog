@@ -842,7 +842,7 @@ json to_json(const Grid& g)
     return j;
 }
 
-json to_json(const std::optional<SignedSnapshot>& sp)
+json to_json(const wrt::optional<SignedSnapshot>& sp)
 {
     if (sp) {
         auto& s = *sp;

@@ -1,6 +1,6 @@
 #pragma once
 #include <variant>
-#include <optional>
+#include "wrt/optional.hpp"
 namespace wrt { // wart tools namesapce
 template <typename... Ts>
 struct variant : public std::variant<Ts...> {
