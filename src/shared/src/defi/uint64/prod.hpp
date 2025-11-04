@@ -134,12 +134,12 @@ public:
             pos -= 1;
         }
     }
-    // returns std::nullopt on overflow
+    // returns wrt::nullopt on overflow
     [[nodiscard]] wrt::optional<uint64_t> divide_floor(Nonzero_uint64 v) const
     {
         return div(v, false);
     }
-    // returns std::nullopt on overflow
+    // returns wrt::nullopt on overflow
     [[nodiscard]] wrt::optional<uint64_t> divide_ceil(uint64_t v) const
     {
         return div(v, true);

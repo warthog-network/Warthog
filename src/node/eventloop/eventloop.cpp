@@ -221,7 +221,7 @@ void Eventloop::api_loadtest_header(uint64_t conId, ResultCb cb)
 }
 void Eventloop::api_loadtest_disable(uint64_t conId, ResultCb cb)
 {
-    defer(Loadtest { conId, std::nullopt, std::move(cb) });
+    defer(Loadtest { conId, wrt::nullopt, std::move(cb) });
 }
 
 void Eventloop::async_forward_blockrep(uint64_t conId, std::vector<BodyData>&& blocks)

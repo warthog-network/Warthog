@@ -16,7 +16,7 @@ wrt::optional<ChainError> RogueHeaders::find_rogue_in(const HeaderchainSkeleton&
                 return ChainError { e.error, h };
         }
     }
-    return std::nullopt;
+    return wrt::nullopt;
 }
 
 bool RogueHeaders::Node::insert(RogueHeaders::NodeValue v)

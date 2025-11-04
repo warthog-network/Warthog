@@ -121,7 +121,7 @@ wrt::optional<HTTPEndpoint> HTTPEndpoint::make_public_endpoint(const ConfigParam
     auto& pAPI { config().publicAPI };
     if (!pAPI)
         return {};
-    return wrt::optional<HTTPEndpoint> { std::in_place, *pAPI, true };
+    return wrt::optional<HTTPEndpoint> { wrt::in_place, *pAPI, true };
 };
 
 HTTPEndpoint::HTTPEndpoint(TCPPeeraddr bind, bool isPublic)

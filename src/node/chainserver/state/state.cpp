@@ -255,7 +255,7 @@ api::Transaction State::api_dispatch_mempool(const TxHash& txHash, TransactionMe
 
     auto make_signed_info {
         [&txHash](auto& tx) {
-            return api::block::SignedInfoData(txHash, std::nullopt, tx.from_id(), tx.from_address(txHash), tx.fee(), tx.nonce_id(), tx.pin_height());
+            return api::block::SignedInfoData(txHash, wrt::nullopt, tx.from_id(), tx.from_address(txHash), tx.fee(), tx.nonce_id(), tx.pin_height());
         }
     };
 
@@ -312,7 +312,7 @@ api::Transaction State::api_dispatch_mempool(const TxHash& txHash, TransactionMe
                         .assetInfo { a },
                         .baseDeposited { rd.amount() },
                         .quoteDeposited { rd.wart() },
-                        .sharesReceived { std::nullopt },
+                        .sharesReceived { wrt::nullopt },
                     } }
             };
         },
@@ -324,8 +324,8 @@ api::Transaction State::api_dispatch_mempool(const TxHash& txHash, TransactionMe
                     {
                         .assetInfo { a },
                         .sharesRedeemed { rm.amount() },
-                        .baseReceived { std::nullopt },
-                        .quoteReceived { std::nullopt },
+                        .baseReceived { wrt::nullopt },
+                        .quoteReceived { wrt::nullopt },
                     } }
             };
         },
@@ -336,7 +336,7 @@ api::Transaction State::api_dispatch_mempool(const TxHash& txHash, TransactionMe
                     {
                         .name { rm.asset_name() },
                         .supply { rm.supply() },
-                        .assetId { std::nullopt },
+                        .assetId { wrt::nullopt },
                     } }
             };
         });

@@ -23,7 +23,7 @@ wrt::optional<Request> gen_load(Conref cr)
     auto& d { cr.chain().descripted() };
     Height h { d->chain_length() };
     if (h.is_zero())
-        return std::nullopt; // cannot send block request to this peer
+        return wrt::nullopt; // cannot send block request to this peer
 
     auto l { d->chain_length() };
     NonzeroHeight lower {

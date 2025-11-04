@@ -40,7 +40,7 @@ namespace state_update {
                     return rb->deltaHeaders.shrink;
                 }
             }
-            return std::nullopt;
+            return wrt::nullopt;
         }
     };
 }

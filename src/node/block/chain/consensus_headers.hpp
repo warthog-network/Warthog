@@ -1,7 +1,7 @@
 #pragma once
 #include "block/chain/header_chain.hpp"
 #include "block/header/timestamprule.hpp"
-#include "expected.hpp"
+#include "wrt/expected.hpp"
 #include "general/result.hpp"
 
 struct MiningData {
@@ -23,7 +23,7 @@ public:
     HeaderVerifier();
     HeaderVerifier(const Headerchain& hc, Height length);
     HeaderVerifier(const HeaderVerifier&, const Batch&, Height heightOffset);
-    tl::expected<HeaderVerifier, ChainError> copy_apply(const wrt::optional<SignedSnapshot>& sp, const HeaderSpan&) const;
+    wrt::expected<HeaderVerifier, ChainError> copy_apply(const wrt::optional<SignedSnapshot>& sp, const HeaderSpan&) const;
     HeaderVerifier(const SharedBatch&);
     // void clear();
     [[nodiscard]] auto prepare_append(const wrt::optional<SignedSnapshot>& sp, HeaderView hv) const -> Result<PreparedAppend>;

@@ -930,7 +930,7 @@ wrt::optional<history::Entry> ChainDB::lookup_history(HistoryId id) const
 {
     auto v { lookup_history_range(id, id + 1) };
     if (v.size() == 0)
-        return std::nullopt;
+        return wrt::nullopt;
     return std::move(v.front().second);
 }
 
@@ -1104,12 +1104,12 @@ std::pair<wrt::optional<BalanceId>, Balance_uint64> ChainDB::get_token_balance_r
             auto& [height, funds] { *o };
             if (trace)
                 trace->snapshotHeight = height;
-            return { std::nullopt, Balance_uint64::from_total_locked(funds, 0) };
+            return { wrt::nullopt, Balance_uint64::from_total_locked(funds, 0) };
         };
         tid = *pid;
     }
 notfound:
-    return { std::nullopt, Balance_uint64::zero() };
+    return { wrt::nullopt, Balance_uint64::zero() };
 }
 
 std::pair<wrt::optional<BalanceId>, Funds_uint64> ChainDB::get_free_balance(AccountToken at) const

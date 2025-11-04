@@ -27,11 +27,11 @@ TEST(ColorTest, API_builder) {
   EXPECT_EQ(gradient.angle, 45);
   EXPECT_EQ(gradient.stops.size(), 3);
   EXPECT_EQ(gradient.stops[0].color, Color::Red);
-  EXPECT_EQ(gradient.stops[0].position, std::nullopt);
+  EXPECT_EQ(gradient.stops[0].position, wrt::nullopt);
   EXPECT_EQ(gradient.stops[1].color, Color::RedLight);
   EXPECT_EQ(gradient.stops[1].position, 0.5);
   EXPECT_EQ(gradient.stops[2].color, Color::RedLight);
-  EXPECT_EQ(gradient.stops[2].position, std::nullopt);
+  EXPECT_EQ(gradient.stops[2].position, wrt::nullopt);
 }
 
 TEST(ColorTest, API_constructor_bicolor) {
@@ -39,9 +39,9 @@ TEST(ColorTest, API_constructor_bicolor) {
   EXPECT_EQ(gradient.angle, 0);
   EXPECT_EQ(gradient.stops.size(), 2);
   EXPECT_EQ(gradient.stops[0].color, Color::Red);
-  EXPECT_EQ(gradient.stops[0].position, std::nullopt);
+  EXPECT_EQ(gradient.stops[0].position, wrt::nullopt);
   EXPECT_EQ(gradient.stops[1].color, Color::RedLight);
-  EXPECT_EQ(gradient.stops[1].position, std::nullopt);
+  EXPECT_EQ(gradient.stops[1].position, wrt::nullopt);
 }
 
 TEST(ColorTest, API_constructor_bicolor_angle) {
@@ -49,9 +49,9 @@ TEST(ColorTest, API_constructor_bicolor_angle) {
   EXPECT_EQ(gradient.angle, 45);
   EXPECT_EQ(gradient.stops.size(), 2);
   EXPECT_EQ(gradient.stops[0].color, Color::Red);
-  EXPECT_EQ(gradient.stops[0].position, std::nullopt);
+  EXPECT_EQ(gradient.stops[0].position, wrt::nullopt);
   EXPECT_EQ(gradient.stops[1].color, Color::RedLight);
-  EXPECT_EQ(gradient.stops[1].position, std::nullopt);
+  EXPECT_EQ(gradient.stops[1].position, wrt::nullopt);
 }
 
 TEST(ColorTest, GradientForeground) {

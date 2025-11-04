@@ -120,7 +120,7 @@ private:
 };
 }
 
-tl::expected<ConfigParams, int> ConfigParams::from_args(int argc, char** argv)
+wrt::expected<ConfigParams, int> ConfigParams::from_args(int argc, char** argv)
 {
     auto p { CmdlineParsed::parse(argc, argv) };
     if (!p)
@@ -130,7 +130,7 @@ tl::expected<ConfigParams, int> ConfigParams::from_args(int argc, char** argv)
     if (auto i { c.init(p->value()) }; i < 1) {
         return tl::make_unexpected(i);
     }
-    return tl::expected<ConfigParams, int>(c);
+    return wrt::expected<ConfigParams, int>(c);
 }
 
 #ifndef DISABLE_LIBUV
@@ -258,7 +258,7 @@ struct TableReader : public TableReaderData {
             assert(p != nullptr);
             return TableReader { *p, filepath };
         }
-        return std::nullopt;
+        return wrt::nullopt;
     }
 
     struct Entry {
@@ -276,7 +276,7 @@ struct TableReader : public TableReaderData {
             keyUsed[it->first] = true;
             return { Entry { &it->second } };
         }
-        return std::nullopt;
+        return wrt::nullopt;
     }
 };
 

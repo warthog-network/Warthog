@@ -1,7 +1,8 @@
 #pragma once
-#include <optional>
-namespace wrt{
-template<typename T>
-using optional = std::optional<T>;
+// #include <optional>
+#include "tl/optional.hpp"
+namespace wrt {
+template <typename T>
+using optional = tl::optional<T>;
 
 }

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "block/chain/signed_snapshot.hpp"
-#include "expected.hpp"
+#include "wrt/expected.hpp"
 #include "general/compact_uint.hpp"
 #include "general/start_time_points.hpp"
 #include "transport/helpers/peer_addr.hpp"
@@ -88,7 +88,7 @@ struct ConfigParams {
     bool localDebug { false };
     static std::string get_default_datadir();
     std::string dump();
-    [[nodiscard]] static tl::expected<ConfigParams, int> from_args(int argc, char** argv);
+    [[nodiscard]] static wrt::expected<ConfigParams, int> from_args(int argc, char** argv);
 
 private:
     ConfigParams() { };

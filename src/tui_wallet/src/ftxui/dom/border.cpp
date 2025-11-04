@@ -35,7 +35,7 @@ static Charsets simple_border_charset = {
 class Border : public Node {
 public:
   Border(Elements children, BorderStyle style,
-         wrt::optional<Color> foreground_color = std::nullopt)
+         wrt::optional<Color> foreground_color = wrt::nullopt)
       : Node(std::move(children)),
         charset_(simple_border_charset[style]) // NOLINT
         ,

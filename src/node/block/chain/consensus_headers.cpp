@@ -60,7 +60,7 @@ HeaderVerifier::HeaderVerifier(const SharedBatch& b)
     }
 }
 
-tl::expected<HeaderVerifier, ChainError> HeaderVerifier::copy_apply(const wrt::optional<SignedSnapshot>& sp, const HeaderSpan& hrange) const
+wrt::expected<HeaderVerifier, ChainError> HeaderVerifier::copy_apply(const wrt::optional<SignedSnapshot>& sp, const HeaderSpan& hrange) const
 {
     HeaderVerifier res { *this };
     assert(hrange.begin_height() == length + 1);
