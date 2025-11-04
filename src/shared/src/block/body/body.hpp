@@ -382,7 +382,8 @@ struct UntaggedSizeVector : public Vector<Elem> {
             if (r.remaining() == 0) {
                 return Vector<Elem> {};
             } else {
-                return Vector<Elem> { UInt(r.annotate("length").reader), r };
+                UInt len(r.annotate("length").reader);
+                return Vector<Elem> { len, r };
             };
         }() }
     {
