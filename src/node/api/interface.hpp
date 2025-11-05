@@ -88,3 +88,4 @@ void destroy_all_subscriptions(subscription_data_ptr);
 void loadtest_block(uint64_t conId, ResultCb);
 void loadtest_header(uint64_t conId, ResultCb);
 void loadtest_disable(uint64_t conId, ResultCb);
+void fake_mine(ResultCb);

@@ -228,8 +228,7 @@ public:
         hook_get(t, "/transaction/mempool", get_mempool);
         hook_get_1(t, "/transaction/lookup/:txid", lookup_tx);
         hook_get(t, "/transaction/latest", get_latest_transactions);
-        hook_get(t,"/transaction/minfee", get_transaction_minfee);
-
+        hook_get(t, "/transaction/minfee", get_transaction_minfee);
 
         t.indexGenerator.section("Settings Endpoints");
         hook_get_1(t, "/settings/mempool/minfee/:feeE8", set_minfee, true);
@@ -285,6 +284,7 @@ public:
         hook_get_1(t, "/loadtest/block_request/:conn_id", loadtest_block);
         hook_get_1(t, "/loadtest/header_request/:conn_id", loadtest_header);
         hook_get_1(t, "/loadtest/disable/:conn_id", loadtest_disable);
+        hook_get(t, "/debug/fakemine", fake_mine);
     }
 };
 

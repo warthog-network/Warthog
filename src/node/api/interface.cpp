@@ -407,3 +407,7 @@ void loadtest_disable(uint64_t conId, ResultCb cb)
 {
     global().core->api_loadtest_disable(conId, std::move(cb));
 }
+void fake_mine(ResultCb cb){
+    global().chainServer->api_fake_mine(std::move(cb));
+
+}

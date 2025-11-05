@@ -218,6 +218,7 @@ public:
     // API methods
     void api_mining_append(BlockWorker&&, ResultCb);
     // void api_put_mempool(PaymentCreateMessage, ResultCb cb);
+    void api_fake_mine(ResultCb cb);
     void api_put_mempool(WartTransferCreate, MempoolInsertCb cb);
     void api_get_token_balance(const api::AccountIdOrAddress& a, const api::TokenIdOrSpec&, TokenBalanceCb callback);
     void api_get_grid(GridCb);

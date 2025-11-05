@@ -63,6 +63,11 @@ void ChainServer::async_put_mempool(std::vector<TransactionMessage> txs)
     defer(PutMempoolBatch { std::move(txs) });
 }
 
+void ChainServer::api_fake_mine(ResultCb cb)
+{
+    cb({});
+}
+
 void ChainServer::api_put_mempool(WartTransferCreate m,
     MempoolInsertCb callback)
 {
@@ -391,7 +396,8 @@ void ChainServer::handle_event(GetHeader&& e)
     e.callback(noval_to_err(state.api_get_header(e.heightOrHash)));
 }
 
-void ChainServer::handle_event(GetBlockBinary&& e){
+void ChainServer::handle_event(GetBlockBinary&& e)
+{
     auto t { timing->time("GetBlockBinary") };
     e.callback(noval_to_err(state.api_get_block_binary(e.heightOrHash)));
 }
