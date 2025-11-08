@@ -21,7 +21,7 @@ class Sndbuffer;
 class ConsensusSlave;
 namespace mempool {
 struct EntryValue;
-class Entry;
+struct Entry;
 }
 
 namespace spdlog {

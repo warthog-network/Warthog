@@ -3,6 +3,7 @@
 #include "api/events/subscription_fwd.hpp"
 #include "api/types/accountid_or_address.hpp"
 #include "api/types/height_or_hash.hpp"
+#include "api_types.hpp"
 #include "chainserver/mining_subscription.hpp"
 #include "chainserver/subscription_state.hpp"
 #include "communication/create_transaction.hpp"
@@ -13,8 +14,23 @@
 #include <queue>
 #include <thread>
 
-class ChainServer : public std::enable_shared_from_this<ChainServer> {
+#define LIST_API_TYPES(XX)                                    \
+    XX(MiningAppend, void, Block, block, std::string, worker) \
+    XX(PutMempool, TxHash, WartTransferCreate, message)       \
+    XX(LatestTxs, api::TransactionsByBlocks)                  \
+    XX(LookupTxHash, api::Transaction, TxHash, hash)          \
+    XX(GetTransactionMinfee, api::TransactionMinfee)          \
+    XX(GetRichlist, api::Richlist, api::TokenIdOrSpec, token)
+
+namespace chainserver {
+DEFINE_TYPE_COLLECTION(APITypes, LIST_API_TYPES);
+}
+
+#undef LIST_API_TYPES
+
+class ChainServer : public std::enable_shared_from_this<ChainServer>, public enable_api_methods<ChainServer, chainserver::APITypes> {
     using getBlocksCb = std::function<void(std::vector<BodyData>&&)>;
+    friend enable_api_methods;
 
 public:
     // can be called concurrently
@@ -50,16 +66,6 @@ public:
         std::vector<TransactionId> txids;
         MempoolTxsCb callback;
     };
-    struct LookupTxHash {
-        const TxHash hash;
-        TxCb callback;
-    };
-    struct LookupLatestTxs {
-        LatestTxsCb callback;
-    };
-    struct GetTransactionMinfee {
-        TransactionMinfeeCb callback;
-    };
     struct SetSynced {
         bool synced;
     };
@@ -67,10 +73,6 @@ public:
         const Address& address;
         uint64_t beforeId;
         HistoryCb callback;
-    };
-    struct GetRichlist {
-        api::TokenIdOrSpec token;
-        RichlistCb callback;
     };
     struct GetHead {
         ChainHeadCb callback;
@@ -135,19 +137,15 @@ public:
     };
 
     // EVENTS
-    using Event = std::variant<
+    using Event = events_t<
         MiningAppend,
         PutMempool,
         GetGrid,
         GetTokenBalance,
         GetMempool,
         LookupTxids,
-        LookupTxHash,
-        LookupLatestTxs,
-        GetTransactionMinfee,
         SetSynced,
         GetHistory,
-        GetRichlist,
         GetHead,
         GetHeader,
         GetBlockBinary,
@@ -209,6 +207,13 @@ public:
 
     bool is_busy();
 
+    template <typename T>
+    requires(supports<T>)
+    void api_call(T&& req, T::Callback cb)
+    {
+        defer(typename std::remove_cvref_t<T>::Object(std::forward<T>(req), std::move(cb)));
+    }
+
     void async_set_synced(bool synced);
     void async_notify_mempool_constraint_update(MempoolConstraintCb);
 
@@ -223,11 +228,9 @@ public:
     void api_get_token_balance(const api::AccountIdOrAddress& a, const api::TokenIdOrSpec&, TokenBalanceCb callback);
     void api_get_grid(GridCb);
     void api_get_mempool(MempoolCb callback);
-    void api_lookup_tx(const TxHash& hash, TxCb callback);
     void api_lookup_latest_txs(LatestTxsCb callback);
-    void api_get_transaction_minfee(TransactionMinfeeCb callback);
     void api_get_history(const Address& address, uint64_t beforeId, HistoryCb callback);
-    void api_get_richlist(api::TokenIdOrSpec tokenId, RichlistCb callback);
+    // void api_get_richlist(api::TokenIdOrSpec tokenId, RichlistCb callback);
     void api_get_header(api::HeightOrHash, HeaderCb callback);
     void api_get_block_binary(api::HeightOrHash hoh, BlockBinaryCb callback);
     void api_get_hash(Height height, HashCb callback);
@@ -256,18 +259,21 @@ private:
     TxHash append_gentx(const WartTransferCreate&);
 
 private:
+    auto handle_api(chainserver::PutMempool&&) -> TxHash;
+    auto handle_api(chainserver::MiningAppend&&) -> void;
+    auto handle_api(chainserver::LatestTxs&&) -> api::TransactionsByBlocks;
+    auto handle_api(chainserver::LookupTxHash&&) -> api::Transaction;
+    auto handle_api(chainserver::GetTransactionMinfee&&) { return state.api_get_transaction_minfee(); }
+    auto handle_api(chainserver::GetRichlist&& e) { return state.api_get_richlist(e.token(), 100); }
+
     void handle_event(MiningAppend&&);
     void handle_event(PutMempool&&);
     void handle_event(GetGrid&&);
     void handle_event(GetTokenBalance&&);
     void handle_event(GetMempool&&);
     void handle_event(LookupTxids&&);
-    void handle_event(LookupTxHash&&);
-    void handle_event(LookupLatestTxs&&);
-    void handle_event(GetTransactionMinfee&&);
     void handle_event(SetSynced&& e);
     void handle_event(GetHistory&&);
-    void handle_event(GetRichlist&&);
     void handle_event(GetHead&&);
     void handle_event(GetHeader&&);
     void handle_event(GetBlockBinary&&);
@@ -300,7 +306,6 @@ private:
 
     // state variables
     chainserver::State state;
-    wrt::optional<logging::TimingSession> timing;
 
     // mutex protected variables
     std::mutex mutex;

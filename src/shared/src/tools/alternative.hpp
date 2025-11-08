@@ -1,7 +1,8 @@
 #pragma once
 
-#include "variant.hpp"
+#include "wrt/variant.hpp"
 #include "wrt/optional.hpp"
+
 namespace wrt { // wart tools namesapce
 template <typename Id, typename Alt>
 struct alternative {

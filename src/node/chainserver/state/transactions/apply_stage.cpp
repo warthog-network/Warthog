@@ -19,7 +19,7 @@ ApplyStageTransaction::ApplyStageTransaction(const State& s, ChainDBTransaction&
     applyResult = AppendBlocksResult {};
     auto& res { applyResult.value() };
     auto& baseTxIds { rb ? rb->chainTxIds : ccs.chainstate.txids() };
-    chainserver::BlockApplier ba { ccs.db, ccs.stage, baseTxIds, true };
+    chainserver::BlockApplier ba { ccs.db, ccs.stage, baseTxIds};
     Error err(0);
     NonzeroHeight h = (chainlength + 1).nonzero_assert();
     for (; h <= ccs.stage.length(); ++h) {

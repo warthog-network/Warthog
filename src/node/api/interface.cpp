@@ -22,15 +22,17 @@ void get_mempool(MempoolCb cb)
 
 void lookup_tx(const TxHash& hash, TxCb f)
 {
-    global().chainServer->api_lookup_tx(hash, std::move(f));
+    api_call<chainserver::LookupTxHash>(hash, std::move(f));
 }
 
 void get_latest_transactions(LatestTxsCb f)
 {
-    global().chainServer->api_lookup_latest_txs(std::move(f));
-};
-void get_transaction_minfee(TransactionMinfeeCb f){
-    global().chainServer->api_get_transaction_minfee(std::move(f));
+    global().chainServer->api_call(chainserver::LatestTxs(), std::move(f));
+}
+
+void get_transaction_minfee(TransactionMinfeeCb f)
+{
+    global().chainServer->api_call(chainserver::GetTransactionMinfee(), std::move(f));
 }
 
 // peer functions
@@ -283,7 +285,8 @@ void get_chain_header(api::HeightOrHash hh, HeaderCb f)
     global().chainServer->api_get_header(hh, f);
 }
 
-void get_chain_binary(api::HeightOrHash hh, BlockBinaryCb cb){
+void get_chain_binary(api::HeightOrHash hh, BlockBinaryCb cb)
+{
     global().chainServer->api_get_block_binary(hh, cb);
 }
 
@@ -326,7 +329,8 @@ void get_hashrate_time_chart(uint32_t from, uint32_t to, size_t window, Hashrate
 
 void put_chain_append(BlockWorker&& bw, ResultCb f)
 {
-    global().chainServer->api_mining_append({ bw.block, bw.worker }, f);
+    global().chainServer->api_call(chainserver::MiningAppend(bw.block, bw.worker), f);
+    // global().chainServer->api_mining_append({ bw.block, bw.worker }, f);
 }
 void get_signed_snapshot(Eventloop::SignedSnapshotCb&& cb)
 {
@@ -347,7 +351,7 @@ void get_account_history(const Address& address, uint64_t beforeId,
 
 void get_account_richlist(const api::TokenIdOrSpec& token, RichlistCb f)
 {
-    global().chainServer->api_get_richlist(token, f);
+    global().chainServer->api_call(chainserver::GetRichlist { token }, std::move(f));
 }
 void get_transmission_minutes(TransmissionCb cb)
 {
@@ -407,7 +411,7 @@ void loadtest_disable(uint64_t conId, ResultCb cb)
 {
     global().core->api_loadtest_disable(conId, std::move(cb));
 }
-void fake_mine(ResultCb cb){
+void fake_mine(ResultCb cb)
+{
     global().chainServer->api_fake_mine(std::move(cb));
-
 }

@@ -252,7 +252,6 @@ private:
     VerifiedVector connectedVerified;
     VerifiedVector disconnectedVerified;
     FeelerVector feelers; // Candidates to test connection to
-    size_t totalConnected { 0 };
     PeerServer& peerServer;
     struct ComparatorPinned {
         using is_transparent = void;

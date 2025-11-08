@@ -3,14 +3,24 @@
 namespace logging {
 struct TimingSession;
 struct TimingObject {
+private:
+    TimingObject& operator=(const TimingObject&) = default;
+    TimingObject& operator=(TimingObject&&) = default;
+
+public:
     std::string name;
     size_t id;
-    const TimingSession& session;
+    const TimingSession* session;
     std::chrono::steady_clock::time_point begin;
+    TimingObject(TimingObject&& other)
+    {
+        *this = std::move(other);
+        other.session = nullptr;
+    };
     TimingObject(std::string name, size_t id, const TimingSession& logger)
         : name(std::move(name))
         , id(id)
-        , session(logger)
+        , session(&logger)
         , begin(std::chrono::steady_clock::now())
     {
     }
@@ -89,6 +99,7 @@ public:
 
 inline TimingObject::~TimingObject()
 {
-    session.timings.push_back({ std::move(name), begin, std::chrono::steady_clock::now() });
+    if (session)
+        session->timings.push_back({ std::move(name), begin, std::chrono::steady_clock::now() });
 }
 }

@@ -42,10 +42,6 @@ ChainServer::~ChainServer()
     wait_for_shutdown();
 }
 
-void ChainServer::api_mining_append(BlockWorker&& bw, ResultCb callback)
-{
-    defer_maybe_busy(MiningAppend { std::move(bw.block), std::move(bw.worker), std::move(callback) });
-}
 
 void ChainServer::async_set_synced(bool synced)
 {
@@ -89,19 +85,6 @@ void ChainServer::api_get_mempool(MempoolCb callback)
     defer_maybe_busy(GetMempool { std::move(callback) });
 }
 
-void ChainServer::api_lookup_tx(const TxHash& hash,
-    TxCb callback)
-{
-    defer_maybe_busy(LookupTxHash { hash, std::move(callback) });
-}
-void ChainServer::api_lookup_latest_txs(LatestTxsCb callback)
-{
-    defer_maybe_busy(LookupLatestTxs { std::move(callback) });
-}
-void ChainServer::api_get_transaction_minfee(TransactionMinfeeCb callback)
-{
-    defer_maybe_busy(GetTransactionMinfee { std::move(callback) });
-}
 
 void ChainServer::async_get_head(ChainHeadCb callback)
 {
@@ -114,10 +97,10 @@ void ChainServer::api_get_history(const Address& address, uint64_t beforeId,
     defer_maybe_busy(GetHistory { address, beforeId, std::move(callback) });
 }
 
-void ChainServer::api_get_richlist(api::TokenIdOrSpec tokenId, RichlistCb callback)
-{
-    defer_maybe_busy(GetRichlist { tokenId, std::move(callback) });
-}
+// void ChainServer::api_get_richlist(api::TokenIdOrSpec tokenId, RichlistCb callback)
+// {
+//     defer_maybe_busy(GetRichlist { tokenId, std::move(callback) });
+// }
 void ChainServer::api_get_mining(const Address& address, ChainMiningCb callback)
 {
     defer_maybe_busy(GetMining { address, std::move(callback) });
@@ -240,10 +223,7 @@ void ChainServer::workerfun()
             }
             timing = timing_log().session();
             while (!tmpq.empty()) {
-                std::visit([&](auto&& e) {
-                    handle_event(std::move(e));
-                },
-                    tmpq.front());
+                dispatch_event(std::move(tmpq.front()));
                 tmpq.pop();
             }
             timing.reset();
@@ -289,6 +269,18 @@ void ChainServer::on_chain_changed(StateUpdateWithAPIBlocks&& su)
     dispatch_mining_subscriptions();
 }
 
+auto ChainServer::handle_api(chainserver::MiningAppend&& e) -> void
+{
+    try {
+        on_chain_changed(state.append_mined_block(e.block()));
+        spdlog::info("Accepted new block #{} (worker {:?})", state.chainlength().value(), e.worker());
+        dispatch_mining_subscriptions();
+    } catch (Error err) {
+        spdlog::info("Rejected new block #{} (worker {:?}): {}", (state.chainlength() + 1).value(),
+            e.worker(), err.strerror());
+        throw;
+    }
+}
 void ChainServer::handle_event(MiningAppend&& e)
 {
     auto t { timing->time("MiningAppend") };
@@ -340,6 +332,14 @@ void ChainServer::emit_chain_state_event()
 }
 
 template <typename T>
+T noval_throw(wrt::optional<T>&& v)
+{
+    if (v)
+        return *v;
+    throw Error(ENOTFOUND);
+}
+
+template <typename T>
 Result<T> noval_to_err(wrt::optional<T>&& v)
 {
     if (v)
@@ -347,22 +347,15 @@ Result<T> noval_to_err(wrt::optional<T>&& v)
     return Error(ENOTFOUND);
 }
 
-void ChainServer::handle_event(LookupTxHash&& e)
+auto ChainServer::handle_api(chainserver::LookupTxHash&& e) -> api::Transaction
 {
-    auto t { timing->time("LookupTxHash") };
-    e.callback(noval_to_err(state.api_get_tx(e.hash)));
+    return noval_throw(state.api_get_tx(e.hash()));
 }
 
-void ChainServer::handle_event(GetTransactionMinfee&& e)
-{
-    auto t { timing->time("GetTransactionMinfee") };
-    e.callback(state.api_get_transaction_minfee());
-}
 
-void ChainServer::handle_event(LookupLatestTxs&& e)
+auto ChainServer::handle_api(chainserver::LatestTxs&&) -> api::TransactionsByBlocks
 {
-    auto t { timing->time("LookupLatestTxs") };
-    e.callback(state.api_get_latest_txs());
+    return state.api_get_latest_txs();
 }
 
 void ChainServer::handle_event(SetSynced&& e)
@@ -378,11 +371,6 @@ void ChainServer::handle_event(GetHistory&& e)
     e.callback(noval_to_err(std::move(history)));
 }
 
-void ChainServer::handle_event(GetRichlist&& e)
-{
-    auto t { timing->time("GetRichlist") };
-    e.callback(state.api_get_richlist(e.token, 100));
-}
 
 void ChainServer::handle_event(GetHead&& e)
 {
@@ -465,6 +453,13 @@ void ChainServer::handle_event(stage_operation::StageAddOperation&& r)
     if (res.rogueHeaderData)
         global().core->async_push_rogue(*res.rogueHeaderData);
     global().core->async_stage_action(res.status);
+}
+
+auto ChainServer::handle_api(chainserver::PutMempool&& e) -> TxHash
+{
+    auto [log, txhash] = state.append_gentx(e.message());
+    global().core->async_mempool_update(std::move(log));
+    return txhash;
 }
 
 void ChainServer::handle_event(PutMempool&& e)

@@ -6,7 +6,7 @@
 #include "crypto/crypto.hpp"
 #include "crypto/hash.hpp"
 #include "general/reader.hpp"
-#include "tools/variant.hpp"
+#include "wrt/variant.hpp"
 
 class Address;
 class HashView;

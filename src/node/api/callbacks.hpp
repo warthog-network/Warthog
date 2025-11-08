@@ -11,7 +11,7 @@
 #include <vector>
 
 // forward declarations
-class TransactionMessage;
+struct TransactionMessage;
 class Hash;
 class PrivKey;
 class TxHash;

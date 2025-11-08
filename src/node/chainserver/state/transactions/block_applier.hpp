@@ -20,10 +20,9 @@ namespace chainserver {
 
 class Preparation;
 struct BlockApplier {
-    BlockApplier(ChainDB& db, const Headerchain& hc, const std::set<TransactionId, ByPinHeight>& baseTxIds, bool fromStage)
+    BlockApplier(ChainDB& db, const Headerchain& hc, const std::set<TransactionId, ByPinHeight>& baseTxIds)
         : preparer { db, hc, baseTxIds, {} }
         , db(db)
-        , fromStage(fromStage)
     {
     }
     TransactionIds&& move_new_txids() { return std::move(preparer.newTxIds); };
@@ -45,6 +44,5 @@ private: // private data
     Preparer preparer;
     FreeBalanceUpdates freeBalanceUpdates;
     ChainDB& db;
-    bool fromStage;
 };
 }

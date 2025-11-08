@@ -1,13 +1,32 @@
 #pragma once
 
-#include "transport/tcp/conman.hpp"
 #include "callbacks.hpp"
 #include "chainserver/mining_subscription.hpp"
+#include "chainserver/server.hpp"
 #include "eventloop/eventloop.hpp"
-#include "global/globals.hpp"
 #include "events/subscription_fwd.hpp"
+#include "global/globals.hpp"
+#include "transport/tcp/conman.hpp"
 
-// mempool cbunctions
+template <typename R, typename T>
+struct APICall;
+
+template <IsAPIRequest R, typename... ReqArgs>
+struct APICall<R, std::tuple<ReqArgs...>> {
+    static void invoke(const ReqArgs&... args, R::Callback cb)
+    {
+        if constexpr (ChainServer::supports<R>) {
+            global().chainServer->api_call(R(args...), std::move(cb));
+        } else {
+            static_assert(false, "API request type not supported");
+        }
+    }
+};
+
+template <typename R>
+inline constexpr auto api_call { &APICall<R, typename R::base_tuple_t>::invoke };
+
+// mempool functions
 void put_mempool(WartTransferCreate&&, MempoolInsertCb);
 void get_mempool(MempoolCb cb);
 void lookup_tx(const TxHash& hash, TxCb f);

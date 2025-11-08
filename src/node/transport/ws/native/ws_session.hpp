@@ -9,7 +9,7 @@ struct lws;
 
 class WSConnection;
 
-struct WSSession {
+class WSSession {
 private:
     class CreationToken { };
 

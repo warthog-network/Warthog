@@ -47,7 +47,7 @@ struct TxidWithFee {
         , fee(std::move(fee))
     {
     }
-    static consteval size_t byte_size() { return decltype(txid)::byte_size() + decltype(fee)::byte_size(); }
+    static constexpr size_t byte_size() { return decltype(txid)::byte_size() + decltype(fee)::byte_size(); }
     void serialize(Serializer auto&& s) const
     {
         s << txid << fee;

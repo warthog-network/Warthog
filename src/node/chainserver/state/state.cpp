@@ -1176,7 +1176,7 @@ auto State::append_mined_block(const Block& b) -> StateUpdateWithAPIBlocks
         throw Error(EMINEDDEPRECATED);
     }
 
-    chainserver::BlockApplier e { db, chainstate.headers(), chainstate.txids(), false };
+    chainserver::BlockApplier e { db, chainstate.headers(), chainstate.txids()};
     auto apiBlock { e.apply_block(b, prepared->hash, blockId) };
     db.set_consensus_work(chainstate.work_with_new_block());
     transaction.commit();

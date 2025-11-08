@@ -226,7 +226,7 @@ public:
         t.indexGenerator.section("Transaction Endpoints");
         hook_post(t, "/transaction/add", parse_payment_create, put_mempool);
         hook_get(t, "/transaction/mempool", get_mempool);
-        hook_get_1(t, "/transaction/lookup/:txid", lookup_tx);
+        hook_get_1(t, "/transaction/lookup/:txid", api_call<chainserver::LookupTxHash>);
         hook_get(t, "/transaction/latest", get_latest_transactions);
         hook_get(t, "/transaction/minfee", get_transaction_minfee);
 

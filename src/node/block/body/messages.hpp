@@ -6,7 +6,7 @@
 #include "general/reader.hpp"
 #include "spdlog/spdlog.h"
 #include "tools/indicator_variant.hpp"
-#include "tools/variant.hpp"
+#include "wrt/variant.hpp"
 
 struct MsgBase : public CombineElements<TransactionIdEl, NonceReservedEl, CompactFeeEl> {
     using CombineElements::CombineElements;
