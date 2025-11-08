@@ -60,21 +60,21 @@ State::State(ChainDB& db, BatchRegistry& br, wrt::optional<SnapshotSigner> snaps
 {
 }
 
-wrt::optional<std::pair<NonzeroHeight, Header>> State::get_header(Height h) const
+wrt::optional<api::HeaderInfo> State::get_header(Height h) const
 {
     if (auto p { chainstate.headers().get_header(h) }; p.has_value())
-        return std::pair<NonzeroHeight, Header> { h.nonzero_assert(), Header(p.value()) };
+        return api::HeaderInfo { h.nonzero_assert(), Header(p.value()) };
     return {};
 }
 
-auto State::api_get_header(api::HeightOrHash& hh) const -> wrt::optional<std::pair<NonzeroHeight, Header>>
+auto State::api_get_header(const api::HeightOrHash& hh) const -> Result<api::HeaderInfo>
 {
     if (std::holds_alternative<Height>(hh.data)) {
         return get_header(std::get<Height>(hh.data));
     }
     auto h { consensus_height(std::get<Hash>(hh.data)) };
     if (!h.has_value())
-        return {};
+        return Error(ENOTFOUND);
     return get_header(*h);
 }
 
@@ -106,16 +106,15 @@ wrt::optional<api::BlockBinary> State::api_get_block_binary(const api::HeightOrH
     return api_get_block_binary(*h);
 }
 
-wrt::optional<api::Block> State::api_get_block(const api::HeightOrHash& hh) const
+Result<api::Block> State::api_get_block(const api::HeightOrHash& hh) const
 {
     if (std::holds_alternative<Height>(hh.data)) {
         return api_get_block(std::get<Height>(hh.data));
     }
-    auto h { consensus_height(std::get<Hash>(hh.data)) };
-    if (!h.has_value())
-        return {};
-    return api_get_block(*h);
+    return consensus_height(std::get<Hash>(hh.data))
+        .and_then([&](NonzeroHeight h) { return api_get_block(h); });
 }
+
 namespace {
 
 void push_history(api::Block& b, const std::pair<HistoryId, history::Entry>& p, chainserver::DBCache& c,
@@ -226,6 +225,7 @@ wrt::optional<api::BlockBinary> State::api_get_block_binary(Height h) const
             };
         });
 }
+
 wrt::optional<api::Block> State::api_get_block(Height zh) const
 {
     if (zh == 0 || zh > chainlength())
@@ -1176,7 +1176,7 @@ auto State::append_mined_block(const Block& b) -> StateUpdateWithAPIBlocks
         throw Error(EMINEDDEPRECATED);
     }
 
-    chainserver::BlockApplier e { db, chainstate.headers(), chainstate.txids()};
+    chainserver::BlockApplier e { db, chainstate.headers(), chainstate.txids() };
     auto apiBlock { e.apply_block(b, prepared->hash, blockId) };
     db.set_consensus_work(chainstate.work_with_new_block());
     transaction.commit();
@@ -1323,9 +1323,10 @@ auto State::api_get_mempool(size_t n) const -> api::MempoolEntries
     return out;
 }
 
-auto State::api_get_history(Address a, int64_t beforeId) const -> wrt::optional<api::AccountHistory>
+auto State::api_get_history(const api::AccountIdOrAddress& a, int64_t beforeId) const -> wrt::optional<api::AccountHistory>
 {
-    auto p = db.lookup_account(a);
+    auto p = a.map_alternative([&](const Address& a) { return db.lookup_account(a); });
+    ;
     if (!p)
         return {};
     auto& accountId(*p);

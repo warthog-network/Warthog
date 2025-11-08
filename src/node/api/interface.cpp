@@ -10,15 +10,6 @@
 #include <nlohmann/json.hpp>
 
 // mempool functions
-void put_mempool(WartTransferCreate&& m, MempoolInsertCb cb)
-{
-    global().chainServer->api_put_mempool(std::move(m), std::move(cb));
-}
-
-void get_mempool(MempoolCb cb)
-{
-    global().chainServer->api_get_mempool(std::move(cb));
-}
 
 void lookup_tx(const TxHash& hash, TxCb f)
 {
@@ -87,7 +78,7 @@ void get_connected_connection(ConnectedConnectionCB&& cb)
 void set_minfee(uint64_t fee, MempoolConstraintCb cb)
 {
     set_config().minMempoolFee = CompactUInt::compact(Wart::from_value_throw(fee), true);
-    global().chainServer->async_notify_mempool_constraint_update(cb);
+    api_call<chainserver::MempoolConstraintUpdate>(std::move(cb));
 }
 
 void get_round16bit_e8(uint64_t e8, RoundCb cb)
@@ -106,12 +97,12 @@ void get_version(VersionCb cb)
 }
 void get_info(InfoCb cb)
 {
-    global().chainServer->api_get_db_size(
+    api_call<chainserver::GetDBSize>(
         [cb = std::move(cb)](Result<api::DBSize> s) {
             if (s)
                 cb(api::NodeInfo { std::move(*s) });
             else
-                cb({});
+                cb(Error(ENOTFOUND));
         });
 }
 
@@ -206,7 +197,7 @@ void get_block_head(HeadCb f)
     global().core->api_get_synced([s](auto&& ch) {
         s->on(std::move(ch));
     });
-    global().chainServer->async_get_head([s = std::move(s)](auto&& ch) {
+    api_call<chainserver::GetChainHead>([s = std::move(s)](auto&& ch) {
         s->on(std::move(ch));
     });
 }
@@ -269,7 +260,7 @@ void get_chain_mine(const Address& a, MiningCb f)
     global().core->api_get_synced([s](auto&& ch) {
         s->on(std::move(ch));
     });
-    global().chainServer->api_get_mining(a,
+    api_call<chainserver::GetMining>(a,
         [s = std::move(s)](auto&& ch) {
             s->on(std::move(ch));
         });
@@ -278,35 +269,6 @@ void get_chain_mine(const Address& a, MiningCb f)
 mining_subscription::MiningSubscription subscribe_chain_mine(Address address, mining_subscription::callback_t callback)
 {
     return global().chainServer->api_subscribe_mining(address, std::move(callback));
-}
-
-void get_chain_header(api::HeightOrHash hh, HeaderCb f)
-{
-    global().chainServer->api_get_header(hh, f);
-}
-
-void get_chain_binary(api::HeightOrHash hh, BlockBinaryCb cb)
-{
-    global().chainServer->api_get_block_binary(hh, cb);
-}
-
-void get_chain_hash(Height hh, HashCb f)
-{
-    global().chainServer->api_get_hash(hh, f);
-}
-
-void get_chain_grid(GridCb f)
-{
-    global().chainServer->api_get_grid(f);
-}
-void get_chain_block(api::HeightOrHash hh, BlockCb cb)
-{
-    global().chainServer->api_get_block(hh, cb);
-}
-
-void get_txcache(TxcacheCb&& cb)
-{
-    global().chainServer->api_get_txcache(std::move(cb));
 }
 
 void get_hashrate_n(size_t n, HashrateCb&& cb)
@@ -340,13 +302,7 @@ void get_signed_snapshot(Eventloop::SignedSnapshotCb&& cb)
 // account functions
 void get_account_token_balance(const api::AccountIdOrAddress& address, const api::TokenIdOrSpec& t, TokenBalanceCb cb)
 {
-    global().chainServer->api_get_token_balance(address, t, cb);
-}
-
-void get_account_history(const Address& address, uint64_t beforeId,
-    HistoryCb f)
-{
-    global().chainServer->api_get_history(address, beforeId, f);
+    global().chainServer->api_call(chainserver::GetTokenBalance { address, t }, cb);
 }
 
 void get_account_richlist(const api::TokenIdOrSpec& token, RichlistCb f)

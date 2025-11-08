@@ -98,7 +98,7 @@ public:
     }
 
     // general getters
-    auto get_header(Height h) const -> wrt::optional<std::pair<NonzeroHeight, Header>>;
+    auto get_header(Height h) const -> wrt::optional<api::HeaderInfo>;
     auto get_headers() const { return chainstate.headers(); }
     auto get_hash(Height h) const -> wrt::optional<Hash>;
     auto get_body_data(DescriptedBlockRange) const -> std::vector<BodyData>;
@@ -109,7 +109,7 @@ public:
     api::TokenBalance api_get_token_balance_recursive(api::AccountIdOrAddress a, api::TokenIdOrSpec t) const;
     api::TokenBalance api_get_token_balance_recursive(AccountId, TokenId) const;
     auto api_get_head() const -> api::ChainHead;
-    auto api_get_history(Address a, int64_t beforeId = 0x7fffffffffffffff) const -> wrt::optional<api::AccountHistory>;
+    auto api_get_history(const api::AccountIdOrAddress& a, int64_t beforeId = 0x7fffffffffffffff) const -> wrt::optional<api::AccountHistory>;
     auto api_get_richlist(api::TokenIdOrSpec token, size_t limit) const -> Result<api::Richlist>;
     auto api_get_mempool(size_t) const -> api::MempoolEntries;
     auto api_get_tx(const TxHash& hash) const -> wrt::optional<api::Transaction>;
@@ -120,8 +120,8 @@ public:
     auto api_get_latest_miners(uint32_t N = 1000) const -> std::vector<api::AddressWithId>;
     auto api_get_miners(HeightRange) const -> std::vector<api::AddressWithId>;
     auto api_get_transaction_range(HistoryId lower, HistoryId upper) const -> api::TransactionsByBlocks;
-    auto api_get_header(api::HeightOrHash& h) const -> wrt::optional<std::pair<NonzeroHeight, Header>>;
-    auto api_get_block(const api::HeightOrHash& h) const -> wrt::optional<api::Block>;
+    auto api_get_header(const api::HeightOrHash& h) const -> Result<api::HeaderInfo>;
+    auto api_get_block(const api::HeightOrHash& h) const -> Result<api::Block>;
     auto api_get_block_binary(const api::HeightOrHash& h) const -> wrt::optional<api::BlockBinary>;
     auto api_tx_cache() const -> const TransactionIds;
     size_t api_db_size() const;

@@ -224,8 +224,8 @@ public:
     static void hook_endpoints(T& t)
     {
         t.indexGenerator.section("Transaction Endpoints");
-        hook_post(t, "/transaction/add", parse_payment_create, put_mempool);
-        hook_get(t, "/transaction/mempool", get_mempool);
+        hook_post(t, "/transaction/add", parse_payment_create, api_call<chainserver::PutMempool>);
+        hook_get(t, "/transaction/mempool", api_call<chainserver::GetMempool>);
         hook_get_1(t, "/transaction/lookup/:txid", api_call<chainserver::LookupTxHash>);
         hook_get(t, "/transaction/latest", get_latest_transactions);
         hook_get(t, "/transaction/minfee", get_transaction_minfee);
@@ -235,23 +235,23 @@ public:
 
         t.indexGenerator.section("Chain Endpoints");
         hook_get(t, "/chain/head", get_block_head);
-        hook_get(t, "/chain/grid", get_chain_grid, true);
-        hook_get_1(t, "/chain/block/:id/hash", get_chain_hash);
-        hook_get_1(t, "/chain/block/:id/header", get_chain_header);
-        hook_get_1(t, "/chain/block/:id/binary", get_chain_binary);
-        hook_get_1(t, "/chain/block/:id", get_chain_block);
+        hook_get(t, "/chain/grid", api_call<chainserver::GetGrid>, true);
+        hook_get_1(t, "/chain/block/:id/hash", api_call<chainserver::GetBlockHash>);
+        hook_get_1(t, "/chain/block/:id/header", api_call<chainserver::GetHeader>);
+        hook_get_1(t, "/chain/block/:id/binary", api_call<chainserver::GetBlockBinary>);
+        hook_get_1(t, "/chain/block/:id", api_call<chainserver::GetBlock>);
         hook_get_1(t, "/chain/mine/:account", get_chain_mine);
         hook_get_1(t, "/chain/mine/:account/log", get_chain_mine);
         hook_get(t, "/chain/signed_snapshot", get_signed_snapshot, true);
-        hook_get(t, "/chain/txcache", get_txcache);
+        hook_get(t, "/chain/txcache", api_call<chainserver::GetTxcache>);
         hook_get_1(t, "/chain/hashrate/:window", get_hashrate_n);
         hook_get_3(t, "/chain/hashrate/chart/block/:from/:to/:window", get_hashrate_block_chart, true);
         hook_get_3(t, "/chain/hashrate/chart/time/:from/:to/:interval", get_hashrate_time_chart, true);
         hook_post(t, "/chain/append", parse_block_worker, put_chain_append, true);
 
         t.indexGenerator.section("Account Endpoints");
-        hook_get_2(t, "/account/:account/balance/:token", get_account_token_balance);
-        hook_get_2(t, "/account/:account/history/:beforeTxIndex", get_account_history);
+        hook_get_2(t, "/account/:account/balance/:token", api_call<chainserver::GetTokenBalance>);
+        hook_get_2(t, "/account/:account/history/:beforeTxIndex", api_call<chainserver::GetAccountHistory>);
         hook_get_1(t, "/account/richlist/:token", get_account_richlist);
 
         t.indexGenerator.section("Peers Endpoints");

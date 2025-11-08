@@ -207,7 +207,6 @@ json header_json(const Header& header, NonzeroHeight height)
     return j;
 }
 
-
 json to_json(const ParseAnnotations& a);
 json to_json(const ParseAnnotation& a)
 {
@@ -225,7 +224,6 @@ json to_json(const ParseAnnotations& arr)
         j.push_back(to_json(a));
     return j;
 }
-
 
 json amount_json(Funds_uint64 amt, AssetPrecision prec)
 {
@@ -461,10 +459,10 @@ json to_json(const api::Head& h)
     return j;
 }
 
-json to_json(const std::pair<NonzeroHeight, Header>& h)
+json to_json(const api::HeaderInfo& h)
 {
     return json {
-        { "header", header_json(h.second, h.first) }
+        { "header", header_json(h.header, h.height) }
     };
 }
 

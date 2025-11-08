@@ -8,14 +8,15 @@ struct AddressCount;
 struct AddressWithId;
 struct AssetLookupTrace;
 struct Block;
-struct ChainHead;
 struct BlockBinary;
+struct ChainHead;
 struct CompleteBlock;
 struct HashrateBlockChart;
 struct HashrateChartRequest;
 struct HashrateInfo;
 struct HashrateTimeChart;
 struct Head;
+struct HeaderInfo;
 struct HeightOrHash;
 struct MempoolEntries;
 struct MempoolUpdate;
@@ -23,8 +24,8 @@ struct MiningState;
 struct Peerinfo;
 struct PeerinfoConnections;
 struct Raw;
-struct WartBalance;
 struct TokenBalance;
+struct WartBalance;
 namespace block {
 
 struct RewardData;

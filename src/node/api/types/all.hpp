@@ -4,6 +4,7 @@
 #include "api/types/input.hpp"
 #include "asset_lookup_trace.hpp"
 #include "block/body/primitives.hpp"
+#include "block/header/header.hpp"
 #include "block/chain/history/index.hpp"
 #include "block/chain/signed_snapshot.hpp"
 #include "block/chain/worksum.hpp"
@@ -42,6 +43,11 @@ struct ChainHead {
     PinHeight pinHeight;
     uint64_t hashrate;
 };
+struct HeaderInfo {
+    NonzeroHeight height;
+    Header header;
+};
+
 
 struct MiningState {
     ChainMiningTask miningTask;

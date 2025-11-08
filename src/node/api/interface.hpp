@@ -27,8 +27,6 @@ template <typename R>
 inline constexpr auto api_call { &APICall<R, typename R::base_tuple_t>::invoke };
 
 // mempool functions
-void put_mempool(WartTransferCreate&&, MempoolInsertCb);
-void get_mempool(MempoolCb cb);
 void lookup_tx(const TxHash& hash, TxCb f);
 
 void get_latest_transactions(LatestTxsCb f);
@@ -71,12 +69,6 @@ void sample_verified_peers(size_t n, SampledPeersCb cb);
 void get_block_head(HeadCb cb);
 void get_chain_mine(const Address& a, MiningCb cb);
 mining_subscription::MiningSubscription subscribe_chain_mine(Address address, mining_subscription::callback_t callback);
-void get_chain_header(api::HeightOrHash, HeaderCb cb);
-void get_chain_binary(api::HeightOrHash, BlockBinaryCb cb);
-void get_chain_hash(Height height, HashCb cb);
-void get_chain_grid(GridCb cb);
-void get_chain_block(api::HeightOrHash, BlockCb cb);
-void get_txcache(TxcacheCb&& cb);
 void get_hashrate_n(size_t n, HashrateCb&& cb);
 void get_hashrate(HashrateCb&& cb);
 void get_hashrate_block_chart(NonzeroHeight from, NonzeroHeight to, size_t window, HashrateBlockChartCb&& cb);
@@ -89,7 +81,6 @@ void get_headerdownload(HeaderdownloadCb f);
 
 // account functions
 void get_account_token_balance(const api::AccountIdOrAddress& address, const api::TokenIdOrSpec&, TokenBalanceCb cb);
-void get_account_history(const Address& address, uint64_t end, HistoryCb cb);
 void get_account_richlist(const api::TokenIdOrSpec&, RichlistCb cb);
 
 void get_transmission_minutes(TransmissionCb cb);

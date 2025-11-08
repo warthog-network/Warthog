@@ -42,16 +42,10 @@ ChainServer::~ChainServer()
     wait_for_shutdown();
 }
 
-
 void ChainServer::async_set_synced(bool synced)
 {
     spdlog::debug("Set synced {}", synced);
     defer(SetSynced { synced });
-}
-
-void ChainServer::async_notify_mempool_constraint_update(MempoolConstraintCb cb)
-{
-    defer(MempoolConstraintUpdate { std::move(cb) });
 }
 
 void ChainServer::async_put_mempool(std::vector<TransactionMessage> txs)
@@ -62,48 +56,6 @@ void ChainServer::async_put_mempool(std::vector<TransactionMessage> txs)
 void ChainServer::api_fake_mine(ResultCb cb)
 {
     cb({});
-}
-
-void ChainServer::api_put_mempool(WartTransferCreate m,
-    MempoolInsertCb callback)
-{
-    defer_maybe_busy(PutMempool { std::move(m), std::move(callback) });
-}
-
-void ChainServer::api_get_token_balance(const api::AccountIdOrAddress& a, const api::TokenIdOrSpec& t, TokenBalanceCb callback)
-{
-    defer_maybe_busy(GetTokenBalance { a, t, std::move(callback) });
-}
-
-void ChainServer::api_get_grid(GridCb callback)
-{
-    defer_maybe_busy(GetGrid { std::move(callback) });
-}
-
-void ChainServer::api_get_mempool(MempoolCb callback)
-{
-    defer_maybe_busy(GetMempool { std::move(callback) });
-}
-
-
-void ChainServer::async_get_head(ChainHeadCb callback)
-{
-    defer_maybe_busy(GetHead { std::move(callback) });
-}
-
-void ChainServer::api_get_history(const Address& address, uint64_t beforeId,
-    HistoryCb callback)
-{
-    defer_maybe_busy(GetHistory { address, beforeId, std::move(callback) });
-}
-
-// void ChainServer::api_get_richlist(api::TokenIdOrSpec tokenId, RichlistCb callback)
-// {
-//     defer_maybe_busy(GetRichlist { tokenId, std::move(callback) });
-// }
-void ChainServer::api_get_mining(const Address& address, ChainMiningCb callback)
-{
-    defer_maybe_busy(GetMining { address, std::move(callback) });
 }
 
 auto ChainServer::api_subscribe_mining(Address address, mining_subscription::callback_t callback) -> mining_subscription::MiningSubscription
@@ -117,37 +69,6 @@ auto ChainServer::api_subscribe_mining(Address address, mining_subscription::cal
 void ChainServer::api_unsubscribe_mining(mining_subscription::SubscriptionId id)
 {
     defer(UnsubscribeMining { id });
-}
-
-void ChainServer::api_get_txcache(TxcacheCb callback)
-{
-    defer_maybe_busy(GetTxcache { std::move(callback) });
-}
-
-void ChainServer::api_get_db_size(DBSizeCB callback)
-{
-    GetDBSize db { std::move(callback) };
-    defer_maybe_busy(db);
-}
-
-void ChainServer::api_get_header(api::HeightOrHash hoh, HeaderCb callback)
-{
-    defer_maybe_busy(GetHeader { hoh, std::move(callback) });
-}
-
-void ChainServer::api_get_block_binary(api::HeightOrHash hoh, BlockBinaryCb callback)
-{
-    defer_maybe_busy(GetBlockBinary { hoh, std::move(callback) });
-}
-
-void ChainServer::api_get_hash(Height height, HashCb callback)
-{
-    defer_maybe_busy(GetHash { height, std::move(callback) });
-}
-
-void ChainServer::api_get_block(api::HeightOrHash hoh, BlockCb callback)
-{
-    defer_maybe_busy(GetBlock { hoh, std::move(callback) });
 }
 
 void ChainServer::subscribe_account_event(SubscriptionRequest r, Address a)
@@ -281,39 +202,6 @@ auto ChainServer::handle_api(chainserver::MiningAppend&& e) -> void
         throw;
     }
 }
-void ChainServer::handle_event(MiningAppend&& e)
-{
-    auto t { timing->time("MiningAppend") };
-    try {
-        auto res = state.append_mined_block(e.block);
-        on_chain_changed(std::move(res));
-        spdlog::info("Accepted new block #{} (worker {:?})", state.chainlength().value(), e.worker);
-        e.callback({});
-        dispatch_mining_subscriptions();
-    } catch (Error err) {
-        spdlog::info("Rejected new block #{} (worker {:?}): {}", (state.chainlength() + 1).value(),
-            e.worker, err.strerror());
-        e.callback(err);
-    }
-}
-
-void ChainServer::handle_event(GetGrid&& e)
-{
-    auto t { timing->time("GetGrid") };
-    e.callback(state.get_headers().grid());
-}
-
-void ChainServer::handle_event(GetTokenBalance&& e)
-{
-    auto t { timing->time("GetBalance") };
-    e.callback(state.api_get_token_balance_recursive(e.account, e.token));
-}
-
-void ChainServer::handle_event(GetMempool&& e)
-{
-    auto t { timing->time("GetMempool") };
-    e.callback(state.api_get_mempool(2000));
-}
 
 void ChainServer::handle_event(LookupTxids&& e)
 {
@@ -347,66 +235,10 @@ Result<T> noval_to_err(wrt::optional<T>&& v)
     return Error(ENOTFOUND);
 }
 
-auto ChainServer::handle_api(chainserver::LookupTxHash&& e) -> api::Transaction
-{
-    return noval_throw(state.api_get_tx(e.hash()));
-}
-
-
-auto ChainServer::handle_api(chainserver::LatestTxs&&) -> api::TransactionsByBlocks
-{
-    return state.api_get_latest_txs();
-}
-
 void ChainServer::handle_event(SetSynced&& e)
 {
     auto t { timing->time("SetSynced") };
     state.set_sync_state(e.synced);
-}
-
-void ChainServer::handle_event(GetHistory&& e)
-{
-    auto t { timing->time("GetHistory") };
-    auto history { state.api_get_history(e.address, e.beforeId) };
-    e.callback(noval_to_err(std::move(history)));
-}
-
-
-void ChainServer::handle_event(GetHead&& e)
-{
-    auto t { timing->time("GetHead") };
-    e.callback(state.api_get_head());
-}
-
-void ChainServer::handle_event(GetHeader&& e)
-{
-    auto t { timing->time("GetHeader") };
-    e.callback(noval_to_err(state.api_get_header(e.heightOrHash)));
-}
-
-void ChainServer::handle_event(GetBlockBinary&& e)
-{
-    auto t { timing->time("GetBlockBinary") };
-    e.callback(noval_to_err(state.api_get_block_binary(e.heightOrHash)));
-}
-
-void ChainServer::handle_event(GetHash&& e)
-{
-    auto t { timing->time("GetHash") };
-    e.callback(noval_to_err(state.get_hash(e.height)));
-}
-
-void ChainServer::handle_event(GetBlock&& e)
-{
-    auto t { timing->time("GetBlock") };
-    e.callback(noval_to_err(state.api_get_block(e.heightOrHash)));
-}
-
-void ChainServer::handle_event(GetMining&& e)
-{
-    auto t { timing->time("GetMining") };
-    auto mt = state.mining_task(e.address);
-    e.callback(mt);
 }
 
 void ChainServer::handle_event(SubscribeMining&& e)
@@ -422,16 +254,6 @@ void ChainServer::handle_event(UnsubscribeMining&& e)
     miningSubscriptions.unsubscribe(e.id);
 }
 
-void ChainServer::handle_event(GetTxcache&& e)
-{
-    auto t { timing->time("GetTxcache") };
-    e.callback(state.api_tx_cache());
-}
-void ChainServer::handle_event(GetDBSize&& e)
-{
-    e.callback(api::DBSize { state.api_db_size() });
-}
-//
 void ChainServer::handle_event(GetBlocks&& e)
 {
     auto t { timing->time("GetBlocks") };
@@ -471,11 +293,6 @@ void ChainServer::handle_event(PutMempool&& e)
     } catch (Error err) {
         e.callback(err);
     }
-}
-
-void ChainServer::handle_event(MempoolConstraintUpdate&& e)
-{
-    e.callback(api::MempoolUpdate { .deletedTransactions = state.on_mempool_constraint_update() });
 }
 
 void ChainServer::handle_event(PutMempoolBatch&& mb)

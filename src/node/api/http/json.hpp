@@ -25,7 +25,7 @@ json to_json(const TxHash&);
 json to_json(const api::Head&);
 json to_json(const api::ChainHead&);
 json to_json(const Peeraddr&);
-json to_json(const std::pair<NonzeroHeight, Header>&);
+json to_json(const api::HeaderInfo&);
 json to_json(const api::TransmissionTimeseries&);
 json to_json(const api::MiningState&);
 json to_json(const api::MempoolUpdate&);

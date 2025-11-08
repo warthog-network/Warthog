@@ -39,7 +39,7 @@ public:
     {
         return std::move(v).visit_overload(std::forward<U>(u)...);
     }
-    wrt::optional<Id> map_alternative(auto lambda) const
+    [[nodiscard]] wrt::optional<Id> map_alternative(auto lambda) const
     {
         return visit_overload(
             [&](Id id) -> wrt::optional<Id> { return id; },
