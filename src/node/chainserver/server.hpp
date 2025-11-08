@@ -20,6 +20,7 @@
     XX(GetHeader, api::HeaderInfo, api::HeightOrHash, heightOrHash)       \
     XX(GetTransactionMinfee, api::TransactionMinfee)                      \
     XX(GetGrid, Grid)                                                     \
+    XX(FakeMine, void)                                                    \
     XX(GetTxcache, chainserver::TransactionIds)                           \
     XX(GetBlock, api::Block, api::HeightOrHash, heightOrHash)             \
     XX(GetMining, ChainMiningTask, Address, address)                      \
@@ -165,7 +166,6 @@ public:
 
     // API methods
     // void api_put_mempool(PaymentCreateMessage, ResultCb cb);
-    void api_fake_mine(ResultCb cb);
     [[nodiscard]] mining_subscription::MiningSubscription api_subscribe_mining(Address address, mining_subscription::callback_t callback);
     void api_unsubscribe_mining(mining_subscription::SubscriptionId);
 
@@ -205,7 +205,8 @@ private:
     auto handle_api(chainserver::GetAccountHistory&& e) { return state.api_get_history(e.address(), e.beforeId()); }
     auto handle_api(chainserver::GetBlockHash&& e) { return state.get_hash(e.height()); }
     auto handle_api(chainserver::GetChainHead&&) { return state.api_get_head(); }
-    auto handle_api(chainserver::MempoolConstraintUpdate&&){return api::MempoolUpdate { .deletedTransactions = state.on_mempool_constraint_update() };}
+    auto handle_api(chainserver::MempoolConstraintUpdate&&) { return api::MempoolUpdate { .deletedTransactions = state.on_mempool_constraint_update() }; }
+    auto handle_api(chainserver::FakeMine&&) -> void;
 
     void handle_event(PutMempool&&);
     void handle_event(LookupTxids&&);

@@ -53,11 +53,6 @@ void ChainServer::async_put_mempool(std::vector<TransactionMessage> txs)
     defer(PutMempoolBatch { std::move(txs) });
 }
 
-void ChainServer::api_fake_mine(ResultCb cb)
-{
-    cb({});
-}
-
 auto ChainServer::api_subscribe_mining(Address address, mining_subscription::callback_t callback) -> mining_subscription::MiningSubscription
 {
     auto req { SubscribeMining::make(address, callback) };
@@ -282,6 +277,10 @@ auto ChainServer::handle_api(chainserver::PutMempool&& e) -> TxHash
     auto [log, txhash] = state.append_gentx(e.message());
     global().core->async_mempool_update(std::move(log));
     return txhash;
+}
+
+auto ChainServer::handle_api(chainserver::FakeMine&&) -> void
+{
 }
 
 void ChainServer::handle_event(PutMempool&& e)
