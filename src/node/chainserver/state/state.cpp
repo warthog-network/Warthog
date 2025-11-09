@@ -1000,9 +1000,10 @@ public:
 RollbackResult
 State::rollback(const Height newlength) const
 {
-    const Height oldlength { chainlength() };
-    spdlog::info("Rolling back chain");
     assert(newlength < chainlength());
+    const Height oldlength { chainlength() };
+    auto n { chainlength() - newlength };
+    spdlog::info("Rolling back {} blocks to height {}", n, newlength);
     const NonzeroHeight beginHeight = newlength.add1();
     auto endHeight(chainlength().add1());
 
