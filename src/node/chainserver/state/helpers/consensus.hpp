@@ -72,7 +72,7 @@ struct Chainstate {
     const auto& headers() const { return headerchain; }
     auto mining_data() const { return headerchain.mining_data(); };
     const Hash& final_hash() const { return headerchain.final_hash(); }
-    auto prepare_append(const wrt::optional<SignedSnapshot>& sp, HeaderView hv) const { return headerchain.prepare_append(sp, hv); }
+    auto prepare_append(const wrt::optional<SignedSnapshot>& sp, HeaderView hv, bool verifyPOW) const { return headerchain.prepare_append(sp, hv, verifyPOW); }
     Height length() const { return headerchain.length(); }
     Descriptor descriptor() const { return dsc; }
     const auto& txids() const { return chainTxIds; }

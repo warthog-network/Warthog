@@ -185,15 +185,20 @@ void ChainServer::on_chain_changed(StateUpdateWithAPIBlocks&& su)
     dispatch_mining_subscriptions();
 }
 
-auto ChainServer::handle_api(chainserver::MiningAppend&& e) -> void
+void ChainServer::append_mined(const chainserver::MiningAppend& a, bool verifyPOW)
 {
     try {
-        on_chain_changed(state.append_mined_block(e.block()));
-        spdlog::info("Accepted new block #{} (worker {:?})", state.chainlength().value(), e.worker());
+        on_chain_changed(state.append_mined_block(a.block(), verifyPOW));
+        if (verifyPOW) {
+            spdlog::info("Accepted new block #{} (worker {})", state.chainlength().value(), a.worker());
+
+        } else {
+            spdlog::info("Faked new block #{}", state.chainlength().value());
+        }
         dispatch_mining_subscriptions();
     } catch (Error err) {
-        spdlog::info("Rejected new block #{} (worker {:?}): {}", (state.chainlength() + 1).value(),
-            e.worker(), err.strerror());
+        spdlog::info("Rejected new block #{} (worker {}): {}", (state.chainlength() + 1).value(),
+            a.worker(), err.strerror());
         throw;
     }
 }
@@ -279,8 +284,10 @@ auto ChainServer::handle_api(chainserver::PutMempool&& e) -> TxHash
     return txhash;
 }
 
-auto ChainServer::handle_api(chainserver::FakeMine&&) -> void
+void ChainServer::fake_mine(const Address& address)
 {
+    auto b { state.mining_task(address)->block };
+    return append_mined({ b, "fakemine" }, false);
 }
 
 void ChainServer::handle_event(PutMempool&& e)

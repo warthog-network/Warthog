@@ -284,7 +284,8 @@ public:
         hook_get_1(t, "/loadtest/block_request/:conn_id", loadtest_block);
         hook_get_1(t, "/loadtest/header_request/:conn_id", loadtest_header);
         hook_get_1(t, "/loadtest/disable/:conn_id", loadtest_disable);
-        hook_get(t, "/debug/fakemine", api_call<chainserver::FakeMine>);
+        hook_get(t, "/debug/fakemine", api_call<chainserver::FakeMineToZero>, true);
+        hook_get_1(t, "/debug/fakemine/:address", api_call<chainserver::FakeMine>, true);
     }
 };
 

@@ -20,7 +20,8 @@
     XX(GetHeader, api::HeaderInfo, api::HeightOrHash, heightOrHash)       \
     XX(GetTransactionMinfee, api::TransactionMinfee)                      \
     XX(GetGrid, Grid)                                                     \
-    XX(FakeMine, void)                                                    \
+    XX(FakeMine, void, Address, address)                                  \
+    XX(FakeMineToZero, void)                                              \
     XX(GetTxcache, chainserver::TransactionIds)                           \
     XX(GetBlock, api::Block, api::HeightOrHash, heightOrHash)             \
     XX(GetMining, ChainMiningTask, Address, address)                      \
@@ -154,11 +155,11 @@ public:
 
     bool is_busy();
 
-    template <typename T>
-    requires(supports<T>)
-    void api_call(T&& req, T::Callback cb)
+    template <typename Req>
+    requires(supports<Req>)
+    void api_call(Req&& req, Req::Callback cb)
     {
-        defer(typename std::remove_cvref_t<T>::Object(std::forward<T>(req), std::move(cb)));
+        defer(typename std::remove_cvref_t<Req>::Object(std::forward<Req>(req), std::move(cb)));
     }
 
     void async_set_synced(bool synced);
@@ -188,7 +189,7 @@ private:
 
 private:
     auto handle_api(chainserver::PutMempool&&) -> TxHash;
-    auto handle_api(chainserver::MiningAppend&&) -> void;
+    auto handle_api(chainserver::MiningAppend&& e) { return append_mined(e, true); };
     auto handle_api(chainserver::LatestTxs&&) { return state.api_get_latest_txs(); }
     auto handle_api(chainserver::LookupTxHash&& e) { return state.api_get_tx(e.hash()); }
     auto handle_api(chainserver::GetTransactionMinfee&&) { return state.api_get_transaction_minfee(); }
@@ -206,7 +207,8 @@ private:
     auto handle_api(chainserver::GetBlockHash&& e) { return state.get_hash(e.height()); }
     auto handle_api(chainserver::GetChainHead&&) { return state.api_get_head(); }
     auto handle_api(chainserver::MempoolConstraintUpdate&&) { return api::MempoolUpdate { .deletedTransactions = state.on_mempool_constraint_update() }; }
-    auto handle_api(chainserver::FakeMine&&) -> void;
+    auto handle_api(chainserver::FakeMine&& f) { return fake_mine(f.address()); }
+    auto handle_api(chainserver::FakeMineToZero&&) { return fake_mine(Address::zero()); }
 
     void handle_event(PutMempool&&);
     void handle_event(LookupTxids&&);
@@ -223,6 +225,8 @@ private:
     void handle_event(SubscribeMinerdist&&);
     void handle_event(DestroySubscriptions&&);
 
+    void fake_mine(const Address&);
+    void append_mined(const chainserver::MiningAppend&, bool verifyPOW);
     using StateUpdateWithAPIBlocks = chainserver::state_update::StateUpdateWithAPIBlocks;
     void on_chain_changed(StateUpdateWithAPIBlocks&&);
 

@@ -1,8 +1,8 @@
 #pragma once
 #include "block/chain/header_chain.hpp"
 #include "block/header/timestamprule.hpp"
-#include "wrt/expected.hpp"
 #include "general/result.hpp"
+#include "wrt/expected.hpp"
 
 struct MiningData {
     Funds_uint64 reward;
@@ -26,7 +26,7 @@ public:
     wrt::expected<HeaderVerifier, ChainError> copy_apply(const wrt::optional<SignedSnapshot>& sp, const HeaderSpan&) const;
     HeaderVerifier(const SharedBatch&);
     // void clear();
-    [[nodiscard]] auto prepare_append(const wrt::optional<SignedSnapshot>& sp, HeaderView hv) const -> Result<PreparedAppend>;
+    [[nodiscard]] auto prepare_append(const wrt::optional<SignedSnapshot>& sp, HeaderView hv, bool verifyPOW = true) const -> Result<PreparedAppend>;
 
     void append(NonzeroHeight length, const PreparedAppend&);
 
@@ -34,7 +34,7 @@ public:
     Height height() const { return length; }
     auto& final_hash() const { return finalHash; };
     auto next_target() const { return nextTarget; }
-    auto get_valid_timestamp() const { return std::max(timeValidator.get_valid_timestamp(),latestRetargetTime+1); }
+    auto get_valid_timestamp() const { return std::max(timeValidator.get_valid_timestamp(), latestRetargetTime + 1); }
 
 protected:
     void initialize(const Headerchain& hc, Height length);
@@ -69,7 +69,7 @@ public:
     // Modifiers
     void shrink(Height newlength); // OK
     void append(const HeaderVerifier::PreparedAppend&, BatchRegistry& br);
-    [[nodiscard]] auto prepare_append(const wrt::optional<SignedSnapshot>& sp, HeaderView hv) const -> Result<HeaderVerifier::PreparedAppend>;
+    [[nodiscard]] auto prepare_append(const wrt::optional<SignedSnapshot>& sp, HeaderView hv, bool verifyPOW = true) const -> Result<HeaderVerifier::PreparedAppend>;
 
     // Getters
     const Hash& final_hash() const { return checker.final_hash(); }

@@ -31,6 +31,7 @@ class Address : public wrt::byte_arr<20> {
 public:
     friend class PubKey;
     static Address uninitialized() { return {}; }
+    static Address zero() { return std::array<uint8_t, 20> { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }; }
     Address(const std::string_view);
     Address(std::array<uint8_t, 20> arr)
         : byte_arr(arr) { };

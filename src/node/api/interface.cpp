@@ -292,7 +292,6 @@ void get_hashrate_time_chart(uint32_t from, uint32_t to, size_t window, Hashrate
 void put_chain_append(BlockWorker&& bw, ResultCb f)
 {
     global().chainServer->api_call(chainserver::MiningAppend(bw.block, bw.worker), f);
-    // global().chainServer->api_mining_append({ bw.block, bw.worker }, f);
 }
 void get_signed_snapshot(Eventloop::SignedSnapshotCb&& cb)
 {

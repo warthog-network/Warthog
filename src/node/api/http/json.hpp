@@ -98,18 +98,18 @@ inline std::string status(Error e)
 inline std::string status(const wrt::optional<Error>& e)
 {
     if (e.has_value()) {
-        return status(Error::none);
+        return status(*e);
     } else {
-        return status(e);
+        return status(Error::none);
     }
 }
 
 inline std::string serialize(const wrt::optional<Error>& e)
 {
     if (e.has_value()) {
-        return status(Error::none);
+        return status(*e);
     } else {
-        return status(e);
+        return status(Error::none);
     }
 }
 

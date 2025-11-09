@@ -131,7 +131,7 @@ void HeaderVerifier::append(NonzeroHeight newlength, const PreparedAppend& p)
     }
 }
 
-auto HeaderVerifier::prepare_append(const wrt::optional<SignedSnapshot>& sp, HeaderView hv) const -> Result<PreparedAppend>
+auto HeaderVerifier::prepare_append(const wrt::optional<SignedSnapshot>& sp, HeaderView hv, bool verifyPOW) const -> Result<PreparedAppend>
 {
     auto hash { hv.hash() };
     NonzeroHeight appendHeight { height() + 1 };
@@ -151,7 +151,7 @@ auto HeaderVerifier::prepare_append(const wrt::optional<SignedSnapshot>& sp, Hea
         return Error(EDIFFICULTY);
 
     // Check POW
-    if (!hv.validPOW(hash, *powVersion)) {
+    if (verifyPOW && !hv.validPOW(hash, *powVersion)) {
         return Error(EPOW);
     }
 
@@ -335,9 +335,9 @@ void ExtendableHeaderchain::append(const HeaderVerifier::PreparedAppend& p,
     checker.append(length().nonzero_assert(), p);
 }
 
-auto ExtendableHeaderchain::prepare_append(const wrt::optional<SignedSnapshot>& sp, HeaderView hv) const -> Result<HeaderVerifier::PreparedAppend>
+auto ExtendableHeaderchain::prepare_append(const wrt::optional<SignedSnapshot>& sp, HeaderView hv, bool verifyPOW) const -> Result<HeaderVerifier::PreparedAppend>
 {
-    return checker.prepare_append(sp, hv);
+    return checker.prepare_append(sp, hv, verifyPOW);
 }
 
 MiningData ExtendableHeaderchain::mining_data() const

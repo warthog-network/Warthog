@@ -67,7 +67,7 @@ public:
 
     // normal methods
     void garbage_collect();
-    auto mining_task(const Address& a) -> Result<ChainMiningTask>;
+    [[nodiscard]] auto mining_task(const Address& a) -> Result<ChainMiningTask>;
     auto mining_task(const Address& a, bool disableTxs) -> Result<ChainMiningTask>;
 
     auto append_gentx(const WartTransferCreate&) -> std::pair<mempool::Updates, TxHash>;
@@ -149,7 +149,7 @@ private:
 public:
     [[nodiscard]] auto apply_signed_snapshot(SignedSnapshot&& sp) -> wrt::optional<StateUpdateWithAPIBlocks>;
     //  stageUpdate;
-    [[nodiscard]] auto append_mined_block(const Block&) -> StateUpdateWithAPIBlocks;
+    [[nodiscard]] auto append_mined_block(const Block&, bool verifyPOW = true) -> StateUpdateWithAPIBlocks;
 
 private:
     api::Transaction api_dispatch_mempool(const TxHash&, TransactionMessage&&) const;
@@ -162,7 +162,7 @@ private:
     [[nodiscard]] auto commit_fork(RollbackResult&& rr, AppendBlocksResult&&) -> StateUpdate;
     [[nodiscard]] auto commit_append(AppendBlocksResult&& abr) -> StateUpdate;
     wrt::optional<SignedSnapshot> try_sign_locked_chainstate();
-    MiningCache::CacheValidity mining_cache_validity();
+    MiningCache::CacheValidity mining_cache_validity() const;
 
 private:
     using tp = std::chrono::steady_clock::time_point;

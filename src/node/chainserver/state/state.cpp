@@ -1153,12 +1153,12 @@ auto State::apply_signed_snapshot(SignedSnapshot&& ssnew) -> wrt::optional<State
     return res;
 }
 
-auto State::append_mined_block(const Block& b) -> StateUpdateWithAPIBlocks
+auto State::append_mined_block(const Block& b, bool verifyPOW) -> StateUpdateWithAPIBlocks
 {
     auto nextHeight { next_height() };
     if (nextHeight != b.height)
         throw Error(EMINEDDEPRECATED);
-    auto prepared { chainstate.prepare_append(signedSnapshot, b.header) };
+    auto prepared { chainstate.prepare_append(signedSnapshot, b.header, verifyPOW) };
     if (!prepared.has_value())
         throw Error(prepared.error());
     if (chainlength() + 1 != b.height)
@@ -1469,7 +1469,7 @@ wrt::optional<SignedSnapshot> State::try_sign_locked_chainstate()
     return {};
 }
 
-MiningCache::CacheValidity State::mining_cache_validity()
+MiningCache::CacheValidity State::mining_cache_validity() const
 {
     return { dbCacheValidity, chainstate.mempool().cache_validity(), now_timestamp() };
 }
