@@ -6,7 +6,7 @@
 #include "block/chain/height.hpp"
 #include "block/chain/history/index.hpp"
 #include "crypto/crypto.hpp"
-#include "defi/token/token.hpp"
+#include "defi/token/asset.hpp"
 #include "defi/uint64/price.hpp"
 #include "general/compact_uint.hpp"
 #include "general/funds.hpp"
@@ -113,7 +113,7 @@ struct ElementBase<T> {
     const T& get() const { return data; }
 
     ElementBase(Reader& r)
-        : data(r)
+        : data(T(r))
     {
     }
     ElementBase(T t)
@@ -139,6 +139,7 @@ struct CompactFeeEl : public ElementBaseWithAnnotation<"compactFee", CompactUInt
 #define ELEMENTMAP(NO_ANNOTATE, ANNOTATE)                                              \
     ANNOTATE(AccountIdEl, AccountId, account_id, "accountId")                          \
     ANNOTATE(AmountEl, Funds_uint64, amount, "amount")                                 \
+    ANNOTATE(NonzeroAmountEl, NonzeroFunds_uint64, amount, "amount")                   \
     ANNOTATE(AssetHashEl, AssetHash, asset_hash, "assetHash")                          \
     ANNOTATE(AssetIdEl, AssetId, asset_id, "assetId")                                  \
     ANNOTATE(AssetNameEl, AssetName, asset_name, "assetName")                          \
@@ -156,16 +157,18 @@ struct CompactFeeEl : public ElementBaseWithAnnotation<"compactFee", CompactUInt
     ANNOTATE(NonceReservedEl, NonceReserved, nonce_reserved, "nonceReserved")          \
     ANNOTATE(OrderIdEl, HistoryId, order_id, "orderId")                                \
     ANNOTATE(OriginAccIdEl, AccountId, origin_account_id, "originAccountId")           \
-    ANNOTATE(PinHeightEl, PinHeight, pin_height, "pinHeight")                          \
+    ANNOTATE(PinHeightEl, PinHeight, pin_height, "pinHeight")                              \
     ANNOTATE(PinNonceEl, PinNonce, pin_nonce, "pinNonce")                              \
     ANNOTATE(QuoteEl, Wart, quote, "quoteWart")                                        \
     ANNOTATE(ReferredHistoryIdEl, HistoryId, referred_history_id, "referredHistoryId") \
     ANNOTATE(SharesEl, Funds_uint64, shares, "sharesAmount")                           \
+    ANNOTATE(NonzeroSharesEl, NonzeroFunds_uint64, shares, "sharesAmount")             \
     ANNOTATE(SignatureEl, RecoverableSignature, signature, "signature")                \
     ANNOTATE(ToAccIdEl, AccountId, to_id, "toAccountId")                               \
     ANNOTATE(ToAddrEl, Address, to_addr, "toAddress")                                  \
     /*ANNOTATE(AddrEl, Address, address, "address", "address")*/                       \
-    ANNOTATE(WartEl, Wart, wart, "wart")
+    ANNOTATE(WartEl, Wart, wart, "wart")                                               \
+    ANNOTATE(NonzeroWartEl, NonzeroWart, wart, "wart")
 
 #define ELEMENT_DEFINE_NOANNOTATE(structname, datatype, methodname)   \
     struct structname : public ElementBase<datatype> {                \
@@ -179,6 +182,7 @@ struct CompactFeeEl : public ElementBaseWithAnnotation<"compactFee", CompactUInt
     };
 ELEMENTMAP(ELEMENT_DEFINE_NOANNOTATE, ELEMENT_DEFINE_ANNOTATE)
 #undef ERR_DEFINE
+
 
 struct BoolElBase {
     BoolElBase(uint8_t v)

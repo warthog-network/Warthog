@@ -9,17 +9,17 @@ struct Combined;
 template <typename... Ts>
 struct SignedCombined;
 template <StaticString tag, typename... Ts>
-using TaggedSignedCombined = Tag< tag,SignedCombined<Ts...>>;
+using TaggedSignedCombined = Tag<tag, SignedCombined<Ts...>>;
 
 using Reward = Combined<ToAccIdEl, WartEl>;
 using WartTransfer = TaggedSignedCombined<"wartTransfer", ToAccIdEl, WartEl>;
-using AssetTransfer = TaggedSignedCombined<"assetTransfer", ToAccIdEl, AmountEl>;
-using ShareTransfer = TaggedSignedCombined<"shareTransfer", ToAccIdEl, SharesEl>;
+using AssetTransfer = TaggedSignedCombined<"assetTransfer", ToAccIdEl, NonzeroAmountEl>;
+using ShareTransfer = TaggedSignedCombined<"shareTransfer", ToAccIdEl, NonzeroSharesEl>;
 using AssetCreation = TaggedSignedCombined<"assetCreation", AssetSupplyEl, AssetNameEl>;
-using Order = TaggedSignedCombined<"order", BuyEl, AmountEl, LimitPriceEl>;
+using Order = TaggedSignedCombined<"order", BuyEl, NonzeroAmountEl, LimitPriceEl>;
 struct CancelationBase;
 using Cancelation = Tag<"cancelation", CancelationBase>;
-using LiquidityDeposit = TaggedSignedCombined<"liquidityDeposit", QuoteEl, BaseEl>;
-using LiquidityWithdrawal = TaggedSignedCombined<"liquidityWithdrawal", AmountEl>;
+using LiquidityDeposit = TaggedSignedCombined<"liquidityDeposit", BaseEl, QuoteEl>;
+using LiquidityWithdrawal = TaggedSignedCombined<"liquidityWithdrawal", NonzeroAmountEl>;
 }
 }

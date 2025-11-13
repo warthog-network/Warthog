@@ -535,8 +535,6 @@ public:
     [[nodiscard]] auto& __register_transfer(TokenId tokenId, AccountId toId, Funds_uint64 amount, const ProcessedSigner& s) // OK
     {
         auto& to { accounts[toId] };
-        if (height.value() > 719118 && amount.is_zero())
-            throw Error(EZEROAMOUNT);
         if (s.origin.id == to.id)
             throw Error(ESELFSEND);
 
@@ -548,6 +546,8 @@ public:
     void register_wart_transfer(const WartTransfer& tv)
     {
         auto s(process_signer(tv));
+        if (height.value() > 719118 && tv.wart().is_zero())
+            throw Error(EZEROAMOUNT);
         auto toAcc { __register_transfer(TokenId::WART, tv.to_id(), tv.wart(), s) };
         wartTransfers.push_back({ std::move(s), { std::move(toAcc), tv.wart() } });
     }
@@ -555,7 +555,7 @@ public:
     void register_cancelation(const Cancelation& c)
     {
         auto s(process_signer(c));
-        cancelations.push_back({ std::move(s), { c.canceled_txid() } });
+        cancelations.push_back({ std::move(s), { c.cancel_height(), c.cancel_nonceid() } });
     }
 
     block_apply::LiquidityDeposit::Internal register_liquidity_deposit(const LiquidityDeposit& ld, AssetId aid)
@@ -563,7 +563,7 @@ public:
         auto s { process_signer(ld) };
         s.account.subtract_balance(aid.token_id(), ld.base());
         s.account.subtract_balance(TokenId::WART, ld.quote());
-        return { std::move(s), { aid, defi::BaseQuote { ld.base(), ld.quote() } } };
+        return { std::move(s), { aid, block_apply::NonzeroBaseQuote { ld.base(), ld.quote() } } };
     }
 
     void add_balance(AccountId aid, TokenId tid, Funds_uint64 amount)
@@ -598,7 +598,7 @@ public:
     {
         auto s { process_signer(l) };
         s.account.subtract_balance(aid.token_id(true), l.amount());
-        return { std::move(s), { l.amount(), aid } };
+        return { std::move(s), { aid, l.amount() } };
     }
     block_apply::Order::Internal register_new_order(const Order& o, AssetId aid)
     {
@@ -624,12 +624,12 @@ public:
             [&](const block::body::AssetTransfer& at) {
                 auto s(process_signer(at));
                 auto valid_to_id { __register_transfer(aid.token_id(), at.to_id(), at.amount(), s) };
-                ts.assetTransfers.push_back({ s, { valid_to_id, at.amount(), aid } });
+                ts.assetTransfers.push_back({ s, { aid, valid_to_id, at.amount() } });
             },
             [&](const block::body::ShareTransfer& st) {
                 auto s(process_signer(st));
                 auto valid_to_id { __register_transfer(aid.token_id(true), st.to_id(), st.shares(), s) };
-                ts.sharesTransfers.push_back({ s, { valid_to_id, st.shares(), aid } });
+                ts.sharesTransfers.push_back({ s, { aid, valid_to_id, st.shares() } });
             },
             [&](const block::body::Order& o) {
                 ts.orders.push_back(register_new_order(o, aid));
@@ -913,7 +913,7 @@ private:
     void verify_new_address_policy()
     {
         std::set<AddressView> newAddresses;
-        for (auto &address : body.newAddresses) {
+        for (auto& address : body.newAddresses) {
             if (newAddresses.emplace(address).second == false)
                 throw Error(EADDRPOLICY);
             if (db.lookup_account(address))
@@ -1173,15 +1173,16 @@ private:
         auto& balanceChecker { this->balanceChecker }; // const lock balanceChecker
         for (auto& c : balanceChecker.get_cancelations()) {
             auto verified { c.verify(txVerifier) };
+            auto& ref { verified.ref };
             auto hid { history.push_cancelation(verified).historyId };
-            auto ctxid { verified.ref.cancel_txid() };
-            if (verified.txid.pinHeight < verified.ref.cancel_txid().pinHeight)
+            TransactionId cancelTxid { ref.origin.id, ref.cancel_height(), ref.cancel_nonceid() };
+            if (verified.txid.pinHeight < cancelTxid.pinHeight)
                 throw Error(ECANCELFUTURE);
-            if (verified.txid == verified.ref.cancel_txid())
+            if (verified.txid == cancelTxid)
                 throw Error(ECANCELSELF);
-            api.cancelations.push_back({ make_signed_info(verified, hid), { ctxid } });
-            txset.emplace(verified.ref.cancel_txid());
-            auto o { db.select_order(verified.ref.cancel_txid()) };
+            api.cancelations.push_back({ make_signed_info(verified, hid), { cancelTxid } });
+            txset.emplace(cancelTxid);
+            auto o { db.select_order(cancelTxid) };
             if (o) { // transaction is removed from the database
                 ignoreOrderIds.insert(o->id);
                 balanceChecker.unlock_balance(c.origin.id, o->spend_token_id(), o->remaining());

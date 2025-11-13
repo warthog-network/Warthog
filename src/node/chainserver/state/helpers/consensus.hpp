@@ -10,6 +10,7 @@
 #include "chainserver/db/state_ids.hpp"
 #include "chainserver/db/types_fwd.hpp"
 #include "chainserver/types.hpp"
+#include "communication/create_transaction_fwd.hpp"
 #include "mempool/mempool.hpp"
 #include <cstdint>
 
@@ -65,7 +66,7 @@ struct Chainstate {
 
     size_t on_mempool_constraint_update();
     TxHash insert_tx(const TransactionMessage& m, DBCache& ac);
-    [[nodiscard]] TxHash create_tx(const WartTransferCreate& m);
+    [[nodiscard]] TxHash create_tx(const TransactionCreate& m);
 
     // const functions
     Worksum work_with_new_block() const { return headerchain.total_work() + headerchain.next_target(); };
@@ -93,6 +94,22 @@ struct Chainstate {
     }
 
 protected:
+    struct PreparedTransactionCreate {
+        Address fromAddr;
+        TxHash txHash;
+        TransactionId txid;
+        TxHeight txHeight;
+        DBCache& cache;
+    };
+    PinHash pin_hash(PinHeight ph) const;
+    WartTransferMessage create_specific_tx(const TransactionId&, const WartTransferCreate& m);
+    TokenTransferMessage create_specific_tx(const TransactionId&, const TokenTransferCreate& m);
+    OrderMessage create_specific_tx(const TransactionId&, const OrderCreate& m);
+    LiquidityDepositMessage create_specific_tx(const TransactionId&, const LiquidityDepositCreate& m);
+    LiquidityWithdrawalMessage create_specific_tx(const TransactionId&, const LiquidityWithdrawalCreate& m);
+    CancelationMessage create_specific_tx(const TransactionId&, const CancelationCreate& m);
+    AssetCreationMessage create_specific_tx(const TransactionId&, const AssetCreationCreate& m);
+
     TxHash insert_tx_internal(const TransactionMessage&, TxHeight, TxHash, DBCache&, const Address fromAddr);
     void prune_txids();
     void update_free_balances(const FreeBalanceUpdates& updates);

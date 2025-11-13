@@ -549,10 +549,10 @@ json to_json(const api::MempoolEntries& entries)
             [&](const LiquidityDepositMessage& m) {
                 elem["type"] = api::block::LiquidityDepositData::label;
                 elem["assetHash"] = m.asset_hash().hex_string();
-                elem["quoteWart"] = m.wart();
-                elem["baseU64"] = m.amount().value();
+                elem["quoteWart"] = m.quote();
+                elem["baseU64"] = m.base().value(); // TODO: this should be looked up and the mempool should only contain elements where it can be looked up (i.e. such elements where the base currency exists)
             },
-            [&](const LiquidityWithdrawMessage& m) {
+            [&](const LiquidityWithdrawalMessage& m) {
                 elem["type"] = api::block::LiquidityWithdrawal::label;
                 elem["assetHash"] = m.asset_hash().hex_string();
                 elem["liquidityU64"] = m.amount().value();

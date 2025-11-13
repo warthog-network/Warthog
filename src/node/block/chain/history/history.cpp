@@ -59,7 +59,7 @@ Entry::Entry(const block_apply::Cancelation::Verified& p)
     : hash(p.hash)
     , data(CancelationData {
           sign_data(p.ref),
-          p.ref.cancel_txid() })
+          TransactionId(p.ref.origin.id, p.ref.cancel_height(), p.ref.cancel_nonceid()) })
 {
 }
 

@@ -70,7 +70,7 @@ public:
     [[nodiscard]] auto mining_task(const Address& a) -> Result<ChainMiningTask>;
     auto mining_task(const Address& a, bool disableTxs) -> Result<ChainMiningTask>;
 
-    auto append_gentx(const WartTransferCreate&) -> std::pair<mempool::Updates, TxHash>;
+    auto append_gentx(const TransactionCreate&) -> std::pair<mempool::Updates, TxHash>;
     auto chainlength() const -> Height { return chainstate.headers().length(); }
 
     // mempool

@@ -154,7 +154,7 @@ void ChainServer::dispatch_mining_subscriptions()
     });
 }
 
-TxHash ChainServer::append_gentx(const WartTransferCreate& m)
+TxHash ChainServer::append_gentx(const TransactionCreate& m)
 {
     auto [log, txhash] = state.append_gentx(m);
     global().core->async_mempool_update(std::move(log));

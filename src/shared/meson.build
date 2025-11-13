@@ -30,7 +30,7 @@ src_wh=[
     './src/crypto/hash.cpp',
     './src/crypto/verushash/verus_clhash_port.cpp',
     './src/crypto/verushash/verushash.cpp',
-    './src/defi/token/token.cpp',
+    './src/defi/token/asset.cpp',
     './src/defi/uint64/orderbook.cpp',
     './src/defi/uint64/price.cpp',
     './src/general/compact_uint.cpp',

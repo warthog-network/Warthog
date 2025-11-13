@@ -5,7 +5,7 @@
 #include "block/chain/height.hpp"
 #include "block/chain/history/index.hpp"
 #include "defi/token/id.hpp"
-#include "defi/token/token.hpp"
+#include "defi/token/asset.hpp"
 #include "defi/uint64/pool.hpp"
 #include "defi/uint64/price.hpp"
 #include "types_fwd.hpp"

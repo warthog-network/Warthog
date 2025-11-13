@@ -102,7 +102,6 @@ struct ArgTypesPack {
     using append = ArgTypesPack<T..., R>;
 };
 
-
 template <typename T>
 struct ReplaceArg {
     static constexpr const bool replace = false;
@@ -199,24 +198,46 @@ struct CancelTxIdElement : public ElementBase<TransactionId> {
     using ElementBase::ElementBase;
     [[nodiscard]] const auto& cancel_txid() const { return data; }
 };
-struct BaseQuoteEl : public ElementBase<defi::BaseQuote> {
+
+struct NonzeroBaseQuote : public defi::BaseQuote {
+    NonzeroBaseQuote(Reader& r)
+        : defi::BaseQuote(r)
+    {
+        validate_throw();
+    }
+    NonzeroBaseQuote(Funds_uint64 base, Wart quote)
+        : defi::BaseQuote(base, quote)
+    {
+        validate_throw();
+    }
+private:
+    void validate_throw()
+    {
+        if (base().is_zero() && quote().is_zero()) {
+            throw Error(EZEROBASEQUOTE);
+        }
+    }
+};
+
+struct NonzeroBaseQuoteEl : public ElementBase<NonzeroBaseQuote> {
     using ElementBase::ElementBase;
     [[nodiscard]] const auto& base_quote() const { return data; }
     [[nodiscard]] const auto& base() const { return data.base(); }
     [[nodiscard]] const auto& quote() const { return data.quote(); }
 };
+
 struct ToValidAccEl : public ElementBase<ValidAccount> {
     using ElementBase::ElementBase;
     [[nodiscard]] const auto& to_address() const { return data.address; }
     [[nodiscard]] const auto& to_id() const { return data.id; }
 };
 
-using Cancelation = signed_entry<CancelTxIdElement>;
-using Order = signed_entry<AssetIdEl, BuyEl, AmountEl, LimitPriceEl>;
-using LiquidityDeposit = signed_entry<AssetIdEl, BaseQuoteEl>;
-using LiquidityWithdrawal = signed_entry<AmountEl, AssetIdEl>;
+using Cancelation = signed_entry<CancelHeightEl, CancelNonceEl>;
 using WartTransfer = signed_entry<ToValidAccEl, WartEl>;
-using TokenTransfer = signed_entry<ToValidAccEl, AmountEl, AssetIdEl>;
+using Order = signed_entry<AssetIdEl, BuyEl, NonzeroAmountEl, LimitPriceEl>;
+using LiquidityDeposit = signed_entry<AssetIdEl, NonzeroBaseQuoteEl>;
+using LiquidityWithdrawal = signed_entry<AssetIdEl, NonzeroAmountEl>;
+using TokenTransfer = signed_entry<AssetIdEl, ToValidAccEl, NonzeroAmountEl>;
 using AssetCreation = signed_entry<AssetNameEl, AssetSupplyEl>;
 
 }

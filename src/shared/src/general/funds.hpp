@@ -3,8 +3,8 @@
 #include "general/params.hpp"
 #include "general/serializer_fwd.hxx"
 #include "general/with_uint64.hpp"
-#include <cassert>
 #include "wrt/optional.hpp"
+#include <cassert>
 
 class AssetPrecision { // number of decimal places
 private:
@@ -167,6 +167,13 @@ public:
     {
         assert(f != 0);
     }
+    NonzeroFunds_uint64(Reader& r)
+        : Funds_uint64(r)
+    {
+        if (value() == 0)
+            throw Error(EZEROAMOUNT);
+    }
+    bool is_zero() const = delete;
     auto operator<=>(const NonzeroFunds_uint64&) const = default;
 };
 struct FundsDecimal {
@@ -200,6 +207,7 @@ struct Supply : public FundsDecimal {
     nlohmann::json to_json() const;
 };
 
+class NonzeroWart;
 class Wart : public FundsBase<Wart> {
 public:
     using FundsBase<Wart>::FundsBase;
@@ -215,12 +223,48 @@ public:
     static Wart parse_throw(std::string_view);
     std::string to_string() const;
     uint64_t E8() const { return val; };
+    NonzeroWart nonzero_throw() const;
+    NonzeroWart nonzero_assert() const;
     operator Funds_uint64() const
     {
         return Funds_uint64(E8());
     }
 
-private:
+protected:
     // we use the more meaningful E8 instead
     uint64_t value() const = delete;
 };
+
+class NonzeroWart : public Wart {
+public:
+    explicit constexpr NonzeroWart(Wart f)
+        : Wart(f)
+    {
+        assert(f != 0);
+    }
+    NonzeroWart(Reader& r)
+        : Wart(r)
+    {
+        if (val == 0)
+            throw Error(EZEROAMOUNT);
+    }
+
+    bool is_zero() const = delete;
+    operator NonzeroFunds_uint64() const
+    {
+        return NonzeroFunds_uint64(Funds_uint64(*this));
+    }
+    auto operator<=>(const NonzeroWart&) const = default;
+};
+
+inline NonzeroWart Wart::nonzero_assert() const
+{
+    return NonzeroWart(*this);
+}
+
+inline NonzeroWart Wart::nonzero_throw() const
+{
+    if (val == 0)
+        throw Error(EZEROWART);
+    return nonzero_assert();
+}

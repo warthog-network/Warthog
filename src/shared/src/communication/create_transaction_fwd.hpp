@@ -1,0 +1,9 @@
+#pragma once
+struct WartTransferCreate;
+struct TokenTransferCreate;
+struct OrderCreate;
+struct LiquidityDepositCreate;
+struct LiquidityWithdrawalCreate;
+struct CancelationCreate;
+struct AssetCreationCreate;
+struct TransactionCreate;

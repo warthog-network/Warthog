@@ -2,7 +2,7 @@
 #include "block/body/transaction_id.hpp"
 #include "chainserver/state/block_apply/types.hpp"
 #include "crypto/hash.hpp"
-#include "defi/token/token.hpp"
+#include "defi/token/asset.hpp"
 #include "defi/uint64/pool.hpp"
 #include "defi/uint64/types.hpp"
 #include "general/serializer_fwd.hxx"

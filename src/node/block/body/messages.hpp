@@ -19,7 +19,7 @@ struct MsgBase : public CombineElements<TransactionIdEl, NonceReservedEl, Compac
     }
 };
 
-namespace messages{
+namespace messages {
 struct SpendToken {
     AssetHash hash;
     bool isLiquidity;
@@ -27,24 +27,31 @@ struct SpendToken {
 };
 }
 
-template <uint8_t indicator, typename... Ts>
+template <uint8_t indicator, typename Self, typename... Ts>
 class ComposeTransactionMessage : public MsgBase, public CombineElements<Ts..., SignatureEl> {
 
 protected:
     using parent_t = ComposeTransactionMessage;
 
+    void check_throw() const
+    {
+    }
+
 public:
     static constexpr bool has_asset_hash = std::derived_from<parent_t, AssetHashEl>;
     static constexpr uint8_t INDICATOR { indicator }; // used for serialization of transaction message vectors
+    //
     ComposeTransactionMessage(const TransactionId& txid, NonceReserved reserved, CompactUInt compactFee, Ts::data_t... ts, RecoverableSignature signature)
         : MsgBase { txid, std::move(reserved), std::move(compactFee) }
         , CombineElements<Ts..., SignatureEl>(std::move(ts)..., std::move(signature))
     {
+        static_cast<Self*>(this)->check_throw();
     }
     ComposeTransactionMessage(Reader& r)
         : MsgBase { r }
         , CombineElements<Ts..., SignatureEl>(r)
     {
+        static_cast<Self*>(this)->check_throw();
     }
     static constexpr size_t byte_size() { return 16 + 3 + 2 + (Ts::byte_size() + ...) + 65; }
 
@@ -76,56 +83,36 @@ public:
     }
 };
 
-class WartTransferMessage : public ComposeTransactionMessage<1, ToAddrEl, WartEl> {
+class WartTransferMessage : public ComposeTransactionMessage<1, WartTransferMessage, ToAddrEl, NonzeroWartEl> {
 public:
     static_assert(!has_asset_hash);
     using WartTransfer = block::body::WartTransfer;
-    WartTransferMessage(TransactionId txid, NonceReserved nr, CompactUInt fee, Address addr, Wart wart, RecoverableSignature sgn)
-        : ComposeTransactionMessage(std::move(txid), std::move(nr), std::move(fee), std::move(addr), std::move(wart), std::move(sgn))
-    {
-        check_throw();
-    };
-    WartTransferMessage(Reader& r)
-        : ComposeTransactionMessage(r)
-    {
-        check_throw();
-    }
+    using ComposeTransactionMessage::ComposeTransactionMessage;
     void check_throw()
     {
-        if (wart().is_zero())
-            throw Error(EZEROWART);
+        // nothing to check since the amount() is already zero by type restriction
     }
 
     [[nodiscard]] Wart spend_wart_throw() const { return sum_throw(fee(), wart()); }
 };
 
-class TokenTransferMessage : public ComposeTransactionMessage<2, AssetHashEl, LiquidityFlagEl, ToAddrEl, AmountEl> { // for defi we include the asset hash
+class TokenTransferMessage : public ComposeTransactionMessage<2, TokenTransferMessage, AssetHashEl, LiquidityFlagEl, ToAddrEl, NonzeroAmountEl> { // for defi we include the asset hash
 public:
     static_assert(has_asset_hash);
-    TokenTransferMessage(TransactionId txid, NonceReserved nr, CompactUInt fee, AssetHash ah, bool poolFlag, Address addr, Funds_uint64 amount, RecoverableSignature sgn)
-        : ComposeTransactionMessage(std::move(txid), std::move(nr), std::move(fee), std::move(ah), poolFlag, std::move(addr), std::move(amount), std::move(sgn))
-    {
-        check_throw();
-    };
-    TokenTransferMessage(Reader& r)
-        : ComposeTransactionMessage(r)
-    {
-        check_throw();
-    }
+    using ComposeTransactionMessage::ComposeTransactionMessage;
     void check_throw()
     {
-        if (amount().is_zero())
-            throw Error(EZEROAMOUNT);
+        // nothing to check since the amount() is already zero by type restriction
     }
     [[nodiscard]] wrt::optional<messages::SpendToken> spend_token_throw() const { return messages::SpendToken { asset_hash(), is_liquidity(), amount() }; }
 };
 
-class AssetCreationMessage : public ComposeTransactionMessage<3, AssetSupplyEl, AssetNameEl> {
+class AssetCreationMessage : public ComposeTransactionMessage<3, AssetCreationMessage, AssetSupplyEl, AssetNameEl> {
 public:
     using ComposeTransactionMessage::ComposeTransactionMessage;
 };
 
-class OrderMessage : public ComposeTransactionMessage<4, AssetHashEl, BuyEl, AmountEl, LimitPriceEl> { // for defi we include the token hash
+class OrderMessage : public ComposeTransactionMessage<4, OrderMessage, AssetHashEl, BuyEl, NonzeroAmountEl, LimitPriceEl> { // for defi we include the token hash
     static_assert(has_asset_hash);
 
 public:
@@ -138,19 +125,20 @@ public:
     [[nodiscard]] Wart spend_wart_throw() const { return sum_throw(fee(), buy() ? Wart::from_funds_throw(amount()) : Wart::zero()); }
     using parent_t::parent_t;
 };
-class LiquidityDepositMessage : public ComposeTransactionMessage<5, AssetHashEl, WartEl, AmountEl> {
+
+class LiquidityDepositMessage : public ComposeTransactionMessage<5, LiquidityDepositMessage, AssetHashEl, BaseEl, QuoteEl> {
     static_assert(has_asset_hash);
 
 public:
-    [[nodiscard]] Wart spend_wart_throw() const { return sum_throw(fee(), wart()); }
+    [[nodiscard]] Wart spend_wart_throw() const { return sum_throw(fee(), quote()); }
     [[nodiscard]] messages::SpendToken spend_token_throw() const
     {
-        return { asset_hash(), false, amount() };
+        return { asset_hash(), false, base() };
     }
     using parent_t::parent_t;
 };
 
-class LiquidityWithdrawMessage : public ComposeTransactionMessage<6, AssetHashEl, AmountEl> {
+class LiquidityWithdrawalMessage : public ComposeTransactionMessage<6, LiquidityWithdrawalMessage, AssetHashEl, NonzeroAmountEl> {
     static_assert(has_asset_hash);
 
 public:
@@ -161,11 +149,12 @@ public:
     using parent_t::parent_t;
 };
 
-class CancelationMessage : public ComposeTransactionMessage<7, CancelHeightEl, CancelNonceEl> {
+class CancelationMessage : public ComposeTransactionMessage<7, CancelationMessage, CancelHeightEl, CancelNonceEl> {
     static_assert(!has_asset_hash);
 
 private:
-    void throw_if_bad()
+    friend ComposeTransactionMessage;
+    void check_throw()
     {
         if (cancel_height() > txid().pinHeight)
             throw Error(ECANCELFUTURE);
@@ -178,16 +167,7 @@ public:
     {
         return { from_id(), cancel_height(), cancel_nonceid() };
     }
-    CancelationMessage(const TransactionId& txid, NonceReserved reserved, CompactUInt compactFee, PinHeight cancelHeight, NonceId nid, RecoverableSignature signature)
-        : ComposeTransactionMessage<7, CancelHeightEl, CancelNonceEl>(txid, reserved, compactFee, cancelHeight, nid, signature)
-    {
-        throw_if_bad();
-    }
-    CancelationMessage(Reader& r)
-        : ComposeTransactionMessage<7, CancelHeightEl, CancelNonceEl>(r)
-    {
-        throw_if_bad();
-    }
+    using ComposeTransactionMessage::ComposeTransactionMessage;
 };
 
 struct InvTxTypeExceptionGenerator {
@@ -198,7 +178,7 @@ struct InvTxTypeExceptionGenerator {
     }
 };
 
-using TransactionVariant = wrt::indicator_variant<InvTxTypeExceptionGenerator, WartTransferMessage, TokenTransferMessage, AssetCreationMessage, OrderMessage, LiquidityDepositMessage, LiquidityWithdrawMessage, CancelationMessage>;
+using TransactionVariant = wrt::indicator_variant<InvTxTypeExceptionGenerator, WartTransferMessage, TokenTransferMessage, AssetCreationMessage, OrderMessage, LiquidityDepositMessage, LiquidityWithdrawalMessage, CancelationMessage>;
 
 struct TransactionMessage : public TransactionVariant {
 public:

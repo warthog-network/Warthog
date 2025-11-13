@@ -138,7 +138,7 @@ WartTransferCreate parse_payment_create(const std::vector<uint8_t>& s)
     try {
         json parsed = json::parse(s);
         return WartTransferCreate(
-            extract_pin_height(parsed), extract_nonce_id(parsed), NonceReserved::zero(), extract_fee(parsed), extract_to_addr(parsed), extract_wart(parsed), extract_signature(parsed));
+            extract_pin_height(parsed), extract_nonce_id(parsed), NonceReserved::zero(), extract_fee(parsed), extract_to_addr(parsed), extract_wart(parsed).nonzero_throw(), extract_signature(parsed));
     } catch (const json::exception& e) {
         throw Error(EINV_ARGS);
     }

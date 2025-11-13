@@ -11,8 +11,8 @@
 #include "crypto/address.hpp"
 #include "crypto/hash.hpp"
 #include "db/sqlite_fwd.hpp"
+#include "defi/token/asset.hpp"
 #include "defi/token/id.hpp"
-#include "defi/token/token.hpp"
 #include "defi/uint64/price.hpp"
 #include "general/funds.hpp"
 #include <cstring>
@@ -101,7 +101,7 @@ public:
     operator uint32_t() const { return getUInt32(); }
     operator AssetName() const
     {
-        return AssetName::parse_throw(static_cast<std::string>(c));
+        return AssetName(static_cast<std::string>(c));
     }
     operator Price_uint64() const
     {

@@ -196,7 +196,7 @@ auto Chainstate::append(AppendSingle d) -> HeaderchainAppend
 
     // remove from mempool
     // remove outdated transactions
-    auto nextBlockPinBegin { (l + 1).pin_begin() };
+    auto nextBlockPinBegin { l.add1().pin_begin() };
     _mempool.erase_pinned_before_height(nextBlockPinBegin);
     // remove used transactions
     for (auto& tid : d.newTxIds)
@@ -212,7 +212,8 @@ auto Chainstate::append(AppendSingle d) -> HeaderchainAppend
     return headers().get_append(l);
 }
 
-size_t Chainstate::on_mempool_constraint_update(){
+size_t Chainstate::on_mempool_constraint_update()
+{
     return _mempool.on_constraint_update();
 };
 
@@ -234,20 +235,10 @@ auto Chainstate::insert_txs(const std::vector<TransactionMessage>& txs) -> std::
 
 TxHash Chainstate::insert_tx(const TransactionMessage& tm, DBCache& wc)
 {
-    if (tm.pin_height() < (length() + 1).pin_begin())
-        throw Error(EPINHEIGHT);
-    if (txids().contains(tm.txid()))
-        throw Error(ENONCE);
-    auto h = headers().get_hash(tm.pin_height());
-    if (!h)
-        throw Error(EPINHEIGHT);
-    auto txHash { tm.txhash(*h) };
-
+    auto txHash { tm.txhash(pin_hash(tm.pin_height())) };
     auto fromAddr = db.lookup_address(tm.from_id());
     if (!fromAddr)
         throw Error(EACCIDNOTFOUND);
-    if (tm.compact_fee() < config().minMempoolFee)
-        throw Error(EMINFEE);
     if (tm.from_address(txHash) != fromAddr)
         throw Error(EFAKEACCID);
 
@@ -256,34 +247,63 @@ TxHash Chainstate::insert_tx(const TransactionMessage& tm, DBCache& wc)
     return insert_tx_internal(tm, th, txHash, wc, *fromAddr);
 }
 
-TxHash Chainstate::create_tx(const WartTransferCreate& m)
+PinHash Chainstate::pin_hash(PinHeight pinHeight) const
 {
-    PinHeight pinHeight = m.pin_height();
     if (pinHeight > length())
         throw Error(EPINHEIGHT);
-    if (pinHeight < (length() + 1).pin_begin())
+    if (pinHeight < length().add1().pin_begin())
         throw Error(EPINHEIGHT);
-    if (m.wart().is_zero())
-        throw Error(EZEROAMOUNT);
-    auto pinHash = headers().hash_at(pinHeight);
-    auto txHash { m.tx_hash(pinHash) };
-    auto fromAddr = m.from_address(txHash);
-    if (fromAddr == m.to_addr())
-        throw Error(ESELFSEND);
-    auto accId = db.lookup_account(fromAddr);
-    if (!accId)
-        throw Error(EADDRNOTFOUND);
+    return headers().hash_at(pinHeight);
+}
 
-    TxHeight th(pinHeight, account_height(*accId));
+[[nodiscard]] TxHash Chainstate::create_tx(const TransactionCreate& m)
+{
+    return m.visit([&]<typename T>(T&& m) {
+        DBCache c(db);
+        PinHeight pinHeight = m.pin_height();
+        auto txHash { m.tx_hash(pin_hash(pinHeight)) };
+        auto fromAddr = m.from_address(txHash);
+        auto accId = db.lookup_account(fromAddr);
+        if (!accId)
+            throw Error(EADDRNOTFOUND);
+        TxHeight th(pinHeight, account_height(*accId)); // TODO: rethink transaction height
+        TransactionId txid(*accId, pinHeight, m.nonce_id());
+        auto msg { create_specific_tx(txid, std::forward<T>(m)) };
+        return insert_tx_internal(std::move(msg), th, txHash, c, fromAddr);
+    });
+}
 
-    TransactionId txid(*accId, pinHeight, m.nonce_id());
-    if (txids().contains(txid))
-        throw Error(ENONCE);
+WartTransferMessage Chainstate::create_specific_tx(const TransactionId& txid, const WartTransferCreate& m)
+{
+    return { txid, m.nonce_reserved(), m.compact_fee(), m.to_addr(), m.wart(), m.signature() };
+}
 
-    WartTransferMessage pm(txid, m.nonce_reserved(), m.compact_fee(), m.to_addr(), m.wart(), m.signature());
+TokenTransferMessage Chainstate::create_specific_tx(const TransactionId& txid, const TokenTransferCreate& m)
+{
+    return { txid, m.nonce_reserved(), m.compact_fee(), m.asset_hash(), m.is_liquidity(), m.to_addr(), m.amount(), m.signature() };
+}
 
-    DBCache c(db);
-    return insert_tx_internal(std::move(pm), th, txHash, c, fromAddr);
+OrderMessage Chainstate::create_specific_tx(const TransactionId& txid, const OrderCreate& m)
+{
+    return { txid, m.nonce_reserved(), m.compact_fee(), m.asset_hash(), m.buy(), m.amount(), m.limit(), m.signature() };
+}
+
+LiquidityDepositMessage Chainstate::create_specific_tx(const TransactionId& txid, const LiquidityDepositCreate& m)
+{
+    return { txid, m.nonce_reserved(), m.compact_fee(), m.asset_hash(), m.base(), m.quote(), m.signature() };
+}
+
+LiquidityWithdrawalMessage Chainstate::create_specific_tx(const TransactionId& txid, const LiquidityWithdrawalCreate& m)
+{
+    return { txid, m.nonce_reserved(), m.compact_fee(), m.asset_hash(), m.amount(), m.signature() };
+}
+CancelationMessage Chainstate::create_specific_tx(const TransactionId& txid, const CancelationCreate& m)
+{
+    return { txid, m.nonce_reserved(), m.compact_fee(), m.cancel_height(), m.cancel_nonceid(), m.signature() };
+}
+AssetCreationMessage Chainstate::create_specific_tx(const TransactionId& txid, const AssetCreationCreate& m)
+{
+    return { txid, m.nonce_reserved(), m.compact_fee(), m.supply(), m.asset_name(), m.signature() };
 }
 
 void Chainstate::update_free_balances(const FreeBalanceUpdates& updates)
@@ -299,6 +319,10 @@ void Chainstate::update_free_balances(const FreeBalanceUpdates& updates)
 
 TxHash Chainstate::insert_tx_internal(const TransactionMessage& m, TxHeight th, TxHash txHash, DBCache& c, const Address fromAddr)
 {
+    if (txids().contains(m.txid()))
+        throw Error(ENONCE);
+    if (m.compact_fee() < config().minMempoolFee)
+        throw Error(EMINFEE);
     // additional checks
     m.visit_overload(
         [&](const WartTransferMessage& m) {

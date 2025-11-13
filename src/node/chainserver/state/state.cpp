@@ -310,13 +310,13 @@ api::Transaction State::api_dispatch_mempool(const TxHash& txHash, TransactionMe
                 { make_signed_info(rd),
                     {
                         .assetInfo { a },
-                        .baseDeposited { rd.amount() },
-                        .quoteDeposited { rd.wart() },
+                        .baseDeposited { rd.base() },
+                        .quoteDeposited { rd.quote() },
                         .sharesReceived { wrt::nullopt },
                     } }
             };
         },
-        [&](LiquidityWithdrawMessage&& rm) -> api::Transaction {
+        [&](LiquidityWithdrawalMessage&& rm) -> api::Transaction {
             auto& a { dbcache.assetsByHash.fetch(rm.asset_hash()) };
             return api::LiquidityWithdrawalTransaction {
                 gen_temporal(),
@@ -675,9 +675,9 @@ Result<ChainMiningTask> State::mining_task(const Address& miner, bool disableTxs
                     [&](LiquidityDepositMessage&& m) {
                         asset(m.asset_hash())
                             .liquidity_deposits()
-                            .push_back({ m.from_id(), m.pin_nonce_throw(height), m.compact_fee(), m.wart(), m.amount(), m.signature() });
+                            .push_back({ m.from_id(), m.pin_nonce_throw(height), m.compact_fee(), m.base(), m.quote(), m.signature() });
                     },
-                    [&](LiquidityWithdrawMessage&& m) {
+                    [&](LiquidityWithdrawalMessage&& m) {
                         asset(m.asset_hash())
                             .liquidity_withdrawals()
                             .push_back({ m.from_id(), m.pin_nonce_throw(height), m.compact_fee(), m.amount(), m.signature() });
@@ -904,7 +904,10 @@ private:
             // Wart transfer lambda
             [&](PinHeight pinHeight, const WartTransfer& t) {
                         auto toAddress { c.addresses.fetch(t.to_id()) };
-                        toMempool.push_back(WartTransferMessage(t.txid(pinHeight), t.pin_nonce().reserved, t.compact_fee(), toAddress, t.wart(), t.signature())); },
+                       // t.wart() cannot be of type NonzeroWart because we had some zero amounts sent in the early days, 
+                       // so it is possible to have zero WART amount in the blocks
+                       if (!t.wart().is_zero()) 
+                        toMempool.push_back(WartTransferMessage(t.txid(pinHeight), t.pin_nonce().reserved, t.compact_fee(), toAddress, t.wart().nonzero_assert(), t.signature())); },
 
             // Cancelation lambda
             [&](PinHeight pinHeight, const Cancelation& t) { toMempool.push_back(CancelationMessage(t.txid(pinHeight), t.pin_nonce().reserved, t.compact_fee(), t.cancel_height(), t.cancel_nonceid(), t.signature())); },
@@ -925,10 +928,10 @@ private:
                                 toMempool.push_back(OrderMessage(t.txid(pinHeight), t.pin_nonce().reserved, t.compact_fee(), asset.hash, t.buy(), t.amount(), t.limit(), t.signature()));
                         },
                         [&](PinHeight pinHeight, const LiquidityDeposit& t) {
-                                toMempool.push_back(LiquidityDepositMessage(t.txid(pinHeight), t.pin_nonce().reserved, t.compact_fee(), asset.hash, t.quote(), t.base(), t.signature()));
+                                toMempool.push_back(LiquidityDepositMessage(t.txid(pinHeight), t.pin_nonce().reserved, t.compact_fee(), asset.hash, t.base(), t.quote(), t.signature()));
                         },
                         [&](PinHeight pinHeight, const LiquidityWithdrawal& t) {
-                                toMempool.push_back(LiquidityWithdrawMessage(t.txid(pinHeight), t.pin_nonce().reserved, t.compact_fee(), asset.hash, t.amount(), t.signature()));
+                                toMempool.push_back(LiquidityWithdrawalMessage(t.txid(pinHeight), t.pin_nonce().reserved, t.compact_fee(), asset.hash, t.amount(), t.signature()));
                         }); },
             // asset creation lambda
             [&](PinHeight pinHeight, const AssetCreation& t) { toMempool.push_back(AssetCreationMessage(t.txid(pinHeight), t.pin_nonce().reserved, t.compact_fee(), t.supply(), t.asset_name(), t.signature())); });
@@ -1203,15 +1206,15 @@ auto State::append_mined_block(const Block& b, bool verifyPOW) -> StateUpdateWit
         .appendedBlocks { std::move(apiBlock) } };
 }
 
-std::pair<mempool::Updates, TxHash> State::append_gentx(const WartTransferCreate& m)
+std::pair<mempool::Updates, TxHash> State::append_gentx(const TransactionCreate& m)
 {
     try {
         auto txhash { chainstate.create_tx(m) };
         auto log { chainstate.pop_mempool_updates() };
-        spdlog::info("Added new transaction to mempool");
+        spdlog::info("Added new \"{}\" transaction to mempool", m.tag());
         return { std::move(log), std::move(txhash) };
     } catch (const Error& e) {
-        spdlog::warn("Rejected new transaction: {}", e.strerror());
+        spdlog::warn("Rejected new \"{}\" transaction: {}", m.tag(), e.strerror());
         throw;
     }
 }

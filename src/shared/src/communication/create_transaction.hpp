@@ -10,7 +10,7 @@
 #include "general/compact_uint.hpp"
 
 template <typename Derived, typename... Ts>
-class TransactionCreate : public CombineElements<PinHeightEl, NonceIdEl, NonceReservedEl, CompactFeeEl, Ts..., SignatureEl> {
+class TransactionCreateBase : public CombineElements<PinHeightEl, NonceIdEl, NonceReservedEl, CompactFeeEl, Ts..., SignatureEl> {
 
 public:
     using CombineElements<PinHeightEl, NonceIdEl, NonceReservedEl, CompactFeeEl, Ts..., SignatureEl>::CombineElements;
@@ -37,19 +37,38 @@ public:
     {
         return from_address(tx_hash(pinHash)) == fromAddress;
     }
-    TransactionCreate(PinHeight pinHeight, NonceId nonceId, CompactUInt compactFee, Ts... ts, const Hash& pinHash, const PrivKey& pk, NonceReserved reserved = NonceReserved::zero())
-        : TransactionCreate(std::move(pinHeight), std::move(nonceId), std::move(reserved), std::move(compactFee), std::move(ts)..., pk.sign(tx_hash(pinHash)))
+    TransactionCreateBase(PinHeight pinHeight, NonceId nonceId, CompactUInt compactFee, Ts... ts, const Hash& pinHash, const PrivKey& pk, NonceReserved reserved = NonceReserved::zero())
+        : TransactionCreateBase(std::move(pinHeight), std::move(nonceId), std::move(reserved), std::move(compactFee), std::move(ts)..., pk.sign(tx_hash(pinHash)))
     {
     }
 };
 
-class WartTransferCreate : public TransactionCreate<WartTransferCreate, ToAddrEl, WartEl> {
-public:
-    using TransactionCreate::TransactionCreate;
-    operator std::string();
-};
+#define DEFINE_CREATE_MESSAGE(name, str_tag, ...)                  \
+    class name : public TransactionCreateBase<name, __VA_ARGS__> { \
+    public:                                                        \
+        const char* tag() const { return str_tag; };               \
+        using TransactionCreateBase::TransactionCreateBase;        \
+        operator std::string();                                    \
+    };
 
-class TokenTransferCreate : public TransactionCreate<TokenTransferCreate, ToAddrEl, AmountEl, AssetHashEl> {
-public:
-    using TransactionCreate::TransactionCreate;
+DEFINE_CREATE_MESSAGE(WartTransferCreate, "WartTransfer", ToAddrEl, NonzeroWartEl)
+DEFINE_CREATE_MESSAGE(TokenTransferCreate, "TokenTransfer", AssetHashEl, LiquidityFlagEl, ToAddrEl, NonzeroAmountEl)
+DEFINE_CREATE_MESSAGE(OrderCreate, "Order", AssetHashEl, BuyEl, AmountEl, LimitPriceEl)
+DEFINE_CREATE_MESSAGE(LiquidityDepositCreate, "LiquidityDeposit", AssetHashEl, BaseEl, QuoteEl)
+DEFINE_CREATE_MESSAGE(LiquidityWithdrawalCreate, "LiquidityWithdrawal", AssetHashEl, NonzeroAmountEl)
+DEFINE_CREATE_MESSAGE(CancelationCreate, "Cancelation", CancelHeightEl, CancelNonceEl)
+DEFINE_CREATE_MESSAGE(AssetCreationCreate, "AssetCreation", AssetSupplyEl, AssetNameEl)
+
+#undef DEFINE_CREATE_MESSAGE
+
+using CreateVariant = wrt::variant<WartTransferCreate, TokenTransferCreate, OrderCreate, LiquidityDepositCreate, LiquidityWithdrawalCreate, CancelationCreate, AssetCreationCreate>;
+
+struct TransactionCreate : CreateVariant {
+    using CreateVariant::CreateVariant;
+    std::string tag() const
+    {
+        return visit([&](auto& createTransaction) -> std::string {
+            return createTransaction.tag();
+        });
+    }
 };

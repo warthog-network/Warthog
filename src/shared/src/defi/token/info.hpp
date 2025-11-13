@@ -1,7 +1,7 @@
 #pragma once
 #include "block/body/account_id.hpp"
 #include "block/chain/height.hpp"
-#include "defi/token/token.hpp"
+#include "defi/token/asset.hpp"
 // struct AssetBasic {
 //     AssetId id;
 //     AssetHash hash;

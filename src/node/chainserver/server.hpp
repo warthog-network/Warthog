@@ -185,7 +185,7 @@ private:
     void workerfun();
     void dispatch_mining_subscriptions();
 
-    TxHash append_gentx(const WartTransferCreate&);
+    TxHash append_gentx(const TransactionCreate&);
 
 private:
     auto handle_api(chainserver::PutMempool&&) -> TxHash;

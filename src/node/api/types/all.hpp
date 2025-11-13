@@ -13,7 +13,7 @@
 #include "communication/mining_task.hpp"
 #include "crypto/address.hpp"
 #include "defi/order_id.hpp"
-#include "defi/token/token.hpp"
+#include "defi/token/asset.hpp"
 #include "defi/types.hpp"
 #include "defi/uint64/pool.hpp"
 #include "defi/uint64/price.hpp"

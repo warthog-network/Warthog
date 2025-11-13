@@ -8,7 +8,7 @@
 #include "db/sqlite.hpp"
 #include "defi/token/account_token.hpp"
 #include "defi/token/info.hpp"
-#include "defi/token/token.hpp"
+#include "defi/token/asset.hpp"
 #include "general/address_funds.hpp"
 #include "general/hex.hpp"
 #include "general/writer.hpp"

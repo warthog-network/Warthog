@@ -298,6 +298,18 @@ public:
     }
 };
 
+// class VerifiedPinHeight : public PinHeight {
+// public:
+//     constexpr explicit VerifiedPinHeight(PinHeight h, Height chainlength)
+//         : PinHeight(h)
+//     {
+//         if (*this > chainlength)
+//             throw Error(EPINHEIGHT);
+//         if (*this < chainlength.add1().pin_begin().pin_begin())
+//             throw Error(EPINHEIGHT);
+//     }
+// };
+
 inline PinHeight NonzeroHeight::pin_begin() const
 {
     return Height(value()).pin_begin();
