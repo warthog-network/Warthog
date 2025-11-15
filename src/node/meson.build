@@ -23,6 +23,7 @@ src= [
   './api/events/emit.cpp',
   './api/events/subscription.cpp',
   './api/http/json.cpp',
+  './api/http/json_converter.cpp',
   './api/http/parse.cpp',
   './api/interface.cpp',
   './api/stratum/stratum_server.cpp',

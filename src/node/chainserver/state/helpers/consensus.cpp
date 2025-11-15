@@ -256,6 +256,7 @@ PinHash Chainstate::pin_hash(PinHeight pinHeight) const
     return headers().hash_at(pinHeight);
 }
 
+
 [[nodiscard]] TxHash Chainstate::create_tx(const TransactionCreate& m)
 {
     return m.visit([&]<typename T>(T&& m) {
@@ -280,6 +281,7 @@ WartTransferMessage Chainstate::create_specific_tx(const TransactionId& txid, co
 
 TokenTransferMessage Chainstate::create_specific_tx(const TransactionId& txid, const TokenTransferCreate& m)
 {
+
     return { txid, m.nonce_reserved(), m.compact_fee(), m.asset_hash(), m.is_liquidity(), m.to_addr(), m.amount(), m.signature() };
 }
 
@@ -290,7 +292,7 @@ OrderMessage Chainstate::create_specific_tx(const TransactionId& txid, const Ord
 
 LiquidityDepositMessage Chainstate::create_specific_tx(const TransactionId& txid, const LiquidityDepositCreate& m)
 {
-    return { txid, m.nonce_reserved(), m.compact_fee(), m.asset_hash(), m.base(), m.quote(), m.signature() };
+    return { txid, m.nonce_reserved(), m.compact_fee(), m.asset_hash(), m.amount(), m.wart(), m.signature() };
 }
 
 LiquidityWithdrawalMessage Chainstate::create_specific_tx(const TransactionId& txid, const LiquidityWithdrawalCreate& m)

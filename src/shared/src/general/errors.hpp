@@ -132,7 +132,7 @@
     XX(132, ENOPOOL, "no pool liquidity")                                          \
     XX(133, ERTCDISABLED, "WebRTC disabled, cannot receive message")               \
     XX(134, EIDPOLICY, "block transaction id policy violated")                     \
-    XX(182, EASSETNAME, "invalid asset name")                   \
+    XX(182, EASSETNAME, "invalid asset name")                                      \
     XX(183, EZEROBASEQUOTE, "Base and quote can't be both zero")                   \
     XX(184, ETOKBALANCE, "insufficient token balance")                             \
     XX(185, EASSETHASHNOTFOUND, "asset hash not found")                            \
@@ -174,6 +174,13 @@
     XX(305, ENOTSYNCED, "node not synced yet")                                     \
     XX(306, EBADTOKEN, "invalid token")                                            \
     XX(307, EINV_TOKEN, "malformed token specification")                           \
+    XX(308, EPARSEHASH, "cannot parse hash")                                       \
+    XX(309, EBADLIQUIDITYFLAG, "cannot parse liquidity flag")                      \
+    XX(310, EBADBUYFLAG, "cannot parse buy flag")                                  \
+    XX(311, EBADCANCELHEIGHT, "cannot parse cancel height")                        \
+    XX(312, EBADCANCELNONCE, "cannot parse cancel nonce")                          \
+    XX(313, EBADASSETUNITS, "cannot parse asset units")                            \
+    XX(314, EBADASSETPRECISION, "cannot parse asset precision")                    \
     XX(1000, ESIGTERM, "received SIGTERM")                                         \
     XX(1001, ESIGHUP, "received SIGHUP")                                           \
     XX(1002, ESIGINT, "received SIGINT")                                           \

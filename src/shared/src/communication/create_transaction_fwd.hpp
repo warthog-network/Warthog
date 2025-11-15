@@ -1,9 +1,11 @@
 #pragma once
-struct WartTransferCreate;
-struct TokenTransferCreate;
-struct OrderCreate;
-struct LiquidityDepositCreate;
-struct LiquidityWithdrawalCreate;
-struct CancelationCreate;
-struct AssetCreationCreate;
-struct TransactionCreate;
+class WartTransferCreate;
+class TokenTransferCreate;
+class OrderCreate;
+class LiquidityDepositCreate;
+class LiquidityWithdrawalCreate;
+class CancelationCreate;
+class AssetCreationCreate;
+template <typename... Ts>
+struct TransactionCreateCombine;
+using TransactionCreate = TransactionCreateCombine<WartTransferCreate, TokenTransferCreate, OrderCreate, LiquidityDepositCreate, LiquidityWithdrawalCreate, CancelationCreate, AssetCreationCreate>;

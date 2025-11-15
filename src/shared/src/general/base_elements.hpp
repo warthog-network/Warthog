@@ -51,7 +51,7 @@ struct CombineElementsEnumerated<i, Element, Elements...> : public Element, publ
         , parent_t(r)
     {
     }
-    CombineElementsEnumerated(Element::data_t t, Elements::data_t... ts)
+    CombineElementsEnumerated(Element t, Elements... ts)
         : Element(std::move(t))
         , parent_t(std::move(ts)...)
     {
@@ -96,6 +96,7 @@ struct ElementBase {
     [[nodiscard]] size_t byte_size() const { return data.byte_size(); }
     const T& get() const { return data; }
 
+    ElementBase(const ElementBase&) = default;
     ElementBase(T t)
         : data(std::move(t))
     {
@@ -157,7 +158,7 @@ struct CompactFeeEl : public ElementBaseWithAnnotation<"compactFee", CompactUInt
     ANNOTATE(NonceReservedEl, NonceReserved, nonce_reserved, "nonceReserved")          \
     ANNOTATE(OrderIdEl, HistoryId, order_id, "orderId")                                \
     ANNOTATE(OriginAccIdEl, AccountId, origin_account_id, "originAccountId")           \
-    ANNOTATE(PinHeightEl, PinHeight, pin_height, "pinHeight")                              \
+    ANNOTATE(PinHeightEl, PinHeight, pin_height, "pinHeight")                          \
     ANNOTATE(PinNonceEl, PinNonce, pin_nonce, "pinNonce")                              \
     ANNOTATE(QuoteEl, Wart, quote, "quoteWart")                                        \
     ANNOTATE(ReferredHistoryIdEl, HistoryId, referred_history_id, "referredHistoryId") \
@@ -182,7 +183,6 @@ struct CompactFeeEl : public ElementBaseWithAnnotation<"compactFee", CompactUInt
     };
 ELEMENTMAP(ELEMENT_DEFINE_NOANNOTATE, ELEMENT_DEFINE_ANNOTATE)
 #undef ERR_DEFINE
-
 
 struct BoolElBase {
     BoolElBase(uint8_t v)

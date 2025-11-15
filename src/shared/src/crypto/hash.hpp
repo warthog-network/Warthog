@@ -72,7 +72,7 @@ public:
         : Hash(std::move(other))
     {
     }
-    [[nodiscard]] static wrt::optional<T> parse_string(std::string_view s)
+    [[nodiscard]] static wrt::optional<T> try_parse(std::string_view s)
     {
         auto p { Hash::parse_string(s) };
         if (p)

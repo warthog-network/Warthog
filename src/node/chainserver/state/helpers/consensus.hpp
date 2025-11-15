@@ -94,13 +94,6 @@ struct Chainstate {
     }
 
 protected:
-    struct PreparedTransactionCreate {
-        Address fromAddr;
-        TxHash txHash;
-        TransactionId txid;
-        TxHeight txHeight;
-        DBCache& cache;
-    };
     PinHash pin_hash(PinHeight ph) const;
     WartTransferMessage create_specific_tx(const TransactionId&, const WartTransferCreate& m);
     TokenTransferMessage create_specific_tx(const TransactionId&, const TokenTransferCreate& m);

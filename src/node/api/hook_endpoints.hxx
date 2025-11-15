@@ -224,7 +224,7 @@ public:
     static void hook_endpoints(T& t)
     {
         t.indexGenerator.section("Transaction Endpoints");
-        hook_post(t, "/transaction/add", parse_payment_create, api_call<chainserver::PutMempool>);
+        hook_post(t, "/transaction/add", parse_transaction_create, api_call<chainserver::PutMempool>);
         hook_get(t, "/transaction/mempool", api_call<chainserver::GetMempool>);
         hook_get_1(t, "/transaction/lookup/:txid", api_call<chainserver::LookupTxHash>);
         hook_get(t, "/transaction/latest", get_latest_transactions);

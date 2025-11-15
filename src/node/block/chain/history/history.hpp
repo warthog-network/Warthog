@@ -94,7 +94,7 @@ struct vect_len32<T> : public vect_len32_base<T> {
 };
 
 struct BuySwapsEl : public ElementBase<vect_len32<CombineElements<BaseEl, QuoteEl, ReferredHistoryIdEl>>> {
-    using base_t::base_t;
+    using ElementBase::ElementBase;
     [[nodiscard]] const auto& buy_swaps() const { return data; }
     [[nodiscard]] auto& buy_swaps() { return data; }
 };
@@ -108,7 +108,7 @@ struct SellSwapsEl : public ElementBase<vect_len32<CombineElements<BaseEl, Quote
 using MatchDataBase = IdCombine<8, AssetIdEl, PoolBeforeEl, PoolAfterEl, BuySwapsEl, SellSwapsEl>;
 struct MatchData : public MatchDataBase {
     MatchData(AssetId assetId, defi::PoolLiquidity_uint64 poolBefore)
-        : MatchData(assetId, defi::BaseQuote_uint64(std::move(poolBefore)), std::move(poolBefore), {}, {})
+        : MatchData { assetId, PoolBeforeEl(defi::BaseQuote_uint64(poolBefore)), PoolAfterEl(defi::BaseQuote_uint64(std::move(poolBefore))), BuySwapsEl { {} }, SellSwapsEl { {} } }
     {
     }
     using MatchDataBase::MatchDataBase;

@@ -4,6 +4,7 @@
 #include "general/serializer_fwd.hxx"
 #include "general/with_uint64.hpp"
 #include "wrt/optional.hpp"
+#include "wrt/variant.hpp"
 #include <cassert>
 
 class AssetPrecision { // number of decimal places
@@ -21,11 +22,11 @@ private:
 public:
     static constexpr size_t byte_size() { return 1; }
     auto value() const { return val; }
-    consteval AssetPrecision(size_t v)
+    constexpr AssetPrecision(size_t v)
         : AssetPrecision(uint8_t(v), Creator())
     {
         if (v > max)
-            throw std::runtime_error("Value " + std::to_string(v) + " exceeds maximum " + std::to_string(max) + ".");
+            throw Error(EBADASSETPRECISION);
     }
     AssetPrecision(Reader& r);
 
@@ -67,6 +68,7 @@ struct ParsedFunds {
     uint64_t v;
     uint8_t decimalPlaces;
 };
+
 
 template <typename R>
 class FundsBase : public IsUint64 {
@@ -155,8 +157,8 @@ public:
     using FundsBase<Funds_uint64>::FundsBase;
     Funds_uint64(Reader& r);
     auto operator<=>(const Funds_uint64&) const = default;
-    static wrt::optional<Funds_uint64> parse(std::string_view, AssetPrecision);
-    static wrt::optional<Funds_uint64> parse(ParsedFunds, AssetPrecision);
+    [[nodiscard]] static wrt::optional<Funds_uint64> parse(std::string_view, AssetPrecision);
+    [[nodiscard]] static wrt::optional<Funds_uint64> parse(ParsedFunds, AssetPrecision);
     static Funds_uint64 parse_throw(std::string_view, AssetPrecision);
     FundsDecimal to_decimal(AssetPrecision d) const;
 };

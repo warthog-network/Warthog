@@ -14,7 +14,7 @@
 
 #define LIST_API_TYPES(XX)                                                \
     XX(MiningAppend, void, Block, block, std::string, worker)             \
-    XX(PutMempool, TxHash, WartTransferCreate, message)                   \
+    XX(PutMempool, TxHash, TransactionCreate, message)                   \
     XX(LatestTxs, api::TransactionsByBlocks)                              \
     XX(LookupTxHash, api::Transaction, TxHash, hash)                      \
     XX(GetHeader, api::HeaderInfo, api::HeightOrHash, heightOrHash)       \
@@ -56,10 +56,10 @@ public:
     void shutdown();
     void wait_for_shutdown();
 
-    struct PutMempool {
-        WartTransferCreate m;
-        MempoolInsertCb callback;
-    };
+    // struct PutMempool {
+    //     WartTransferCreate m;
+    //     MempoolInsertCb callback;
+    // };
     struct LookupTxids {
         Height maxHeight;
         std::vector<TransactionId> txids;
@@ -100,7 +100,7 @@ public:
 
     // EVENTS
     using Event = events_t<
-        PutMempool,
+        // PutMempool,
         LookupTxids,
         SetSynced,
         SubscribeMining,
@@ -210,7 +210,7 @@ private:
     auto handle_api(chainserver::FakeMine&& f) { return fake_mine(f.address()); }
     auto handle_api(chainserver::FakeMineToZero&&) { return fake_mine(Address::zero()); }
 
-    void handle_event(PutMempool&&);
+    // void handle_event(PutMempool&&);
     void handle_event(LookupTxids&&);
     void handle_event(SetSynced&& e);
     void handle_event(SubscribeMining&&);

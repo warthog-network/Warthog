@@ -47,7 +47,7 @@ struct TokenSpec {
             return {};
         }
         auto hashStr { s.substr(pos + 1) };
-        auto ah { AssetHash::parse_string(hashStr) };
+        auto ah { AssetHash::try_parse(hashStr) };
         if (!ah)
             return {};
         return TokenSpec { *ah, liquidity };

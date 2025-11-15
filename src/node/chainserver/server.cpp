@@ -290,16 +290,16 @@ void ChainServer::fake_mine(const Address& address)
     return append_mined({ b, "fakemine" }, false);
 }
 
-void ChainServer::handle_event(PutMempool&& e)
-{
-    auto t { timing->time("PutMempool") };
-    try {
-        auto txhash { append_gentx(std::move(e.m)) };
-        e.callback(txhash);
-    } catch (Error err) {
-        e.callback(err);
-    }
-}
+// void ChainServer::handle_event(PutMempool&& e)
+// {
+//     auto t { timing->time("PutMempool") };
+//     try {
+//         auto txhash { append_gentx(std::move(e.m)) };
+//         e.callback(txhash);
+//     } catch (Error err) {
+//         e.callback(err);
+//     }
+// }
 
 void ChainServer::handle_event(PutMempoolBatch&& mb)
 {
