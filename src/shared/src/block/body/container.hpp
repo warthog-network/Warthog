@@ -12,6 +12,10 @@ struct BodyData : public std::vector<uint8_t> {
         : vector(v)
     {
     }
+    void serialize(RawSerializer auto&& s) const
+    {
+        s << uint32_t(size()) << std::span(*this);
+    }
     size_t byte_size() const { return size(); }
     VersionedBodyData make_versioned(BlockVersion v) &&;
     [[nodiscard]] Body parse_throw(NonzeroHeight, BlockVersion) &&;
