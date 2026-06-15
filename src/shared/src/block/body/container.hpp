@@ -16,7 +16,7 @@ struct BodyData : public std::vector<uint8_t> {
     {
         s << uint32_t(size()) << std::span(*this);
     }
-    size_t byte_size() const { return size(); }
+    size_t byte_size() const { return sizeof(uint32_t) + size(); }
     VersionedBodyData make_versioned(BlockVersion v) &&;
     [[nodiscard]] Body parse_throw(NonzeroHeight, BlockVersion) &&;
 };
