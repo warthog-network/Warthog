@@ -345,14 +345,17 @@ bool Downloader::try_final_request(LeaderNode& leader, RequestSender& sender)
                 // consensus chain fork range.
                 pd = ProbeData { cfr, chains.consensus_pin() };
             }
-            assert(s.length >= pd.fork_range().lower());
+            if (!(s.length >= pd.fork_range().lower())) {
+                spdlog::error("forkRangeLower = {} > {} = s.length", pd.fork_range().lower().value(), s.length.value());
+                assert(false);
+            }
         }
 
         // Same condition as in can_download
         // A leader by definition must have more total work and more total length than the chains we know
         auto forkRangeLower { pd.fork_range().lower() };
         if (s.length < forkRangeLower) {
-            spdlog::error("forkRangeLower = {} > {} = s.length", forkRangeLower.value(), s.length.value() + 1);
+            spdlog::error("forkRangeLower = {} > {} = s.length", forkRangeLower.value(), s.length.value());
             assert(false);
         }
 
@@ -483,9 +486,17 @@ void Downloader::on_proberep(Conref c, const Proberequest& req, const ProberepMs
 
     // match leader info
     if (is_leader(c)) {
-        auto li = data(c).leaderIter;
-        if (li->snapshot.descripted->descriptor == req.descriptor())
-            li->probeData.match(req.height(), *rep.requested());
+        auto& l { *data(c).leaderIter };
+        if (l.snapshot.descripted->descriptor == req.descriptor()) {
+            assert(l.snapshot.length >= l.probeData.fork_range().lower());
+            l.probeData.match(req.height(), *rep.requested());
+            if (!(l.snapshot.length >= l.probeData.fork_range().lower())) {
+                // TODO, this will actually need to lead to ban but for now we fail in this event because there might be a bug and we don't expect total work amount fakers.
+                spdlog::error("After probeData match l.probeData.fork_range().lower() = {} > {} = l.snapshot.length", l.probeData.fork_range().lower().value(),
+                    l.snapshot.length.value());
+                assert(false);
+            }
+        }
     }
 }
 
