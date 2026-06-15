@@ -98,9 +98,6 @@ int run_node(int argc, char** argv)
         return i; // >0 means continue with execution
     BatchRegistry breg;
 
-    spdlog::info("Chain database: {}", config().data.chaindb);
-    spdlog::info("Peers database: {}", config().data.peersdb);
-    spdlog::info("Rxtx database: {}", config().data.rxtxdb);
     spdlog::info("Minimal transaction fee: {} WART", config().minMempoolFee.load().to_string());
     std::unique_ptr<MarketDb> mdb;
     if (config().data.tradesHistoryDb) {
@@ -114,10 +111,10 @@ int run_node(int argc, char** argv)
     auto l { uvw::loop::create() };
 #endif
 
-    PeerDB pdb(config().data.peersdb);
+    PeerDB pdb(config().hidden.peersdb);
     PeerServer ps(pdb, config());
 
-    ChainDB db(config().data.chaindb);
+    ChainDB db(config().hidden.chaindb);
     auto cs = ChainServer::make_chain_server(db, mdb.get(), breg, config().node.snapshotSigner);
 
     rxtx::Server rxtxServer;

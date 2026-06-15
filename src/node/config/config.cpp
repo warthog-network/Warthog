@@ -21,7 +21,7 @@
 #endif
 
 #ifndef DISABLE_LIBUV
-std::string ConfigParams::get_default_datadir()
+static std::filesystem::path get_default_datadir()
 {
     const char* osBaseDir = nullptr;
 #ifdef __linux__
@@ -30,22 +30,27 @@ std::string ConfigParams::get_default_datadir()
     }
     if (osBaseDir == nullptr)
         throw std::runtime_error("Cannot determine default data directory.");
-    return std::string(osBaseDir) + "/.warthog/";
+    return std::filesystem::path(osBaseDir) / ".warthog/";
 #elif _WIN32
     osBaseDir = getenv("LOCALAPPDATA");
     if (osBaseDir == nullptr)
         throw std::runtime_error("Cannot determine default data directory.");
-    return std::string(osBaseDir) + "/Warthog/";
+    return std::filesystem::path(osBaseDir) / "Warthog/";
 #elif __APPLE__
     if ((osBaseDir = getenv("HOME")) == NULL) {
         osBaseDir = getpwuid(getuid())->pw_dir;
     }
     if (osBaseDir == nullptr)
         throw std::runtime_error("Cannot determine default data directory.");
-    return std::string(osBaseDir) + "/Library/Warthog/";
+    return std::filesystem::path(osBaseDir) / "Library/Warthog/";
 #else
     throw std::runtime_error("Cannot determine default data directory.");
 #endif
+}
+std::filesystem::path ConfigParams::get_default_session_dir()
+{
+    return get_default_datadir() / "defi"
+        / (is_testnet() ? "testnet/" : "mainnet/");
 }
 
 #else
@@ -66,7 +71,7 @@ bool ConfigParams::mount_opfs(const char* mountpoint)
     const int rc = wasmfs_create_directory(mountpoint, 0777, pOpfs);
     return rc == 0;
 }
-std::string ConfigParams::get_default_datadir()
+std::string ConfigParams::get_default_session_dir()
 {
     return "/opfs/";
 }
@@ -379,7 +384,7 @@ void ConfigParams::process_args(const gengetopt_args_info& ai)
         return [argname](std::string_view argval) {
             auto p = TCPPeeraddr::parse(argval);
             if (!p)
-                throw std::runtime_error(std::format("Bad {} option specified.",argname));
+                throw std::runtime_error(std::format("Bad {} option specified.", argname));
             return *p;
         };
     };
@@ -387,7 +392,7 @@ void ConfigParams::process_args(const gengetopt_args_info& ai)
         try {
             return CompactUInt::compact(Wart::parse_throw(argval), true);
         } catch (...) {
-            throw std::runtime_error(std::format("Bad --minfee option '{}' specified." ,argval));
+            throw std::runtime_error(std::format("Bad --minfee option '{}' specified.", argval));
         }
     } };
     fill_arg(peers.connect, ai.connect_given, ai.connect_arg, parse_endpoints);
@@ -396,9 +401,6 @@ void ConfigParams::process_args(const gengetopt_args_info& ai)
     fill_arg(jsonrpc.bind, ai.rpc_given, ai.rpc_arg, arg_to_peer_lambda("--rpc"));
     fill_arg(publicAPI, ai.publicrpc_given, ai.publicrpc_arg, arg_to_peer_lambda("--publicrpc"));
     fill_arg(stratumPool, ai.stratum_given, ai.stratum_arg, arg_to_peer_lambda("--stratum"));
-    fill_arg(data.chaindb, ai.chain_db_given, ai.chain_db_arg);
-    fill_arg(data.peersdb, ai.peers_db_given, ai.peers_db_arg);
-    fill_arg(data.rxtxdb, ai.rxtx_db_given, ai.rxtx_db_arg);
     node.isolated = ai.isolated_given;
     node.disableTxsMining = ai.disable_tx_mining_given;
     node.enableWebRTC = ai.enable_webrtc_given;
@@ -406,8 +408,7 @@ void ConfigParams::process_args(const gengetopt_args_info& ai)
         data.tradesHistoryDb.reset();
     }
 
-    if (ai.temporary_given)
-        data.chaindb = "";
+    data.temporary = ai.temporary_given;
     if (!publicAPI && ai.enable_public_given)
         publicAPI = TCPPeeraddr("0.0.0.0:3001");
 
@@ -453,12 +454,6 @@ std::optional<int> ConfigParams::process_config_file(const gengetopt_args_info& 
         // overwrite with config file
         toml::table tbl = toml::parse_file(filename);
         TableReader root(tbl, filename);
-
-        // db properties
-        auto s_db { root.subtable("db") };
-        fill(data.chaindb, s_db, "chain-db");
-        fill(data.peersdb, s_db, "peers-db");
-        fill(data.peersdb, s_db, "rxtx-db");
 
         // stratum properties
         auto s_stratum { root.subtable("stratum") };
@@ -524,16 +519,19 @@ int ConfigParams::init(const gengetopt_args_info& ai)
 #ifdef DISABLE_LIBUV
         assert(ConfigParams::mount_opfs("/opfs"));
 #endif
-        const auto warthogDir { get_default_datadir() };
-        prepare_warthog_dir(warthogDir, !dmp);
+        if (ai.testnet_given)
+            enable_testnet();
+
+        data.session = (ai.session_given ? ai.session_arg
+                                         : get_default_session_dir());
+        spdlog::info("Session: {}", data.session.string());
+
+        prepare_session_dir(data.session, !dmp);
 
         if (ai.debug_given)
             spdlog::set_level(spdlog::level::debug);
 
         // copy default values
-        if (ai.testnet_given) {
-            enable_testnet();
-        }
 
         Endpoints mainnetEndpoints {
             "122.148.197.165:9186",
@@ -564,16 +562,10 @@ int ConfigParams::init(const gengetopt_args_info& ai)
             "65.87.7.86:9286",
         };
 
-        data.chaindb = warthogDir
-            + (is_testnet() ? "testnet_chain_defi.db3" : "chain_defi.db3");
-        data.peersdb = warthogDir
-            + (is_testnet() ? "testnet_peers.db3" : "peers_v2.db3");
-        data.rxtxdb = warthogDir
-            + (is_testnet() ? "testnet_rxtx.db3" : "rxtx.db3");
-        data.chaindb = warthogDir
-            + (is_testnet() ? "testnet_chain_defi.db3" : "chain_defi.db3");
-        data.tradesHistoryDb = warthogDir
-            + (is_testnet() ? "testnet_trades_history.db3" : "trades_history.db3");
+        hidden.chaindb = data.temporary ? "" : (data.session / "chain.db3");
+        hidden.peersdb = data.session / "peers_v2.db3";
+        hidden.rxtxdb = data.session / "rxtx.db3";
+        data.tradesHistoryDb = data.session / "trades_history.db3";
         jsonrpc.bind = TCPPeeraddr(is_testnet() ? "127.0.0.1:3100" : "127.0.0.1:3000");
         node.bind = TCPPeeraddr(is_testnet() ? "0.0.0.0:9286" : "0.0.0.0:9186");
 
@@ -616,14 +608,14 @@ int ConfigParams::init(const gengetopt_args_info& ai)
     return 1;
 }
 
-void ConfigParams::prepare_warthog_dir(const std::string& warthogDir, bool log)
+void ConfigParams::prepare_session_dir(const std::string& profileDir, bool log)
 {
-    if (!std::filesystem::exists(warthogDir)) {
+    if (!std::filesystem::exists(profileDir)) {
         if (!log)
-            spdlog::info("Crating Warthog directory {}", warthogDir);
+            spdlog::info("Crating profile directory {}", profileDir);
         std::error_code ec;
-        if (!std::filesystem::create_directories(warthogDir, ec)) {
-            throw std::runtime_error("Cannot create default directory " + warthogDir + ": " + ec.message());
+        if (!std::filesystem::create_directories(profileDir, ec)) {
+            throw std::runtime_error("Cannot create default directory " + profileDir + ": " + ec.message());
         }
     }
 }
@@ -654,12 +646,9 @@ std::string ConfigParams::dump()
             { "enable-ban", peers.enableBan },
             { "allow-localhost-ip", peers.allowLocalhostIp },
             { "log-communication", (bool)node.logCommunicationVal },
-            { "log-rtc", (bool)node.logRTC } });
-    tbl.insert_or_assign("db", toml::table {
-                                   { "chain-db", data.chaindb },
-                                   { "peers-db", data.peersdb },
-                                   { "rxtx-db", data.peersdb },
-                               });
+            { "log-rtc", (bool)node.logRTC },
+            { "profile", data.session.string() },
+        });
     std::stringstream ss;
     ss << tbl << std::endl;
     return ss.str();

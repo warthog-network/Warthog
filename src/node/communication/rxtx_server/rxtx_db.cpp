@@ -81,7 +81,7 @@ void DB::prune_hours(Timestamp ts)
 }
 
 DB::DB()
-    : db(config().data.rxtxdb)
+    : db(config().hidden.rxtxdb)
     , stmtInsertMinute(db, "INSERT OR IGNORE INTO minutes (timestamp, host_id, rx, tx) VALUES (?,?,0,0)")
     , stmtInsertHour(db, "INSERT OR IGNORE INTO hours (timestamp, host_id, rx, tx) VALUES (?,?,0,0)")
     , stmtAddMinute(db, "UPDATE minutes SET `rx` = `rx` + ?, `tx` = `tx` + ? WHERE `timestamp` = ? AND `host_id` = ?")

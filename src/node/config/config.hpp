@@ -1,14 +1,15 @@
 #pragma once
 
 #include "block/chain/signed_snapshot.hpp"
-#include "wrt/expected.hpp"
 #include "general/compact_uint.hpp"
 #include "general/start_time_points.hpp"
 #include "transport/helpers/peer_addr.hpp"
 #include "transport/helpers/tcp_sockaddr.hpp"
 #include "transport/helpers/transport_types.hpp"
 #include "types.hpp"
+#include "wrt/expected.hpp"
 #include <atomic>
+#include <filesystem>
 struct gengetopt_args_info;
 struct Endpoints : public std::vector<TCPPeeraddr> {
     Endpoints() { }
@@ -55,11 +56,16 @@ struct ConfigParams {
         V4V6 webRTC { true, false };
     } allowedInboundTransports;
     struct Data {
+        std::filesystem::path session;
+        bool temporary { false };
+        std::optional<std::string> tradesHistoryDb;
+    } data;
+    struct Hidden { // concluded properties hidden from configuration
         std::string chaindb;
         std::optional<std::string> tradesHistoryDb;
         std::string peersdb;
         std::string rxtxdb;
-    } data;
+    } hidden;
     struct JSONRPC {
         TCPPeeraddr bind { localhost, 3000 };
     } jsonrpc;
@@ -87,13 +93,13 @@ struct ConfigParams {
         bool enableBan { true };
     } peers;
     bool localDebug { false };
-    static std::string get_default_datadir();
+    static std::filesystem::path get_default_session_dir();
     std::string dump();
     [[nodiscard]] static wrt::expected<ConfigParams, int> from_args(int argc, char** argv);
 
 private:
     ConfigParams() { };
-    void prepare_warthog_dir(const std::string&, bool log);
+    void prepare_session_dir(const std::string&, bool log);
     int init(const gengetopt_args_info&);
     void process_args(const gengetopt_args_info& ai);
     std::optional<int> process_config_file(const gengetopt_args_info& ai, bool silent);

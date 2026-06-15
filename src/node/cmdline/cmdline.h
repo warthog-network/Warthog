@@ -54,15 +54,9 @@ struct gengetopt_args_info
   char * minfee_arg;	/**< @brief Set minimal transaction fee accepted by this node, defaults to 0.01.  */
   char * minfee_orig;	/**< @brief Set minimal transaction fee accepted by this node, defaults to 0.01 original value given at command line.  */
   const char *minfee_help; /**< @brief Set minimal transaction fee accepted by this node, defaults to 0.01 help description.  */
-  char * chain_db_arg;	/**< @brief specify chain data file.  */
-  char * chain_db_orig;	/**< @brief specify chain data file original value given at command line.  */
-  const char *chain_db_help; /**< @brief specify chain data file help description.  */
-  char * peers_db_arg;	/**< @brief specify data file.  */
-  char * peers_db_orig;	/**< @brief specify data file original value given at command line.  */
-  const char *peers_db_help; /**< @brief specify data file help description.  */
-  char * rxtx_db_arg;	/**< @brief specify rxtx database file (logging bytes transmitted).  */
-  char * rxtx_db_orig;	/**< @brief specify rxtx database file (logging bytes transmitted) original value given at command line.  */
-  const char *rxtx_db_help; /**< @brief specify rxtx database file (logging bytes transmitted) help description.  */
+  char * session_arg;	/**< @brief specify session directory.  */
+  char * session_orig;	/**< @brief specify session directory original value given at command line.  */
+  const char *session_help; /**< @brief specify session directory help description.  */
   const char *enable_trades_historydb_help; /**< @brief Enable trades database file (only for public trades history API) help description.  */
   int ws_port_arg;	/**< @brief Websocket port.  */
   char * ws_port_orig;	/**< @brief Websocket port original value given at command line.  */
@@ -103,9 +97,7 @@ struct gengetopt_args_info
   unsigned int disable_tx_mining_given ;	/**< @brief Whether disable-tx-mining was given.  */
   unsigned int enable_webrtc_given ;	/**< @brief Whether enable-webrtc was given.  */
   unsigned int minfee_given ;	/**< @brief Whether minfee was given.  */
-  unsigned int chain_db_given ;	/**< @brief Whether chain-db was given.  */
-  unsigned int peers_db_given ;	/**< @brief Whether peers-db was given.  */
-  unsigned int rxtx_db_given ;	/**< @brief Whether rxtx-db was given.  */
+  unsigned int session_given ;	/**< @brief Whether session was given.  */
   unsigned int enable_trades_historydb_given ;	/**< @brief Whether enable-trades-historydb was given.  */
   unsigned int ws_port_given ;	/**< @brief Whether ws-port was given.  */
   unsigned int ws_tls_cert_given ;	/**< @brief Whether ws-tls-cert was given.  */

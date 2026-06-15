@@ -13,22 +13,14 @@ std::atomic<bool> shutdownSignal;
 
 namespace {
 
-std::string logdir()
-{
-    if (is_testnet()) {
-        return "logs_testnet";
-    } else {
-        return "logs";
-    }
-}
-
 [[nodiscard]] auto create_log(std::string_view name, size_t sizeMegabytes = 5, size_t nFiles = 3)
 {
     size_t max_size = 1048576 * sizeMegabytes;
     using namespace std::string_literals;
-    std::string filename { config().get_default_datadir() + logdir() + "/"s + std::string(name) + ".log"s };
-    spdlog::info("Logging to {}", filename);
-    return spdlog::rotating_logger_mt(std::string(name), filename, max_size, nFiles);
+    auto filename { std::format("{}.log", name) };
+    std::string path { config().data.session / "logs" / filename };
+    // spdlog::info("Logging to {}", path);
+    return spdlog::rotating_logger_mt(std::string(name), path, max_size, nFiles);
 }
 
 auto create_connection_logger()

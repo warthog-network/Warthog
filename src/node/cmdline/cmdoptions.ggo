@@ -16,10 +16,7 @@ option "disable-tx-mining" - "Don't mine transactions (in case of bugs)" optiona
 option "enable-webrtc" - "Enable WebRTC connectivity" optional
 option "minfee" - "Set minimal transaction fee accepted by this node, defaults to 0.01" optional string
 
-section "Data file options"
-option "chain-db" - "specify chain data file" details="Defaults to ~/.warthog/chain.db3 in Linux, %LOCALAPPDATA%/Warthog/chain.db3 on Windows." optional string 
-option "peers-db" - "specify data file" details="Defaults to ~/.warthog/peers.db3 in Linux, %LOCALAPPDATA%/Warthog/peers.db3 on Windows" optional string 
-option "rxtx-db" - "specify rxtx database file (logging bytes transmitted)" details="Defaults to ~/.warthog/rxtx.db3 in Linux, %LOCALAPPDATA%/Warthog/rxtx.db3 on Windows" optional string 
+option "session" s "specify session directory" details="Defaults to ~/.warthog/defi/{testnet or mainnet}/ in Linux, %LOCALAPPDATA%/Warthog/def/{testnet or mainnet}/ on Windows." optional string 
 option "enable-trades-historydb" - "Enable trades database file (only for public trades history API)" details="If enabled, located at ~/.warthog/trades_history.db3 in Linux, %LOCALAPPDATA%/Warthog/trades_history.db3 on Windows" optional 
 
 section "Websocket server options"

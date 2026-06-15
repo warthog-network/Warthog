@@ -673,9 +673,9 @@ NodeInfoResult from(const api::NodeInfo& info)
     uint32_t sinceTimestamp(duration_cast<seconds>(startedAt.system.time_since_epoch()).count());
     return {
         .dbSize = info.dbSize,
-        .chainDBPath = config().data.chaindb,
-        .peersDBPath = config().data.peersdb,
-        .rxtxDBPath = config().data.rxtxdb,
+        .chainDBPath = config().hidden.chaindb,
+        .peersDBPath = config().hidden.peersdb,
+        .rxtxDBPath = config().hidden.rxtxdb,
         .version = {
             .name = CMDLINE_PARSER_VERSION,
             .major = VERSION_MAJOR,
