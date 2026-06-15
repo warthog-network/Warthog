@@ -103,7 +103,7 @@ struct Config : public ConfigParams {
     Config(ConfigParams&&);
     std::atomic<bool> logCommunication { false };
     std::atomic<bool> logRTC { false };
-    std::atomic<bool> logDBUpdate { true };
+    std::atomic<bool> logDBUpdate { false };
     std::atomic<CompactUInt> minMempoolFee { CompactUInt::compact(Wart::from_value(1000448).value()) };
     auto& started_at() const { return startedAt; }
 
