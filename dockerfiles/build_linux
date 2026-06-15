@@ -3,7 +3,7 @@ RUN apk add meson libgcc musl-dev gcc g++ upx linux-headers pkgconf fmt
 COPY . /code
 RUN mkdir /build
 WORKDIR /code
-RUN --mount=type=cache,target=/build LDFLAGS='-static' meson /build/code --default-library static --buildtype=release
+RUN --mount=type=cache,target=/build LDFLAGS='-static' meson setup /build/code --default-library static --buildtype=release --wipe
 WORKDIR /build/code
 RUN  --mount=type=cache,target=/build ninja
 RUN mkdir /install
