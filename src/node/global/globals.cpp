@@ -18,7 +18,7 @@ namespace {
     size_t max_size = 1048576 * sizeMegabytes;
     using namespace std::string_literals;
     auto filename { std::format("{}.log", name) };
-    std::string path { config().data.session / "logs" / filename };
+    std::string path { (config().data.session / "logs" / filename).string() };
     // spdlog::info("Logging to {}", path);
     return spdlog::rotating_logger_mt(std::string(name), path, max_size, nFiles);
 }

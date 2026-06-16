@@ -526,7 +526,7 @@ int ConfigParams::init(const gengetopt_args_info& ai)
                                          : get_default_session_dir());
         spdlog::info("Session: {}", data.session.string());
 
-        prepare_session_dir(data.session, !dmp);
+        prepare_session_dir(data.session.string(), !dmp);
 
         if (ai.debug_given)
             spdlog::set_level(spdlog::level::debug);
@@ -562,10 +562,10 @@ int ConfigParams::init(const gengetopt_args_info& ai)
             "65.87.7.86:9286",
         };
 
-        hidden.chaindb = data.temporary ? "" : (data.session / "chain.db3");
-        hidden.peersdb = data.session / "peers_v2.db3";
-        hidden.rxtxdb = data.session / "rxtx.db3";
-        data.tradesHistoryDb = data.session / "trades_history.db3";
+        hidden.chaindb = data.temporary ? "" : (data.session / "chain.db3").string();
+        hidden.peersdb = (data.session / "peers_v2.db3").string();
+        hidden.rxtxdb = (data.session / "rxtx.db3").string();
+        data.tradesHistoryDb = (data.session / "trades_history.db3").string();
         jsonrpc.bind = TCPPeeraddr(is_testnet() ? "127.0.0.1:3100" : "127.0.0.1:3000");
         node.bind = TCPPeeraddr(is_testnet() ? "0.0.0.0:9286" : "0.0.0.0:9186");
 
