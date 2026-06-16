@@ -9,7 +9,7 @@ This directory contains Dockerfiles for building warthog for different platforms
 | `build_linux` | ✅ Works | Production Linux build |
 | `build_windows` | ✅ Works | Windows cross-compilation |
 | `run_debug` | ✅ Works | Debug build with valgrind |
-| `run_tests` | ⚠️ Untested | Test runner |
+| `run_tests` | ✅ Works | Test runner |
 | `build_macos` | ❌ Broken | macOS cross-compilation (fmt dependency issue) |
 | `build_emscripten` | ❌ Broken | WebAssembly build (C++23 std::move_only_function not implemented) |
 | `build_linux_arm64` | 🔒 Disabled | ARM64 build (all steps commented out) |
