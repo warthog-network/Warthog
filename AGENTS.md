@@ -106,7 +106,7 @@ The defi branch has the following GitHub Actions workflows (in `.github/workflow
 - **Sub-repo rules** — this is part of the Warthog project hub; see `/AGENTS.md` for hub-level rules
 - **Git operations** — the project hub root is NOT a git repository; this subdirectory IS a git repository. Use `git -C core/defi <command>` or `cd core/defi` for git operations.
 - **Public RPC mode** — for internet exposure, use `--enable-public` (shorthand for `--publicrpc=0.0.0.0:3001`). This exposes a filtered subset of the API on port 3001; critical admin endpoints are hidden. Default port 3000 is full-access and should never be exposed to the internet.
-- **End-to-end FBM** — all DeFi matching uses Fair Batch Matching. There is no traditional sequential matching.
+- **End-to-end Fair Batch Matching** — all DeFi matching uses Fair Batch Matching. There is no traditional sequential matching.
 
 ## Transaction Types
 
@@ -129,11 +129,26 @@ cd build && meson test -v
 
 Currently only one test: `custom_float` (C++ floating-point conversion test).
 
+## Matching Algorithm Notes
+
+The defi branch uses **Fair Batch Matching (FBM)** for the DEX. A few notes that are useful when reading or modifying the matcher code:
+
+- **Two kinds of liquidity**: every asset market has *continuous* liquidity from a pool (reserves of base and quote, constant-product formula) and *discrete* liquidity from an order book (limit orders at fixed prices). FBM is the only fair way to match these jointly: at the equilibrium the same conversion price is realized for all buy swaps and all sell swaps, every participant is satisfied, and no remaining pair of unfilled buy and sell liquidity can be matched against each other.
+- **Pool fee**: Default `feeE4 = 10` (10 parts per 10,000 = 0.10% = 10 basis points) in `src/shared/src/defi/uint64/pool.hpp`. The fee is retained in the pool; the product `base * quote` increases with each trade. Liquidity providers benefit when they withdraw their share.
+- **Pool current price** = `quote_reserve / base_reserve` (the marginal conversion rate for an infinitesimally small trade). No price boundaries — the pool covers the full range.
+- **Pure FBM restriction, node improvement**: In the FBM setting we do not allow duplicate price levels within base or quote swap orders (there can be a pair of base and quote orders at the same price, but not two base orders or two quote orders at the same price). This restriction is for simplicity in the matching setting, since otherwise matching priority at the same price level would have to be defined. The Warthog node bypasses this restriction by aggregating orders by price level before computing the FBM, then post-processing to distribute the filled amount back to the individual orders.
+- **Order priority within a price level**: orders are grouped by price before matching, summed into a single effective entry per level, FBM runs on the aggregated levels, and then filled amounts are distributed back to individual orders by **order id** (monotonically increasing with block height; miner can influence order within a block). Since all buyers/sellers receive the same price, this priority only determines whether an order is matched at all, not the matching price.
+- **Pool vs order book**: when both exist, almost always one side is pulled into the pool first because the pool usually offers the better price to that side. Only if the pool price is exactly equal to the two orders' prices does matching start with the other side directly.
+- **Why an order may not fill even when a counter-order exists**: if a pool exists and its price is not exactly at the order's price, the pool can satisfy one side more cheaply than matching against the standing order on the other side. The order's counter is not addressed.
+- **Mental model (selfish actors)**: each side of the market is driven by selfish actors that want the best conversion rate. Liquidity can be unmatched, match with the other side of the order book, or match with the liquidity pool. The algorithm finds the single Nash-equilibrium price for the whole block. While we have implemented FBM as a bisection algorithm, the iterative mental model is "actors would partially offload to whichever is best for them; if pool price is better, they use the pool until the pool price shifts to a limit order's price, then that order takes over". This iterative thought process is not how the algorithm runs, but it explains why the equilibrium is what it is.
+- **Maximal matching property**: the FBM equilibrium is maximal in the sense that there is no remaining pair of unfilled buy and sell liquidity that could be matched against each other without violating some order's limit price or making some actor worse off. This is a consequence of the FBM theorem (existence and uniqueness of the Nash equilibrium).
+- **Implementation reference**: `src/shared/src/defi/uint64/matcher.hpp`, `src/shared/src/defi/uint64/orderbook.hpp`, `src/shared/src/defi/uint64/pool.hpp`.
+
 ## Cross-references
 
 - **HUB.md** (hub root) — Cross-repo reference, public RPC info, research papers, depository structure
 - **AGENTS.md** (hub root) — Hub-level overview, sub-repos table
-- **`whitepaper/`** sub-repo — Project whitepaper (typst → PDF)
+- **`whitepaper/`** sub-repo — Project whitepaper (typst → PDF). [Auto-built PDF](https://github.com/warthog-network/whitepaper/releases/download/build/main.pdf)
 - **Research papers**:
   - [PoBW](https://warthog.network/PoBW.pdf) — Proof of Balanced Work paper
   - [Fair Batch Matching](https://warthog.network/FairBatchMatching.pdf) — FBM paper

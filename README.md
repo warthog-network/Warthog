@@ -148,7 +148,7 @@ Use `--help` to see all available options.
 - [Pool integration guide](https://docs.warthog.network/developers/integration/pools/stratum.md)
 - [Miner integration guide](https://docs.warthog.network/developers/integration/miners.md)
 - [Janushash algorithm](https://docs.warthog.network/janushash/)
-- [Project whitepaper](https://warthog.network/whitepaper.pdf)
+- [Project whitepaper](https://github.com/warthog-network/whitepaper/releases/download/build/main.pdf)
 - [PoBW research paper](https://warthog.network/PoBW.pdf)
 - [Fair Batch Matching paper](https://warthog.network/FairBatchMatching.pdf)
 - [DeFi live demo](https://warthog.network/defi-demo)
