@@ -191,7 +191,7 @@ public:
         if (marketServer) {
             marketServer->api_call(typename std::remove_cvref_t<Req>::Object(std::forward<Req>(req), std::move(cb)));
         } else {
-            cb(Error(EAPINOTSUPPORTED));
+            cb(Error(EAPINOTENABLED));
         }
     }
 

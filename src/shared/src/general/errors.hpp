@@ -195,7 +195,7 @@
     XX(321, EINVARGCOMB, "Invalid argument combination")                           \
     XX(322, ERANGETOOBIG, "Specified result range too big")                        \
     XX(323, EINVRANGE, "Specified range invalid")                                  \
-    XX(324, EAPINOTSUPPORTED, "API method not supported")                          \
+    XX(324, EAPINOTENABLED, "API method not enabled")                          \
     XX(325, EHASHRATEINTERVAL, "Hashrate estimate needs at least 2 block times")   \
     XX(1000, ESIGTERM, "Received SIGTERM")                                         \
     XX(1001, ESIGHUP, "Received SIGHUP")                                           \
