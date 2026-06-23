@@ -3,12 +3,12 @@
 #include "SQLiteCpp/Transaction.h"
 #include "api_types.hpp"
 #include "block/chain/height.hpp"
-#include "request_types.hpp"
 #include "crypto/hash.hpp"
 #include "db/sqlite_fwd.hpp"
 #include "defi/token/id.hpp"
 #include "general/funds.hpp"
 #include "general/timestamp.hpp"
+#include "request_types.hpp"
 #include "wrt/variant.hpp"
 namespace market_history {
 
@@ -16,6 +16,7 @@ struct Asset {
     AssetId id;
     AssetHash hash;
     Height latestHeight;
+    bool fresh() const { return latestHeight.is_zero(); }
 };
 
 // class TradeAmount {
@@ -125,10 +126,10 @@ public:
     TradesVector get_trades_to(AssetId, NonzeroHeight to, size_t n) const;
     TradesVector get_trades_latest(AssetId, size_t n) const;
 
-    CandlesVector get_candles_range(AssetId, Interval interval, Timestamp from, Timestamp to) const;
-    CandlesVector get_candles_from(AssetId, Interval interval, Timestamp from, size_t n) const;
-    CandlesVector get_candles_to(AssetId, Interval interval, Timestamp to, size_t n) const;
-    CandlesVector get_candles_latest(AssetId, Interval interval, size_t n) const;
+    CandlesVector get_candles_range(const Asset&, Interval interval, Timestamp from, Timestamp to) const;
+    CandlesVector get_candles_from(const Asset&, Interval interval, Timestamp from, size_t n) const;
+    CandlesVector get_candles_to(const Asset&, Interval interval, Timestamp to, size_t n) const;
+    CandlesVector get_candles_latest(const Asset&, Interval interval, size_t n) const;
 
     [[nodiscard]] std::optional<BlockHash> get_block_hash(NonzeroHeight height) const;
     MarketReaderDB clone_reader() const;
@@ -136,7 +137,7 @@ public:
 
 protected:
     template <typename... Args>
-    [[nodiscard]] std::vector<Candle> extract_candles(AssetId, Interval, std::string_view condition, Args&&... args) const;
+    [[nodiscard]] std::vector<Candle> extract_candles(const Asset&, Interval, std::string_view condition, Args&&... args) const;
     template <typename... Args>
     [[nodiscard]] std::vector<api::Trade> extract_trades(AssetId, std::string_view condition, Args&&... args) const;
     MarketReaderDB(SQLite::Database&& db);
@@ -148,7 +149,6 @@ private:
     mutable Statement stmtSelectMaxHeight;
     mutable Statement stmtSelectBlock;
 };
-
 
 class MarketDB : public MarketReaderDB {
     struct CandleBegin {

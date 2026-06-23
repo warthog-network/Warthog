@@ -82,19 +82,19 @@ void Reader::handle_event(const Asset& a, GetTradesLatest&& e)
 }
 void Reader::handle_event(const Asset& a, GetCandlesRange&& e)
 {
-    e.callback(db.get_candles_range(a.id, e.interval, e.from, e.to));
+    e.callback(db.get_candles_range(a, e.interval, e.from, e.to));
 }
 void Reader::handle_event(const Asset& a, GetCandlesFrom&& e)
 {
-    e.callback(db.get_candles_from(a.id, e.interval, e.from, e.N));
+    e.callback(db.get_candles_from(a, e.interval, e.from, e.N));
 }
 void Reader::handle_event(const Asset& a, GetCandlesTo&& e)
 {
-    e.callback(db.get_candles_to(a.id, e.interval, e.to, e.N));
+    e.callback(db.get_candles_to(a, e.interval, e.to, e.N));
 }
 void Reader::handle_event(const Asset& a, GetCandlesLatest&& e)
 {
-    e.callback(db.get_candles_latest(a.id, e.interval, e.N));
+    e.callback(db.get_candles_latest(a, e.interval, e.N));
 }
 
 ReaderThreadpool::ReaderThreadpool(MarketDb& db, size_t N)

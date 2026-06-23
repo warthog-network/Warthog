@@ -105,9 +105,11 @@ TradesVector MarketReaderDB::get_trades_latest(AssetId aid, size_t n) const
 }
 
 template <typename... Args>
-inline std::vector<Candle> MarketReaderDB::extract_candles(AssetId assetId, Interval interval, std::string_view condition, Args&&... args) const
+inline std::vector<Candle> MarketReaderDB::extract_candles(const Asset& asset, Interval interval, std::string_view condition, Args&&... args) const
 {
-    auto query = std::format("SELECT timestamp, height, open, high, low, close, base, quote FROM {} {}", candles_table(assetId, interval), condition);
+    if (asset.fresh()) 
+        return {}; // candles tables don't exist, no data
+    auto query = std::format("SELECT timestamp, height, open, high, low, close, base, quote FROM {} {}", candles_table(asset.id, interval), condition);
     Statement stmt(db, query);
     return stmt.all([](const sqlite::Row& row) {
         return Candle {
@@ -124,21 +126,21 @@ inline std::vector<Candle> MarketReaderDB::extract_candles(AssetId assetId, Inte
         std::forward<Args>(args)...);
 }
 
-CandlesVector MarketReaderDB::get_candles_range(AssetId aid, Interval interval, Timestamp from, Timestamp to) const
+CandlesVector MarketReaderDB::get_candles_range(const Asset& a, Interval interval, Timestamp from, Timestamp to) const
 {
-    return { .elements = extract_candles(aid, interval, "WHERE timestamp >= ? AND timestamp <=? ORDER BY timestamp ASC", from, to), .reverse = false };
+    return { .elements = extract_candles(a, interval, "WHERE timestamp >= ? AND timestamp <=? ORDER BY timestamp ASC", from, to), .reverse = false };
 }
-CandlesVector MarketReaderDB::get_candles_from(AssetId aid, Interval interval, Timestamp from, size_t n) const
+CandlesVector MarketReaderDB::get_candles_from(const Asset& a, Interval interval, Timestamp from, size_t n) const
 {
-    return { .elements = extract_candles(aid, interval, "WHERE timestamp >= ? ORDER BY timestamp ASC LIMIT ?", from, n), .reverse = false };
+    return { .elements = extract_candles(a, interval, "WHERE timestamp >= ? ORDER BY timestamp ASC LIMIT ?", from, n), .reverse = false };
 }
-CandlesVector MarketReaderDB::get_candles_to(AssetId aid, Interval interval, Timestamp to, size_t n) const
+CandlesVector MarketReaderDB::get_candles_to(const Asset& a, Interval interval, Timestamp to, size_t n) const
 {
-    return { .elements = extract_candles(aid, interval, "WHERE timestamp <= ? ORDER BY timestamp DESC LIMIT ?", to, n), .reverse = true };
+    return { .elements = extract_candles(a, interval, "WHERE timestamp <= ? ORDER BY timestamp DESC LIMIT ?", to, n), .reverse = true };
 }
-CandlesVector MarketReaderDB::get_candles_latest(AssetId aid, Interval interval, size_t n) const
+CandlesVector MarketReaderDB::get_candles_latest(const Asset& a, Interval interval, size_t n) const
 {
-    return { .elements = extract_candles(aid, interval, "ORDER BY timestamp DESC LIMIT ?", n), .reverse = true };
+    return { .elements = extract_candles(a, interval, "ORDER BY timestamp DESC LIMIT ?", n), .reverse = true };
 }
 
 std::optional<BlockHash> MarketReaderDB::get_block_hash(NonzeroHeight height) const
@@ -195,7 +197,7 @@ void MarketDB::append_block(const BlockInfo& blockInfo)
 
 void MarketDB::insert_trade(const Asset& asset, const Trade& tr, Timestamp ts)
 {
-    if (asset.latestHeight.is_zero())
+    if (asset.fresh())
         create_tables(asset.id);
     auto table { trades_table(asset.id) };
     Statement stmt(db, std::format("INSERT INTO {} (height, base, quote) VALUES (?, ?, ?)", table));
