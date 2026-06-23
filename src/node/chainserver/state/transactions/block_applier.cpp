@@ -937,7 +937,7 @@ private:
     BalanceChecker balanceChecker;
     HistoryEntriesGenerator history;
     TransactionVerifier txVerifier;
-    std::set<HistoryId> ignoreOrderIds;
+    std::set<HistoryId> canceledOrderIds;
 
 private:
     // Check uniqueness of new addresses
@@ -1226,9 +1226,10 @@ private:
             if (o) { // transaction is removed from the database
                 canceledOrderId = o->id;
                 canceledOrderHash = db.lookup_history_hash(o->id);
-                ignoreOrderIds.insert(o->id);
-                balanceChecker.unlock_balance(c.origin.id, o->spend_token_id(), o->remaining());
-                blockEffects.delete_order(*o);
+                if (canceledOrderIds.insert(o->id).second) { // order was canceled for the first time
+                    balanceChecker.unlock_balance(c.origin.id, o->spend_token_id(), o->remaining());
+                    blockEffects.delete_order(*o);
+                };
             }
             auto& hist { history.push_cancelation(verified, canceledOrderId) };
             api.cancelations.push_back(
@@ -1301,7 +1302,7 @@ private:
         auto matched = MatchProcessor {
             .assetId { ah.id() },
             .db { db },
-            .ignoreOrderIds { ignoreOrderIds },
+            .ignoreOrderIds { canceledOrderIds },
             .unsortedOrderbook { newOrders },
             .on_order_delete = [&](block_apply::OrderDelete o) { blockEffects.delete_order(std::move(o)); },
             .on_order_update = [&](block_apply::OrderUpdate o) {
