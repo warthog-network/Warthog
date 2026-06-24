@@ -121,10 +121,10 @@ public:
     [[nodiscard]] std::optional<Asset> get_asset(AssetId) const;
     [[nodiscard]] std::optional<Asset> get_asset(AssetHash) const;
 
-    TradesVector get_trades_range(AssetId, NonzeroHeight from, NonzeroHeight to) const;
-    TradesVector get_trades_from(AssetId, NonzeroHeight from, size_t n) const;
-    TradesVector get_trades_to(AssetId, NonzeroHeight to, size_t n) const;
-    TradesVector get_trades_latest(AssetId, size_t n) const;
+    TradesVector get_trades_range(const Asset&, NonzeroHeight from, NonzeroHeight to) const;
+    TradesVector get_trades_from(const Asset&, NonzeroHeight from, size_t n) const;
+    TradesVector get_trades_to(const Asset&, NonzeroHeight to, size_t n) const;
+    TradesVector get_trades_latest(const Asset&, size_t n) const;
 
     CandlesVector get_candles_range(const Asset&, Interval interval, Timestamp from, Timestamp to) const;
     CandlesVector get_candles_from(const Asset&, Interval interval, Timestamp from, size_t n) const;
@@ -139,7 +139,7 @@ protected:
     template <typename... Args>
     [[nodiscard]] std::vector<Candle> extract_candles(const Asset&, Interval, std::string_view condition, Args&&... args) const;
     template <typename... Args>
-    [[nodiscard]] std::vector<api::Trade> extract_trades(AssetId, std::string_view condition, Args&&... args) const;
+    [[nodiscard]] std::vector<api::Trade> extract_trades(const Asset&, std::string_view condition, Args&&... args) const;
     MarketReaderDB(SQLite::Database&& db);
     mutable SQLite::Database db;
 

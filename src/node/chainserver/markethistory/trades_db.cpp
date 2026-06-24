@@ -72,9 +72,11 @@ std::optional<Asset> MarketReaderDB::get_asset(AssetHash hash) const
 }
 
 template <typename... Args>
-inline std::vector<api::Trade> MarketReaderDB::extract_trades(AssetId assetId, std::string_view condition, Args&&... args) const
+inline std::vector<api::Trade> MarketReaderDB::extract_trades(const Asset& asset, std::string_view condition, Args&&... args) const
 {
-    auto table { trades_table(assetId) };
+    if (asset.fresh())
+        return {}; // trades tables don't exist, no data
+    auto table { trades_table(asset.id) };
     auto query = std::format("SELECT {}.height AS height, timestamp, base, quote FROM {} JOIN Blocks ON {}.height = Blocks.height {}", table, table, table, condition);
     Statement stmt(db, query);
     return stmt.all([](const sqlite::Row& row) {
@@ -87,27 +89,27 @@ inline std::vector<api::Trade> MarketReaderDB::extract_trades(AssetId assetId, s
     },
         std::forward<Args>(args)...);
 }
-TradesVector MarketReaderDB::get_trades_range(AssetId aid, NonzeroHeight from, NonzeroHeight to) const
+TradesVector MarketReaderDB::get_trades_range(const Asset& a, NonzeroHeight from, NonzeroHeight to) const
 {
-    return { .elements = extract_trades(aid, "WHERE height >= ? AND height <=? ORDER BY height ASC", from, to), .reverse = false };
+    return { .elements = extract_trades(a, "WHERE height >= ? AND height <=? ORDER BY height ASC", from, to), .reverse = false };
 }
-TradesVector MarketReaderDB::get_trades_from(AssetId aid, NonzeroHeight from, size_t n) const
+TradesVector MarketReaderDB::get_trades_from(const Asset& a, NonzeroHeight from, size_t n) const
 {
-    return { .elements = extract_trades(aid, "WHERE height >= ? ORDER BY height ASC LIMIT ?", from, n), .reverse = false };
+    return { .elements = extract_trades(a, "WHERE height >= ? ORDER BY height ASC LIMIT ?", from, n), .reverse = false };
 }
-TradesVector MarketReaderDB::get_trades_to(AssetId aid, NonzeroHeight to, size_t n) const
+TradesVector MarketReaderDB::get_trades_to(const Asset& a, NonzeroHeight to, size_t n) const
 {
-    return { .elements = extract_trades(aid, "WHERE height <= ? ORDER BY height DESC LIMIT ?", to, n), .reverse = true };
+    return { .elements = extract_trades(a, "WHERE height <= ? ORDER BY height DESC LIMIT ?", to, n), .reverse = true };
 }
-TradesVector MarketReaderDB::get_trades_latest(AssetId aid, size_t n) const
+TradesVector MarketReaderDB::get_trades_latest(const Asset& a, size_t n) const
 {
-    return { .elements = extract_trades(aid, "ORDER BY height DESC LIMIT ?", n), .reverse = true };
+    return { .elements = extract_trades(a, "ORDER BY height DESC LIMIT ?", n), .reverse = true };
 }
 
 template <typename... Args>
 inline std::vector<Candle> MarketReaderDB::extract_candles(const Asset& asset, Interval interval, std::string_view condition, Args&&... args) const
 {
-    if (asset.fresh()) 
+    if (asset.fresh())
         return {}; // candles tables don't exist, no data
     auto query = std::format("SELECT timestamp, height, open, high, low, close, base, quote FROM {} {}", candles_table(asset.id, interval), condition);
     Statement stmt(db, query);

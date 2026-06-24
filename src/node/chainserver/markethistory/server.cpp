@@ -66,19 +66,19 @@ void Reader::dispatch(ReaderEventInternal&& event)
 
 void Reader::handle_event(const Asset& a, GetTradesRange&& e)
 {
-    e.callback(db.get_trades_range(a.id, e.from, e.to));
+    e.callback(db.get_trades_range(a, e.from, e.to));
 }
 void Reader::handle_event(const Asset& a, GetTradesFrom&& e)
 {
-    e.callback(db.get_trades_from(a.id, e.from, e.N));
+    e.callback(db.get_trades_from(a, e.from, e.N));
 }
 void Reader::handle_event(const Asset& a, GetTradesTo&& e)
 {
-    e.callback(db.get_trades_to(a.id, e.to, e.N));
+    e.callback(db.get_trades_to(a, e.to, e.N));
 }
 void Reader::handle_event(const Asset& a, GetTradesLatest&& e)
 {
-    e.callback(db.get_trades_latest(a.id, e.N));
+    e.callback(db.get_trades_latest(a, e.N));
 }
 void Reader::handle_event(const Asset& a, GetCandlesRange&& e)
 {
