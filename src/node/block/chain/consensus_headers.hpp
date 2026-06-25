@@ -36,9 +36,6 @@ public:
     auto next_target() const { return nextTarget; }
     auto get_valid_timestamp() const { return std::max(timeValidator.get_valid_timestamp(), latestRetargetTime + 1); }
 
-protected:
-    void initialize(const Headerchain& hc, Height length);
-
 private: // data
     Height length { 0 };
     //

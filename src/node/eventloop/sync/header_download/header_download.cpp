@@ -520,7 +520,7 @@ void Downloader::process_final(Lead_iter li, std::vector<Offender>& out)
 
     if (li->final_slot() != li->next_slot())
         return;
-    if (li->finalBatch.batch.size() == 0) {
+    if (b.size() == 0) {
         if (li->snapshot.length.incomplete_batch_size() == 0) {
             assert(li->verified_total_work() > minWork);
         }
