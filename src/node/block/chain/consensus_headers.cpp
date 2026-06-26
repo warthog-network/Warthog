@@ -175,7 +175,7 @@ auto HeaderVerifier::prepare_append(const std::optional<SignedSnapshot>& sp, Hea
 HeaderVerifier::HeaderVerifier(const Headerchain& hc, Height length)
     : HeaderVerifier()
 {
-    assert(length >= hc.length());
+    assert(length <= hc.length());
     finalHash = hc.hash_at(length);
 
     this->length = length;
