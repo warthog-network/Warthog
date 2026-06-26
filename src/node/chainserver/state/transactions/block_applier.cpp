@@ -152,7 +152,7 @@ struct OrderAggregator {
     defi::Order_uint64 load_next_order()
     {
         assert(!drained);
-        auto o { last_inserted().order };
+        auto o { defi::Order_uint64 { last_inserted().remaining(), last_inserted().order.limit } };
         while (true) {
             load_next();
             if (drained || last_inserted().order.limit != o.limit)
@@ -220,7 +220,7 @@ struct MatchProcessor {
     {
         bool matched { false }; // whether there is any effect
         AggregatorMatch am { db, unsortedOrderbook, assetId, pool, ignoreOrderIds };
-        auto& m { am.m };
+        const auto& m { am.m };
         Funds_uint64 fromPool { 0 };
         defi::BaseQuote_uint64 returned { m.filled };
         if (m.toPool) {
