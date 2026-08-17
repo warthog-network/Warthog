@@ -31,7 +31,10 @@ class Header;
 struct TCPPeeraddr;
 
 template <typename T>
-using ResultCb = std::function<void(const Result<T>&)>;
+using TypeCb = std::function<void(const T&)>;
+
+template <typename T>
+using ResultCb = TypeCb<Result<T>>;
 
 using PeersCb = std::function<void(const std::vector<api::Peerinfo>&)>;
 using IpCounterCb = std::function<void(const api::IPCounter&)>;
@@ -72,3 +75,4 @@ using RichlistCb = ResultCb<api::RichlistInfo>;
 using WalletCb = ResultCb<api::Wallet>;
 using DBSizeCb = ResultCb<api::DBSize>;
 using InfoCb = ResultCb<api::NodeInfo>;
+using NodeVersionCb = TypeCb<api::NodeVersionPlaceholder>;

@@ -98,9 +98,10 @@ void get_info(InfoCb cb)
             if (s)
                 cb(api::NodeInfo { std::move(*s) });
             else
-                cb(Error(ENOTFOUND));
+                cb(s.error());
         });
 }
+void get_node_version(NodeVersionCb cb){ cb({});}
 
 void get_wallet_new(WalletCb cb)
 {

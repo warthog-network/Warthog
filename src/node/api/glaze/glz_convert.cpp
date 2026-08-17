@@ -653,6 +653,18 @@ std::vector<std::pair<std::string, size_t>> from(const api::IPCounter& c)
         out.push_back({ e.first.to_string(), e.second });
     return out;
 }
+
+NodeVersion from(const api::NodeVersionPlaceholder&)
+{
+    return {
+        .name = CMDLINE_PARSER_VERSION,
+        .major = VERSION_MAJOR,
+        .minor = VERSION_MINOR,
+        .patch = VERSION_PATCH,
+        .commit = GIT_COMMIT_INFO
+    };
+}
+
 NodeInfoResult from(const api::NodeInfo& info)
 {
     using namespace std::chrono;
@@ -672,16 +684,15 @@ NodeInfoResult from(const api::NodeInfo& info)
     auto uptimeStr { format_duration(uptimeSeconds) };
     uint32_t sinceTimestamp(duration_cast<seconds>(startedAt.system.time_since_epoch()).count());
     return {
-        .dbSize = info.dbSize,
-        .chainDBPath = config().hidden.chaindb,
-        .peersDBPath = config().hidden.peersdb,
-        .rxtxDBPath = config().hidden.rxtxdb,
-        .version = {
-            .name = CMDLINE_PARSER_VERSION,
-            .major = VERSION_MAJOR,
-            .minor = VERSION_MINOR,
-            .patch = VERSION_PATCH,
-            .commit = GIT_COMMIT_INFO },
+        .db = {
+            .chain = {
+                .size = info.dbSize,
+                .path = config().hidden.chaindb,
+            },
+            .peersPath = config().hidden.peersdb,
+            .rxtxPath = config().hidden.rxtxdb,
+        },
+        .version = from(api::NodeVersionPlaceholder {}),
         .uptime = { .since = make_timepoint(sinceTimestamp), .seconds = uint32_t(uptimeSeconds), .formatted = uptimeStr }
     };
 }

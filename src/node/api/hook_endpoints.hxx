@@ -460,6 +460,7 @@ public:
     {
         using namespace chainserver;
         using namespace market_history;
+        GET_PUB<"/version">(get_node_version);
         SECTION("Transaction Endpoints");
         POST_PUB<"/transaction/add">(parse_transaction_create, api_call<PutMempool>);
         GET_PUB<"/transaction/mempool">(api_call<GetMempool>);
@@ -525,7 +526,7 @@ public:
         GET_PUB<"/tools/encode16bit/from_e8/:feeE8">(get_round16bit_e8);
         GET_PUB<"/tools/encode16bit/from_string/:string">(get_round16bit_funds);
         GET_PUB<"/tools/parse_price/:price/:decimals">(parse_price);
-        GET_PUB<"/tools/info">(get_info);
+        GET_PRIV<"/tools/info">(get_info);
         GET_PRIV<"/tools/wallet/new">(get_wallet_new);
         GET_PUB<"/tools/wallet/from_privkey/:privkey">(get_wallet_from_privkey);
         GET_PUB<"/tools/janushash_number/:headerhex">(get_janushash_number);

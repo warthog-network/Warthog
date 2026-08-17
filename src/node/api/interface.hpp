@@ -61,6 +61,7 @@ void set_minfee(uint64_t fee, MempoolConstraintCb cb);
 void get_round16bit_e8(uint64_t e8, RoundCb cb);
 void get_round16bit_funds(Wart w, RoundCb cb);
 void get_info(InfoCb cb);
+void get_node_version(NodeVersionCb cb);
 void get_wallet_new(WalletCb cb);
 void get_wallet_from_privkey(const PrivKey& pk, WalletCb cb);
 void get_janushash_number(std::string_view, ResultCb<api::JanushashNumber> cb);

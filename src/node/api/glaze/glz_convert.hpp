@@ -44,6 +44,7 @@ OffenseEntry from(const api::OffenseEntry&);
 RoundedFeeResult from(const api::Round16Bit&);
 RollbackResult from(const api::Rollback&);
 std::vector<std::pair<std::string, size_t>> from(const api::IPCounter&);
+NodeVersion from(const api::NodeVersionPlaceholder&);
 NodeInfoResult from(const api::NodeInfo&);
 Candle from(const api::Candle&);
 Trade from(const api::Trade&);

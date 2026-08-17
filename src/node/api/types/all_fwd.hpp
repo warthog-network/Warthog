@@ -68,6 +68,7 @@ struct Token;
 struct Wallet;
 struct DBSize;
 struct NodeInfo;
+struct NodeVersionPlaceholder{}; // Type to be populated with real version info in api::glaze::NodeVersion
 struct IPCounter;
 struct ThrottleState;
 struct ThrottledPeer;

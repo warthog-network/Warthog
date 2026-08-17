@@ -851,10 +851,14 @@ struct NodeInfoResult {
             static constexpr const char* name = "Uptime";
         };
     };
-    size_t dbSize;
-    std::string chainDBPath;
-    std::string peersDBPath;
-    std::string rxtxDBPath;
+    struct DB {
+        struct Chain {
+            size_t size;
+            std::string path;
+        } chain;
+        std::string peersPath;
+        std::string rxtxPath;
+    } db;
     NodeVersion version;
     Uptime uptime;
     struct glaze {
