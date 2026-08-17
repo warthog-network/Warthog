@@ -49,9 +49,9 @@ APIReply IndexGenerator::result(bool isPublic) const
 
 void HTTPEndpoint::reply(uWS::HttpResponse<false>* res, const APIReply& r)
 {
-    res->writeHeader("Access-Control-Allow-Origin", "*");
+    res->writeHeader("access-control-allow-origin", "*");
     std::string contentType { r.content_type() };
-    res->writeHeader("Content-type", contentType);
+    res->writeHeader("content-type", contentType);
     res->end(r.raw(), true);
 }
 
