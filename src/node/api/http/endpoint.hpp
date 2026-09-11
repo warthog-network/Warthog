@@ -76,6 +76,7 @@ private:
     void on_event(event_t&& e);
 
     void reply_pending(uWS::HttpResponse<false>* res, const APIReply& r);
+    static void write_cors_headers(uWS::HttpResponse<false>* res);
     static void reply(uWS::HttpResponse<false>* res, const APIReply& r);
 
     //////////////////////////////

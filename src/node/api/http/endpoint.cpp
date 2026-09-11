@@ -6,18 +6,19 @@
 #include "libusockets.h"
 using namespace std::placeholders;
 
-void IndexGenerator::on_method(std::string_view method, std::string_view s, std::string_view schemaName){
+void IndexGenerator::on_method(std::string_view method, std::string_view s, std::string_view schemaName)
+{
     auto es { html_escape(schemaName) };
     // inner += "            <li>GET <a href=" + s + ">" + s + "</a> -> " + html_escape(schemaName) + "</li>";
     inner += std::format("            <li>{} <a href=\"{}\">{}</a> -> <a href=\"{}#{}\">{}</a></li>", method, s, s, HTML_SCHEMAS_URL.to_string(), es, es);
 }
 void IndexGenerator::get(std::string_view s, std::string_view schemaName)
 {
-    on_method("GET",s,schemaName);
+    on_method("GET", s, schemaName);
 }
 void IndexGenerator::post(std::string_view s, std::string_view schemaName)
 {
-    on_method("POST",s,schemaName);
+    on_method("POST", s, schemaName);
 }
 void IndexGenerator::section(std::string s)
 {
@@ -47,11 +48,20 @@ APIReply IndexGenerator::result(bool isPublic) const
 </html>)HTML");
 }
 
+void HTTPEndpoint::write_cors_headers(uWS::HttpResponse<false>* res)
+{
+    res->writeHeader("cross-origin-embedder-policy", "require-corp");
+    res->writeHeader("cross-origin-opener-policy", "same-origin");
+    res->writeHeader("access-control-allow-origin", "*");
+    res->writeHeader("access-control-allow-methods", "GET, POST, OPTIONS");
+    res->writeHeader("access-control-allow-headers", "Content-Type, Authorization, X-Requested-With");
+    res->writeHeader("access-control-max-age", "86400");
+}
+
 void HTTPEndpoint::reply(uWS::HttpResponse<false>* res, const APIReply& r)
 {
-    res->writeHeader("access-control-allow-origin", "*");
-    std::string contentType { r.content_type() };
-    res->writeHeader("content-type", contentType);
+    write_cors_headers(res);
+    res->writeHeader("content-type", r.content_type());
     res->end(r.raw(), true);
 }
 
@@ -91,6 +101,11 @@ void HTTPEndpoint::work()
 #include "./guifiles.cpp"
 
     hook_endpoints(*this);
+    app.options("/*", [](uWS::HttpResponse<false>* res, uWS::HttpRequest*) {
+        write_cors_headers(res);
+        res->writeStatus("204 No Content");
+        res->end();
+    });
     app.ws<int>("/ws/chain_delta", { .open { [](auto* ws) {
             ws->subscribe(api::Block::eventName);
             ws->subscribe(api::Rollback::eventName); } } });
